@@ -1,0 +1,21 @@
+# 本机凭据
+secrets/
+.env
+.env.*
+
+# 参考素材：体积大或版权不属于本项目，只留在本机
+videos/
+music/
+references/pv-frames/
+references/hackathon official/
+
+# 依赖与构建产物（开赛后）
+node_modules/
+out/
+dist/
+release/
+
+# 运行数据与私人存档
+*.lca-save
+*.sqlite
+*.db
