@@ -9,6 +9,9 @@ music/
 references/pv-frames/
 references/hackathon official/
 
+# 私人素材：用户的原角色卡（含私人信息），只留在本机
+/ReLU.zip
+
 # 依赖与构建产物（开赛后）
 node_modules/
 out/
