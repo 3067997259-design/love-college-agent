@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 1. [README.md](README.md)：产品定位、当前状态、已确认决策和待决事项的唯一入口。
 2. [AGENT.md](AGENT.md)：协作与开发约定（决策口径、参考项目边界、记忆归属、验证分级）。本文件不重复其内容，冲突时以 AGENT.md 和用户最新指示为准。
-3. 与当前任务相关的 `docs/`。涉及视频时必须先读 [docs/pv-creative-script.md](docs/pv-creative-script.md)，逐镜时长与配乐对位见 [docs/storyboard.md](docs/storyboard.md)；涉及画面、角色形象或道具时先读 [docs/art-spec.md](docs/art-spec.md)，其中的借鉴分界对视频和界面都适用。
+3. 与当前任务相关的 `docs/`。涉及视频时必须先读 [docs/pv-creative-script.md](docs/pv-creative-script.md)，逐镜时长与配乐对位见 [docs/storyboard.md](docs/storyboard.md)；涉及画面、角色形象或道具时先读 [docs/art-spec.md](docs/art-spec.md)，其中的借鉴分界对视频和界面都适用。开赛后先看 [docs/kickoff.md](docs/kickoff.md) 的时间点与规矩。
 
 项目文档使用中文；代码标识和技术术语按工程惯例。
 
