@@ -245,7 +245,7 @@
   - 产品用到的立绘、差分等图片随代码提交，单个文件不超过 50 MB。片子的工程文件和成片体积大，不进仓库；保留 NovelAI、GPT Image 等工具里带时间的生成记录，作为画面在赛中制作的证据。
   - 提交里的作者邮箱是 git 配置里的邮箱，有仓库权限的人都看得到；公开前可改用 GitHub 的 noreply 邮箱提交。
 - 开赛前在最后一个提交上打 `pre-event` 标签：标签之前只有文字，之后才有图和代码。git 的提交时间可以改，推到远端后有服务器记录的时间，更有说服力。
-- 开赛时在仓库根目录加 `opencode.json`，用 `instructions` 引入 `AGENT.md`。opencode 在没有 `AGENTS.md` 时只读取 `CLAUDE.md`，不会自动读取 `AGENT.md`（单数）（[opencode 规则文档](https://opencode.ai/docs/rules/)）。
+- 仓库根目录的 `AGENTS.md`（协作与开发约定）会被 opencode 自动加载，不需要再加 `opencode.json`；2026-10-12 由原 `AGENT.md` 并入，只维护这一份。`CLAUDE.md` 只给 Claude Code 做转交（[opencode 说明文档](https://opencode.ai/v2/docs/instructions/)）。
 
 ## 8. 队友上手参考
 

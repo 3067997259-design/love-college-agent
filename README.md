@@ -12,7 +12,7 @@
 
 参考项目中的实现、测试和运行记录，均不代表本项目已经实现或通过验收。
 
-- [AGENT.md](AGENT.md)：后续协作与开发约定。
+- [AGENTS.md](AGENTS.md)：协作与开发约定，也是 AI 工具的入口说明（OpenCode 自动加载；Claude Code 经 [CLAUDE.md](CLAUDE.md) 转交）。
 - [技术方案](docs/tech-design.md)：技术栈、harness 与日志、番茄钟、记忆、数据模型、备份恢复、首版范围、赛中排期与工程规范。
 - [体验设计](docs/experience-design.md)：书本式主界面、状态与画面、差分与语音、迷你陪伴窗、设置页与角色包导入。
 - [美术规格](docs/art-spec.md)：借鉴的分界、风格配方、桃子的外观方向、道具与界面风格。
