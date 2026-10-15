@@ -87,7 +87,7 @@
 
 ## 7. 证据
 
-- [汇总](/D:/lca-preflight-lab/optical-memory-20261014/recall-screen-20261014/run-01/summary.json)、[逐项评分](/D:/lca-preflight-lab/optical-memory-20261014/recall-screen-20261014/run-01/scoring.json)、[可见回答与候选审阅稿](/D:/lca-preflight-lab/optical-memory-20261014/recall-screen-20261014/run-01/human-audit.txt)。
-- [方案与材料目录](/D:/lca-preflight-lab/optical-memory-20261014/recall-screen-20261014/protocol.json)：包含固定材料、答案表、SHA-256、两次修订、提示词、所有请求与可见响应。响应不导出内部推理字段。
-- [完整小筛证据包](/D:/lca-preflight-lab/optical-memory-20261014/recall-screen-evidence-20261014.zip)：**277,253 字节，127 个条目**；含独立脚本，未含通道配置或密钥。SHA-256：**aa7254dfb0723c6f63a5d02cf9d67784a8ad19cbe5600124f04d2b653e5fe9d3**。已验 ZIP CRC 与固定文件哈希。
+- 汇总（`D:/lca-preflight-lab/optical-memory-20261014/recall-screen-20261014/run-01/summary.json`）、逐项评分（`D:/lca-preflight-lab/optical-memory-20261014/recall-screen-20261014/run-01/scoring.json`）、可见回答与候选审阅稿（`D:/lca-preflight-lab/optical-memory-20261014/recall-screen-20261014/run-01/human-audit.txt`）。
+- 方案与材料目录（`D:/lca-preflight-lab/optical-memory-20261014/recall-screen-20261014/protocol.json`）：包含固定材料、答案表、SHA-256、两次修订、提示词、所有请求与可见响应。响应不导出内部推理字段。
+- 完整小筛证据包（`D:/lca-preflight-lab/optical-memory-20261014/recall-screen-evidence-20261014.zip`）：**277,253 字节，127 个条目**；含独立脚本，未含通道配置或密钥。SHA-256：**aa7254dfb0723c6f63a5d02cf9d67784a8ad19cbe5600124f04d2b653e5fe9d3**。已验 ZIP CRC 与固定文件哈希。
 - 本轮没有操作云实例生命周期；云端环境是否继续保留／关闭由用户另行决定。

@@ -1,6 +1,6 @@
 # mcpfabric 调研：双客户端展位接入
 
-日期：2026-10-13。用户已明确互动用于展位／Demo 集市。来源：`D:/mcpfabric`，HEAD `6c390a674b8e5adb1dced481f1d0fea4cfc61a3c` 加本轮读取时的工作区；另读 AIRI game-host 的相关编排。状态：源码调查与接入建议；未启动 Minecraft、MCP server、构建或操纵现有实例。
+日期：2026-10-13。用户已明确互动用于展位／Demo 集市。来源：`D:/mcpfabric`，HEAD `6c390a674b8e5adb1dced481f1d0fea4cfc61a3c` 加本轮读取时的工作区；另读 AIRI game-host 的相关编排。状态：源码调查与接入建议；未启动 Minecraft、MCP server、构建或操纵现有实例。文中 LCA 指本项目 Love, College & Agent。
 
 ## 1. 能接入，但需要区分三层
 
@@ -10,7 +10,7 @@ Node 层把 tools.ts 的工具名、输入 schema 与 RPC method 注册成 MCP�
 
 本轮 tools.ts 有 **96 个具名工具条目**，README 的“50+”滞后。Node 启动时把整份清单全部注册，不根据当前服务器／客户端 capability 自动裁剪；MCP 已连接或 listTools 成功不代表游戏已进入世界，也不代表每条工具可用。先查 get_status 与 list_capabilities，再用 get_self 核对她的玩家。
 
-来源：[工具清单](/D:/mcpfabric/mcp-server/src/tools.ts:60)、[注册与结果](/D:/mcpfabric/mcp-server/src/index.ts:30)、[实际能力状态](/D:/mcpfabric/src/main/java/dev/mcpfabric/handlers/InfoHandlers.java:17)。
+来源：工具清单（`D:/mcpfabric/mcp-server/src/tools.ts:60`）、注册与结果（`D:/mcpfabric/mcp-server/src/index.ts:30`）、实际能力状态（`D:/mcpfabric/src/main/java/dev/mcpfabric/handlers/InfoHandlers.java:17`）。
 
 ## 2. 两个玩家，只有她的客户端接受控制
 
@@ -30,7 +30,7 @@ Node 层把 tools.ts 的工具名、输入 schema 与 RPC method 注册成 MCP�
 
 MCP port 与 Minecraft LAN 游戏端口是不同用途。学生通过游戏端口加入，不需要访问 MCP／控制桥。
 
-来源：[客户端注册](/D:/mcpfabric/src/client/java/dev/mcpfabric/client/McpFabricClient.java:36)、[bridge 配置](/D:/mcpfabric/src/main/java/dev/mcpfabric/config/McpConfig.java:23)、[server 数据限制](/D:/mcpfabric/src/main/java/dev/mcpfabric/handlers/EntityHandlers.java:204)。
+来源：客户端注册（`D:/mcpfabric/src/client/java/dev/mcpfabric/client/McpFabricClient.java:36`）、bridge 配置（`D:/mcpfabric/src/main/java/dev/mcpfabric/config/McpConfig.java:23`）、server 数据限制（`D:/mcpfabric/src/main/java/dev/mcpfabric/handlers/EntityHandlers.java:204`）。
 
 ## 3. 通用 MCP 客户端必须兑现的契约
 
@@ -46,7 +46,7 @@ MCP port 与 Minecraft LAN 游戏端口是不同用途。学生通过游戏端�
 
 stdio 配置形状可参考 examples/mcp.json。用于我们应用时将 args 换成 `D:/mcpfabric/mcp-server/dist/index.js`，URL 指向她的 bridge；token 由设置页私下录入。README 例子里“从 log 复制 token”的字样滞后，源码将 token 存在游戏 config 文件，避免在日志打印。
 
-来源：[环境配置](/D:/mcpfabric/mcp-server/src/config.ts:32)、[HTTP transport](/D:/mcpfabric/mcp-server/src/index.ts:126)、[bridge 调用](/D:/mcpfabric/mcp-server/src/bridge.ts:61)、[token 来源](/D:/mcpfabric/src/main/java/dev/mcpfabric/config/McpConfig.java:13)。
+来源：环境配置（`D:/mcpfabric/mcp-server/src/config.ts:32`）、HTTP transport（`D:/mcpfabric/mcp-server/src/index.ts:126`）、bridge 调用（`D:/mcpfabric/mcp-server/src/bridge.ts:61`）、token 来源（`D:/mcpfabric/src/main/java/dev/mcpfabric/config/McpConfig.java:13`）。
 
 ## 4. 可以直接用的能力与不能混淆的能力
 
@@ -66,7 +66,7 @@ stdio 配置形状可参考 examples/mcp.json。用于我们应用时将 args �
 
 已定规则仍是对外写入需要批准；“启用 MCP server”只授权启动连接，不自动授权任意游戏副作用。赛中要把本次接受的游戏任务及动作范围接进既定审批机制，不能为节目效果自行绕过。
 
-来源：[导航 schema](/D:/mcpfabric/mcp-server/src/tools.ts:1036)、[聊天 schema](/D:/mcpfabric/mcp-server/src/tools.ts:335)、[导航实现](/D:/mcpfabric/src/client/java/dev/mcpfabric/client/handlers/NavHandlers.java:24)、[AIRI 高层动作](/D:/airi/apps/stage-tamagotchi/src/main/services/airi/game-host/index.ts:449)。
+来源：导航 schema（`D:/mcpfabric/mcp-server/src/tools.ts:1036`）、聊天 schema（`D:/mcpfabric/mcp-server/src/tools.ts:335`）、导航实现（`D:/mcpfabric/src/client/java/dev/mcpfabric/client/handlers/NavHandlers.java:24`）、AIRI 高层动作（`D:/airi/apps/stage-tamagotchi/src/main/services/airi/game-host/index.ts:449`）。
 
 ## 5. 长动作、停止与自动交流
 
@@ -80,7 +80,7 @@ ControlOwnership 支持 controlSessionId 与递增 sequence；撤销后的同一
 
 poll_events 用 sinceId 水位、类型过滤和小批量；去重后再形成 inbox 事件。游戏忙时不会每个 tick 调模型，学生没有新消息也不定时寒暄。世界切换／重连时水位与执行代次一并重建，旧世界事件只当历史。启动 Node MCP 连接本身不会提供这套循环。
 
-来源：[输入所有权](/D:/mcpfabric/src/client/java/dev/mcpfabric/client/ControlOwnership.java:23)、[游戏侧清理](/D:/mcpfabric/src/client/java/dev/mcpfabric/client/ClientControlGuard.java:17)、[事件查询](/D:/mcpfabric/mcp-server/src/tools.ts:1069)。
+来源：输入所有权（`D:/mcpfabric/src/client/java/dev/mcpfabric/client/ControlOwnership.java:23`）、游戏侧清理（`D:/mcpfabric/src/client/java/dev/mcpfabric/client/ClientControlGuard.java:17`）、事件查询（`D:/mcpfabric/mcp-server/src/tools.ts:1069`）。
 
 ## 6. 展位最小场景与验收
 
@@ -108,5 +108,5 @@ AIRI 最新飞行证据实际记录过“源码支持字段，但运行的 dist/
 
 本轮未计算运行 jar 的 hash、未核对正在加载的 jar、未查任何真实 token，也未连接现有服务。这里不是展位 ready 判定。Minecraft 版本、Java、Fabric API、Node 与工具产物应固定成一套后，再做上述双客户端场景。
 
-来源：[版本](/D:/mcpfabric/gradle.properties:29)、[MCP package](/D:/mcpfabric/mcp-server/package.json)、[schema 滞后实例](/D:/airi/docs/fork/evidence/elytra-mpc-live-20261013/README.md:10)。
+来源：版本（`D:/mcpfabric/gradle.properties:29`）、MCP package（`D:/mcpfabric/mcp-server/package.json`）、schema 滞后实例（`D:/airi/docs/fork/evidence/elytra-mpc-live-20261013/README.md:10`）。
 

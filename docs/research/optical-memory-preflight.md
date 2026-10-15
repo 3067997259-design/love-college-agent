@@ -21,7 +21,7 @@
 | 遗忘体验先导 | 另做 12 次解码与 46 次主模型请求，含原文／摘要／无历史／混合候选和同字形方页控制；局部保留主线，误读和版式混淆尚未解决，未验证稳定年龄曲线 |
 | 方页回忆复查 | 再补 12 次主模型请求，无新增 GPU；主线保留改善，七项细节较清晰三档 6 对 1 错，Tiny 3 对 2 错并有颜色缺失／归属不清；建议赛前扩样收口 |
 
-测试材料位于独立目录 [D:/lca-preflight-lab/optical-memory-20261014](/D:/lca-preflight-lab/optical-memory-20261014)。[上传包](/D:/lca-preflight-lab/optical-memory-20261014/optical-preflight.zip) 为 1,265,414 字节，SHA-256：D86ACB5D30B284AF936A9ED49568D60F7011DD1460D994CB18110F1DA9DAC125。
+测试材料位于独立目录 `D:/lca-preflight-lab/optical-memory-20261014`。上传包（`D:/lca-preflight-lab/optical-memory-20261014/optical-preflight.zip`）为 1,265,414 字节，SHA-256：D86ACB5D30B284AF936A9ED49568D60F7011DD1460D994CB18110F1DA9DAC125。
 
 本轮 C 盘一度只剩约 5.5 MiB，导致首次写入／打包失败。新建测试材料已迁到 D 盘并重验；没有清理其他文件，也没有在本机下载模型权重。临时故障不作为测试结果。
 
@@ -82,7 +82,7 @@
 | 候选主模型／备用通道 | 流式、工具回传、首字、长上下文、缓存与计费 | 已有 Gemini 历史测通；候选通道未形成新证据 |
 | 163 IMAP | 指定文件夹连通及 Unsafe Login 行为 | 清单仍待核对；不读取私人邮件来试 |
 
-本轮通过用户提供的 SSH 连接现有实例，以后台脚本、超时、退出码和逐条结果保留执行证据；CLI API 未配置。GPU 测试进程和本机 SSH 控制进程均已结束，实例仍运行，环境与权重保留。后续创建、计费时长和实例处置依据用户授权；本轮助手未创建云资源。CompShare 提供实例 SSH、cp 和 durable job；远程等待超时不代表任务已停止，先查询状态再决定重试。Jupyter／文件管理作为备用入口。
+本轮通过用户提供的 SSH 连接现有实例，以后台脚本、超时、退出码和逐条结果保留执行证据；CLI API 未配置。GPU 测试进程和本机 SSH 控制进程均已结束，实例当时仍运行，环境与权重保留（2026-10-15 用户确认已关机）。后续创建、计费时长和实例处置依据用户授权；本轮助手未创建云资源。CompShare 提供实例 SSH、cp 和 durable job；远程等待超时不代表任务已停止，先查询状态再决定重试。Jupyter／文件管理作为备用入口。
 
-来源：[CompShare 官方 CLI](https://github.com/compshare-cn/compshare-cli)、[本机安装的技能](/C:/Users/86130/.codex/skills/compshare-cli/SKILL.md)。
+来源：[CompShare 官方 CLI](https://github.com/compshare-cn/compshare-cli)、本机安装的技能（`C:/Users/86130/.codex/skills/compshare-cli/SKILL.md`）。
 

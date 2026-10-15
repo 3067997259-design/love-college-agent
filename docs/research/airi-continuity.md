@@ -1,6 +1,6 @@
 # AIRI 本地 fork 调研：连续性、证据与恢复
 
-日期：2026-10-13。来源：`D:/airi`，HEAD `b747e8b2b0503b5c9636ad7f432dde1d1592e09c` 加本轮读取的工作区。状态：设计、源码与测试断言审读；没有启动 AIRI、读取私人数据库、调用模型或重跑测试。game-host 等文件存在其他工作留下的未提交修改，不能用 HEAD 链接代替当前工作区证据。
+日期：2026-10-13。来源：`D:/airi`，HEAD `b747e8b2b0503b5c9636ad7f432dde1d1592e09c` 加本轮读取的工作区。状态：设计、源码与测试断言审读；没有启动 AIRI、读取私人数据库、调用模型或重跑测试。game-host 等文件存在其他工作留下的未提交修改，不能用 HEAD 链接代替当前工作区证据。文中 LCA 指本项目 Love, College & Agent。
 
 ## 1. 真正值得参考的部分
 
@@ -8,7 +8,7 @@
 
 早期设计文档是历史起点。MEMORY-DESIGN 的“零调用方”“尚未接线”等勘探结论不能描述今天的源码：当前 `chat.ts` 已注入 memory.retrieve、compaction，并在普通对话完成和 Flow 完成后调用 captureTurn。
 
-来源：[设计原则](/D:/airi/docs/fork/DESIGN-PRINCIPLES.md)、[当前接线](/D:/airi/packages/stage-ui/src/stores/chat.ts:822)。
+来源：设计原则（`D:/airi/docs/fork/DESIGN-PRINCIPLES.md`）、当前接线（`D:/airi/packages/stage-ui/src/stores/chat.ts:822`）。
 
 ## 2. 持续执行：推进、完成和呈现分开
 
@@ -24,7 +24,7 @@
 
 任务归属按事件上的 taskId 等印记，不能靠时间区间猜；deriveTaskRuns 也有活动条数和文本长度上限。新项目应从第一天让任务、工具调用和证据有稳定 id，不在聊天界面堆无限日志。
 
-来源：[推进入口](/D:/airi/packages/core-agent/src/runtime/chat-orchestrator-runtime.ts:3329)、[完整步边界](/D:/airi/packages/core-agent/src/runtime/chat-orchestrator-runtime.ts:2853)、[完成裁决](/D:/airi/packages/core-agent/src/planning/flow-completion.ts:1)、[任务投影](/D:/airi/packages/core-agent/src/journal/task-run.ts:98)。
+来源：推进入口（`D:/airi/packages/core-agent/src/runtime/chat-orchestrator-runtime.ts:3329`）、完整步边界（`D:/airi/packages/core-agent/src/runtime/chat-orchestrator-runtime.ts:2853`）、完成裁决（`D:/airi/packages/core-agent/src/planning/flow-completion.ts:1`）、任务投影（`D:/airi/packages/core-agent/src/journal/task-run.ts:98`）。
 
 ## 3. 记忆：来源、作用域与检索效果
 
@@ -40,7 +40,7 @@
 
 LCA 也已定用中文两字片段检索，首版不需要继承 AIRI 的 embedding、DuckDB／OPFS、云同步和向量迁移栈。我们参考的是来源、作用域、修订与效果验收；存储仍按本项目 SQLite 方案。
 
-来源：[memory store](/D:/airi/packages/stage-ui/src/stores/modules/memory.ts:574)、[抽取接线](/D:/airi/packages/stage-ui/src/stores/chat.ts:1282)、[持久查询](/D:/airi/packages/stage-ui/src/services/memory/local-memory.ts:347)、[访问与晋升](/D:/airi/packages/stage-ui/src/services/memory/local-memory.ts:473)。
+来源：memory store（`D:/airi/packages/stage-ui/src/stores/modules/memory.ts:574`）、抽取接线（`D:/airi/packages/stage-ui/src/stores/chat.ts:1282`）、持久查询（`D:/airi/packages/stage-ui/src/services/memory/local-memory.ts:347`）、访问与晋升（`D:/airi/packages/stage-ui/src/services/memory/local-memory.ts:473`）。
 
 ## 4. 主动交流：考量不是空消息
 
@@ -54,7 +54,7 @@ life-mode 不等于完整世界泡。本轮未发现它能直接满足我们“�
 
 长期目标层另有 wake → 本地状态检查 → 主进程 claim 租约 → 一次有界 Flow → 释放租约的路径，并检查恢复 gate、单 Flow 槽位及环境变化。值得参考的是醒来后重新取得执行权，而不是定时器直接恢复旧动作。首版不搬长目标系统，也不把这条接线视为世界泡验收。
 
-来源：[模式 gate](/D:/airi/packages/stage-ui/src/stores/modules/life-mode.ts:638)、[迟到发言处理](/D:/airi/packages/stage-ui/src/stores/modules/life-mode.ts:770)、[长期目标](/D:/airi/packages/stage-ui/src/stores/modules/long-goals.ts:1)、[测试断言](/D:/airi/packages/stage-ui/src/stores/modules/life-mode.test.ts:89)。
+来源：模式 gate（`D:/airi/packages/stage-ui/src/stores/modules/life-mode.ts:638`）、迟到发言处理（`D:/airi/packages/stage-ui/src/stores/modules/life-mode.ts:770`）、长期目标（`D:/airi/packages/stage-ui/src/stores/modules/long-goals.ts:1`）、测试断言（`D:/airi/packages/stage-ui/src/stores/modules/life-mode.test.ts:89`）。
 
 ## 5. 备份恢复：先核验，再换数据，最后决定副作用
 
@@ -66,7 +66,7 @@ LCA 不必继承 AIRI 的多域同步 outbox，但必须保持同一原则：校
 
 羽毛笔恢复的验收应包括：原始记录仍在；角色与用户归属一致；最后一次真实工作、礼物、日记和带回来的东西可查；导出到恢复之间没有虚构新经历；需要重新配置的凭据被明确提示。让模型复述一段摘要仅能证明该摘要进入上下文，不能单独证明完整存档正确。
 
-来源：[备份 owner 汇集](/D:/airi/packages/stage-ui/src/stores/data-backup.ts:45)、[manifest 与校验](/D:/airi/packages/stage-ui/src/services/data-backup.ts:1)、[副作用 gate](/D:/airi/packages/stage-ui/src/services/restore-gate.ts:1)。
+来源：备份 owner 汇集（`D:/airi/packages/stage-ui/src/stores/data-backup.ts:45`）、manifest 与校验（`D:/airi/packages/stage-ui/src/services/data-backup.ts:1`）、副作用 gate（`D:/airi/packages/stage-ui/src/services/restore-gate.ts:1`）。
 
 ## 6. 立绘与 MCP 的边界
 
@@ -76,7 +76,7 @@ AIRI 的 Minecraft 主路径是 game_* → Eventa → Electron game-host → mcp
 
 通用 MCP 层还有值得直接学习的边界：模型可见名与 server 的原始工具名分开映射；工具名非法字符、长度和碰撞由代码处理；调用参数保持 JSON 对象，不再编码成一层 JSON 字符串。跨 IPC 的取消用 requestId 关联，再由主进程转给 MCP。源码中“工具不可用”的 fallback 是显式错误，不能继续给模型留下可成功调用的假象。新实现沿用这些原则，名称约定仍由自己的客户端统一决定。
 
-来源：[Tachie](/D:/airi/packages/stage-ui-tachie/README.md)、[game-host](/D:/airi/apps/stage-tamagotchi/src/main/services/airi/game-host/index.ts:449)、[MCP 名称与对象参数](/D:/airi/packages/stage-ui/src/tools/mcp.ts:179)、[MCP 取消契约](/D:/airi/packages/stage-ui/src/tools/mcp.ts:37)。
+来源：Tachie（`D:/airi/packages/stage-ui-tachie/README.md`）、game-host（`D:/airi/apps/stage-tamagotchi/src/main/services/airi/game-host/index.ts:449`）、MCP 名称与对象参数（`D:/airi/packages/stage-ui/src/tools/mcp.ts:179`）、MCP 取消契约（`D:/airi/packages/stage-ui/src/tools/mcp.ts:37`）。
 
 ## 7. 赛中先验证哪些场景
 
@@ -91,5 +91,5 @@ AIRI 的 Minecraft 主路径是 game_* → Eventa → Electron game-host → mcp
 | 导入存档后重启 | 数据和投影一致，旧外部任务与通知不自动执行 |
 | 损坏／越界存档 | 恢复失败，原数据仍可用 |
 
-本轮只读测试断言，包括 flow-completion、life-mode、data-backup 与 restore-gate；历史运行记录与本轮源码调查分开。本地最新鞘翅 [证据首页](/D:/airi/docs/fork/evidence/elytra-mpc-live-20261013/README.md:3) 仍记录 M7 未通过，不能把局部通过推广为展位稳定性。
+本轮只读测试断言，包括 flow-completion、life-mode、data-backup 与 restore-gate；历史运行记录与本轮源码调查分开。本地最新鞘翅 证据首页（`D:/airi/docs/fork/evidence/elytra-mpc-live-20261013/README.md:3`）仍记录 M7 未通过，不能把局部通过推广为展位稳定性。
 

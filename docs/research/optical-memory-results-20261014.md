@@ -98,10 +98,10 @@ Base 的三组各复测三次，组内解码文本完全一致：对话约 3.04�
 
 - 独立测试目录：`D:/lca-preflight-lab/optical-memory-20261014`；源图、原文、manifest、运行脚本和本地分析均保留。
 - 云端目录：`/root/optical-preflight-20261014`；独立环境在 `venv/`，固定权重在 `hf-cache/`，调用该环境的 `venv/bin/python`。非交互 SSH 不依赖平台自动激活的 Python。
-- [完整云端证据包](/D:/lca-preflight-lab/optical-memory-20261014/cloud-evidence.zip)：80,102 字节，115 个条目；75 条结果、完整解码、环境、依赖与执行日志。SHA-256：**0dd617b2ecb9ac06e20a393059525a4adb54924de32cceedf0535cc3a5cb8071**。下载后重验 SHA-256、ZIP CRC 和解压路径包含关系。
-- [本地分析](/D:/lca-preflight-lab/optical-memory-20261014/analysis.json)、[格式诊断](/D:/lca-preflight-lab/optical-memory-20261014/format-diagnostic.json)；原始结果不改写。
+- 完整云端证据包（`D:/lca-preflight-lab/optical-memory-20261014/cloud-evidence.zip`）：80,102 字节，115 个条目；75 条结果、完整解码、环境、依赖与执行日志。SHA-256：**0dd617b2ecb9ac06e20a393059525a4adb54924de32cceedf0535cc3a5cb8071**。下载后重验 SHA-256、ZIP CRC 和解压路径包含关系。
+- 本地分析（`D:/lca-preflight-lab/optical-memory-20261014/analysis.json`）、格式诊断（`D:/lca-preflight-lab/optical-memory-20261014/format-diagnostic.json`）；原始结果不改写。
 - [准备与阶段清单](optical-memory-preflight.md)：其他技术待测与服务阶段入口。
 
 安装期间遇到 HF／GitHub 下载超时，改用校验过的镜像权重和本机转传的官方 flash-attn 预编译包。SSH 中途断开，后台任务和结果保留；最终的任务退出码、结果数量与输出共同核验。安装及调度失败日志保留，未算成 GPU 质量结果。
 
-收尾时 GPU 测试进程已结束，SSH 控制进程已关闭；**云实例仍在运行并保留环境与权重**，实例生命周期未通过 CLI API 操作。测试使用的认证信息没有写入项目或证据包。
+收尾时 GPU 测试进程已结束，SSH 控制进程已关闭；**云实例仍在运行并保留环境与权重**，实例生命周期未通过 CLI API 操作。测试使用的认证信息没有写入项目或证据包。2026-10-15 用户确认：实例已关机。

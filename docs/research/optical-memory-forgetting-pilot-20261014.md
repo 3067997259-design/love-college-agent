@@ -100,9 +100,9 @@ CER 是编辑距离除以原文长度；编造出很长的内容时可以超过 
 
 ## 8. 证据与复现边界
 
-独立目录：[完整试验材料](/D:/lca-preflight-lab/optical-memory-20261014/forgetting-pilot-20261014)。其中包含冻结协议、真值与哈希、原图、完整请求／回答、语义评分、用户偏好、排版控制、所有解码和退出码。核心业务代码没有进入本仓库。
+独立目录：完整试验材料（`D:/lca-preflight-lab/optical-memory-20261014/forgetting-pilot-20261014`）。其中包含冻结协议、真值与哈希、原图、完整请求／回答、语义评分、用户偏好、排版控制、所有解码和退出码。核心业务代码没有进入本仓库。
 
-- [完整证据包](/D:/lca-preflight-lab/optical-memory-20261014/forgetting-pilot-evidence-20261014.zip)：2,434,325 字节、171 项，SHA-256 `ae409ba3eae402a74db299d4d30dc83330fe0aead128c5f0552af946cffc5731`；含各文件哈希，CRC 与成员哈希通过，配置中的实际认证密钥匹配数为 0。
+- 完整证据包（`D:/lca-preflight-lab/optical-memory-20261014/forgetting-pilot-evidence-20261014.zip`）：2,434,325 字节、171 项，SHA-256 `ae409ba3eae402a74db299d4d30dc83330fe0aead128c5f0552af946cffc5731`；含各文件哈希，CRC 与成员哈希通过，配置中的实际认证密钥匹配数为 0。
 - GPU1 回收包：25,578 字节，SHA-256 `b187ec569450155e9d464419065889242273555c8ee70a04d5458a566554d483`。
 - 方页回收包：542,918 字节，SHA-256 `ddb98c5dfb5af31938558fc861c966b50d2b528c5447743d884dff6ef386f3b9`。
 - OCR 固定 revision `9f30c71f441d010e5429c532364a86705536c53a`；同一 Torch 2.6.0+cu118、Transformers 4.46.3、BF16／flash-attn 环境，离线用已有缓存。模型源文件哈希与预处理摘录保存在 `layout-source-verification.json`。

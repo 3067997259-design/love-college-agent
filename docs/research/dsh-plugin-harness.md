@@ -1,6 +1,6 @@
 # dsh 调研：插件怎样构成 harness
 
-日期：2026-10-13。源码固定点：`d743267388641bc76f17c45ce8b4c231aed1d32c`，研究路径 `D:/deepseek-harness-research-20261013`。状态：源码与测试断言审读，未运行 dsh、安装依赖或调用模型。这里的 LCA 结构均为建议，赛中独立实现。
+日期：2026-10-13。源码固定点：`d743267388641bc76f17c45ce8b4c231aed1d32c`，研究路径 `D:/deepseek-harness-research-20261013`。状态：源码与测试断言审读，未运行 dsh、安装依赖或调用模型。这里的 LCA 结构均为建议，赛中独立实现。文中 LCA 指本项目 Love, College & Agent。
 
 ## 1. “一切皆插件”的准确含义
 
@@ -8,7 +8,7 @@ dsh 的模型适配、工具注册、会话日志、提示组装、agent 身份�
 
 这仍然需要一个能装插件的宿主：Cordis 的 Context、服务注册、依赖和生命周期。可以把业务内核都插件化，但服务装配与生命周期不能凭空消失。“只有插件”描述的是功能归属，不能解释成只写清单、没有执行循环。
 
-来源：[架构](https://github.com/deepseek-ai/deepseek-harness/blob/d743267388641bc76f17c45ce8b4c231aed1d32c/docs/architecture.md)、[AgentLoop 实际依赖](/D:/deepseek-harness-research-20261013/packages/core/agent-loop/src/index.ts:341)。
+来源：[架构](https://github.com/deepseek-ai/deepseek-harness/blob/d743267388641bc76f17c45ce8b4c231aed1d32c/docs/architecture.md)、AgentLoop 实际依赖（`D:/deepseek-harness-research-20261013/packages/core/agent-loop/src/index.ts:341`）。
 
 ## 2. 四种机制足以指导我们的加载器
 
@@ -23,7 +23,7 @@ dsh 的模型适配、工具注册、会话日志、提示组装、agent 身份�
 
 首版建议只开放已经需要的贡献接口：工具、指令、skill、模型用途、配置描述、活动模板、表现声明、地点目录。通用循环钩子仍不对外开放，遵守技术方案 §3.13；调度、权限和投影的扩展先由官方受控模块使用。
 
-来源：[Cordis primer](/D:/deepseek-harness-research-20261013/docs/cordis-primer.md:7)、[事件实现](/D:/deepseek-harness-research-20261013/vendor/cordis/src/events.ts:27)、[生命周期实现](/D:/deepseek-harness-research-20261013/vendor/cordis/src/fiber.ts:181)。
+来源：Cordis primer（`D:/deepseek-harness-research-20261013/docs/cordis-primer.md:7`）、事件实现（`D:/deepseek-harness-research-20261013/vendor/cordis/src/events.ts:27`）、生命周期实现（`D:/deepseek-harness-research-20261013/vendor/cordis/src/fiber.ts:181`）。
 
 ## 3. 我们需要的最小装配关系
 
@@ -60,7 +60,7 @@ dsh 的模型适配、工具注册、会话日志、提示组装、agent 身份�
 
 dsh 的最新 inbox 将 next-turn 与 next-step 分开，并以持久投影保存待处理输入。我们首版可以简化队列形式，但必须定清插话、取消、保留队列和恢复的语义，避免停止后旧任务突然复活。
 
-来源：[循环](/D:/deepseek-harness-research-20261013/packages/core/agent-loop/src/agent.ts:298)、[inbox](/D:/deepseek-harness-research-20261013/packages/core/agent-loop/src/inbox.ts:74)。
+来源：循环（`D:/deepseek-harness-research-20261013/packages/core/agent-loop/src/agent.ts:298`）、inbox（`D:/deepseek-harness-research-20261013/packages/core/agent-loop/src/inbox.ts:74`）。
 
 ## 5. 权限、超时与结果需要执行处保证
 
@@ -72,7 +72,7 @@ dsh 工具管线包含参数校验、pre-execute、审批、单调 guard、实�
 
 dsh 的 repeat-tool-reminder 是提醒插件，默认在 3、5、8 次重复时注入提醒，**不会硬停止**。LCA 已定“相同调用第 3 次停止”，不能把这个参考实现误认为我们要求的守卫。
 
-来源：[单调 guard](/D:/deepseek-harness-research-20261013/packages/core/tools/src/index.ts:1133)、[实际执行入口](/D:/deepseek-harness-research-20261013/packages/core/tools/src/index.ts:1375)、[合作式超时](/D:/deepseek-harness-research-20261013/packages/guard/timeout-policy/src/index.ts:1)、[重复提醒](/D:/deepseek-harness-research-20261013/packages/guard/repeat-tool-reminder/src/index.ts:1)。
+来源：单调 guard（`D:/deepseek-harness-research-20261013/packages/core/tools/src/index.ts:1133`）、实际执行入口（`D:/deepseek-harness-research-20261013/packages/core/tools/src/index.ts:1375`）、合作式超时（`D:/deepseek-harness-research-20261013/packages/guard/timeout-policy/src/index.ts:1`）、重复提醒（`D:/deepseek-harness-research-20261013/packages/guard/repeat-tool-reminder/src/index.ts:1`）。
 
 ## 6. 日志、心流和测试的借鉴
 
@@ -88,13 +88,13 @@ LCA 还需要隐私分层：日志中受保护的原始工具结果，不都具�
 - 超时不能产生后台悬空副作用；停止后的迟到结果不推进旧任务。
 - 通过真实加载器组合插件验证一次完整场景；单独给某个函数传 mock 不足以证明装配正确。
 
-本轮只审读 [cancel 测试](/D:/deepseek-harness-research-20261013/packages/core/agent-loop/tests/cancel.spec.ts)、[请求重建测试](/D:/deepseek-harness-research-20261013/packages/core/agent-loop/tests/request-reconstruction.spec.ts)、[退出刷盘测试](/D:/deepseek-harness-research-20261013/packages/core/agent-loop/tests/shutdown-drain.spec.ts)，没有执行这些测试。
+本轮只审读 cancel 测试（`D:/deepseek-harness-research-20261013/packages/core/agent-loop/tests/cancel.spec.ts`）、请求重建测试（`D:/deepseek-harness-research-20261013/packages/core/agent-loop/tests/request-reconstruction.spec.ts`）、退出刷盘测试（`D:/deepseek-harness-research-20261013/packages/core/agent-loop/tests/shutdown-drain.spec.ts`），没有执行这些测试。
 
 ## 7. 首版取舍
 
 参考依赖、可撤回注册、执行管线、日志投影和组合验收。首版不复刻 Cordis 的全部作用域、隔离 realm、HMR、YAML 表达式、配置叠层、npm 插件管理、PTC、多后端 SDK 和格式迁移体系。我们的函数插件／服务接口赛中独立设计，保持足够小，先让全部官方功能实际经过它。
 
-dsh 的 [sdk-minimal 装配清单](/D:/deepseek-harness-research-20261013/packages/bundle/sdk-minimal/cordis.patch.yml) 很适合查“少了什么服务就不完整”，但它仍包含终端、sandbox 等编码产品选择，不是我们的首版依赖清单。dsh 当前为快速迭代的开发预览，固定 SHA 比追随最新 API 更适合比赛期间查阅。
+dsh 的 sdk-minimal 装配清单（`D:/deepseek-harness-research-20261013/packages/bundle/sdk-minimal/cordis.patch.yml`）很适合查“少了什么服务就不完整”，但它仍包含终端、sandbox 等编码产品选择，不是我们的首版依赖清单。dsh 当前为快速迭代的开发预览，固定 SHA 比追随最新 API 更适合比赛期间查阅。
 
-dsh 的 MCP 插件还把 server instructions 加入已记录的系统提示，这是它的产品选择。LCA 已定外部内容是数据；不能未经审查就把外部 server 自述、资源内容和远端提示升级为系统权威。可以借鉴稳定名称、重连、取消与多种 content block 的处理，而保留自己的信任分层。来源：[MCP 客户端契约](/D:/deepseek-harness-research-20261013/packages/mcp/mcp-client/README.md:1)。
+dsh 的 MCP 插件还把 server instructions 加入已记录的系统提示，这是它的产品选择。LCA 已定外部内容是数据；不能未经审查就把外部 server 自述、资源内容和远端提示升级为系统权威。可以借鉴稳定名称、重连、取消与多种 content block 的处理，而保留自己的信任分层。来源：MCP 客户端契约（`D:/deepseek-harness-research-20261013/packages/mcp/mcp-client/README.md:1`）。
 
