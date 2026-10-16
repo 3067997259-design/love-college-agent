@@ -22,6 +22,7 @@ import { characterNameInput, initialOnboarding, onboardingView, userNameInput } 
 import { giftSpecSchema } from '../gifts/schema'
 import type { GiftService } from '../gifts/service'
 import type { HeartFlowService } from '../heart-flow/service'
+import type { VoiceService } from '../voice/service'
 import type { LifeService } from '../life/service'
 import type { LifeWorkService } from '../life/work/service'
 import type { DiaryService } from '../diary/service'
@@ -39,6 +40,9 @@ import { goalTextSchema, goalStatusSchema } from '../heart-flow/goals'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('voice.set'), enabled: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('voice.stop'), utteranceId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('voice.playback'), utteranceId: z.string().uuid(), status: z.enum(['playing', 'ended', 'failed']) }),
   z.strictObject({ ...envelope, type: z.literal('minecraft.check'), serverId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('minecraft.start'), serverId: z.string().min(1).max(128), expectedPlayerUuid: z.string().uuid(), scope: minecraftScopeSchema }),
   z.strictObject({ ...envelope, type: z.literal('minecraft.stop') }),
@@ -162,6 +166,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let windows: CompanionWindows | undefined
   let gifts: GiftService | undefined
   let heartFlow: HeartFlowService | undefined
+  let voice: VoiceService | undefined
   let life: LifeService | undefined
   let lifeWork: LifeWorkService | undefined
   let diary: DiaryService | undefined
@@ -262,6 +267,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (character) snapshot.characterPack = character.view()
     if (photos) snapshot.history = { ...photos.view(), recall: recall?.view() ?? { status: 'idle' } }
     if (optical) snapshot.opticalMemory = optical.view()
+    if (voice) snapshot.voice = voice.view()
     if (minecraft) {
       snapshot.minecraft = minecraft.view()
       if (minecraft.active() && minecraftChat) { const game = minecraftChat.view(); snapshot.messages = [...game.messages]; snapshot.activities = [...game.activities]; snapshot.task = game.task }
@@ -284,6 +290,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (surface === 'diagnostics' || (command.type === 'window.mini.hover' || command.type === 'window.mini.move' || command.type === 'window.mini.moveBy') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('flow.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('voice.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('room.') || command.type === 'diary.write') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('character.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -299,7 +306,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (minecraft?.active() && !['message.send', 'turn.stop', 'lights.set', 'mode.set', 'mcp.disconnect', 'developer.minecraft'].includes(command.type)
       && !command.type.startsWith('minecraft.') && !command.type.startsWith('window.') && !command.type.startsWith('pomodoro.')) return reject(command.requestId, 'unavailable')
     let ack: CommandAck
-    if (command.type.startsWith('minecraft.') && minecraft) {
+    if (command.type.startsWith('voice.') && voice) {
+      const error = voice.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId)
+    } else if (command.type.startsWith('minecraft.') && minecraft) {
       const error = command.type === 'minecraft.start' && !minecraftChat?.ready() ? 'not-configured' : minecraft.dispatch(command)
       ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (command.type === 'developer.minecraft') {
@@ -414,7 +423,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { const error = mcp.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (command.type === 'message.send' && execution && executionReady && !snapshot.companion.lightsOut) {
-      try { heartFlow?.interruptDraft(); execution.send(command.text, command.requestId, signature) }
+      try { voice?.interrupt(); heartFlow?.interruptDraft(); execution.send(command.text, command.requestId, signature) }
       catch { return reject(command.requestId, 'internal') }
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else if (command.type === 'turn.stop' && execution) {
@@ -443,6 +452,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       ack = reject(command.requestId, command.type === 'privacy.set' ? 'privacy-unavailable' : command.type === 'message.send' && execution && !snapshot.companion.lightsOut ? 'not-configured' : 'unavailable')
     }
     minecraft?.stateChanged()
+    voice?.stateChanged()
     requests.set(command.requestId, { signature, ack })
     if (requests.size > 1000) requests.delete(requests.keys().next().value!)
     return structuredClone(ack)
@@ -462,6 +472,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachQuill: (port: QuillService) => { quill = port; publish('connection') },
     attachGifts: (port: GiftService) => { gifts = port; publish('connection') },
     attachHeartFlow: (port: HeartFlowService) => { heartFlow = port; publish('connection') },
+    attachVoice: (port: VoiceService) => { voice = port; publish('connection') },
+    readVoice: (input: unknown) => { if (!voice || backup?.isBusy()) throw new Error('VOICE_UNAVAILABLE'); return voice.read(input) },
     attachLife: (port: LifeService) => { life = port; publish('mode') },
     attachLifeWork: (port: LifeWorkService) => { lifeWork = port },
     attachDiary: (port: DiaryService, roomPort: NonNullable<typeof room>) => { diary = port; room = roomPort; publish('connection') },

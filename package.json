@@ -67,6 +67,7 @@
     "test:characters": "pnpm build && node scripts/smoke-characters.mjs",
     "test:heart-flow": "pnpm build && node scripts/smoke-heart-flow.mjs",
     "test:flow-drafts": "pnpm build && node scripts/smoke-flow-drafts.mjs",
+    "test:voice": "pnpm build && node scripts/smoke-voice.mjs",
     "test:delegates": "pnpm build && node scripts/smoke-delegates.mjs",
     "test:optical": "pnpm build && node scripts/smoke-optical.mjs"
   },

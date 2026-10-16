@@ -248,6 +248,8 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 - 只有在用户要求时才更新跨项目的全局记忆；本工程文档不等于全局记忆。
 # 已实现的心流命令
 
+输出语音：`pnpm test:voice` 验证 PCM／AudioContext、取消、书本白名单与不重播；默认静音，开发模式为合成测试音。真实 `providers.tts` 必须显式指定兼容协议、HTTPS 前缀、模型、音色和密钥，仍待真实服务验收；不把合成音当角色声音。见 [语音记录](docs/engineering/voice-third-circle.md)。
+
 `/init`／`/review` 只在 execute 心流生成用户专用草稿，最多 8 个来源／24 KB 输入；实际读写、来源版本和当前产物匹配后才 ready，不能解释成审查或测试通过。`pnpm test:flow-drafts` 验证原生落盘、预览、取消、重启、存档恢复及正文隔离；不会执行脚本或编辑源文件。
 
 `/goal 一句话` 设置／更新当前工作目标，跨日与跨次心流保留；状态仅用户能改，模型只读。`pnpm probe:heart-flow`／`pnpm test:heart-flow`／`pnpm test:backup` 已覆盖目标的关联、重启、角色隔离与私人恢复，不把用户标记完成当执行证据。

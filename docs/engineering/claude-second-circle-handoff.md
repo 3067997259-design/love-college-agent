@@ -4,6 +4,7 @@
 
 | 接口提交 | 范围 | 实际可接入口 |
 | --- | --- | --- |
+| `c54c2ba` | 输出语音 | snapshot.voice、voice.set/stop/playback、书本 readVoice；主进程取消／预算／PCM 和唯一书本播放器已接。开发模式短测试音；真实供应商／音色待配置。嘴型可依 playback，mini 不重复播放，详见 voice-third-circle.md |
 | `7634e52` | 初始化／审查草稿 | flow.init/review/operation.open、heartFlow.operations；朴素入口已接真实书桌产物，ready 仅代表未审核文件。正文走原生用户预览；8 个来源／24 KB，取消／重启／私人恢复已验收 |
 | `659dd82` | 跨次工作目标 | heartFlow.goals/goalId、flow.goal.set/select/status；朴素目标区已接，跨日／跨次／私人恢复通过。用户标记完成与实际工具完成分开，模型只有只读 get_flow_goals；/goal 文本可在心流外设置 |
 | `1f37779` | 展位游戏轮次 | snapshot.minecraft；minecraft.check/start/stop（确认 observed pilot.uuid 与 scope），window/bridge 不增方法。99bfcbb 已接独立上下文与朴素控制，合成 MCP＋Electron 通过；模型游戏回复暂走书本输入框，画面与语音请 Claude 接；真实双客户端仍待配置 |

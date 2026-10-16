@@ -10,6 +10,7 @@ const bridge: AppBridge = {
   readDiary: (id) => ipcRenderer.invoke(IPC_CHANNELS.diary, id),
   readHeartFlow: (input) => ipcRenderer.invoke(IPC_CHANNELS.heartFlow, input),
   readOpticalMemory: (id) => ipcRenderer.invoke(IPC_CHANNELS.opticalMemory, id),
+  readVoice: (input) => ipcRenderer.invoke(IPC_CHANNELS.voice, input),
   importFiles: async (files, epoch) => {
     try {
       if (files.length < 1 || files.length > 5) throw new Error('FILE_COUNT_INVALID')

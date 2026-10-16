@@ -24,11 +24,12 @@ export function registerAppBridge(controller: ReturnType<typeof createAppControl
   ipcMain.handle(IPC_CHANNELS.diary, (event, id: unknown) => { if (assertTrusted(event) !== 'book') throw new Error('Restricted user read.'); return controller.readDiary(id) })
   ipcMain.handle(IPC_CHANNELS.heartFlow, (event, input: unknown) => { if (assertTrusted(event) !== 'book') throw new Error('Restricted user read.'); return controller.readHeartFlow(input) })
   ipcMain.handle(IPC_CHANNELS.opticalMemory, (event, id: unknown) => { if (assertTrusted(event) !== 'book') throw new Error('Restricted user read.'); return controller.readOpticalMemory(id) })
+  ipcMain.handle(IPC_CHANNELS.voice, (event, input: unknown) => { if (assertTrusted(event) !== 'book') throw new Error('Restricted user read.'); return controller.readVoice(input) })
   const unsubscribe = controller.subscribe((event) => {
     for (const window of windows.keys()) if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.event, event)
   })
   return {
     attach: (window: BrowserWindow, surface: WindowSurface = 'book') => { windows.set(window, surface); window.once('closed', () => windows.delete(window)) },
-    dispose: () => { unsubscribe(); for (const channel of [IPC_CHANNELS.snapshot, IPC_CHANNELS.command, IPC_CHANNELS.evidence, IPC_CHANNELS.files, IPC_CHANNELS.session, IPC_CHANNELS.diagnostics, IPC_CHANNELS.diary, IPC_CHANNELS.heartFlow, IPC_CHANNELS.opticalMemory]) ipcMain.removeHandler(channel); windows.clear() },
+    dispose: () => { unsubscribe(); for (const channel of [IPC_CHANNELS.snapshot, IPC_CHANNELS.command, IPC_CHANNELS.evidence, IPC_CHANNELS.files, IPC_CHANNELS.session, IPC_CHANNELS.diagnostics, IPC_CHANNELS.diary, IPC_CHANNELS.heartFlow, IPC_CHANNELS.opticalMemory, IPC_CHANNELS.voice]) ipcMain.removeHandler(channel); windows.clear() },
   }
 }
