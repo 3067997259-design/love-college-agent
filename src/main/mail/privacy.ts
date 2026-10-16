@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { EvidenceView } from '../../shared'
 import type { Clock } from '../clock'
 import { redactFixed } from '../privacy/redact'
+import { groundedIn } from '../memory/grounding'
 import type { SourceMail } from './types'
 
 const short = (length: number) => z.string().trim().min(1).max(length).refine((text) => [...text].every((char) => char.charCodeAt(0) > 31 && char.charCodeAt(0) !== 127)
@@ -86,6 +87,8 @@ export async function extractMail(mail: SourceMail, model: EmailPrivacyModel | n
     const source = mail.subject + '\n' + mail.body
     const quotes: CheckedMail['quotes'] = []
     if (!source.includes(parsed.titleQuote) || !parsed.titleQuote.includes(parsed.task)) throw new Error('MAIL_TITLE_UNGROUNDED')
+    // "本周不交作业" must not become the task "交作业": the title has to be entailed, not merely contained.
+    if (!groundedIn(source, parsed.titleQuote).entailed) throw new Error('MAIL_TITLE_UNGROUNDED')
     quotes.push({ field: 'title', text: parsed.task })
     const checkedDate = (value: z.infer<typeof date> | undefined | null, field: 'deadlineIso' | 'eventStartIso' | 'eventEndIso') => {
       if (!value) return undefined
