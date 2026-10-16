@@ -14,6 +14,8 @@ export default defineConfig({
   renderer: {
     resolve: { alias: { '@renderer': resolve('src/renderer/src') } },
     plugins: [react()],
+    // Keep small font subsets as files; renderer CSP intentionally does not allow data: fonts.
+    build: { assetsInlineLimit: 0 },
     server: { host: '127.0.0.1', port: Number(process.env.LCA_RENDERER_PORT ?? 5173), strictPort: true },
   },
 })
