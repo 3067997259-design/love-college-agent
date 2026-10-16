@@ -248,6 +248,8 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 - 只有在用户要求时才更新跨项目的全局记忆；本工程文档不等于全局记忆。
 # 已实现的心流命令
 
+`pnpm test:room:upgrade` 验证普通模式不设 `LCA_DATA_DIR` 的旧书桌升级：只复制本 profile 日志引用过的旧文件，保留源文件，同名冲突不覆盖；一次性回执防止删除项重启复活。测试用独立 cwd／Documents，不碰用户正常资料。
+
 `pnpm probe:heart-flow` 运行原生隔离探针；`pnpm test:heart-flow` 运行 Electron 闭环。JavaScript 沙箱不提供 Node／shell／网络／系统文件；不要把批准一次扩展成后续操作授权。
 `pnpm test:delegates` 验证只读心流分身与本体收回结果。最多三个、每日十二次尝试、每次三十秒；只有指定书桌源材料，结果未审核、不独立写记忆，停止／退出／熄灯取消。正式 background 模型端口已接，fake 验收不代表真实质量。
 
