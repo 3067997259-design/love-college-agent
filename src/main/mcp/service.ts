@@ -16,7 +16,10 @@ export function createMcpService(options: { clock: Clock; configPath: string; so
   const track = (promise: Promise<void>) => { jobs.add(promise); void promise.finally(() => jobs.delete(promise)) }
   return {
     view: (): McpView => ({ servers: [...connections.values()].map((connection) => connection.view()), ...(error ? { error } : {}) }),
-    tools: (excludeServers: readonly string[] = []) => enabled && !disposed ? [...connections].filter(([id]) => !excludeServers.includes(id)).flatMap(([, connection]) => connection.tools()) : [],
+    // Game endpoints only enter the bounded game adapter; ordinary chat cannot bypass round consent
+    // through a generic MCP alias, including before a game round has been selected.
+    tools: (excludeServers: readonly string[] = []) => enabled && !disposed ? [...connections].filter(([id, connection]) => !excludeServers.includes(id)
+      && !connection.view().tools.some((name) => name === 'get_world_session' || name === 'navigate_to')).flatMap(([, connection]) => connection.tools()) : [],
     /** Main-only typed adapters; not a renderer/debug API or an alternate unfiltered model-tool path. */
     protocol: (serverId: string) => enabled && !disposed ? connections.get(serverId)?.protocol : undefined,
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
