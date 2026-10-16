@@ -24,7 +24,9 @@
     "setup:electron": "node scripts/run.mjs install-electron",
     "probe:imap": "pnpm build && node scripts/probe-electron.mjs imap",
     "probe:journal": "pnpm build && node scripts/probe-electron.mjs journal",
-    "probe:model": "pnpm build && node scripts/probe-electron.mjs model"
+    "probe:model": "pnpm build && node scripts/probe-electron.mjs model",
+    "probe:harness": "pnpm build && node scripts/probe-electron.mjs harness",
+    "test:harness": "pnpm build && node scripts/smoke-harness.mjs"
   },
   "dependencies": {
     "@chinese-fonts/xiaolai": "3.0.0",

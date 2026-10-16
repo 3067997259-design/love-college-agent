@@ -11,6 +11,11 @@ const frame = (delta: unknown, finish_reason: string | null = null) => `data: ${
 function stream(text = 'test reply') { return new Response(frame({ content: text, reasoning_content: 'must not surface' }, 'stop') + 'data: [DONE]\n\n') }
 
 describe('private compatible model client', () => {
+  it('rejects a budget reservation before any actual request', async () => {
+    const fetcher = vi.fn()
+    await expect(createModelClient(configs, ['chat'], createManualClock(), fetcher).complete(request(), () => { throw new Error('synthetic reservation denied') })).rejects.toThrow('synthetic reservation denied')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
   it('assembles split UTF-8/SSE/function deltas and excludes metadata/config values', async () => {
     const payload = frame({ content: '你好 synthetic-private-key synthetic-config-model https://synthetic.invalid/v1', reasoning_content: 'private reasoning' })
       + frame({ tool_calls: [{ index: 0, id: 'c1', function: { name: 'get_', arguments: '{"n":' } }] })
@@ -50,7 +55,7 @@ describe('private compatible model client', () => {
     await vi.waitFor(() => expect(attempts.some((attempt) => attempt.status === 'retry')).toBe(true))
     clock.advanceBy(1000)
     await pending
-    expect(attempts.filter((attempt) => attempt.status !== 'retry').map((attempt) => attempt.slot)).toEqual(['chat', 'chat', 'chat_google'])
+    expect(attempts.filter((attempt) => attempt.status === 'started').map((attempt) => attempt.slot)).toEqual(['chat', 'chat', 'chat_google'])
     const privacyFetch = vi.fn()
     await expect(createModelClient(configs, ['privacy', 'chat'], clock, privacyFetch).complete(request(), () => {})).rejects.toMatchObject({ kind: 'configuration' })
     expect(privacyFetch).not.toHaveBeenCalled()
@@ -84,7 +89,7 @@ describe('private compatible model client', () => {
     const checked = expect(pending).rejects.toMatchObject({ kind: 'timeout' })
     clock.advanceBy(30_000)
     await checked
-    expect(attempts[0].error).toBe('timeout')
+    expect(attempts.at(-1)?.error).toBe('timeout')
     expect(fetcher).toHaveBeenCalledTimes(1)
   })
 })

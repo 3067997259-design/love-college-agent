@@ -21,7 +21,7 @@ export interface ModelRequest {
   maxOutputTokens?: number
 }
 export interface ModelAttempt {
-  slot: ProviderSlot; attempt: number; status: 'success' | 'failed' | 'retry'; waitMs: number
+  slot: ProviderSlot; attempt: number; status: 'started' | 'success' | 'failed' | 'retry'; waitMs: number
   httpStatus?: number; error?: ModelFailureKind; inputTokens?: number; outputTokens?: number
 }
 export interface ModelClient {
