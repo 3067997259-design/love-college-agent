@@ -426,5 +426,6 @@ GPT 开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER
 
 `pnpm probe:life`：确定性外出、物品来源、重启与恢复空档边界（原生 Electron／SQLite，加速时钟）。
 `pnpm test:room`：加密日记、用户查阅、脱敏房间投影、私人存档恢复（fake 模型；正式日记走 chat）。
+`pnpm test:room:upgrade`：普通模式不设数据目录环境变量，验证旧书桌升级、文件不覆盖、撤销与重启不复活删除项；只用隔离合成资料。
 `pnpm test:notifications`：急件合并、规则操作、重启去重（开发模式合成投递，不弹系统通知）。
 `pnpm test:characters`：静态角色包原生导入／导出、素材回退、角色隔离与切回原关系。

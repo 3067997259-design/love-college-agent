@@ -59,6 +59,7 @@
     "probe:life": "pnpm build && node scripts/probe-electron.mjs life",
     "test:life-work": "pnpm build && node scripts/smoke-life-work.mjs",
     "test:room": "pnpm build && node scripts/smoke-room.mjs",
+    "test:room:upgrade": "pnpm build && node scripts/smoke-room-upgrade.mjs",
     "test:history": "pnpm build && node scripts/smoke-history.mjs",
     "test:notifications": "pnpm build && node scripts/smoke-notifications.mjs",
     "test:characters": "pnpm build && node scripts/smoke-characters.mjs",

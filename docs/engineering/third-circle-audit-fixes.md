@@ -25,3 +25,9 @@
 先前 f516948 已按 flowId 选择成功变更，本轮补上真正“关闭 SessionStore → 次日重开低 seq 写入 → 再手动压缩”的原生 SQLite 回归，分别覆盖有／没有旧日写入，并继续到第三页触发 80k 自动压缩。自动触发的同一次模型输入现在带刚落盘的实际证据摘要和最近用户请求，而不只是泛用压缩提示；冻结前缀与记忆禁入保持原约定。不能缩到 96k 内时显式失败。
 
 `node scripts/probe-electron.mjs heart-flow` 本轮通过：两种顺序的摘要及后续上下文均包含新日变更 id／路径，自动压缩也保留第三日变更与当前请求，不包含文件原文。心流单测 9 项通过。探针使用真实 Electron／SQLite、合成时钟及本地隔离 JS，不访问外部服务。
+
+## #6 普通升级的旧书桌
+
+普通启动仅从同一个 dataDir、完整 owner hash 的旧书桌复制本 profile 已成功记录且未删除的文件。保存原文件实际内容（包括用户之后的编辑），`wx` 创建目的文件，同名不同内容记 conflict，不覆盖、不移动。源路径逐级拒绝链接，非法／不可读文件记 unavailable；不碰无法证明 profile 归属的旧 Documents 十二位共享目录。`room-upgrades/<owner>.json` 只留相对路径和状态，迁移一次后用户删除文件不会重启复活；私人恢复后的历史不从旧目录混入。
+
+`node scripts/smoke-room-upgrade.mjs` 实际通过：无 LCA_DATA_DIR、无开发／展位模式，以独立 cwd 和 Documents 运行正常 Electron 分支，旧日志＋旧文件升级后可查 diff 并正确撤销；旧目录不动，未登记文件不导入，删除后的文件重启不复活。两个单测覆盖修改／冲突／外部链接与跨 owner。全部为隔离本地文件，不读取私人存档或真实服务。可复跑 `pnpm test:room:upgrade`。
