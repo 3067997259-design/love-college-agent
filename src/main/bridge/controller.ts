@@ -4,6 +4,8 @@ import type { AppCommand, AppEvent, AppSnapshot, CommandAck, PublicErrorCode } f
 import { DEFAULT_EXPRESSION, PROTOCOL_VERSION } from '../../shared'
 import type { Clock } from '../clock'
 import { deriveDaypart, type DaypartSchedule } from '../clock/daypart'
+import type { SessionStore } from '../store/session'
+import { commandHash } from '../journal/file'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
@@ -22,7 +24,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('privacy.set'), enabled: z.boolean() }),
 ])
 
-export function createAppController(clock: Clock, daypartSchedule?: DaypartSchedule) {
+export function createAppController(clock: Clock, daypartSchedule?: DaypartSchedule, store?: SessionStore) {
   const listeners = new Set<(event: AppEvent) => void>()
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
@@ -38,6 +40,19 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     })),
     privacy: { mode: 'follow-main', fileFilteringEnabled: false },
   }
+  if (store) {
+    const saved = store.projection()
+    snapshot.scope = saved.scope
+    snapshot.companion.mode = saved.mode
+    snapshot.companion.lightsOut = saved.lightsOut
+    snapshot.messages = saved.messages
+    snapshot.activities = saved.activities
+    snapshot.task = saved.task
+    for (const request of saved.requests.slice(-1000)) requests.set(request.requestId, { signature: request.commandHash,
+      ack: { protocolVersion: PROTOCOL_VERSION, requestId: request.requestId, epoch: snapshot.epoch, status: 'accepted' } })
+  }
+  const updatePose = () => { snapshot.companion.pose = snapshot.companion.lightsOut ? 'sleeping' : { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode] }
+  updatePose()
   const publish = (reason: AppEvent['reason'], requestId?: string) => {
     snapshot.revision++
     snapshot.clock.nowMs = clock.nowMs()
@@ -54,17 +69,22 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (!parsed.success) return reject('invalid', 'invalid-command')
     const command: AppCommand = parsed.data
     if (command.epoch !== snapshot.epoch) return reject(command.requestId, 'stale-epoch')
-    const signature = JSON.stringify(command)
+    const signature = commandHash(command)
     const prior = requests.get(command.requestId)
     if (prior) return prior.signature === signature ? structuredClone(prior.ack) : reject(command.requestId, 'invalid-command')
     let ack: CommandAck
     if (command.type === 'mode.set') {
+      try { store?.append({ type: 'companion/mode', mode: command.mode, requestId: command.requestId, commandHash: signature }) }
+      catch { return reject(command.requestId, 'internal') }
       snapshot.companion.mode = command.mode
-      snapshot.companion.pose = { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[command.mode]
+      updatePose()
       publish('mode', command.requestId)
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else if (command.type === 'lights.set') {
+      try { store?.append({ type: 'companion/lights', lightsOut: command.lightsOut, requestId: command.requestId, commandHash: signature }) }
+      catch { return reject(command.requestId, 'internal') }
       snapshot.companion.lightsOut = command.lightsOut
+      updatePose()
       publish('mode', command.requestId)
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else {

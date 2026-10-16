@@ -9,7 +9,9 @@ export type Daypart = 'morning' | 'day' | 'evening' | 'night'
 export type InteractionMode = 'work' | 'quiet' | 'rest'
 export type Availability = 'unavailable' | 'unconfigured' | 'connecting' | 'ready' | 'failed'
 export type TaskStatus = 'queued' | 'running' | 'waiting-user' | 'cancelling' | 'completed' | 'aborted' | 'failed'
-export type PublicErrorCode = 'invalid-command' | 'stale-epoch' | 'unavailable' | 'not-configured' | 'permission-denied' | 'connection-failed' | 'privacy-unavailable' | 'internal'
+export const PUBLIC_ERROR_CODES = ['invalid-command', 'stale-epoch', 'unavailable', 'not-configured', 'permission-denied', 'connection-failed', 'privacy-unavailable', 'internal',
+  'configuration-failed', 'upstream-busy', 'quota-exhausted', 'stream-interrupted', 'invalid-model-output', 'step-limit', 'repeat-limit', 'budget-exceeded'] as const
+export type PublicErrorCode = typeof PUBLIC_ERROR_CODES[number]
 
 export interface PublicError {
   code: PublicErrorCode

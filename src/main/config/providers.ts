@@ -16,3 +16,24 @@ export async function readMailCredentials(filename: string): Promise<MailCredent
     throw new Error('MAIL_CONFIG_UNAVAILABLE')
   }
 }
+
+export const PROVIDER_SLOTS = ['chat', 'background', 'chat_google', 'chat_claude', 'privacy'] as const
+export type ProviderSlot = typeof PROVIDER_SLOTS[number]
+export interface ProviderConfig { base_url: string; api_key: string; model: string }
+
+/** Called only by main. Empty/malformed slots remain unavailable; values never leave this boundary. */
+export async function readModelProviders(filename: string): Promise<ReadonlyMap<ProviderSlot, ProviderConfig>> {
+  try {
+    const parsed = z.object({ providers: z.record(z.string(), z.unknown()) }).parse(JSON.parse(await readFile(filename, 'utf8')))
+    const result = new Map<ProviderSlot, ProviderConfig>()
+    const schema = z.object({ base_url: z.string().url(), api_key: z.string().min(1), model: z.string().min(1) })
+    for (const slot of PROVIDER_SLOTS) {
+      const entry = schema.safeParse(parsed.providers[slot])
+      if (!entry.success) continue
+      const url = new URL(entry.data.base_url)
+      if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) continue
+      result.set(slot, Object.freeze(entry.data))
+    }
+    return result
+  } catch { return new Map() }
+}

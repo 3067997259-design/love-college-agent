@@ -8,7 +8,7 @@ import { runtimeEnv } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: join(root, '.local-data', `smoke-${randomUUID()}`) }
-const instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
+let instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
 try {
   const page = await instance.firstWindow()
   await page.locator('h1').waitFor()
@@ -18,9 +18,13 @@ try {
     return { sandbox: preferences.sandbox, contextIsolation: preferences.contextIsolation, nodeIntegration: preferences.nodeIntegration }
   })
   assert.deepEqual(settings, { sandbox: true, contextIsolation: true, nodeIntegration: false })
-  await page.waitForFunction(() => document.querySelector('main')?.getAttribute('data-mode') === 'rest')
-  await page.getByRole('button', { name: '安静', exact: true }).click()
-  await page.waitForFunction(() => document.querySelector('main')?.getAttribute('data-pose') === 'desk-writing')
+  await page.locator('[data-mode][data-pose][data-location]').waitFor()
+  const original = await page.evaluate(() => window.lca.getSnapshot())
+  await page.evaluate(async () => {
+    const snapshot = await window.lca.getSnapshot()
+    await window.lca.dispatch({ protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID(), type: 'mode.set', mode: 'quiet' })
+  })
+  await page.locator('[data-mode="quiet"][data-pose="desk-writing"]').waitFor()
   const contract = await page.evaluate(async () => {
     const snapshot = await window.lca.getSnapshot()
     let count = 0
@@ -43,7 +47,16 @@ try {
   assert.equal(contract.requireType, 'undefined')
   assert.equal(contract.processType, 'undefined')
   await page.screenshot({ path: join(root, 'test-results', 'scaffold.png') })
-  console.log('Electron smoke: window, isolation, IPC events, unsubscribe and evidence restrictions verified.')
+  await instance.close()
+  instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
+  const reopened = await instance.firstWindow()
+  await reopened.locator('[data-mode="quiet"][data-pose="desk-writing"]').waitFor()
+  const restored = await reopened.evaluate(() => window.lca.getSnapshot())
+  assert.equal(restored.scope.sessionId, original.scope.sessionId)
+  assert.notEqual(restored.epoch, original.epoch)
+  const stale = await reopened.evaluate((epoch) => window.lca.dispatch({ protocolVersion: 1, epoch, requestId: crypto.randomUUID(), type: 'mode.set', mode: 'rest' }), original.epoch)
+  assert.equal(stale.status, 'rejected')
+  console.log('Electron smoke: book UI, isolation, IPC, unsubscribe, evidence restrictions and persisted restart verified.')
 } finally {
   await instance.close()
 }

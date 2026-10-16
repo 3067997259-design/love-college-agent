@@ -22,7 +22,9 @@
     "test:electron": "pnpm build && node scripts/smoke-electron.mjs",
     "probe:sqlite": "pnpm build && node scripts/probe-electron.mjs sqlite",
     "setup:electron": "node scripts/run.mjs install-electron",
-    "probe:imap": "pnpm build && node scripts/probe-electron.mjs imap"
+    "probe:imap": "pnpm build && node scripts/probe-electron.mjs imap",
+    "probe:journal": "pnpm build && node scripts/probe-electron.mjs journal",
+    "probe:model": "pnpm build && node scripts/probe-electron.mjs model"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",
