@@ -14,6 +14,7 @@ import { ModelFailure } from './types'
 import prompts from './task-prompts.json'
 import diaryPrompts from '../diary/prompts.json'
 import type { DiaryModel } from '../diary/schema'
+import notificationPrompts from '../notifications/prompts.json'
 
 /** Machine JSON tasks only. Persona, diary and dream wording remain on the voice line. */
 export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, clock: Clock, store: SessionStore, fetcher?: Parameters<typeof createModelClient>[3]) {
@@ -41,7 +42,7 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
     } finally { stop(); remove(); abort.abort() }
   }
   const memory: MemoryModel | null = providers.has('background') ? { source: 'real', extract: (input, signal) => json('background', prompts.memoryExtract, input, signal, 4096, true), summarize: (input, signal) => json('background', prompts.memorySummary, input, signal, 4096, true) } : null
-  const mail: EmailPrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (input, signal) => json('privacy', prompts.mail, input, signal, 2048) } : null
+  const mail: EmailPrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (input, signal) => json('privacy', prompts.mail + '\n' + notificationPrompts.mailAddition, input, signal, 2048) } : null
   const document: DocumentPrivacyModel | null = providers.has('privacy') ? { source: 'real', ready: true, organize: (input, signal) => json('privacy', prompts.document, input, signal, 8192) } : null
   const narrow: PrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (text, signal) => json('privacy', prompts.narrowPrivacy, { text }, signal ?? new AbortController().signal, 512) } : null
   const diary: DiaryModel | null = providers.has('background') ? { source: 'real', write: (input, signal) => json('background', diaryPrompts.system, input, signal, 1600, true) } : null

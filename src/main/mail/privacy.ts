@@ -11,6 +11,7 @@ const date = z.strictObject({ iso: z.iso.datetime({ offset: true }), quote })
 const action = z.strictObject({ kind: z.enum(['deadline', 'event']), task: short(20), titleQuote: quote,
   sourceRole: z.enum(['teaching-assistant', 'student-club', 'library', 'other']), deadline: date.nullable(),
   eventStart: date.optional(), eventEnd: date.optional(), location: z.strictObject({ text: short(40), quote }).optional(),
+  urgency: z.strictObject({ level: z.enum(['reply-today', 'location-change']), quote }).optional(),
 })
 const schema = z.union([z.strictObject({ kind: z.literal('notice') }), action])
 export interface EmailPrivacyInput { sourceId: string; subject: string; body: string; sentAtIso: string }
@@ -18,6 +19,7 @@ export interface EmailPrivacyModel { readonly source: 'real' | 'fake'; extract(i
 export interface CheckedMail {
   kind: 'deadline' | 'event'; title: string; sourceRole: z.infer<typeof action>['sourceRole']; deadlineIso: string | null
   eventStartIso?: string; eventEndIso?: string; locationText?: string
+  urgency?: 'reply-today' | 'location-change'
   /** User-only provenance, removed before journal/model projections. */
   quotes: { field: EvidenceView['highlights'][number]['field']; text: string }[]
 }
@@ -101,7 +103,8 @@ export async function extractMail(mail: SourceMail, model: EmailPrivacyModel | n
       if (!source.includes(parsed.location.quote) || !parsed.location.quote.includes(parsed.location.text)) throw new Error('MAIL_LOCATION_UNGROUNDED')
       quotes.push({ field: 'locationText', text: parsed.location.text })
     }
+    if (parsed.urgency && (!source.includes(parsed.urgency.quote) || /无需|取消|不再|不要|不用|不必|不需/.test(parsed.urgency.quote) || !(parsed.urgency.level === 'reply-today' ? /(?:今天|今日)(?:内)?(?:务必|需要|请)?(?:上午|下午|晚上|中午)?(?:前)?回复/ : /(?:考场|教室|地点)(?:已|将|现)?(?:变更|更改|调整)/).test(parsed.urgency.quote))) throw new Error('MAIL_URGENCY_UNGROUNDED')
     return { ok: true, value: { kind: parsed.kind, title: parsed.task, sourceRole: parsed.sourceRole, deadlineIso,
-      ...(eventStartIso ? { eventStartIso } : {}), ...(eventEndIso ? { eventEndIso } : {}), ...(parsed.location ? { locationText: parsed.location.text } : {}), quotes } }
+      ...(eventStartIso ? { eventStartIso } : {}), ...(eventEndIso ? { eventEndIso } : {}), ...(parsed.location ? { locationText: parsed.location.text } : {}), ...(parsed.urgency ? { urgency: parsed.urgency.level } : {}), quotes } }
   } catch { return { ok: false, error: 'privacy-invalid-output' } }
 }

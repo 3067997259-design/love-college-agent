@@ -1,0 +1,8 @@
+{
+  "mailAddition": "Optional urgency:{level:\"reply-today\"|\"location-change\",quote:string} is allowed only for an exact source quote explicitly saying 今天/今日内回复 or 考场/教室/地点变更/更改/调整. Omit it for normal mail. The code independently verifies the quote and phrase; no free-text urgency explanations.",
+  "urgentTitle": "校园事项需要留意",
+  "urgentBody": "有 {count} 项急件或你指定的提醒待核对。{deadline}",
+  "approvalTitle": "书桌操作等待你",
+  "approvalBody": "有一条脚本需要你亲自批准。点这里回到书本核对。",
+  "ruleTool": "Propose a reminder rule on validated short task titles and source categories only. It takes effect only after the user confirms it in settings. It cannot inspect original mail or enable arbitrary notifications."
+}
