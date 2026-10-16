@@ -248,6 +248,8 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 - 只有在用户要求时才更新跨项目的全局记忆；本工程文档不等于全局记忆。
 # 已实现的心流命令
 
+`/goal 一句话` 设置／更新当前工作目标，跨日与跨次心流保留；状态仅用户能改，模型只读。`pnpm probe:heart-flow`／`pnpm test:heart-flow`／`pnpm test:backup` 已覆盖目标的关联、重启、角色隔离与私人恢复，不把用户标记完成当执行证据。
+
 `pnpm test:booth` 验证个人／展位自动分 profile：展位使用 `<dataRoot>/booth` 的独立设置与资料库，开发场景路径不变。旧版混放的资料保留原位，不自动复制个人书本进展位；需要的旧展位存档由操作员显式恢复。
 
 `pnpm test:minecraft` 跑自有合成 MCP 世界与独立游戏 harness 的真实 Electron 场景。只有开发／展位可开轮，游戏上下文和目录不混入普通记忆／私人存档；真实桥配置须经原生核对，不能从参考项目自动接管实例。真实双客户端和模型质量未验收。

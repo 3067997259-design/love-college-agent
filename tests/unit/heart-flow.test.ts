@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync, linkSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -117,5 +118,29 @@ it('routes slash inspections and compact focus without a model turn, rejects no-
   const compact = f.store.records().findLast((row) => row.type === 'flow/compact'); expect(compact).toMatchObject({ focus: '重点保留文件版本' })
   expect(send('/compact ' + 'x'.repeat(501)).status).toBe('rejected')
   expect(controller.dispatch({ protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId: 'mini', type: 'flow.inspect', section: 'diff' }, 'mini').status).toBe('rejected')
+  expect(f.store.records().some((row) => row.type === 'turn/start')).toBe(false); controller.dispose()
+})
+it('persists user-owned goals across flows, keeps them in the work layer and exposes no model writer', async () => {
+  const f = fixture(); f.dispatch({ type: 'flow.goal.set', text: '完成纸桥项目' }); const goal = f.flow.view().goals![0]
+  expect(goal).toMatchObject({ status: 'active', confirmedBy: 'user', closedAtMs: null, flowIds: [] })
+  f.dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(f.flow.active()).toBe(true)); const id = f.flow.view().activeId!
+  const first = await f.flow.prepareContext('goal', new AbortController().signal); expect(JSON.stringify(first.messages)).toContain('完成纸桥项目'); expect(first.eligibleIndexes).toEqual([])
+  const prefix = f.store.records().find((row) => row.type === 'flow/open'); expect(JSON.stringify(prefix)).not.toContain('完成纸桥项目')
+  f.dispatch({ type: 'flow.goal.set', goalId: goal.id, text: '先做纸桥测试' }); expect(f.flow.view().goals).toHaveLength(1)
+  f.dispatch({ type: 'flow.exit' }); f.dispatch({ type: 'flow.resume', flowId: id }); const next = f.flow.view().activeId!
+  expect(f.flow.view().goals![0].flowIds).toEqual([id, next]); expect(f.flow.view().mode).toBe('plan')
+  f.dispatch({ type: 'flow.goal.status', goalId: goal.id, status: 'completed' }); expect(f.flow.view().goals![0]).toMatchObject({ status: 'completed', confirmedBy: 'user', closedAtMs: f.clock.nowMs() })
+  const restarted = createHeartFlow(f.opts); expect(restarted.view().goals![0].status).toBe('completed'); expect(restarted.view().goalId).toBe(goal.id)
+  const tools = deskTools(restarted); expect(tools.filter((tool) => /goal/.test(tool.definition.name)).map((tool) => tool.definition.name)).toEqual(['get_flow_goals'])
+  expect(f.dispatch({ type: 'flow.goal.status', goalId: randomUUID(), status: 'completed' })).toBe('invalid-command'); restarted.close()
+})
+it('routes /goal with text locally even outside a flow and rejects empty, private and mini commands', () => {
+  const f = fixture(); const controller = createAppController(f.clock, undefined, f.store); controller.attachHeartFlow(f.flow)
+  const send = (text: string) => controller.dispatch({ protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId: crypto.randomUUID(), type: 'message.send', text })
+  expect(send('/goal 写一个计算器').status).toBe('accepted'); const id = f.flow.view().goalId!
+  expect(send('/goal 先核对计算器测试').status).toBe('accepted'); expect(f.flow.view().goals).toHaveLength(1); expect(f.flow.view().goalId).toBe(id)
+  expect(send('/goal').status).toBe('rejected'); expect(send('/goal ' + 'x'.repeat(201)).status).toBe('rejected')
+  expect(send('/goal sk-syntheticgoalcredential1234567890').status).toBe('rejected')
+  expect(controller.dispatch({ protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId: randomUUID(), type: 'flow.goal.set', text: 'mini' }, 'mini').status).toBe('rejected')
   expect(f.store.records().some((row) => row.type === 'turn/start')).toBe(false); controller.dispose()
 })

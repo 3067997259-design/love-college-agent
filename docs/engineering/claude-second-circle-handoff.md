@@ -4,6 +4,7 @@
 
 | 接口提交 | 范围 | 实际可接入口 |
 | --- | --- | --- |
+| `659dd82` | 跨次工作目标 | heartFlow.goals/goalId、flow.goal.set/select/status；朴素目标区已接，跨日／跨次／私人恢复通过。用户标记完成与实际工具完成分开，模型只有只读 get_flow_goals；/goal 文本可在心流外设置 |
 | `1f37779` | 展位游戏轮次 | snapshot.minecraft；minecraft.check/start/stop（确认 observed pilot.uuid 与 scope），window/bridge 不增方法。99bfcbb 已接独立上下文与朴素控制，合成 MCP＋Electron 通过；模型游戏回复暂走书本输入框，画面与语音请 Claude 接；真实双客户端仍待配置 |
 | `54646cf`／`9147a31` | 可选光学记忆 | snapshot.opticalMemory 元数据／分页、optical.configure/enable/encode/decode、readOpticalMemory 书本用户 PNG／守卫印象；本机合成 HTTP 与恢复闭环通过，默认关闭，真实 OCR 质量未验收；详见 optical-third-circle.md |
 | `4594698` | 只读分身 | heartFlow.delegates 元数据活动卡、flow.delegate.cancel；子任务结论只作心流工具结果交本体，不作分身发言或独立记忆；详见 delegates-third-circle.md |

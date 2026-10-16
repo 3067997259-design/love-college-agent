@@ -7,7 +7,7 @@
 | 历史照片、引用与回忆 | 底层、真实 PNG、可见来源、私人恢复和旧安装态通过；7db7bfb；Claude 新书页／引用片已合入，Electron 实际点击通过 | 最新全圈安装包待收口重打 |
 | 有产物的自主生活 | 合成书桌材料、fake 读写、真实文件、重启／私人恢复通过；a19c596；Claude 日程页作品入口已合 main | 新入口继续做全圈回归，真实模型质量尚未验收 |
 | 床、睡姿和外景页 | 两处确定性外出、关灯状态已有 | Claude 的床／睡姿／外景画面；GPT 核对入口、事实和回退 |
-| 心流完整指令 | 书桌工具、计划、审批、压缩、撤销、退出已通过；fac7ab1 已补 status／permissions／diff、带重点 compact、历史回看与续做，原生和 Electron 通过 | 继续 init/review/goal 等；既有 desk-only／每次审批边界优先，见 heart-flow-third-circle.md |
+| 心流完整指令 | fac7ab1 的查阅／压缩／续做、分身已通过；659dd82 新增长期目标及 /goal、原生跨日／界面／私人恢复通过 | **GPT 当前推进** init/review 等；既有 desk-only／每次审批边界优先，见 heart-flow-third-circle.md |
 | 分身 | 4594698 接口及只读服务已实现；三并发／日预算／取消／重启、Electron 本体取结果和记忆边界通过 | Claude 活动卡；真实 background 模型质量／限流仍未验收，详见 delegates-third-circle.md |
 | 光学记忆插件 | 54646cf／9147a31 接口先合；11bcbb8 核心、应用接线及 251 单测／真实封页和合成 HTTP Electron 闭环通过；默认关闭 | 真正 OCR 部署／质量及遗忘体验仍待验收；不是已有可靠遗忘曲线，见 optical-third-circle.md |
 | 云端语音 | 未实现；供应商未选 | 主进程凭据／流式音频、静音／取消／失败纯文字，真实音色和服务验收；Claude 播放／嘴型／声音 |
