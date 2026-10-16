@@ -425,6 +425,7 @@ void app.whenReady().then(async () => {
         const selected = await dialog.showMessageBox({ type: 'question', title: '核对 MCP 启动配置', message: '是否连接 ' + id + '？', detail, buttons: ['取消', '连接此配置'], defaultId: 0, cancelId: 0, noLink: true })
         return selected.response === 1
       },
+      beforeDisconnect: async (id) => { if (minecraft?.view().serverId === id) await minecraft.stop() },
       canConfigure: () => !harness?.isBusy() && !minecraft?.active(), changed: () => { minecraft?.stateChanged(); controller?.refresh('connection') } })
     controller.attachMcp(mcp)
     const round = store.history!().findLast((row) => row.type === 'minecraft/round')

@@ -1,5 +1,11 @@
 # 第三圈审计修复
 
+## #22 主动断开先释放控制
+
+MCP 的显式 disconnect 先等待主进程 beforeDisconnect：所用游戏端点先使轮次失效、停止模型与后续动作，在仍 ready 的通道上释放本轮控制并核对 owned=false，然后才关闭传输。重复断开合并，清理中不允许重连／换配置；无关端点独立断开。protocol 只在连接 ready 时可取，意外断线不再因适配对象还在而维持 playing。释放失败仍断开用户要求的连接，同时保留 failed／stopVerified=false，不虚报原生停止。
+
+MCP 9 项单测／类型／相关 lint 通过，其中真实合成 HTTP 测试核对清理前后通道仍 ready，覆盖释放失败和无关端点。`smoke-minecraft.mjs` 已在真实 Electron／HTTP 中导航持有控制时主动断开，观察到已核验释放与 cancelled 后连接 disconnected；无关服务器断开不打断游戏，重新连接仍需原生批准。通用 `smoke-mcp.mjs` 也通过。没有真实游戏或供应商请求。
+
 ## #21 导航状态的自由文本出口
 
 导航 state 改为固定 mcpfabric 源码中已知的封闭枚举，未知值拒绝；已知值若与主进程凭据保护冲突也拒绝。游戏工具结果落日志前再做字段级遮盖，已核验 UUID 保留其协议身份。
