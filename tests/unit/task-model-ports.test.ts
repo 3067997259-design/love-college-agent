@@ -19,6 +19,25 @@ function response(value: unknown) {
   return new Response('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: JSON.stringify(value) }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 3 } }) + '\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
 }
 describe('production task model ports without runtime model calls', () => {
+  it('routes fresh read-only children only to background, preserves source fingerprints, and records no child text', async () => {
+    const f = fixture(); let calls = 0
+    const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => {
+      calls++; const body = JSON.parse(String(init.body)); expect(body.model).toBe(configs.get('background')!.model); expect(body.tools).toBeUndefined(); expect(body.messages).toHaveLength(2)
+      const input = JSON.parse(body.messages[1].content); expect(Object.keys(input).sort()).toEqual(['sources', 'task']); expect(input.sources[0].sha256).toBe('a'.repeat(64)); expect(input.sources[0].text).toBe('EXPLICIT_CHILD_SOURCE')
+      return response({ conclusion: 'UNREVIEWED_CHILD_OUTPUT', refs: [{ path: 'a.md', sha256: 'a'.repeat(64) }] })
+    })
+    await ports.delegate!.read({ task: 'bounded read', sources: [{ path: 'a.md', sha256: 'a'.repeat(64), text: 'EXPLICIT_CHILD_SOURCE' }] }, new AbortController().signal)
+    expect(calls).toBe(1); expect(JSON.stringify(f.rows)).not.toMatch(/EXPLICIT_CHILD_SOURCE|UNREVIEWED_CHILD_OUTPUT/)
+    expect(f.rows.filter((row) => row.type === 'model/attempt' && row.status === 'started')).toMatchObject([{ bucket: 'autonomous', slot: 'background' }])
+    expect(createTaskModelPorts(new Map([['chat', configs.get('chat')!]]), f.clock, f.store).delegate).toBeNull()
+  })
+  it('denies child model requests before network when the shared autonomous reserve is exhausted', async () => {
+    const f = fixture(); let calls = 0
+    f.store.append({ type: 'model/attempt', turnId: 'prior', slot: 'background', attempt: 1, status: 'started', waitMs: 0, bucket: 'autonomous', reservedTokens: 100000 })
+    const ports = createTaskModelPorts(configs, f.clock, f.store, async () => { calls++; return response({}) })
+    await expect(ports.delegate!.read({ task: 'budget', sources: [{ path: 'a.md', sha256: 'a'.repeat(64), text: 'small' }] }, new AbortController().signal)).rejects.toMatchObject({ code: 'budget-exceeded' })
+    expect(calls).toBe(0)
+  })
   it('routes subjective diaries to chat with autonomous budget and never persists their prose', async () => {
     const f = fixture(); const models: string[] = []
     const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => { models.push(JSON.parse(String(init.body)).model); return response({ entry: 'SYNTHETIC_SUBJECTIVE_DIARY' }) })

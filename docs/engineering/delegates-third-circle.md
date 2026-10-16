@@ -24,3 +24,7 @@
 - 构建后 `node scripts/smoke-delegates.mjs` 通过：实际 Electron 中本体工具发三份只读任务，再以工具取三份带来源／unreviewed 结论，源文件未变，UI 只有元数据，退出摘要有任务索引，普通对话和所有 eligible 片段不含来源 canary。父子模型均为 fake。
 - 心流、私人存档、记忆三个 Electron 回归通过。可运行 `pnpm test:delegates`（包含构建），不安装 Playwright 浏览器。
 - 未验收真实背景模型的结论质量、真实并发限流和 Claude 动画。没有使用真实来源、IMAP、OCR、语音或 Rodin；安装包本批未重打。
+
+随后同步 main 的 Claude 书签／生活页和历史边界修复，47 文件／242 项单测、类型检查及分身／心流／房间／历史 Electron 再次通过。又以生产 task port＋合成 HTTP 增补两项定向检查：只走 background、不带工具／完整上下文，源指纹不变且原文不进调用日志；自主预留预算用尽时在发网络前拒绝。未调用真实端点。
+
+功能提交 `8307d51`；合回 main 暂遇研究线在 main 同文件 `heart-flow/service.ts` 的未提交修改，保留该修改、不 stash 或纳入我们的提交。代码和同步提交保存在 `codex/gpt-foundation`，待对方提交后合并。接口 `4594698` 已在 main。后续独立项在同一 GPT worktree 从最新 main 切独立分支推进，不阻塞第三圈。
