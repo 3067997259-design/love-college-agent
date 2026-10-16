@@ -10,6 +10,7 @@ import { giftSchema } from '../gifts/schema'
 import { lifeSchema } from '../life/schema'
 import { diarySchema } from '../diary/schema'
 import { notificationRule } from '../notifications/schema'
+import { definitionSchema } from '../characters/package'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -29,6 +30,7 @@ export type ContextMessage = {
 }
 
 export const inputSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('character/definition'), definition: definitionSchema }),
   z.strictObject({ type: z.literal('notification/rule'), rule: notificationRule, enabled: z.boolean() }),
   z.strictObject({ type: z.literal('notification/proposal'), rule: notificationRule.nullable() }),
   z.strictObject({ type: z.literal('notification/sent'), kind: z.enum(['urgent-mail', 'flow-approval']), keys: z.array(z.string().max(180)).min(1).max(32) }),

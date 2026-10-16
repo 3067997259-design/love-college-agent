@@ -26,9 +26,13 @@ import type { LifeService } from '../life/service'
 import type { DiaryService } from '../diary/service'
 import type { NotificationsService } from '../notifications/service'
 import { notificationRuleInput } from '../notifications/schema'
+import type { CharacterService } from '../characters/service'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('character.import') }),
+  z.strictObject({ ...envelope, type: z.literal('character.export') }),
+  z.strictObject({ ...envelope, type: z.literal('character.select'), characterId: z.string().regex(/^(?:default-character|character:[a-f0-9]{64})$/) }),
   z.strictObject({ ...envelope, type: z.literal('notification.rule.add'), ...notificationRuleInput.shape }),
   z.strictObject({ ...envelope, type: z.literal('notification.rule.remove'), ruleId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('notification.rule.confirm'), ruleId: z.string().uuid() }),
@@ -128,6 +132,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let life: LifeService | undefined
   let diary: DiaryService | undefined
   let notifications: NotificationsService | undefined
+  let character: CharacterService | undefined
   let room: { open(): void; rebuild(): void } | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
@@ -214,6 +219,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (life) { snapshot.life = life.view(); snapshot.companion.locationId = snapshot.life.locationId }
     if (diary) snapshot.diary = diary.view()
     if (notifications) snapshot.notifications = notifications.view()
+    if (character) snapshot.characterPack = character.view()
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
@@ -234,6 +240,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('flow.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('room.') || command.type === 'diary.write') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('character.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'onboarding.reset' && options.booth) return reject(command.requestId, 'permission-denied')
     const signature = commandHash(command)
     const prior = requests.get(command.requestId)
@@ -299,6 +306,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       catch { ack = reject(command.requestId, 'internal') }
     } else if (heartFlow && command.type.startsWith('flow.')) {
       const error = heartFlow.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (character && command.type.startsWith('character.')) {
+      const error = character.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId)
     } else if (notifications && command.type.startsWith('notification.')) {
       const error = notifications.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId)
     } else if (diary && command.type === 'diary.write') {
@@ -371,6 +380,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachLife: (port: LifeService) => { life = port; publish('mode') },
     attachDiary: (port: DiaryService, roomPort: NonNullable<typeof room>) => { diary = port; room = roomPort; publish('connection') },
     attachNotifications: (port: NotificationsService) => { notifications = port; publish('connection') },
+    attachCharacter: (port: CharacterService) => { character = port; publish('connection') },
     readDiary: (id: unknown) => { if (!diary || typeof id !== 'string' || !/^diary:[a-f0-9]{64}$/.test(id)) throw new Error('DIARY_UNAVAILABLE'); return diary.read(id) },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },

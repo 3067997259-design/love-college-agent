@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
+import { mkdir, writeFile, readFile } from 'node:fs/promises'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { _electron } from 'playwright'
+import electronPath from 'electron'
+import JSZip from 'jszip'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'characters-smoke-' + randomUUID()); const sceneId = randomUUID()
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19545', LCA_MCP_PORT: '0' }; let instance; let page; let client
+const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
+const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), ...body }) }, body)
+async function waitFor(test, message) { for (let i = 0; i < 100; i++) { if (test(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(message) }
+async function launch(initialize = true) { instance = await _electron.launch({ executablePath: electronPath, args: [root], env }); page = await instance.firstWindow(); await page.waitForFunction(() => !!window.lca); if (initialize) await initializeTestBook(page)
+  const config = JSON.parse(await readFile(join(data, 'developer', sceneId, 'debug-connection.json'), 'utf8')); client = new Client({ name: 'characters-smoke', version: '1.0.0' }); await client.connect(new StreamableHTTPClientTransport(new URL(config.url), { requestInit: { headers: { Authorization: 'Bearer ' + config.token } } })) }
+async function stop() { await client?.close(); client = undefined; await instance?.close() }
+async function debug(name, args = {}) { const result = await client.callTool({ name, arguments: args }); assert.ok(!result.isError); return JSON.parse(result.content[0].text) }
+try {
+  await mkdir(data, { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId })); await launch()
+  await debug('set_fake_model', { script: [{ text: '合成原角色回应', toolCalls: [], delayMs: 0 }] }); await send({ type: 'onboarding.profile', userName: 'PRIVATE_USER_NAME' }); await send({ type: 'message.send', text: '我喜欢的饮料是咖啡。' }); await waitFor((s) => s.task?.status === 'completed', 'CHAR_ORIGINAL_CHAT_FAILED'); await send({ type: 'memory.extract' }); await waitFor((s) => s.memory.items.length > 0, 'CHAR_ORIGINAL_MEMORY_FAILED')
+  const source = new JSZip(); source.file('manifest.json', JSON.stringify({ formatVersion: 1, kind: 'lca-character', name: '合成角色', persona: 'SYNTHETIC_CHARACTER_CARD', images: { 'facing-user_calm': 'images/facing-user_calm.png' } }), { createFolders: false }); source.file('images/facing-user_calm.png', Buffer.from(await instance.evaluate(({ nativeImage }) => nativeImage.createFromBitmap(Buffer.from([255, 0, 0, 255]), { width: 1, height: 1 }).toPNG().toString('base64')), 'base64'), { createFolders: false })
+  const file = join(data, 'synthetic.lca-character'); await writeFile(file, await source.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })); await instance.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, file)
+  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '导入静态角色包', exact: true }).click(); await waitFor((s) => s.characterPack.installed.length === 2, 'CHAR_IMPORT_FAILED'); const id = (await snapshot()).characterPack.installed.find((pack) => !pack.builtin).id
+  await page.getByRole('combobox', { name: '下次启用的角色' }).selectOption(id); assert.equal((await snapshot()).characterPack.restartRequired, true); await stop(); await launch(false)
+  let next = await snapshot(); assert.equal(next.scope.characterId, id); assert.equal(next.onboarding.status, 'needed'); assert.equal(next.onboarding.characterName, '合成角色'); assert.equal(next.onboarding.userName, null); assert.equal(next.messages.length, 0); assert.equal(next.memory.items.length, 0); assert.equal(next.candidates.length, 0)
+  await initializeTestBook(page); await page.locator('img[data-character-package]').waitFor(); assert.equal(await page.locator('img[data-character-package]').evaluate((image) => image.complete && image.naturalWidth === 1), true)
+  await debug('set_fake_model', { script: [{ text: '合成新角色回应', toolCalls: [], delayMs: 0 }] }); await send({ type: 'message.send', text: '你好，合成角色。' }); await waitFor((s) => s.task?.status === 'completed', 'CHAR_NEW_CHAT_FAILED'); const context = JSON.stringify(await debug('get_context')); assert.ok(context.includes('SYNTHETIC_CHARACTER_CARD')); assert.ok(!context.includes('PRIVATE_USER_NAME')); assert.ok(!context.includes('咖啡'))
+  const exported = join(data, 'exported.lca-character'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, exported); await send({ type: 'character.export' }); await waitFor((s) => s.characterPack.status === 'idle', 'CHAR_EXPORT_FAILED'); const archive = await JSZip.loadAsync(await readFile(exported)); const manifest = await archive.file('manifest.json').async('string'); assert.ok(!manifest.includes('PRIVATE_USER_NAME')); assert.deepEqual(Object.keys(JSON.parse(manifest)).sort(), ['formatVersion', 'images', 'kind', 'name', 'persona'])
+  await send({ type: 'character.select', characterId: 'default-character' }); await stop(); await launch(); next = await snapshot(); assert.equal(next.scope.characterId, 'default-character'); assert.ok(next.messages.some((message) => message.text.includes('咖啡'))); assert.ok(next.memory.items.length > 0); assert.equal(next.onboarding.userName, 'PRIVATE_USER_NAME')
+  const builtinFile = join(data, 'builtin.lca-character'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, builtinFile); await send({ type: 'character.export' }); await waitFor((s) => s.characterPack.status === 'idle', 'CHAR_BUILTIN_EXPORT_FAILED'); const builtinZip = await JSZip.loadAsync(await readFile(builtinFile)); const builtinManifest = JSON.parse(await builtinZip.file('manifest.json').async('string')); assert.equal(Object.keys(builtinManifest.images).length, 10); assert.ok(!JSON.stringify(builtinManifest).includes('PRIVATE_USER_NAME'))
+  console.log('Characters Electron: native static import, sanitized PNG local render/fallback, restart into isolated character/name/card/memory/mail scope, private-free public export, and original relationship restored on switch-back verified.')
+} finally { await stop() }

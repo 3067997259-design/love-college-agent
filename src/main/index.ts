@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, powerMonitor, protocol, shell, Notification } from 'electron'
+import { app, BrowserWindow, dialog, powerMonitor, protocol, shell, Notification, nativeImage } from 'electron'
 import { join, resolve } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { systemClock } from './clock'
@@ -19,6 +19,10 @@ import { createDiary, type DiaryService } from './diary/service'
 import diaryPrompts from './diary/prompts.json'
 import { createRoomProjection } from './room/projection'
 import { createNotifications, notificationTools, type NotificationsService } from './notifications/service'
+import { createCharacterLibrary } from './characters/library'
+import { builtinCharacter, createCharacterService, type CharacterService } from './characters/service'
+import { definitionSchema } from './characters/package'
+import { exportBuiltinCharacter } from './characters/builtin'
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'lca-media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 import { createAppController } from './bridge/controller'
@@ -109,6 +113,7 @@ let heartFlow: HeartFlowService | undefined
 let life: LifeService | undefined
 let diary: DiaryService | undefined
 let notifications: NotificationsService | undefined
+let character: CharacterService | undefined
 let modelSettings: ModelSettingsService | undefined
 let companionWindows: CompanionWindows | undefined
 let miniFallbackReason: MiniFallbackReason | null = process.env.LCA_MINI_OPAQUE === '1' ? 'forced' : null
@@ -246,13 +251,22 @@ void app.whenReady().then(async () => {
     return
   }
   try {
-    const restoreReceipt = applyPendingRestore(dataDir, { userId: 'local-user', characterId: 'default-character' }, prepared.developer ? 'fake' : 'real', clock)
+    const characterLibrary = createCharacterLibrary(dataDir)
+    const selectedCharacter = prepared.pluginSettings.read().activeCharacterId ?? 'default-character'
+    const activeCharacter = selectedCharacter === 'default-character' ? builtinCharacter : characterLibrary.read(selectedCharacter)
+    const owner = { userId: 'local-user', characterId: activeCharacter.id }
+    const restoreReceipt = applyPendingRestore(dataDir, owner, prepared.developer ? 'fake' : 'real', clock)
     if (restoreReceipt?.status === 'restored') {
       prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = restoreReceipt.manifest.fileFilteringEnabled })
       resumeSavedSession(dataDir, restoreReceipt.manifest.owner, restoreReceipt.manifest.activeDayKey, restoreReceipt.manifest.activeSessionId)
     }
-    store = openSessionStore(dataDir, { userId: 'local-user', characterId: 'default-character' }, clock)
+    store = openSessionStore(dataDir, owner, clock)
     const binaryAssets = createBinaryAssets(dataDir, store)
+    if (activeCharacter.id !== 'default-character') {
+      if (!store.history!().some((row) => row.type === 'onboarding/state')) store.append({ type: 'onboarding/state', view: { ...initialOnboarding(), characterName: activeCharacter.name }, cause: 'profile', requestId: 'character-profile:' + activeCharacter.id, commandHash: contentHash(activeCharacter.id) })
+      for (const asset of Object.values(activeCharacter.images)) { try { binaryAssets.read(asset); if (!binaryAssets.owned(asset.sha256)) store.append({ type: 'asset/stored', asset }) } catch { /* Missing pictures use the renderer fallback; never replace relationship state. */ } }
+      if (!store.history!().some((row) => row.type === 'character/definition' && row.definition.id === activeCharacter.id)) store.append({ type: 'character/definition', definition: definitionSchema.parse(activeCharacter) })
+    }
     protocol.handle('lca-media', (request) => {
       try { const url = new URL(request.url); if (request.method !== 'GET' || url.host !== 'asset' || !/^\/[a-f0-9]{64}$/.test(url.pathname) || url.search || url.hash) return new Response(null, { status: 404 })
         const asset = binaryAssets.owned(url.pathname.slice(1)); if (!asset) return new Response(null, { status: 404 })
@@ -327,6 +341,12 @@ void app.whenReady().then(async () => {
     notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => heartFlow?.view().pending?.id, changed: () => controller?.refresh('connection'),
       notify: ({ title, body }) => { if (prepared.developer || prepared.booth || !Notification.isSupported()) return; const notification = new Notification({ title, body, silent: true }); notification.on('click', () => { const view = controller!.getSnapshot(); controller!.dispatch({ protocolVersion: 1, requestId: randomUUID(), epoch: view.epoch, type: 'window.expand' }) }); notification.show() } })
     controller.attachNotifications(notifications)
+    character = createCharacterService({ library: characterLibrary, active: activeCharacter, settings: prepared.pluginSettings, assets: binaryAssets, busy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!backup?.isBusy(), changed: () => controller?.refresh('connection'),
+      exportBuiltin: () => exportBuiltinCharacter(join(__dirname, '../renderer')),
+      normalizePng: (bytes) => { const image = nativeImage.createFromBuffer(bytes); if (image.isEmpty()) throw new Error('CHARACTER_IMAGE_INVALID'); return image.toPNG() },
+      chooseImport: async () => { const result = await dialog.showOpenDialog({ title: '导入静态角色包', properties: ['openFile'], filters: [{ name: '角色包', extensions: ['lca-character'] }] }); return result.canceled ? null : result.filePaths[0] ?? null },
+      chooseExport: async () => { const result = await dialog.showSaveDialog({ title: '导出静态角色包（不含私人资料）', defaultPath: 'character.lca-character', filters: [{ name: '角色包', extensions: ['lca-character'] }] }); return result.canceled ? null : result.filePath ?? null } })
+    controller.attachCharacter(character)
     plugins.registerBuiltin('notifications', '急件与提醒标准', notificationTools(notifications))
     plugins.registerBuiltin('coding', '书桌编码', deskTools(heartFlow))
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
@@ -414,6 +434,6 @@ app.on('before-quit', (event) => {
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })
