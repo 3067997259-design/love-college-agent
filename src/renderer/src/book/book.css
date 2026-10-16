@@ -153,14 +153,18 @@
 /* 颜色聚在她周围，往外淡成只剩线条；晕染动画就是让这块遮罩长开 */
 .room-color {
   --wash: 1;
-  -webkit-mask-image: radial-gradient(ellipse calc(52% * var(--wash)) calc(54% * var(--wash)) at 52% 56%, black 58%, transparent 100%);
-  mask-image: radial-gradient(ellipse calc(52% * var(--wash)) calc(54% * var(--wash)) at 52% 56%, black 58%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse calc(52% * var(--wash)) calc(54% * var(--wash)) at 52% 56%, black 58%, transparent 100%), linear-gradient(to bottom, transparent, black 8%, black 88%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: radial-gradient(ellipse calc(52% * var(--wash)) calc(54% * var(--wash)) at 52% 56%, black 58%, transparent 100%), linear-gradient(to bottom, transparent, black 8%, black 88%, transparent);
+  mask-composite: intersect;
 }
 .room-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; }
 /* 时段光只落在有颜色的地方，外圈的铅笔线照旧留在纸上 */
 .room-tint, .room-lamp {
-  -webkit-mask-image: radial-gradient(ellipse 58% 60% at 52% 56%, black 55%, transparent 100%);
-  mask-image: radial-gradient(ellipse 58% 60% at 52% 56%, black 55%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 58% 60% at 52% 56%, black 55%, transparent 100%), linear-gradient(to bottom, transparent, black 8%, black 88%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: radial-gradient(ellipse 58% 60% at 52% 56%, black 55%, transparent 100%), linear-gradient(to bottom, transparent, black 8%, black 88%, transparent);
+  mask-composite: intersect;
 }
 .room-tint { position: absolute; inset: 0; background: var(--room-tint); mix-blend-mode: var(--room-tint-blend); pointer-events: none; }
 .room-lamp {
@@ -287,21 +291,38 @@
 .room[data-shot='close'] .mail-slot { left: 60%; top: 86%; width: auto; height: auto; background: none; }
 .room[data-shot='close'] .mail-letter { position: relative; display: block; left: 0; bottom: 0; transform: rotate(-7deg); animation: none; box-shadow: var(--shadow-card); }
 
-/* 她出门了：房间里是空椅子，墙边一张便签 */
+/* 去向写在精修空房间图已有的桌上纸条里，变换跟随桌面透视。 */
 .away-note {
   position: absolute;
-  right: 5%;
-  top: 38%;
+  left: 46%;
+  top: 88.8%;
+  width: 20%;
   margin: 0;
-  padding: 4px 12px;
-  font: 20px var(--font-hand);
+  padding: 0;
+  font: 15px / 1.2 var(--font-hand);
   color: var(--graphite);
-  background: color-mix(in oklab, var(--paper) 88%, white);
-  border: 1.5px solid var(--pencil);
-  border-radius: 4px;
-  transform: rotate(3deg);
-  box-shadow: var(--shadow-card);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform-origin: 0 0;
+  transform: matrix(0.97, -0.17, 0.73, 0.57, 0, 0);
 }
+
+/* 画内夜光已经完成重光，只调暗叠加的真实时钟／状态物件。 */
+.room[data-lighting^='baked'] .wall-clock,
+.room[data-lighting^='baked'] .door-sign {
+  background: #686571;
+  border-color: #99909b;
+  color: #e2d7c2;
+}
+.room[data-lighting^='baked'] .wall-clock-time,
+.room[data-lighting^='baked'] .wall-clock-phase { color: inherit; }
+.room[data-lighting^='baked'][data-pose='sleeping'] .wall-clock {
+  background: #454b60;
+  border-color: #7c7d8f;
+  color: #b4b5c1;
+}
+.room[data-lighting^='baked'] .mail-letter { background: #9b9490; border-color: #686571; }
 
 /* 她最新说的一句话 */
 .speech {

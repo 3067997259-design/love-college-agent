@@ -1,0 +1,204 @@
+{
+  "approvedOn": "2026-10-16",
+  "authorization": "User approved the entire refined series, Demo integration, project workflow documentation, commit, and Claude handoff.",
+  "method": "NovelAI base artwork followed by GPT-image refinement through built-in image_gen",
+  "reportedModel": null,
+  "assets": [
+    {
+      "source": "2026-10-16-v1/facing-user_worried-v1.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_worried.png",
+      "sha256": "9DCBDD295C502AC101AD1828DE9D0535D0EDB1C5A1252408926646DFB48531E1"
+    },
+    {
+      "source": "2026-10-16-v2/sleeping-close-night-v2.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/sleeping_dark.png",
+      "sha256": "E6FE33A99A930052C67E2BEE9D784697A3E10A2C605ACFDBB7E9CEAC376992EB"
+    },
+    {
+      "source": "2026-10-16-v2/sleeping-close-day-v2.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/sleeping_calm.png",
+      "sha256": "BBA0F61D334C825360FF1AC3F2102F7FD4177D225800D16388ED9B868958D6D4"
+    },
+    {
+      "source": "2026-10-16-v2/desk-writing-night-v2.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/desk-writing_night.png",
+      "sha256": "E7EE5CAD4B07918C58B1CDBE0463388FC58A539C97600D7DCCB5C6092B8178AE"
+    },
+    {
+      "source": "2026-10-16-v1/desk-computer_calm-v1.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/desk-computer_calm.png",
+      "sha256": "712ABCCBCA0E41C33F6A122BB5EF1753097022D872079D735AB94655D5B3C290"
+    },
+    {
+      "source": "2026-10-16-v2/empty-close-day-v2.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/empty.png",
+      "sha256": "0F6B11B5994482D7537A3C18F65ACFA38744F31F38B5B9883A291E3C475278BE"
+    },
+    {
+      "source": "2026-10-16-v2/desk-writing_calm-v2.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/desk-writing_calm.png",
+      "sha256": "246705E2FD980DC6B6B9150B983BDC732B81DB34F806DAFEE5C223DE32CAA2E7"
+    },
+    {
+      "source": "2026-10-16-v1/facing-user_calm-v1.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_calm.png",
+      "sha256": "C27A152100CAA1EDF60E6A18EFE3F92FB1E21B02FF905F533B22C395DBD59086"
+    },
+    {
+      "source": "2026-10-16-v1/facing-user_smile-v1.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_smile.png",
+      "sha256": "20364A60DB6E269EDEF2F9FEC1E05255FCBAE91BFFEBD6B85032CC39D2442FFB"
+    },
+    {
+      "source": "2026-10-16-v3/sleeping-close-nightlight-v3.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/sleeping_nightlight.png",
+      "sha256": "A985B5EE8743C2DFB55A4A4548A7CCB1B6F0F4B6E2ED89D4CB83AF7B31EE9E19"
+    }
+  ],
+  "generationRecords": [
+    {
+      "date": "2026-10-16",
+      "method": "built-in image_gen",
+      "requested_model": "gpt-image-2.5",
+      "reported_model": null,
+      "note": "Built-in tool exposes no model selection or returned model identity. Original application assets remain unchanged. Outputs are independent review candidates, not installed runtime assets.",
+      "assets": [
+        {
+          "original": "src/renderer/src/assets/character/taozi/close/desk-computer_calm.webp",
+          "output": "desk-computer_calm-v1.png",
+          "generated_file": "exec-556cd96f-f449-431b-be18-343333a43a1c.png",
+          "prompt": "Use case: identity-preserve. Local corrective edit for an existing 1024x1024 anime visual-novel scene.\nImage 1 is the edit target: Taozi seated typing at her laptop. Image 2 is the approved character design sheet, identity and clothing reference ONLY. Return one edited full scene, same square composition.\nRepair only the head-to-neck-to-collar region. Her torso and hands face the laptop toward image lower-left. Turn her head naturally toward that laptop screen, with a slight downward gaze and credible three-quarter anatomy, rather than the current near-frontal pasted portrait. Preserve her distinctive face: muted grey amber eyes, restrained calm expression, chin-length warm pale peach bob, navy ribbon on HER left, same ribbon placement and tails. Do not use a generic anime face. Keep head scale and center close to original, retain age and hair silhouette.\nReconstruct a physically coherent neck seated between her shoulders, with clean white small rounded blouse collar inside the cream cardigan. Collar perspective must follow the TORSO, not swivel with the face. Remove broken white fragments, ghost contours and fuzzy blending at neckline. Flat clean color shapes, fine colored linework, single lavender shadows matching original, no airbrush blur.\nInvariants: preserve entire room, window, curtains, sky, books, plants, lamp, cup, table, chair, laptop, keyboard, fingers, both arms, cardigan below upper chest and all object positions exactly. No crop, camera change, added props, changed hand pose, new blush, new accessories, global recolor or style makeover. This is precise retouching of the existing illustration, not a redraw. Preserve original high-key pastel contrast and line thickness.",
+          "review": "Visually reviewed: improved head/neck/collar continuity; no obvious unintended prop or clothing redesign. Generative line/position drift remains; not pixel-aligned animation assets.",
+          "user_feedback": "第一张效果不错。继续。"
+        },
+        {
+          "original": "src/renderer/src/assets/character/taozi/close/desk-writing_calm.webp",
+          "output": "desk-writing_calm-v1.png",
+          "generated_file": "exec-fe6430ab-9371-4f32-b557-18a498cb2eaf.png",
+          "prompt": "Use case: identity-preserve. Precisely retouch image 1, a square anime scene of Taozi writing at her desk. Image 2 is the corrected typing scene, a reference ONLY for the same character's natural three-quarter head, clean rounded collar, neck and unchanged cardigan design. Image 3 is the approved identity sheet; use lower portraits for facial identity.\nOutput one complete square writing scene with original composition.\nRepair the head, neck and collar: the head should face down and toward the notebook and pen tip at image lower-left, naturally aligned with her seated torso. Preserve the original quiet, focused expression and distinctive grey amber eyes; peach bob with inward ends, navy ribbon at HER left, exact hair/ribbon design. No generic-face substitution. Head size and position stay close to original. Use image 2 as continuity guide, with only the slightly lower gaze needed for writing. Clean coherent neck and white small rounded blouse collar, collar attached to torso under cream cardigan; retain thin colored lines and flat lavender shadows, crisp edges without feathered blur or duplicate lines.\nThe original writing pose, two hands, pen, notebook, table objects, books, mug, chair, background, window, curtains, plant, lamp, palette and camera must stay as in image 1. Remove ONLY the impossible small brown triangular flap sticking up immediately left of the pen-holding hand (it is a generation artifact); restore the notebook/paper underneath. Do not redesign or move anything else. Keep the existing fine pastel flat illustration style, no gradients, added texture, blush or global retouch.",
+          "review": "Visually reviewed: improved head/neck/collar continuity; no obvious unintended prop or clothing redesign. Generative line/position drift remains; not pixel-aligned animation assets.",
+          "user_feedback": null
+        },
+        {
+          "original": "src/renderer/src/assets/character/taozi/close/facing-user_calm.webp",
+          "output": "facing-user_calm-v1.png",
+          "generated_file": "exec-3ac9dd09-edc1-43df-aa35-38a787bccaaf.png",
+          "prompt": "Use case: identity-preserve. Retouch an existing pastel anime visual-novel illustration.\nImage 1 is the edit target: Taozi looks toward the viewer, calm, both hands resting on laptop keyboard. Image 2 is an approved repaired scene showing the correct continuous torso, white rounded blouse collar and cream cardigan. Image 3 is her identity design sheet; its lower left calm portrait supplies facial features, NOT a head or collar to paste.\nOutput one complete square scene. Fix the awkward pasted frontal neck/head and collar in image 1. Keep her face recognizably the same Taozi and calm neutral closed-mouth expression, greyish amber eyes, peach bob, navy ribbon on HER left. She gently turns her head from the laptop toward the viewer. Draw a natural slight three-quarter turn with eyes meeting viewer; connect jaw and neck anatomically to existing oblique shoulders. Do not exaggerate a backward neck twist or tilt. Keep head scale/center and hair silhouette consistent.\nThe neck rotates independently INSIDE the clothing. Match image 2's clean white small rounded blouse collar anchored to the torso, not a symmetric frontal collar rotating with the portrait. Remove all faded or doubled contours at shoulder and collar. Maintain single clean lavender shadow shapes and colored fine linework without airbrush.\nPreserve image 1's body posture, hands/fingers, laptop and keyboard, desk objects, background, chair, window, curtain, sky, plant, lamp, framing, object locations and pastel palette. No added details, blush, accessories, texture, broad recoloring or redesign. Only head/neck/collar and the tiny shoulder junction needed for coherent anatomy may change. Preserve image 1's distinctive calm face while adapting its perspective rather than pasting a frontal face.",
+          "review": "Visually reviewed: improved head/neck/collar continuity; no obvious unintended prop or clothing redesign. Generative line/position drift remains; not pixel-aligned animation assets.",
+          "user_feedback": null
+        },
+        {
+          "original": "src/renderer/src/assets/character/taozi/close/facing-user_smile.webp",
+          "output": "facing-user_smile-v1.png",
+          "generated_file": "exec-b82652f1-7888-4897-9dc4-1b9b32f9e5f6.png",
+          "prompt": "Use case: identity-preserve. Create the SMILE expression variant of image 1 by a precise facial edit.\nImage 1: edit target, corrected Taozi calm scene with a natural head/neck/collar connection. Image 2: expression reference ONLY, the original approved Taozi gentle smile. Do NOT copy its faulty frontal neck or blurred collar.\nChange ONLY eyebrows, eyelids and mouth inside the face to her restrained gentle closed-mouth smile from image 2: softly relaxed slightly lowered eyelids, subtle upturned mouth corners. Keep muted grey amber irises, their size, facial proportions and character identity. No blush, teeth, new highlights or generic cute face.\nKeep the corrected head angle, hair, hair silhouette, navy ribbon, ears, jaw outline, neck, white rounded collar, shoulders, cardigan, hands and every background pixel as close to image 1 as possible. No head movement, tilt, scale or perspective change. No redesign of anything. Exact same square full-scene composition, fine colored linework, clean flat pastel and lavender shadows. This is an expression-only variant in an animation asset set, so anatomical and scene alignment must stay fixed.",
+          "review": "Visually reviewed: improved head/neck/collar continuity; no obvious unintended prop or clothing redesign. Generative line/position drift remains; not pixel-aligned animation assets.",
+          "user_feedback": null
+        },
+        {
+          "original": "src/renderer/src/assets/character/taozi/close/facing-user_worried.webp",
+          "output": "facing-user_worried-v1.png",
+          "generated_file": "exec-d1a53221-2f8d-4102-aef8-32c3950d60d7.png",
+          "prompt": "Use case: identity-preserve. Create the WORRIED expression variant of image 1 using a very localized facial edit.\nImage 1 is the corrected calm Taozi scene and exact edit target. Image 2 is the original worried expression reference ONLY: preserve this restrained concern, not crying or panic. Do not copy image 2's faulty frontal neck and blurred collar.\nChange only eyebrows, eyelids and mouth within the existing face: gently raised inner brows with a slight concerned knit, softly concerned grey amber eyes, tiny downturned closed mouth like image 2. Preserve iris size and color, facial proportions, nose, eye placement, jaw outline, identity and maturity. No tears, blush, sweat, open mouth, teeth or extra highlights.\nStrict invariants: retain image 1's repaired slight head turn, exact head scale and location, hair shape and peach color, navy ribbon and tails, ears, neck, anatomically coherent white rounded blouse collar, cardigan, shoulders, arms, hands, keyboard/laptop, table and all room objects. Keep entire scene camera, composition, window, cloud shapes, curtains, lamp, plants, books and cup unchanged. Match fine colored linework, flat pastel colors and single lavender shadow shapes. This is an expression-only animation asset; do not move anything outside eyebrow/eye/mouth pixels or change the style. Output one square full scene.",
+          "review": "Visually reviewed: improved head/neck/collar continuity; no obvious unintended prop or clothing redesign. Generative line/position drift remains; not pixel-aligned animation assets.",
+          "user_feedback": null
+        }
+      ]
+    },
+    {
+      "date": "2026-10-16",
+      "mode": "built-in image_gen",
+      "reported_model": null,
+      "user_decisions": [
+        "V1 typing, calm, smile, worried accepted visually.",
+        "Writing notebook must face Taozi.",
+        "Sleeping uses same close camera, with laptop and notebook closed.",
+        "Away status keeps empty room and destination note on the desk."
+      ],
+      "assets": [
+        {
+          "file": "desk-writing_calm-v2.png",
+          "source": "V1 writing candidate",
+          "change": "Rotate notebook toward Taozi; preserve approved face and pose.",
+          "prompt": "Use case: precise-object-edit. Image 1 is the previously approved writing illustration, to be corrected locally. Keep its character face, natural downward head, neck, collar, hair, ribbon, body, room and style unchanged.\nCorrect ONLY the open notebook's orientation on the tabletop and the minimum finger/pen contacts required. It is currently presented squarely toward the camera. She sits at the RIGHT of the notebook. Rotate the open notebook IN THE PLANE OF THE DESK so SHE can read and write it comfortably: its page bottoms are toward her body at upper-right, page tops point away from her toward lower-left. The center spine/gutter must run DIAGONALLY from lower-left toward upper-right, toward her torso, not vertically toward the viewer. Ruled writing lines run across the pages perpendicular to that diagonal spine, in desk perspective. The open spread should be strongly foreshortened and oblique as seen by someone sitting beside her. She writes normally right-handed with the same blue pen, pen tip touches a ruled page, other hand lightly holds the other page. Preserve the notebook location and approximate size; do not merely skew the existing front-facing book, do not show it upright, no readable words. One clean physically plausible open notebook, two page blocks joined by one spine.\nKeep both arms, pose, objects, mug, books, plants, chair, window, curtains, lamp, lighting and pastel fine colored linework as in input. No new props, no global redraw, no brown flap near the hand. Output same square full scene."
+        },
+        {
+          "file": "sleeping-close-day-v2.png",
+          "source": "Approved typing scene via sleeping draft",
+          "change": "Same close camera, resting on folded arms; laptop and notebook closed.",
+          "prompt": "Use case: precise-object-edit. Image 1 is a sleeping scene to refine. Keep Taozi's sleeping pose, face, hair, navy ribbon, folded arms, clothes, chair, background, camera, pastel style and daylight identical.\nONLY correct the objects for bedtime: fully CLOSE the laptop on the left of her arms. Its screen lid folds flush onto its keyboard at the existing hinge, creating a thin closed pale lavender laptop lying flat in the same tabletop location and perspective. No lit screen, no visible keyboard, no standing screen panel, no logo. Preserve its footprint and rounded corners.\nThe small cream notebook beside the cup stays CLOSED, with visible closed cover and page block, no open pages anywhere. Keep cup and every other prop in place. Her arms and cheek remain on the clear wooden table to the right of the closed laptop, not on the device. Do not change her hands, head, sleeves or pose. Preserve the uncluttered same close camera and same square composition."
+        },
+        {
+          "file": "empty-close-day-v2.png",
+          "source": "Approved typing scene",
+          "change": "Empty chair, closed laptop/notebook and blank note on desk. Same-camera close composition is a candidate, not separately approved.",
+          "prompt": "Use case: precise-object-edit. Edit this approved square Taozi room scene into the SAME ROOM AND SAME CLOSE CAMERA after she has gone out.\nRemove only Taozi, leaving her existing wooden chair empty in exactly its same right-hand location and perspective. Reconstruct the window, curtain, chair back and tabletop she occluded in the same established room design, without redesigning the visible background. Keep desk, laptop, books, cup, plant, lamp, stationery exactly recognizable. Fully close the laptop and the small notebook because she has left; keep each in its original tabletop area. Lamp off. Same pastel daylight.\nOn the clear foreground tabletop at lower center, place ONE small cream rectangular blank paper note lying flat in the plane of the desk with a tiny natural cast shadow. The note should be readable-sized, about 18 percent of image width, centered around x=57%, y=83%, skewed with the tabletop perspective. It must visibly rest on the wood, not float against window or wall. Leave the paper completely blank: destination words will be drawn by application code so they can change. No other added plaques, hanging signs, text, letters or speech bubbles.\nPreserve all unoccluded parts, window geometry, original lamp crop on left, chair design and tabletop perspective; retain fine colored linework, single lavender shadows and pale peach/cream/mint palette. Do not zoom out or add bed, doorway, room furniture, character, silhouette or reflection. Empty chair and a small note should quietly communicate a temporary absence."
+        },
+        {
+          "file": "sleeping-close-night-v2.png",
+          "source": "sleeping-close-day-v2.png",
+          "change": "Lights off, deep night sky, readable cool ambient lighting.",
+          "prompt": "Use case: lighting-weather. Image 1 is the approved sleeping close scene. Create its LIGHTS-OFF NIGHT lighting variant. Change ONLY time-of-day illumination and sky appearance, preserving every contour, pose, object, crop and perspective.\nIt is late night. Window exterior is a quiet deep desaturated indigo-blue sky, with faint muted blue-violet clouds, no bright daytime cream clouds, no sun, no invented moon or stars. Very weak cool ambient light enters through the window and softly reveals the outlines of peach hair and cream sleeves. Desk lamp at image left is OFF: opaque dim lampshade, no warm pool, no glow. Laptop is CLOSED exactly as input and emits no light. The small notebook remains CLOSED beside the mug. Taozi sleeps peacefully on her folded arms at the same close-camera angle.\nKeep her recognizable peach hair in low light, dark navy ribbon, pale cream cardigan, lavender shadows. Make the room clearly darker than daytime but all main shapes still readable; clean flat anime shadow shapes, finely colored linework, no muddy grey veil, fog, global blur, heavy vignette, bloom, grain, photorealism or dramatic cinematic rim lights. No new objects or movement. The output itself is the correctly relit illustration; no UI labels or border. Same square framing."
+        },
+        {
+          "file": "desk-writing-night-v2.png",
+          "source": "desk-writing_calm-v2.png",
+          "change": "Night sky with warm light from existing left desk lamp onto face, hands and notebook.",
+          "prompt": "Use case: lighting-weather. Relight this exact corrected writing illustration to NIGHT WITH THE DESK LAMP ON. Change lighting and exterior sky only. Keep the corrected diagonal notebook orientation, exact pen/hand contact, face, head angle, peach bob, navy ribbon, rounded collar, cream cardigan, furniture, all objects and same close square camera.\nOutside the window: deep quiet desaturated indigo-blue night with sparse faint blue-violet cloud shapes, no daytime cream clouds, no sun, no new moon/stars. Inside: the EXISTING cropped lamp shade at image LEFT is the ONLY warm light source. It casts a controlled warm pale-amber pool downward and rightward onto the notebook, pen, hands, desk and the near side of her face/hair. Her face and notebook remain pleasantly legible, with cool lavender shadows on away-facing surfaces, while the window and far curtain remain visibly dark and cool. The illuminated underside of that existing left lamp shade can be warm; do not create another lamp.\nPreserve the original thin colored linework and simple flat cel shading, one clear shadow tone, soft pastel surface colors in lit areas. No generalized yellow wash, no whole-image grey overlay, no haze/bloom, no gradient airbrush face, no excessive contrast, no glitter or extra highlights. Keep the warm/cool lighting coherent with source direction while maintaining the same illustration style. One full-scene square output, no text or UI."
+        }
+      ],
+      "discarded": [
+        {
+          "generated_file": "exec-87a9c368-e5a1-4f8f-b782-1d4ab2f89f40.png",
+          "reason": "Superseded after user required laptop closed.",
+          "prompt": "Use case: identity-preserve. Create a sleeping pose variant by editing this approved full scene. Same FIXED CLOSE CAMERA beside Taozi's desk, same square composition, same room and same scale; do not zoom out. She has quietly fallen asleep seated in the same wooden chair, leaning forward with her cheek resting gently on her folded cream-cardigan forearms ON THE CLEAR WOODEN TABLE immediately to the right of the laptop keyboard. Her eyes are fully closed with a relaxed peaceful expression. Her head is genuinely supported by the arms; natural curved back, neck and shoulder anatomy. No floating head, no twisted neck, no hands under the computer, no sleeping on the keyboard. Keep the open laptop in its original lower-left position and orientation.\nPreserve Taozi's precise identity and mature proportions, short warm pale peach bob with inward ends, grey-amber eyes now closed, navy ribbon on her left with two hanging tails, white small rounded collar and cream knit cardigan. Hair settles naturally with gravity onto forearms, ribbon remains recognizable, no decorative symbols or Zzz, no blush.\nPreserve original window, sky, curtains, books, cup, plant, lamp, chair, tabletop perspective, camera and object positions. Only her upper-body pose and the arm area change as required. Make a DAYLIGHT neutral base asset, identical lighting/palette to input; night lighting will be a separate variant. Lamp is unlit. Fine colored thin linework, flat pastel colors and one clean lavender shadow tone matching input. Output one full square scene."
+        }
+      ],
+      "ui_audit": {
+        "source": [
+          "src/renderer/src/book/LeftPage.tsx",
+          "src/renderer/src/book/book.css",
+          "src/renderer/src/design/tokens.css"
+        ],
+        "findings": [
+          "Away door-sign at left 1.2 percent extends beyond painted door.",
+          "Away note at right 5 percent/top 38 percent floats before window.",
+          "Old wide desk group overlaps bed and is inconsistent in scale.",
+          "Night applies 42-percent blue multiply over daylight sky; left-edge lamp glow does not coherently light subject.",
+          "Switching sleep to close shot requires pose-aware lamp-off rule, because current close rule sets lamp-on 1."
+        ],
+        "proposal": [
+          "Use blank paper asset plus perspective-aligned dynamic destination text; avoid baking destination into image.",
+          "For night candidates omit existing room-tint and room-lamp to avoid double grading; dim UI clock separately.",
+          "Generate matching pencil layers only after selection; candidate previews hide mismatched old line layer.",
+          "Preserve original runtime assets until separately integrated."
+        ]
+      },
+      "verification": {
+        "method": "Existing fake-data renderer in isolated Vite+Chrome session on port 5417 with temporary DOM overrides; no app source mutations.",
+        "screenshots": "ui-review/",
+        "before": "ui-before/",
+        "limits": "Image-generation outputs are not guaranteed pixel-aligned. Three new scene previews are visual candidates, not runtime integration acceptance."
+      }
+    },
+    {
+      "date": "2026-10-16",
+      "method": "built-in image_gen",
+      "reported_model": null,
+      "input": "../2026-10-16-v2/sleeping-close-night-v2.png",
+      "output": "sleeping-close-nightlight-v3.png",
+      "prompt": "Use case: lighting-weather. Precisely relight this ONE existing sleeping illustration with a very soft WARM NIGHTLIGHT. Preserve its complete composition, linework, scene geometry, character and sleeping pose. Do not redraw or add props.\nKeep the deep indigo exterior, muted night clouds and cool ambient shadows. Set the EXISTING partially cropped desk lamp at the far LEFT to a very dim warm nightlight setting, far softer than a working/reading lamp. Its shade's underside glows softly pale amber with controlled luminance, NOT white-hot yellow. The lamp projects a small low-intensity warm pool down and right onto the nearby book spines, mug, closed laptop edge and wooden tabletop. This light softly falls off as it travels toward Taozi. A delicate warm reflected fill gently touches the left-facing peach hair tips, her near cheek and the tops of the cream sleeves supporting her face. Most of her hair, far shoulder, chair and room remain in cool blue-violet shadow. The viewer should feel late-night quiet warmth within a cool dark room, not a fully illuminated workspace.\nUse physically coherent occlusion and falloff: the lamp is on the left, so warm planes face left and cast shadows fall right; hair casts soft-edged simple shadow onto face/arms; no warm glow on the far curtain/window or luminous halo around the entire head. Her sleeping face remains subdued, only gently readable; retain closed eyelids, quiet expression and exact features. The brightest area is the small lamp underside and nearby desk, not her face. Maintain restrained pastel anime colored fine lines and simple lavender cel shading; smooth lighting modulation is fine but do not add airbrushed texture, fog, bloom, heavy rim lights, grain or shiny skin.\nSTRICT invariants: keep same head/neck/arms, peach bob and navy bookmark ribbon, clothing and collar, every object and position, square crop, window and cloud layout. Laptop remains fully CLOSED with no lit screen. Small notebook by the mug remains fully CLOSED. No added nightlight object, no new text, no candles, no symbols, no stars, no blush. Only change illumination from dim blue-only night to dim blue night with a gentle local amber nightlight.",
+      "reference_use": "User screenshot inspected for light logic only; not supplied to image generation.",
+      "change": "Dim existing left lamp adds local warm desk/near-hair/forearm light; distant room and window remain cool dark. Pose and closed laptop/notebook preserved.",
+      "status": "awaiting user visual approval",
+      "user_authorization": {
+        "current": "Only revise sleeping night image.",
+        "after_approval": "Replace unrefined originals with approved refinements, commit scoped work, and inform Claude that user authorized it and explain changes."
+      },
+      "runtime_replaced": false,
+      "committed": false,
+      "claude_notified": false
+    }
+  ],
+  "note": "Nested generation records are historical review-stage snapshots; approval and runtime mapping in this manifest supersede their pending flags. Only the approved output pixels are copied; no new image synthesis or resampling in this integration."
+}
