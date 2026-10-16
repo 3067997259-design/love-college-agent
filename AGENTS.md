@@ -246,3 +246,4 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 
 `pnpm probe:heart-flow` 运行原生隔离探针；`pnpm test:heart-flow` 运行 Electron 闭环。JavaScript 沙箱不提供 Node／shell／网络／系统文件；不要把批准一次扩展成后续操作授权。
 
+`pnpm probe:life` 验证外出事实与恢复结算水位；不要把离线虚构事件报告为实际工作。

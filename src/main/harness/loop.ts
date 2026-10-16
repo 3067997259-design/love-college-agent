@@ -33,6 +33,7 @@ export function createHarness(options: {
   limits?: { steps?: number; dailyTokens?: number; autonomousTokens?: number; outputTokens?: number }
   prepareContext?(turnId: string, signal: AbortSignal): Promise<{ messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }>
   foreground?(): void
+  userWork?(): void
   settled?(): void
 }) {
   const { store, clock, model } = options
@@ -185,6 +186,7 @@ export function createHarness(options: {
     send: (text: string, requestId: string, commandHash: string) => {
       if (disposed || inbox.length >= 32 || store.projection().lightsOut) throw new Error('INBOX_UNAVAILABLE')
       options.foreground?.()
+      options.userWork?.()
       const id = randomUUID()
       record({ type: 'user/message', id, text, requestId, commandHash })
       inbox.push({ id, source: 'user' }); kick()

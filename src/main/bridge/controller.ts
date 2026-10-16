@@ -22,9 +22,14 @@ import { characterNameInput, initialOnboarding, onboardingView, userNameInput } 
 import { giftSpecSchema } from '../gifts/schema'
 import type { GiftService } from '../gifts/service'
 import type { HeartFlowService } from '../heart-flow/service'
+import type { LifeService } from '../life/service'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('life.schedule'), schedule: z.enum(['auto', 'work', 'rest']) }),
+  z.strictObject({ ...envelope, type: z.literal('life.propose'), place: z.enum(['coast', 'swing']).optional() }),
+  z.strictObject({ ...envelope, type: z.literal('life.depart'), outingId: z.string().max(100) }),
+  z.strictObject({ ...envelope, type: z.literal('life.return') }),
   z.strictObject({ ...envelope, type: z.literal('flow.enter') }),
   z.strictObject({ ...envelope, type: z.literal('flow.exit') }),
   z.strictObject({ ...envelope, type: z.literal('flow.mode'), mode: z.enum(['plan', 'execute']) }),
@@ -110,6 +115,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let windows: CompanionWindows | undefined
   let gifts: GiftService | undefined
   let heartFlow: HeartFlowService | undefined
+  let life: LifeService | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
     protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0, onboarding: onboardingView(store?.projection().onboarding ?? initialOnboarding(), !!options.booth),
@@ -192,6 +198,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (quill) snapshot.quill = quill.read()
     if (gifts) { snapshot.gifts = gifts.view(); snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'rodin' ? { ...item, status: snapshot.gifts!.configured ? 'ready' : 'unconfigured', source: snapshot.gifts!.items.at(-1)?.source ?? 'none' } : item) }
     if (heartFlow) { snapshot.heartFlow = heartFlow.view(); snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'heart-flow' ? { ...item, status: 'ready', source: 'real' } : item); if (snapshot.heartFlow.activeId) snapshot.companion.pose = 'desk-computer' }
+    if (life) { snapshot.life = life.view(); snapshot.companion.locationId = snapshot.life.locationId }
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
@@ -231,6 +238,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { store?.append({ type: 'companion/mode', mode: command.mode, requestId: command.requestId, commandHash: signature }) }
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.mode = command.mode
+      life?.reconcile()
       pomodoro?.stateChanged(command)
       campus?.stateChanged()
       documents?.stateChanged()
@@ -245,6 +253,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { store?.append({ type: 'companion/lights', lightsOut: command.lightsOut, requestId: command.requestId, commandHash: signature }) }
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.lightsOut = command.lightsOut
+      life?.reconcile()
       gifts?.stateChanged()
       heartFlow?.stateChanged()
       pomodoro?.stateChanged(command)
@@ -272,6 +281,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       catch { ack = reject(command.requestId, 'internal') }
     } else if (heartFlow && command.type.startsWith('flow.')) {
       const error = heartFlow.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (life && command.type.startsWith('life.')) {
+      const error = life.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('mode', command.requestId)
     } else if (gifts && command.type.startsWith('gift.')) {
       try { const error = gifts.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -333,6 +344,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachQuill: (port: QuillService) => { quill = port; publish('connection') },
     attachGifts: (port: GiftService) => { gifts = port; publish('connection') },
     attachHeartFlow: (port: HeartFlowService) => { heartFlow = port; publish('connection') },
+    attachLife: (port: LifeService) => { life = port; publish('mode') },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },

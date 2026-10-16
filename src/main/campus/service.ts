@@ -22,6 +22,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
   privacy: EmailPrivacyModel | null; development?: ReturnType<typeof createFakeMailbox>; changed(): void; emit(id: string, text: string): void; failed?(): void;
   artifacts?: ArtifactStore; openArtifact?(view: DeliveryView, content: string): void;
   attachment?(record: AttachmentRecord): void;
+  canProcess?(): boolean;
 }) {
   const { clock, store, scheduler, vault, source } = options
   const repository = createCampusRepository(store, vault, options.failed)
@@ -43,14 +44,14 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
   }
   const setState = (next: Partial<MailboxView>) => { mailbox = { ...mailbox, ...next }; repository.append({ type: 'mail/state', view: view() }); publish() }
   const flush = () => {
-    if (!enabled || disposed || store.projection().lightsOut) return
+    if (!enabled || disposed || store.projection().lightsOut || options.canProcess?.() === false) return
     const records = store.history?.() ?? store.records()
     const consumed = new Set(records.flatMap((row) => row.type === 'inbox/drain' || row.type === 'inbox/drop' ? row.ids : []))
     for (const entry of repository.view().processed) if (entry.facts && !consumed.has('mail:' + entry.sourceKey)) options.emit('mail:' + entry.sourceKey, JSON.stringify(entry.facts))
   }
   const scanNow = (signal?: AbortSignal): Promise<ScanResult> => {
     if (worker) return worker
-    if (disposed || !enabled || store.projection().lightsOut) return Promise.resolve({ ok: false, source: source.source, error: 'unavailable' })
+    if (disposed || !enabled || store.projection().lightsOut || options.canProcess?.() === false) return Promise.resolve({ ok: false, source: source.source, error: 'unavailable' })
     if (source.blocked) return Promise.resolve({ ok: false, source: source.source, error: 'source-blocked' })
     abort = new AbortController(); const local = abort
     const combined = signal ? AbortSignal.any([signal, local.signal]) : local.signal
