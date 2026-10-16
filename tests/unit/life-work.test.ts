@@ -142,3 +142,19 @@ it('survives an oversized or unreadable checkpoint instead of failing app startu
   unlinkSync(file); mkdirSync(file)
   expect(() => createLifeWork(f.options)).not.toThrow()
 })
+it('isolates unreadable pending drafts without committing, overwriting or blocking another job (reopened #16)', async () => {
+  for (const kind of ['oversized', 'nul', 'directory'] as const) {
+    const f = setup(); const job = f.work.ensure('read')!; const other = f.work.ensure('write')!
+    const text = '# Interrupted synthetic draft'; const path = workPath(job.id, 1)
+    f.store.append({ type: 'life/work-draft', draft: { id: randomUUID(), workId: job.id, step: 1, path, text, sha256: workHash(text) } })
+    f.desk.write(path, text); const absolute = join(f.root, '书桌', path)
+    if (kind === 'directory') { unlinkSync(absolute); mkdirSync(absolute) } else writeFileSync(absolute, kind === 'oversized' ? 'x'.repeat(64001) : 'before\0after')
+    let restarted!: ReturnType<typeof createLifeWork>
+    expect(() => { restarted = createLifeWork(f.options) }).not.toThrow(); cleanups.push(restarted.close)
+    expect(restarted.view().jobs.find((entry) => entry.id === job.id)).toMatchObject({ status: 'failed', reason: 'conflict', completedSteps: 0 })
+    expect(workRecords(f.store.records()).committed.get(job.id)).toBeUndefined()
+    if (kind !== 'directory') expect(readFileSync(absolute)).toEqual(Buffer.from(kind === 'oversized' ? 'x'.repeat(64001) : 'before\0after'))
+    expect(restarted.dispatch({ type: 'life.work.resume', workId: other.id } as AppCommand)).toBeUndefined(); await restarted.idle()
+    expect(restarted.view().jobs.find((entry) => entry.id === other.id)?.completedSteps).toBe(1)
+  }
+})
