@@ -89,3 +89,7 @@ characterName 进入角色的系统称呼，userName 进入用户档案的“关
 
 `heartFlow` 是书桌工作的安全投影。`flow.enter` 冻结前缀；`flow.mode` 切换只读计划／执行；`flow.compact` 仅压工作层；`flow.exit` 追加有证据的工作摘要。`flow.run` 申请执行 JavaScript，`flow.approve` 仅书本窗口能发，审批不持久复用；展位禁止运行。没有 shell／Node 权限。`flow.undo` 只撤回最新的匹配文件版本，追加事件，不删除历史。
 
+# 世界泡
+
+`life` 的出返、地点、拾取时刻和物品由主进程确定。`life.schedule` 是用户今天作息的明确输入；`life.propose` 仅提议，用户在时用 `life.depart` 同意出发，`life.return` 提前结束。离线事实带 offline=true，只结算最近三天的虚构外出；恢复私人存档直接校准 settledUntilMs，不补空档。桌面最多三件，其余入抽屉。素材缺失时界面用文字回退。
+
