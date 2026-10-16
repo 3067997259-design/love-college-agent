@@ -14,6 +14,7 @@ import { DATABASES, BackupFailure, MAX_ARCHIVE_BYTES, MAX_UNPACKED_BYTES, manife
 import { directory, privateWriteParent, regular } from './paths'
 import { validateDeskChanges } from '../heart-flow/changes'
 import { workRecords } from '../life/work/records'
+import { validateOpticalRecords } from '../optical/records'
 
 export const sha256 = (value: Uint8Array | string) => createHash('sha256').update(value).digest('hex')
 const ownerKey = (owner: SaveManifest['owner']) => sha256(JSON.stringify([owner.userId, owner.characterId]))
@@ -89,6 +90,7 @@ export async function exportPrivateSave(options: { root: string; store: SessionS
   const files = new Map<string, Buffer>(); const allRecords = store.history?.() ?? store.records()
   validateDeskChanges(allRecords)
   workRecords(allRecords)
+  validateOpticalRecords(allRecords)
   const folder = journalLocation(root, owner, clock).folder
   const activeDayKey = store.dayKey?.() ?? journalLocation(root, owner, clock).dayKey
   for (const name of readdirSync(folder).filter((name) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(name) && name <= activeDayKey + '.jsonl').sort()) {
@@ -145,6 +147,7 @@ export async function validatePrivateSave(bytes: Buffer, owner: SaveManifest['ow
     const records = [...files].filter(([path]) => path.startsWith('journals/')).sort(([a], [b]) => a.localeCompare(b)).flatMap(([, data]) => parseJournalContent(data.toString('utf8'), owner))
     validateDeskChanges(records)
     workRecords(records)
+    validateOpticalRecords(records)
     const active = files.get('journals/' + key + '/' + manifest.activeDayKey + '.jsonl'); if (!active) throw new BackupFailure('backup-invalid')
     const projected = projectJournal(parseJournalContent(active.toString('utf8'), owner)); if (projected.scope.sessionId !== manifest.activeSessionId) throw new BackupFailure('backup-invalid')
     if (manifest.counts.pageCount !== [...files.keys()].filter((path) => path.startsWith('journals/')).length || manifest.counts.messageCount !== records.filter((row) => row.type === 'user/message' || row.type === 'assistant/message' && row.text).length || manifest.counts.memoryCount !== projectMemory(records).items.length) throw new BackupFailure('backup-invalid')
@@ -154,6 +157,10 @@ export async function validatePrivateSave(bytes: Buffer, owner: SaveManifest['ow
     for (const row of records) if (row.type === 'asset/stored') { const bytes = files.get(assetPath(row.asset)); if (!bytes || bytes.length !== row.asset.byteLength || sha256(bytes) !== row.asset.sha256) throw new BackupFailure('backup-invalid'); if (row.asset.format === 'glb') validateGlb(bytes) }
     for (const [path, data] of files) if (path.startsWith('journals/')) {
       const page = parseJournalContent(data.toString('utf8'), owner); const header = page[0]
+      for (const row of page) if (row.type === 'optical/frame') {
+        const frame = row.frame; const png = files.get(assetPath(frame.asset))
+        if (!png || png.length < 33 || png.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' || png.toString('ascii', 12, 16) !== 'IHDR' || png.readUInt32BE(16) !== frame.width || png.readUInt32BE(20) !== frame.height) throw new BackupFailure('backup-invalid')
+      }
       for (const row of page) if (row.type === 'history/photo') {
         const photo = row.photo; const png = files.get(assetPath(photo.asset))
         if (header?.type !== 'session/header' || photo.sessionId !== header.sessionId || !path.endsWith('/' + photo.dayKey + '.jsonl') || !records.some((entry) => entry.type === 'asset/stored' && entry.asset.ref === photo.asset.ref) || !png || png.length < 33 || png.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' || png.toString('ascii', 12, 16) !== 'IHDR' || png.readUInt32BE(16) !== photo.width || png.readUInt32BE(20) !== photo.height) throw new BackupFailure('backup-invalid')

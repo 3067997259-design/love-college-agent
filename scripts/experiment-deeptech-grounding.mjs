@@ -33,6 +33,9 @@ const { groundingVerdict } = await import('../src/main/memory/grounding.ts')
 /**
  * 冻结集。`kind: 'drop'` 表示应当拒绝（引文断言的内容并非来源所断言）；`kind: 'keep'` 表示应当接受。
  * `kind: 'either'` 只用于真实存在的语义歧义，不计入 FAR/FRR。
+ * `atomic: false` 表示这条探针的引文**不是**来源的连续子串：它检验的是「逐字包含」之外的语义推断，
+ * 因此 `.includes` 这一类检查器必然收下它。装置自检只对原子引文要求子串关系，否则修掉这两条就会
+ * 让实验失去它们唯一要测的区分度。
  * 开发集用于调试规则；留出集在规则冻结后只跑一次。
  */
 const CASES = [
@@ -41,7 +44,7 @@ const CASES = [
   { id: 'dev-a2', partition: 'dev', group: 'prefix-strip', source: '老师并没有说这周要交作业', quote: '这周要交作业', kind: 'drop' },
   { id: 'dev-a3', partition: 'dev', group: 'prefix-strip-numeral', source: '这门课不少于5页', quote: '5页', kind: 'drop' },
   { id: 'dev-a4', partition: 'dev', group: 'numeral-slice', source: '截止时间是12月13日晚上八点', quote: '3日晚上八点', kind: 'drop' },
-  { id: 'dev-a5', partition: 'dev', group: 'scope-negation', source: '照片并没有发给同学', quote: '照片发给同学', kind: 'drop' },
+  { id: 'dev-a5', partition: 'dev', group: 'scope-negation', source: '照片并没有发给同学', quote: '照片发给同学', kind: 'drop', atomic: false },
   { id: 'dev-a6', partition: 'dev', group: 'collective-negation', source: '本周不交作业', quote: '交作业', kind: 'drop' },
   { id: 'dev-a7', partition: 'dev', group: 'conditional', source: '如果下雨才改到周日', quote: '改到周日', kind: 'drop' },
   { id: 'dev-a8', partition: 'dev', group: 'conditional', source: '只有修满学分才能选这门课', quote: '能选这门课', kind: 'drop' },
@@ -65,7 +68,7 @@ const CASES = [
   { id: 'hold-a2', partition: 'holdout', group: 'prefix-strip', source: '课程群通知这学期不安排期中考试', quote: '安排期中考试', kind: 'drop' },
   { id: 'hold-a3', partition: 'holdout', group: 'prefix-strip-numeral', source: '篇幅不超过8页', quote: '8页', kind: 'drop' },
   { id: 'hold-a4', partition: 'holdout', group: 'numeral-slice', source: '面试安排在11月30日上午', quote: '0日上午', kind: 'drop' },
-  { id: 'hold-a5', partition: 'holdout', group: 'scope-negation', source: '材料还没有交给学院', quote: '材料交给学院', kind: 'drop' },
+  { id: 'hold-a5', partition: 'holdout', group: 'scope-negation', source: '材料还没有交给学院', quote: '材料交给学院', kind: 'drop', atomic: false },
   { id: 'hold-a6', partition: 'holdout', group: 'collective-negation', source: '这门课不再安排补考', quote: '安排补考', kind: 'drop' },
   { id: 'hold-a7', partition: 'holdout', group: 'conditional', source: '若人数不足才取消这门选修', quote: '取消这门选修', kind: 'drop' },
   { id: 'hold-a8', partition: 'holdout', group: 'conditional', source: '除非导师同意才能更换题目', quote: '能更换题目', kind: 'drop' },
@@ -150,5 +153,8 @@ if (asJson) {
 }
 // 装置自检：四组都必须真的跑过每条样本，且 OURS 不得把任意一条判成"区间不存在"。
 assert.equal(scored.length, holdout ? 44 : 22, '冻结集大小不符')
-const missing = scored.filter((testCase) => testCase.source.indexOf(testCase.quote) < 0)
+// 只有原子引文必须真的是来源的连续子串；`atomic: false` 的语义探针按定义就不是（见 CASES 注释）。
+const nonAtomic = new Set(scored.filter((testCase) => testCase.atomic === false).map((testCase) => testCase.id))
+const missing = scored.filter((testCase) => !nonAtomic.has(testCase.id) && testCase.source.indexOf(testCase.quote) < 0)
 assert.equal(missing.length, 0, '这些引文不在来源里，属于装置错误: ' + missing.map((testCase) => testCase.id).join(','))
+for (const testCase of scored) if (nonAtomic.has(testCase.id) && testCase.source.indexOf(testCase.quote) >= 0) assert.fail('这条标记为非原子引文，实际却能在来源里找到: ' + testCase.id)

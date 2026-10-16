@@ -21,6 +21,12 @@ export function closedSummaryGroups(summaries: readonly MemorySummary[], today: 
 /** Total summary slots admitted into one context. Seven of them belong to the recent days. */
 export const summaryReferenceBudget = 12
 const recentDayBudget = 7
+/**
+ * Character ceiling for one `previousDaysReference` injection. A single summary may hold 6,000 characters,
+ * so a slot budget alone could put ~60k characters into one context and leave the rest of the turn little
+ * room; text is trimmed to this ceiling instead. Only the text is trimmed — selection stays deterministic.
+ */
+export const summaryReferenceChars = 32_000
 const dateDaysBefore = (day: string, days: number, clock: Clock) => clock.iso(clock.parse(day + 'T12:00:00+08:00') - days * 86_400_000).slice(0, 10)
 
 /** Prefer wider references, but never feed the same source session through overlapping summaries. */
@@ -36,7 +42,13 @@ export function summaryReferences(summaries: readonly MemorySummary[], currentSe
   // The recent-day budget is spent first, so wider summaries cannot crowd out the last seven days; the
   // remaining budget then admits earlier weeks and months instead of losing them to a global truncation.
   const recentDay = (summary: MemorySummary) => summary.level === 'day' && !!today && !!clock && summary.period >= dateDaysBefore(today, 6, clock)
-  const fill = (pool: readonly MemorySummary[]) => { for (const summary of pool) { if (selected.length >= summaryReferenceBudget) return; if (summary.sourceSessionIds.some((id) => covered.has(id))) continue; selected.push(summary); summary.sourceSessionIds.forEach((id) => covered.add(id)) } }
+  // The character ceiling is enforced while filling, so the newest references are the ones kept and the
+  // oldest are trimmed; trimming only lowers what a reference shows, never which reference represents a session.
+  let chars = 0
+  const fill = (pool: readonly MemorySummary[]) => { for (const summary of pool) { if (selected.length >= summaryReferenceBudget || chars >= summaryReferenceChars) return; if (summary.sourceSessionIds.some((id) => covered.has(id))) continue
+    const room = summaryReferenceChars - chars; const text = summary.text.length <= room ? summary.text : room >= 200 ? summary.text.slice(0, room) : ''
+    if (!text) return
+    selected.push({ ...summary, text }); chars += text.length; summary.sourceSessionIds.forEach((id) => covered.add(id)) } }
   fill(candidates.filter(recentDay).sort((a, b) => b.period.localeCompare(a.period)).slice(0, recentDayBudget))
   // `candidates` is already ranked wider-first, so earlier weeks and months win the remaining slots over
   // the day summaries they subsume; the covered set keeps both from representing one session twice.
