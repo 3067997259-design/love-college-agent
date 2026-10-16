@@ -68,6 +68,8 @@
 
 23:04 增补：番茄计划可选 items（text／count／assist），统一校验并保留投影；`window.expand` 销毁小窗，旧 window.book 兼容。休息、停止、熄灯保留当前窗口，不抢焦点，重启不恢复小窗；GPU／黑角失败回退不透明原生圆角，可用 `LCA_MINI_OPAQUE=1` 强制。合入 Claude 的条目和羽毛笔画面后，类型／lint／123 项单测及 `test:pomodoro` 双窗口、`test:mini`、`test:backup` 通过；高 DPI 越界修正后相关检查与窗口流程再次通过。细节与人工验收边界见 [增补记录](docs/engineering/pomodoro-mini-update.md)；已有 22:47 安装包未重打。
 
+迷你窗最新版主进程（2026-10-16 晚）：280×350 DIP、主屏工作区右下角留 24 DIP；接口 `130e857` 提供 expand／hover／moveBy，物理像素位移由主进程按显示器缩放换算并限位。位置与 displayId 保存在各自 profile，失效则归位，重启只开书本。开发安全诊断的“独立窗口”只读，正常／展位模式主进程拒绝；实际入口仍为 `pnpm test:mini` 和 `pnpm test:pomodoro`。Claude 接新命令前旧 window.book／move 兼容；交接、保守停灯处理和验收边界见 [窗口记录](docs/engineering/mini-window-contract.md)。
+
 技术栈仍按 [技术方案](docs/tech-design.md) §1；界面与形象见 [体验设计](docs/experience-design.md)。首个工作展示必须贯通校园信息与实际资料处理，具体任务以 README 最新决策为准。
 
 ### 已有命令与实例隔离
@@ -105,7 +107,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm probe:mcp:student-hub` | 实际外部 Python stdio，新空库 integrity_check，不扫描学校 |
 | `pnpm probe:backup` / `pnpm test:backup` | 实际四库 backup、ZIP 校验、作用域、安全备份、回滚与空白 profile 恢复 |
 | `pnpm test:model-slots` | 正常模式原生配置导入／重启，本机合成 HTTP 的 background／privacy 路由与关闭 |
-| `pnpm test:mini` | 原生透明置顶迷你窗、同会话计时、拖动限位、穿透策略和重启位置 |
+| `pnpm test:mini` | 原生迷你窗、物理像素拖动限位／高 DPI、点穿调用、重启位置／失效归位、独立诊断窗与只读权限 |
 | `pnpm package:win` | 构建 Windows x64 NSIS，产物在 `release/` |
 | `pnpm test:package` | 检查已构建包、D 盘测试安装、原生模块、界面重启、卸载测试实例 |
 | `pnpm probe:imap` | 主进程内的指定文件夹只读探针；失败仅输出固定分类 |
