@@ -79,7 +79,7 @@ try {
   assert.equal((await snapshot()).messages.length, originalCount)
   await tools(); const oldSession = (await snapshot()).scope.sessionId
   await page.getByLabel('历史会话', { exact: true }).selectOption(oldSession)
-  await page.getByRole('region', { name: '历史聊天', exact: true }).getByText('你：我把纸桥放在书桌上，给它取名叫周五桥。', { exact: true }).waitFor()
+  await page.getByRole('region', { name: '历史聊天', exact: true }).getByText('我把纸桥放在书桌上，给它取名叫周五桥。', { exact: true }).waitFor()
   await page.getByRole('button', { name: '收起旧页', exact: true }).click(); await closeTools()
   await setClock('2026-10-17T03:59:50+08:00')
   await waitFor((s) => !['extracting', 'compacting'].includes(s.memory.status), 'BACKGROUND_NOT_IDLE')
@@ -103,7 +103,7 @@ try {
   const recall = prepared.findIndex((message) => message.content.includes('memoryReference'))
   assert.ok(oldSummary >= 0 && recall > oldSummary && recall < prepared.length - 1, 'NEXT_DAY_CONTEXT_ORDER_FAILED')
   await tools(); await page.getByLabel('历史会话', { exact: true }).selectOption(oldSession)
-  await page.getByRole('region', { name: '历史聊天', exact: true }).getByText('你：我把纸桥放在书桌上，给它取名叫周五桥。', { exact: true }).waitFor()
+  await page.getByRole('region', { name: '历史聊天', exact: true }).getByText('我把纸桥放在书桌上，给它取名叫周五桥。', { exact: true }).waitFor()
   assert.equal((await snapshot()).messages.some((message) => message.text === '/compact'), false)
   await closeTools(); await memoryAction('memory.extract')
   safe(await snapshot()); safe(await mcp('get_state'))

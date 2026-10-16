@@ -4,6 +4,7 @@
 
 | 接口提交 | 范围 | 实际可接入口 |
 | --- | --- | --- |
+| `7db7bfb` | 第三圈历史照片／引用回忆 | snapshot.history、SessionPage.photo/recallableMessageIds、history.photo.capture、history.recall；朴素入口在记忆与日会话，详见 history-third-circle.md |
 | `c5c8b42` | 新手档案／完成／重置 | 向导已绑定快照和表单，不再依赖 ?onboarding；它仅保留浏览器美术预览 |
 | `3c1a78c` | 实时礼物 | snapshot.gifts、gift.propose/start/cancel/open；GiftControls 已用真实 model-viewer 展示本地 GLB |
 | `06db36c` | 周月摘要计数／归并 | snapshot.memory.summaryCounts、memory.consolidate；最近七天仍留日摘要，单次引用上限 12（七日优先，余下给周／月） |
@@ -15,6 +16,8 @@
 | `9d860b6` | 角色包 | snapshot.characterPack；静态 PNG 槽，缺图回退，重启切换独立关系作用域 |
 
 先做有直接体验收益的接线：礼物架接 gifts（quill 保留首件意义）；外出小物点开来源并跳日记；下一页书签交钥匙；心流工作列表换成你掌握的右页样式。接口由 main 定事实，画面不自行推导时间、拾取、状态或计划确认。
+
+第三圈新增已合 main：历史页照片是真实截图，不按今天的素材重画；引用锚点用 sessionId/messageId/UTF-16 start/end，渲染层不提交摘录正文。回忆材料和扩读由主进程核对当时可见记录，snapshot 只有状态和照片。可用 recall.status/recall.photo 做正在回忆及临时旧照片效果。保留实时场景捕获根 `[data-photo-scene]`、data-session-id 和 canvas.dataset.photoReady；历史照片覆盖层置于捕获根之外，界面控件用 data-photo-omit 排除。当前可见证明要求成功模型输入，最后一条未再次进入输入的回复会保守地不开放引用。
 
 声音线的缺口需要明确补：内置角色卡 persona 目前空，chat 只有称呼、关于你和执行／隐私等技术规则。请把她的人设和语气写成独立文本／JSON，用户把关后接入；不要覆盖技术规则。日记文本／做梦措辞也请审 prompts.json。正常日记用 chat 槽位独立调用、计自主预算，日摘要仍用 background；正文不接回聊天或经历。不要把 fake 示例 prose 当最终角色声音。
 
