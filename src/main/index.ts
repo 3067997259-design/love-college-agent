@@ -26,6 +26,8 @@ import { openEvidenceVault, type EvidenceVault } from './mail/evidence-vault'
 import { createCampusService, type CampusService } from './campus/service'
 import { mailTools } from './mail/tools'
 import { probeCampus } from './validation/campus'
+import { createArtifactStore } from './artifacts/store'
+import { previewArtifact } from './artifacts/viewer'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -130,6 +132,7 @@ void app.whenReady().then(async () => {
     vault = openEvidenceVault(dataDir, store.scope)
     const fakeMailbox = prepared.developer ? createFakeMailbox(clock) : undefined
     campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? createBlockedImapSource(), privacy: fakeMailbox?.privacy ?? null,
+      artifacts: createArtifactStore(dataDir, store.scope), openArtifact: previewArtifact,
       development: fakeMailbox, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('mail', text, id) },
       failed: () => { console.error('Campus processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachCampus(campus)

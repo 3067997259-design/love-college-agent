@@ -11,10 +11,14 @@ import type { createFakeMailbox } from '../mail/fake'
 import { CampusStorageFailure, createCampusRepository } from './repository'
 import { candidateSchema, mailFactsSchema } from './schema'
 import { commandHash } from '../journal/file'
+import { exportCampusItem } from './export'
+import type { ArtifactStore } from '../artifacts/store'
+import type { DeliveryView } from '../../shared'
 
 export interface ScanResult { ok: boolean; source: 'real' | 'fake'; newCount?: number; candidateCount?: number; error?: PublicErrorCode }
 export function createCampusService(options: { clock: Clock; store: SessionStore; scheduler: Scheduler; vault: EvidenceVault; source: MailSource;
   privacy: EmailPrivacyModel | null; development?: ReturnType<typeof createFakeMailbox>; changed(): void; emit(id: string, text: string): void; failed?(): void;
+  artifacts?: ArtifactStore; openArtifact?(view: DeliveryView, content: string): void;
 }) {
   const { clock, store, scheduler, vault, source } = options
   const repository = createCampusRepository(store, vault, options.failed)
@@ -92,14 +96,41 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
     })().finally(() => { deadline(); worker = undefined; abort = undefined })
     return worker
   }
+  const exportPending = () => {
+    if (!options.artifacts || disposed || store.projection().lightsOut) return
+    for (const item of repository.view().items.filter((entry) => entry.current.status === 'confirmed' && entry.accepted && entry.accepted.revision !== entry.exportedRevision).slice(0, 100)) {
+      const candidate = item.accepted!
+      const specs = (['ics', 'md'] as const).map((format) => ({ candidateId: candidate.id, revision: candidate.revision, format,
+        displayName: candidate.title + '.' + format, source: candidate.source, createdAtMs: item.acceptedAtMs! }))
+      let files
+      try {
+        const content = exportCampusItem(item, clock)
+        files = specs.map((spec) => options.artifacts!.write({ ...spec, content: content[spec.format] }))
+      } catch {
+        repository.append({ type: 'campus/export-failed', candidateId: candidate.id, revision: candidate.revision, deliveries: specs.map((spec) => ({ ...options.artifacts!.describe(spec), status: 'failed' as const })) })
+        publish(); continue
+      }
+      repository.append({ type: 'campus/exported', candidateId: candidate.id, revision: candidate.revision, sequence: item.sequence, artifacts: files })
+      publish()
+    }
+  }
   scheduler.schedule('mail.outbox', clock.nowMs() + 1000, flush, { everyMs: 1000 })
   return { view, repository, scanNow,
     candidates: () => repository.view().items.map((item) => item.current),
-    deliveries: () => repository.view().artifacts.map((entry) => entry.view),
+    deliveries: () => [...repository.view().artifacts.map((entry) => entry.view), ...repository.view().deliveryFailures],
     privacyStatus: () => !options.privacy ? 'unconfigured' as const : mailbox.error?.code.startsWith('privacy-') ? 'failed' as const : 'ready' as const,
     setEnabled: (value: boolean) => { enabled = value; if (!enabled) { abort?.abort(); scheduler.cancel('mail.scan') } publish() },
     stateChanged: () => { if (store.projection().lightsOut) abort?.abort(); else flush() },
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
+      if (command.type === 'campus.export') {
+        if (!options.artifacts || disposed || store.projection().lightsOut) return 'unavailable'
+        scheduler.schedule('campus.export', clock.nowMs(), exportPending); return
+      }
+      if (command.type === 'artifact.open') {
+        const artifact = repository.view().artifacts.find((entry) => entry.view.artifactId === command.artifactId)
+        if (!artifact || !options.artifacts || !options.openArtifact) return 'unavailable'
+        try { options.openArtifact(artifact.view, options.artifacts.read(artifact)); return } catch { return 'export-failed' }
+      }
       if (command.type === 'candidate.confirm' || command.type === 'candidate.ignore') {
         const item = repository.view().items.find((item) => item.current.id === command.candidateId)
         if (!item || command.expectedRevision !== item.current.revision) return 'stale-candidate'
@@ -131,8 +162,8 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
       }
       return 'unavailable'
     },
-    flush, idle: async () => { await worker },
-    close: async () => { disposed = true; abort?.abort(); scheduler.cancel('mail.scan'); scheduler.cancel('mail.outbox'); await worker },
+    flush, exportPending, idle: async () => { await worker },
+    close: async () => { disposed = true; abort?.abort(); scheduler.cancel('mail.scan'); scheduler.cancel('mail.outbox'); scheduler.cancel('campus.export'); await worker },
   }
 }
 export type CampusService = ReturnType<typeof createCampusService>

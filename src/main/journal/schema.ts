@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { PUBLIC_ERROR_CODES } from '../../shared'
 import { viewSchema } from '../pomodoro/schema'
-import { artifactSchema, candidateSchema, mailboxSchema, mailFactsSchema, opaqueId } from '../campus/schema'
+import { artifactSchema, candidateSchema, deliverySchema, mailboxSchema, mailFactsSchema, opaqueId } from '../campus/schema'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -31,6 +31,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('campus/confirmed'), candidateId: opaqueId, revision: z.number().int().positive(), plannedCompletionIso: z.iso.datetime({ offset: true }).nullable(), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('campus/ignored'), candidateId: opaqueId, revision: z.number().int().positive(), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('campus/exported'), candidateId: opaqueId, revision: z.number().int().positive(), sequence: z.number().int().nonnegative(), artifacts: z.array(artifactSchema).length(2) }),
+  z.strictObject({ type: z.literal('campus/export-failed'), candidateId: opaqueId, revision: z.number().int().positive(), deliveries: z.array(deliverySchema.extend({ status: z.literal('failed') })).length(2) }),
   z.strictObject({ type: z.literal('pomodoro/state'), view: viewSchema, pauseReason: z.enum(['manual', 'lights']).nullable(),
     cause: z.enum(['plan', 'confirmed', 'started', 'paused', 'resumed', 'stopped', 'elapsed', 'interrupted']),
     mode: z.enum(['work', 'quiet', 'rest']).optional(), event: z.strictObject({ id, text: z.string().max(2000) }).optional() }),
