@@ -123,7 +123,7 @@ export function PlanCard({ plan, pomodoro, entering, onConfirm, onDismiss }: {
   const states = tomatoStates(view)
   const done = pomodoro.completedCount ?? states.filter((state) => state === 'done').length
   const allDone = pomodoro.focusIndex >= plan.plannedCount
-  const replacing = proposal && pomodoro.plan && pomodoro.plan.status !== 'finished'
+  const replacing = proposal && pomodoro.plan && pomodoro.plan !== plan && pomodoro.plan.status === 'confirmed'
   return (
     <article className="card card-plan" data-status={plan.status} data-entering={entering}>
       <header className="card-head">

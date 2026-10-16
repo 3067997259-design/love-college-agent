@@ -105,7 +105,10 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
             case 'plan': return (
               <PlanCard key={item.id} plan={item.view} pomodoro={pomodoro} entering={entering.has(item.id)}
                 onConfirm={() => { void dispatch({ type: 'pomodoro.confirm', planId: item.id }) }}
-                onDismiss={() => { void dispatch({ type: 'pomodoro.discard', planId: item.id }) }} />
+                onDismiss={() => {
+                  // 独立草案用 discard；主进程的草案实现落地前，草案还放在 plan 里（status=proposed），只能用 stop 收起
+                  void dispatch(pomodoro.proposal?.id === item.id ? { type: 'pomodoro.discard', planId: item.id } : { type: 'pomodoro.stop' })
+                }} />
             )
           }
         })}
@@ -166,8 +169,8 @@ function PlanHead({ snapshot, onCommand }: { snapshot: AppSnapshot; onCommand: (
   const { pomodoro, companion } = snapshot
   const plan = pomodoro.plan
   const remaining = useCountdown(snapshot)
-  if (!plan || pomodoro.plannedCount <= 0) {
-    return <div className="plan-head plan-head-empty">{pomodoro.proposal ? '计划等你确认' : '今天还没排番茄'}</div>
+  if (!plan || plan.status === 'proposed' || pomodoro.plannedCount <= 0) {
+    return <div className="plan-head plan-head-empty">{pomodoro.proposal || plan?.status === 'proposed' ? '计划等你确认' : '今天还没排番茄'}</div>
   }
   const progress = pomodoro.phaseDurationMs > 0 ? 1 - remaining / pomodoro.phaseDurationMs : 0
   const canStart = plan?.status === 'confirmed' && pomodoro.status === 'idle' && pomodoro.focusIndex < pomodoro.plannedCount
