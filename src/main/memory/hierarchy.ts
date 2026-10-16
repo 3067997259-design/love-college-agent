@@ -18,6 +18,11 @@ export function closedSummaryGroups(summaries: readonly MemorySummary[], today: 
     return [...groups].map(([period, children]) => ({ level, period, children }))
   })
 }
+/** Total summary slots admitted into one context. Seven of them belong to the recent days. */
+export const summaryReferenceBudget = 12
+const recentDayBudget = 7
+const dateDaysBefore = (day: string, days: number, clock: Clock) => clock.iso(clock.parse(day + 'T12:00:00+08:00') - days * 86_400_000).slice(0, 10)
+
 /** Prefer wider references, but never feed the same source session through overlapping summaries. */
 export function summaryReferences(summaries: readonly MemorySummary[], currentSessionId: string, today?: string, clock?: Clock) {
   const covered = new Set<string>(); const selected: MemorySummary[] = []; const rank = { month: 0, week: 1, day: 2 }
@@ -28,8 +33,16 @@ export function summaryReferences(summaries: readonly MemorySummary[], currentSe
     const cutoff = clock.iso(clock.parse(today + 'T12:00:00+08:00') - (summary.level === 'week' ? 7 : 30) * 86400000).slice(0, 10)
     return summary.sourceSessionIds.every((id) => (days.get(id) ?? today) < cutoff)
   }).sort((a, b) => rank[a.level] - rank[b.level] || b.period.localeCompare(a.period))
-  for (const summary of candidates) { if (summary.sourceSessionIds.some((id) => covered.has(id))) continue; selected.push(summary); summary.sourceSessionIds.forEach((id) => covered.add(id)) }
-  return selected.sort((a, b) => b.period.localeCompare(a.period)).slice(0, 7)
+  // The recent-day budget is spent first, so wider summaries cannot crowd out the last seven days; the
+  // remaining budget then admits earlier weeks and months instead of losing them to a global truncation.
+  const recentDay = (summary: MemorySummary) => summary.level === 'day' && !!today && !!clock && summary.period >= dateDaysBefore(today, 6, clock)
+  const fill = (pool: readonly MemorySummary[]) => { for (const summary of pool) { if (selected.length >= summaryReferenceBudget) return; if (summary.sourceSessionIds.some((id) => covered.has(id))) continue; selected.push(summary); summary.sourceSessionIds.forEach((id) => covered.add(id)) } }
+  fill(candidates.filter(recentDay).sort((a, b) => b.period.localeCompare(a.period)).slice(0, recentDayBudget))
+  // `candidates` is already ranked wider-first, so earlier weeks and months win the remaining slots over
+  // the day summaries they subsume; the covered set keeps both from representing one session twice.
+  fill(candidates.filter((summary) => summary.level !== 'day'))
+  fill(candidates.filter((summary) => summary.level === 'day'))
+  return selected.sort((a, b) => b.period.localeCompare(a.period))
 }
 
 /**

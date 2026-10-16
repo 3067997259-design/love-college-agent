@@ -57,6 +57,38 @@ describe('background memory scheduling and context assembly', () => {
     expect(f.memory.view().summaryCounts).toEqual({ day: 2, week: 1, month: 1 })
     expect(f.repository.view().summaries.filter((summary) => summary.level === 'month')).toHaveLength(2)
   })
+  it('keeps older week and month summaries when the last seven days already saturate the budget', async () => {
+    const f = fixture(); f.clock.advanceBy(f.clock.parse('2026-10-19T12:00:00+08:00') - f.clock.nowMs())
+    const today = f.clock.iso(f.clock.nowMs()).slice(0, 10)
+    expect(today).toBe('2026-10-19')
+    const days = ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08',
+      '2026-10-09', '2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17', '2026-10-18']
+    for (const day of days) f.repository.append({ type: 'memory/summary', summary: { id: 'day-' + day, level: 'day', period: day, text: '可见经历' + day,
+      sources: [{ id: 'seen-' + day, sessionId: 's:' + day, frameSeq: 3, index: 1, offset: 0, atMs: f.clock.parse(day + 'T12:00:00+08:00') }], sourceSessionIds: ['s:' + day], source: 'fake' } })
+    for (const week of ['2026-10-05', '2026-10-12']) f.repository.append({ type: 'memory/summary', summary: { id: 'week-' + week, level: 'week', period: week, text: '这一周' + week,
+      sources: [{ id: 'seen-' + week, sessionId: 's:' + week, frameSeq: 3, index: 1, offset: 0, atMs: f.clock.parse(week + 'T12:00:00+08:00') }],
+      sourceSessionIds: days.filter((day) => summaryPeriod(day, 'week', f.clock) === week).map((day) => 's:' + day), source: 'fake' } })
+    expect(f.repository.view().summaries).toHaveLength(20)
+    expect(f.clock.iso(f.clock.nowMs()).slice(0, 10)).toBe('2026-10-19')
+    const selected = summaryReferences(f.repository.view().summaries, 's:today', today, f.clock)
+    // 最近七天的日摘要占满 7 个名额时，更早的有效周摘要（10-05，来源 10-05…10-11）必须仍有名额，
+    // 不能被最后的全局截断丢掉；10-12 那周的来源全部落在最近七天内，仍不参与宽摘要。
+    expect(selected.filter((summary) => summary.id !== 'day-2026-10-01' && summary.id !== 'day-2026-10-02' && summary.id !== 'day-2026-10-03' && summary.id !== 'day-2026-10-04').map((summary) => summary.id).sort())
+      .toEqual(['day-2026-10-12', 'day-2026-10-13', 'day-2026-10-14', 'day-2026-10-15', 'day-2026-10-16', 'day-2026-10-17', 'day-2026-10-18', 'week-2026-10-05'])
+    const covered = new Set(selected.flatMap((summary) => summary.sourceSessionIds))
+    expect(covered.has('s:2026-10-01')).toBe(true); expect(covered.has('s:2026-10-18')).toBe(true)
+    // 10-05…10-11 由周摘要代表，不再逐日重复进入；余额才会落到更早的单日摘要。
+    expect(selected.filter((summary) => summary.level === 'day').map((summary) => summary.period)).not.toContain('2026-10-05')
+    expect(selected.filter((summary) => summary.level === 'day' && summary.period > '2026-10-11')).toHaveLength(7)
+    // 引用总条数仍受预算限制，宽摘要不能把上下文挤成无界增长。
+    expect(selected.length).toBeLessThanOrEqual(13)
+    // 同一输入在生产调用路径（prepareContext 的 previousDaysReference）上也要带上更早的周摘要。
+    f.turn('今天把上周的事情对一下。')
+    const prepared = await f.memory.prepareContext('budget-turn', new AbortController().signal)
+    const reference = prepared.messages.filter((message) => message.content.includes('previousDaysReference')).map((message) => message.content).join('\n')
+    expect(reference).toContain('这一周2026-10-05'); expect(reference).toContain('可见经历2026-10-18')
+    expect(reference).not.toContain('可见经历2026-10-05')
+  })
   it('labels weeks at Shanghai Monday even around UTC Sunday', () => {
     const f = fixture()
     expect(summaryPeriod('2026-10-18', 'week', f.clock)).toBe('2026-10-12')
