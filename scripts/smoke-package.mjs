@@ -36,6 +36,9 @@ function run(exe, args, { capture = false } = {}) {
   })
 }
 async function probe(exe, name) {
+  // Every destructive synthetic probe owns a fresh profile; none uses the UI profile or a user's data.
+  env.LCA_DATA_DIR = join(root, '.local-data', `package-probe-${name}-${randomUUID()}`)
+  env.LCA_PROVIDERS_FILE = join(env.LCA_DATA_DIR, 'absent-test-providers.json')
   const output = await run(exe, [`--lca-probe=${name}`], { capture: true })
   const line = output.split(/\r?\n/).find((item) => item.startsWith('LCA_PROBE:'))
   assert.ok(line); assert.equal(JSON.parse(line.slice(10)).ok, true)
@@ -48,13 +51,12 @@ try {
     assert.equal(occupied.trim(), 'free', 'Existing user installation detected; test refuses to upgrade or uninstall it.')
   }
   const unpacked = join(release, 'win-unpacked/LoveCollegeAgent.exe')
-  await probe(unpacked, 'sqlite'); await probe(unpacked, 'journal'); await probe(unpacked, 'pomodoro')
+  await probe(unpacked, 'sqlite'); await probe(unpacked, 'journal'); await probe(unpacked, 'pomodoro'); await probe(unpacked, 'backup')
   await run(installer, ['/S', '/currentuser', `/D=${installDir}`]); installed = true
   const exe = join(installDir, 'LoveCollegeAgent.exe'); assert.ok((await stat(exe)).isFile())
-  // Probes need their own data, because journal validation creates multiple deliberate fixture sessions.
-  env.LCA_DATA_DIR = join(root, '.local-data', `installed-probe-${randomUUID()}`)
-  await probe(exe, 'sqlite'); await probe(exe, 'journal'); await probe(exe, 'pomodoro')
+  await probe(exe, 'sqlite'); await probe(exe, 'journal'); await probe(exe, 'pomodoro'); await probe(exe, 'backup')
   env.LCA_DATA_DIR = join(root, '.local-data', `installed-ui-${randomUUID()}`)
+  env.LCA_PROVIDERS_FILE = join(env.LCA_DATA_DIR, 'absent-test-providers.json')
   const launch = () => _electron.launch({ executablePath: exe, args: [], env, timeout: 30_000 })
   instance = await launch(); let page = await instance.firstWindow()
   await page.locator('[data-mode][data-pose][data-location]').waitFor()
@@ -67,7 +69,7 @@ try {
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results/installed.png') })
   const bytes = await readFile(installer)
   const report = { ok: true, atIso: new Date().toISOString(), installer, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
-    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: true, installedUiRestart: true }
+    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: true, privateSaveProbe: true, installedUiRestart: true }
   await writeFile(join(root, 'test-results/package-report.json'), JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report))
 } finally {
