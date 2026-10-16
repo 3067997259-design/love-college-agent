@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { MessageView, RecallAnchor, SessionPage, SessionPageInfo } from '../../../../shared'
 import copy from '../../voice/book.zh.json'
 import { formatClock } from '../format'
