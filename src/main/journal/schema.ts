@@ -3,6 +3,7 @@ import { PUBLIC_ERROR_CODES } from '../../shared'
 import { viewSchema } from '../pomodoro/schema'
 import { artifactSchema, candidateSchema, deliverySchema, mailboxSchema, mailFactsSchema, opaqueId } from '../campus/schema'
 import { attachmentRecordSchema, documentCompletedSchema, documentJobSchema } from '../documents/schema'
+import { memoryBatchSchema, memorySummarySchema } from '../memory/schema'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -12,6 +13,8 @@ const publicError = z.strictObject({
 })
 const step = z.strictObject({ id, text: z.string().max(500), status: z.enum(['pending', 'active', 'done', 'failed']) })
 const toolCall = z.strictObject({ id, name: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/), arguments: z.string().max(64_000) })
+export const contextMessageSchema = z.strictObject({ role: z.enum(['system', 'user', 'assistant', 'tool']), content: text,
+  toolCallId: id.optional(), toolCalls: z.array(toolCall).max(16).optional() })
 export type ContextMessage = {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string
@@ -55,6 +58,13 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('plan/update'), turnId: id, steps: z.array(step).max(30) }),
   z.strictObject({ type: z.literal('context/inject'), source: z.enum(['policy', 'memory', 'scheduler']), text }),
   z.strictObject({ type: z.literal('context/compact'), fromSeq: z.number().int().positive(), toSeq: z.number().int().positive(), summary: text }),
+  z.strictObject({ type: z.literal('model/seen'), turnId: id, source: z.enum(['real', 'fake']), messages: z.array(contextMessageSchema).max(1024),
+    eligibleIndexes: z.array(z.number().int().nonnegative()).max(1024) }).refine((value) => new Set(value.eligibleIndexes).size === value.eligibleIndexes.length && value.eligibleIndexes.every((index) => index < value.messages.length && value.messages[index].role !== 'system')),
+  z.strictObject({ type: z.literal('memory/batch'), ...memoryBatchSchema.shape }),
+  z.strictObject({ type: z.literal('memory/access'), ids: z.array(id).max(10), requestId: id, sessionId: id }),
+  z.strictObject({ type: z.literal('memory/summary'), summary: memorySummarySchema }),
+  z.strictObject({ type: z.literal('memory/operation'), operationId: id, kind: z.enum(['extract', 'compact', 'day', 'week', 'month']), source: z.enum(['real', 'fake']),
+    status: z.enum(['started', 'success', 'failed']), reservedChars: z.number().int().nonnegative(), error: publicError.optional() }),
   z.strictObject({ type: z.literal('model/attempt'), turnId: id, slot: z.enum(['chat', 'background', 'chat_google', 'chat_claude', 'privacy']), attempt: z.number().int().positive(),
     status: z.enum(['started', 'success', 'failed', 'retry']), waitMs: z.number().nonnegative(), httpStatus: z.number().int().optional(),
     reservedTokens: z.number().int().nonnegative().optional(), bucket: z.enum(['work', 'autonomous']).optional(),
