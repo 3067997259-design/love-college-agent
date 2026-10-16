@@ -38,9 +38,18 @@ export function createHistoryRecall(options: { store: SessionStore; repository: 
       source: { sessionId, frameSeq: message.frameSeq, index: message.index, start, end } }
   }
   const used = (requestId: string) => rows().findLast((row) => row.type === 'history/recall-used' && row.requestId === requestId)
-  const relevantRequest = () => {
+  const requestById = (requestId: string) => rows().findLast((row) => row.type === 'history/recall-request' && row.requestId === requestId)
+  /**
+   * A recall belongs to the turn that first injected it, not to whichever user message happens to be last.
+   * An interjection during the recall turn (a new user message with its own requestId) must not drop the
+   * reference mid-turn or make `recall_seen` unavailable (issue #12). Before that first injection the
+   * request is still the one carried by the newest user message.
+   */
+  const relevantRequest = (turnId: string) => {
+    const bound = rows().findLast((row) => row.type === 'history/recall-used' && row.turnId === turnId)
+    if (bound?.type === 'history/recall-used') return requestById(bound.requestId)
     const user = store.records().findLast((row) => row.type === 'user/message')
-    return user?.type === 'user/message' ? rows().findLast((row) => row.type === 'history/recall-request' && row.requestId === user.requestId) : undefined
+    return user?.type === 'user/message' ? requestById(user.requestId) : undefined
   }
   const summaries = (sessionId: string) => {
     const candidates = validSummaries(options.repository.view().summaries).filter((summary) => (summary.level === 'day' || summary.level === 'week') && summary.sourceSessionIds.includes(sessionId))
@@ -54,7 +63,7 @@ export function createHistoryRecall(options: { store: SessionStore; repository: 
     return (['day', 'week'] as const).flatMap((level) => { const summary = safe.findLast((summary) => summary.level === level); return summary ? [{ id: summary.id, level: summary.level, text: summary.text.slice(0, 3000), historical: true }] : [] })
   }
   const prepare = (turnId: string, prepared: Prepared): Prepared => {
-    const request = relevantRequest(); if (!enabled || request?.type !== 'history/recall-request') return prepared
+    const request = relevantRequest(turnId); if (!enabled || request?.type !== 'history/recall-request') return prepared
     const previous = used(request.requestId)
     if (previous?.type === 'history/recall-used' && previous.turnId !== turnId) return prepared
     const found = resolve(request.anchor)
@@ -86,7 +95,7 @@ export function createHistoryRecall(options: { store: SessionStore; repository: 
     },
     tool: (): HarnessTool => ({ definition: { name: 'recall_seen', description: policy.toolDescription, parameters: z.toJSONSchema(toolInput) }, templateId: 'memory.recall', validate: (input) => toolInput.safeParse(input).success,
       run: async (input, context) => {
-        context.signal.throwIfAborted(); const parsed = toolInput.parse(input); const request = relevantRequest(); const started = used(parsed.requestId)
+        context.signal.throwIfAborted(); const parsed = toolInput.parse(input); const request = relevantRequest(context.turnId); const started = used(parsed.requestId)
         if (!enabled || request?.type !== 'history/recall-request' || request.requestId !== parsed.requestId || started?.type !== 'history/recall-used' || started.turnId !== context.turnId) throw new Error('RECALL_UNAVAILABLE')
         const found = resolve(request.anchor); const offset = found.at + parsed.relativeStart
         if (offset < 0 || offset >= found.messages.length) throw new Error('RECALL_RANGE_INVALID')
