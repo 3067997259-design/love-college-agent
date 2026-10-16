@@ -174,6 +174,13 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
       return () => { listeners.delete(listener) }
     },
     async dispatch(command) {
+      if (command.type.startsWith('onboarding.')) {
+        const profile = current.onboarding ?? { status: 'needed' as const, userName: null, characterName: '桃子', completedAtMs: null }
+        if (command.type === 'onboarding.profile') commit({ onboarding: { ...profile, ...(command.userName !== undefined ? { userName: command.userName.trim() || null } : {}), ...(command.characterName !== undefined ? { characterName: command.characterName.trim() || '桃子' } : {}) } }, 'connection')
+        else if (command.type === 'onboarding.complete') commit({ onboarding: { ...profile, status: 'completed', completedAtMs: profile.completedAtMs ?? current.clock.nowMs } }, 'connection')
+        else if (command.type === 'onboarding.reset') commit({ onboarding: { ...profile, status: 'needed', completedAtMs: null } }, 'connection')
+        return ack(command)
+      }
       if (command.epoch !== current.epoch) {
         return { protocolVersion: 1, requestId: command.requestId, epoch: current.epoch, status: 'rejected', error: { code: 'stale-epoch', retryable: true } }
       }

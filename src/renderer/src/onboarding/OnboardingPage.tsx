@@ -10,7 +10,7 @@ import './onboarding.css'
  * 写名字时铅笔画出空房间再勾出她，接上模型时彩铅上简单的颜色，叫出她的名字时晕成真实颜色，
  * 最后她拿起羽毛笔给整个房间上色，转过来注意到你。
  * “我已经有一本书了”走存档恢复：主进程校验、确认、重启，重启后颜色从笔尖晕开。
- * 名字和称呼的保存、是否已完成新手流程，等主进程的接口落地后再接；现在只在浏览器预览（?onboarding）里跑。
+ * 名字、称呼和完成标记由主进程保存；浏览器 ?onboarding 仅保留为画面预览。
  */
 export type OnboardingStep = 'cover' | 'name' | 'model' | 'call' | 'persona' | 'alive' | 'coloring' | 'greet'
 
@@ -29,12 +29,13 @@ export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone
   onStep: (step: OnboardingStep) => void
   onDone: (names: { userName: string; characterName: string }) => void
 }) {
-  const [userName, setUserName] = useState('')
-  const [characterName, setCharacterName] = useState('')
+  const [userName, setUserName] = useState(snapshot.onboarding?.userName ?? '')
+  const [characterName, setCharacterName] = useState(snapshot.onboarding?.characterName ?? '')
   const [error, setError] = useState('')
   const send = async (body: CommandBody) => {
     const result = await sendCommand(bridge, snapshot.epoch, body)
     setError(result.ok ? '' : '没有完成，请稍后重试。')
+    return result.ok
   }
   // 上色放完就转到“她注意到你”：计时用 requestAnimationFrame，不用 setTimeout
   useAfter(step === 'coloring', ROOM_COLOR_MS, () => onStep('greet'))
@@ -61,7 +62,7 @@ export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone
         )}
 
         {step === 'name' && (
-          <form onSubmit={(event) => { event.preventDefault(); if (userName.trim()) onStep('model') }}>
+          <form onSubmit={(event) => { event.preventDefault(); if (userName.trim()) void send({ type: 'onboarding.profile', userName }).then((ok) => { if (ok) onStep('model') }) }}>
             <h2 className="onboarding-title">{copy.name.title}</h2>
             <p className="onboarding-lead">{copy.name.lead}</p>
             <input className="onboarding-input" autoFocus maxLength={20} value={userName} placeholder={copy.name.placeholder}
@@ -85,7 +86,7 @@ export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone
         )}
 
         {step === 'call' && (
-          <form onSubmit={(event) => { event.preventDefault(); onStep('persona') }}>
+          <form onSubmit={(event) => { event.preventDefault(); void send({ type: 'onboarding.profile', characterName }).then((ok) => { if (ok) onStep('persona') }) }}>
             <h2 className="onboarding-title">{copy.call.title}</h2>
             <p className="onboarding-lead">{copy.call.lead}</p>
             <input className="onboarding-input" autoFocus maxLength={12} value={characterName} placeholder={copy.call.placeholder}
@@ -123,7 +124,7 @@ export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone
             <h2 className="onboarding-title">{copy.greet.title}</h2>
             <p className="onboarding-her"><span className="msg-who" aria-hidden />{copy.greet.line.replace('{userName}', userName.trim()).replace('{characterName}', her)}</p>
             <div className="onboarding-actions">
-              <button type="button" className="btn btn-primary" onClick={() => onDone({ userName: userName.trim(), characterName: her })}>{copy.greet.next}</button>
+              <button type="button" className="btn btn-primary" onClick={() => { void send({ type: 'onboarding.complete' }).then((ok) => { if (ok) onDone({ userName: userName.trim(), characterName: her }) }) }}>{copy.greet.next}</button>
             </div>
           </>
         )}
@@ -134,7 +135,7 @@ export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone
 }
 
 /** 导入的存档经主进程校验后，在书里写清楚是哪本、有多少东西，再由你确认；确认后应用会重启 */
-function RestoreConsent({ snapshot, send }: { snapshot: AppSnapshot; send: (body: CommandBody) => Promise<void> }) {
+function RestoreConsent({ snapshot, send }: { snapshot: AppSnapshot; send: (body: CommandBody) => Promise<boolean> }) {
   const backup = snapshot.backup
   if (!backup) return null
   if (backup.status === 'validating') return <p className="onboarding-note" role="status">{copy.restore.validating}</p>

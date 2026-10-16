@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 import { dirname, join, relative, resolve, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
-import { runtimeEnv } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const release = join(root, 'release')
@@ -58,12 +58,12 @@ try {
   env.LCA_DATA_DIR = join(root, '.local-data', `installed-ui-${randomUUID()}`)
   env.LCA_PROVIDERS_FILE = join(env.LCA_DATA_DIR, 'absent-test-providers.json')
   const launch = () => _electron.launch({ executablePath: exe, args: [], env, timeout: 30_000 })
-  instance = await launch(); let page = await instance.firstWindow()
+  instance = await launch(); let page = await instance.firstWindow(); await initializeTestBook(page)
   await page.locator('[data-mode][data-pose][data-location]').waitFor()
   const original = await page.evaluate(() => window.lca.getSnapshot())
   assert.equal(original.runtime.developer.mode, 'normal')
   await page.evaluate(async () => { const s = await window.lca.getSnapshot(); await window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), type: 'mode.set', mode: 'quiet' }) })
-  await page.locator('[data-mode="quiet"][data-pose]').waitFor(); await instance.close(); instance = await launch(); page = await instance.firstWindow()
+  await page.locator('[data-mode="quiet"][data-pose]').waitFor(); await instance.close(); instance = await launch(); page = await instance.firstWindow(); await initializeTestBook(page)
   await page.locator('[data-mode="quiet"][data-pose]').waitFor()
   assert.equal((await page.evaluate(() => window.lca.getSnapshot())).scope.sessionId, original.scope.sessionId)
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results/installed.png') })

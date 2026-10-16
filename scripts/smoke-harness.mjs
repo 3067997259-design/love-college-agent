@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `harness-smoke-${randomUUID()}`)
@@ -47,7 +47,7 @@ const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: fixtu
 let instance
 try {
   instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
-  let page = await instance.firstWindow()
+  let page = await instance.firstWindow(); await initializeTestBook(page)
   await page.locator('[data-mode][data-pose][data-location]').waitFor()
   await page.getByRole('textbox').fill('synthetic user question')
   await page.getByRole('button', { name: '发送', exact: true }).click()
@@ -74,7 +74,7 @@ try {
   await instance.close()
   const count = requests.length
   instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
-  page = await instance.firstWindow()
+  page = await instance.firstWindow(); await initializeTestBook(page)
   await page.locator('[data-mode][data-pose][data-location]').waitFor()
   const after = await page.evaluate(() => window.lca.getSnapshot())
   assert.equal(after.scope.sessionId, before.scope.sessionId)
