@@ -7,7 +7,9 @@ import electronPath from 'electron'
 import { runtimeEnv } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: join(root, '.local-data', `smoke-${randomUUID()}`) }
+const data = join(root, '.local-data', `smoke-${randomUUID()}`)
+// Playwright enables a main inspector. Never load the user's credentials in this test.
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-test-providers.json') }
 let instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
 try {
   const page = await instance.firstWindow()

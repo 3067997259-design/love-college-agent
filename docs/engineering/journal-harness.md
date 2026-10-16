@@ -51,3 +51,5 @@
 | `pnpm probe:harness` | 主进程读取用户授权的本机 chat 配置：真实模型调用 get_clock，代码返回结果，回合 completed，toolVerified=true。不输出回复或配置值。 |
 
 2026-10-16 当前总检查为 9 个文件／31 项单测；另有上述 Electron 场景、真实工具调用探针，以及基础隔离／重启 smoke。完整插件加载器、调试 MCP、番茄钟状态机、人物系统提示、真实邮件和安装包仍需后续功能批次，不把最小循环当作第零圈全部完成。
+
+基础 `test:electron` 显式使用隔离目录中的空配置路径；`test:harness` 显式使用合成供应商配置。Playwright 会开启主进程检查通道，所以这两套 UI 自动化都不加载真实密钥。需要真实供应商时只用不启用 inspector 的独立 Electron 探针。
