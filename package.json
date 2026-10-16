@@ -61,7 +61,8 @@
     "test:history": "pnpm build && node scripts/smoke-history.mjs",
     "test:notifications": "pnpm build && node scripts/smoke-notifications.mjs",
     "test:characters": "pnpm build && node scripts/smoke-characters.mjs",
-    "test:heart-flow": "pnpm build && node scripts/smoke-heart-flow.mjs"
+    "test:heart-flow": "pnpm build && node scripts/smoke-heart-flow.mjs",
+    "test:delegates": "pnpm build && node scripts/smoke-delegates.mjs"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",

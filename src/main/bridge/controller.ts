@@ -61,6 +61,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('flow.compact'), focus: z.string().trim().min(1).max(500).optional() }),
   z.strictObject({ ...envelope, type: z.literal('flow.inspect'), section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128).optional() }),
   z.strictObject({ ...envelope, type: z.literal('flow.resume'), flowId: z.string().min(1).max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('flow.delegate.cancel'), delegateId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('flow.undo'), changeId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('flow.run'), code: z.string().min(1).max(10000) }),
   z.strictObject({ ...envelope, type: z.literal('flow.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
@@ -368,6 +369,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else if (command.type === 'turn.stop' && execution) {
       if (!execution.stop(command.taskId)) return reject(command.requestId, 'invalid-command')
+      heartFlow?.stopChildren()
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else if (campus && (command.type.startsWith('candidate.') || command.type === 'mail.scan' || command.type === 'campus.export' || command.type === 'artifact.open' || command.type === 'developer.mailbox')) {
       try {

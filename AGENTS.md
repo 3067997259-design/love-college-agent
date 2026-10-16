@@ -248,6 +248,7 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 # 已实现的心流命令
 
 `pnpm probe:heart-flow` 运行原生隔离探针；`pnpm test:heart-flow` 运行 Electron 闭环。JavaScript 沙箱不提供 Node／shell／网络／系统文件；不要把批准一次扩展成后续操作授权。
+`pnpm test:delegates` 验证只读心流分身与本体收回结果。最多三个、每日十二次尝试、每次三十秒；只有指定书桌源材料，结果未审核、不独立写记忆，停止／退出／熄灯取消。正式 background 模型端口已接，fake 验收不代表真实质量。
 
 `pnpm probe:life` 验证外出事实与恢复结算水位；不要把离线虚构事件报告为实际工作。
 `pnpm test:life-work` 验证登记过的合成书桌材料、fake 阅读／写作、真实产物、暂停／重启及私人恢复。只有回读校验且已提交的产物才推进步数；离线不补工作，原文／作品正文不进普通上下文或运行记录。正式作品模型未接通，不能用假模型验收代替真实质量。
