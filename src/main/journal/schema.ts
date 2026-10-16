@@ -11,6 +11,7 @@ import { lifeSchema } from '../life/schema'
 import { diarySchema } from '../diary/schema'
 import { notificationRule } from '../notifications/schema'
 import { definitionSchema } from '../characters/package'
+import { historyPhotoSchema } from '../history/schema'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -30,6 +31,8 @@ export type ContextMessage = {
 }
 
 export const inputSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('history/photo'), photo: historyPhotoSchema }),
+  z.strictObject({ type: z.literal('history/photo-attempt'), eventId: z.string().max(200), sessionId: id, status: z.enum(['started', 'failed']) }),
   z.strictObject({ type: z.literal('character/definition'), definition: definitionSchema }),
   z.strictObject({ type: z.literal('notification/rule'), rule: notificationRule, enabled: z.boolean() }),
   z.strictObject({ type: z.literal('notification/proposal'), rule: notificationRule.nullable() }),
