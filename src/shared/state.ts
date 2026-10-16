@@ -285,9 +285,16 @@ export interface OpticalMemoryView {
   enabled: boolean
   source: 'real' | 'fake' | 'none'
   status: 'idle' | 'processing' | 'failed' | 'unconfigured'
-  frames: readonly { id: string; sessionId: string; createdAtMs: number; sourceCount: number }[]
+  frames: readonly { id: string; sessionId: string; createdAtMs: number; sourceCount: number; pageIndex: number; pageCount: number }[]
   impressions: readonly { frameId: string; tier: OpticalTier; createdAtMs: number; status: 'guarded' | 'rejected'; verifiedLineCount: number; rejectedLineCount: number }[]
   error?: PublicError
+}
+/** Book-user lookup only. Page and guarded fragments are absent from ordinary snapshots/debug. */
+export interface OpticalMemoryRead {
+  frameId: string
+  imageUrl: string
+  impressions: readonly { tier: OpticalTier; status: 'guarded' | 'rejected'; fragments: readonly string[]; rejectedLineCount: number }[]
+  uncertainty: 'unreviewed-impression'
 }
 export interface McpServerView {
   id: string
