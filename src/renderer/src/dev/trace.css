@@ -1,0 +1,48 @@
+/* 描图工具（只在浏览器预览里）：左边控制，右边一张方图 */
+.trace {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  font-family: var(--font-body);
+  color: var(--graphite);
+  background: var(--desk);
+}
+.trace-panel { display: flex; flex-direction: column; gap: 14px; padding: 24px 20px; background: var(--paper); overflow-y: auto; box-shadow: var(--shadow-card); }
+.trace-panel h1 { margin: 0; font: normal 30px var(--font-hand); color: var(--ink-her); }
+.trace-modes { display: grid; gap: 6px; }
+.trace-modes button, .trace-items button, .trace-actions button {
+  font: 15px var(--font-body);
+  padding: 6px 12px;
+  text-align: left;
+  color: var(--graphite);
+  background: transparent;
+  border: 1.5px solid var(--pencil);
+  border-radius: 10px 8px 11px 7px;
+  cursor: pointer;
+}
+.trace-modes button[data-active='true'], .trace-items button[data-active='true'] { color: var(--ink-her); background: var(--peach); border-color: var(--peach-mid); }
+.trace-hint { margin: 0; font-size: 14px; line-height: 1.6; }
+.trace-count, .trace-status { margin: 0; font-size: 14px; color: var(--ink-her); }
+.trace-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.trace-actions a { font-size: 14px; color: var(--ink-her); }
+.trace-save { color: var(--ink-her) !important; background: var(--peach) !important; border-color: var(--peach-mid) !important; }
+.trace-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 40vh; overflow-y: auto; }
+.trace-items button { width: 100%; display: flex; justify-content: space-between; }
+.trace-items small { color: var(--graphite); opacity: 0.7; }
+
+.trace-stage { display: grid; place-items: center; padding: 24px; overflow: hidden; }
+.trace-sheet {
+  position: relative;
+  width: min(100%, calc(100vh - 48px));
+  aspect-ratio: 1;
+  background: var(--paper);
+  box-shadow: 0 20px 40px -20px rgb(40 30 60 / 0.45);
+}
+.trace-backdrop, .trace-pad, .trace-furniture { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* 描的时候，光标就是一支铅笔的笔尖 */
+.trace-pad { cursor: crosshair; touch-action: none; }
+.trace-furniture { cursor: copy; touch-action: none; }
+.trace-shape { fill: color-mix(in oklab, var(--peach) 18%, transparent); stroke: var(--pencil); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+g[data-active='true'] .trace-shape { fill: color-mix(in oklab, var(--peach) 40%, transparent); stroke: var(--peach-mid); stroke-width: 2.5px; }
+.trace-vertex { fill: var(--paper); stroke: var(--ink-her); stroke-width: 2px; vector-effect: non-scaling-stroke; cursor: grab; }

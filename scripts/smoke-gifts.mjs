@@ -37,6 +37,8 @@ try {
   await page.locator('model-viewer').scrollIntoViewIfNeeded(); await page.locator('model-viewer[data-loaded="true"]').waitFor()
   assert.equal((await snapshot()).gifts.items[0].givenAtMs, null)
   await debug('set_clock', { nowMs: (await snapshot()).pomodoro.endsAtMs }); await debug('set_clock', { nowMs: (await snapshot()).clock.nowMs + 5000 }); await waitFor((s) => s.gifts.items[0].status === 'given', 'GIFT_NOT_GIVEN_AT_REST')
+  // 送出以后书里对话流出现礼物卡，同一个本地 GLB 在卡片里实际加载
+  await page.locator('.card-gift-made model-viewer[data-loaded="true"]').waitFor()
   const gift = (await snapshot()).gifts.items[0]; const archive = join(data, 'gift.lca-save')
   await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
   await send({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'GIFT_ARCHIVE_NOT_EXPORTED')
@@ -48,8 +50,9 @@ try {
   await launch(); await instance.evaluate(({ dialog, app }, file) => { app.relaunch = () => {}; dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, archive)
   await send({ type: 'backup.import' }); await waitFor((s) => s.backup.status === 'awaiting-confirmation', 'GIFT_RESTORE_NOT_VALIDATED')
   const closed = instance.waitForEvent('close'); await send({ type: 'backup.restore', restoreId: (await snapshot()).backup.restoreId }); await closed; await launch()
-  assert.deepEqual((await snapshot()).gifts.items[0], gift); await tools(); await page.locator('model-viewer').scrollIntoViewIfNeeded(); await page.locator('model-viewer[data-loaded="true"]').waitFor()
+  assert.deepEqual((await snapshot()).gifts.items[0], gift); await tools(); await page.locator('[aria-label="工具与设置"] model-viewer').scrollIntoViewIfNeeded(); await page.locator('[aria-label="工具与设置"] model-viewer[data-loaded="true"]').waitFor()
+  await page.locator('.card-gift-made model-viewer[data-loaded="true"]').waitFor()
   assert.equal(errors.length, 0, 'RESTORED_MODEL_VIEWER_CONSOLE_ERROR')
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results', 'gifts.png') })
-  console.log('Gifts Electron: witnessed experience / UI proposal, focus-only MCP making, validated GLB through owned local protocol and real model-viewer load, ready versus rest-given, private-handle exclusion, actual archive and blank-profile restore / 3D reload verified; fake generation only.')
+  console.log('Gifts Electron: witnessed experience / UI proposal, focus-only MCP making, validated GLB through owned local protocol and real model-viewer load (settings panel and in-book gift card), ready versus rest-given, private-handle exclusion, actual archive and blank-profile restore / 3D reload verified; fake generation only.')
 } finally { await client?.close(); await instance?.close() }

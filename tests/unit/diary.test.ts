@@ -26,7 +26,7 @@ it('writes once from seen-only materials, locks then unlocks immutable keys, reb
   const store: SessionStore = { scope: journal.scope, records: journal.records, append: journal.append, projection: () => projectJournal(journal.records()), close: journal.close }
   store.append({ type: 'model/seen', turnId: 'seen', source: 'fake', messages: [{ role: 'user', content: 'ONLY_SEEN_INPUT' }], eligibleIndexes: [0] })
   store.append({ type: 'tool/result', turnId: 'seen', callId: 'private', raw: { text: 'PRIVATE_ORIGINAL' }, visible: {}, ok: true, elapsedMs: 0 })
-  clock.advanceBy(13 * 3600000); const scheduler = createScheduler(clock); const assets = createBinaryAssets(root, store); const room = createRoomProjection(join(root, 'room'), store, assets, clock)
+  clock.advanceBy(13 * 3600000); const scheduler = createScheduler(clock); const assets = createBinaryAssets(root, store); const room = createRoomProjection(join(root, 'room'), store, assets, clock, 'test-owner')
   const diary = createDiary({ store, clock, scheduler, assets, model: { source: 'fake', write: async (input) => { expect(JSON.stringify(input)).toContain('ONLY_SEEN_INPUT'); expect(JSON.stringify(input)).not.toContain('PRIVATE_ORIGINAL'); return { entry: '主观日记\nSYNTHETIC_PRIVATE_PROSE' } } }, busy: () => false, changed: () => {}, projected: room.rebuild }); scheduler.cancel('diary.daily')
   try {
     await diary.write(); expect(diary.view().entries).toHaveLength(0); clock.advanceBy(11 * 3600000)
