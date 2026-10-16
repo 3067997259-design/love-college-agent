@@ -123,7 +123,7 @@ export function createLifeWork(options: {
         if (!workRecords(rows()).materials.has(id)) store.append({ type: 'life/material', material: { id, path, text, sha256: id, source: 'fake' } })
         options.changed(); return
       }
-      if (command.type === 'life.work.start') { if (!ensure(command.kind)) return 'not-configured'; void tick(); return }
+      if (command.type === 'life.work.start') { if (!enabled) return 'unavailable'; if (!ensure(command.kind)) return 'not-configured'; void tick(); return }
       if (command.type !== 'life.work.open' && command.type !== 'life.work.resume' && command.type !== 'life.work.pause') return 'invalid-command'
       const job = jobs.get(command.workId); if (!job) return 'unavailable'
       if (command.type === 'life.work.open') {

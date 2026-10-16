@@ -4,6 +4,7 @@
 
 | 接口提交 | 范围 | 实际可接入口 |
 | --- | --- | --- |
+| `a19c596` | 第三圈自主生活产物 | snapshot.life.work 元数据、life.work.start/pause/resume/open；朴素入口在生活面板，详见 autonomous-work-third-circle.md |
 | `7db7bfb` | 第三圈历史照片／引用回忆 | snapshot.history、SessionPage.photo/recallableMessageIds、history.photo.capture、history.recall；朴素入口在记忆与日会话，详见 history-third-circle.md |
 | `c5c8b42` | 新手档案／完成／重置 | 向导已绑定快照和表单，不再依赖 ?onboarding；它仅保留浏览器美术预览 |
 | `3c1a78c` | 实时礼物 | snapshot.gifts、gift.propose/start/cancel/open；GiftControls 已用真实 model-viewer 展示本地 GLB |
@@ -21,7 +22,7 @@
 
 声音线的缺口需要明确补：内置角色卡 persona 目前空，chat 只有称呼、关于你和执行／隐私等技术规则。请把她的人设和语气写成独立文本／JSON，用户把关后接入；不要覆盖技术规则。日记文本／做梦措辞也请审 prompts.json。正常日记用 chat 槽位独立调用、计自主预算，日摘要仍用 background；正文不接回聊天或经历。不要把 fake 示例 prose 当最终角色声音。
 
-对照记录：progress-audit-20261017.md 及各 second-circle 工程记录。仍属最小版的部分：纯 JavaScript 执行（不支持 shell／Node／装包）、文件日志快照（无 Git 影子提交）、外出文字和物品目录（美术待接）、固定下一页书签解锁、角色包只接 PNG。read/write 生活安排无产物生成器时记 skipped，不假记完成。
+对照记录：progress-audit-20261017.md 及各 second-circle 工程记录。仍属最小版的部分：纯 JavaScript 执行（不支持 shell／Node／装包）、文件日志快照（无 Git 影子提交）、外出文字和物品目录（美术待接）、固定下一页书签解锁、角色包只接 PNG。read/write 已接开发模式的合成材料和 fake 生产器，真实文件提交后才 settled；正式模型未接时仍 skipped，不假记完成。作品正文只给用户查阅，画面依 snapshot.life.work 的进度事实接线。
 
 下一波建议按价值排：完整角色声音和真实模型任务质量 → 历史左页照片／引用回忆 → 外景及生活产物 → 五分钟连续路演。完整心流指令、语音和更多场景按体验缺口选择；光学记忆、分身、MC、computer use 各有单独验收成本。用户尚未要求新增第四圈，不因速度快就自动扩张。
 

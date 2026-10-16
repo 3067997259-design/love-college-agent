@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { afterEach, expect, it } from 'vitest'
 import { createManualClock } from '../../src/main/clock'
@@ -9,6 +9,8 @@ import { projectJournal } from '../../src/main/journal/projection'
 import { createScheduler } from '../../src/main/scheduler'
 import { createDesk } from '../../src/main/heart-flow/desk'
 import { createLifeWork } from '../../src/main/life/work/service'
+import { createLife } from '../../src/main/life/service'
+import { createAppController } from '../../src/main/bridge/controller'
 import { createFakeLifeWorkModel } from '../../src/main/life/work/fake'
 import { workHash, workPath, workRecords } from '../../src/main/life/work/records'
 import type { LifeWorkModel } from '../../src/main/life/work/schema'
@@ -17,7 +19,7 @@ import type { SessionStore } from '../../src/main/store/session'
 const cleanups: (() => void | Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
 function setup(model: LifeWorkModel | null = createFakeLifeWorkModel()) {
-  const root = mkdtempSync(join(tmpdir(), 'lca-work-')); cleanups.push(() => rmSync(root, { recursive: true, force: true }))
+  const root = mkdtempSync(join(tmpdir(), 'lca-work-')); cleanups.push(() => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-work-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })
   const clock = createManualClock(1792202400000); const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
   const store: SessionStore = { scope: journal.scope, records: journal.records, append: journal.append, projection: () => projectJournal(journal.records()), close: journal.close }
   const desk = createDesk(join(root, '书桌')); const scheduler = createScheduler(clock); let available = true; const previews: string[] = []
@@ -85,4 +87,13 @@ it('rejects forged progress and source hashes before private restore, and refuse
   f.store.append({ type: 'life/work-state', job: { ...job, totalSteps: 3, status: 'completed', completedSteps: 3, completedAtMs: f.clock.nowMs() } })
   expect(() => workRecords(f.store.records())).toThrow('WORK_INVALID')
   writeFileSync(join(f.root, '书桌', '未登记.md'), 'UNREGISTERED')
+})
+it('settles an agenda only after the producer has three actual products and keeps book-only strict commands', async () => {
+  const f = setup(); const life = createLife({ ...f.options, working: () => false, emit: () => {}, work: f.work })
+  const controller = createAppController(f.clock, undefined, f.store); controller.attachLifeWork(f.work); controller.attachLife(life)
+  const command = { protocolVersion: 1, requestId: randomUUID(), epoch: controller.getSnapshot().epoch, type: 'life.work.start', kind: 'read' }
+  expect(controller.dispatch(command, 'mini').status).toBe('rejected'); expect(controller.dispatch({ ...command, path: 'user.md' }).status).toBe('rejected')
+  f.work.ensure('read'); await f.work.tick(); life.reconcile(); expect(life.view().agenda.find((item) => item.kind === 'read')?.state).not.toBe('settled')
+  await f.work.tick(); await f.work.tick(); life.reconcile(); expect(life.view().agenda.find((item) => item.kind === 'read')?.state).toBe('settled')
+  controller.dispose()
 })

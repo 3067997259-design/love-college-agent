@@ -23,6 +23,7 @@ import { giftSpecSchema } from '../gifts/schema'
 import type { GiftService } from '../gifts/service'
 import type { HeartFlowService } from '../heart-flow/service'
 import type { LifeService } from '../life/service'
+import type { LifeWorkService } from '../life/work/service'
 import type { DiaryService } from '../diary/service'
 import type { NotificationsService } from '../notifications/service'
 import { notificationRuleInput } from '../notifications/schema'
@@ -33,6 +34,11 @@ import { recallAnchorSchema } from '../history/schema'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('developer.life.seed') }),
+  z.strictObject({ ...envelope, type: z.literal('life.work.start'), kind: z.enum(['read', 'write']) }),
+  z.strictObject({ ...envelope, type: z.literal('life.work.pause'), workId: z.string().regex(/^[a-f0-9]{64}$/) }),
+  z.strictObject({ ...envelope, type: z.literal('life.work.resume'), workId: z.string().regex(/^[a-f0-9]{64}$/) }),
+  z.strictObject({ ...envelope, type: z.literal('life.work.open'), workId: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ ...envelope, type: z.literal('history.photo.capture') }),
   z.strictObject({ ...envelope, type: z.literal('history.recall'), anchor: recallAnchorSchema, question: z.string().trim().min(1).max(4000) }),
   z.strictObject({ ...envelope, type: z.literal('character.import') }),
@@ -135,6 +141,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let gifts: GiftService | undefined
   let heartFlow: HeartFlowService | undefined
   let life: LifeService | undefined
+  let lifeWork: LifeWorkService | undefined
   let diary: DiaryService | undefined
   let notifications: NotificationsService | undefined
   let character: CharacterService | undefined
@@ -250,6 +257,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('character.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('history.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if ((command.type.startsWith('life.work.') || command.type === 'developer.life.seed') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'onboarding.reset' && options.booth) return reject(command.requestId, 'permission-denied')
     const signature = commandHash(command)
     const prior = requests.get(command.requestId)
@@ -271,6 +279,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { store?.append({ type: 'companion/mode', mode: command.mode, requestId: command.requestId, commandHash: signature }) }
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.mode = command.mode
+      lifeWork?.foreground()
       life?.reconcile()
       pomodoro?.stateChanged(command)
       campus?.stateChanged()
@@ -286,6 +295,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { store?.append({ type: 'companion/lights', lightsOut: command.lightsOut, requestId: command.requestId, commandHash: signature }) }
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.lightsOut = command.lightsOut
+      lifeWork?.foreground()
       life?.reconcile()
       gifts?.stateChanged()
       heartFlow?.stateChanged()
@@ -327,7 +337,11 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       void diary.write(true); ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (room && (command.type === 'room.open' || command.type === 'room.rebuild')) {
       try { if (command.type === 'room.open') room.open(); else room.rebuild(); ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' } } catch { ack = reject(command.requestId, 'internal') }
+    } else if (lifeWork && (command.type.startsWith('life.work.') || command.type === 'developer.life.seed')) {
+      try { const error = lifeWork.dispatch(command); life?.reconcile(); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
     } else if (life && command.type.startsWith('life.')) {
+      lifeWork?.foreground()
       const error = life.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('mode', command.requestId)
     } else if (gifts && command.type.startsWith('gift.')) {
       try { const error = gifts.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
@@ -391,6 +405,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachGifts: (port: GiftService) => { gifts = port; publish('connection') },
     attachHeartFlow: (port: HeartFlowService) => { heartFlow = port; publish('connection') },
     attachLife: (port: LifeService) => { life = port; publish('mode') },
+    attachLifeWork: (port: LifeWorkService) => { lifeWork = port },
     attachDiary: (port: DiaryService, roomPort: NonNullable<typeof room>) => { diary = port; room = roomPort; publish('connection') },
     attachNotifications: (port: NotificationsService) => { notifications = port; publish('connection') },
     attachCharacter: (port: CharacterService) => { character = port; publish('connection') },
