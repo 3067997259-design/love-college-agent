@@ -29,7 +29,9 @@
     "shot:ui": "node scripts/ui-shot.mjs",
     "probe:harness": "pnpm build && node scripts/probe-electron.mjs harness",
     "test:harness": "pnpm build && node scripts/smoke-harness.mjs",
-    "test:developer": "pnpm build && node scripts/smoke-developer.mjs"
+    "test:developer": "pnpm build && node scripts/smoke-developer.mjs",
+    "package:win": "node scripts/package-win.mjs",
+    "test:package": "node scripts/smoke-package.mjs"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",
