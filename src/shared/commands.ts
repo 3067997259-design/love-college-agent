@@ -1,4 +1,4 @@
-import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, OpticalTier, PomodoroPlanInput, PublicError, RecallAnchor } from './state'
+import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, MinecraftScope, OpticalTier, PomodoroPlanInput, PublicError, RecallAnchor } from './state'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -43,6 +43,14 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'mcp.configure' }
   | { type: 'mcp.connect'; serverId: string; fingerprint: string }
   | { type: 'mcp.disconnect'; serverId: string }
+  /** Inspect an already human-connected endpoint. ListTools alone never grants game control. */
+  | { type: 'minecraft.check'; serverId: string }
+  /** Book user accepts this observed pilot and bounded round. No administrator/world-write tools. */
+  | { type: 'minecraft.start'; serverId: string; expectedPlayerUuid: string; scope: MinecraftScope }
+  /** Invalidate this round, release its input owner and verify. No automatic restart after focus/lights/relaunch. */
+  | { type: 'minecraft.stop' }
+  /** Owned development fixture only. Never manipulates a running Minecraft instance. */
+  | { type: 'developer.minecraft'; scenario: 'ready' | 'chat' | 'world-change' | 'unsafe' | 'unreachable' }
   /** Native file chooser. Model URLs, names and credentials stay in main. Restart applies the imported configuration. */
   | { type: 'models.configure' }
   | { type: 'window.mini' }
