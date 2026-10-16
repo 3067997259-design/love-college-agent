@@ -10,7 +10,7 @@ import { civilFromDays, formatClock } from './format'
 import { rhythmText, tomatoStates } from './plan'
 import { useCountdown } from './useCountdown'
 import { FileIntake } from '../tools/FileIntake'
-import { HeartFlowControls } from '../tools/HeartFlowControls'
+import { FlowApproval, FlowPanel } from './flow/FlowPanel'
 
 type Item =
   | { kind: 'message'; at: number; id: string; view: MessageView }
@@ -120,7 +120,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
       </header>
 
       <div className="stream" ref={streamRef}>
-        {snapshot.heartFlow?.activeId && <HeartFlowControls bridge={bridge} snapshot={snapshot} />}
+        <FlowPanel bridge={bridge} snapshot={snapshot} />
         {items.map((item) => {
           switch (item.kind) {
             case 'message': return <Message key={item.id} view={item.view} />
@@ -156,6 +156,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
         )}
       </div>
 
+      <FlowApproval snapshot={snapshot} bridge={bridge} />
       <FileIntake snapshot={snapshot} bridge={bridge} />
       <footer className="composer">
         {quote && <QuoteChip quote={quote} onClear={() => onClearQuote?.()} />}

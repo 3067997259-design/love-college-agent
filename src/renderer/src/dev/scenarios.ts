@@ -237,6 +237,29 @@ export const SCENARIOS = {
     messages: [msg('m1', 'assistant', '邮箱登不上了，所以我不知道有没有新邮件。不是没有，是我看不到。', T.sat1445 - MIN, { emotion: 'worried' })],
   })),
 
+  /** 书桌心流：可写执行中，她要运行一段代码等你批准；一个分身在查、一个已交回（右页工作视图） */
+  'flow-working': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1420 + 12 * MIN },
+    companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'think' },
+    heartFlow: {
+      activeId: 'flow-1', mode: 'execute', execution: 'javascript-sandbox',
+      pending: { id: 'run-2', code: "const due = ['10-21 12:00', '10-26 23:59', '10-19 20:00']\nreturn due.sort().join('\\n')" },
+      files: [{ path: '整理/作业清单.md', byteLength: 420 }, { path: 'answer.js', byteLength: 9 }],
+      changes: [{ id: 'c1', path: 'answer.js', undone: true }, { id: 'c2', path: '整理/作业清单.md', undone: false }],
+      sessions: [{ id: 'flow-1', startedAtMs: T.sat1420, endedAtMs: null, summary: null }],
+      lastRun: { ok: true, output: '3 项待办，最早的周一 20:00' },
+      delegates: [
+        { id: 'd1', flowId: 'flow-1', status: 'completed', source: 'fake', sourceCount: 2, createdAtMs: T.sat1420 + 4 * MIN, updatedAtMs: T.sat1420 + 6 * MIN },
+        { id: 'd2', flowId: 'flow-1', status: 'running', source: 'fake', sourceCount: 3, createdAtMs: T.sat1420 + 10 * MIN, updatedAtMs: T.sat1420 + 11 * MIN },
+      ],
+    },
+    messages: [
+      msg('m1', 'user', '把这周的作业整理成一张清单，放在书桌上。', T.sat1420),
+      msg('m2', 'assistant', '先列计划：读三封邮件里的要求，按截止时间排，写进“整理/作业清单.md”。批准了我再动笔。', T.sat1420 + MIN, { emotion: 'think' }),
+      msg('m3', 'assistant', '清单写好了。我想再核对一遍时间顺序，这一段要运行一下，等你点头。', T.sat1420 + 11 * MIN, { emotion: 'calm' }),
+    ],
+  })),
+
   /**
    * 傍晚，她从海边回来：窗台上两件带回来的东西，休息时送了你一只杯子，纸桥还在做；
    * 前天的日记解锁了，钥匙夹在丝带上（书签页：?scenario=evening-home&tab=gifts）

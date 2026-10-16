@@ -1,0 +1,71 @@
+/*
+ * 心流工作视图：她坐在电脑前做事时，右页上半是她的工作台。
+ * 代码和输出用等宽字，其余仍是书页的墨色和铅笔虚线；审批卡用亮一点的纸，和对话卡区分开。
+ */
+.flow-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  background: color-mix(in oklab, var(--paper) 55%, white 45%);
+  border: 1.5px solid color-mix(in oklab, var(--navy) 35%, transparent);
+  border-radius: 12px 8px 13px 7px;
+  box-shadow: var(--shadow-card);
+}
+.flow-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.flow-title { font: 22px var(--font-hand); color: var(--navy); }
+.flow-mode { padding: 0 9px; font: 15px var(--font-hand); color: var(--paper); background: var(--navy); border-radius: 999px; }
+.flow-panel[data-mode='plan'] .flow-mode { color: var(--navy); background: transparent; border: 1px solid var(--navy); }
+.flow-scope { font-size: var(--fs-xs); color: var(--graphite); }
+.flow-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.flow-links { display: inline-flex; gap: 12px; font-size: var(--fs-sm); }
+.flow-label { display: block; margin-bottom: 4px; font: 16px var(--font-hand); color: var(--ink-her); }
+.flow-note { margin: 4px 0 0; font-size: var(--fs-xs); color: var(--graphite); }
+.flow-code {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: 8px 10px;
+  font: 14px / 1.5 var(--font-num);
+  color: var(--ink-her);
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: color-mix(in oklab, var(--paper-edge) 40%, var(--paper));
+  border-radius: 6px;
+}
+textarea.flow-code { width: 100%; box-sizing: border-box; resize: vertical; border: 1px dashed var(--pencil); }
+.flow-run[data-ok='false'] .flow-code { color: var(--notice-ink); background: color-mix(in oklab, var(--notice-bg) 35%, var(--paper)); }
+.flow-changes ul, .flow-delegates ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.flow-changes li { display: flex; align-items: baseline; gap: 10px; font-size: var(--fs-sm); }
+.flow-changes code { font: 14px var(--font-num); color: var(--ink-her); }
+.flow-changes small { color: var(--graphite); }
+.flow-changes li[data-undone='true'] code { color: var(--graphite); text-decoration: line-through; }
+.flow-dev { display: grid; gap: 6px; padding-top: 8px; border-top: 1px dashed color-mix(in oklab, var(--pencil) 60%, transparent); }
+.flow-dev .btn { justify-self: start; }
+
+/* 分身：纸飞机出去，查完飞回来 */
+.delegate-card { display: grid; grid-template-columns: 30px auto 1fr auto; align-items: center; gap: 10px; font-size: var(--fs-sm); color: var(--ink-her); }
+.delegate-name { font: 16px var(--font-hand); }
+.delegate-state { color: var(--graphite); }
+.delegate-state .demo-tag { margin-left: 8px; }
+.paper-plane { width: 28px; height: 20px; overflow: visible; }
+.delegate-card[data-status='running'] .paper-plane { animation: plane-fly 2.6s var(--ease-in-out) infinite; }
+.delegate-card[data-status='running'] .plane-trail { animation: trail-dash 1.2s linear infinite; }
+.delegate-card[data-status='completed'] .paper-plane { transform: scaleX(-1); }
+.delegate-card[data-status='failed'] .paper-plane, .delegate-card[data-status='cancelled'] .paper-plane { opacity: 0.45; }
+@keyframes plane-fly { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(3px, -2px) rotate(-4deg); } }
+@keyframes trail-dash { to { stroke-dashoffset: -9; } }
+
+/* 审批卡：贴在输入框上面，亮一点的纸，最先被看到 */
+.flow-approval {
+  margin-top: 10px;
+  padding: 10px 14px 12px;
+  background: color-mix(in oklab, var(--notice-bg) 22%, var(--paper));
+  border: 1.5px solid color-mix(in oklab, var(--notice-bg) 80%, #8a6a2a);
+  border-radius: 10px 7px 11px 6px;
+  box-shadow: var(--shadow-card);
+}
+.flow-approval .flow-label { color: var(--notice-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .delegate-card[data-status='running'] .paper-plane, .delegate-card[data-status='running'] .plane-trail { animation: none; }
+}
