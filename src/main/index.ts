@@ -26,6 +26,7 @@ import { exportBuiltinCharacter } from './characters/builtin'
 import { appliedDeskChanges } from './heart-flow/changes'
 import { createHistoryPhotos, type HistoryPhotos } from './history/photos'
 import { captureHistoryScene } from './history/capture'
+import { createHistoryRecall, type HistoryRecall } from './history/recall'
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'lca-media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 import { createAppController } from './bridge/controller'
@@ -119,6 +120,7 @@ let diary: DiaryService | undefined
 let notifications: NotificationsService | undefined
 let character: CharacterService | undefined
 let photos: HistoryPhotos | undefined
+let recall: HistoryRecall | undefined
 let bookWindow: BrowserWindow | undefined
 let modelSettings: ModelSettingsService | undefined
 let companionWindows: CompanionWindows | undefined
@@ -333,6 +335,11 @@ void app.whenReady().then(async () => {
     plugins.registerBuiltin('mail', '邮箱与校园候选', mailTools(campus), { handlesPrivacy: true, permissions: ['network'] })
     plugins.registerBuiltin('documents', '附件与资料整理', documentTools(documents), { handlesPrivacy: true, permissions: ['filesystem'] })
     plugins.registerBuiltin('memory', '经历记忆与日会话', memoryTools(memory))
+    recall = createHistoryRecall({ store, repository: memoryRepository, photos, changed: () => controller?.refresh('task'),
+      canRecall: () => !harness?.isBusy() && !heartFlow?.active() && !store!.projection().lightsOut && (prepared.developer || providers.has('chat')) && !backup?.isBusy(), busy: () => !!harness?.isBusy(),
+      send: (question, requestId, hash) => { if (!harness) throw new Error('RECALL_UNAVAILABLE'); harness.send(question, requestId, hash) } })
+    controller.attachRecall(recall)
+    plugins.registerBuiltin('history', '历史照片与引用回忆', [recall.tool()])
     const ownerRoom = contentHash(JSON.stringify([store.scope.userId, store.scope.characterId]))
     const roomLayout = resolveRoomRoot({
       stored: prepared.pluginSettings.read().roomLayout,
@@ -385,7 +392,7 @@ void app.whenReady().then(async () => {
       canConfigure: () => !harness?.isBusy(), changed: () => controller?.refresh('connection') })
     controller.attachMcp(mcp)
     harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk')), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => heartFlow?.active() ?? false,
-      prepareContext: (id, signal) => heartFlow!.prepareContext(id, signal), foreground: () => { memory?.foreground(); diary?.foreground() }, userWork: () => life?.foreground(),
+      prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); return heartFlow!.active() ? preparedContext : recall!.prepare(id, preparedContext) }, foreground: () => { memory?.foreground(); diary?.foreground() }, userWork: () => life?.foreground(),
       failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     controller.attachExecution(harness, modelReady)
     const privateCredentials = prepared.developer ? [] : await readPrivateCredentialValues(providersFile)
@@ -415,6 +422,7 @@ void app.whenReady().then(async () => {
     plugins.mountService('mail', (enabled) => campus?.setEnabled(enabled))
     plugins.mountService('documents', (enabled) => documents?.setEnabled(enabled))
     plugins.mountService('memory', (enabled) => memory?.setEnabled(enabled))
+    plugins.mountService('history', (enabled) => { recall?.setEnabled(enabled); photos?.setEnabled(enabled) })
     plugins.mountService('mcp', (enabled) => mcp?.setEnabled(enabled))
     plugins.mountService('gifts', (enabled) => gifts?.setEnabled(enabled))
     plugins.mountService('coding', (enabled) => heartFlow?.setEnabled(enabled))

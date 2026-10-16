@@ -183,7 +183,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       signal.throwIfAborted()
       const base = normalEntries()
       const rows = store.records(); const policies = base.filter((entry) => rows.some((row) => row.seq === entry.seq && row.type === 'context/inject' && row.source === 'policy'))
-      const memoryCalls = new Set(rows.flatMap((row) => row.type === 'tool/call' && row.name === 'search_memory' ? [row.callId] : []))
+      const memoryCalls = new Set(rows.flatMap((row) => row.type === 'tool/call' && (row.name === 'search_memory' || row.name === 'recall_seen') ? [row.callId] : []))
       const today = base.filter((entry) => !policies.includes(entry))
       const recall = allowed() ? search(today.filter((entry) => entry.message.role === 'user').slice(-3).map((entry) => entry.message.content).join('\n'), turnId) : []
       const summaries = summaryReferences(allowed() ? validSummaries(repository.view().summaries) : [], store.scope.sessionId, sessionDayKey(clock), clock).map((summary) => ({ level: summary.level, dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
