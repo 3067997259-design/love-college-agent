@@ -14,11 +14,14 @@ import { commandHash } from '../journal/file'
 import { exportCampusItem } from './export'
 import type { ArtifactStore } from '../artifacts/store'
 import type { DeliveryView } from '../../shared'
+import type { SourceMail } from '../mail/types'
+import type { AttachmentRecord } from '../documents/schema'
 
 export interface ScanResult { ok: boolean; source: 'real' | 'fake'; newCount?: number; candidateCount?: number; error?: PublicErrorCode }
 export function createCampusService(options: { clock: Clock; store: SessionStore; scheduler: Scheduler; vault: EvidenceVault; source: MailSource;
   privacy: EmailPrivacyModel | null; development?: ReturnType<typeof createFakeMailbox>; changed(): void; emit(id: string, text: string): void; failed?(): void;
   artifacts?: ArtifactStore; openArtifact?(view: DeliveryView, content: string): void;
+  attachment?(record: AttachmentRecord): void;
 }) {
   const { clock, store, scheduler, vault, source } = options
   const repository = createCampusRepository(store, vault, options.failed)
@@ -31,6 +34,13 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
     processedCount: repository.view().processed.length, pendingReviewCount: repository.view().items.filter((item) => ['candidate', 'changed'].includes(item.current.status)).length,
     ...(options.development ? { scenarioId: options.development.scenario() } : {}) })
   const publish = () => options.changed()
+  const registerAttachments = (mail: SourceMail, sourceKey: string, candidateId?: string) => {
+    for (const part of mail.attachments ?? []) {
+      const id = 'att:' + digest(sourceKey + ':' + part.partId)
+      options.attachment?.({ view: { id, ...(candidateId ? { candidateId } : {}), displayName: '附件-' + id.slice(-8) + '.' + ({ pdf: 'pdf', text: 'txt', markdown: 'md' }[part.format]),
+        byteLength: part.byteLength, format: part.format, source: source.source }, uidValidity: mail.uidValidity, uid: mail.uid, partId: part.partId })
+    }
+  }
   const setState = (next: Partial<MailboxView>) => { mailbox = { ...mailbox, ...next }; repository.append({ type: 'mail/state', view: view() }); publish() }
   const flush = () => {
     if (!enabled || disposed || store.projection().lightsOut) return
@@ -57,7 +67,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
           combined.throwIfAborted()
           const sourceKey = digest(JSON.stringify([store.scope.userId, store.scope.characterId, source.source, '桃子', mail.uidValidity, mail.uid]))
           const hash = mailContentHash(mail); const processed = repository.view().processed.find((entry) => entry.sourceKey === sourceKey)
-          if (processed) { if (processed.contentHash !== hash) throw new Error('MAIL_SOURCE_CHANGED'); continue }
+          if (processed) { if (processed.contentHash !== hash) throw new Error('MAIL_SOURCE_CHANGED'); registerAttachments(mail, sourceKey, processed.candidateId); continue }
           const extraction = await extractMail(mail, options.privacy, clock, combined)
           combined.throwIfAborted()
           if (!extraction.ok) { failure = extraction.error; continue }
@@ -65,7 +75,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
           let evidenceRef: string
           try { evidenceRef = vault.put(sourceKey, mail, checked?.quotes ?? []) }
           catch { options.failed?.(); throw new CampusStorageFailure() }
-          if (!checked) { repository.append({ type: 'mail/processed', sourceKey, contentHash: hash, evidenceRef, result: 'notice' }); newCount++; continue }
+          if (!checked) { repository.append({ type: 'mail/processed', sourceKey, contentHash: hash, evidenceRef, result: 'notice' }); registerAttachments(mail, sourceKey); newCount++; continue }
           const candidateId = 'c:' + digest(JSON.stringify([store.scope.userId, store.scope.characterId, source.source, mail.senderAddress.trim().toLowerCase(), checked.sourceRole, checked.title]))
           const previous = repository.view().items.find((item) => item.current.id === candidateId)
           const roleLabel = { 'teaching-assistant': '课程助教', 'student-club': '社团活动', library: '图书馆', other: '校园信息' }[checked.sourceRole]
@@ -83,6 +93,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
           }
           const facts = mailFactsSchema.parse({ ...content, candidateId, revision: candidate!.revision, source: source.source, trust: 'untrusted' })
           repository.append({ type: 'mail/processed', sourceKey, contentHash: hash, evidenceRef, result: 'candidate', candidateId, facts }); newCount++
+          registerAttachments(mail, sourceKey, candidateId)
           publish()
         }
         setState({ status: failure ? 'failed' : 'ready', unseenCount: batch.unseenCount, ...(failure ? { error: { code: failure, retryable: true } } : { lastSuccessAtMs: clock.nowMs(), error: undefined }) })

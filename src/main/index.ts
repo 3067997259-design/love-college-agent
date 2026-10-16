@@ -28,6 +28,11 @@ import { mailTools } from './mail/tools'
 import { probeCampus } from './validation/campus'
 import { createArtifactStore } from './artifacts/store'
 import { previewArtifact } from './artifacts/viewer'
+import { openDocumentVault, type DocumentVault } from './documents/vault'
+import { createDocumentService, type DocumentService } from './documents/service'
+import { createFakeDocumentModel } from './documents/privacy'
+import { documentTools } from './documents/tools'
+import { probeDocuments } from './validation/documents'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -53,6 +58,8 @@ let runtime: Awaited<ReturnType<typeof attachRuntime>> | undefined
 let pomodoro: PomodoroService | undefined
 let campus: CampusService | undefined
 let vault: EvidenceVault | undefined
+let documentVault: DocumentVault | undefined
+let documents: DocumentService | undefined
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -76,6 +83,11 @@ function createWindow(): void {
 void app.whenReady().then(async () => {
   if (!ownsData) return
   if (prepared.developer && process.argv.some((arg) => arg.startsWith('--lca-probe='))) { console.log('LCA_PROBE:{"ok":false,"error":"DEVELOPER_PROFILE_REFUSED"}'); app.exit(1); return }
+  if (process.argv.includes('--lca-probe=documents')) {
+    try { const report = await probeDocuments(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(0) }
+    catch { console.log('LCA_PROBE:{"ok":false,"probe":"documents","error":"DOCUMENT_PROBE_FAILED"}'); app.exit(1) }
+    return
+  }
   if (process.argv.includes('--lca-probe=campus')) {
     try { const report = await probeCampus(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(0) }
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"campus","error":"CAMPUS_PROBE_FAILED"}'); app.exit(1) }
@@ -131,8 +143,16 @@ void app.whenReady().then(async () => {
     scheduler = createScheduler(clock, () => { console.error('Scheduler stopped: local operation failed.'); app.quit() })
     vault = openEvidenceVault(dataDir, store.scope)
     const fakeMailbox = prepared.developer ? createFakeMailbox(clock) : undefined
+    const fakeDocuments = prepared.developer ? createFakeDocumentModel(clock) : undefined
+    const artifacts = createArtifactStore(dataDir, store.scope)
+    documentVault = openDocumentVault(dataDir, store.scope)
+    documents = createDocumentService({ clock, store, scheduler, settings: prepared.pluginSettings, vault: documentVault, artifacts, model: fakeDocuments?.model ?? null, development: fakeDocuments,
+      ...(fakeMailbox?.source.readAttachment ? { readAttachment: (attachment, signal) => fakeMailbox.source.readAttachment!(attachment, signal) } : {}),
+      openArtifact: previewArtifact, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('document', text, id) },
+      failed: () => { console.error('Document processing stopped: local storage unavailable.'); app.quit() } })
+    controller.attachDocuments(documents)
     campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? createBlockedImapSource(), privacy: fakeMailbox?.privacy ?? null,
-      artifacts: createArtifactStore(dataDir, store.scope), openArtifact: previewArtifact,
+      artifacts, openArtifact: previewArtifact, attachment: (record) => documents!.registerAttachment(record),
       development: fakeMailbox, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('mail', text, id) },
       failed: () => { console.error('Campus processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachCampus(campus)
@@ -143,6 +163,7 @@ void app.whenReady().then(async () => {
     plugins.registerBuiltin('core', '时钟与任务计划', builtinTools())
     plugins.registerBuiltin('pomodoro', '番茄钟', pomodoroTools(pomodoro))
     plugins.registerBuiltin('mail', '邮箱与校园候选', mailTools(campus), { handlesPrivacy: true, permissions: ['network'] })
+    plugins.registerBuiltin('documents', '附件与资料整理', documentTools(documents), { handlesPrivacy: true, permissions: ['filesystem'] })
     if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])
     plugins.discover()
     const providers = prepared.developer ? new Map() : await readModelProviders(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
@@ -153,6 +174,7 @@ void app.whenReady().then(async () => {
     controller.attachPomodoro(pomodoro, () => plugins.views().some((item) => item.id === 'pomodoro' && item.status === 'enabled'))
     plugins.mountService('pomodoro', (enabled) => { if (enabled) pomodoro?.reconcile(); else pomodoro?.pause() })
     plugins.mountService('mail', (enabled) => campus?.setEnabled(enabled))
+    plugins.mountService('documents', (enabled) => documents?.setEnabled(enabled))
     if (prepared.scene?.preset === 'pomodoro-demo' && store.records().length <= 2) pomodoro.propose({ label: '开发演示', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }, 'user')
     harness.stateChanged()
     scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => controller?.refresh('timer'), { everyMs: 1000, background: false })
@@ -178,7 +200,8 @@ app.on('before-quit', (event) => {
     closing = true
     pomodoro?.dispose()
     const closeCampus = campus?.close()
+    const closeDocuments = documents?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close(), closeCampus]).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments]).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })
