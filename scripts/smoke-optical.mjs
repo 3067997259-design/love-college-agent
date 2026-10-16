@@ -54,6 +54,11 @@ try {
   await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '查阅光学页', exact: true }).first().click()
   await page.getByRole('article', { name: '用户光学页' }).waitFor(); assert.equal(await page.getByAltText('当时可见对话的独立印刷页').evaluate((img) => img.naturalWidth), 1280)
   await page.getByRole('button', { name: '关闭光学页', exact: true }).click(); await page.getByRole('button', { name: '关闭', exact: true }).click()
+  // 书页入口：往回翻到这一页，“她的印象”里是同一张 1280 宽的封页，高清档列出还能对上原话的那一行；看完回到今天
+  await page.locator('.turn-back').click(); await page.locator('.impression-toggle').click(); await page.locator('.impression-sheet').waitFor()
+  await page.waitForFunction(() => document.querySelector('.impression-sheet')?.naturalWidth > 0); assert.equal(await page.locator('.impression-sheet').evaluate((img) => img.naturalWidth), 1280)
+  assert.ok((await page.locator('.impression-tier').first().innerText()).includes('我们一起折了蓝色的纸桥。'))
+  await page.locator('.impression-toggle').click(); await page.locator('.old-page .page-turn button', { hasText: '回到今天' }).click(); await page.locator('.old-page').waitFor({ state: 'detached' })
   const miniPromise = instance.waitForEvent('window'); await accept({ type: 'window.mini' }); const mini = await miniPromise; await mini.waitForFunction(() => !!window.lca)
   assert.equal(await mini.evaluate(async (id) => { try { await window.lca.readOpticalMemory(id); return false } catch { return true } }, frame.id), true); await accept({ type: 'window.expand' })
   await debug('set_fake_model', { script: [{ text: '', toolCalls: [{ id: 'optical-list', name: 'recall_optical', arguments: '{}' }], delayMs: 0 }, { text: '', toolCalls: [{ id: 'optical-read', name: 'recall_optical', arguments: JSON.stringify({ frameId: frame.id, tier: 'large' }) }], delayMs: 0 }, { text: 'OPTICAL_DERIVED_REPLY', toolCalls: [], delayMs: 0 }] }); await chat('试着回忆这张合成旧页，不确定的细节不要补全。')
