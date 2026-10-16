@@ -748,3 +748,8 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 
 /* 专注段：右页轻轻蒙一层，她不开口 */
 .focus-veil { position: absolute; inset: 0; pointer-events: none; background: color-mix(in oklab, var(--paper) 25%, transparent); }
+
+/* 翻页：右页每次出现（往回翻、换书签、回到今天）都从中缝那边轻轻翻过来；隐藏到显示也算 */
+.page-right { transform-origin: 0 50%; transition: opacity 360ms var(--ease-out), transform 360ms var(--ease-out); }
+@starting-style { .page-right { opacity: 0; transform: perspective(1800px) rotateY(-8deg); } }
+@media (prefers-reduced-motion: reduce) { .page-right { transition: none; } }

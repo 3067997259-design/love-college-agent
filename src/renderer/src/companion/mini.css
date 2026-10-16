@@ -133,3 +133,6 @@ html[data-view='mini'] body { background: transparent; overflow: hidden; }
   transform: translateZ(0); /* 让 .mini 的 fixed 定位落在这个框里 */
   outline: 1px dashed rgb(255 255 255 / 0.25);
 }
+
+/* 心流里有代码等你批准：她停在这一步，用提示色（亮黄底、深字，不靠红色） */
+.mini-note[data-status='approval'] { color: var(--notice-ink); background: color-mix(in oklab, var(--notice-bg) 55%, transparent); border-radius: 6px; }

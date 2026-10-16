@@ -8,6 +8,8 @@ import { formatRemaining } from '../book/format'
 import { locationLabel } from '../book/labels'
 import { useCountdown } from '../book/useCountdown'
 import { activityText } from '../voice/activity-text'
+import book from '../voice/book.zh.json'
+import { fill } from '../book/life/text'
 import './mini.css'
 
 /**
@@ -50,12 +52,18 @@ export function MiniCompanion({ snapshot, onExpand, onHover, onMove }: {
   const label = onBreak ? '休息了，点一下回到书本' : '回到书本'
   // 书合上以后，她在后台做的事只能在这里看见：专注时写一行她手上的活（和右页同一套活动模板，不调用模型）
   const doing = pomodoro.phase === 'focus' ? currentActivity(snapshot) : undefined
+  // 心流里有代码等你批准：她卡在这一步，什么阶段都要说（系统通知另由主进程按规则发）
+  const approval = !!(snapshot.heartFlow?.activeId && snapshot.heartFlow.pending)
+  // 她自己的书桌作品：步数来自快照，不按时间推断
+  const work = pomodoro.phase === 'focus' ? runningWork(snapshot) : undefined
   const plan = pomodoro.plan
-  const note = onBreak ? '休息了，点一下回到书本'
-    : doing ? activityText(doing)
-      : pomodoro.phase === 'idle' && plan?.status === 'confirmed' && pomodoro.focusIndex < pomodoro.plannedCount ? '下一个番茄等你开始'
-        : pomodoro.phase === 'idle' && plan?.status === 'finished' && pomodoro.focusIndex >= pomodoro.plannedCount ? '今天的番茄做完了'
-          : ''
+  const note = approval ? book.mini.approval
+    : onBreak ? '休息了，点一下回到书本'
+      : doing ? activityText(doing)
+        : work ? work
+          : pomodoro.phase === 'idle' && plan?.status === 'confirmed' && pomodoro.focusIndex < pomodoro.plannedCount ? '下一个番茄等你开始'
+            : pomodoro.phase === 'idle' && plan?.status === 'finished' && pomodoro.focusIndex >= pomodoro.plannedCount ? '今天的番茄做完了'
+              : ''
 
   return (
     <div className="mini" data-break={onBreak} data-lights-out={companion.lightsOut}>
@@ -112,9 +120,19 @@ export function MiniCompanion({ snapshot, onExpand, onHover, onMove }: {
             : onBreak ? <>休息 <span className="mini-time">{formatRemaining(remaining)}</span></>
               : away ? `她去${locationLabel(companion.locationId)}了` : companion.pose === 'sleeping' ? '她睡着了' : '在书桌前'}
       </p>
-      <p className="mini-note" aria-live="polite" data-status={doing?.status}>{note}</p>
+      <p className="mini-note" aria-live="polite" data-status={approval ? 'approval' : doing ? doing.status : work ? 'running' : undefined}>{note}</p>
     </div>
   )
+}
+
+/** 她正在做的书桌作品：读哪份／照着哪份写、第几步 */
+function runningWork({ life }: AppSnapshot): string | undefined {
+  const work = life?.work
+  const job = work?.runningId ? work.jobs.find((item) => item.id === work.runningId) : undefined
+  if (!work || !job || job.status !== 'running') return undefined
+  const path = work.materials.find((item) => item.id === job.materialId)?.path ?? ''
+  const name = (path.split(/[\\/]/).at(-1) ?? '').replace(/\.[^.]+$/, '') || '书桌上的材料'
+  return fill(book.mini.work[job.kind], { name, done: job.completedSteps, total: job.totalSteps })
 }
 
 /** 正在做的那一步优先；没有在跑的，就是当前任务最近做完的一步 */

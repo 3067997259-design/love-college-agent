@@ -173,6 +173,13 @@
     "devCode": "心流 JavaScript",
     "devSubmit": "申请执行"
   },
+  "mini": {
+    "approval": "有一段代码等你批准，点一下回到书本",
+    "work": {
+      "read": "她在读 {name}（{done}/{total}）",
+      "write": "她在照着 {name} 写（{done}/{total}）"
+    }
+  },
   "history": {
     "back": "往回翻",
     "older": "前一页",
