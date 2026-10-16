@@ -40,11 +40,16 @@ try {
   await send({ type: 'window.mini.hover', over: false }, mini); assert.equal((await snapshot()).windows.miniClickThrough, true)
   await client.callTool({ name: 'set_clock', arguments: { nowMs: first.clock.nowMs + 60_000 } })
   await waitFor((s) => s.pomodoro.phase === 'short-break', 'MINI_TIMER_NOT_SHARED'); assert.equal((await snapshot()).windows.mode, 'mini')
+  const position = (await snapshot()).windows.miniBounds
+  const closed = mini.waitForEvent('close')
   await mini.getByRole('button', { name: '休息了，点一下回到书本', exact: true }).click()
+  await closed
   await waitFor((s) => s.windows.mode === 'book', 'MINI_DID_NOT_EXPAND')
+  assert.equal((await snapshot()).windows.miniBounds, null)
   assert.equal(await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((window) => !window.webContents.getURL().includes('view=mini')).isVisible()), true)
   await send({ type: 'lights.set', lightsOut: true }); assert.notEqual((await snapshot()).companion.pose, 'sleeping')
-  const position = (await snapshot()).windows.miniBounds; await client.close(); client = undefined; await instance.close(); await launch()
+  await client.close(); client = undefined; await instance.close(); await launch()
+  assert.equal(await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), 1)
   const again = instance.waitForEvent('window'); await send({ type: 'window.mini' }); mini = await again; await mini.locator('.mini').waitFor(); await waitFor((s) => s.windows.mode === 'mini', 'MINI_REOPEN_FAILED')
   const reopened = (await snapshot()).windows.miniBounds
   assert.deepEqual({ x: reopened.x, y: reopened.y }, { x: position.x, y: position.y })
