@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
@@ -29,6 +30,11 @@ try {
   await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '用户查阅日记', exact: true }).first().click(); await page.getByRole('article', { name: '用户独占日记' }).waitFor()
   await send({ type: 'room.rebuild' }); const rooms = join(data, 'developer', sceneId, 'rooms'); const room = join(rooms, (await readdir(rooms))[0]); const encrypted = await readFile(join(room, '日记', '2026-10-16.zip')); assert.ok(!encrypted.includes(Buffer.from(entry.text)))
   const archive = join(data, 'room.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive); await send({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'ROOM_EXPORT_FAILED')
+  // A projection file that no longer belongs to the log must disappear on rebuild, while the desk stays untouched.
+  const staleDiary = join(room, '日记', '2026-10-19.zip'); await writeFile(staleDiary, 'STALE_PROJECTION')
+  const staleLog = join(room, '运行记录', '2026-10-19.md'); await writeFile(staleLog, 'STALE_PROJECTION'); const deskNote = join(room, '书桌', '用户笔记.md'); await writeFile(deskNote, 'USER_NOTE')
+  await send({ type: 'room.rebuild' })
+  assert.equal(existsSync(staleDiary), false); assert.equal(existsSync(staleLog), false); assert.equal(await readFile(deskNote, 'utf8'), 'USER_NOTE')
   await client.close(); client = undefined; await instance.close(); sceneId = randomUUID(); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
   await launch(); await instance.evaluate(({ dialog, app }, file) => { app.relaunch = () => {}; dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, archive)
   await send({ type: 'backup.import' }); await waitFor((s) => s.backup.status === 'awaiting-confirmation', 'ROOM_IMPORT_FAILED'); const restoreId = (await snapshot()).backup.restoreId
