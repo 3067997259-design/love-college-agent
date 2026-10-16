@@ -18,19 +18,23 @@ export function createSpeechPort(config: VoiceConfig, transport: typeof fetch = 
       const response = await transport(config.base_url.replace(/\/$/, '') + '/audio/speech', { method: 'POST', redirect: 'error', signal,
         headers: { Authorization: 'Bearer ' + config.api_key, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: config.model, voice: config.voice, input: text, response_format: 'pcm' }) })
       if (!response.ok || !response.body || !/^(audio\/(?:pcm|raw)|application\/octet-stream)(?:;|$)/i.test(response.headers.get('content-type') ?? '')) { await response.body?.cancel(); throw new Error('VOICE_UNAVAILABLE') }
-      reader = response.body.getReader(); let pending = Buffer.alloc(0); let total = 0
+      reader = response.body.getReader(); let total = 0
       const key = Buffer.from(config.api_key); const keep = Math.max(key.length - 1, 1)
+      const pending = Buffer.alloc(8192 + keep); let length = 0
       for (;;) {
         const next = await reader.read(); signal.throwIfAborted()
         if (next.done) break
         total += next.value.byteLength; if (total > 1_440_000) throw new Error('VOICE_UNAVAILABLE')
-        pending = Buffer.concat([pending, next.value]); if (pending.includes(key)) throw new Error('VOICE_UNAVAILABLE')
-        const ready = Math.max(0, pending.length - keep) & ~1
-        for (let offset = 0; offset < ready; offset += 8192) chunk(pending.subarray(offset, Math.min(ready, offset + 8192)))
-        pending = pending.subarray(ready)
+        // Transport reads have no audio meaning. Coalesce into fixed application frames while
+        // withholding enough bytes to detect a credential split across any network boundary.
+        for (let offset = 0; offset < next.value.length;) {
+          const count = Math.min(pending.length - length, next.value.length - offset); pending.set(next.value.subarray(offset, offset + count), length); length += count; offset += count
+          if (pending.subarray(0, length).includes(key)) throw new Error('VOICE_UNAVAILABLE')
+          if (length === pending.length) { chunk(Buffer.from(pending.subarray(0, 8192))); pending.copyWithin(0, 8192, length); length -= 8192 }
+        }
       }
       if (!total || total % 2) throw new Error('VOICE_UNAVAILABLE')
-      if (pending.length) chunk(pending)
+      for (let offset = 0; offset < length; offset += 8192) chunk(Buffer.from(pending.subarray(offset, Math.min(length, offset + 8192))))
     } catch { throw new Error('VOICE_UNAVAILABLE') } finally { await reader?.cancel().catch(() => {}); reader?.releaseLock() }
   } }
 }

@@ -25,3 +25,5 @@
 全量类型／lint、52 文件／296 项单测通过；基础 Electron、展位 profile 隔离和私人存档场景回归通过。本批未打新的安装包；安装态验收仍待全圈收口。
 
 后续 #23：原生配置导入按槽位区分严格 schema，与 readVoiceConfig 复用相同语音校验，普通模型槽位仍拒绝 protocol/voice。6 项配置单测和更新后的 `smoke-model-slots.mjs` 实际经过原生选择／保存／非法配置不覆盖／关闭重启，确认混合 chat/background/privacy/tts 字段保留、端口 available=true 且保持静音；未向合成 HTTPS 目标发送语音请求。
+
+后续 #24：HTTP 传输读取先合并成固定 8192 字节应用音频块，EOF 才发偶数尾部；保留跨片凭据扫描和所有块数／字节／游标上限。相同 6.4 秒 PCM 的整块、1 KiB、单字节、奇偶混合分片均通过真实 port→service→游标读回且完全一致（38 块），30 秒字节边界为 176 块。不是只删除安全守卫。

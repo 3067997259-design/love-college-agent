@@ -71,7 +71,7 @@ it('streams uneven HTTP chunks into even PCM, refuses secret echoes, JSON/errors
 })
 it('uses the actual HTTP streaming reader and cancels an open loopback response', async () => {
   let authorized = false
-  const server = createServer((request, response) => { authorized = request.headers.authorization === 'Bearer synthetic-local-test'; response.writeHead(200, { 'Content-Type': 'audio/pcm' }); response.write(Buffer.alloc(4800)) })
+  const server = createServer((request, response) => { authorized = request.headers.authorization === 'Bearer synthetic-local-test'; response.writeHead(200, { 'Content-Type': 'audio/pcm' }); response.write(Buffer.alloc(18000)) })
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done)); const address = server.address(); if (!address || typeof address === 'string') throw new Error('NO_PORT')
   const abort = new AbortController(); let bytes = 0
   try {
@@ -79,4 +79,24 @@ it('uses the actual HTTP streaming reader and cancels an open loopback response'
     await expect(port.synthesize('LOOPBACK_ONLY', abort.signal, (chunk) => { bytes += chunk.byteLength; abort.abort() })).rejects.toThrow('VOICE_UNAVAILABLE')
     expect(bytes).toBeGreaterThan(0); expect(authorized).toBe(true)
   } finally { abort.abort(); server.closeAllConnections(); await new Promise<void>((done) => server.close(() => done())) }
+})
+it('keeps identical valid PCM independent of whole, 1 KiB, single-byte and mixed HTTP fragmentation through the real service/cursor reader (#24)', async () => {
+  const config = { protocol: 'openai-speech' as const, base_url: 'https://speech.invalid/v1', api_key: 'SYNTHETIC_TEST_KEY', model: 'fake', voice: 'test-tone' }
+  const body = Buffer.alloc(307200); for (let i = 0; i < body.length; i++) body[i] = i % 251
+  for (const pattern of [[body.length], [1024], [1], [3, 7, 2, 4095]]) {
+    const port = createSpeechPort(config, (async () => { let offset = 0; let index = 0; return new Response(new ReadableStream({ pull(controller) { if (offset === body.length) { controller.close(); return }; const end = Math.min(body.length, offset + pattern[index++ % pattern.length]); controller.enqueue(body.subarray(offset, end)); offset = end } }), { headers: { 'Content-Type': 'audio/pcm' } }) }) as typeof fetch, 'fake')
+    const f = fixture(port); f.send({ type: 'voice.set', enabled: true }); f.say(); await f.voice.idle(); const utterance = f.voice.view().utterance!
+    expect(utterance.status).toBe('ready'); expect(utterance.chunkCount).toBe(38); expect(utterance.byteLength).toBe(body.length)
+    let cursor = -1; let done = false; const result: Buffer[] = []
+    for (let read = 0; read < 32 && !done; read++) { const audio = f.voice.read({ utteranceId: utterance.id, afterChunk: cursor }); for (const chunk of audio.chunks) { expect(chunk.index).toBe(++cursor); result.push(Buffer.from(chunk.pcmBase64, 'base64')) }; done = audio.done }
+    expect(done).toBe(true); expect(Buffer.concat(result).equals(body)).toBe(true); await f.voice.close()
+  }
+}, 15000)
+it('fits the full 30-second byte boundary into the same bounded PCM cursor protocol (#24)', async () => {
+  const body = Buffer.alloc(1440000); let offset = 0
+  const port = createSpeechPort({ protocol: 'openai-speech', base_url: 'https://speech.invalid/v1', api_key: 'synthetic-only', model: 'fake', voice: 'test-tone' }, (async () => new Response(new ReadableStream({ pull(controller) { if (offset === body.length) { controller.close(); return }; const end = Math.min(body.length, offset + 1023); controller.enqueue(body.subarray(offset, end)); offset = end } }), { headers: { 'Content-Type': 'audio/pcm' } })) as typeof fetch, 'fake')
+  const f = fixture(port); f.send({ type: 'voice.set', enabled: true }); f.say(); await f.voice.idle(); const utterance = f.voice.view().utterance!
+  expect(utterance).toMatchObject({ status: 'ready', byteLength: body.length, chunkCount: 176 }); let cursor = -1; let bytes = 0; let done = false
+  for (let read = 0; read < 32 && !done; read++) { const audio = f.voice.read({ utteranceId: utterance.id, afterChunk: cursor }); for (const chunk of audio.chunks) { cursor = chunk.index; bytes += Buffer.from(chunk.pcmBase64, 'base64').length }; done = audio.done }
+  expect(done).toBe(true); expect(bytes).toBe(body.length); await f.voice.close()
 })
