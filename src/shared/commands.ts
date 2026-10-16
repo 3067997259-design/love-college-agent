@@ -65,6 +65,14 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'developer.documents'; scenarioId: DocumentScenarioId }
   | { type: 'developer.document.import'; fixtureId: 'assignment-pdf' | 'notes-text' | 'malformed-pdf' | 'scanned-pdf' }
   | { type: 'memory.extract' }
+  | { type: 'flow.enter' }
+  | { type: 'flow.exit' }
+  | { type: 'flow.mode'; mode: 'plan' | 'execute' }
+  | { type: 'flow.compact' }
+  | { type: 'flow.undo'; changeId: string }
+  /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
+  | { type: 'flow.run'; code: string }
+  | { type: 'flow.approve'; approvalId: string; allow: boolean }
   /** Consolidate closed calendar periods from grounded day summaries; repeated identical inputs are no-ops. */
   | { type: 'memory.consolidate' }
   | { type: 'context.compact' }

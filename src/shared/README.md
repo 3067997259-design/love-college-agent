@@ -85,3 +85,7 @@ characterName 进入角色的系统称呼，userName 进入用户档案的“关
 主进程加载 `?view=mini`，新小窗为 280×350 DIP；首次在主屏工作区右下角留 24 DIP 边距。有位置偏好则按 profile 和显示器恢复，越界／显示器缺失归位；应用重启只开书本。`window.diagnostics.open` 仅开发模式开放独立诊断窗，normal／booth 拒绝；diagnosticsOpen 表示它是否存在。诊断窗只读安全快照和 readDiagnostics，不获文件／原文入口或业务命令权限。
 
 `pomodoro.confirm(planId)` 只确认当前 proposal，任何阶段可确认；plannedCount 是今天的总数，包含已完成和正在进行的那个，少于 focusIndex 时拒绝。确认保留当前阶段、剩余时长、截止点、已完成进度，更新生效计划及总数，清 proposal；新时长从下一阶段使用。`pomodoro.discard(planId)` 只丢弃匹配的 proposal；`pomodoro.stop` 只结束生效计划，不再丢草案。完成数由主进程提供 completedCount（旧 fixture 可省略），正在进行／暂停的专注不计已完成；get_timer 返回它供模型排当天总数。渲染层不要从新草案重新起算进度。
+# 心流
+
+`heartFlow` 是书桌工作的安全投影。`flow.enter` 冻结前缀；`flow.mode` 切换只读计划／执行；`flow.compact` 仅压工作层；`flow.exit` 追加有证据的工作摘要。`flow.run` 申请执行 JavaScript，`flow.approve` 仅书本窗口能发，审批不持久复用；展位禁止运行。没有 shell／Node 权限。`flow.undo` 只撤回最新的匹配文件版本，追加事件，不删除历史。
+
