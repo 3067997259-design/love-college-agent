@@ -41,7 +41,8 @@ export function createLifeWork(options: {
     const conflicted = new Set<string>()
     const replay = workRecords(rows())
     for (const material of replay.materials.values()) {
-      try { const present = desk.read(material.path); if (present === null) desk.write(material.path, material.text) } catch { /* The material stays missing; checkpoint conflicts below still decide the job. */ }
+      const conflict = () => { for (const job of jobs.values()) if (job.materialId === material.id) { if (job.reason !== 'conflict') fail(job, 'conflict'); conflicted.add(job.id) } }
+      try { const present = desk.read(material.path); if (present === null) desk.write(material.path, material.text); else if (present !== material.text) conflict() } catch { conflict() }
     }
     for (const [id, checkpoints] of replay.committed) for (const draft of checkpoints) {
       try {
@@ -158,7 +159,15 @@ export function createLifeWork(options: {
       }
       if (job.status === 'completed') return 'unavailable'
       if (command.type === 'life.work.pause') { if (active && job.status === 'running') active.abort(); pause(job, 'user'); return }
-      if (job.completedSteps >= job.totalSteps) { job.status = 'completed'; job.completedAtMs = clock.nowMs(); delete job.reason; save(job); return }
+      if (job.completedSteps >= job.totalSteps) {
+        // Progress count alone cannot clear a real conflict. Re-check the material and every committed
+        // product before settling, even when no model is configured; never schedule a fourth step.
+        const replay = workRecords(rows()); const material = replay.materials.get(job.materialId)
+        try {
+          if (!material || desk.read(material.path) !== material.text || (replay.committed.get(job.id) ?? []).some((draft) => desk.read(draft.path) !== draft.text)) throw new Error('WORK_CONFLICT')
+        } catch { fail(job, 'conflict'); return 'unavailable' }
+        job.status = 'completed'; job.completedAtMs = rows().findLast((row) => row.type === 'life/work-commit' && row.workId === job.id)?.atMs ?? clock.nowMs(); delete job.reason; save(job); return
+      }
       if (!enabled || !options.model || worker) return 'unavailable'
       job.status = 'queued'; delete job.reason; save(job); void tick()
     },

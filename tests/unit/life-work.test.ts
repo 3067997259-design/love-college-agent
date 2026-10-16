@@ -158,3 +158,14 @@ it('isolates unreadable pending drafts without committing, overwriting or blocki
     expect(restarted.view().jobs.find((entry) => entry.id === other.id)?.completedSteps).toBe(1)
   }
 })
+it('keeps 3/3 conflicts until actual material and checkpoints match, including without a producer (reopened #17)', async () => {
+  const f = setup(); const job = await completedThenConflict(f); const attempts = f.store.records().filter((row) => row.type === 'life/work-attempt').length
+  const next = createLifeWork({ ...f.options, model: null }); cleanups.push(next.close)
+  expect(next.view().jobs.find((entry) => entry.id === job.id)).toMatchObject({ status: 'failed', reason: 'conflict', completedSteps: 3 })
+  expect(next.dispatch({ type: 'life.work.resume', workId: job.id } as AppCommand)).toBe('unavailable')
+  expect(next.completed('write', job.dayKey)).toBe(false); expect(next.view().jobs.find((entry) => entry.id === job.id)?.reason).toBe('conflict'); expect(next.active()).toBe(false)
+  const draft = workRecords(f.store.records()).committed.get(job.id)!.at(-1)!
+  expect(f.desk.read(draft.path)).toBe('USER_EDITED_OUTSIDE_THE_APP')
+  f.desk.write(draft.path, draft.text); expect(next.dispatch({ type: 'life.work.resume', workId: job.id } as AppCommand)).toBeUndefined()
+  expect(next.completed('write', job.dayKey)).toBe(true); expect(f.store.records().filter((row) => row.type === 'life/work-attempt')).toHaveLength(attempts)
+})
