@@ -105,11 +105,14 @@ try {
   await instance.close()
   // Booth/normal mode uses the same window whitelist; forcing opaque mode must not require developer tools.
   env.LCA_DATA_DIR = join(data, 'opaque-booth'); env.LCA_PROVIDERS_FILE = join(data, 'absent-test-providers.json'); env.LCA_MINI_OPAQUE = '1'; env.LCA_BOOTH = '1'
+  await mkdir(env.LCA_DATA_DIR, { recursive: true }); await writeFile(join(env.LCA_DATA_DIR, 'settings.json'), JSON.stringify({ version: 1, developer: false, booth: true, plugins: {}, miniPosition: { x: 99999, y: -99999 } }))
   await launch(); assert.equal((await snapshot()).runtime.developer.mode, 'booth')
   const plan = { label: '不透明窗口验收', plannedCount: 1, items: [{ text: '窗口验收', count: 1, assist: false }], focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }
   await send({ type: 'pomodoro.plan', plan }); const opaqueId = (await snapshot()).pomodoro.plan.id
   await send({ type: 'pomodoro.confirm', planId: opaqueId }); const opaque = instance.waitForEvent('window'); await send({ type: 'pomodoro.start', planId: opaqueId }); mini = await opaque; await verifyMini(mini)
   assert.equal((await snapshot()).windows.miniPresentation, 'opaque'); assert.equal((await snapshot()).windows.miniFallbackReason, 'forced')
+  const bounds = (await snapshot()).windows.miniBounds; const areas = await instance.evaluate(({ screen }) => screen.getAllDisplays().map((display) => display.workArea))
+  assert.ok(areas.some((area) => bounds.x >= area.x && bounds.y >= area.y && bounds.x + bounds.width <= area.x + area.width && bounds.y + bounds.height <= area.y + area.height), 'OFFSCREEN_PROFILE_NOT_REHOMED')
   assert.equal((await windows()).find((w) => w.mini).background.toLowerCase(), '#f5eedc')
   await expandMini(mini); await instance.close(); await launch(); assert.equal((await windows()).length, 1)
   assert.equal((await snapshot()).windows.miniBounds, null); assert.equal((await snapshot()).windows.mode, 'book')
