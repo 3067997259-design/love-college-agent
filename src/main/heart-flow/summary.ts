@@ -3,8 +3,8 @@ type RunEvidence = { id: string; status: string }
 
 // Keep valid JSON and both evidence kinds within the journal's character budget.
 // Full evidence remains in the append-only journal; this is only the normal-chat reference.
-export function flowExitSummary(flowId: string, files: FileEvidence[], runs: RunEvidence[], delegates: RunEvidence[] = []) {
-  const view = { heartFlowFinished: flowId, fileCount: files.length, runCount: runs.length, delegateCount: delegates.length, delegateResultsAreUnreviewed: true, delegateEvidence: delegates.slice(-3), fileEvidence: [] as FileEvidence[], runs: [] as RunEvidence[] }
+export function flowExitSummary(flowId: string, files: FileEvidence[], runs: RunEvidence[], delegates: RunEvidence[] = [], computer?: { dispatched: number; denied: number; failed: number; cancelled: number; observations: number }) {
+  const view = { heartFlowFinished: flowId, fileCount: files.length, runCount: runs.length, delegateCount: delegates.length, delegateResultsAreUnreviewed: true, delegateEvidence: delegates.slice(-3), ...(computer ? { computerEvidence: { ...computer, scope: 'static-desk-preview', dispatchIsNotBusinessCompletion: true } } : {}), fileEvidence: [] as FileEvidence[], runs: [] as RunEvidence[] }
   const recentFiles = files.slice(-12).reverse(); const recentRuns = runs.slice(-12).reverse()
   for (let index = 0; index < 12; index++) {
     for (const [values, value] of [[view.fileEvidence, recentFiles[index]], [view.runs, recentRuns[index]]] as const) {

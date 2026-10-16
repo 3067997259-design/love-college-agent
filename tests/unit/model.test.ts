@@ -11,6 +11,15 @@ const frame = (delta: unknown, finish_reason: string | null = null) => `data: ${
 function stream(text = 'test reply') { return new Response(frame({ content: text, reasoning_content: 'must not surface' }, 'stop') + 'data: [DONE]\n\n') }
 
 describe('private compatible model client', () => {
+  it('attaches only bounded owned work images after an entire tool batch, never unresolved files/URLs', async () => {
+    const png = Buffer.alloc(33); Buffer.from('89504e470d0a1a0a', 'hex').copy(png); png.writeUInt32BE(800, 16); png.writeUInt32BE(600, 20)
+    const ref = 'work-frame:' + 'a'.repeat(64); const fetcher = vi.fn(async () => stream()); const resolve = vi.fn(() => png)
+    const work: ModelRequest = { ...request(), messages: [{ role: 'assistant', content: '', toolCalls: [{ id: 'first', name: 'observe', arguments: '{}' }, { id: 'second', name: 'read', arguments: '{}' }] }, { role: 'tool', content: 'untrusted frame metadata', toolCallId: 'first', imageRefs: [ref] }, { role: 'tool', content: 'untrusted second tool data', toolCallId: 'second' }] }
+    await createModelClient(configs, ['chat'], createManualClock(), fetcher, { resolve }).complete(work, () => {})
+    const messages = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).messages
+    expect(messages.map((message: { role: string }) => message.role)).toEqual(['assistant', 'tool', 'tool', 'user']); expect(messages[3].content[1]).toEqual({ type: 'image_url', image_url: { url: 'data:image/png;base64,' + png.toString('base64'), detail: 'low' } }); expect(resolve).toHaveBeenCalledWith(ref)
+    const denied = vi.fn(); await expect(createModelClient(configs, ['chat'], createManualClock(), denied).complete(work, () => {})).rejects.toMatchObject({ kind: 'configuration' }); expect(denied).not.toHaveBeenCalled()
+  })
   it('rejects a budget reservation before any actual request', async () => {
     const fetcher = vi.fn()
     await expect(createModelClient(configs, ['chat'], createManualClock(), fetcher).complete(request(), () => { throw new Error('synthetic reservation denied') })).rejects.toThrow('synthetic reservation denied')

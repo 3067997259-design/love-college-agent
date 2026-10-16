@@ -91,7 +91,7 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
           activity.fields = record.fields ?? {}
         }
         result.evidenceSeqs.push(record.seq)
-        context.push({ seq: record.seq, message: { role: 'tool', content: JSON.stringify(record.visible), toolCallId: record.callId } }); break
+        context.push({ seq: record.seq, message: { role: 'tool', content: JSON.stringify(record.visible), toolCallId: record.callId, ...(record.ok && record.imageRefs?.length ? { imageRefs: record.imageRefs } : {}) } }); break
       }
       case 'context/inject': context.push({ seq: record.seq, message: { role: 'system', content: record.text } }); break
       case 'context/compact': context.push({ seq: record.seq, order: record.fromSeq - 0.5, message: { role: 'system', content: record.summary } }); break

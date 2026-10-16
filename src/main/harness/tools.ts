@@ -7,7 +7,7 @@ import manifest from './tools.json'
 
 export interface ToolContext { clock: Clock; store: SessionStore; turnId: string; signal: AbortSignal }
 type JsonValue = Extract<JournalInput, { type: 'tool/result' }>['raw']
-export interface ToolResult { ok: boolean; raw: JsonValue; visible: JsonValue; fields?: Record<string, string | number | boolean> }
+export interface ToolResult { ok: boolean; raw: JsonValue; visible: JsonValue; imageRefs?: string[]; fields?: Record<string, string | number | boolean> }
 export interface HarnessTool {
   definition: ModelTool
   templateId: string

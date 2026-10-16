@@ -425,6 +425,7 @@ GPT 开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER
 - `pnpm test:heart-flow`：Electron 书桌工具、审批、撤回和重启场景（fake 聊天模型）。
 - `pnpm test:flow-drafts`：Electron `/init`／`/review` 真实书桌草稿、原生预览、取消／重启／私人恢复与普通上下文隔离（fake 模型）。
 - `pnpm test:desk-shadow`：书桌根是 Git 仓库时，独立私人 Git 的真实 before/after 提交、原仓库不受干预、撤回和日志／私人恢复重建；未安装 Git 或非仓库继续日志快照。
+- `pnpm test:computer`：隔离书桌静态 HTML、真实截图／兼容多模态 HTTP、每次用户审批后的真实点击输入、陈旧页面拒绝、取消／重启／私人恢复；不控制整机或已有应用，见 [预览记录](docs/engineering/computer-third-circle.md)。
 - `pnpm test:voice`：PCM 输出语音分块、真实 AudioContext 排程（测试静音）、取消、白名单和重启不重播；开发模式是测试音，真实供应商／音色待配置，见 [语音记录](docs/engineering/voice-third-circle.md)。
 
 `pnpm probe:life`：确定性外出、物品来源、重启与恢复空档边界（原生 Electron／SQLite，加速时钟）。
