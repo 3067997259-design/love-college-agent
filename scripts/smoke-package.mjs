@@ -51,10 +51,10 @@ try {
     assert.equal(occupied.trim(), 'free', 'Existing user installation detected; test refuses to upgrade or uninstall it.')
   }
   const unpacked = join(release, 'win-unpacked/LoveCollegeAgent.exe')
-  await probe(unpacked, 'sqlite'); await probe(unpacked, 'journal'); await probe(unpacked, 'pomodoro'); await probe(unpacked, 'backup')
+  for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'heart-flow']) await probe(unpacked, name)
   await run(installer, ['/S', '/currentuser', `/D=${installDir}`]); installed = true
   const exe = join(installDir, 'LoveCollegeAgent.exe'); assert.ok((await stat(exe)).isFile())
-  await probe(exe, 'sqlite'); await probe(exe, 'journal'); await probe(exe, 'pomodoro'); await probe(exe, 'backup')
+  for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'heart-flow']) await probe(exe, name)
   env.LCA_DATA_DIR = join(root, '.local-data', `installed-ui-${randomUUID()}`)
   env.LCA_PROVIDERS_FILE = join(env.LCA_DATA_DIR, 'absent-test-providers.json')
   const launch = () => _electron.launch({ executablePath: exe, args: [], env, timeout: 30_000 })
@@ -69,7 +69,7 @@ try {
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results/installed.png') })
   const bytes = await readFile(installer)
   const report = { ok: true, atIso: new Date().toISOString(), installer, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
-    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: true, privateSaveProbe: true, installedUiRestart: true }
+    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: true, privateSaveProbe: true, installedUiRestart: true, secondCircleProbes: ['memory', 'life', 'heart-flow'] }
   await writeFile(join(root, 'test-results/package-report.json'), JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report))
 } finally {
