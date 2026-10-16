@@ -20,6 +20,7 @@ import { prepareRuntime, attachRuntime } from './developer/runtime'
 import { createFakePrivacyModel } from './privacy/filter'
 import { createPomodoro, type PomodoroService } from './pomodoro/service'
 import { pomodoroTools } from './pomodoro/tools'
+import { probePomodoro } from './validation/pomodoro'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -86,6 +87,11 @@ void app.whenReady().then(async () => {
       console.log('LCA_PROBE:' + JSON.stringify({ ok: false, probe: 'journal', error: 'JOURNAL_PROBE_FAILED' }))
       app.exit(1)
     }
+    return
+  }
+  if (process.argv.includes('--lca-probe=pomodoro')) {
+    try { console.log('LCA_PROBE:' + JSON.stringify(probePomodoro(dataDir))); app.exit(0) }
+    catch { console.log('LCA_PROBE:{"ok":false,"probe":"pomodoro","error":"POMODORO_PROBE_FAILED"}'); app.exit(1) }
     return
   }
   if (process.argv.includes('--lca-probe=sqlite')) {

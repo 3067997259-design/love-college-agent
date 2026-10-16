@@ -12,27 +12,34 @@ export interface Journal {
   close(): void
 }
 
+export function journalLocation(dataDir: string, owner: Pick<Scope, 'userId' | 'characterId'>, clock: Clock) {
+  const ownerKey = createHash('sha256').update(JSON.stringify([owner.userId, owner.characterId])).digest('hex')
+  return { folder: join(dataDir, 'journals', ownerKey), dayKey: clock.iso(clock.nowMs() + 4 * 60 * 60 * 1000).slice(0, 10) }
+}
+
+export function parseJournalContent(content: string, owner: Pick<Scope, 'userId' | 'characterId'>): JournalRecord[] {
+  if (content && !content.endsWith('\n')) throw new Error('JOURNAL_INCOMPLETE')
+  const records = content ? content.slice(0, -1).split('\n').map((line) => parseRecord(JSON.parse(line))) : []
+  for (let index = 0; index < records.length; index++) {
+    if (records[index].seq !== index + 1 || (index > 0 && records[index].type === 'session/header')) throw new Error('JOURNAL_CORRUPT')
+  }
+  const header = records[0]
+  if (header && (header.type !== 'session/header' || header.userId !== owner.userId || header.characterId !== owner.characterId)) throw new Error('JOURNAL_SCOPE_MISMATCH')
+  return records
+}
+
 /** One Electron owner per data directory; journal fsync precedes every projection write. */
 export function openJournal(dataDir: string, owner: Pick<Scope, 'userId' | 'characterId'>, clock: Clock): Journal {
-  const ownerKey = createHash('sha256').update(JSON.stringify([owner.userId, owner.characterId])).digest('hex')
-  const folder = join(dataDir, 'journals', ownerKey)
+  const { folder, dayKey } = journalLocation(dataDir, owner, clock)
   mkdirSync(folder, { recursive: true })
   // Shanghai local day starting at 04:00. Runtime dream/rollover scheduling comes later.
-  const dayKey = clock.iso(clock.nowMs() + 4 * 60 * 60 * 1000).slice(0, 10)
   const fd = openSync(join(folder, `${dayKey}.jsonl`), 'a+')
   let closed = false
   let poisoned = false
   let bytes = fstatSync(fd).size
   let records: JournalRecord[]
   try {
-    const content = readFileSync(fd, 'utf8')
-    if (content && !content.endsWith('\n')) throw new Error('JOURNAL_INCOMPLETE')
-    records = content ? content.slice(0, -1).split('\n').map((line) => parseRecord(JSON.parse(line))) : []
-    for (let index = 0; index < records.length; index++) {
-      if (records[index].seq !== index + 1 || (index > 0 && records[index].type === 'session/header')) throw new Error('JOURNAL_CORRUPT')
-    }
-    const header = records[0]
-    if (header && (header.type !== 'session/header' || header.userId !== owner.userId || header.characterId !== owner.characterId)) throw new Error('JOURNAL_SCOPE_MISMATCH')
+    records = parseJournalContent(readFileSync(fd, 'utf8'), owner)
   } catch { closeSync(fd); throw new Error('JOURNAL_READ_FAILED') }
   const append = (input: JournalInput): JournalRecord => {
     if (closed || poisoned) throw new Error('JOURNAL_NOT_WRITABLE')

@@ -48,12 +48,12 @@ try {
     assert.equal(occupied.trim(), 'free', 'Existing user installation detected; test refuses to upgrade or uninstall it.')
   }
   const unpacked = join(release, 'win-unpacked/LoveCollegeAgent.exe')
-  await probe(unpacked, 'sqlite'); await probe(unpacked, 'journal')
+  await probe(unpacked, 'sqlite'); await probe(unpacked, 'journal'); await probe(unpacked, 'pomodoro')
   await run(installer, ['/S', '/currentuser', `/D=${installDir}`]); installed = true
   const exe = join(installDir, 'LoveCollegeAgent.exe'); assert.ok((await stat(exe)).isFile())
   // Probes need their own data, because journal validation creates multiple deliberate fixture sessions.
   env.LCA_DATA_DIR = join(root, '.local-data', `installed-probe-${randomUUID()}`)
-  await probe(exe, 'sqlite'); await probe(exe, 'journal')
+  await probe(exe, 'sqlite'); await probe(exe, 'journal'); await probe(exe, 'pomodoro')
   env.LCA_DATA_DIR = join(root, '.local-data', `installed-ui-${randomUUID()}`)
   const launch = () => _electron.launch({ executablePath: exe, args: [], env, timeout: 30_000 })
   instance = await launch(); let page = await instance.firstWindow()
