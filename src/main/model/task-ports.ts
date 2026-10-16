@@ -1,0 +1,46 @@
+import { randomUUID } from 'node:crypto'
+import type { ProviderConfig, ProviderSlot } from '../config/providers'
+import type { Clock } from '../clock'
+import type { SessionStore } from '../store/session'
+import type { MemoryModel } from '../memory/model'
+import { MemoryFailure } from '../memory/model'
+import type { EmailPrivacyModel } from '../mail/privacy'
+import type { DocumentPrivacyModel } from '../documents/privacy'
+import type { PrivacyModel } from '../privacy/filter'
+import { redactFixed } from '../privacy/redact'
+import { sessionDayKey } from '../journal/file'
+import { createModelClient } from './client'
+import { ModelFailure } from './types'
+import prompts from './task-prompts.json'
+
+/** Machine JSON tasks only. Persona, diary and dream wording remain on the voice line. */
+export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, clock: Clock, store: SessionStore, fetcher?: Parameters<typeof createModelClient>[3]) {
+  const clients = { background: createModelClient(providers, ['background'], clock, fetcher), privacy: createModelClient(providers, ['privacy'], clock, fetcher) }
+  const json = async (slot: keyof typeof clients, prompt: string, input: unknown, parent: AbortSignal, maxOutputTokens: number, preserveSourceIds = false): Promise<unknown> => {
+    const abort = new AbortController(); const signal = AbortSignal.any([parent, abort.signal]); signal.throwIfAborted()
+    const stop = clock.after(30_000, () => abort.abort()); const turnId = randomUUID()
+    // SeenFragment.text was already scrubbed; its generated provenance IDs must remain exact for validation.
+    const content = preserveSourceIds ? JSON.stringify(input) : redactFixed(JSON.stringify(input)); const reservation = Buffer.byteLength(content) + maxOutputTokens + 2048
+    let remove = () => {}
+    try {
+      const pending = clients[slot].complete({ messages: [{ role: 'system', content: prompt }, { role: 'user', content }], tools: [], signal, toolsExecuted: false, maxOutputTokens }, (attempt) => {
+        if (attempt.status === 'started') {
+          const rows = (store.history?.() ?? store.records()).filter((row) => row.type === 'model/attempt' && row.status === 'started' && sessionDayKey(clock, row.atMs) === sessionDayKey(clock))
+          const used = rows.reduce((sum, row) => sum + (row.type === 'model/attempt' ? row.reservedTokens ?? 0 : 0), 0)
+          const autonomous = rows.reduce((sum, row) => sum + (row.type === 'model/attempt' && row.bucket === 'autonomous' ? row.reservedTokens ?? 0 : 0), 0)
+          if (used + reservation > 500_000 || slot === 'background' && autonomous + reservation > 100_000) throw new MemoryFailure('budget-exceeded')
+        }
+        // Private task inputs and output prose are never stored, even in model/seen or raw tool fields.
+        store.append({ type: 'model/attempt', turnId, ...attempt, bucket: slot === 'background' ? 'autonomous' : 'work', ...(attempt.status === 'started' ? { reservedTokens: reservation } : {}) })
+      })
+      const result = await Promise.race([pending, new Promise<never>((_resolve, reject) => { const listener = () => reject(new ModelFailure(parent.aborted ? 'cancelled' : 'timeout')); signal.addEventListener('abort', listener, { once: true }); remove = () => signal.removeEventListener('abort', listener); if (signal.aborted) listener() })])
+      signal.throwIfAborted(); if (result.toolCalls.length) throw new ModelFailure('invalid-output')
+      return JSON.parse(result.text)
+    } finally { stop(); remove(); abort.abort() }
+  }
+  const memory: MemoryModel | null = providers.has('background') ? { source: 'real', extract: (input, signal) => json('background', prompts.memoryExtract, input, signal, 4096, true), summarize: (input, signal) => json('background', prompts.memorySummary, input, signal, 4096, true) } : null
+  const mail: EmailPrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (input, signal) => json('privacy', prompts.mail, input, signal, 2048) } : null
+  const document: DocumentPrivacyModel | null = providers.has('privacy') ? { source: 'real', ready: true, organize: (input, signal) => json('privacy', prompts.document, input, signal, 8192) } : null
+  const narrow: PrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (text, signal) => json('privacy', prompts.narrowPrivacy, { text }, signal ?? new AbortController().signal, 512) } : null
+  return { memory, mail, document, narrow }
+}

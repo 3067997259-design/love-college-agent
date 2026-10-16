@@ -44,7 +44,8 @@
     "test:mcp": "pnpm build && node scripts/smoke-mcp.mjs",
     "probe:mcp:student-hub": "pnpm build && node scripts/probe-electron.mjs mcp-student-hub",
     "probe:backup": "pnpm build && node scripts/probe-electron.mjs backup",
-    "test:backup": "pnpm build && node scripts/smoke-backup.mjs"
+    "test:backup": "pnpm build && node scripts/smoke-backup.mjs",
+    "test:model-slots": "pnpm build && node scripts/smoke-model-slots.mjs"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",

@@ -7,6 +7,7 @@ import { MemoryControls } from './MemoryControls'
 import { McpControls } from './McpControls'
 import { BackupControls } from './BackupControls'
 import { DiagnosticsControls } from './DiagnosticsControls'
+import { ModelControls } from './ModelControls'
 
 type Action = AppCommand extends infer Command ? Command extends AppCommand ? Omit<Command, 'epoch' | 'protocolVersion' | 'requestId'> : never : never
 
@@ -33,6 +34,7 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
       <BackupControls bridge={bridge} snapshot={snapshot} />
       <McpControls bridge={bridge} snapshot={snapshot} />
       <DiagnosticsControls bridge={bridge} snapshot={snapshot} />
+      <ModelControls bridge={bridge} snapshot={snapshot} />
       <h2>番茄钟</h2>
       <div aria-label="番茄钟控制" data-phase={snapshot.pomodoro.phase} data-status={snapshot.pomodoro.status}>
         <p>{({ idle: '等待开始', focus: '专注', 'short-break': '短休息', 'long-break': '长休息' })[snapshot.pomodoro.phase]} · {Math.ceil(snapshot.pomodoro.remainingMs / 1000)} 秒 · {snapshot.pomodoro.focusIndex}/{snapshot.pomodoro.plannedCount}</p>

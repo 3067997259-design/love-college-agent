@@ -41,7 +41,7 @@ export function createPluginRegistry(options: { root: string; settings: Settings
     const result = resultSchema.parse(await tool.run(input, context))
     if (JSON.stringify(result).length > 1_000_000) throw new Error('PLUGIN_RESULT_TOO_LARGE')
     if (!filtering || entry.handlesPrivacy) return result
-    const filtered = await filter(JSON.stringify(result.raw))
+    const filtered = await filter(JSON.stringify(result.raw), context.signal)
     return filtered.ok ? { ok: result.ok, raw: result.raw, visible: { ...filtered.fields, trust: filtered.trust }, fields: {} }
       : { ok: false, raw: result.raw, visible: { error: filtered.error }, fields: {} }
   } })

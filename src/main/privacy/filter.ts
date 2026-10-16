@@ -9,14 +9,14 @@ const fieldsSchema = z.strictObject({
   })),
 })
 export type PrivacyFields = z.infer<typeof fieldsSchema>
-export interface PrivacyModel { readonly source: 'real' | 'fake'; extract(text: string): Promise<unknown> }
+export interface PrivacyModel { readonly source: 'real' | 'fake'; extract(text: string, signal?: AbortSignal): Promise<unknown> }
 export type PrivacyResult = { ok: true; source: 'real' | 'fake'; trust: 'untrusted'; fields: PrivacyFields } | { ok: false; error: 'privacy-unavailable' | 'privacy-invalid-output' }
 
 export function createPrivacyFilter(model: PrivacyModel | null) {
-  return async (text: string): Promise<PrivacyResult> => {
+  return async (text: string, signal?: AbortSignal): Promise<PrivacyResult> => {
     if (!model) return { ok: false, error: 'privacy-unavailable' }
     try {
-      const parsed = fieldsSchema.safeParse(await model.extract(text))
+      const parsed = fieldsSchema.safeParse(await model.extract(text, signal))
       return parsed.success ? { ok: true, source: model.source, trust: 'untrusted', fields: parsed.data } : { ok: false, error: 'privacy-invalid-output' }
     } catch { return { ok: false, error: 'privacy-unavailable' } }
   }

@@ -16,6 +16,7 @@ import type { MemoryService } from '../memory/service'
 import type { McpService } from '../mcp/service'
 import type { BackupService } from '../backup/service'
 import type { QuillService } from '../gifts/quill'
+import type { ModelSettingsService } from '../config/model-settings'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
@@ -41,6 +42,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('mcp.configure') }),
   z.strictObject({ ...envelope, type: z.literal('mcp.connect'), serverId: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ ...envelope, type: z.literal('mcp.disconnect'), serverId: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/) }),
+  z.strictObject({ ...envelope, type: z.literal('models.configure') }),
   z.strictObject({ ...envelope, type: z.literal('privacy.set'), enabled: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('document.attachment'), attachmentId: z.string().max(128) }),
   z.strictObject({ ...envelope, type: z.literal('document.retry'), documentId: z.string().max(128) }),
@@ -76,6 +78,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let backup: BackupService | undefined
   let quill: QuillService | undefined
   let diagnostics: (() => DiagnosticsView) | undefined
+  let modelSettings: ModelSettingsService | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
     protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0,
@@ -155,6 +158,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'backup' ? { id: 'backup', status: snapshot.backup!.status === 'failed' ? 'failed' : 'ready', source: 'real' } : item)
     }
     if (quill) snapshot.quill = quill.read()
+    if (modelSettings) snapshot.modelSettings = modelSettings.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
     const event: AppEvent = { protocolVersion: PROTOCOL_VERSION, epoch: snapshot.epoch, revision: snapshot.revision,
       occurredAtMs: snapshot.clock.nowMs, type: 'state.snapshot', reason, snapshot: structuredClone(snapshot), ...(requestId ? { requestId } : {}) }
@@ -211,6 +215,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (documents && (command.type === 'privacy.set' || command.type.startsWith('document.') || command.type === 'developer.documents' || command.type === 'developer.document.import' || (command.type === 'artifact.open' && documents.ownsArtifact(command.artifactId)))) {
       try { const error = command.type === 'artifact.open' ? documents.openArtifact(command.artifactId) : documents.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
+    } else if (modelSettings && command.type === 'models.configure') {
+      try { const error = modelSettings.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
     } else if (backup && command.type.startsWith('backup.')) {
       try { const error = backup.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -261,6 +268,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachMcp: (port: McpService) => { mcp = port; publish('connection') },
     attachBackup: (port: BackupService) => { backup = port; publish('connection') },
     attachQuill: (port: QuillService) => { quill = port; publish('connection') },
+    attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },
     readDiagnostics: () => { if (runtime?.view().developer.mode !== 'developer' || !diagnostics) throw new Error('DIAGNOSTICS_UNAVAILABLE'); return diagnostics() },
     readSession: (id: unknown) => {
