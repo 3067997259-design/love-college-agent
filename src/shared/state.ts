@@ -341,6 +341,7 @@ export interface GeneratedGiftView {
 export interface GiftsView { configured: boolean; dailyLimit: number; items: readonly GeneratedGiftView[] }
 
 export interface AppSnapshot {
+  heartFlow?: HeartFlowView
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
   revision: number
@@ -371,4 +372,15 @@ export interface AppSnapshot {
   /** Main-owned, persisted per private profile/owner. Booth always projects completed. */
   onboarding?: OnboardingView
   gifts?: GiftsView
+}
+export interface HeartFlowView {
+  activeId: string | null
+  mode: 'plan' | 'execute'
+  execution: 'javascript-sandbox' | 'disabled'
+  /** Source and output text are user-only; models obtain approved work through desk tools. */
+  pending?: { id: string; code: string }
+  files: readonly { path: string; byteLength: number }[]
+  changes: readonly { id: string; path: string; undone: boolean }[]
+  sessions: readonly { id: string; startedAtMs: number; endedAtMs: number | null; summary: string | null }[]
+  lastRun?: { ok: boolean; output: string }
 }
