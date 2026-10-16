@@ -290,6 +290,12 @@ export interface ModelSettingsView {
   restartRequired: boolean
   error?: PublicError
 }
+export interface WindowsView {
+  mode: 'book' | 'mini'
+  miniBounds: { x: number; y: number; width: number; height: number } | null
+  miniAlwaysOnTop: boolean
+  miniClickThrough: boolean
+}
 export interface AppSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
@@ -317,4 +323,5 @@ export interface AppSnapshot {
   backup?: BackupView
   quill?: QuillView
   modelSettings?: ModelSettingsView
+  windows?: WindowsView
 }
