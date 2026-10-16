@@ -3,7 +3,9 @@ import { join } from 'node:path'
 import type { Clock } from '../clock'
 import type { Scope } from '../../shared'
 import { journalLocation, sessionDayKey, openJournal, parseJournalContent, type Journal } from '../journal/file'
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, lstatSync, unlinkSync, writeFileSync, renameSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { z } from 'zod'
 import { projectJournal, type SessionProjection } from '../journal/projection'
 import type { JournalInput } from '../journal/schema'
 import { carryPreviousState } from './carry'
@@ -22,8 +24,11 @@ export interface SessionStore {
 }
 
 export function openSessionStore(dataDir: string, owner: Pick<Scope, 'userId' | 'characterId'>, clock: Clock): SessionStore {
-  let journal = openJournal(dataDir, owner, clock)
-  let dayKey = sessionDayKey(clock)
+  const resumePath = sessionResumePath(dataDir, owner)
+  const resumed = existsSync(resumePath) ? (() => { if (lstatSync(resumePath).isSymbolicLink() || lstatSync(resumePath).size > 1024) throw new Error('SESSION_ANCHOR_INVALID'); return resumeSchema.parse(JSON.parse(readFileSync(resumePath, 'utf8'))) })() : undefined
+  let dayKey = resumed?.dayKey ?? sessionDayKey(clock)
+  let journal = openJournal(dataDir, owner, clock, dayKey)
+  if (resumed && journal.scope.sessionId !== resumed.sessionId) { journal.close(); throw new Error('SESSION_ANCHOR_INVALID') }
   let database: Database.Database | undefined
   try {
     carryPreviousState(journal, dataDir, owner, clock)
@@ -54,6 +59,7 @@ export function openSessionStore(dataDir: string, owner: Pick<Scope, 'userId' | 
         const next = openJournal(dataDir, owner, clock)
         try { carryPreviousState(next, dataDir, owner, clock) } catch { next.close(); throw new Error('SESSION_HANDOFF_FAILED') }
         journal.close(); journal = next; dayKey = target; history = loadHistory(); state = projectJournal(journal.records())
+        if (existsSync(resumePath)) unlinkSync(resumePath)
         try { db.transaction(cache)() } catch { /* Derived cache can be rebuilt. */ }
         return true
       },
@@ -66,4 +72,10 @@ export function openSessionStore(dataDir: string, owner: Pick<Scope, 'userId' | 
       close: () => { journal.close(); db.close() },
     }
   } catch { journal.close(); database?.close(); throw new Error('SESSION_STORE_UNAVAILABLE') }
+}
+const resumeSchema = z.strictObject({ dayKey: z.iso.date(), sessionId: z.string().min(1).max(128) })
+const sessionResumePath = (root: string, owner: Pick<Scope, 'userId' | 'characterId'>) => join(root, '.session-resume-' + createHash('sha256').update(JSON.stringify([owner.userId, owner.characterId])).digest('hex') + '.json')
+export function resumeSavedSession(root: string, owner: Pick<Scope, 'userId' | 'characterId'>, dayKey: string, sessionId: string) {
+  const path = sessionResumePath(root, owner); const value = resumeSchema.parse({ dayKey, sessionId })
+  writeFileSync(path + '.tmp', JSON.stringify(value), { mode: 0o600 }); renameSync(path + '.tmp', path)
 }

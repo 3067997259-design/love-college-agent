@@ -2,8 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { createAppController } from '../../src/main/bridge/controller'
 import { createManualClock } from '../../src/main/clock'
 import type { AppEvent } from '../../src/shared'
+import type { BackupService } from '../../src/main/backup/service'
 
 describe('public bridge controller', () => {
+  it('blocks new writes while a backup is active and still returns the original ack for a repeated request', () => {
+    const controller = createAppController(createManualClock()); let busy = false
+    const backup = { view: () => ({ status: 'idle' }), isBusy: () => busy, dispatch: () => { busy = true; return undefined } } as unknown as BackupService
+    controller.attachBackup(backup)
+    const command = { protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId: 'backup-request', type: 'backup.export' }
+    expect(controller.dispatch(command).status).toBe('accepted'); expect(controller.dispatch(command).status).toBe('accepted')
+    expect(controller.dispatch({ ...command, requestId: 'new-request', type: 'mode.set', mode: 'work' })).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
+    expect(controller.getSnapshot().companion.mode).toBe('rest')
+  })
   it('rejects malformed, undeveloped and stale commands without pretending work completed', () => {
     const controller = createAppController(createManualClock())
     const base = { protocolVersion: 1, requestId: 'r1', epoch: controller.getSnapshot().epoch }
