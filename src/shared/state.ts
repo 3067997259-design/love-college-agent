@@ -342,6 +342,7 @@ export interface GeneratedGiftView {
 export interface GiftsView { configured: boolean; dailyLimit: number; items: readonly GeneratedGiftView[] }
 
 export interface AppSnapshot {
+  characterPack?: CharacterPackView
   notifications?: NotificationsView
   diary?: DiaryView
   life?: LifeView
@@ -376,6 +377,16 @@ export interface AppSnapshot {
   /** Main-owned, persisted per private profile/owner. Booth always projects completed. */
   onboarding?: OnboardingView
   gifts?: GiftsView
+}
+export interface CharacterPackView {
+  activeId: string
+  name: string
+  /** Owned local URLs only. Missing pose -> same-pose calm -> facing-user calm -> built-in fallback. */
+  images: Readonly<Record<string, string>>
+  installed: readonly { id: string; name: string; builtin: boolean }[]
+  status: 'idle' | 'importing' | 'exporting' | 'failed'
+  restartRequired: boolean
+  selectedId: string
 }
 export interface NotificationRule { id: string; sourceRole: 'any' | 'teaching-assistant' | 'student-club' | 'library' | 'other'; keyword: string }
 export interface NotificationsView { rules: readonly NotificationRule[]; proposal?: NotificationRule; pendingCount: number; sentLastHour: number; delivery: 'native' | 'synthetic' }
