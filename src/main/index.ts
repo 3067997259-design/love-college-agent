@@ -38,6 +38,8 @@ import { createVoice, type VoiceService } from './voice/service'
 import { readVoiceConfig, createSpeechPort, createFakeVoice } from './voice/port'
 import { createDeskComputer, type DeskComputer } from './computer/service'
 import { openDeskPreview } from './computer/preview'
+import { createPublicWebPort } from './web-fetch/port'
+import { createFlowFetch, type FlowFetch } from './web-fetch/service'
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'lca-media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 import { createAppController } from './bridge/controller'
@@ -134,6 +136,7 @@ let gifts: GiftService | undefined
 let heartFlow: HeartFlowService | undefined
 let voice: VoiceService | undefined
 let computer: DeskComputer | undefined
+let webFetch: FlowFetch | undefined
 let minecraft: MinecraftService | undefined
 let minecraftChat: MinecraftChat | undefined
 let life: LifeService | undefined
@@ -392,9 +395,13 @@ void app.whenReady().then(async () => {
     delegates = createDelegates({ store, clock, model: prepared.developer ? createFakeDelegateModel() : taskModels.delegate,
       flowId: () => heartFlow?.active() ? heartFlow.view().activeId : null, read: (path) => heartFlow!.read(path), changed: () => controller?.refresh('task') })
     heartFlow.attachDelegates(delegates)
-    computer = createDeskComputer({ store, clock, assets: binaryAssets, allowed: () => !!heartFlow?.active() && heartFlow.view().mode === 'execute' && !store!.projection().lightsOut && !prepared.booth,
+    const interactiveWorkAllowed = () => !!heartFlow?.active() && heartFlow.view().mode === 'execute' && !heartFlow.view().operations?.some((op) => op.status === 'running') && !store!.projection().lightsOut && !prepared.booth
+    computer = createDeskComputer({ store, clock, assets: binaryAssets, allowed: interactiveWorkAllowed,
       flowId: () => heartFlow?.view().activeId ?? null, read: (path) => heartFlow!.read(path), open: openDeskPreview, changed: () => controller?.refresh('task') })
     heartFlow.attachComputer(computer)
+    webFetch = createFlowFetch({ store, clock, port: prepared.developer ? { source: 'fake', read: async () => { const text = '<h1>PUBLIC_SYNTHETIC_WEB_WORK</h1><p>This is a synthetic work fixture, not a live website.</p>'; return { text, receivedBytes: Buffer.byteLength(text), truncated: false, contentType: 'text/html' } } } : createPublicWebPort(clock), allowed: interactiveWorkAllowed, flowId: () => heartFlow?.id() ?? null,
+      changed: () => controller?.refresh('task'), safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
+    heartFlow.attachWebFetch(webFetch)
     scheduler.schedule('computer.guard', clock.nowMs() + 250, () => computer?.stateChanged(), { everyMs: 250 })
     lifeWork = createLifeWork({ store, clock, scheduler, desk, developer: prepared.developer, model: prepared.developer ? createFakeLifeWorkModel() : null,
       available: () => {
@@ -414,7 +421,7 @@ void app.whenReady().then(async () => {
       available: () => !harness?.isBusy() && !heartFlow?.active() && !lifeWork?.active() && !minecraft?.active() && !backup?.isBusy() && controller?.getSnapshot().onboarding?.status === 'completed',
       changed: () => controller?.refresh('task'), protectCredential: (value) => { if (value && !privateCredentials.includes(value)) privateCredentials.push(value) } })
     controller.attachOptical(optical)
-    notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => heartFlow?.view().pending?.id ?? computer?.view().pending?.id, changed: () => controller?.refresh('connection'),
+    notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => heartFlow?.view().pending?.id ?? computer?.view().pending?.id ?? webFetch?.view().pending?.id, changed: () => controller?.refresh('connection'),
       notify: ({ title, body }) => { if (prepared.developer || prepared.booth || !Notification.isSupported()) return; const notification = new Notification({ title, body, silent: true }); notification.on('click', () => { const view = controller!.getSnapshot(); controller!.dispatch({ protocolVersion: 1, requestId: randomUUID(), epoch: view.epoch, type: 'window.expand' }) }); notification.show() } })
     controller.attachNotifications(notifications)
     character = createCharacterService({ library: characterLibrary, active: activeCharacter, settings: prepared.pluginSettings, assets: binaryAssets, busy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!backup?.isBusy(), changed: () => controller?.refresh('connection'),
@@ -424,7 +431,7 @@ void app.whenReady().then(async () => {
       chooseExport: async () => { const result = await dialog.showSaveDialog({ title: '导出静态角色包（不含私人资料）', defaultPath: 'character.lca-character', filters: [{ name: '角色包', extensions: ['lca-character'] }] }); return result.canceled ? null : result.filePath ?? null } })
     controller.attachCharacter(character)
     plugins.registerBuiltin('notifications', '急件与提醒标准', notificationTools(notifications))
-    plugins.registerBuiltin('coding', '书桌编码', [...deskTools(heartFlow), ...delegates.tools, ...computer.tools()])
+    plugins.registerBuiltin('coding', '书桌编码', [...deskTools(heartFlow), ...delegates.tools, ...computer.tools(), ...webFetch.tools])
     plugins.registerBuiltin('life-work', '自主阅读与写作', [])
     plugins.registerBuiltin('optical-memory', '可选光学记忆', [optical.tool()])
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])

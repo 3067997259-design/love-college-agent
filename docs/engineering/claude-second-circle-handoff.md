@@ -4,6 +4,7 @@
 
 | 接口提交 | 范围 | 实际可接入口 |
 | --- | --- | --- |
+| `079d2bf` | 公共网页逐次读取 | heartFlow.webFetch、flow.fetch.approve；原生确认／拒绝／停止／重启及正文隔离通过，开发 source=fake。主进程固定公共 IPv4，不带凭据、不跟重定向，网页原文仅工作层；真实公网探针本机 unavailable |
 | `65dc9b4` | 隔离书桌预览 | heartFlow.computer、flow.computer.open/close/approve；朴素控制与原生静态预览、真实截图／多模态 HTTP／逐次审批及恢复通过。主进程只开用户所选 desk HTML，每动作确认，画面仅看元数据；不是整机控制，详见 computer-third-circle.md |
 | `ed1dad0` | 书桌影子提交证据 | heartFlow.changes 与用户 diff 的 shadow 状态／SHA；真实独立 Git 与恢复已验收，日志快照仍权威，非仓库／失败不虚报提交 |
 | `c54c2ba` | 输出语音 | snapshot.voice、voice.set/stop/playback、书本 readVoice；主进程取消／预算／PCM 和唯一书本播放器已接。开发模式短测试音；真实供应商／音色待配置。嘴型可依 playback，mini 不重复播放，详见 voice-third-circle.md |
