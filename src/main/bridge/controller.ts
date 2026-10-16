@@ -28,6 +28,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('pomodoro.start'), planId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.plan'), plan: planSchema }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.confirm'), planId: z.string().min(1).max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('pomodoro.discard'), planId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.resume') }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.pause') }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.stop') }),
@@ -49,6 +50,8 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('window.book') }),
   z.strictObject({ ...envelope, type: z.literal('window.mini.hover'), over: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('window.mini.move'), dx: z.number().int().min(-10000).max(10000), dy: z.number().int().min(-10000).max(10000) }),
+  z.strictObject({ ...envelope, type: z.literal('window.mini.moveBy'), dx: z.number().int().min(-10000).max(10000), dy: z.number().int().min(-10000).max(10000) }),
+  z.strictObject({ ...envelope, type: z.literal('window.diagnostics.open') }),
   z.strictObject({ ...envelope, type: z.literal('privacy.set'), enabled: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('document.attachment'), attachmentId: z.string().max(128) }),
   z.strictObject({ ...envelope, type: z.literal('document.retry'), documentId: z.string().max(128) }),
@@ -180,7 +183,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (!parsed.success) return reject('invalid', 'invalid-command')
     const command: AppCommand = parsed.data
     if (command.epoch !== snapshot.epoch) return reject(command.requestId, 'stale-epoch')
-    if ((command.type === 'window.mini.hover' || command.type === 'window.mini.move') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
+    if (surface === 'diagnostics' || (command.type === 'window.mini.hover' || command.type === 'window.mini.move' || command.type === 'window.mini.moveBy') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
     const signature = commandHash(command)
     const prior = requests.get(command.requestId)
     if (prior) return prior.signature === signature ? structuredClone(prior.ack) : reject(command.requestId, 'invalid-command')

@@ -1,5 +1,27 @@
 # 精修素材接入与 Claude 交接（2026-10-16）
 
+## 后续五张替换（当前采用）
+
+用户逐轮审图后明确授权：“非常好图片，替换现有素材并提交。”本轮保持十张正式素材的稳定文件名，更新五张：
+
+| 运行素材 | 采用版本 | 变化 |
+| --- | --- | --- |
+| `facing-user_calm.png` | v5 hands-overlap calm | 自然转向用户，双手交叠轻放桌面 |
+| `facing-user_smile.png` | v7 hands-overlap smile | 同一姿态的克制浅笑 |
+| `facing-user_worried.png` | v8 interlaced worried | 轻微担心表情，手指松弛交叉，便于区分 |
+| `desk-writing_calm.png` | v8 original-face day | 从原采用日图去掉书前小盆栽，沿用原脸型 |
+| `desk-writing_night.png` | v8 original-face night | 从原采用夜图去掉小盆栽，沿用原脸型与夜灯 |
+
+写字没有采用 v7 改视线／俯仰后的脸；大盆栽保留。v6 两张拢杯图继续作为本机候选，尚未选定。本轮不改状态选择、着色器、对白或主进程；书本、新手流程与迷你窗沿用同一素材入口。当前着色器从彩图实时提取铅笔底，已经不依赖旧线稿；下方首次接入记录保留其历史状态。
+
+当前映射见 [`art/retouch-adopted.json`](../../art/retouch-adopted.json)，本轮原图来源、提示词、替换前后 SHA-256 见 [`art/retouch-round2-adopted.json`](../../art/retouch-round2-adopted.json)。只复制获批 PNG，没有再次生成或缩放。此前的候选 pending 标记不影响这五张的本次批准。
+
+本轮检查：`pnpm build` 通过，十张构建产物的 SHA-256 与采用清单一致；`pnpm exec vitest run tests/unit/character-art.test.ts` 的 5 项通过。Chrome 假数据预览连续切换平静、浅笑、担心、写字夜景、清醒熄灯与睡眠夜灯，在 1600×1000、1280×720 两种窗口共 12 次检查中，实际素材、WebGL 绘制入口和光照模式正确，夜景无重复滤镜；迷你窗另核验五张资源映射与哈希。未发现页面脚本或 HTTP 加载错误。原图和书页截图已人工复核，迷你窗仍沿用原有固定裁切，并非本轮重新设计。详细结果见 [本轮预览记录](art-retouch-round2-review.json)，截图保留在精修 worktree 的 `.local-data/art-review-round2/`。
+
+本轮只验收美术接入与浏览器假数据展示，不包含真实业务、Electron 透明／点穿行为或安装包；未重新打包。
+
+## 首次整套接入记录
+
 ## 用户授权
 
 本批来自用户专门开设的 NovelAI 精修对话。用户逐轮审图，最后明确：

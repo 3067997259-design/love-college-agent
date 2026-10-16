@@ -104,8 +104,16 @@ function createWindow(): void {
   })
   bridge!.attach(window)
   companionWindows = createCompanionWindows({ book: window, clock, uiClock: systemClock, scheduler: scheduler!, settings: prepared.pluginSettings, initialFallbackReason: miniFallbackReason, snapshot: controller!.getSnapshot, subscribe: controller!.subscribe, changed: () => controller?.refresh('mode'),
+    createDiagnostics: () => {
+      const diagnostics = new BrowserWindow({ width: 800, height: 700, title: 'Love College Agent · Diagnostics', show: false, autoHideMenuBar: true,
+        webPreferences: { preload: join(__dirname, '../preload/index.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false } })
+      bridge!.attach(diagnostics, 'diagnostics'); diagnostics.webContents.setWindowOpenHandler(() => ({ action: 'deny' })); diagnostics.webContents.on('will-navigate', (event) => event.preventDefault())
+      if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) { const url = new URL(process.env.ELECTRON_RENDERER_URL); url.searchParams.set('view', 'diagnostics'); void diagnostics.loadURL(url.toString()) }
+      else void diagnostics.loadFile(join(__dirname, '../renderer/index.html'), { query: { view: 'diagnostics' } })
+      return diagnostics
+    },
     createMini: (bounds, opaque) => {
-      const mini = new BrowserWindow({ ...bounds, title: 'Love College Agent · Mini', show: false, frame: false, thickFrame: false, roundedCorners: true, transparent: !opaque, backgroundColor: opaque ? '#F5EEDC' : '#00000000', alwaysOnTop: true, skipTaskbar: true, resizable: false, maximizable: false, minimizable: false, hasShadow: false,
+      const mini = new BrowserWindow({ ...bounds, useContentSize: true, title: 'Love College Agent · Mini', show: false, frame: false, thickFrame: false, roundedCorners: true, transparent: !opaque, backgroundColor: opaque ? '#F5EEDC' : '#00000000', alwaysOnTop: true, skipTaskbar: true, resizable: false, maximizable: false, minimizable: false, hasShadow: false,
         webPreferences: { preload: join(__dirname, '../preload/index.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false } })
       if (opaque && ['win32', 'linux'].includes(process.platform)) {
         const shape = () => { if (!mini.isDestroyed()) { const [width, height] = mini.getSize(); mini.setShape(roundedMiniShape(width, height)) } }

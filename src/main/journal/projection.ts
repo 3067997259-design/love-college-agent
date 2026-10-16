@@ -1,5 +1,5 @@
 import type { ActivityView, InteractionMode, MessageView, PomodoroView, Scope, TaskView } from '../../shared'
-import { idleTimer } from '../pomodoro/schema'
+import { idleTimer, normalizePomodoro } from '../pomodoro/schema'
 import type { ContextMessage, JournalRecord } from './schema'
 
 export interface SessionProjection {
@@ -39,14 +39,14 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
     if ('requestId' in record && 'commandHash' in record) result.requests.push({ requestId: record.requestId, commandHash: record.commandHash })
     switch (record.type) {
       case 'session/carry':
-        result.mode = record.mode; result.lightsOut = record.lightsOut; result.pomodoro = record.pomodoro
+        result.mode = record.mode; result.lightsOut = record.lightsOut; result.pomodoro = normalizePomodoro(record.pomodoro)
         result.pomodoroPause = record.pomodoroPause; result.pomodoroEvents = record.pomodoroEvents
         for (const event of record.pendingEvents ?? []) { pendingEvents.set(event.id, event); inbox.set(event.id, { role: 'user', content: JSON.stringify({ source: event.source, facts: event.text }) }) }
         break
       case 'companion/mode': result.mode = record.mode; release(); break
       case 'companion/lights': result.lightsOut = record.lightsOut; release(); break
       case 'pomodoro/state':
-        result.pomodoro = record.view; result.pomodoroPause = record.pauseReason
+        result.pomodoro = normalizePomodoro(record.view); result.pomodoroPause = record.pauseReason
         if (record.mode) result.mode = record.mode
         release()
         if (record.event) result.pomodoroEvents.push(record.event)

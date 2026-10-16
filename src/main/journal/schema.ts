@@ -41,7 +41,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('document/attachment'), attachment: attachmentRecordSchema }),
   z.strictObject({ type: z.literal('document/completed'), ...documentCompletedSchema.shape }),
   z.strictObject({ type: z.literal('pomodoro/state'), view: viewSchema, pauseReason: z.enum(['manual', 'lights']).nullable(),
-    cause: z.enum(['plan', 'confirmed', 'started', 'paused', 'resumed', 'stopped', 'elapsed', 'interrupted', 'restored']),
+    cause: z.enum(['plan', 'confirmed', 'discarded', 'started', 'paused', 'resumed', 'stopped', 'elapsed', 'interrupted', 'restored']),
     mode: z.enum(['work', 'quiet', 'rest']).optional(), event: z.strictObject({ id, text: z.string().max(2000) }).optional() }),
   z.strictObject({ type: z.literal('user/message'), id, text: z.string().min(1).max(20_000), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('inbox/event'), id, source: z.enum(['pomodoro', 'mail', 'document', 'autonomous']), text: z.string().max(2000) }),

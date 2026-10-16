@@ -1,11 +1,29 @@
 import { useEffect, useState } from 'react'
 import type { AppBridge, AppSnapshot, DiagnosticsView } from '../../../shared'
+import { sendCommand } from '../book/command'
 
-export function DiagnosticsControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
+export function DiagnosticsControls({ bridge, snapshot, standalone = false }: { bridge: AppBridge; snapshot: AppSnapshot; standalone?: boolean }) {
   const [data, setData] = useState<DiagnosticsView | null>(null); const [error, setError] = useState('')
   useEffect(() => { setData(null); setError('') }, [snapshot.epoch])
+  useEffect(() => {
+    if (!standalone || snapshot.runtime?.developer.mode !== 'developer' || !bridge.readDiagnostics) return
+    let active = true; let dirty = true; let reading = false; let last = -Infinity; let frame = 0
+    const stop = bridge.subscribe(() => { dirty = true })
+    // UI-only refresh: at most once per second, no business-clock advancement and no model requests.
+    const tick = (at: number) => {
+      if (!active) return
+      if (dirty && !reading && at - last >= 1000) {
+        dirty = false; reading = true; last = at
+        void bridge.readDiagnostics!().then((view) => { if (active) { setData(view); setError('') } }, () => { if (active) setError('诊断暂不可用') }).finally(() => { reading = false })
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => { active = false; cancelAnimationFrame(frame); stop() }
+  }, [bridge, standalone, snapshot.epoch, snapshot.runtime?.developer.mode])
   if (snapshot.runtime?.developer.mode !== 'developer' || !bridge.readDiagnostics) return null
   return <div aria-label="安全诊断控制"><h2>开发诊断</h2>
+    {!standalone && <button type="button" onClick={() => { void sendCommand(bridge, snapshot.epoch, { type: 'window.diagnostics.open' }).then((result) => { if (!result.ok) setError('独立诊断窗暂不可用') }, () => setError('独立诊断窗暂不可用')) }}>独立窗口</button>}
     <button type="button" onClick={() => { void bridge.readDiagnostics!().then(setData, () => setError('诊断暂不可用')) }}>刷新安全诊断</button>
     <p>模型可见投影已打码；邮件原文对照请使用候选卡的用户查阅入口。未知指标显示为未提供。</p>
     {error && <p role="alert">{error}</p>}

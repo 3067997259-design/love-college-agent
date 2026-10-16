@@ -1,5 +1,5 @@
 [
-  { "name": "plan_pomodoros", "description": "Propose a Pomodoro plan for separate user confirmation. Never confirms or starts it.", "parameters": { "type": "object", "properties": {
+  { "name": "plan_pomodoros", "description": "Replace only the pending draft for separate user confirmation, even during focus/break. Never replaces the confirmed plan, resets progress, confirms or starts. plannedCount and item counts are TODAY'S TOTAL including completed focuses and the current running/paused focus, not additional focuses. Read get_timer first; total must be >= focusIndex. Confirmation keeps the current phase deadline and completed progress.", "parameters": { "type": "object", "properties": {
     "label": { "type": "string", "maxLength": 80 }, "plannedCount": { "type": "integer", "minimum": 1, "maximum": 24 },
     "items": { "type": "array", "minItems": 1, "maxItems": 24, "items": { "type": "object", "properties": {
       "text": { "type": "string", "minLength": 1, "maxLength": 40 }, "count": { "type": "integer", "minimum": 1, "maximum": 24 }, "assist": { "type": "boolean" }
@@ -10,6 +10,6 @@
   }, "required": ["label", "plannedCount", "focusDurationMs", "shortBreakDurationMs", "longBreakDurationMs", "longBreakEvery", "timing"], "additionalProperties": false } },
   { "name": "start_focus", "description": "Start the next focus of an already user-confirmed plan. The next focus never starts automatically.", "parameters": { "type": "object", "properties": { "planId": { "type": "string" } }, "required": ["planId"], "additionalProperties": false } },
   { "name": "pause", "description": "Pause the current Pomodoro timer without cancelling the plan.", "parameters": { "type": "object", "properties": {}, "additionalProperties": false } },
-  { "name": "stop", "description": "Stop the current Pomodoro plan.", "parameters": { "type": "object", "properties": {}, "additionalProperties": false } },
-  { "name": "get_timer", "description": "Read deterministic Pomodoro phase and remaining time.", "parameters": { "type": "object", "properties": {}, "additionalProperties": false } }
+  { "name": "stop", "description": "End only the confirmed plan; never discard a pending draft. An unfinished focus is not counted as completed.", "parameters": { "type": "object", "properties": {}, "additionalProperties": false } },
+  { "name": "get_timer", "description": "Read the confirmed plan, pending proposal, current phase/deadline, completedCount (finished focuses only), and focusIndex (includes the current focus). Use today's totals when proposing, never just remaining/additional focuses.", "parameters": { "type": "object", "properties": {}, "additionalProperties": false } }
 ]

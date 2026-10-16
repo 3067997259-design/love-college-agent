@@ -55,7 +55,7 @@ try {
   if (realtime) {
     const plan = { label: '实际计时验收', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }
     assert.equal((await snapshot()).runtime.developer.mode, 'normal')
-    await send({ type: 'pomodoro.plan', plan }); const planId = (await snapshot()).pomodoro.plan.id
+    await send({ type: 'pomodoro.plan', plan }); const planId = (await snapshot()).pomodoro.proposal.id
     await send({ type: 'pomodoro.confirm', planId }); await send({ type: 'pomodoro.start', planId })
     const started = await snapshot()
     await page.locator('[data-mode][data-phase="short-break"]').waitFor({ timeout: 75_000 })
@@ -72,8 +72,8 @@ try {
   await page.getByRole('button', { name: '工具与设置', exact: true }).click()
   await page.getByRole('checkbox', { name: /演示节奏/ }).check()
   await page.getByRole('button', { name: '生成待确认计划', exact: true }).click()
-  let state = await snapshot(); const planId = state.pomodoro.plan.id
-  assert.equal(state.pomodoro.plan.status, 'proposed')
+  let state = await snapshot(); let planId = state.pomodoro.proposal.id
+  assert.equal(state.pomodoro.proposal.status, 'proposed'); assert.equal(state.pomodoro.plan, undefined)
   assert.equal((await send({ type: 'pomodoro.start', planId })).status, 'rejected')
   await page.getByRole('button', { name: '确认计划', exact: true }).click()
   const opened = instance.waitForEvent('window'); await page.getByRole('button', { name: '开始下一段专注', exact: true }).click(); let mini = await opened
@@ -89,7 +89,23 @@ try {
   await send({ type: 'developer.clock', frozen: true }); assert.equal((await cache()).eventCount, 2)
   await seek(20_000); state = await snapshot(); assert.equal(state.pomodoro.phase, 'idle'); assert.equal(state.pomodoro.plan.status, 'confirmed')
   await seek(60_000); assert.equal((await snapshot()).pomodoro.focusIndex, 1)
+  const originalPlan = (await snapshot()).pomodoro.plan
+  const revisedInput = { label: '今日总数调整', plannedCount: 3, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }
+  await send({ type: 'pomodoro.plan', plan: revisedInput }); state = await snapshot()
+  assert.deepEqual(state.pomodoro.plan, originalPlan); assert.equal(state.pomodoro.focusIndex, 1); assert.equal(state.pomodoro.completedCount, 1)
+  await page.locator('.card-plan[data-status="proposed"]').getByRole('button', { name: '不用了', exact: true }).click()
+  assert.equal((await snapshot()).pomodoro.proposal, undefined); assert.deepEqual((await snapshot()).pomodoro.plan, originalPlan)
+  await send({ type: 'pomodoro.plan', plan: revisedInput })
+  await page.locator('.card-plan[data-status="proposed"]').getByRole('button', { name: '就这么排', exact: true }).click()
+  state = await snapshot(); planId = state.pomodoro.plan.id; assert.equal(state.pomodoro.focusIndex, 1); assert.equal(state.pomodoro.completedCount, 1)
   const next = instance.waitForEvent('window'); await send({ type: 'pomodoro.start', planId }); mini = await next; await verifyMini(mini); await seek(5000)
+  await expandMini(mini); const running = (await snapshot()).pomodoro
+  await send({ type: 'pomodoro.plan', plan: { ...revisedInput, plannedCount: 4 } })
+  const proposal = (await snapshot()).pomodoro.proposal
+  assert.equal((await send({ type: 'pomodoro.confirm', planId: proposal.id })).status, 'accepted')
+  state = await snapshot(); assert.equal(state.pomodoro.endsAtMs, running.endsAtMs); assert.equal(state.pomodoro.remainingMs, running.remainingMs); assert.equal(state.pomodoro.focusIndex, 2); assert.equal(state.pomodoro.completedCount, 1)
+  assert.equal(state.windows.mode, 'book'); assert.equal((await windows()).length, 1, 'CONFIRMATION_RECOLLAPSED_CURRENT_FOCUS')
+  const again = instance.waitForEvent('window'); await send({ type: 'window.mini' }); mini = await again; await verifyMini(mini)
   await send({ type: 'lights.set', lightsOut: true }); const paused = await snapshot(); assert.equal(paused.pomodoro.status, 'paused')
   assert.equal(paused.windows.mode, 'mini'); assert.equal((await windows()).find((w) => !w.mini).visible, false)
   await seek(120_000); assert.equal((await snapshot()).pomodoro.remainingMs, paused.pomodoro.remainingMs)
@@ -107,8 +123,9 @@ try {
   env.LCA_DATA_DIR = join(data, 'opaque-booth'); env.LCA_PROVIDERS_FILE = join(data, 'absent-test-providers.json'); env.LCA_MINI_OPAQUE = '1'; env.LCA_BOOTH = '1'
   await mkdir(env.LCA_DATA_DIR, { recursive: true }); await writeFile(join(env.LCA_DATA_DIR, 'settings.json'), JSON.stringify({ version: 1, developer: false, booth: true, plugins: {}, miniPosition: { x: 99999, y: -99999 } }))
   await launch(); assert.equal((await snapshot()).runtime.developer.mode, 'booth')
+  assert.equal((await send({ type: 'window.diagnostics.open' })).error.code, 'permission-denied'); assert.equal((await windows()).length, 1)
   const plan = { label: '不透明窗口验收', plannedCount: 1, items: [{ text: '窗口验收', count: 1, assist: false }], focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }
-  await send({ type: 'pomodoro.plan', plan }); const opaqueId = (await snapshot()).pomodoro.plan.id
+  await send({ type: 'pomodoro.plan', plan }); const opaqueId = (await snapshot()).pomodoro.proposal.id
   await send({ type: 'pomodoro.confirm', planId: opaqueId }); const opaque = instance.waitForEvent('window'); await send({ type: 'pomodoro.start', planId: opaqueId }); mini = await opaque; await verifyMini(mini)
   assert.equal((await snapshot()).windows.miniPresentation, 'opaque'); assert.equal((await snapshot()).windows.miniFallbackReason, 'forced')
   const bounds = (await snapshot()).windows.miniBounds; const areas = await instance.evaluate(({ screen }) => screen.getAllDisplays().map((display) => display.workArea))

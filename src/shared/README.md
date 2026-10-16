@@ -20,7 +20,7 @@
 - 消息与候选、交付卡按 `createdAtMs` 排序。首次快照、重启和恢复只挂载已有卡片，不重播入场；后续新 id 才入场，不能只靠“时间很近”判断。
 - `sourceLabel` 必须由采集层校验成短字段，不能直接塞原始邮件主题。`mailboxUnseen` 只有 mail capability 为 ready 时才有效，连接失败不能显示成“0 封新邮件”。
 - `readEvidence` 是用户查阅通道，按主进程的用户／角色作用域查 opaque ref；不存在或未接入时明确拒绝。返回值不可进入快照、展示事件或模型上下文。高亮是 excerpt 的 UTF-16 半开区间，对应字段名 `deadlineIso / eventStartIso / locationText / title`。
-- 番茄钟空闲时 `phaseDurationMs`、`plannedCount` 均为 0；运行时由主进程提供本段总时长与这一轮计划数量。
+- 阶段空闲时 `phaseDurationMs` 为 0；`plannedCount` 是当前生效计划的当天总数，没有生效计划才为 0，待确认草案不改变它。主进程提供本段时长、当天总数和完成数，界面不从草案重新起算。
 
 执行底座补充：`PUBLIC_ERROR_CODES` 导出统一枚举，新增模型配置、上游繁忙、额度、断流、非法输出，以及步数／重复调用／预算上限。任务失败看 `task.error.code`，不要把这些失败展示成工作完成；错误里仍只有固定分类与 opaque detailsId，不含供应商报错或配置值。
 
@@ -69,5 +69,9 @@
 `PomodoroPlanInput.items` 可省略；提供时每条为 `{ text, count, assist }`，text 是非空单行短文本（最多 40 Unicode code points），count 为正整数，全部 count 之和必须等于 plannedCount，assist 为必填布尔。工具 plan_pomodoros 使用同一校验，非法输入不写日志、不创建计划。PomodoroPlanView 保留通过校验的原始条目，不补造条目或改变 assist。
 
 计划条目与草案的完整契约（取代早期的 plan.status=proposed 接法）：`pomodoro.plan`／plan_pomodoros 只写 `pomodoro.proposal`，草案只能是 proposed；`pomodoro.plan` 字段只放 confirmed／finished 的生效计划。提议可发生在专注／休息／暂停／空闲中，已有草案就替换草案，不动生效计划、focusIndex、阶段、截止点或暂停原因。
+
+迷你窗最新接线：`window.expand`（回书本并销毁小窗）、`window.mini.hover { over: boolean }`、`window.mini.moveBy { dx: integer, dy: integer }`。moveBy 使用物理屏幕像素，主进程按当前显示器 scaleFactor 换算为窗口 DIP，并在当前显示器 workArea 内夹限；渲染层每帧最多发送一次。CSS screenX/Y 的差值需先乘当前 devicePixelRatio（默认页面缩放为 1），再累积取整数，不能直接把 DIP 当物理像素。旧 window.book／window.mini.move 暂兼容，后者仍按 DIP。
+
+主进程加载 `?view=mini`，新小窗为 280×350 DIP；首次在主屏工作区右下角留 24 DIP 边距。有位置偏好则按 profile 和显示器恢复，越界／显示器缺失归位；应用重启只开书本。`window.diagnostics.open` 仅开发模式开放独立诊断窗，normal／booth 拒绝；diagnosticsOpen 表示它是否存在。诊断窗只读安全快照和 readDiagnostics，不获文件／原文入口或业务命令权限。
 
 `pomodoro.confirm(planId)` 只确认当前 proposal，任何阶段可确认；plannedCount 是今天的总数，包含已完成和正在进行的那个，少于 focusIndex 时拒绝。确认保留当前阶段、剩余时长、截止点、已完成进度，更新生效计划及总数，清 proposal；新时长从下一阶段使用。`pomodoro.discard(planId)` 只丢弃匹配的 proposal；`pomodoro.stop` 只结束生效计划，不再丢草案。完成数由主进程提供 completedCount（旧 fixture 可省略），正在进行／暂停的专注不计已完成；get_timer 返回它供模型排当天总数。渲染层不要从新草案重新起算进度。
