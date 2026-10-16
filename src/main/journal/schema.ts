@@ -1,9 +1,10 @@
 import { z } from 'zod'
+import { PUBLIC_ERROR_CODES } from '../../shared'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
 const publicError = z.strictObject({
-  code: z.enum(['invalid-command', 'stale-epoch', 'unavailable', 'not-configured', 'permission-denied', 'connection-failed', 'privacy-unavailable', 'internal']),
+  code: z.enum(PUBLIC_ERROR_CODES),
   retryable: z.boolean(), detailsId: id.optional(),
 })
 const step = z.strictObject({ id, text: z.string().max(500), status: z.enum(['pending', 'active', 'done', 'failed']) })

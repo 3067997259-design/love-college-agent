@@ -56,7 +56,7 @@
 
 ## 当前工程状态（2026-10-16，赛中）
 
-用户已于 2026-10-16 16:32（GMT+8）宣布开赛。已有 electron-vite + React + TypeScript + pnpm 脚手架、`src/shared/` 接口、受限 IPC、统一时钟、CI 和书本界面；better-sqlite3 已从源码重编译并在 Electron 内完成落盘重开验证。163 IMAP 在认证前连接重置，尚未打开邮箱；这不表示没有邮件。append-only 日志、SQLite 投影和模式状态的重启恢复已接通，模型客户端、harness、番茄钟业务和完整邮件管线尚未实现。证据见 [首批记录](docs/engineering/first-hour.md) 与 [日志／执行底座](docs/engineering/journal-harness.md)。
+用户已于 2026-10-16 16:32（GMT+8）宣布开赛。已有 electron-vite + React + TypeScript + pnpm 脚手架、`src/shared/` 接口、受限 IPC、统一时钟、CI 和书本界面；better-sqlite3 已从源码重编译并在 Electron 内完成落盘重开验证。163 IMAP 在认证前连接重置，尚未打开邮箱；这不表示没有邮件。append-only 日志、SQLite 投影和模式状态的重启恢复已接通，兼容模型客户端和 chat 槽位真实流式探针已通过；harness、番茄钟业务和完整邮件管线尚未实现。证据见 [首批记录](docs/engineering/first-hour.md) 与 [日志／执行底座](docs/engineering/journal-harness.md)。
 
 技术栈仍按 [技术方案](docs/tech-design.md) §1；界面与形象见 [体验设计](docs/experience-design.md)。首个工作展示必须贯通校园信息与实际资料处理，具体任务以 README 最新决策为准。
 
@@ -76,6 +76,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm test:electron` | Playwright 驱动 Electron，检查窗口、隔离及 IPC |
 | `pnpm probe:sqlite` | Electron 内加载原生模块、事务写入、关闭后重开 |
 | `pnpm probe:journal` | Electron 内验证日志重放、缓存重建、作用域和原文隔离 |
+| `pnpm probe:model` | 主进程 chat 槽位的有界极小流式请求，结果不含配置或回复正文 |
 | `pnpm probe:imap` | 主进程内的指定文件夹只读探针；失败仅输出固定分类 |
 
 不运行 `playwright install`。尚无安装包命令；electron-builder、model-viewer 和 Tailwind 的安装已说明延期，后续添加依赖单独提交。

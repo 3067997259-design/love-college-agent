@@ -1,12 +1,14 @@
 export interface Clock {
   nowMs(): number
   iso(timestampMs: number): string
+  parse(timestamp: string): number
   after(delayMs: number, callback: () => void): () => void
 }
 
 export const systemClock: Clock = {
   nowMs: () => Date.now(),
   iso: (timestampMs) => new Date(timestampMs).toISOString(),
+  parse: (timestamp) => Date.parse(timestamp),
   after: (delayMs, callback) => {
     const timer = setTimeout(callback, Math.max(0, delayMs))
     return () => clearTimeout(timer)
@@ -21,6 +23,7 @@ export function createManualClock(initialMs = 0): Clock & { advanceBy(ms: number
   return {
     nowMs: () => now,
     iso: (timestampMs) => new Date(timestampMs).toISOString(),
+    parse: (timestamp) => Date.parse(timestamp),
     after: (delayMs, callback) => {
       const id = ++nextId
       timers.set(id, { at: now + Math.max(0, delayMs), callback })

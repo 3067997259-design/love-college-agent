@@ -8,6 +8,7 @@ import { probeSqlite } from './validation/sqlite'
 import { probeImap } from './mail/probe'
 import { openSessionStore, type SessionStore } from './store/session'
 import { probeJournal } from './validation/journal'
+import { probeModel } from './validation/model'
 
 const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(process.cwd(), '.local-data'))
 mkdirSync(dataDir, { recursive: true })
@@ -41,6 +42,12 @@ function createWindow(): void {
 
 void app.whenReady().then(async () => {
   if (!ownsData) return
+  if (process.argv.includes('--lca-probe=model')) {
+    const report = await probeModel(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'), systemClock)
+    console.log('LCA_PROBE:' + JSON.stringify(report))
+    app.exit(report.ok ? 0 : 1)
+    return
+  }
   if (process.argv.includes('--lca-probe=journal')) {
     try {
       console.log('LCA_PROBE:' + JSON.stringify(probeJournal(dataDir)))
