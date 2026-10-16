@@ -38,7 +38,9 @@
     "probe:campus": "pnpm build && node scripts/probe-electron.mjs campus",
     "test:campus": "pnpm build && node scripts/smoke-campus.mjs",
     "probe:documents": "pnpm build && node scripts/probe-electron.mjs documents",
-    "test:documents": "pnpm build && node scripts/smoke-documents.mjs"
+    "test:documents": "pnpm build && node scripts/smoke-documents.mjs",
+    "probe:memory": "pnpm build && node scripts/probe-electron.mjs memory",
+    "test:memory": "pnpm build && node scripts/smoke-memory.mjs"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",

@@ -1,6 +1,6 @@
 .tools-panel { position: fixed; right: 12px; bottom: 12px; z-index: 90; font: 14px/1.5 system-ui, sans-serif; color: #29241d; }
 .tools-panel button, .tools-panel select { font: inherit; margin: 4px; padding: 5px 9px; color: inherit; background: #fffaf0; border: 1px solid #b2a389; border-radius: 4px; cursor: pointer; }
-.tools-panel section { position: absolute; right: 0; bottom: 45px; width: min(480px, 85vw); max-height: 75vh; overflow: auto; padding: 18px; border: 1px solid #b2a389; border-radius: 8px; background: #fffaf3; box-shadow: 0 5px 25px #0003; }
+.tools-panel > section { position: absolute; right: 0; bottom: 45px; width: min(480px, 85vw); max-height: 75vh; overflow: auto; padding: 18px; border: 1px solid #b2a389; border-radius: 8px; background: #fffaf3; box-shadow: 0 5px 25px #0003; }
 .tools-panel h2 { font: bold 18px system-ui, sans-serif; margin: 18px 0 8px; }
 .tools-plugin { border-bottom: 1px solid #d1c7b6; padding: 10px 0; }
 .tools-panel label { display: block; }
@@ -8,3 +8,7 @@
 .card-actions { flex-wrap: wrap; }
 .card-actions > label { flex-basis: 100%; font-size: 13px; }
 .card-actions input { display: block; max-width: 100%; font: inherit; margin: 5px 0; }
+.memory-list { padding-left: 18px; }
+.memory-item { margin-block: 7px; }
+.memory-item[data-superseded="true"] { opacity: .6; }
+.memory-archive { max-height: 300px; overflow: auto; overflow-wrap: anywhere; white-space: pre-wrap; }
