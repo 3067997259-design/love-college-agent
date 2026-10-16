@@ -34,6 +34,7 @@
     "probe:harness": "pnpm build && node scripts/probe-electron.mjs harness",
     "test:harness": "pnpm build && node scripts/smoke-harness.mjs",
     "test:developer": "pnpm build && node scripts/smoke-developer.mjs",
+    "test:booth": "pnpm build && node scripts/smoke-booth.mjs",
     "package:win": "node scripts/package-win.mjs",
     "test:package": "node scripts/smoke-package.mjs",
     "test:pomodoro": "pnpm build && node scripts/smoke-pomodoro.mjs",

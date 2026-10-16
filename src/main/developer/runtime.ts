@@ -15,7 +15,8 @@ export function prepareRuntime(root: string, real: Clock, boothOverride = false)
   const settings = openSettings(root)
   const booth = boothOverride || settings.read().booth
   const developer = !booth && settings.read().developer
-  const profile = developer ? developmentProfile(root, settings) : { id: undefined, path: root }
+  // Exhibition must never open the personal book merely because the operator reused LCA_DATA_DIR.
+  const profile = developer ? developmentProfile(root, settings) : { id: undefined, path: booth ? join(root, 'booth') : root }
   const scene = developer ? readScene(profile.path) : undefined
   let savedClock = scene?.clock
   if (developer && existsSync(join(profile.path, 'clock.json'))) {
@@ -26,7 +27,7 @@ export function prepareRuntime(root: string, real: Clock, boothOverride = false)
   const clock = adjusted?.clock ?? real
   const scripted = developer ? createScriptedModel(clock) : undefined
   if (scene && scripted) scripted.set(scene.modelScript)
-  const pluginSettings = developer ? openSettings(profile.path) : settings
+  const pluginSettings = developer || booth ? openSettings(profile.path) : settings
   return { root, settings, booth, developer, profile, scene, adjusted, clock, scripted, pluginSettings }
 }
 export type PreparedRuntime = ReturnType<typeof prepareRuntime>

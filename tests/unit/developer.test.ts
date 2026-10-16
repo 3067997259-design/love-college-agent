@@ -25,7 +25,9 @@ describe('development isolation and authenticated MCP', () => {
     const development = prepareRuntime(path, clock)
     expect(development.profile.path).not.toBe(path); expect(development.scripted?.model.source).toBe('fake')
     const booth = prepareRuntime(path, clock, true)
-    expect(booth.developer).toBe(false); expect(booth.scripted).toBeUndefined(); expect(booth.profile.path).toBe(path)
+    expect(booth.developer).toBe(false); expect(booth.scripted).toBeUndefined(); expect(booth.profile.path).toBe(join(path, 'booth'))
+    booth.pluginSettings.update((draft) => { draft.fileFilteringEnabled = true })
+    expect(settings.read().fileFilteringEnabled).toBe(false)
     development.adjusted?.dispose()
   })
   it('stages scenes in fresh profiles without replacing any original journal', () => {
