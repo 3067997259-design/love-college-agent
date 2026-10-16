@@ -65,6 +65,8 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'developer.documents'; scenarioId: DocumentScenarioId }
   | { type: 'developer.document.import'; fixtureId: 'assignment-pdf' | 'notes-text' | 'malformed-pdf' | 'scanned-pdf' }
   | { type: 'memory.extract' }
+  /** Consolidate closed calendar periods from grounded day summaries; repeated identical inputs are no-ops. */
+  | { type: 'memory.consolidate' }
   | { type: 'context.compact' }
   | { type: 'session.rollover' }
   | { type: 'developer.memory'; scenarioId: 'ready' | 'failure' | 'invalid' }
