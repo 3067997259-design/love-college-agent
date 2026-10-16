@@ -72,6 +72,15 @@ try {
   assert.ok(!JSON.stringify(await snapshot()).includes('留给下一座纸桥')); const context = JSON.stringify(await debug('get_context')); assert.ok(!context.includes('PRIVATE_DESK_CANARY')); assert.ok(!context.includes('修订稿'))
   await accepted({ type: 'room.rebuild' }); const logs = join(await room(), '运行记录'); const contents = (await Promise.all((await readdir(logs)).map((file) => readFile(join(logs, file), 'utf8')))).join('\n')
   assert.ok(contents.includes('life/work-commit')); assert.ok(!contents.includes('修订稿')); assert.ok(!contents.includes('PRIVATE_DESK_CANARY'))
+  // A 3/3 conflict cannot become completed just by clicking resume; verify bytes before settling.
+  await stop(); await writeFile(join(desk, writing.output.path), 'USER_EDITED_COMPLETED_WORK'); await launch()
+  let conflicting = (await work()).jobs.find((entry) => entry.id === writing.id); assert.equal(conflicting.status, 'failed'); assert.equal(conflicting.reason, 'conflict')
+  const attemptsBeforeResume = (await work()).attemptsToday
+  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); const row = page.locator(`[data-work-id="${writing.id}"]`)
+  await row.getByRole('button', { name: '续做作品', exact: true }).click(); conflicting = (await work()).jobs.find((entry) => entry.id === writing.id)
+  assert.equal(conflicting.status, 'failed'); assert.equal(conflicting.reason, 'conflict'); assert.equal((await work()).attemptsToday, attemptsBeforeResume); assert.equal(await readFile(join(desk, writing.output.path), 'utf8'), 'USER_EDITED_COMPLETED_WORK')
+  await writeFile(join(desk, writing.output.path), text); await row.getByRole('button', { name: '续做作品', exact: true }).click(); await waitFor((s) => s.life.work.jobs.find((entry) => entry.id === writing.id)?.status === 'completed', 'VERIFIED_COMPLETED_WORK_NOT_SETTLED')
+  assert.equal((await work()).attemptsToday, attemptsBeforeResume)
   // Restore the incomplete save into a genuinely empty profile, with no desk folder carried over.
   await stop(); sceneId = randomUUID(); now += 2 * 86400000; await profile(now); await launch()
   assert.equal((await work()).jobs.length, 0)
