@@ -22,7 +22,7 @@ try {
   await mkdir(data, { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
   await launch(); await connectDebug(); await client.callTool({ name: 'set_clock', arguments: { frozen: true } })
   await send({ type: 'pomodoro.plan', plan: { label: '迷你窗验收', plannedCount: 1, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' } })
-  const planId = (await snapshot()).pomodoro.plan.id; await send({ type: 'pomodoro.confirm', planId })
+  const planId = (await snapshot()).pomodoro.proposal.id; await send({ type: 'pomodoro.confirm', planId })
   const opened = instance.waitForEvent('window'); await send({ type: 'pomodoro.start', planId }); mini = await opened; await mini.locator('.mini').waitFor()
   await waitFor((s) => s.windows?.mode === 'mini', 'MINI_NOT_SHOWN_ON_FOCUS')
   const first = await snapshot(); const native = await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((window) => ({ mini: window.webContents.getURL().includes('view=mini'), visible: window.isVisible(), top: window.isAlwaysOnTop(), preferences: window.webContents.getLastWebPreferences(), resizable: window.isResizable() })))

@@ -36,18 +36,88 @@ function fixture() {
   return { root, clock, open }
 }
 function begin(f: ReturnType<ReturnType<typeof fixture>['open']>) {
-  expect(f.timer.propose(demo, 'assistant')).toBeUndefined(); const planId = f.timer.read().plan!.id
+  expect(f.timer.propose(demo, 'assistant')).toBeUndefined(); const planId = f.timer.read().proposal!.id
   expect(f.timer.start(planId)).toBe('invalid-command')
   expect(pomodoroTools(f.timer).map((tool) => tool.definition.name)).not.toContain('confirm')
   expect(f.timer.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'confirm', type: 'pomodoro.confirm', planId })).toBeUndefined()
   expect(f.timer.start(planId)).toBeUndefined(); return planId
 }
 describe('durable Pomodoro phases through the single inbox', () => {
+  it('proposes and confirms a new daily total after one completed focus without resetting the plan or progress', () => {
+    const base = fixture(); const f = base.open({ emit: false }); begin(f)
+    base.clock.advanceBy(60_000); base.clock.advanceBy(20_000)
+    const before = f.timer.read(); expect(before.completedCount).toBe(1)
+    expect(f.timer.propose({ ...demo, label: 'Revised day', plannedCount: 3 }, 'assistant')).toBeUndefined()
+    const draft = f.timer.read(); expect(draft.plan).toEqual(before.plan); expect(draft.focusIndex).toBe(1); expect(draft.phase).toBe(before.phase)
+    expect(draft.plannedCount).toBe(2); expect(draft.proposal!.plannedCount).toBe(3)
+    expect(f.timer.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'confirm-revision', type: 'pomodoro.confirm', planId: draft.proposal!.id })).toBeUndefined()
+    const confirmed = f.timer.read(); expect(confirmed.focusIndex).toBe(1); expect(confirmed.completedCount).toBe(1); expect(confirmed.proposal).toBeUndefined()
+    expect(confirmed.plan!.plannedCount).toBe(3); expect(confirmed.plannedCount).toBe(3)
+    expect(f.timer.start(confirmed.plan!.id)).toBeUndefined(); expect(f.timer.read()).toMatchObject({ focusIndex: 2, completedCount: 1 })
+  })
+  it('replaces or discards only the pending draft; stop cannot discard it or finish a focus that never completed', () => {
+    const base = fixture(); const f = base.open({ emit: false })
+    f.timer.propose(demo, 'assistant'); const initial = f.timer.read().proposal!
+    expect(f.timer.stop()).toBe('unavailable'); expect(f.timer.read().proposal!.id).toBe(initial.id)
+    const activeId = begin(f); const before = f.timer.read()
+    f.timer.propose({ ...demo, label: 'First draft' }, 'assistant'); const oldDraft = f.timer.read().proposal!.id
+    f.timer.propose({ ...demo, label: 'Replacement draft', plannedCount: 3 }, 'user'); const currentDraft = f.timer.read().proposal!
+    expect(currentDraft.id).not.toBe(oldDraft); expect(f.timer.read().plan!.id).toBe(activeId)
+    expect(f.timer.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'wrong-discard', type: 'pomodoro.discard', planId: oldDraft })).toBe('invalid-command')
+    expect(f.timer.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'discard', type: 'pomodoro.discard', planId: currentDraft.id })).toBeUndefined()
+    expect(f.timer.read()).toEqual(before)
+    f.timer.propose(demo, 'assistant'); const pending = f.timer.read().proposal
+    expect(f.timer.stop()).toBeUndefined(); expect(f.timer.read()).toMatchObject({ focusIndex: 0, completedCount: 0, proposal: pending, plan: { id: activeId, status: 'finished' } })
+  })
+  it('allows proposals and confirmation during focus without changing the phase duration or deadline', () => {
+    const base = fixture(); const f = base.open({ emit: false }); begin(f); base.clock.advanceBy(10_000)
+    const before = f.timer.read()
+    expect(f.timer.propose({ ...demo, plannedCount: 3, timing: 'custom', focusDurationMs: 90_000 }, 'assistant')).toBeUndefined()
+    const pending = f.timer.read(); expect(pending.plan).toEqual(before.plan)
+    for (const key of ['focusIndex', 'phase', 'status', 'phaseDurationMs', 'remainingMs', 'endsAtMs'] as const) expect(pending[key]).toBe(before[key])
+    f.timer.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'confirm-focus', type: 'pomodoro.confirm', planId: pending.proposal!.id })
+    expect(f.timer.read()).toMatchObject({ focusIndex: 1, completedCount: 0, phaseDurationMs: 60_000, remainingMs: 50_000, endsAtMs: before.endsAtMs })
+    base.clock.advanceBy(50_000); expect(f.timer.read().completedCount).toBe(1); base.clock.advanceBy(20_000)
+    f.timer.start(f.timer.read().plan!.id); expect(f.timer.read()).toMatchObject({ focusIndex: 2, completedCount: 1, phaseDurationMs: 90_000 })
+  })
+  it('confirms during break or a paused phase while preserving the actual timer and pause reason', () => {
+    const base = fixture(); const f = base.open({ emit: false }); begin(f); base.clock.advanceBy(60_000); base.clock.advanceBy(5000)
+    const before = f.timer.read(); f.timer.propose({ ...demo, plannedCount: 3 }, 'assistant')
+    f.timer.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'confirm-break', type: 'pomodoro.confirm', planId: f.timer.read().proposal!.id })
+    expect(f.timer.read()).toMatchObject({ phase: before.phase, remainingMs: before.remainingMs, endsAtMs: before.endsAtMs, focusIndex: 1, completedCount: 1 })
+    f.timer.pause(); f.timer.propose({ ...demo, plannedCount: 4 }, 'assistant')
+    f.timer.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'confirm-paused', type: 'pomodoro.confirm', planId: f.timer.read().proposal!.id })
+    expect(f.timer.read()).toMatchObject({ status: 'paused', endsAtMs: null, remainingMs: before.remainingMs, focusIndex: 1 }); expect(f.store.projection().pomodoroPause).toBe('manual')
+    base.clock.advanceBy(100_000); expect(f.timer.read().remainingMs).toBe(before.remainingMs)
+  })
+  it('rejects totals below completed/current progress and rechecks a draft that became stale before confirmation', async () => {
+    const base = fixture(); const f = base.open({ emit: false }); const active = begin(f)
+    f.timer.propose({ ...demo, plannedCount: 1 }, 'assistant'); const pendingId = f.timer.read().proposal!.id
+    base.clock.advanceBy(60_000); base.clock.advanceBy(20_000); f.timer.start(active)
+    const before = f.timer.read(); const count = f.store.records().length
+    expect(f.timer.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'confirm-stale-count', type: 'pomodoro.confirm', planId: pendingId })).toBe('invalid-command')
+    expect(f.timer.read()).toEqual(before); expect(f.store.records()).toHaveLength(count)
+    base.clock.advanceBy(60_000); base.clock.advanceBy(20_000); expect(f.timer.read().completedCount).toBe(2)
+    expect(f.timer.propose({ ...demo, plannedCount: 1 }, 'user')).toBe('invalid-command')
+    const tool = pomodoroTools(f.timer).find((tool) => tool.definition.name === 'plan_pomodoros')!
+    expect(await tool.run({ ...demo, plannedCount: 1 }, { signal: new AbortController().signal } as Parameters<typeof tool.run>[1])).toMatchObject({ ok: false })
+    const read = pomodoroTools(f.timer).find((tool) => tool.definition.name === 'get_timer')!
+    expect((await read.run({}, { signal: new AbortController().signal } as Parameters<typeof read.run>[1])).visible).toMatchObject({ completedCount: 2, focusIndex: 2 })
+  })
+  it('replays the legacy proposed-in-plan format only as a proposal without rewriting its journal record', async () => {
+    const base = fixture(); let f = base.open({ emit: false })
+    const legacy = { ...demo, id: 'legacy-draft', createdAtMs: base.clock.nowMs(), source: 'assistant' as const, status: 'proposed' as const }
+    f.store.append({ type: 'pomodoro/state', view: { phase: 'idle', status: 'idle', endsAtMs: null, remainingMs: 0, phaseDurationMs: 0, focusIndex: 0, plannedCount: 2, plan: legacy }, cause: 'plan', pauseReason: null })
+    expect(f.timer.read()).toMatchObject({ proposal: legacy, plannedCount: 0, completedCount: 0 }); expect(f.timer.read().plan).toBeUndefined()
+    await f.close(); f = base.open({ emit: false }); expect(f.timer.read().proposal!.id).toBe(legacy.id)
+    const source = f.store.records().find((row) => row.type === 'pomodoro/state')
+    expect(source?.type === 'pomodoro/state' && source.view.plan?.status).toBe('proposed')
+  })
   it('retains exact optional task items in the projection, confirmation, start and journal replay', async () => {
     const base = fixture(); let f = base.open({ emit: false })
     const items = [{ text: '读完课程材料', count: 1, assist: true }, { text: '自己完成练习', count: 1, assist: false }]
     expect(f.timer.propose({ ...demo, items }, 'user')).toBeUndefined()
-    let plan = f.timer.read().plan!; expect(plan.items).toEqual(items); expect(viewSchema.safeParse(f.timer.read()).success).toBe(true)
+    let plan = f.timer.read().proposal!; expect(plan.items).toEqual(items); expect(f.timer.read().plan).toBeUndefined(); expect(viewSchema.safeParse(f.timer.read()).success).toBe(true)
     f.timer.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'confirm-items', type: 'pomodoro.confirm', planId: plan.id })
     f.timer.start(plan.id); expect(f.timer.read().plan!.items).toEqual(items)
     await f.close(); f = base.open({ emit: false }); plan = f.timer.read().plan!
@@ -70,7 +140,7 @@ describe('durable Pomodoro phases through the single inbox', () => {
     const input = { ...demo, items: [{ text: '课程资料', count: 2, assist: true }] }
     expect(tool.validate(input)).toBe(true)
     expect((await tool.run(input, { signal: new AbortController().signal } as Parameters<typeof tool.run>[1])).ok).toBe(true)
-    expect(f.timer.read().plan!.items).toEqual(input.items)
+    expect(f.timer.read().proposal!.items).toEqual(input.items)
   })
   it('requires user confirmation, uses long breaks, and waits before the next focus', async () => {
     const base = fixture(); const f = base.open(); const planId = begin(f)

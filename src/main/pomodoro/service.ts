@@ -4,14 +4,14 @@ import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import type { Scheduler } from '../scheduler'
 import type { JournalInput } from '../journal/schema'
-import { idleTimer, planSchema } from './schema'
+import { completedFocuses, idleTimer, normalizePomodoro, planSchema } from './schema'
 
 type StateEvent = Extract<JournalInput, { type: 'pomodoro/state' }>
 export function createPomodoro(options: { clock: Clock; store: SessionStore; scheduler: Scheduler; changed(): void; stateChanged(): void; emit(id: string, text: string): void }) {
   const { clock, store, scheduler } = options
   let disposed = false
   const read = () => {
-    const view = store.projection().pomodoro
+    const view = normalizePomodoro(store.projection().pomodoro)
     if (view.status === 'running' && view.endsAtMs !== null) view.remainingMs = Math.max(0, view.endsAtMs - clock.nowMs())
     return view
   }
@@ -19,7 +19,7 @@ export function createPomodoro(options: { clock: Clock; store: SessionStore; sch
     for (const event of store.projection().pomodoroEvents) options.emit(event.id, event.text)
   }
   const persist = (view: PomodoroView, cause: StateEvent['cause'], pauseReason: StateEvent['pauseReason'] = null, mode?: StateEvent['mode'], fact?: string) => {
-    store.append({ type: 'pomodoro/state', view, cause, pauseReason, ...(mode ? { mode } : {}), ...(fact ? { event: { id: randomUUID(), text: fact } } : {}) })
+    store.append({ type: 'pomodoro/state', view: normalizePomodoro(view), cause, pauseReason, ...(mode ? { mode } : {}), ...(fact ? { event: { id: randomUUID(), text: fact } } : {}) })
     options.changed(); options.stateChanged(); arm(); flush()
   }
   const finish = (interrupted = false) => {
@@ -45,9 +45,9 @@ export function createPomodoro(options: { clock: Clock; store: SessionStore; sch
   const propose = (input: PomodoroPlanInput, source: 'user' | 'assistant'): PublicErrorCode | undefined => {
     const parsed = planSchema.safeParse(input)
     if (!parsed.success) return 'invalid-command'
-    if (read().status !== 'idle') return 'unavailable'
-    const plan = { ...parsed.data, id: randomUUID(), createdAtMs: clock.nowMs(), status: 'proposed' as const, source }
-    persist({ ...idleTimer(), plan, plannedCount: plan.plannedCount }, 'plan')
+    const view = read(); if (parsed.data.plannedCount < view.focusIndex) return 'invalid-command'
+    const proposal = { ...parsed.data, id: randomUUID(), createdAtMs: clock.nowMs(), status: 'proposed' as const, source }
+    persist({ ...view, proposal }, 'plan', store.projection().pomodoroPause)
   }
   const start = (planId: string): PublicErrorCode | undefined => {
     const view = read(); const plan = view.plan
@@ -69,8 +69,8 @@ export function createPomodoro(options: { clock: Clock; store: SessionStore; sch
   }
   const stop = (): PublicErrorCode | undefined => {
     const view = read()
-    if (view.status === 'idle' && !view.plan) return 'unavailable'
-    persist({ ...idleTimer(), ...(view.plan ? { plan: { ...view.plan, status: 'finished' as const }, plannedCount: view.plannedCount, focusIndex: view.focusIndex } : {}) }, 'stopped', null, 'rest')
+    if (!view.plan || view.plan.status === 'finished') return 'unavailable'
+    persist({ ...idleTimer(), plan: { ...view.plan, status: 'finished' as const }, plannedCount: view.plannedCount, focusIndex: completedFocuses(view), ...(view.proposal ? { proposal: view.proposal } : {}) }, 'stopped', null, 'rest')
   }
   const reconcile = () => {
     if (disposed) return
@@ -86,8 +86,15 @@ export function createPomodoro(options: { clock: Clock; store: SessionStore; sch
       if (command.type === 'pomodoro.plan') return propose(command.plan, 'user')
       if (command.type === 'pomodoro.confirm') {
         const view = read()
-        if (!view.plan || view.plan.id !== command.planId || view.plan.status !== 'proposed') return 'invalid-command'
-        persist({ ...view, plan: { ...view.plan, status: 'confirmed' } }, 'confirmed'); return
+        const proposal = view.proposal
+        if (!proposal || proposal.id !== command.planId || proposal.plannedCount < view.focusIndex) return 'invalid-command'
+        const plan = { ...proposal, status: view.status === 'idle' && proposal.plannedCount === view.focusIndex ? 'finished' as const : 'confirmed' as const }
+        delete view.proposal
+        persist({ ...view, plan, plannedCount: plan.plannedCount }, 'confirmed', store.projection().pomodoroPause); return
+      }
+      if (command.type === 'pomodoro.discard') {
+        const view = read(); if (view.proposal?.id !== command.planId) return 'invalid-command'
+        delete view.proposal; persist(view, 'discarded', store.projection().pomodoroPause); return
       }
       if (command.type === 'pomodoro.start') return start(command.planId)
       if (command.type === 'pomodoro.pause') return pause('manual')

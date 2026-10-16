@@ -18,7 +18,7 @@ export function probePomodoro(root: string) {
   try {
     current.timer.propose({ label: 'Synthetic timer probe', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000,
       longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }, 'user')
-    const planId = current.timer.read().plan!.id
+    const planId = current.timer.read().proposal!.id
     current.timer.dispatch({ type: 'pomodoro.confirm', planId, protocolVersion: 1, requestId: 'confirm', epoch: 'probe' })
     current.timer.start(planId)
     const deadline = current.timer.read().endsAtMs; const previousSession = current.store.scope.sessionId

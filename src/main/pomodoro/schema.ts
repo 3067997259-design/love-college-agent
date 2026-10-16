@@ -16,7 +16,17 @@ export const planSchema = z.strictObject({ label: z.string().trim().min(1).max(8
   .refine((plan) => plan.timing !== 'demo' || (plan.focusDurationMs === 60_000 && plan.shortBreakDurationMs === 20_000 && plan.longBreakDurationMs === 20_000))
 export const viewSchema = z.strictObject({ phase: z.enum(['idle', 'focus', 'short-break', 'long-break']), status: z.enum(['idle', 'running', 'paused']),
   remainingMs: z.number().int().nonnegative(), endsAtMs: z.number().int().nonnegative().nullable(), focusIndex: z.number().int().min(0).max(24),
+  completedCount: z.number().int().min(0).max(24).optional(),
   phaseDurationMs: z.number().int().nonnegative(), plannedCount: z.number().int().min(0).max(24),
   plan: planSchema.safeExtend({ id: z.string().min(1).max(128), createdAtMs: z.number().int().nonnegative(), status: z.enum(['proposed', 'confirmed', 'finished']), source: z.enum(['user', 'assistant']) }).optional(),
+  proposal: planSchema.safeExtend({ id: z.string().min(1).max(128), createdAtMs: z.number().int().nonnegative(), status: z.enum(['proposed', 'confirmed', 'finished']).refine((status): boolean => status === 'proposed'), source: z.enum(['user', 'assistant']) }).optional(),
 }).refine((view) => (view.status === 'running') === (view.endsAtMs !== null))
-export const idleTimer = (): PomodoroView => ({ phase: 'idle', status: 'idle', remainingMs: 0, endsAtMs: null, focusIndex: 0, phaseDurationMs: 0, plannedCount: 0 })
+export const completedFocuses = (view: PomodoroView) => Math.max(0, view.focusIndex - (view.phase === 'focus' ? 1 : 0))
+/** Legacy logs may contain proposed-in-plan. Adapt the projection, never rewrite append-only source files. */
+export function normalizePomodoro(input: PomodoroView): PomodoroView {
+  const view = structuredClone(input)
+  if (view.plan?.status === 'proposed') { view.proposal ??= view.plan; delete view.plan; view.plannedCount = 0 }
+  view.completedCount = completedFocuses(view)
+  return view
+}
+export const idleTimer = (): PomodoroView => ({ phase: 'idle', status: 'idle', remainingMs: 0, endsAtMs: null, focusIndex: 0, completedCount: 0, phaseDurationMs: 0, plannedCount: 0 })
