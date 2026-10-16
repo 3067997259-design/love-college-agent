@@ -81,8 +81,8 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
             case 'message': return <Message key={item.id} view={item.view} />
             case 'task': return task && <TaskCard key={item.id} task={task} activities={activities} />
             case 'candidate': return (
-              <CandidateCard key={item.id} view={item.view} bridge={bridge} entering={entering.has(item.id)}
-                onCommand={(type, candidateId) => { void dispatch({ type, candidateId }) }} />
+              <CandidateCard key={`${item.id}:${item.view.revision ?? 0}`} view={item.view} bridge={bridge} entering={entering.has(item.id)}
+                onCommand={(type, candidateId, expectedRevision, plannedCompletionIso) => { void dispatch(type === 'candidate.confirm' ? { type, candidateId, expectedRevision, plannedCompletionIso } : { type, candidateId, expectedRevision }) }} />
             )
             case 'delivery': return (
               <DeliveryCard key={item.id} view={item.view} entering={entering.has(item.id)}

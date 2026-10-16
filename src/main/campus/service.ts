@@ -10,6 +10,7 @@ import type { MailSource } from '../mail/types'
 import type { createFakeMailbox } from '../mail/fake'
 import { CampusStorageFailure, createCampusRepository } from './repository'
 import { candidateSchema, mailFactsSchema } from './schema'
+import { commandHash } from '../journal/file'
 
 export interface ScanResult { ok: boolean; source: 'real' | 'fake'; newCount?: number; candidateCount?: number; error?: PublicErrorCode }
 export function createCampusService(options: { clock: Clock; store: SessionStore; scheduler: Scheduler; vault: EvidenceVault; source: MailSource;
@@ -99,6 +100,24 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
     setEnabled: (value: boolean) => { enabled = value; if (!enabled) { abort?.abort(); scheduler.cancel('mail.scan') } publish() },
     stateChanged: () => { if (store.projection().lightsOut) abort?.abort(); else flush() },
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
+      if (command.type === 'candidate.confirm' || command.type === 'candidate.ignore') {
+        const item = repository.view().items.find((item) => item.current.id === command.candidateId)
+        if (!item || command.expectedRevision !== item.current.revision) return 'stale-candidate'
+        if (command.type === 'candidate.ignore') {
+          if (item.current.status === 'ignored') return
+          if (item.current.status === 'confirmed') return 'invalid-command'
+          repository.append({ type: 'campus/ignored', candidateId: command.candidateId, revision: item.current.revision, requestId: command.requestId, commandHash: commandHash(command) })
+        } else {
+          if (item.current.status === 'confirmed') return
+          if (item.current.status === 'ignored') return 'invalid-command'
+          try { vault.read(item.current.evidenceRef, store.scope) } catch { return 'evidence-unavailable' }
+          const planned = command.plannedCompletionIso === undefined ? item.current.plannedCompletionIso : command.plannedCompletionIso
+          if (planned !== null && (!Number.isFinite(clock.parse(planned)) || clock.parse(planned) < 0)) return 'invalid-command'
+          repository.append({ type: 'campus/confirmed', candidateId: command.candidateId, revision: item.current.revision,
+            plannedCompletionIso: planned, requestId: command.requestId, commandHash: commandHash(command) })
+        }
+        publish(); return
+      }
       if (command.type === 'mail.scan') {
         if (!enabled || store.projection().lightsOut) return 'unavailable'
         if (source.blocked) return 'source-blocked'

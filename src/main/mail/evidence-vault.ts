@@ -39,7 +39,7 @@ export function openEvidenceVault(root: string, owner: Pick<Scope, 'userId' | 'c
     CREATE TABLE IF NOT EXISTS campus_projections (owner TEXT PRIMARY KEY, record_count INTEGER NOT NULL, state_json TEXT NOT NULL);`)
   const ownerKey = digest(JSON.stringify([owner.userId, owner.characterId]))
   const insert = db.prepare('INSERT OR IGNORE INTO private_mail_evidence VALUES (?,?,?,?,?,?)')
-  const read = db.prepare('SELECT payload,quotes FROM private_mail_evidence WHERE owner=? AND ref=?')
+  const read = db.prepare('SELECT payload,quotes,content_hash,source_key FROM private_mail_evidence WHERE owner=? AND ref=?')
   return {
     put: (sourceKey, mail, quotes) => {
       const payload = JSON.stringify(sourceSchema.parse(mail)); const verified = quotesSchema.parse(quotes)
@@ -49,8 +49,9 @@ export function openEvidenceVault(root: string, owner: Pick<Scope, 'userId' | 'c
     },
     read: (ref, scope) => {
       if (scope.userId !== owner.userId || scope.characterId !== owner.characterId || !/^e:[a-f0-9]{64}$/.test(ref)) throw new Error('EVIDENCE_UNAVAILABLE')
-      const row = read.get(ownerKey, ref) as { payload: string; quotes: string } | undefined
+      const row = read.get(ownerKey, ref) as { payload: string; quotes: string; content_hash: string; source_key: string } | undefined
       if (!row) throw new Error('EVIDENCE_UNAVAILABLE')
+      if (digest(row.payload) !== row.content_hash || 'e:' + digest(ownerKey + row.source_key + row.content_hash + row.quotes) !== ref) throw new Error('EVIDENCE_UNAVAILABLE')
       return evidenceView(sourceSchema.parse(JSON.parse(row.payload)), quotesSchema.parse(JSON.parse(row.quotes)))
     },
     cache: (state, count) => { db.prepare('INSERT INTO campus_projections VALUES (?,?,?) ON CONFLICT(owner) DO UPDATE SET record_count=excluded.record_count,state_json=excluded.state_json').run(ownerKey, count, JSON.stringify(state)) },
