@@ -46,7 +46,9 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
     const index = work.slice(-25).map((row) => ({ id: row.id, path: row.path }))
     // Bound the evidence index independently of filename lengths and preserve the user's focus as data.
     while (JSON.stringify(index).length > 4800) index.shift()
-    store.append({ type: 'flow/compact', id: flow.id, throughSeq: store.records().at(-1)!.seq, summary: JSON.stringify({ changes: index, focus: focus ?? null }), ...(focus ? { focus } : {}) }); options.changed()
+    const summary = JSON.stringify({ changes: index, focus: focus ?? null })
+    store.append({ type: 'flow/compact', id: flow.id, throughSeq: store.records().at(-1)!.seq, summary, ...(focus ? { focus } : {}) }); options.changed()
+    return summary
   }
   const exit = () => {
     safe(); if (options.busy()) throw new Error('FLOW_UNAVAILABLE'); cancel(); const flow = open()!
@@ -77,7 +79,12 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
       const threshold = checkpointIndex >= 0 ? checkpointIndex : combined.spans.find((span) => span.id === flow.id)!.start
       const work = combined.context.filter((entry) => entry.position > threshold && combined.rows[entry.position]?.type !== 'context/inject')
       const messages: ContextMessage[] = [...flow.prefix, ...(checkpoint?.type === 'flow/compact' ? [{ role: 'user' as const, content: checkpoint.summary }] : []), ...work.map((entry) => entry.message)]
-      if (JSON.stringify(messages).length > 80_000) { compact(); return { messages: [...flow.prefix, { role: 'user', content: instructions.compacted }], eligibleIndexes: [] } }
+      if (JSON.stringify(messages).length > 80_000) {
+        const summary = compact(); const latestRequest = work.findLast((entry) => entry.message.role === 'user')
+        const compacted: ContextMessage[] = [...flow.prefix, { role: 'user', content: instructions.compacted }, { role: 'user', content: summary }, ...(latestRequest ? [latestRequest.message] : [])]
+        if (JSON.stringify(compacted).length > 96_000) throw new Error('FLOW_CONTEXT_TOO_LARGE')
+        return { messages: compacted, eligibleIndexes: [] }
+      }
       return { messages, eligibleIndexes: [] }
     },
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
