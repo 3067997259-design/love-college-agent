@@ -1,6 +1,6 @@
 # 美术规格：画风、借鉴分界与桃子的外观
 
-整理日期：2026-10-11，来自当日的艺术讨论。状态：赛前文字计划，不含任何桃子或本作品的画面。角色提示词的定稿、角色设定图和全部画面都在赛中制作（[创意脚本](pv-creative-script.md) §11.3）。每一条都注明是用户确定、用户同意的建议，还是待试。
+整理日期：2026-10-11，来自当日的艺术讨论。状态：赛前文字计划，不含任何桃子或本作品的画面；2026-10-16 赛中补入外观的决定和设定图 v1（§3.4、§3.6）。角色提示词的定稿、角色设定图和全部画面都在赛中制作（[创意脚本](pv-creative-script.md) §11.3）。每一条都注明是用户确定、用户同意的建议，还是待试。
 
 本文由片子和产品共用：视频镜头见 [创意脚本](pv-creative-script.md)，界面、姿势与差分见 [体验设计](experience-design.md)。
 
@@ -186,12 +186,50 @@
 - **两套服装**：居家那套全是浅色；出门那套（第 09 镜）加上深色外层，显得更精致。两套都要在开赛 0–3 h 的设定图里定，因为第一档的第 12、13、14、18、19 镜她穿的是出门那套（[分镜表](storyboard.md) §6）。
 - **夜晚**：台灯的暖光打在桃粉色的发梢上，和窗外的冷色形成对比（体验设计 §3 的时段光线）。
 
-### 3.4 待用户定
+### 3.4 用户的决定（2026-10-16 赛中）
 
-1. 桃粉偏暖到什么程度。
-2. 眼睛颜色。
-3. 头发上的标志物，例如和名字呼应的桃花发饰。
-4. 出门那件深色外层的款式：外套、斗篷、针织开衫等。
+开赛后看出图对比定下，对比图的生成记录见 §3.6。
+
+1. **发色**：浅桃粉（A 档）。基准色 `#FCD7CB`（色相 14°，明度 89），从设定图平静表情的发束中间调取样。三视图实测色相偏到 16–18°、饱和度更高，后期统一校回这个值。冷暖由队友复核（§2.3 的分工）。
+2. **眼睛**：偏灰的琥珀（A3）。用户让取琥珀（A1）和灰紫（A2）的中间值。
+3. **标志物**：深藏青的书签丝带，系在她左侧的头发上，两条丝带尾巴笔直垂下（R1）。深色在浅发上明暗差最大，缩小后也认得出，色弱的观众也看得清；和出门的斗篷同色。对比过深莓色（被画成了蝴蝶结，和头发主要靠色相区分）和深青绿（太细）。
+4. **出门的深色外层**：深藏青短斗篷，盖住肩膀到手肘，领口一枚小圆金扣。轮廓和参考角色的露肩外套完全不同；风是片子的母题，斗篷边和短发起风时都会动。
+
+由助手提出、用户没有反对的部分：齐下巴的短发，发梢微微内扣；两套服装共用白色圆领衬衫和浅紫长裙，居家外搭奶白针织开衫、白袜、灰拖鞋，出门换成斗篷、白袜、棕色乐福鞋；神态平静、淡淡的笑；大学生的身量，不写年龄，负面提示词排除幼态。
+
+借鉴检查（§1.2 第 3 条）：用户熟悉参考角色，看三视图叫不出是谁，通过（2026-10-16）。
+
+### 3.6 设定图 v1 与标签块
+
+- **设定板**：`art/design-sheet/design-sheet-v1.png`。上面是两套三视图，下面是平静、浅笑、思考、担心四种表情。生成记录（提示词、种子、耗时、图片哈希）在 `art/gen-log.jsonl`。
+- **脸以半身像为准**：三视图是全身，脸只有约 40 像素宽，模型会简化五官，和半身像不像同一张脸（用户指出）。三视图只管服装和身形。
+- **参数**：V5 full，`k_euler_ancestral`，23 步，引导强度 5，karras，质量标签开，种子 271828；半身 832×1216，三视图 1216×832。都在 Opus 免费范围内，每张 4–54 秒。
+- **已知问题**：丝带常被画成带小蝴蝶结的样子，负面加 `hair bow` 也压不住；居家三视图的背面漏画了丝带；发色在不同构图里漂 2–6°；“思考”低头，头的位置变了，做表情贴片时要另外对齐。
+
+角色槽（单人图带 `solo`，三视图去掉）：
+
+```text
+1girl, solo, young adult woman, college student, short hair, chin-length bob, soft hair ends curling slightly inward, pastel peach pink hair, light pink hair with a warm peach tint, greyish amber eyes, muted light amber eyes with a soft grey tint, a thin dark navy ribbon tied in her hair on the left side, two short ribbon tails hanging straight down like a bookmark ribbon
+```
+
+服装槽：
+
+```text
+居家：white blouse with a small rounded collar, cream knit cardigan, pale lavender long skirt reaching the calves, white socks, light grey indoor slippers
+出门：white blouse with a small rounded collar, dark navy capelet covering the shoulders down to the elbows, small round gold clasp at the neck, pale lavender long skirt reaching the calves, white socks, brown loafers
+```
+
+画风槽（沿用 §2.3 的练习结论）：
+
+```text
+colored lineart, thin lineart, flat color, pastel colors, hard-edged lavender shadows under hair and in clothing folds, one shadow tone, single light source from the upper left, shadows fall on the lower right side of each form, few large simple shadow shapes
+```
+
+负面（三视图去掉 `multiple views`；`blush` 一直留着，直到第 19 镜第一次脸红）：
+
+```text
+lowres, artistic error, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, watermark, signature, text, logo, multiple views, loli, child, star-shaped pupils, wings, nose highlight, shiny nose, white spot on nose, blush
+```
 
 ### 3.5 参考来源
 
