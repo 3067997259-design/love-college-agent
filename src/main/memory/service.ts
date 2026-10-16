@@ -11,6 +11,7 @@ import { seenFragments, memoryDigest, type SeenFragment } from './seen'
 import { boundedMemoryCall, MemoryFailure, validateMemories, validateSummary, type MemoryModel, type createFakeMemoryModel } from './model'
 import { searchMemories } from './retrieval'
 import { redactFixed } from '../privacy/redact'
+import { profileContext } from '../onboarding/context'
 
 type OperationKind = 'extract' | 'compact' | 'day' | 'week' | 'month'
 export function createMemoryService(options: { clock: Clock; scheduler: Scheduler; store: SessionStore; repository: MemoryRepository; model: MemoryModel | null;
@@ -162,7 +163,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       const today = base.filter((entry) => !policies.includes(entry))
       const recall = allowed() ? search(today.filter((entry) => entry.message.role === 'user').slice(-3).map((entry) => entry.message.content).join('\n'), turnId) : []
       const summaries = (allowed() ? repository.view().summaries : []).filter((summary) => !summary.sourceSessionIds.includes(store.scope.sessionId)).slice(-7).map((summary) => ({ dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
-      const messages: ContextMessage[] = policies.map((entry) => entry.message); const eligibleIndexes: number[] = []
+      const messages: ContextMessage[] = [...policies.map((entry) => entry.message), ...profileContext(store.projection().onboarding)]; const eligibleIndexes: number[] = []
       if (summaries.length) messages.push({ role: 'user', content: JSON.stringify({ previousDaysReference: summaries }) })
       const lastUser = today.findLastIndex((entry) => entry.message.role === 'user')
       today.forEach((entry, index) => {

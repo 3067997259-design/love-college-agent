@@ -74,6 +74,7 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
         </div>}
       </div>)}
       <h2>开发者模式</h2>
+      <button type="button" disabled={snapshot.runtime.developer.mode === 'booth'} onClick={() => void send({ type: 'onboarding.reset' })}>重新初始化</button>
       <p>当前：{snapshot.runtime.developer.mode}</p>
       <label><input type="checkbox" checked={snapshot.runtime.developer.requestedEnabled} disabled={snapshot.runtime.developer.mode === 'booth'} onChange={(event) => void send({ type: 'developer.set', enabled: event.target.checked })} />使用独立的假数据与假模型（重启生效）</label>
       {snapshot.runtime.developer.restartRequired && <button type="button" onClick={() => void send({ type: 'app.restart' })}>重启应用</button>}

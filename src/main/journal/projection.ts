@@ -1,4 +1,5 @@
-import type { ActivityView, InteractionMode, MessageView, PomodoroView, Scope, TaskView } from '../../shared'
+import type { ActivityView, InteractionMode, MessageView, OnboardingView, PomodoroView, Scope, TaskView } from '../../shared'
+import { initialOnboarding } from '../onboarding/schema'
 import { idleTimer, normalizePomodoro } from '../pomodoro/schema'
 import type { ContextMessage, JournalRecord } from './schema'
 
@@ -7,6 +8,7 @@ export interface SessionProjection {
   lastSeq: number
   mode: InteractionMode
   lightsOut: boolean
+  onboarding: OnboardingView
   messages: MessageView[]
   activities: ActivityView[]
   task: TaskView | null
@@ -26,7 +28,7 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
   const header = records[0]
   if (!header || header.type !== 'session/header') throw new Error('JOURNAL_HEADER_REQUIRED')
   const result: SessionProjection = { scope: { userId: header.userId, characterId: header.characterId, sessionId: header.sessionId },
-    lastSeq: 0, mode: 'rest', lightsOut: false, messages: [], activities: [], task: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [], pendingEvents: [] }
+    lastSeq: 0, mode: 'rest', lightsOut: false, onboarding: initialOnboarding(), messages: [], activities: [], task: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [], pendingEvents: [] }
   const context: { seq: number; order?: number; message: ContextMessage }[] = []
   const compacted = records.filter((record) => record.type === 'context/compact')
   const inbox = new Map<string, ContextMessage>()
@@ -39,12 +41,14 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
     if ('requestId' in record && 'commandHash' in record) result.requests.push({ requestId: record.requestId, commandHash: record.commandHash })
     switch (record.type) {
       case 'session/carry':
+        result.onboarding = record.onboarding ?? initialOnboarding()
         result.mode = record.mode; result.lightsOut = record.lightsOut; result.pomodoro = normalizePomodoro(record.pomodoro)
         result.pomodoroPause = record.pomodoroPause; result.pomodoroEvents = record.pomodoroEvents
         for (const event of record.pendingEvents ?? []) { pendingEvents.set(event.id, event); inbox.set(event.id, { role: 'user', content: JSON.stringify({ source: event.source, facts: event.text }) }) }
         break
       case 'companion/mode': result.mode = record.mode; release(); break
       case 'companion/lights': result.lightsOut = record.lightsOut; release(); break
+      case 'onboarding/state': result.onboarding = structuredClone(record.view); break
       case 'pomodoro/state':
         result.pomodoro = normalizePomodoro(record.view); result.pomodoroPause = record.pauseReason
         if (record.mode) result.mode = record.mode

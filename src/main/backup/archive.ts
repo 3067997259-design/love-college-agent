@@ -5,6 +5,7 @@ import { existsSync, lstatSync, readFileSync, readdirSync, writeFileSync } from 
 import { join } from 'node:path'
 import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
+import type { OnboardingView } from '../../shared'
 import { parseJournalContent, journalLocation } from '../journal/file'
 import { projectJournal } from '../journal/projection'
 import { projectMemory } from '../memory/projection'
@@ -79,7 +80,7 @@ function inspectZip(bytes: Buffer) {
   if (offset !== end || !names.has('manifest.json')) throw new BackupFailure('backup-invalid')
   return names
 }
-export async function exportPrivateSave(options: { root: string; store: SessionStore; clock: Clock; source: 'real' | 'fake'; fileFilteringEnabled: boolean; credentials?: readonly string[] }) {
+export async function exportPrivateSave(options: { root: string; store: SessionStore; clock: Clock; source: 'real' | 'fake'; fileFilteringEnabled: boolean; credentials?: readonly string[]; onboarding?: OnboardingView }) {
   const { root, store, clock } = options; const archiveId = randomUUID(); const stage = directory(root, join(root, '.backup-staging', archiveId))
   const owner = { userId: store.scope.userId, characterId: store.scope.characterId }; const key = ownerKey(owner)
   const files = new Map<string, Buffer>(); const allRecords = store.history?.() ?? store.records()
@@ -106,7 +107,7 @@ export async function exportPrivateSave(options: { root: string; store: SessionS
   const manifest = manifestSchema.parse({ formatVersion: 1, kind: 'lca-private-save', archiveId, savedAtMs: clock.nowMs(), owner, source: options.source,
     activeDayKey, activeSessionId: store.scope.sessionId,
     pomodoro: (() => { const view = store.projection().pomodoro; if (view.status === 'running' && view.endsAtMs !== null) view.remainingMs = Math.max(0, view.endsAtMs - clock.nowMs()); return view })(),
-    pomodoroPause: store.projection().pomodoroPause, fileFilteringEnabled: options.fileFilteringEnabled,
+    pomodoroPause: store.projection().pomodoroPause, fileFilteringEnabled: options.fileFilteringEnabled, onboarding: options.onboarding ?? store.projection().onboarding,
     counts: { pageCount: [...files.keys()].filter((path) => path.startsWith('journals/')).length, messageCount: allRecords.filter((row) => row.type === 'user/message' || row.type === 'assistant/message' && row.text).length,
       memoryCount: projectMemory(allRecords).items.length, deliveryCount: new Set(artifacts.map((artifact) => artifact.view.id)).size },
     files: [...files].map(([path, bytes]) => ({ path, bytes: bytes.length, sha256: sha256(bytes) })),

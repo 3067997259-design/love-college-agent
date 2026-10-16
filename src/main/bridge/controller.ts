@@ -18,6 +18,7 @@ import type { BackupService } from '../backup/service'
 import type { QuillService } from '../gifts/quill'
 import type { ModelSettingsService } from '../config/model-settings'
 import type { CompanionWindows, WindowSurface } from '../windows/companion'
+import { characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
@@ -25,6 +26,9 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('turn.stop'), taskId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('mode.set'), mode: z.enum(['work', 'quiet', 'rest']) }),
   z.strictObject({ ...envelope, type: z.literal('lights.set'), lightsOut: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('onboarding.profile'), userName: userNameInput.optional(), characterName: characterNameInput.optional() }).refine((value) => value.userName !== undefined || value.characterName !== undefined),
+  z.strictObject({ ...envelope, type: z.literal('onboarding.complete') }),
+  z.strictObject({ ...envelope, type: z.literal('onboarding.reset') }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.start'), planId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.plan'), plan: planSchema }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.confirm'), planId: z.string().min(1).max(128) }),
@@ -79,7 +83,7 @@ export interface RuntimePort {
   stateChanged?(command: AppCommand): void
 }
 
-export function createAppController(clock: Clock, daypartSchedule?: DaypartSchedule, store?: SessionStore) {
+export function createAppController(clock: Clock, daypartSchedule?: DaypartSchedule, store?: SessionStore, options: { booth?: boolean } = {}) {
   const listeners = new Set<(event: AppEvent) => void>()
   let documents: DocumentService | undefined
   let memory: MemoryService | undefined
@@ -91,7 +95,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let windows: CompanionWindows | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
-    protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0,
+    protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0, onboarding: onboardingView(store?.projection().onboarding ?? initialOnboarding(), !!options.booth),
     scope: { userId: 'local-user', characterId: 'default-character', sessionId: randomUUID() },
     clock: { nowMs: clock.nowMs(), timeZone: 'Asia/Shanghai', rate: 1, frozen: false },
     companion: { mode: 'rest', lightsOut: false, locationId: 'room', pose: 'facing-user', expression: DEFAULT_EXPRESSION,
@@ -128,6 +132,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     const view = store.projection()
     if (snapshot.scope.sessionId !== view.scope.sessionId) { snapshot.epoch = randomUUID(); snapshot.revision = 0; requests.clear(); snapshot.scope = view.scope }
     snapshot.companion.mode = view.mode; snapshot.companion.lightsOut = view.lightsOut
+    snapshot.onboarding = onboardingView(view.onboarding, !!options.booth)
     snapshot.messages = view.messages; snapshot.activities = view.activities; snapshot.task = view.task
     snapshot.pomodoro = pomodoro?.read() ?? view.pomodoro
     updatePose()
@@ -184,12 +189,25 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     const command: AppCommand = parsed.data
     if (command.epoch !== snapshot.epoch) return reject(command.requestId, 'stale-epoch')
     if (surface === 'diagnostics' || (command.type === 'window.mini.hover' || command.type === 'window.mini.move' || command.type === 'window.mini.moveBy') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type === 'onboarding.reset' && options.booth) return reject(command.requestId, 'permission-denied')
     const signature = commandHash(command)
     const prior = requests.get(command.requestId)
     if (prior) return prior.signature === signature ? structuredClone(prior.ack) : reject(command.requestId, 'invalid-command')
     if (backup?.isBusy()) return reject(command.requestId, 'unavailable')
     let ack: CommandAck
-    if (command.type === 'mode.set') {
+    if (command.type === 'onboarding.profile' || command.type === 'onboarding.complete' || command.type === 'onboarding.reset') {
+      const current = snapshot.onboarding ?? initialOnboarding()
+      const view = command.type === 'onboarding.profile' ? { ...current,
+        ...(command.userName !== undefined ? { userName: command.userName || null } : {}), ...(command.characterName !== undefined ? { characterName: command.characterName || '桃子' } : {}) }
+        : command.type === 'onboarding.complete' ? { ...current, status: 'completed' as const, completedAtMs: current.status === 'completed' ? current.completedAtMs : clock.nowMs() }
+          : { ...current, status: 'needed' as const, completedAtMs: null }
+      try { store?.append({ type: 'onboarding/state', view, cause: command.type === 'onboarding.profile' ? 'profile' : command.type === 'onboarding.complete' ? 'completed' : 'reset', requestId: command.requestId, commandHash: signature }) }
+      catch { return reject(command.requestId, 'internal') }
+      snapshot.onboarding = onboardingView(view, !!options.booth)
+      publish('connection', command.requestId)
+      ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+    } else if (command.type === 'mode.set') {
       try { store?.append({ type: 'companion/mode', mode: command.mode, requestId: command.requestId, commandHash: signature }) }
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.mode = command.mode

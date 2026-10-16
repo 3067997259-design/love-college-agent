@@ -15,6 +15,14 @@ async function fixture() {
   return { manifest, zip, bytes: () => zip.generateAsync({ type: 'nodebuffer' }) }
 }
 describe('untrusted private-save validation before touching current data', () => {
+  it('preserves a completed onboarding profile and validates untrusted names and status', async () => {
+    const f = await fixture(); const onboarding = { status: 'completed', userName: '小林', characterName: '小桃', completedAtMs: 1000 }
+    f.zip.file('manifest.json', JSON.stringify({ ...f.manifest, onboarding }))
+    expect((await validatePrivateSave(await f.bytes(), owner, 'fake')).manifest.onboarding).toEqual(onboarding)
+    for (const invalid of [{ ...onboarding, userName: '字'.repeat(21) }, { ...onboarding, characterName: 'a\nb' }, { ...onboarding, status: 'needed' }]) {
+      f.zip.file('manifest.json', JSON.stringify({ ...f.manifest, onboarding: invalid })); await expect(validatePrivateSave(await f.bytes(), owner, 'fake')).rejects.toMatchObject({ code: 'backup-invalid' })
+    }
+  })
   it('validates the complete manifest and rejects a different user, character, or fake/real mode', async () => {
     const f = await fixture(); const bytes = await f.bytes(); expect((await validatePrivateSave(bytes, owner, 'fake')).files.size).toBe(5)
     for (const other of [{ ...owner, userId: 'other' }, { ...owner, characterId: 'other' }]) await expect(validatePrivateSave(bytes, other, 'fake')).rejects.toMatchObject({ code: 'backup-scope-mismatch' })

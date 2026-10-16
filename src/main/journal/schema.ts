@@ -4,6 +4,7 @@ import { viewSchema } from '../pomodoro/schema'
 import { artifactSchema, candidateSchema, deliverySchema, mailboxSchema, mailFactsSchema, opaqueId } from '../campus/schema'
 import { attachmentRecordSchema, documentCompletedSchema, documentJobSchema } from '../documents/schema'
 import { memoryBatchSchema, memorySourceSchema, memorySummarySchema } from '../memory/schema'
+import { onboardingSchema } from '../onboarding/schema'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -27,7 +28,8 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('session/carry'), sourceSessionId: id, sourceSeq: z.number().int().positive(),
     mode: z.enum(['work', 'quiet', 'rest']), lightsOut: z.boolean(), pomodoro: viewSchema, pomodoroPause: z.enum(['manual', 'lights']).nullable(),
     pomodoroEvents: z.array(z.strictObject({ id, text: z.string().max(2000) })).max(1000),
-    pendingEvents: z.array(z.strictObject({ id, source: z.enum(['pomodoro', 'mail', 'document']), text: z.string().max(2000) })).max(32).optional() }),
+    pendingEvents: z.array(z.strictObject({ id, source: z.enum(['pomodoro', 'mail', 'document']), text: z.string().max(2000) })).max(32).optional(), onboarding: onboardingSchema.optional() }),
+  z.strictObject({ type: z.literal('onboarding/state'), view: onboardingSchema, cause: z.enum(['profile', 'completed', 'reset', 'restored']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/mode'), mode: z.enum(['work', 'quiet', 'rest']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/lights'), lightsOut: z.boolean(), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('mail/state'), view: mailboxSchema }),

@@ -46,7 +46,9 @@
     "probe:backup": "pnpm build && node scripts/probe-electron.mjs backup",
     "test:backup": "pnpm build && node scripts/smoke-backup.mjs",
     "test:model-slots": "pnpm build && node scripts/smoke-model-slots.mjs",
-    "test:mini": "pnpm build && node scripts/smoke-mini.mjs"
+    "test:mini": "pnpm build && node scripts/smoke-mini.mjs",
+    "test:onboarding": "pnpm build && node scripts/smoke-onboarding.mjs",
+    "test:onboarding:backend": "pnpm build && node scripts/smoke-onboarding.mjs --backend-only"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",
