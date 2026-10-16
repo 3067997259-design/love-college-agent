@@ -7,7 +7,7 @@ export function createAdjustableClock(real: Clock, initial?: { nowMs: number; ra
   let sequence = 0; let disposed = false
   const timers = new Map<number, { at: number; callback: () => void }>()
   let cancel: (() => void) | undefined
-  const nowMs = () => anchorVirtual + (frozen ? 0 : (real.nowMs() - anchorReal) * rate)
+  const nowMs = () => Math.trunc(Math.min(8_640_000_000_000_000, anchorVirtual + (frozen ? 0 : (real.nowMs() - anchorReal) * rate)))
   const arm = () => {
     cancel?.(); cancel = undefined
     if (disposed || !timers.size) return

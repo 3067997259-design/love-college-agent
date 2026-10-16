@@ -39,6 +39,18 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
       <p>当前：{snapshot.runtime.developer.mode}</p>
       <label><input type="checkbox" checked={snapshot.runtime.developer.requestedEnabled} disabled={snapshot.runtime.developer.mode === 'booth'} onChange={(event) => void send({ type: 'developer.set', enabled: event.target.checked })} />使用独立的假数据与假模型（重启生效）</label>
       {snapshot.runtime.developer.restartRequired && <button type="button" onClick={() => void send({ type: 'app.restart' })}>重启应用</button>}
+      {snapshot.runtime.developer.mode === 'developer' && <div>
+        <p>假模型 · 独立测试存档 · MCP {snapshot.runtime.developer.mcpPort ?? '未连接'} · CDP {snapshot.runtime.developer.cdpPort}</p>
+        <p>当前时钟 {snapshot.clock.nowMs} · {snapshot.clock.rate} 倍</p>
+        <button type="button" onClick={() => void send({ type: 'developer.clock', frozen: !snapshot.clock.frozen })}>{snapshot.clock.frozen ? '继续时钟' : '冻结时钟'}</button>
+        <button type="button" onClick={() => void send({ type: 'developer.clock', nowMs: snapshot.clock.nowMs + 60_000 })}>快进一分钟</button>
+        <label>速度 <select value={snapshot.clock.rate} onChange={(event) => void send({ type: 'developer.clock', rate: Number(event.target.value) })}>
+          {[1, 10, 60, 3600].map((rate) => <option key={rate} value={rate}>{rate} 倍</option>)}
+        </select></label>
+        <label>加载测试场景 <select defaultValue="" onChange={(event) => { if (event.target.value) void send({ type: 'developer.scenario', scenarioId: event.target.value as 'empty' | 'clock-tool' | 'pomodoro-demo' }) }}>
+          <option value="" disabled>选择后重启</option><option value="empty">空白</option><option value="clock-tool">时钟工具回合</option><option value="pomodoro-demo">番茄演示</option>
+        </select></label>
+      </div>}
       {error && <p role="alert">操作未完成：{error}</p>}
     </section>}
   </aside>

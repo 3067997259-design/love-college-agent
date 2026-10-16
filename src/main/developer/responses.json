@@ -1,0 +1,7 @@
+{
+  "default": { "text": "DEVELOPMENT_FIXTURE_RESPONSE", "toolCalls": [], "delayMs": 0 },
+  "clock": [
+    { "text": "", "toolCalls": [{ "id": "fixture-clock", "name": "get_clock", "arguments": "{}" }], "delayMs": 0 },
+    { "text": "DEVELOPMENT_CLOCK_TOOL_COMPLETED", "toolCalls": [], "delayMs": 0 }
+  ]
+}
