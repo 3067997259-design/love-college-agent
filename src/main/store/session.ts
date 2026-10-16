@@ -5,6 +5,7 @@ import type { Scope } from '../../shared'
 import { openJournal, type Journal } from '../journal/file'
 import { projectJournal, type SessionProjection } from '../journal/projection'
 import type { JournalInput } from '../journal/schema'
+import { carryPreviousState } from './carry'
 
 export interface SessionStore {
   readonly scope: Scope
@@ -18,6 +19,7 @@ export function openSessionStore(dataDir: string, owner: Pick<Scope, 'userId' | 
   const journal = openJournal(dataDir, owner, clock)
   let database: Database.Database | undefined
   try {
+    carryPreviousState(journal, dataDir, owner, clock)
     database = new Database(join(dataDir, 'projections.sqlite'))
     database.pragma('journal_mode = WAL')
     database.exec(`CREATE TABLE IF NOT EXISTS session_projections (

@@ -9,8 +9,9 @@ import { runtimeEnv } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `pomodoro-smoke-${randomUUID()}`)
+const realtime = process.argv.includes('--real-time')
 await mkdir(data, { recursive: true })
-await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {} }))
+await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: !realtime, booth: false, plugins: {} }))
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-test-providers.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '19528' }
 let instance; let page
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
@@ -31,7 +32,24 @@ async function cache() {
   })
 }
 try {
-  await launch(); await send({ type: 'developer.clock', frozen: true })
+  await launch()
+  if (realtime) {
+    const plan = { label: '实际计时验收', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }
+    assert.equal((await snapshot()).runtime.developer.mode, 'normal')
+    await send({ type: 'pomodoro.plan', plan }); const planId = (await snapshot()).pomodoro.plan.id
+    await send({ type: 'pomodoro.confirm', planId }); await send({ type: 'pomodoro.start', planId })
+    const started = await snapshot()
+    await page.locator('[data-mode][data-phase="short-break"]').waitFor({ timeout: 75_000 })
+    const focusEnded = await snapshot()
+    await page.locator('[data-mode][data-phase="idle"]').waitFor({ timeout: 35_000 })
+    const finished = await snapshot()
+    assert.equal(finished.pomodoro.focusIndex, 1); assert.equal(finished.pomodoro.plan.status, 'confirmed')
+    assert.ok(focusEnded.clock.nowMs - started.clock.nowMs >= 60_000)
+    assert.ok(finished.clock.nowMs - focusEnded.clock.nowMs >= 20_000)
+    console.log(JSON.stringify({ ok: true, probe: 'pomodoro-real-time', rate: finished.clock.rate, frozen: finished.clock.frozen,
+      focusElapsedMs: focusEnded.clock.nowMs - started.clock.nowMs, breakElapsedMs: finished.clock.nowMs - focusEnded.clock.nowMs, noAutomaticNext: true }))
+  } else {
+  await send({ type: 'developer.clock', frozen: true })
   await page.getByRole('button', { name: '工具与设置', exact: true }).click()
   await page.getByRole('checkbox', { name: /演示节奏/ }).check()
   await page.getByRole('button', { name: '生成待确认计划', exact: true }).click()
@@ -61,4 +79,5 @@ try {
   await send({ type: 'pomodoro.stop' }); assert.equal((await snapshot()).pomodoro.plan.status, 'finished')
   await page.screenshot({ path: join(root, 'test-results/pomodoro.png') })
   console.log('Pomodoro smoke: user-confirmed plan, 1m/20s timing, SQLite deadline, persisted restart, unique phase events, no auto-next, lights pause and interrupted focus verified.')
+  }
 } finally { await instance?.close() }

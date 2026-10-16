@@ -19,6 +19,9 @@ export type ContextMessage = {
 
 export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('session/header'), userId: id, characterId: id, sessionId: id }),
+  z.strictObject({ type: z.literal('session/carry'), sourceSessionId: id, sourceSeq: z.number().int().positive(),
+    mode: z.enum(['work', 'quiet', 'rest']), lightsOut: z.boolean(), pomodoro: viewSchema, pomodoroPause: z.enum(['manual', 'lights']).nullable(),
+    pomodoroEvents: z.array(z.strictObject({ id, text: z.string().max(2000) })).max(1000) }),
   z.strictObject({ type: z.literal('companion/mode'), mode: z.enum(['work', 'quiet', 'rest']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/lights'), lightsOut: z.boolean(), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('pomodoro/state'), view: viewSchema, pauseReason: z.enum(['manual', 'lights']).nullable(),

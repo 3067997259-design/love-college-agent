@@ -34,6 +34,10 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
     result.lastSeq = record.seq
     if ('requestId' in record) result.requests.push({ requestId: record.requestId, commandHash: record.commandHash })
     switch (record.type) {
+      case 'session/carry':
+        result.mode = record.mode; result.lightsOut = record.lightsOut; result.pomodoro = record.pomodoro
+        result.pomodoroPause = record.pomodoroPause; result.pomodoroEvents = record.pomodoroEvents
+        break
       case 'companion/mode': result.mode = record.mode; release(); break
       case 'companion/lights': result.lightsOut = record.lightsOut; release(); break
       case 'pomodoro/state':
