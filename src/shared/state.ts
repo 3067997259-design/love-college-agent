@@ -341,6 +341,7 @@ export interface GeneratedGiftView {
 export interface GiftsView { configured: boolean; dailyLimit: number; items: readonly GeneratedGiftView[] }
 
 export interface AppSnapshot {
+  life?: LifeView
   heartFlow?: HeartFlowView
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
@@ -372,6 +373,18 @@ export interface AppSnapshot {
   /** Main-owned, persisted per private profile/owner. Booth always projects completed. */
   onboarding?: OnboardingView
   gifts?: GiftsView
+}
+export type OutingPlace = 'coast' | 'swing'
+export interface OutingView { id: string; place: OutingPlace; startsAtMs: number; returnsAtMs: number; acquiredAtMs: number; item: 'shell' | 'leaf'; status: 'proposed' | 'away' | 'returned' | 'cut_short'; settledAtMs: number | null; offline: boolean }
+export interface LifeView {
+  dayKey: string
+  userSchedule: 'auto' | 'work' | 'rest'
+  locationId: 'room' | OutingPlace
+  settledUntilMs: number
+  /** Fictional plans and occurrences. Never proof of real work while the app was closed. */
+  agenda: readonly { kind: 'read' | 'write' | 'walk'; atMs: number; state: 'planned' | 'settled' | 'skipped' }[]
+  outings: readonly OutingView[]
+  items: readonly { id: string; outingId: string; dayKey: string; place: OutingPlace; kind: 'shell' | 'leaf'; acquiredAtMs: number; display: 'desk' | 'drawer' }[]
 }
 export interface HeartFlowView {
   activeId: string | null

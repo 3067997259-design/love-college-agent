@@ -66,6 +66,10 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'developer.document.import'; fixtureId: 'assignment-pdf' | 'notes-text' | 'malformed-pdf' | 'scanned-pdf' }
   | { type: 'memory.extract' }
   | { type: 'flow.enter' }
+  | { type: 'life.schedule'; schedule: 'auto' | 'work' | 'rest' }
+  | { type: 'life.propose'; place?: 'coast' | 'swing' }
+  | { type: 'life.depart'; outingId: string }
+  | { type: 'life.return' }
   | { type: 'flow.exit' }
   | { type: 'flow.mode'; mode: 'plan' | 'execute' }
   | { type: 'flow.compact' }
