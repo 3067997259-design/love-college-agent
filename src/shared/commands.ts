@@ -25,6 +25,13 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'artifact.open'; artifactId: string }
   | { type: 'backup.export' }
   | { type: 'backup.import' }
+  /** Confirm only after native file selection, validation and the incoming summary are shown. */
+  | { type: 'backup.restore'; restoreId: string }
+  | { type: 'backup.cancel' }
+  /** Native file chooser; configuration and credentials never pass through the renderer. */
+  | { type: 'mcp.configure' }
+  | { type: 'mcp.connect'; serverId: string; fingerprint: string }
+  | { type: 'mcp.disconnect'; serverId: string }
   | { type: 'privacy.set'; enabled: boolean }
   | { type: 'document.attachment'; attachmentId: string }
   | { type: 'document.retry'; documentId: string }

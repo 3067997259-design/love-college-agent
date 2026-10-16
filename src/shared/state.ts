@@ -12,7 +12,8 @@ export type TaskStatus = 'queued' | 'running' | 'waiting-user' | 'cancelling' | 
 export const PUBLIC_ERROR_CODES = ['invalid-command', 'stale-epoch', 'unavailable', 'not-configured', 'permission-denied', 'connection-failed', 'privacy-unavailable', 'internal',
   'configuration-failed', 'upstream-busy', 'quota-exhausted', 'stream-interrupted', 'invalid-model-output', 'step-limit', 'repeat-limit', 'budget-exceeded',
   'privacy-invalid-output', 'evidence-unavailable', 'stale-candidate', 'export-failed', 'source-blocked',
-  'unsupported-file', 'file-too-large', 'file-unreadable', 'document-parse-failed', 'document-interrupted', 'memory-invalid-output', 'context-too-large'] as const
+  'unsupported-file', 'file-too-large', 'file-unreadable', 'document-parse-failed', 'document-interrupted', 'memory-invalid-output', 'context-too-large',
+  'mcp-invalid-result', 'operation-cancelled', 'backup-invalid', 'backup-scope-mismatch', 'restore-failed'] as const
 export type PublicErrorCode = typeof PUBLIC_ERROR_CODES[number]
 
 export interface PublicError {
@@ -240,6 +241,39 @@ export interface SessionView {
   pages: readonly SessionPageInfo[]
 }
 export interface SessionPage { sessionId: string; dayKey: string; messages: readonly MessageView[]; truncated: boolean }
+export interface McpServerView {
+  id: string
+  transport: 'stdio' | 'http'
+  status: 'disconnected' | 'connecting' | 'ready' | 'failed'
+  source: 'real' | 'fake'
+  /** Consent binds the private configuration and selected tool allowlist. No config values are exposed. */
+  fingerprint: string
+  privacy: 'none' | 'always'
+  tools: readonly string[]
+  error?: PublicError
+}
+export interface McpView { servers: readonly McpServerView[]; error?: PublicError }
+export interface SaveSummary { savedAtMs: number; source: 'real' | 'fake'; pageCount: number; messageCount: number; memoryCount: number; deliveryCount: number }
+export interface BackupView {
+  status: 'idle' | 'exporting' | 'exported' | 'validating' | 'awaiting-confirmation' | 'restoring' | 'restored' | 'failed'
+  operationId?: string
+  archiveId?: string
+  exportedAtMs?: number
+  restoreId?: string
+  incoming?: SaveSummary
+  safetyBackupId?: string
+  error?: PublicError
+}
+export interface QuillView {
+  id: string
+  state: 'ready' | 'given'
+  createdAtMs: number
+  givenAtMs: number | null
+  sourceMemoryId: string
+  sourceEventId: string
+  /** Built-in first gift. Live Rodin generation is a later feature. */
+  kind: 'quill'
+}
 export interface AppSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
@@ -263,4 +297,7 @@ export interface AppSnapshot {
   documents?: DocumentsView
   memory?: MemoryView
   session?: SessionView
+  mcp?: McpView
+  backup?: BackupView
+  quill?: QuillView
 }

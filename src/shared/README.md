@@ -51,3 +51,11 @@
 `memory.extract`、`context.compact` 分别请求批量抽取和完整旧回合压缩；压缩只改模型投影，用户聊天原文保留。`/compact` 是同一项本地控制，不发送给聊天模型。`session.rollover` 也必须通过时间、回合空闲和熄灯检查，不能强行切掉执行中的回合。自动翻页与抽取遵守相同边界。
 
 `developer.memory` 只切换独立开发 profile 的 fake 后台模型。normal 未接后台模型时显示 unconfigured，不暗中调用聊天模型。来源、作用域、纠正链和晋升由主进程维护；界面不自己推导它们。
+
+## 第一圈收尾：MCP 与私人存档
+
+`mcp.configure` 打开原生文件选择器导入标准 mcpServers 配置；配置、启动参数、地址、环境变量和令牌只在主进程。`mcp` 只给服务器 id、传输类型、来源、状态、隐私标记、允许的工具名和配置 fingerprint。连接需要用户确认当前 fingerprint，断开立即取消在途调用；工具结果按隐私策略校验后才进入模型投影。
+
+`backup.export/import` 使用主进程原生对话框；公共命令不接受文件路径。导入先校验并进入 awaiting-confirmation，界面显示 incoming 摘要；只有显式 backup.restore 携带当前 restoreId 才备份现有数据并恢复。`restored` 表示实际恢复完成，动画不能仅根据选中文件播放成功效果。路径、凭据和存档字节不进入快照、事件或调试 MCP。
+
+`quill` 表示首件有工具证据的工作关联的羽毛笔，state=given 后提供书本里的存档入口；未收到时设置页仍可导出。它是预制礼物，不能说成实时 Rodin 生成。
