@@ -22,6 +22,7 @@ function fixture() {
 }
 it('codes the full outing at departure and returns empty-handed before acquisition', () => {
   const f = fixture(); f.dispatch({ type: 'life.propose', place: 'coast' }); const outing = f.life.view().outings[0]
+  expect(f.life.view().agenda.find((item) => item.kind === 'read')?.state).toBe('skipped')
   expect(f.life.view().locationId).toBe('room'); f.dispatch({ type: 'life.depart', outingId: outing.id }); expect(f.life.view().locationId).toBe('coast')
   f.clock.advanceBy(10 * 60000); f.life.foreground(); expect(f.life.view().locationId).toBe('room'); expect(f.life.view().items).toHaveLength(0)
   expect(f.life.view().outings[0].status).toBe('cut_short')

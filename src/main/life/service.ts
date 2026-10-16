@@ -51,7 +51,8 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
     }
     if (!wasLightsOut && !options.working()) for (const item of state.agenda) {
       if (item.state !== 'planned' || now < item.atMs) continue
-      item.state = item.kind === 'walk' && (!resting(today) || working()) ? 'skipped' : 'settled'; changed = true
+      // Reading/writing have no producer yet: a due placeholder is not a completed work.
+      item.state = item.kind !== 'walk' || !resting(today) || working() ? 'skipped' : 'settled'; changed = true
       if (item.kind === 'walk' && item.state === 'settled' && !state.outings.some((outing) => calendarDay(clock, outing.startsAtMs) === today)) {
         const outing = makeOuting(today, now, false); state.outings.push(outing)
         const lastUser = rows().findLast((row) => row.type === 'user/message')?.atMs ?? now
