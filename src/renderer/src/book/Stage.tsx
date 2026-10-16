@@ -97,7 +97,7 @@ export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot
               )}
               {tab === 'gifts' && <GiftShelf snapshot={snapshot} bridge={bridge} />}
               {tab === 'diary' && <DiaryBook snapshot={snapshot} bridge={bridge} focusId={diaryFocus} onOpened={(id) => { markOpened(id); setDiaryFocus(null) }} />}
-              {tab === 'schedule' && <ScheduleSheet snapshot={snapshot} />}
+              {tab === 'schedule' && <ScheduleSheet snapshot={snapshot} bridge={bridge} />}
             </>}
           {!onboarding && <QuillDock snapshot={snapshot} onExport={() => { void sendCommand(bridge, snapshot.epoch, { type: 'backup.export' }) }} />}
           {!onboarding && (

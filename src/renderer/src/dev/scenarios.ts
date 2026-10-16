@@ -280,6 +280,18 @@ export const SCENARIOS = {
         { id: 'item-leaf', outingId: 'out-swing', dayKey: '2026-10-16', place: 'swing', kind: 'leaf', acquiredAtMs: T.fri2105 - 4 * 60 * MIN, display: 'desk' },
         { id: 'item-shell', outingId: 'out-coast', dayKey: '2026-10-17', place: 'coast', kind: 'shell', acquiredAtMs: T.sat1910 - 90 * MIN, display: 'desk' },
       ],
+      // 书桌作品：读完一份、写了一步被你叫停（只有元数据；正文在她的书桌里，预览里看不了）
+      work: {
+        enabled: true, source: 'fake', runningId: null, attemptsToday: 2, dailyAttemptLimit: 4,
+        materials: [
+          { id: 'mat-town', path: '书桌/材料/海边的小镇.md', sha256: 'f'.repeat(64), source: 'fake' },
+          { id: 'mat-autumn', path: '书桌/材料/十月的风.md', sha256: 'e'.repeat(64), source: 'fake' },
+        ],
+        jobs: [
+          { id: 'work-read', dayKey: '2026-10-17', kind: 'read', source: 'fake', materialId: 'mat-town', status: 'completed', completedSteps: 3, totalSteps: 3, createdAtMs: T.sat0810, updatedAtMs: T.sat0810 + 40 * MIN, completedAtMs: T.sat0810 + 40 * MIN, output: { path: '书桌/读书笔记/海边的小镇.md', sha256: 'a'.repeat(64), byteLength: 1820 } },
+          { id: 'work-write', dayKey: '2026-10-17', kind: 'write', source: 'fake', materialId: 'mat-autumn', status: 'paused', completedSteps: 1, totalSteps: 3, createdAtMs: T.sat1420, updatedAtMs: T.sat1445, completedAtMs: null, reason: 'user', output: { path: '书桌/草稿/十月的风-1.md', sha256: 'b'.repeat(64), byteLength: 640 } },
+        ],
+      },
     },
     diary: {
       status: 'idle', source: 'fake',

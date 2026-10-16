@@ -104,6 +104,33 @@
       "cancelled": "没去成{place}"
     },
     "herEmpty": "她今天还没有安排。",
+    "works": {
+      "read": "读 {name}",
+      "write": "照着 {name} 写一篇",
+      "progress": "{done}/{total} 步",
+      "status": {
+        "queued": "排着",
+        "running": "正在做",
+        "paused": "停下了",
+        "interrupted": "被打断了",
+        "failed": "没做成",
+        "completed": "做完了"
+      },
+      "reason": {
+        "user": "你让她停的",
+        "interrupted": "中途被打断",
+        "busy": "你在用她",
+        "lights": "熄灯了",
+        "conflict": "书桌上的材料变了",
+        "model": "模型没接上",
+        "budget": "今天的额度用完了"
+      },
+      "pause": "先停下",
+      "resume": "接着做",
+      "open": "看看",
+      "startRead": "请她读点书",
+      "startWrite": "请她写点东西"
+    },
     "next": "接下来",
     "nextEmpty": "还没有确认过的事项。",
     "kinds": {

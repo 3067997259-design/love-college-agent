@@ -196,6 +196,37 @@
 .schedule-next li { grid-template-columns: auto 1fr auto; }
 .schedule-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* 书桌作品：一行一件，步数是几个铅笔小格，做完的涂她的颜色 */
+.schedule-works { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.work-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  color: var(--ink-her);
+}
+.work-kind {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  font: 15px var(--font-hand);
+  color: var(--ink-her);
+  border: 1.5px solid color-mix(in oklab, var(--peach-mid) 70%, transparent);
+  border-radius: 50%;
+}
+.work-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work-text .demo-tag { margin-left: 8px; }
+.work-progress { display: inline-flex; gap: 4px; }
+.work-progress span { width: 12px; height: 12px; border: 1.5px solid var(--pencil); border-radius: 3px; }
+.work-progress span[data-done='true'] { background: var(--peach); border-color: var(--peach-mid); }
+.work-row[data-status='running'] .work-progress span[data-done='false']:first-of-type,
+.work-row[data-status='running'] .work-progress span[data-done='true'] + span[data-done='false'] { animation: recall-breathe 2.4s var(--ease-in-out) infinite; border-color: var(--peach-mid); }
+.work-status { color: var(--graphite); white-space: nowrap; }
+.work-row[data-status='failed'] .work-text, .work-row[data-status='interrupted'] .work-text { color: var(--graphite); }
+.work-actions { display: inline-flex; gap: 10px; white-space: nowrap; }
+
 /* —— 窗台上的小物件（左页房间里）—— */
 .sill-item {
   position: absolute;

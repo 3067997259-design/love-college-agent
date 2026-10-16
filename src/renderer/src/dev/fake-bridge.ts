@@ -249,6 +249,15 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
         requestAnimationFrame(wait)
         return ack(command)
       }
+      // 书桌作品：停下／接着做只改状态，步数不动；“看看”是原生预览，预览里没有
+      if ((command.type === 'life.work.pause' || command.type === 'life.work.resume') && current.life?.work) {
+        const work = current.life.work
+        const job = work.jobs.find((item) => item.id === command.workId)
+        const next = command.type === 'life.work.pause' ? (job?.status === 'running' ? 'paused' : null) : (job && ['paused', 'interrupted'].includes(job.status) ? 'running' : null)
+        if (!job || !next) return ack(command, 'unavailable')
+        commit({ life: { ...current.life, work: { ...work, runningId: next === 'running' ? job.id : null, jobs: work.jobs.map((item) => item.id === job.id ? { ...item, status: next, reason: next === 'paused' ? 'user' : undefined } : item) } } }, 'task')
+        return ack(command)
+      }
       // 礼物架上点得通：提议的可以开始（只在专注里）或不要，做着的可以停下；做没做好仍是假数据
       if ((command.type === 'gift.start' || command.type === 'gift.cancel') && current.gifts) {
         const gift = current.gifts.items.find((item) => item.id === command.giftId)

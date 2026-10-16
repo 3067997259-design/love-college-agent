@@ -57,7 +57,12 @@ try {
   const plugin = (await snapshot()).runtime.plugins.find((plugin) => plugin.id === 'life-work'); await accepted({ type: 'plugin.enable', pluginId: plugin.id, fingerprint: plugin.fingerprint })
   await advance(); await waitFor((s) => job(s, 'write').completedSteps === 2, 'WRITE_DRAFT_FAILED'); await advance(); await waitFor((s) => job(s, 'write').status === 'completed', 'WRITE_REVISION_FAILED')
   writing = job(await snapshot(), 'write'); const text = await readFile(join(desk, writing.output.path), 'utf8'); assert.ok(text.includes('修订稿')); assert.equal(hash(text), writing.output.sha256)
-  const previewPromise = instance.waitForEvent('window'); await accepted({ type: 'life.work.open', workId: writing.id }); const preview = await previewPromise
+  // 从书里打开：日程书签上她今天的书桌作品，步数来自快照，“看看”走同一个原生预览
+  if (await page.getByRole('region', { name: '工具与设置', exact: true }).count()) await page.getByRole('button', { name: '关闭', exact: true }).click()
+  await page.getByRole('button', { name: '日程', exact: true }).click()
+  const writeRow = page.locator('.work-row[data-status="completed"]', { hasText: '照着' }); await writeRow.waitFor()
+  assert.equal(await writeRow.locator('.work-progress span[data-done="true"]').count(), writing.totalSteps)
+  const previewPromise = instance.waitForEvent('window'); await writeRow.getByRole('button', { name: '看看', exact: true }).click(); const preview = await previewPromise
   await preview.waitForLoadState(); assert.ok((await preview.locator('pre').innerText()).includes('修订稿')); assert.equal(await preview.evaluate(() => typeof window.lca), 'undefined'); await preview.close()
   assert.ok(!JSON.stringify(await snapshot()).includes('留给下一座纸桥')); const context = JSON.stringify(await debug('get_context')); assert.ok(!context.includes('PRIVATE_DESK_CANARY')); assert.ok(!context.includes('修订稿'))
   await accepted({ type: 'room.rebuild' }); const logs = join(await room(), '运行记录'); const contents = (await Promise.all((await readdir(logs)).map((file) => readFile(join(logs, file), 'utf8')))).join('\n')
