@@ -38,5 +38,6 @@
 - `pnpm typecheck`、`pnpm lint` 通过。
 - `pnpm test`：45 文件／215 项通过；新增 9 项覆盖实际产物、预算、失败、外部编辑、迟到模型、暂停、重启、写入意图恢复、伪造进度与严格 IPC。
 - `pnpm exec electron-vite build --logLevel warn` 与 `node scripts/smoke-life-work.mjs` 通过。真实 Electron 走专注阶段写笔记、三版写作、插件／灯／暂停、用户预览、三天重启、空 profile 私人导入、相同文件／检查点和删除后重建。
+- 接线提交 `21c1d19` 合 main 后重新构建，再顺序跑自主作品、基础窗口、harness、记忆、存档、房间、心流、历史照片共八条 Electron 场景，全部通过。工作区里的其他线未提交改动未纳入测试或提交。
 - 命令 `pnpm test:life-work` 包含构建及上述 Electron 场景。不下载 Playwright 浏览器。
 - 当前安装包仍是此前历史照片／回忆基线，本轮未重新打包；不把开发态结果当安装态验收。
