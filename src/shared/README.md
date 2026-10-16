@@ -93,3 +93,7 @@ characterName 进入角色的系统称呼，userName 进入用户档案的“关
 
 `life` 的出返、地点、拾取时刻和物品由主进程确定。`life.schedule` 是用户今天作息的明确输入；`life.propose` 仅提议，用户在时用 `life.depart` 同意出发，`life.return` 提前结束。离线事实带 offline=true，只结算最近三天的虚构外出；恢复私人存档直接校准 settledUntilMs，不补空档。桌面最多三件，其余入抽屉。素材缺失时界面用文字回退。
 
+# 日记与房间
+
+`diary` 只投影日期、锁状态和来源。`readDiary(id)` 是用户独占入口，主进程检查解锁后返回主观正文和既定钥匙；禁止喂回模型、记忆或调试 MCP。`diary.write` 尝试为已结束的一天写一次；已有篇章永不覆写。`room.open/rebuild` 只打开／重建程序自己的投影目录，不接受任意路径。正文为带密码 ZIP；运行记录只含类型、时间和成败。
+
