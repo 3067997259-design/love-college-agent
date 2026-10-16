@@ -130,6 +130,10 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'flow.goal.status'; goalId: string; status: 'active' | 'completed' | 'cancelled' }
   /** Explicit user task; requires an active execute flow. Creates only a desk draft, not verified claims. */
   | { type: 'flow.init' }
+  /** User explicitly opens one desk HTML file; the model cannot select or replace the target. */
+  | { type: 'flow.computer.open'; path: string }
+  | { type: 'flow.computer.close' }
+  | { type: 'flow.computer.approve'; approvalId: string; allow: boolean }
   | { type: 'flow.review' }
   /** Book-only native preview. Draft prose is never carried in snapshots or ordinary memory. */
   | { type: 'flow.operation.open'; operationId: string }
