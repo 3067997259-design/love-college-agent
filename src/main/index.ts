@@ -371,6 +371,10 @@ void app.whenReady().then(async () => {
       for (const [path, text] of restoredFiles) desk.write(path, text)
     }
     heartFlow = createHeartFlow({ store, clock, desk, booth: prepared.booth, busy: () => harness?.isBusy() ?? false, changed: () => controller?.refresh('task'),
+      modelSource: () => prepared.developer ? 'fake' : providers.has('chat') ? 'real' : 'none',
+      requestDraft: (text, requestId, hash) => { if (!harness) throw new Error('MODEL_UNAVAILABLE'); harness.send(text, requestId, hash); const id = store!.projection().task?.id; if (!id) throw new Error('MODEL_UNAVAILABLE'); return id },
+      cancelTask: (id) => { harness?.stop(id) },
+      previewDraft: (view, text) => previewArtifact({ id: view.id, artifactId: view.id, displayName: view.outputPath, kind: 'markdown', status: 'ready', createdAtMs: view.createdAtMs, sourceRefs: [], source: view.source }, text, '用户工作草稿 · 未经审核 · 已产出不表示审查或测试通过。'),
       inspect: (view) => previewArtifact({ id: view.flowId, artifactId: view.flowId, displayName: '心流 · ' + view.section, kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: prepared.developer ? 'fake' : 'real' }, JSON.stringify(view, null, 2), '用户专用查阅 · 书桌范围 · 每次运行单独审批 · 费用未知时为 null。'),
       prepare: async (id, signal) => { const preparedContext = await memory!.prepareContext(id, signal); const world = life?.view(); if (!world) return preparedContext
         const facts = { role: 'user' as const, content: JSON.stringify({ source: 'autonomous', worldFacts: { locationId: world.locationId, outings: world.outings.slice(-3), items: world.items.slice(-3) }, actualWorks: world.work?.jobs.slice(-6).map(({ id, kind, source, status, completedSteps, totalSteps, completedAtMs }) => ({ id, kind, source, status, completedSteps, totalSteps, completedAtMs })), fictional: true, actualOfflineWork: false }) }
@@ -452,7 +456,7 @@ void app.whenReady().then(async () => {
     controller.attachMinecraft(minecraft, minecraftChat, mcpFixture ? (scenario) => mcpFixture!.game.select(scenario) : undefined)
     harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
       prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); return heartFlow!.active() ? preparedContext : recall!.prepare(id, preparedContext) }, foreground: () => { memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, userWork: () => life?.foreground(),
-      failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
+      settled: () => heartFlow?.settled(), failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     controller.attachExecution(harness, modelReady)
     modelSettings = createModelSettings({ root: dataRoot, developer: prepared.developer, slots: [...providers.keys()], canConfigure: () => !harness?.isBusy() && !backup?.isBusy(),
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入模型槽位配置（内容仅由主进程读取）', properties: ['openFile'], filters: [{ name: '模型配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null }, changed: () => controller?.refresh('connection') })
