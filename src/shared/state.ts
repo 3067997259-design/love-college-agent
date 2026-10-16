@@ -11,7 +11,8 @@ export type Availability = 'unavailable' | 'unconfigured' | 'connecting' | 'read
 export type TaskStatus = 'queued' | 'running' | 'waiting-user' | 'cancelling' | 'completed' | 'aborted' | 'failed'
 export const PUBLIC_ERROR_CODES = ['invalid-command', 'stale-epoch', 'unavailable', 'not-configured', 'permission-denied', 'connection-failed', 'privacy-unavailable', 'internal',
   'configuration-failed', 'upstream-busy', 'quota-exhausted', 'stream-interrupted', 'invalid-model-output', 'step-limit', 'repeat-limit', 'budget-exceeded',
-  'privacy-invalid-output', 'evidence-unavailable', 'stale-candidate', 'export-failed', 'source-blocked'] as const
+  'privacy-invalid-output', 'evidence-unavailable', 'stale-candidate', 'export-failed', 'source-blocked',
+  'unsupported-file', 'file-too-large', 'file-unreadable', 'document-parse-failed', 'document-interrupted'] as const
 export type PublicErrorCode = typeof PUBLIC_ERROR_CODES[number]
 
 export interface PublicError {
@@ -170,6 +171,43 @@ export interface CapabilityView {
   source: 'real' | 'fake' | 'none'
   error?: PublicError
 }
+export type DocumentFormat = 'pdf' | 'text' | 'markdown'
+export const DOCUMENT_SCENARIO_IDS = ['ready', 'privacy-failure', 'malicious'] as const
+export type DocumentScenarioId = typeof DOCUMENT_SCENARIO_IDS[number]
+export interface FileAttachmentView {
+  id: string
+  candidateId?: string
+  /** Code-generated label, never an original attachment name or local path. */
+  displayName: string
+  byteLength: number
+  format: DocumentFormat
+  source: 'real' | 'fake'
+}
+export interface DocumentView {
+  id: string
+  createdAtMs: number
+  updatedAtMs: number
+  displayName: string
+  origin: 'mail-attachment' | 'drop'
+  format: DocumentFormat
+  byteLength: number
+  source: 'real' | 'fake'
+  status: 'staged' | 'queued' | 'processing' | 'ready' | 'failed' | 'cancelled'
+  pageCount: number | null
+  deadlineIso: string | null
+  error?: PublicError
+}
+export interface DocumentsView {
+  jobs: readonly DocumentView[]
+  attachments: readonly FileAttachmentView[]
+  privacyAvailable: boolean
+  scenarioId?: DocumentScenarioId
+}
+export interface FileImportAck {
+  acceptedIds: readonly string[]
+  rejectedCount: number
+  error?: PublicError
+}
 export interface AppSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
@@ -189,4 +227,6 @@ export interface AppSnapshot {
   runtime?: RuntimeView
   /** Source health and counts only; no message headers or bodies. */
   mailbox?: MailboxView
+  /** Metadata only. Neither extracted text nor generated document contents belong here. */
+  documents?: DocumentsView
 }
