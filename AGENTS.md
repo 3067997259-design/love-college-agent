@@ -248,3 +248,4 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 
 `pnpm probe:life` 验证外出事实与恢复结算水位；不要把离线虚构事件报告为实际工作。
 `pnpm test:room` 验证日记和房间投影。日记钥匙／正文仅用户专用读接口可取，不加进调试状态或模型上下文。
+`pnpm test:notifications` 验证急件通知。Toast 不放标题／发件人／正文；只允许急件或心流审批，禁止把普通后台活动做成通知。

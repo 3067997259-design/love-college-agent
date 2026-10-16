@@ -81,8 +81,8 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
           const previous = repository.view().items.find((item) => item.current.id === candidateId)
           const roleLabel = { 'teaching-assistant': '课程助教', 'student-club': '社团活动', library: '图书馆', other: '校园信息' }[checked.sourceRole]
           const content = { kind: checked.kind, title: checked.title, deadlineIso: checked.deadlineIso, ...(checked.eventStartIso ? { eventStartIso: checked.eventStartIso } : {}),
-            ...(checked.eventEndIso ? { eventEndIso: checked.eventEndIso } : {}), ...(checked.locationText ? { locationText: checked.locationText } : {}), sourceLabel: roleLabel + ' · ' + checked.title }
-          const keys = ['kind', 'title', 'deadlineIso', 'eventStartIso', 'eventEndIso', 'locationText', 'sourceLabel'] as const
+            ...(checked.eventEndIso ? { eventEndIso: checked.eventEndIso } : {}), ...(checked.locationText ? { locationText: checked.locationText } : {}), ...(checked.urgency ? { urgency: checked.urgency } : {}), sourceLabel: roleLabel + ' · ' + checked.title }
+          const keys = ['kind', 'title', 'deadlineIso', 'eventStartIso', 'eventEndIso', 'locationText', 'sourceLabel', 'urgency'] as const
           const same = previous && keys.every((key) => previous.current[key] === content[key])
           let candidate = previous?.current
           if (!same) {

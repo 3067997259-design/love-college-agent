@@ -42,6 +42,8 @@ export function CandidateCard({ view, bridge, onCommand, entering }: {
         <dt>计划完成</dt><dd className="time-planned">{formatIso(view.plannedCompletionIso)}</dd>
       </dl>
       {view.status === 'changed' && <div className="card-note"><p>变更待确认；已接受的截止仍为 {formatIso(view.change?.previousDeadlineIso ?? null)}。</p>
+        {view.change?.previousEventStartIso && <p>原活动时间：{formatIso(view.change.previousEventStartIso)}</p>}
+        <p>确认后导出同 UID 的新版本；若日历重复添加，请手动删除旧项。</p>
         {view.change && <button type="button" className="link-button" onClick={() => {
           const id = ++previousRequest.current
           if (previousEvidence) { setPreviousEvidence(null); return }

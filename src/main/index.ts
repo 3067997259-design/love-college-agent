@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, powerMonitor, protocol, shell } from 'electron'
+import { app, BrowserWindow, dialog, powerMonitor, protocol, shell, Notification } from 'electron'
 import { join, resolve } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { systemClock } from './clock'
@@ -18,6 +18,7 @@ import { probeLife } from './validation/life'
 import { createDiary, type DiaryService } from './diary/service'
 import diaryPrompts from './diary/prompts.json'
 import { createRoomProjection } from './room/projection'
+import { createNotifications, notificationTools, type NotificationsService } from './notifications/service'
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'lca-media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 import { createAppController } from './bridge/controller'
@@ -107,6 +108,7 @@ let gifts: GiftService | undefined
 let heartFlow: HeartFlowService | undefined
 let life: LifeService | undefined
 let diary: DiaryService | undefined
+let notifications: NotificationsService | undefined
 let modelSettings: ModelSettingsService | undefined
 let companionWindows: CompanionWindows | undefined
 let miniFallbackReason: MiniFallbackReason | null = process.env.LCA_MINI_OPAQUE === '1' ? 'forced' : null
@@ -322,6 +324,10 @@ void app.whenReady().then(async () => {
     controller.attachLife(life)
     diary = createDiary({ clock, scheduler, store, assets: binaryAssets, model: prepared.developer ? { source: 'fake', write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary, busy: () => !!harness?.isBusy() || !!heartFlow?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
     controller.attachDiary(diary, { rebuild: roomProjection.rebuild, open: () => { void shell.openPath(roomProjection.root) } })
+    notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => heartFlow?.view().pending?.id, changed: () => controller?.refresh('connection'),
+      notify: ({ title, body }) => { if (prepared.developer || prepared.booth || !Notification.isSupported()) return; const notification = new Notification({ title, body, silent: true }); notification.on('click', () => { const view = controller!.getSnapshot(); controller!.dispatch({ protocolVersion: 1, requestId: randomUUID(), epoch: view.epoch, type: 'window.expand' }) }); notification.show() } })
+    controller.attachNotifications(notifications)
+    plugins.registerBuiltin('notifications', '急件与提醒标准', notificationTools(notifications))
     plugins.registerBuiltin('coding', '书桌编码', deskTools(heartFlow))
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
     if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])
@@ -373,6 +379,7 @@ void app.whenReady().then(async () => {
     plugins.mountService('mcp', (enabled) => mcp?.setEnabled(enabled))
     plugins.mountService('gifts', (enabled) => gifts?.setEnabled(enabled))
     plugins.mountService('coding', (enabled) => heartFlow?.setEnabled(enabled))
+    plugins.mountService('notifications', (enabled) => notifications?.setEnabled(enabled))
     if (prepared.scene?.preset === 'pomodoro-demo' && store.records().length <= 2) pomodoro.propose({ label: '开发演示', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }, 'user')
     harness.stateChanged()
     scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => controller?.refresh('timer'), { everyMs: 1000, background: false })
@@ -402,6 +409,7 @@ app.on('before-quit', (event) => {
     companionWindows?.dispose()
     heartFlow?.close()
     life?.close()
+    notifications?.close()
     const closeCampus = campus?.close()
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()
