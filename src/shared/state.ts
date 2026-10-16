@@ -280,6 +280,15 @@ export interface HistoryView {
   /** Metadata only. Historical excerpts are resolved in main and never copied into snapshots. */
   recall: RecallView
 }
+export type OpticalTier = 'large' | 'base' | 'small' | 'tiny'
+export interface OpticalMemoryView {
+  enabled: boolean
+  source: 'real' | 'fake' | 'none'
+  status: 'idle' | 'processing' | 'failed' | 'unconfigured'
+  frames: readonly { id: string; sessionId: string; createdAtMs: number; sourceCount: number }[]
+  impressions: readonly { frameId: string; tier: OpticalTier; createdAtMs: number; status: 'guarded' | 'rejected'; verifiedLineCount: number; rejectedLineCount: number }[]
+  error?: PublicError
+}
 export interface McpServerView {
   id: string
   transport: 'stdio' | 'http'
@@ -394,6 +403,8 @@ export interface AppSnapshot {
   memory?: MemoryView
   session?: SessionView
   history?: HistoryView
+  /** Optional optical impressions; default text memory remains authoritative. No OCR prose/page text here. */
+  opticalMemory?: OpticalMemoryView
   mcp?: McpView
   backup?: BackupView
   quill?: QuillView
