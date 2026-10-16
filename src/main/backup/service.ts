@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, fsyncSync, closeSync, openSync, renameSync, writeFileSync, lstatSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import type { AppCommand, BackupView, PublicErrorCode } from '../../shared'
+import type { AppCommand, BackupView, OnboardingView, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import { BackupFailure, type SaveManifest } from './schema'
@@ -16,7 +16,7 @@ function writeArchive(file: string, bytes: Buffer) {
   try { writeFileSync(fd, bytes); fsyncSync(fd) } finally { closeSync(fd) }
   renameSync(temporary, path)
 }
-export function createBackupService(options: { root: string; store: SessionStore; clock: Clock; source: 'real' | 'fake'; fileFilteringEnabled(): boolean; credentials?: readonly string[];
+export function createBackupService(options: { root: string; store: SessionStore; clock: Clock; source: 'real' | 'fake'; fileFilteringEnabled(): boolean; credentials?: readonly string[]; onboarding?(): OnboardingView;
   canStart(): boolean; freeze(): Promise<() => void>; chooseExport(name: string): Promise<string | null>; chooseImport(): Promise<string | null>; restart(): void; changed(): void }) {
   const receipt = readRestoreReceipt(options.root)
   let view: BackupView = existsSync(join(options.root, '.restore-error.json')) ? { status: 'failed', error: { code: 'restore-failed', retryable: true } } : receipt ? { status: receipt.status, operationId: receipt.restoreId, archiveId: receipt.manifest.archiveId, safetyBackupId: receipt.safetyBackupId,
@@ -26,7 +26,7 @@ export function createBackupService(options: { root: string; store: SessionStore
     view = { status, operationId: randomUUID() }; options.changed()
     worker = work().catch((cause: unknown) => { view = { ...view, status: 'failed', error: { code: cause instanceof BackupFailure ? cause.code : 'internal', retryable: true } } }).finally(() => { worker = undefined; options.changed() })
   }
-  const exportNow = () => exportPrivateSave({ ...options, fileFilteringEnabled: options.fileFilteringEnabled() })
+  const exportNow = () => exportPrivateSave({ ...options, fileFilteringEnabled: options.fileFilteringEnabled(), onboarding: options.onboarding?.() ?? options.store.projection().onboarding })
   return {
     view: () => structuredClone(view), isBusy: () => !!worker || restarting,
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {

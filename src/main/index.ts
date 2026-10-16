@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, powerMonitor } from 'electron'
 import { join, resolve } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { systemClock } from './clock'
+import { initialOnboarding } from './onboarding/schema'
 import { createAppController } from './bridge/controller'
 import { registerAppBridge } from './bridge/ipc'
 import { probeSqlite } from './validation/sqlite'
@@ -218,9 +219,11 @@ void app.whenReady().then(async () => {
       if (timer.status === 'running') timer.endsAtMs = clock.nowMs() + timer.remainingMs
       store.append({ type: 'pomodoro/state', view: timer, pauseReason: restoreReceipt.manifest.pomodoroPause, cause: 'restored' })
       store.append({ type: 'save/restored', archiveId: restoreReceipt.manifest.archiveId, restoreId: restoreReceipt.restoreId, exportedAtMs: restoreReceipt.manifest.savedAtMs, restoredAtMs: clock.nowMs() })
+      // Pre-onboarding archives were already usable books; preserve that legacy entry path without inventing a completion time.
+      store.append({ type: 'onboarding/state', view: restoreReceipt.manifest.onboarding ?? { ...initialOnboarding(), status: 'completed' }, cause: 'restored', requestId: 'restore-onboarding:' + restoreReceipt.restoreId, commandHash: restoreReceipt.manifest.archiveId })
     }
     if (prepared.scene && store.records().length === 1) store.append({ type: 'companion/mode', mode: prepared.scene.mode, requestId: 'development-scene', commandHash: 'development-scene' })
-    controller = createAppController(clock, undefined, store)
+    controller = createAppController(clock, undefined, store, { booth: prepared.booth })
     const providers = prepared.developer ? new Map() : await readModelProviders(providersFile)
     const taskModels = createTaskModelPorts(providers, clock, store)
     scheduler = createScheduler(clock, () => { console.error('Scheduler stopped: local operation failed.'); app.quit() })
@@ -279,7 +282,7 @@ void app.whenReady().then(async () => {
     modelSettings = createModelSettings({ root: dataRoot, developer: prepared.developer, slots: [...providers.keys()], canConfigure: () => !harness?.isBusy() && !backup?.isBusy(),
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入模型槽位配置（内容仅由主进程读取）', properties: ['openFile'], filters: [{ name: '模型配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null }, changed: () => controller?.refresh('connection') })
     controller.attachModelSettings(modelSettings)
-    backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials,
+    backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials, onboarding: () => controller!.getSnapshot().onboarding!,
       canStart: () => !harness!.isBusy() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
       freeze: async () => { scheduler!.pauseBackground(true); memory!.foreground(); await memory!.idle(); if (harness!.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
       chooseExport: async (name) => { const selected = await dialog.showSaveDialog({ title: '导出私人存档', defaultPath: name, filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePath ?? null },

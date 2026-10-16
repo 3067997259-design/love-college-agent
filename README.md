@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+**新手流程主进程（2026-10-16 晚）：** 接口 `c5c8b42` 已先合 main；名字、称呼、完成状态按日志／SQLite 投影持久化并进入私人存档，跨日与空 profile 恢复通过。角色系统称呼和用户“关于你”分层，不记作共同经历；设置可重新初始化，展位始终跳过。类型／lint／150 项单测及后端 Electron、harness、存档回归通过；完整向导按钮联调待 Claude 接快照开关，见 [接口交接与验收](docs/engineering/onboarding-main.md)。
+
 **迷你窗更新（2026-10-16 23:38）：** 主进程改为 280×350 逻辑像素、主屏右下角 24 逻辑像素边距；`window.mini.moveBy` 按物理像素移动，支持高 DPI 换算、当前屏限位和含显示器 ID 的位置恢复。开发诊断新增“独立窗口”，专注时可继续查看安全执行动态，正常／展位模式拒绝；独立窗只读。接口 `130e857` 和实现均已合 main，Claude 可接 expand／hover／moveBy，旧画面命令兼容。类型／lint、140 项单测及实际迷你窗／番茄 Electron 场景通过，见 [接口交接与验收](docs/engineering/mini-window-contract.md)。停止／熄灯保留当前窗口，重启只开书本；已有安装包未重打。
 
 **草案修正（2026-10-16 23:17）：** 未确认计划独立放在 `pomodoro.proposal`，提议／discard 不再替换生效计划；任何阶段确认都保留当前计时和已完成进度。当天总数不足当前 focusIndex 时拒绝，get_timer 返回 completedCount。接口 `e49813c` 已先合 main，Claude 已接独立草案卡（`12bd11f`）。合并后类型／lint、31 个文件／135 项单测及番茄／迷你窗／存档流程、跨日计时探针通过，见 [草案与进度记录](docs/engineering/pomodoro-proposals.md)。
@@ -382,6 +384,7 @@ pnpm dev
 | `pnpm probe:backup` / `pnpm test:backup` | 实际 SQLite backup／ZIP、哈希／作用域拒绝、安全备份、回滚、空白 profile 恢复、计时重锚通过 |
 | `pnpm test:model-slots` | 正常模式原生配置／重启＋本机合成 HTTP：background／privacy 专用路由和失败不回退通过 |
 | `pnpm test:mini` | 实际 280×350 内容区／点穿调用／物理像素拖动限位、位置持久化与失效归位、纸片返回、无重启残留，以及独立诊断入口／安全刷新／只读权限通过；真人 OS 穿透待验收 |
+| `pnpm test:onboarding:backend` / `pnpm test:onboarding` | 前者验证主进程档案／重启／提示词分层／真实存档恢复；后者完整向导 UI 场景，待 Claude 接快照入口后验收 |
 | `pnpm preview:ui` / `pnpm shot:ui` | 只起渲染层，用假数据场景在浏览器预览、截图书本界面；不启动 Electron，不读密钥。数字键切场景，“跳过本段”让番茄钟当前阶段到点 |
 
 GPT 开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER_PORT` 指定不同端口；数据默认放 `<worktree>/.local-data`，用 `LCA_DATA_DIR` 可覆盖。开发实例的端口和数据目录必须各自独立，远程调试默认关闭。共享接口说明见 [src/shared/README.md](src/shared/README.md)。
