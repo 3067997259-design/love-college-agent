@@ -20,9 +20,21 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
     const destination = place ?? (parseInt(digest.slice(0, 2), 16) % 2 ? 'coast' : 'swing')
     return { id: 'outing:' + digest, place: destination, startsAtMs: at, returnsAtMs: at + 60 * 60000, acquiredAtMs: at + 35 * 60000, item: destination === 'coast' ? 'shell' : 'leaf', status: 'proposed', settledAtMs: null, offline }
   }
+  const expireProposals = (now: number) => {
+    let changed = false
+    for (const outing of state.outings) if (outing.status === 'proposed' && calendarDay(clock, outing.startsAtMs) !== calendarDay(clock, now)) {
+      outing.status = 'cancelled'; outing.settledAtMs = now; changed = true
+    }
+    return changed
+  }
+  const depart = (outing: OutingView, now: number) => {
+    if (outing.status !== 'proposed' || working() || store.projection().lightsOut || state.outings.some((other) => other.status === 'away')) return false
+    const delay = Math.max(0, now - outing.startsAtMs); outing.startsAtMs += delay; outing.returnsAtMs += delay; outing.acquiredAtMs += delay
+    outing.status = 'away'; state.locationId = outing.place; return true
+  }
   const settle = (outing: OutingView, at: number, cutShort: boolean) => {
     if (outing.status !== 'away' && !outing.offline) return
-    outing.status = cutShort ? 'cut_short' : 'returned'; outing.settledAtMs = at; state.locationId = 'room'
+    outing.status = cutShort ? 'cut_short' : 'returned'; outing.settledAtMs = at; state.locationId = state.outings.findLast((other) => other.status === 'away')?.place ?? 'room'
     if (at >= outing.acquiredAtMs && !state.items.some((item) => item.outingId === outing.id)) {
       state.items.push({ id: 'item:' + outing.id, outingId: outing.id, dayKey: calendarDay(clock, outing.startsAtMs), place: outing.place, kind: outing.item, acquiredAtMs: outing.acquiredAtMs, display: 'desk' })
       state.items.forEach((item, index) => { item.display = index >= state.items.length - 3 ? 'desk' : 'drawer' })
@@ -30,7 +42,11 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
     pendingFacts.set(outing.id + ':return', JSON.stringify({ fictionalOuting: outing, broughtItem: state.items.find((item) => item.outingId === outing.id)?.kind ?? null, actualWorkWhileOffline: false }))
   }
   const reconcile = (startup = false) => {
-    const now = clock.nowMs(); const wasLightsOut = store.projection().lightsOut; let changed = false
+    const now = clock.nowMs(); const wasLightsOut = store.projection().lightsOut; let changed = expireProposals(now)
+    const overlapping = state.outings.filter((outing) => outing.status === 'away')
+    // Older versions could persist simultaneous departures. End them at the saved watermark,
+    // never invent additional travel during the untrusted offline interval.
+    if (overlapping.length > 1) { for (const outing of overlapping) settle(outing, Math.max(outing.startsAtMs, Math.min(now, state.settledUntilMs)), true); changed = true }
     const away = state.outings.findLast((outing) => outing.status === 'away')
     if (options.restored && startup) { if (away) settle(away, Math.min(now, state.settledUntilMs), true); state.locationId = 'room'; state.settledUntilMs = now; save(); return }
     if (startup && previous && !wasLightsOut && now > state.settledUntilMs + 2 * 60000 && !working()) {
@@ -53,10 +69,10 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
       if (item.state !== 'planned' || now < item.atMs) continue
       // Reading/writing have no producer yet: a due placeholder is not a completed work.
       item.state = item.kind !== 'walk' || !resting(today) || working() ? 'skipped' : 'settled'; changed = true
-      if (item.kind === 'walk' && item.state === 'settled' && !state.outings.some((outing) => calendarDay(clock, outing.startsAtMs) === today)) {
+      if (item.kind === 'walk' && item.state === 'settled' && !state.outings.some((outing) => outing.status === 'away' || outing.status === 'proposed' || calendarDay(clock, outing.startsAtMs) === today)) {
         const outing = makeOuting(today, now, false); state.outings.push(outing)
         const lastUser = rows().findLast((row) => row.type === 'user/message')?.atMs ?? now
-        if (now - lastUser >= 15 * 60000) { outing.status = 'away'; state.locationId = outing.place }
+        if (now - lastUser >= 15 * 60000) depart(outing, now)
       }
     }
     if (changed || now - state.settledUntilMs >= 60000 || startup) { state.settledUntilMs = now; save() }
@@ -67,12 +83,13 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
     view: () => structuredClone(state), reconcile,
     foreground: () => { const away = state.outings.findLast((outing) => outing.status === 'away'); if (away) { settle(away, clock.nowMs(), true); state.settledUntilMs = clock.nowMs(); save() } },
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
+      if (expireProposals(clock.nowMs())) save()
       if (store.projection().lightsOut) return 'unavailable'
       if (command.type === 'life.schedule') { state.userSchedule = command.schedule; if (command.schedule === 'work') { const away = state.outings.findLast((outing) => outing.status === 'away'); if (away) settle(away, clock.nowMs(), true) }; save(); return }
       if (command.type === 'life.propose') { if (working() || state.outings.some((outing) => outing.status === 'away' || outing.status === 'proposed')) return 'unavailable'; const outing = makeOuting(calendarDay(clock), clock.nowMs(), false, command.place); if (state.outings.some((old) => old.id === outing.id)) return 'unavailable'; state.outings.push(outing); save(); return }
       if (command.type === 'life.depart') {
-        const outing = state.outings.find((item) => item.id === command.outingId && item.status === 'proposed'); if (!outing || working()) return 'unavailable'
-        const delay = Math.max(0, clock.nowMs() - outing.startsAtMs); outing.startsAtMs += delay; outing.returnsAtMs += delay; outing.acquiredAtMs += delay; outing.status = 'away'; state.locationId = outing.place; save(); return
+        const outing = state.outings.find((item) => item.id === command.outingId && item.status === 'proposed'); if (!outing || !depart(outing, clock.nowMs())) return 'unavailable'
+        save(); return
       }
       if (command.type === 'life.return') { const away = state.outings.findLast((outing) => outing.status === 'away'); if (!away) return 'unavailable'; settle(away, clock.nowMs(), true); save(); return }
       return 'invalid-command'

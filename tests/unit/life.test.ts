@@ -41,3 +41,35 @@ it('bounds offline fiction, does not replay it, and skips the restored archive g
   f.clock.advanceBy(100 * 86400000); const restored = createLife({ ...f.options, restored: true }); f.scheduler.cancel('life.settle')
   expect(restored.view().items).toEqual(view.items); expect(restored.view().settledUntilMs).toBe(f.clock.nowMs()); expect(restored.view().locationId).toBe('room')
 })
+it('expires yesterday proposals before today scheduling and rejects stale confirmations', () => {
+  const f = fixture(); f.dispatch({ type: 'life.propose', place: 'coast' }); const oldId = f.life.view().outings[0].id
+  f.clock.advanceBy(f.clock.parse('2026-10-18T15:00:00+08:00') - f.clock.nowMs())
+  f.store.append({ type: 'user/message', id: 'present', text: '在这里', requestId: 'present', commandHash: 'x' }); f.life.reconcile()
+  expect(f.life.view().outings.find((outing) => outing.id === oldId)?.status).toBe('cancelled')
+  const today = f.life.view().outings.find((outing) => outing.status === 'proposed')!
+  expect(f.dispatch({ type: 'life.depart', outingId: today.id })).toBeUndefined()
+  expect(f.dispatch({ type: 'life.depart', outingId: oldId })).toBe('unavailable')
+  expect(f.life.view().outings.filter((outing) => outing.status === 'away')).toHaveLength(1)
+  f.life.foreground(); expect(f.life.view().outings.some((outing) => outing.status === 'away')).toBe(false)
+  expect(f.life.view().locationId).toBe('room'); expect(f.life.view().items).toHaveLength(0)
+})
+it('checks stale proposals at command time even before the next scheduler tick', () => {
+  const f = fixture(); f.dispatch({ type: 'life.propose' }); const oldId = f.life.view().outings[0].id
+  f.clock.advanceBy(86400000)
+  expect(f.dispatch({ type: 'life.depart', outingId: oldId })).toBe('unavailable')
+  expect(f.life.view().outings[0].status).toBe('cancelled'); expect(f.emit).not.toHaveBeenCalled()
+  expect(f.dispatch({ type: 'life.propose' })).toBeUndefined()
+})
+it('uses a single departure guard and repairs legacy overlapping outings on restart', () => {
+  const f = fixture(); f.dispatch({ type: 'life.propose' }); const base = f.life.view()
+  // Simulate the two pending proposals reachable in older versions, without relying on the new expiry policy.
+  const second = { ...base.outings[0], id: 'legacy-second-proposal' }
+  f.store.append({ type: 'life/state', view: { ...base, outings: [...base.outings, second] } })
+  let restarted = createLife(f.options); f.scheduler.cancel('life.settle')
+  const send = (outingId: string) => restarted.dispatch({ type: 'life.depart', outingId } as AppCommand)
+  expect(send(base.outings[0].id)).toBeUndefined(); expect(send(second.id)).toBe('unavailable')
+  const overlap = { ...restarted.view(), outings: [{ ...base.outings[0], status: 'away' as const }, { ...second, status: 'away' as const }] }
+  f.store.append({ type: 'life/state', view: overlap }); restarted = createLife(f.options); f.scheduler.cancel('life.settle')
+  expect(restarted.view().outings.every((outing) => outing.status === 'cut_short')).toBe(true)
+  expect(restarted.view().locationId).toBe('room'); expect(restarted.view().items).toHaveLength(0)
+})
