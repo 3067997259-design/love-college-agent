@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
 /** Owned synthetic world behind a real MCP transport. Never contacts or starts Minecraft. */
-export function createMinecraftFixture() {
+export function createMinecraftFixture(privateState = 'SYNTHETIC_PRIVATE_STATE') {
   const world = { instanceId: randomUUID(), sessionId: randomUUID(), revision: 1, connected: true, playerUuid: randomUUID(), dimension: 'minecraft:overworld' }
   const player = { uuid: world.playerUuid, name: 'SyntheticPilot', dimension: world.dimension, x: 0, y: 64, z: 0, alive: true }
   const streamId = randomUUID(); const other = randomUUID(); let cursor = 0; let owner: string | undefined; let target: { x: number; y: number; z: number } | undefined
@@ -25,7 +25,7 @@ export function createMinecraftFixture() {
       if (scenario === 'unreachable') throw new Error('SYNTHETIC_UNREACHABLE')
       owner = String(input.controlSessionId); target = { x: Number(input.x), y: Number(input.y), z: Number(input.z) }; return stamped({ started: true })
     })
-    register('navigation_status', {}, () => { if (target) { Object.assign(player, target); target = undefined }; return stamped({ active: false, state: 'done' }) })
+    register('navigation_status', {}, () => { if (target) { Object.assign(player, target); target = undefined }; return stamped({ active: false, state: scenario === 'unreachable' ? privateState : 'reached' }) })
     register('release_control_session', { controlSessionId: z.string() }, (input) => { const released = !owner || owner === input.controlSessionId; if (released) { owner = undefined; target = undefined }; return stamped({ released, controlSessionId: input.controlSessionId, reason: released ? 'released' : 'control_owner_replaced' }) })
     register('get_process_state', { controlSessionId: z.string() }, (input) => stamped({ owned: owner === input.controlSessionId, controlSessionId: input.controlSessionId, playerUuid: player.uuid, source: 'client-process' }))
     register('poll_event_page', { sinceId: z.number().optional(), tail: z.boolean(), limit: z.number().int().min(1).max(16), types: z.array(z.string()) }, (input) => stamped({ streamId, cursor, gap: false, events: input.tail ? [] : events.filter((event) => event.id > Number(input.sinceId ?? 0)).slice(0, Number(input.limit)) }))

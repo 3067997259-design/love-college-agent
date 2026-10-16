@@ -10,7 +10,7 @@ import { createMinecraftFixture } from '../minecraft/fixture'
 /** Explicit developer fixture over a real loopback MCP transport; never installed as a production source. */
 export async function startMcpFixture(clock: Clock) {
   const token = randomUUID(); const connections = new Set<StreamableHTTPServerTransport>(); let calls = 0
-  const game = createMinecraftFixture()
+  const game = createMinecraftFixture(token)
   const http = createServer((request, response) => {
     void (async () => {
       if (request.method !== 'POST' || request.url !== '/mcp' || request.headers.authorization !== 'Bearer ' + token || request.headers.origin) { response.writeHead(403).end(); return }

@@ -9,6 +9,8 @@ export const minecraftScopeSchema = z.strictObject({ radiusBlocks: z.number().in
 const targetSchema = z.strictObject({ x: z.number().int(), y: z.number().int(), z: z.number().int() })
 const chatSchema = z.strictObject({ message: z.string().trim().min(1).max(160).refine((text) => !/^[／/]/.test(text.normalize('NFKC')) && !/[\p{Cc}\p{Cf}]/u.test(text)) })
 const empty = z.strictObject({})
+// Closed states observed in the pinned mcpfabric source; unknown protocol text never reaches a journal.
+const navigationState = z.enum(['idle', 'navigating', 'reached', 'deadline', 'path_exhausted', 'cancelled', 'reflex_preempted', 'disconnected', 'world_exit', 'death', 'bridge_timeout', 'world_session_changed'])
 const distance = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)
 type Lease = { serverId: string; controlSessionId: string }
 export interface GameReceipt { roundId: string; serverId: string; controlSessionId: string; status: 'started' | 'stopped'; stopVerified: boolean }
@@ -140,7 +142,9 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
       if (name === 'minecraft_navigation_status') {
         empty.parse(input)
         if (target) z.object({ owned: z.literal(true), controlSessionId: z.literal(lease!.controlSessionId), source: z.literal('client-process') }).parse(await rpc('get_process_state', { controlSessionId: lease!.controlSessionId }, combined, ticket))
-        const result = z.object({ active: z.boolean(), state: z.string().max(60) }).parse(await rpc('navigation_status', {}, combined, ticket)); const current = await verifyPlayer(combined, ticket)
+        const result = z.object({ active: z.boolean(), state: navigationState }).parse(await rpc('navigation_status', {}, combined, ticket))
+        if (port().text(result.state) !== result.state) throw new Error('GAME_INVALID')
+        const current = await verifyPlayer(combined, ticket)
         const arrived = !!target && !result.active && distance(current, target) <= 1.5
         if (target) state.lastAction = { kind: 'navigate', status: result.active ? 'running' : arrived ? 'succeeded' : 'failed', atMs: clock.nowMs() }; publish()
         return { active: result.active, arrived, status: result.state, position: { x: current.x, y: current.y, z: current.z } }
