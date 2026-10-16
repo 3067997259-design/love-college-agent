@@ -52,7 +52,7 @@ export function createMcpConnection(options: { id: string; config: McpConfigEntr
       if (!parsed.success || JSON.stringify(output).length > 128_000) return error('mcp-invalid-result')
       const text = sanitize(parsed.data.content.map((item) => item.text).join('\n'))
       if (config.privacy === 'always') {
-        const filtered = await boundedMcp(clock, abort.signal, () => filter(text))
+        const filtered = await boundedMcp(clock, abort.signal, (signal) => filter(text, signal))
         if (!filtered.ok) return error(filtered.error)
         const visible = { ...filtered.fields, task: sanitize(filtered.fields.task), trust: 'untrusted', source: filtered.source }
         // Private remote content is never written to raw journal fields either.

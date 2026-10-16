@@ -46,11 +46,14 @@ import { applyPendingRestore } from './backup/restore'
 import { probeBackup } from './validation/backup'
 import { createQuillService, quillTools, type QuillService } from './gifts/quill'
 import { buildDiagnostics } from './developer/diagnostics'
+import { createTaskModelPorts } from './model/task-ports'
+import { createModelSettings, providerConfigPath, type ModelSettingsService } from './config/model-settings'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
 const { clock } = prepared
 const dataDir = prepared.profile.path
+const providersFile = providerConfigPath(dataRoot, process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
 const cdpPort = Number(process.env.LCA_CDP_PORT ?? 9427)
 if (prepared.developer) {
   app.commandLine.appendSwitch('remote-debugging-address', '127.0.0.1')
@@ -79,6 +82,7 @@ let mcp: McpService | undefined
 let mcpFixture: Awaited<ReturnType<typeof startMcpFixture>> | undefined
 let backup: BackupService | undefined
 let quill: QuillService | undefined
+let modelSettings: ModelSettingsService | undefined
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -128,13 +132,13 @@ void app.whenReady().then(async () => {
     return
   }
   if (process.argv.includes('--lca-probe=harness')) {
-    const report = await probeHarness(dataDir, process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'), systemClock)
+    const report = await probeHarness(dataDir, providersFile, systemClock)
     console.log('LCA_PROBE:' + JSON.stringify(report))
     app.exit(report.ok ? 0 : 1)
     return
   }
   if (process.argv.includes('--lca-probe=model')) {
-    const report = await probeModel(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'), systemClock)
+    const report = await probeModel(providersFile, systemClock)
     console.log('LCA_PROBE:' + JSON.stringify(report))
     app.exit(report.ok ? 0 : 1)
     return
@@ -165,7 +169,7 @@ void app.whenReady().then(async () => {
     return
   }
   if (process.argv.includes('--lca-probe=imap')) {
-    const report = await probeImap(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
+    const report = await probeImap(providersFile)
     console.log('LCA_PROBE:' + JSON.stringify(report))
     app.exit(report.ok ? 0 : 1)
     return
@@ -185,25 +189,27 @@ void app.whenReady().then(async () => {
     }
     if (prepared.scene && store.records().length === 1) store.append({ type: 'companion/mode', mode: prepared.scene.mode, requestId: 'development-scene', commandHash: 'development-scene' })
     controller = createAppController(clock, undefined, store)
+    const providers = prepared.developer ? new Map() : await readModelProviders(providersFile)
+    const taskModels = createTaskModelPorts(providers, clock, store)
     scheduler = createScheduler(clock, () => { console.error('Scheduler stopped: local operation failed.'); app.quit() })
     vault = openEvidenceVault(dataDir, store.scope)
     const fakeMailbox = prepared.developer ? createFakeMailbox(clock) : undefined
     const fakeDocuments = prepared.developer ? createFakeDocumentModel(clock) : undefined
     const artifacts = createArtifactStore(dataDir, store.scope)
     documentVault = openDocumentVault(dataDir, store.scope)
-    documents = createDocumentService({ clock, store, scheduler, settings: prepared.pluginSettings, vault: documentVault, artifacts, model: fakeDocuments?.model ?? null, development: fakeDocuments,
+    documents = createDocumentService({ clock, store, scheduler, settings: prepared.pluginSettings, vault: documentVault, artifacts, model: fakeDocuments?.model ?? taskModels.document, development: fakeDocuments,
       ...(fakeMailbox?.source.readAttachment ? { readAttachment: (attachment, signal) => fakeMailbox.source.readAttachment!(attachment, signal) } : {}),
       openArtifact: previewArtifact, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('document', text, id) },
       failed: () => { console.error('Document processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachDocuments(documents)
     memoryRepository = openMemoryRepository(dataDir, store)
     const fakeMemory = prepared.developer ? createFakeMemoryModel() : undefined
-    memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, model: fakeMemory?.model ?? null, development: fakeMemory,
+    memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, model: fakeMemory?.model ?? taskModels.memory, development: fakeMemory,
       isBusy: () => harness?.isBusy() ?? false, changed: () => controller?.refresh('connection'),
       rolled: () => { controller?.refresh('connection'); harness?.sessionChanged(); pomodoro?.reconcile(); campus?.stateChanged(); documents?.stateChanged() },
       failed: () => { console.error('Memory processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachMemory(memory)
-    campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? createBlockedImapSource(), privacy: fakeMailbox?.privacy ?? null,
+    campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? createBlockedImapSource(), privacy: fakeMailbox?.privacy ?? taskModels.mail,
       artifacts, openArtifact: previewArtifact, attachment: (record) => documents!.registerAttachment(record),
       development: fakeMailbox, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('mail', text, id) },
       failed: () => { console.error('Campus processing stopped: local storage unavailable.'); app.quit() } })
@@ -211,7 +217,7 @@ void app.whenReady().then(async () => {
     bridge = registerAppBridge(controller, async (ref, scope) => vault!.read(ref, scope))
     pomodoro = createPomodoro({ clock, store, scheduler, changed: () => controller?.refresh('timer'), stateChanged: () => harness?.stateChanged(),
       emit: (id, text) => { harness?.postEvent('pomodoro', text, id) } })
-    const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, privacyModel: prepared.developer ? createFakePrivacyModel() : null })
+    const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, privacyModel: prepared.developer ? createFakePrivacyModel() : taskModels.narrow })
     plugins.registerBuiltin('core', '时钟与任务计划', builtinTools())
     plugins.registerBuiltin('pomodoro', '番茄钟', pomodoroTools(pomodoro))
     plugins.registerBuiltin('mail', '邮箱与校园候选', mailTools(campus), { handlesPrivacy: true, permissions: ['network'] })
@@ -220,11 +226,10 @@ void app.whenReady().then(async () => {
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
     if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])
     plugins.discover()
-    const providers = prepared.developer ? new Map() : await readModelProviders(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
     const modelReady = prepared.developer || providers.has('chat')
     if (prepared.developer) mcpFixture = await startMcpFixture(clock)
     mcp = createMcpService({ clock, configPath: process.env.LCA_MCP_CONFIG ?? join(dataDir, 'connections/mcp.json'), source: prepared.developer ? 'fake' : 'real',
-      privacyModel: prepared.developer ? createFakePrivacyModel() : null, developmentConfig: mcpFixture?.config,
+      privacyModel: prepared.developer ? createFakePrivacyModel() : taskModels.narrow, developmentConfig: mcpFixture?.config,
       chooseConfig: async () => { const selected = await dialog.showOpenDialog({ title: '导入 MCP 配置（配置仅由主进程读取）', properties: ['openFile'], filters: [{ name: 'MCP 配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
       canConfigure: () => !harness?.isBusy(), changed: () => controller?.refresh('connection') })
     controller.attachMcp(mcp)
@@ -232,7 +237,10 @@ void app.whenReady().then(async () => {
       prepareContext: (id, signal) => memory!.prepareContext(id, signal), foreground: () => memory?.foreground(),
       failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     controller.attachExecution(harness, modelReady)
-    const privateCredentials = prepared.developer ? [] : await readPrivateCredentialValues(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
+    const privateCredentials = prepared.developer ? [] : await readPrivateCredentialValues(providersFile)
+    modelSettings = createModelSettings({ root: dataRoot, developer: prepared.developer, slots: [...providers.keys()], canConfigure: () => !harness?.isBusy() && !backup?.isBusy(),
+      choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入模型槽位配置（内容仅由主进程读取）', properties: ['openFile'], filters: [{ name: '模型配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null }, changed: () => controller?.refresh('connection') })
+    controller.attachModelSettings(modelSettings)
     backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials,
       canStart: () => !harness!.isBusy() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
       freeze: async () => { scheduler!.pauseBackground(true); memory!.foreground(); await memory!.idle(); if (harness!.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
@@ -281,6 +289,6 @@ app.on('before-quit', (event) => {
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), backup?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), backup?.close(), modelSettings?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })
