@@ -32,7 +32,9 @@ export function projectCampus(records: readonly JournalRecord[]): CampusProjecti
     } else if (row.type === 'campus/confirmed' || row.type === 'campus/ignored') {
       const item = state.items.find((item) => item.current.id === row.candidateId)
       if (!item || item.current.revision !== row.revision) throw new Error('CAMPUS_CONFIRMATION_INVALID')
-      if (row.type === 'campus/ignored') item.current = { ...item.current, status: 'ignored' }
+      if (row.type === 'campus/ignored') item.current = item.accepted && item.current.status === 'changed'
+        ? { ...item.accepted, revision: row.revision, status: 'confirmed', change: undefined }
+        : { ...item.current, status: 'ignored' }
       else {
         if (item.accepted && item.accepted.revision !== row.revision) item.sequence++
         item.current = { ...item.current, status: 'confirmed', plannedCompletionIso: row.plannedCompletionIso }
