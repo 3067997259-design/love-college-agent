@@ -1,6 +1,6 @@
 import type { AppCommand, CommandAck } from './commands'
 import type { AppEvent } from './events'
-import type { AppSnapshot, DiagnosticsView, EvidenceView, FileImportAck, SessionPage, DiaryRead, HeartFlowInspection, OpticalMemoryRead } from './state'
+import type { AppSnapshot, DiagnosticsView, EvidenceView, FileImportAck, SessionPage, DiaryRead, HeartFlowInspection, OpticalMemoryRead, VoiceRead } from './state'
 
 export interface AppBridge {
   getSnapshot(): Promise<AppSnapshot>
@@ -18,6 +18,8 @@ export interface AppBridge {
   readDiary?(diaryId: string): Promise<DiaryRead>
   readHeartFlow?(input: { section: 'status' | 'permissions' | 'diff'; flowId?: string }): Promise<HeartFlowInspection>
   readOpticalMemory?(frameId: string): Promise<OpticalMemoryRead>
+  /** Book-only output audio; source text and credentials never cross this method. afterChunk is the last consumed index, initially -1. */
+  readVoice?(input: { utteranceId: string; afterChunk: number }): Promise<VoiceRead>
 }
 
 export const IPC_CHANNELS = {
@@ -31,4 +33,5 @@ export const IPC_CHANNELS = {
   diary: 'lca:user-diary',
   heartFlow: 'lca:user-heart-flow',
   opticalMemory: 'lca:user-optical-memory',
+  voice: 'lca:voice-audio',
 } as const

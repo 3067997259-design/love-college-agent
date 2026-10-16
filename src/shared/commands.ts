@@ -9,6 +9,10 @@ interface CommandEnvelope {
 export type AppCommand = CommandEnvelope & (
   | { type: 'message.send'; text: string }
   | { type: 'turn.stop'; taskId: string }
+  | { type: 'voice.set'; enabled: boolean }
+  | { type: 'voice.stop'; utteranceId: string }
+  /** Book playback reports only; this is renderer telemetry, not synthesis or external-action evidence. */
+  | { type: 'voice.playback'; utteranceId: string; status: 'playing' | 'ended' | 'failed' }
   | { type: 'mode.set'; mode: 'work' | 'quiet' | 'rest' }
   | { type: 'lights.set'; lightsOut: boolean }
   /** Trimmed single-line text: userName <= 20 code points, characterName <= 12. Empty resets to null / 桃子. */

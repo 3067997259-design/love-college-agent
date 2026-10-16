@@ -412,6 +412,7 @@ export interface AppSnapshot {
   history?: HistoryView
   /** Optional optical impressions; default text memory remains authoritative. No OCR prose/page text here. */
   opticalMemory?: OpticalMemoryView
+  voice?: VoiceView
   /** Main-owned optional game context. No MCP launch config, URLs, tokens or raw game transcript. */
   minecraft?: MinecraftView
   mcp?: McpView
@@ -551,6 +552,24 @@ export interface HeartFlowInspection {
   truncated: boolean
 }
 export interface MinecraftScope { radiusBlocks: number; durationMs: number; allowChat: boolean }
+export interface VoiceView {
+  enabled: boolean
+  available: boolean
+  source: 'real' | 'fake' | 'none'
+  /** Output speech only; no microphone or voice cloning. Audio is ephemeral and never replayed after restart. */
+  utterance?: { id: string; messageId: string; status: 'synthesizing' | 'ready' | 'cancelled' | 'failed';
+    playback: 'idle' | 'playing' | 'ended' | 'failed'; chunkCount: number; byteLength: number; createdAtMs: number }
+  error?: PublicError
+}
+export interface VoiceRead {
+  utteranceId: string
+  format: 'pcm_s16le'
+  sampleRate: 24000
+  channels: 1
+  /** At most eight chunks per read, each <= 16 KiB. No provider configuration or source text. */
+  chunks: readonly { index: number; pcmBase64: string }[]
+  done: boolean
+}
 export interface MinecraftView {
   status: 'idle' | 'checking' | 'ready' | 'playing' | 'paused' | 'stopping' | 'failed'
   source: 'real' | 'fake' | 'none'
