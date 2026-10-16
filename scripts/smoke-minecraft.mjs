@@ -28,6 +28,17 @@ const call = (id, name, args) => ({ text: '', toolCalls: [{ id, name, arguments:
 try {
   await mkdir(profile, { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId })); await writeFile(join(profile, 'clock.json'), JSON.stringify({ nowMs: now, frozen: true, rate: 1 }))
   await launch(); await debug('set_fake_model', { script: [{ text: '普通私人对话回应', toolCalls: [], delayMs: 0 }] })
+  // Privileged test instrumentation captures only this isolated fixture's random credential in main;
+  // all assertions return booleans, never the value to renderer, debug bridge, or test output.
+  await instance.evaluate(() => {
+    const original = globalThis.fetch
+    globalThis.fetch = async (input, init) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      const auth = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get('Authorization')
+      if (url.startsWith('http://127.0.0.1:') && auth?.startsWith('Bearer ')) globalThis.syntheticGameCredential = auth.slice(7)
+      return original(input, init)
+    }
+  })
   await accepted({ type: 'message.send', text: 'PERSONAL_CAMPUS_CANARY 不要出现在公开游戏里。' }); await waitFor((s) => s.task?.status === 'completed', 'ORDINARY_CHAT_FAILED')
   await instance.evaluate(({ dialog }) => { dialog.showMessageBox = async (options) => { assertNative(options); return { response: 1, checkboxChecked: false } }; function assertNative(options) { if (options.title !== '核对 MCP 启动配置') throw new Error('MISSING_NATIVE_MCP_REVIEW') } })
   await page.getByRole('button', { name: '工具与设置', exact: true }).click()
@@ -67,7 +78,14 @@ try {
   await waitFor((s) => s.minecraft.status === 'idle' && s.minecraft.stopVerified && s.pomodoro.phase === 'focus', 'FOCUS_DID_NOT_RELEASE_GAME')
   await accepted({ type: 'pomodoro.stop' }); await accepted({ type: 'mode.set', mode: 'rest' }); await accepted({ type: 'window.expand' }); await page.waitForTimeout(100)
   await start(); await accepted({ type: 'developer.minecraft', scenario: 'world-change' }); await advance(); await waitFor((s) => s.minecraft.status === 'failed' && s.minecraft.stopVerified, 'WORLD_CHANGE_DID_NOT_STOP')
-  await page.waitForTimeout(100); await accepted({ type: 'developer.minecraft', scenario: 'ready' }); await start(); const finalRound = (await snapshot()).minecraft.roundId
+  await page.waitForTimeout(100); await accepted({ type: 'developer.minecraft', scenario: 'ready' }); await start(); const badRound = (await snapshot()).minecraft.roundId
+  await accepted({ type: 'developer.minecraft', scenario: 'unreachable' }); await debug('set_fake_model', { script: [call('bad-status', 'minecraft_navigation_status', {}), { text: 'BAD_STATUS_MUST_NOT_ADVANCE', toolCalls: [], delayMs: 0 }] })
+  await accepted({ type: 'message.send', text: '核验不可信导航状态。' }); await waitFor((s) => s.minecraft.status === 'failed' && s.minecraft.stopVerified, 'PRIVATE_NAVIGATION_STATE_NOT_REJECTED')
+  await page.waitForTimeout(100); const badRows = await rowsAt(join(profile, 'minecraft', badRound))
+  assert.ok(badRows.some((row) => row.type === 'tool/call' && row.name === 'minecraft_navigation_status')); assert.ok(badRows.some((row) => row.type === 'tool/result' && !row.ok))
+  assert.equal(await instance.evaluate((_electron, rows) => typeof globalThis.syntheticGameCredential === 'string' && !JSON.stringify(rows).includes(globalThis.syntheticGameCredential), badRows), true, 'CREDENTIAL_IN_GAME_JOURNAL')
+  assert.equal(badRows.filter((row) => row.type === 'model/seen').length, 1, 'PRIVATE_STATUS_ADVANCED_MODEL')
+  await accepted({ type: 'developer.minecraft', scenario: 'ready' }); await start(); const finalRound = (await snapshot()).minecraft.roundId
   await stop(); const settled = (await rowsAt(profile)).filter((row) => row.type === 'minecraft/round' && row.roundId === finalRound).at(-1); assert.equal(settled.status, 'stopped'); assert.equal(settled.stopVerified, true)
   await launch(); assert.equal((await snapshot()).minecraft.status, 'idle'); assert.ok((await snapshot()).mcp.servers.every((server) => server.status === 'disconnected')); assert.ok(!(await snapshot()).messages.some((message) => message.text.includes('GAME_ONLY_')))
   console.log('Minecraft Electron PASS: native MCP consent + real loopback synthetic-world transport, reviewed pilot/scope UI, isolated fake model navigation/status/chat, event tail/echo, focus release, world fence, private-save exclusion, shutdown verification and restart without reconnect/replay. No Minecraft instance or real model contacted.')

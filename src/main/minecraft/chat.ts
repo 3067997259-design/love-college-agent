@@ -24,7 +24,13 @@ export function createMinecraftChat(options: { root: string; clock: Clock; mainS
   const scrub = (value: string) => options.credentials.reduce((text, credential) => credential ? text.replaceAll(credential, '[redacted]') : text, redactFixed(value))
   const tools: HarnessTool[] = definitions.map((definition) => ({ definition, templateId: 'minecraft.' + definition.name,
     validate: (input) => z.fromJSONSchema(definition.parameters as Parameters<typeof z.fromJSONSchema>[0]).safeParse(input).success,
-    run: async (input, context) => { const value = z.json().parse(await options.game().tool(definition.name, input, context.signal)); return { ok: true, raw: value, visible: value } },
+    run: async (input, context) => {
+      const value = z.json().parse(await options.game().tool(definition.name, input, context.signal))
+      const clean = (value: z.core.util.JSONType, key = ''): z.core.util.JSONType => typeof value === 'string'
+        ? key === 'uuid' && z.string().uuid().safeParse(value).success ? options.credentials.reduce((text, secret) => secret ? text.replaceAll(secret, '[redacted]') : text, value) : scrub(value)
+        : Array.isArray(value) ? value.map((item) => clean(item)) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([name, item]) => [name, clean(item, name)])) : value
+      const safe = clean(value); return { ok: true, raw: safe, visible: safe }
+    },
   }))
   const end = () => {
     if (closing) return closing

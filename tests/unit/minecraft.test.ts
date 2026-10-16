@@ -22,7 +22,7 @@ function fixture(interrupted?: GameReceipt) {
     if (name === 'get_self') return stamp({ ...player })
     if (name === 'poll_event_page') return stamp({ streamId, cursor, gap: false, events: input.tail ? [] : events })
     if (name === 'navigate_to') { owner = String(input.controlSessionId); active = true; if (hang) return hang; return stamp({ started: true }) }
-    if (name === 'navigation_status') return stamp({ active, state: active ? 'navigating' : 'done' })
+    if (name === 'navigation_status') return stamp({ active, state: active ? 'navigating' : 'reached' })
     if (name === 'send_chat') return stamp({ sent: true, asCommand: false })
     if (name === 'release_control_session') { if (releaseFails) throw new Error('SYNTHETIC_RELEASE_FAILED'); owner = undefined; active = false; return stamp({ released: true, controlSessionId: input.controlSessionId }) }
     if (name === 'get_process_state') return stamp({ owned: owner === input.controlSessionId, source: 'client-process', controlSessionId: input.controlSessionId })
@@ -86,4 +86,12 @@ it('bounds action attempts and stops when the world or observed radius changes',
 it('rejects missing world-binding schemas and public identifiers that overlap configuration secrets', async () => {
   const missing = fixture(); missing.protocol.allows = (_name, required) => !required?.includes('expectedWorldSessionId'); await missing.start(); expect(missing.game.view().status).toBe('failed'); expect(missing.receipts).toHaveLength(0)
   const privateId = fixture(); privateId.protocol.identifierAllowed = (value) => value !== privateId.player.uuid; await privateId.start(); expect(privateId.game.view().pilot).toBeUndefined(); expect(privateId.receipts).toHaveLength(0)
+})
+it('rejects private or unknown navigation states before any tool result can escape (#21)', async () => {
+  for (const state of ['PRIVATE', 'Bearer synthetic-private', 'unsupported-state']) {
+    const f = fixture(); const call = f.protocol.call
+    f.protocol.call = async (name, input, signal) => name === 'navigation_status' ? { active: false, state, worldSession: f.world } : call(name, input, signal)
+    await f.start(); await expect(f.game.tool('minecraft_navigation_status', {}, signal())).rejects.toThrow('MINECRAFT_TOOL_FAILED')
+    expect(JSON.stringify(f.game.view())).not.toContain(state); expect(f.game.view().stopVerified).toBe(true)
+  }
 })
