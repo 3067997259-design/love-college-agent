@@ -42,7 +42,12 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'window.book' }
   /** Mini renderer only; main clamps motion to the connected work areas. */
   | { type: 'window.mini.hover'; over: boolean }
+  /** Integer physical-screen pixel displacement, sent at most once per renderer frame. */
+  | { type: 'window.mini.moveBy'; dx: number; dy: number }
+  /** Compatibility: legacy logical-pixel movement; new renderers use moveBy. */
   | { type: 'window.mini.move'; dx: number; dy: number }
+  /** Developer-only, read-only diagnostics BrowserWindow; refused in normal/booth mode. */
+  | { type: 'window.diagnostics.open' }
   | { type: 'privacy.set'; enabled: boolean }
   | { type: 'document.attachment'; attachmentId: string }
   | { type: 'document.retry'; documentId: string }
