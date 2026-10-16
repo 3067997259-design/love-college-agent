@@ -77,6 +77,7 @@ import { createTaskModelPorts } from './model/task-ports'
 import { createModelSettings, providerConfigPath, type ModelSettingsService } from './config/model-settings'
 import { createCompanionWindows, type CompanionWindows } from './windows/companion'
 import { roundedMiniShape, type MiniFallbackReason } from './windows/presentation'
+import { resolveRoomLayout, resolveRoomRoot } from './room/paths'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -333,7 +334,12 @@ void app.whenReady().then(async () => {
     plugins.registerBuiltin('documents', '附件与资料整理', documentTools(documents), { handlesPrivacy: true, permissions: ['filesystem'] })
     plugins.registerBuiltin('memory', '经历记忆与日会话', memoryTools(memory))
     const ownerRoom = contentHash(JSON.stringify([store.scope.userId, store.scope.characterId]))
-    const roomRoot = prepared.developer || prepared.booth || process.env.LCA_DATA_DIR ? join(dataDir, 'rooms', ownerRoom) : join(app.getPath('documents'), '桃子的房间', ownerRoom.slice(0, 12))
+    const roomLayout = resolveRoomRoot({
+      stored: prepared.pluginSettings.read().roomLayout,
+      resolved: resolveRoomLayout({ dataDir, sharedBase: app.getPath('documents'), ownerKey: ownerRoom, privateProfile: prepared.developer || prepared.booth || !!process.env.LCA_DATA_DIR }),
+      persist: (layout) => prepared.pluginSettings.update((draft) => { draft.roomLayout = { pathVersion: 2, root: layout.root, ...(layout.folder ? { folder: layout.folder } : {}) } }),
+    })
+    const roomRoot = roomLayout.root
     const roomProjection = createRoomProjection(roomRoot, store, binaryAssets, clock)
     scheduler.schedule('room.projection', clock.nowMs() + 30000, () => roomProjection.rebuild(), { everyMs: 60000 })
     const desk = createDesk(join(roomRoot, '书桌'))
