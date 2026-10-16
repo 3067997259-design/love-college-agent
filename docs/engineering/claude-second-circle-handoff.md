@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `c5c8b42` | 新手档案／完成／重置 | 向导已绑定快照和表单，不再依赖 ?onboarding；它仅保留浏览器美术预览 |
 | `3c1a78c` | 实时礼物 | snapshot.gifts、gift.propose/start/cancel/open；GiftControls 已用真实 model-viewer 展示本地 GLB |
-| `06db36c` | 周月摘要计数／归并 | snapshot.memory.summaryCounts、memory.consolidate；最近七天仍留日摘要 |
+| `06db36c` | 周月摘要计数／归并 | snapshot.memory.summaryCounts、memory.consolidate；最近七天仍留日摘要，单次引用上限 12（七日优先，余下给周／月） |
 | `de59527` | 心流 | snapshot.heartFlow、flow.enter/exit/mode/compact/undo/run/approve；进入后右页直接出现工作列表与审批 |
 | `c1aa31d` | 外出与物品 | snapshot.life；locationId=room/coast/swing，生活面板有作息、出发、提前返回和物品／抽屉文字回退 |
 | `6040797` | 外出取消状态增补 | OutingView.status 新增 cancelled：跨日未出发提议失效，不生成物品或返回经历；只给 proposed 显示出发按钮 |
