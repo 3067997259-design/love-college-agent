@@ -10,7 +10,7 @@
 | 心流完整指令 | 查阅／压缩／续做、分身、跨次 /goal 已通过；7634e52 的 /init、/review 已接真实书桌草稿、原生预览／取消／恢复 | Git 影子提交、web_fetch／看图待补；系统命令不能超出既有 desk-only／每次审批边界，见 heart-flow-third-circle.md |
 | 分身 | 4594698 接口及只读服务已实现；三并发／日预算／取消／重启、Electron 本体取结果和记忆边界通过 | Claude 活动卡；真实 background 模型质量／限流仍未验收，详见 delegates-third-circle.md |
 | 光学记忆插件 | 54646cf／9147a31 接口先合；11bcbb8 核心、应用接线及 251 单测／真实封页和合成 HTTP Electron 闭环通过；默认关闭 | 真正 OCR 部署／质量及遗忘体验仍待验收；不是已有可靠遗忘曲线，见 optical-third-circle.md |
-| 云端语音 | 未实现；供应商未选 | 主进程凭据／流式音频、静音／取消／失败纯文字，真实音色和服务验收；Claude 播放／嘴型／声音 |
+| 云端语音 | c54c2ba 接口先合；可选兼容 speech 端口、主进程 PCM 分块／预算／取消、朴素设置和唯一书本播放器，合成 Electron／真实 AudioContext 已通过 | 供应商／音色待配置及真实质量／延迟验收；Claude 嘴型／角色声音，详见 voice-third-circle.md |
 | 展位 Minecraft | 1f37779 接口、受限控制器、独立游戏上下文／日志、朴素入口及本机 HTTP＋Electron 合成闭环已通过；展位自动使用独立 booth profile，个人↔展位重启隔离通过 | 真实目标配置／双客户端和模型质量待验收；画面／声音归 Claude；见 minecraft-third-circle.md，不修改参考工程或接管其实例 |
 | computer use | 未实现，现有执行范围仅书桌 | 先明确可审查的目标和每次动作审批，合成端口及取消／权限校验；真实应用范围未给出时不得扩大为整机控制 |
 | 完整新手动画 | 向导主进程和现有画面已合 main | Claude 逐家具上色／描图动画；GPT 合并后跑完整流程及存档恢复 |
