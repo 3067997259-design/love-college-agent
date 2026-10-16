@@ -242,3 +242,7 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 - 更新时记录实际发生的变化，保持待办和完成状态可辨。
 - 实现落地后，把实际可用的命令写进 README 和本文件。
 - 只有在用户要求时才更新跨项目的全局记忆；本工程文档不等于全局记忆。
+# 已实现的心流命令
+
+`pnpm probe:heart-flow` 运行原生隔离探针；`pnpm test:heart-flow` 运行 Electron 闭环。JavaScript 沙箱不提供 Node／shell／网络／系统文件；不要把批准一次扩展成后续操作授权。
+
