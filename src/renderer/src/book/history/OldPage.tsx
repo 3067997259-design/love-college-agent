@@ -13,7 +13,7 @@ const MAX_QUOTE = 1000
  * 往回翻的一页（体验设计 §2“一天一页”）：她的墨色褪成铅笔灰，字始终能读；左页同时换成那天的照片。
  * 只有主进程核对过“她当时确实看见”的句子才能引用（recallableMessageIds），正文由主进程按锚点取，这里只交位置。
  */
-export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQuote }: {
+export function OldPage({ info, page: loadedPage, failed, older, newer, onTurn, onToday, onQuote }: {
   info: SessionPageInfo
   page: SessionPage | null
   failed: boolean
@@ -24,7 +24,10 @@ export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQ
   onQuote: (quote: Quote) => void
 }) {
   const [pending, setPending] = useState<Quote | null>(null)
+  const page = !failed && loadedPage?.sessionId === info.sessionId ? loadedPage : null
   const recallable = new Set(page?.recallableMessageIds ?? [])
+  const selected = pending && page?.sessionId === pending.anchor.sessionId && recallable.has(pending.anchor.messageId)
+    && page.messages.some((message) => message.id === pending.anchor.messageId && message.text.slice(pending.anchor.start, pending.anchor.end) === pending.text) ? pending : null
 
   function select(message: MessageView, span: HTMLElement) {
     if (!page || !recallable.has(message.id)) return
@@ -77,10 +80,10 @@ export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQ
           </>}
       </div>
       <footer className="old-foot">
-        {pending
+        {selected
           ? <>
-            <blockquote className="quote-preview">{pending.text}</blockquote>
-            <button type="button" className="btn btn-primary btn-small" onClick={() => onQuote(pending)}>{copy.history.quoteSelection}</button>
+            <blockquote className="quote-preview">{selected.text}</blockquote>
+            <button type="button" className="btn btn-primary btn-small" onClick={() => onQuote(selected)}>{copy.history.quoteSelection}</button>
           </>
           : recallable.size > 0 && <p className="old-hint">{copy.history.quoteHint}</p>}
       </footer>

@@ -99,6 +99,36 @@ try {
   }
   const modelContext = JSON.stringify(await debug('get_context')); for (const marker of ['RAW_ONLY_', 'USER_ONLY_DOCUMENT_RESULT']) assert.ok(!modelContext.includes(marker))
   assert.equal((await send({ type: 'history.recall', anchor: { ...anchor, sessionId: 'foreign-session' }, question: '越界' })).status, 'rejected')
+  // Real second old page: selection from A cannot remain while viewing/loading/failed B (#19).
+  await debug('set_fake_model', { script: [{ text: '第二页合成回应。', toolCalls: [], delayMs: 0 }] })
+  await send({ type: 'message.send', text: '第二页独立经历。' }); await waitFor((s) => s.task?.status === 'completed' && s.messages.some((m) => m.text === '第二页独立经历。'), 'SECOND_PAGE_CHAT_FAILED')
+  const secondId = (await snapshot()).scope.sessionId
+  await debug('set_clock', { nowMs: Date.parse('2026-10-18T12:00:00+08:00') }); await waitFor((s) => s.session.dayKey === '2026-10-18', 'THIRD_PAGE_ROLLOVER_FAILED')
+  await page.locator('.turn-back').click(); await page.locator('.old-page .msg-text', { hasText: '第二页独立经历。' }).waitFor()
+  const selectFirst = async () => {
+    await page.locator('.old-page .msg[data-recallable="true"] .msg-text').first().evaluate((span) => { const range = document.createRange(); range.selectNodeContents(span); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); span.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })) })
+    await page.locator('.old-foot .quote-preview').waitFor()
+  }
+  await selectFirst(); await page.locator('.page-turn button').first().click(); await page.locator(`.old-page [data-message-id="${quotedMessage.id}"]`).waitFor()
+  assert.equal(await page.locator('.old-foot .quote-preview').count(), 0, 'PREVIOUS_PAGE_SELECTION_SURVIVED')
+  await selectFirst()
+  // Fault injection on this isolated test's user-read IPC only, using actual archived page A.
+  const firstPage = await page.evaluate((id) => window.lca.readSession(id), sessionId)
+  await instance.evaluate(({ ipcMain }, { firstPage, secondId }) => {
+    globalThis.historyReadMode = 'loading'; ipcMain.removeHandler('lca:user-session')
+    ipcMain.handle('lca:user-session', (_event, id) => {
+      if (id === firstPage.sessionId) return firstPage
+      if (id !== secondId || globalThis.historyReadMode === 'failed') throw new Error('SYNTHETIC_HISTORY_READ_FAILURE')
+      return new Promise((resolve) => { globalThis.historyReadResolve = () => resolve({ sessionId: secondId, dayKey: '2026-10-17', messages: [], recallableMessageIds: [], truncated: false }) })
+    })
+  }, { firstPage, secondId })
+  await page.locator('.page-turn button').last().click(); await page.locator('.old-page [role="status"]').waitFor()
+  assert.equal(await page.locator('.old-foot .quote-preview').count(), 0, 'LOADING_PAGE_RETAINED_SELECTION')
+  await instance.evaluate(() => globalThis.historyReadResolve()); await page.locator('.old-page .sheet-empty').waitFor()
+  assert.equal(await page.locator('.old-foot .quote-preview').count(), 0, 'EMPTY_PAGE_RETAINED_SELECTION')
+  await page.locator('.page-turn button').first().click(); await page.locator(`.old-page [data-message-id="${quotedMessage.id}"]`).waitFor(); await selectFirst()
+  await instance.evaluate(() => { globalThis.historyReadMode = 'failed' }); await page.locator('.page-turn button').last().click(); await page.locator('.old-page [role="alert"]').waitFor()
+  assert.equal(await page.locator('.old-foot .quote-preview').count(), 0, 'FAILED_PAGE_RETAINED_SELECTION')
   await stop(); await launch(); assert.deepEqual((await snapshot()).history.photos[0], photo)
   const archive = join(data, 'history.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
   await send({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'HISTORY_EXPORT_FAILED')
