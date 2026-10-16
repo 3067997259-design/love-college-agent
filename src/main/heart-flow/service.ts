@@ -4,7 +4,7 @@ import type { AppCommand, HeartFlowView, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import type { ContextMessage } from '../journal/schema'
-import { contentHash, createDesk, deskPathSchema } from './desk'
+import { contentHash, createDesk, deskPathSchema, validateDeskText } from './desk'
 import type { HarnessTool } from '../harness/tools'
 import instructions from './instructions.json'
 import { flowContexts, normalContextAllowedSeqs } from './context'
@@ -31,7 +31,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
     store.append({ type: 'desk/settled', id: row.id, status: matches ? 'applied' : 'failed' })
   }
   const write = (path: string, text: string | null, undoes?: string) => {
-    safe(true); const before = desk.read(path); const id = randomUUID()
+    safe(true); deskPathSchema.parse(path); validateDeskText(text); const before = desk.read(path); const id = randomUUID()
     // Snapshot is durable before touching disk. Recovery/undo uses the exact expected after version.
     store.append({ type: 'desk/change', id, flowId: open()!.id, path, before, after: text, pending: true, ...(undoes ? { undoes } : {}) })
     try { desk.write(path, text) } catch { store.append({ type: 'desk/settled', id, status: 'failed' }); throw new Error('DESK_WRITE_FAILED') }
