@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AppBridge, AppSnapshot, InteractionMode } from '../../../shared'
-import { Character } from './Character'
 import { resolveCharacterArt } from './characterArt'
 import { sendCommand, type CommandBody } from './command'
 import { formatClock, formatRemaining } from './format'
 import { locationLabel, MODE_LABEL } from './labels'
 import { useCountdown } from './useCountdown'
+import { WashRoom } from './wash/WashRoom'
 
 const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
 
@@ -29,6 +29,9 @@ export function LeftPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: 
   const newMail = mailReady && companion.mailboxUnseen > 0
   const lastLine = [...messages].reverse().find((m) => m.role === 'assistant')
   const timerOn = pomodoro.phase !== 'idle'
+  // 恢复完成后应用会重启；新页面第一次看到这次恢复，就让颜色重新长回来
+  const backup = snapshot.backup
+  const restoreId = backup?.status === 'restored' ? (backup.restoreId ?? backup.operationId ?? null) : null
 
   return (
     <section className="page page-left" aria-label="她在的地方">
@@ -40,10 +43,8 @@ export function LeftPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: 
         <span className="pull-cord-string" aria-hidden><span className="pull-cord-bead" /></span>
       </button>
       <div className="room" data-shot="close" data-location={companion.locationId} data-pose={pose} data-lighting={art.lighting}>
-        {/* 精修整景直接淡入书页；另制匹配线稿前，不叠旧图产生重影。 */}
-        <div className="room-color">
-          <Character art={art} />
-        </div>
+        {/* 精修整景：颜色聚在她周围，往外褪成从彩图实时提取的铅笔线（体验设计 §7.1，用户批准） */}
+        <WashRoom art={art} restoreId={restoreId} />
 
         {/* 墙上的钟就是番茄钟；不计时的时候显示现在几点 */}
         <div className="wall-clock" data-phase={pomodoro.phase} data-status={pomodoro.status}>

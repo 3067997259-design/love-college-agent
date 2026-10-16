@@ -31,6 +31,7 @@ export function ScenarioSwitcher({ fake }: { fake: FakeBridge }) {
         <button key={id} data-active={id === current} onClick={() => pick(id)}>{i + 1} {id}</button>
       ))}
       <button onClick={() => fake.skipPhase()} title="番茄钟的当前阶段直接到点">跳过本段</button>
+      <button onClick={() => fake.simulateRestore()} title="模拟恢复存档后重启：颜色从她身上重新长回来">恢复晕染</button>
     </aside>
   )
 }

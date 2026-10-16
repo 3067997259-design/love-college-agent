@@ -11,6 +11,8 @@ export interface FakeBridge extends AppBridge {
   setScenario(id: ScenarioId): void
   /** 开发用：当前阶段直接到点，不用干等一分钟 */
   skipPhase(): void
+  /** 开发用：模拟“恢复存档后重启”——换 epoch，备份状态为 restored，左页颜色重新长回来 */
+  simulateRestore(): void
   readonly scenarioId: ScenarioId
 }
 
@@ -21,6 +23,7 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
   let scenarioId = initial
   let generation = 0
   let planCount = 0
+  let restoreCount = 0
   let current: AppSnapshot = withEpoch(SCENARIOS[initial])
   // 剩余时间用 performance.now() 外推：渲染层不碰 Date 和 setTimeout（统一时钟规则）
   let anchor = { at: performance.now(), remaining: current.pomodoro.remainingMs }
@@ -138,6 +141,12 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
       watch()
     },
     skipPhase() { if (current.pomodoro.status !== 'idle') advance(false) },
+    simulateRestore() {
+      restoreCount += 1
+      current = withEpoch({ ...current, backup: { status: 'restored', operationId: `fake-restore-${Math.round(performance.timeOrigin)}-${restoreCount}`,
+        incoming: { savedAtMs: current.clock.nowMs, source: 'fake', pageCount: 2, messageCount: 18, memoryCount: 6, deliveryCount: 2 } } })
+      emit('restore')
+    },
     async getSnapshot() { return current },
     subscribe(listener) {
       listeners.add(listener)
