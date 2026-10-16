@@ -34,6 +34,7 @@ const msg = (id: string, role: MessageView['role'], text: string, createdAtMs: n
 const afternoonPlan = (status: PomodoroPlanView['status']): PomodoroPlanView => ({
   id: 'plan-sat-pm', createdAtMs: T.sat1420 - 3 * MIN, status, source: 'assistant',
   label: '下午：作业和邮件', plannedCount: 4, timing: 'demo',
+  items: [{ text: '数据结构第三次作业', count: 3, assist: false }, { text: '一起过一遍新邮件', count: 1, assist: true }],
   focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4,
 })
 

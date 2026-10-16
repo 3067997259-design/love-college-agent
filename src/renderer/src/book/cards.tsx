@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppBridge, BackupView, CandidateView, DeliveryView, EvidenceView, PlanStep, PomodoroPlanView, PomodoroView, TaskView, ActivityView } from '../../../shared'
+import type { AppBridge, BackupView, CandidateView, DeliveryView, EvidenceView, PlanStep, PomodoroPlanItem, PomodoroPlanView, PomodoroView, TaskView, ActivityView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
 import { formatDateTime, formatIso } from './format'
 import { QuillArt } from './quill/QuillArt'
-import { formatSpan, planSpanMs, rhythmText, tomatoStates } from './plan'
+import { formatSpan, planSpanMs, rhythmText, tomatoStates, type TomatoState } from './plan'
 
 /* —— 候选卡：证据 → 候选 → 确认，要让评委亲眼看到（体验设计 §2） —— */
 export function CandidateCard({ view, bridge, onCommand, entering }: {
@@ -125,9 +125,13 @@ export function PlanCard({ plan, pomodoro, entering, onConfirm, onDismiss }: {
         <span className="card-tag">{plan.timing === 'demo' ? '演示节奏' : `${plan.plannedCount} 个番茄`}</span>
       </header>
       <h3 className="card-title">{plan.label}</h3>
-      <div className="plan-tomatoes" role="img" aria-label={`${plan.plannedCount} 个番茄`}>
-        {tomatoStates(pomodoro).map((state, i) => <span key={i} className="tomato" data-state={state} />)}
-      </div>
+      {plan.items?.length
+        ? <PlanItems items={plan.items} states={tomatoStates(pomodoro)} />
+        : (
+          <div className="plan-tomatoes" role="img" aria-label={`${plan.plannedCount} 个番茄`}>
+            {tomatoStates(pomodoro).map((state, i) => <span key={i} className="tomato" data-state={state} />)}
+          </div>
+        )}
       <p className="plan-rhythm">{rhythmText(plan)}<span className="plan-span">，一共约 {formatSpan(planSpanMs(plan))}</span></p>
       {plan.status === 'proposed'
         ? (
@@ -140,6 +144,29 @@ export function PlanCard({ plan, pomodoro, entering, onConfirm, onDismiss }: {
           ? <p className="card-stamp">排进今天了</p>
           : <p className={allDone ? 'card-stamp' : 'card-stamp card-stamp-muted'}>{allDone ? '做完了' : '收起了'}</p>}
     </article>
+  )
+}
+
+/** 计划条目按顺序占番茄：第一条占前 count 个，依此类推；她能同时帮忙的标出来（技术方案 §3.5） */
+function PlanItems({ items, states }: { items: readonly PomodoroPlanItem[]; states: readonly TomatoState[] }) {
+  let offset = 0
+  return (
+    <ul className="plan-items">
+      {items.map((item, i) => {
+        const mine = states.slice(offset, offset + item.count)
+        offset += item.count
+        const done = mine.length > 0 && mine.every((state) => state === 'done')
+        return (
+          <li key={i} data-done={done}>
+            <span className="plan-item-text">{item.text}</span>
+            {item.assist && <span className="plan-assist">她帮忙</span>}
+            <span className="plan-item-tomatoes" role="img" aria-label={`${item.count} 个番茄`}>
+              {mine.map((state, j) => <span key={j} className="tomato" data-state={state} />)}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 

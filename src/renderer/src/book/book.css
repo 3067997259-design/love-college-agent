@@ -607,6 +607,16 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 /* 番茄计划卡：和顶部同一种番茄格，确认前全是铅笔框 */
 .plan-tomatoes { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
 .plan-rhythm { margin: 0; font-size: 15px; color: var(--graphite); }
+/* 条目：一行一件事，后面是它占的番茄；做完的那件划一道铅笔线 */
+.plan-items { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+.plan-items li { display: flex; align-items: center; gap: 10px; }
+.plan-item-text { font-size: 17px; color: var(--ink-her); }
+.plan-items li[data-done='true'] .plan-item-text { color: var(--graphite); text-decoration: line-through 1.5px var(--pencil); }
+.plan-item-tomatoes { display: flex; gap: 5px; margin-left: auto; }
+.plan-item-tomatoes .tomato { width: 18px; height: 18px; border-radius: 6px 5px 7px 5px; }
+.plan-item-tomatoes .tomato[data-state='done']::after { font-size: 12px; }
+/* 她能同时帮忙：桃色底、墨色字，明度和铅笔框拉开，不只靠颜色 */
+.plan-assist { padding: 0 8px; font: 12px / 1.6 var(--font-body); white-space: nowrap; color: var(--ink-her); background: var(--peach); border: 1px solid var(--peach-mid); border-radius: 999px; }
 .plan-span { white-space: nowrap; }
 .card-plan[data-status='finished'] .plan-tomatoes { opacity: 0.8; }
 
