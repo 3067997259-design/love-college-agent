@@ -124,6 +124,11 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'flow.goal.select'; goalId: string }
   /** Human status decision only. No model tool may complete a long-term goal by itself. */
   | { type: 'flow.goal.status'; goalId: string; status: 'active' | 'completed' | 'cancelled' }
+  /** Explicit user task; requires an active execute flow. Creates only a desk draft, not verified claims. */
+  | { type: 'flow.init' }
+  | { type: 'flow.review' }
+  /** Book-only native preview. Draft prose is never carried in snapshots or ordinary memory. */
+  | { type: 'flow.operation.open'; operationId: string }
   | { type: 'flow.undo'; changeId: string }
   /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
   | { type: 'flow.run'; code: string }
