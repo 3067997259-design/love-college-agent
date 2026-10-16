@@ -13,6 +13,7 @@ import codingSkill from './coding-skill.json'
 import { flowExitSummary } from './summary'
 import { inspectHeartFlow } from './inspection'
 import type { DelegatesService } from '../delegates/service'
+import { goalSchema, projectFlowGoals } from './goals'
 
 type Prepared = { messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }
 export function createHeartFlow(options: { store: SessionStore; clock: Clock; desk: ReturnType<typeof createDesk>; booth: boolean; busy(): boolean; changed(): void;
@@ -24,6 +25,9 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   const open = () => { const list = rows(); return list.findLast((row) => row.type === 'flow/open' && !list.some((other) => other.type === 'flow/close' && other.id === row.id)) as Extract<ReturnType<typeof rows>[number], { type: 'flow/open' }> | undefined }
   const mode = () => { const flow = open(); const updated = rows().findLast((row) => row.type === 'flow/mode' && row.id === flow?.id); return updated?.type === 'flow/mode' ? updated.mode : flow?.mode ?? 'plan' }
   const changes = () => appliedDeskChanges(rows())
+  const goals = () => projectFlowGoals(rows())
+  const linkGoal = (flowId: string) => { const goal = goals().current; if (goal?.status === 'active' && !goal.flowIds.includes(flowId)) store.append({ type: 'flow/goal-linked', goalId: goal.id, flowId }) }
+  const goalContext = (): ContextMessage[] => { const goal = goals().current; return goal ? [{ role: 'user', content: JSON.stringify({ selectedWorkGoal: goal, authority: 'user-selected-work-data', completionMeaning: 'user-status-decision-only-not-tool-proof' }) }] : [] }
   const safe = (write = false) => { if (!enabled || !open() || store.projection().lightsOut || write && mode() !== 'execute') throw new Error('FLOW_UNAVAILABLE') }
   const cancel = () => { delegates?.cancelAll(); if (pending) { store.append({ type: 'flow/run', id: pending.id, flowId: open()?.id ?? 'interrupted', status: 'denied', codeHash: pending.hash }); pending.resolve?.('execution-denied'); pending = undefined }; running?.abort() }
   // A saved request/approval never authorizes a process after restart.
@@ -68,7 +72,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
       return store.projection().messages.filter((message) => { const position = positions.get(message.id) ?? -1; return activeSpan ? position > activeSpan.start : !combined.spans.some((span) => position > span.start && (span.end < 0 || position < span.end)) })
     },
     normalEntriesAllowed: (seqs: readonly number[]) => normalContextAllowedSeqs(store, seqs),
-    view: (): HeartFlowView => ({ activeId: open()?.id ?? null, mode: mode(), execution: options.booth ? 'disabled' : 'javascript-sandbox', ...(pending ? { pending: { id: pending.id, code: pending.code } } : {}), files: desk.list(), ...(delegates ? { delegates: delegates.views(open()?.id) } : {}),
+      view: (): HeartFlowView => ({ activeId: open()?.id ?? null, mode: mode(), execution: options.booth ? 'disabled' : 'javascript-sandbox', ...(pending ? { pending: { id: pending.id, code: pending.code } } : {}), files: desk.list(), goals: goals().visible, goalId: goals().selected, ...(delegates ? { delegates: delegates.views(open()?.id) } : {}),
       changes: changes().filter((row) => row.flowId === open()?.id && !row.undoes).slice(-50).map((row) => ({ id: row.id, path: row.path, undone: changes().some((other) => other.undoes === row.id) })),
       sessions: rows().filter((row) => row.type === 'flow/open').slice(-30).map((row) => { const closed = rows().find((other) => other.type === 'flow/close' && other.id === row.id); return { id: row.id, startedAtMs: row.atMs, endedAtMs: closed?.atMs ?? null, summary: closed?.type === 'flow/close' ? closed.summary : null } }), ...(lastRun ? { lastRun } : {}) }),
     prepareContext: async (id: string, signal: AbortSignal): Promise<Prepared> => {
@@ -78,10 +82,10 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
       const combined = flowContexts(store); const checkpointIndex = combined.rows.findLastIndex((row) => row.type === 'flow/compact' && row.id === flow.id); const checkpoint = combined.rows[checkpointIndex]
       const threshold = checkpointIndex >= 0 ? checkpointIndex : combined.spans.find((span) => span.id === flow.id)!.start
       const work = combined.context.filter((entry) => entry.position > threshold && combined.rows[entry.position]?.type !== 'context/inject')
-      const messages: ContextMessage[] = [...flow.prefix, ...(checkpoint?.type === 'flow/compact' ? [{ role: 'user' as const, content: checkpoint.summary }] : []), ...work.map((entry) => entry.message)]
+      const messages: ContextMessage[] = [...flow.prefix, ...goalContext(), ...(checkpoint?.type === 'flow/compact' ? [{ role: 'user' as const, content: checkpoint.summary }] : []), ...work.map((entry) => entry.message)]
       if (JSON.stringify(messages).length > 80_000) {
         const summary = compact(); const latestRequest = work.findLast((entry) => entry.message.role === 'user')
-        const compacted: ContextMessage[] = [...flow.prefix, { role: 'user', content: instructions.compacted }, { role: 'user', content: summary }, ...(latestRequest ? [latestRequest.message] : [])]
+        const compacted: ContextMessage[] = [...flow.prefix, ...goalContext(), { role: 'user', content: instructions.compacted }, { role: 'user', content: summary }, ...(latestRequest ? [latestRequest.message] : [])]
         if (JSON.stringify(compacted).length > 96_000) throw new Error('FLOW_CONTEXT_TOO_LARGE')
         return { messages: compacted, eligibleIndexes: [] }
       }
@@ -89,6 +93,21 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
     },
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       try {
+        if (command.type === 'flow.goal.set' || command.type === 'flow.goal.select' || command.type === 'flow.goal.status') {
+          if (!enabled || store.projection().lightsOut) return 'unavailable'
+          const state = goals()
+          if (command.type === 'flow.goal.set') {
+            const old = command.goalId ? state.all.get(command.goalId) : undefined
+            if (command.goalId && !old) return 'invalid-command'
+            const goal = goalSchema.parse({ id: old?.id ?? randomUUID(), text: command.text, status: 'active', confirmedBy: 'user' })
+            cancel(); store.append({ type: 'flow/goal', goal }); store.append({ type: 'flow/goal-selected', goalId: goal.id })
+          } else {
+            const goal = state.all.get(command.goalId); if (!goal) return 'invalid-command'
+            if (command.type === 'flow.goal.select') { if (goal.status !== 'active') return 'invalid-command'; cancel(); store.append({ type: 'flow/goal-selected', goalId: goal.id }) }
+            else { if (state.selected === goal.id) cancel(); store.append({ type: 'flow/goal', goal: { id: goal.id, text: goal.text, status: command.status, confirmedBy: 'user' } }) }
+          }
+          if (open()) linkGoal(open()!.id); options.changed(); return
+        }
         if (command.type === 'flow.inspect') {
           if (!options.inspect) return 'unavailable'
           options.inspect(inspectHeartFlow(store, desk, options.booth, { section: command.section, flowId: command.flowId ?? open()?.id ?? '' })); return
@@ -102,7 +121,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
           // Reuse only the original stable prefix, not raw tool results or any old execution authorization.
           const prefix = source.resumedFrom ? source.prefix.slice(0, -1) : source.prefix
           if (prefix.length >= 200 || JSON.stringify(prefix).length > 70000) return 'unavailable'
-          store.append({ type: 'flow/open', id: randomUUID(), mode: 'plan', prefix: [...prefix, reference], resumedFrom: source.id }); options.entered?.(); options.changed(); return
+          const id = randomUUID(); store.append({ type: 'flow/open', id, mode: 'plan', prefix: [...prefix, reference], resumedFrom: source.id }); linkGoal(id); options.entered?.(); options.changed(); return
         }
         if (command.type === 'flow.enter') {
           if (!enabled || open() || opening || options.busy() || store.projection().lightsOut) return 'unavailable'
@@ -111,7 +130,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
             if (!enabled || options.busy() || store.projection().lightsOut) return
             const policies = prepared.messages.filter((message) => message.role === 'system')
             const chat = store.projection().messages.slice(-12).map((message) => ({ role: message.role, text: message.text.slice(0, 500) }))
-            store.append({ type: 'flow/open', id: randomUUID(), mode: 'plan', prefix: [...policies, { role: 'system', content: instructions.policy }, { role: 'system', content: JSON.stringify({ builtinCodingSkill: codingSkill }) }, { role: 'user', content: JSON.stringify({ conversationReference: chat }) }] })
+            const id = randomUUID(); store.append({ type: 'flow/open', id, mode: 'plan', prefix: [...policies, { role: 'system', content: instructions.policy }, { role: 'system', content: JSON.stringify({ builtinCodingSkill: codingSkill }) }, { role: 'user', content: JSON.stringify({ conversationReference: chat }) }] }); linkGoal(id)
             options.entered?.()
           }).catch(() => {}).finally(() => { opening = false; options.changed() }); return
         }
@@ -141,6 +160,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
       } catch { return 'unavailable' }
     },
     read: (path: string) => { safe(); return desk.read(path) }, write,
+    goals: () => { safe(); const state = goals(); return { selectedGoal: state.current ?? null, goals: state.visible, completionMeaning: 'user-confirmed-status-not-execution-evidence' } },
     list: () => { safe(); return desk.list() },
     execute: async (code: string, signal: AbortSignal) => {
       signal.throwIfAborted(); requestRun(code)
@@ -163,6 +183,8 @@ export function deskTools(flow: HeartFlowService): HarnessTool[] {
   ]
   const tools: HarnessTool[] = entries.map((entry) => ({ definition: { name: entry.name, description: instructions.tools[entry.name as keyof typeof instructions.tools], parameters: z.toJSONSchema(entry.schema) }, templateId: entry.name, validate: (input) => entry.schema.safeParse(input).success,
     run: async (input) => { const output = entry.run(input as never); return { ok: true, raw: output, visible: output } } }))
+  tools.push({ definition: { name: 'get_flow_goals', description: 'Read user-selected work goals across flow sessions. User status is not proof of external completion. This tool cannot edit or complete goals.', parameters: { type: 'object', properties: {}, additionalProperties: false } }, templateId: 'desk.goals', validate: (input) => z.strictObject({}).safeParse(input).success,
+    run: async () => { const value = z.json().parse(flow.goals()); return { ok: true, raw: value, visible: value } } })
   const schema = z.strictObject({ code: z.string().min(1).max(10000) })
   tools.push({ definition: { name: 'run_javascript', description: instructions.tools.run_javascript, parameters: z.toJSONSchema(schema) }, templateId: 'desk.run', validate: (input) => schema.safeParse(input).success,
     run: async (input, context) => { const output = await flow.execute(schema.parse(input).code, context.signal); return { ok: !output.startsWith('execution-'), raw: { output }, visible: { output } } } })

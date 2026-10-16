@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot } from '../../../shared'
 export function HeartFlowControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
-  const [code, setCode] = useState('return 6 * 7'); const [error, setError] = useState(''); const flow = snapshot.heartFlow
+  const [code, setCode] = useState('return 6 * 7'); const [goalText, setGoalText] = useState(''); const [error, setError] = useState(''); const flow = snapshot.heartFlow
   if (!flow) return null
   const send = async (body: Record<string, unknown>) => { try { const result = await bridge.dispatch({ ...body, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() } as AppCommand); setError(result.status === 'rejected' ? result.error.code : '') } catch { setError('connection-failed') } }
   return <section className="flow-work" aria-label="书桌心流"><h2>书桌心流</h2>
@@ -19,6 +19,17 @@ export function HeartFlowControls({ bridge, snapshot }: { bridge: AppBridge; sna
       {!!flow.delegates?.length && <section aria-label="只读分身"><h3>只读分身</h3><ul>{flow.delegates.map((job) => <li key={job.id}>{job.id.slice(0, 8)} · {job.status} · {job.sourceCount} 份来源 · {job.source}{job.error ? ' · ' + job.error : ''}{job.status === 'running' && <button onClick={() => void send({ type: 'flow.delegate.cancel', delegateId: job.id })}>取消这个分身</button>}</li>)}</ul><p>结论先交回本体核对，分身不写文件或记忆。</p></section>}
     </>}
     <p>{flow.files.length} 个书桌文件 · {flow.sessions.length} 次心流</p>{error && <p role="alert">{error}</p>}
+    <section aria-label="跨次工作目标"><h3>工作目标</h3><p>跨次保留；目标状态由你标记，文件和运行结果另有实际记录。</p>
+      <label>工作长期目标<input aria-label="工作长期目标" value={goalText} maxLength={200} onChange={(event) => setGoalText(event.target.value)} /></label>
+      <button disabled={!goalText.trim()} onClick={() => void send({ type: 'flow.goal.set', text: goalText })}>新建工作目标</button>
+      <button disabled={!goalText.trim() || !flow.goalId} onClick={() => void send({ type: 'flow.goal.set', goalId: flow.goalId!, text: goalText })}>更新所选目标</button>
+      <ul>{(flow.goals ?? []).map((goal) => <li key={goal.id} data-goal-id={goal.id}>{goal.text} · {goal.status === 'active' ? '进行中' : goal.status === 'completed' ? '用户标记完成' : '用户取消'} · {goal.flowIds.length} 次心流{flow.goalId === goal.id && ' · 当前所选'}
+        <button disabled={goal.status !== 'active'} onClick={() => { setGoalText(goal.text); void send({ type: 'flow.goal.select', goalId: goal.id }) }}>选为工作目标</button>
+        <button disabled={goal.status === 'completed'} onClick={() => void send({ type: 'flow.goal.status', goalId: goal.id, status: 'completed' })}>标记目标完成</button>
+        <button disabled={goal.status === 'cancelled'} onClick={() => void send({ type: 'flow.goal.status', goalId: goal.id, status: 'cancelled' })}>取消这个目标</button>
+        <button disabled={goal.status === 'active'} onClick={() => void send({ type: 'flow.goal.status', goalId: goal.id, status: 'active' })}>重新打开目标</button>
+      </li>)}</ul>
+    </section>
     <details><summary>历次心流</summary><ol>{flow.sessions.map((session) => <li key={session.id}>{session.id.slice(0, 8)} · {session.endedAtMs === null ? '进行中' : '已结束'}
       <button onClick={() => void send({ type: 'flow.inspect', section: 'status', flowId: session.id })}>查阅状态</button><button onClick={() => void send({ type: 'flow.inspect', section: 'diff', flowId: session.id })}>查阅差异</button>
       <button disabled={!!flow.activeId || session.endedAtMs === null} onClick={() => void send({ type: 'flow.resume', flowId: session.id })}>接着做这次心流</button>
