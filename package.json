@@ -19,7 +19,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "rebuild:native": "node scripts/run.mjs rebuild",
-    "test:electron": "pnpm build && node scripts/smoke-electron.mjs"
+    "test:electron": "pnpm build && node scripts/smoke-electron.mjs",
+    "probe:sqlite": "pnpm build && node scripts/probe-electron.mjs sqlite",
+    "setup:electron": "node scripts/run.mjs install-electron"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",

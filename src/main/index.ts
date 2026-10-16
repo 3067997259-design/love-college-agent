@@ -4,6 +4,7 @@ import { mkdirSync } from 'node:fs'
 import { systemClock } from './clock'
 import { createAppController } from './bridge/controller'
 import { registerAppBridge } from './bridge/ipc'
+import { probeSqlite } from './validation/sqlite'
 
 const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(process.cwd(), '.local-data'))
 mkdirSync(dataDir, { recursive: true })
@@ -33,6 +34,16 @@ function createWindow(): void {
 }
 
 void app.whenReady().then(() => {
+  if (process.argv.includes('--lca-probe=sqlite')) {
+    try {
+      console.log('LCA_PROBE:' + JSON.stringify(probeSqlite(dataDir)))
+      app.exit(0)
+    } catch {
+      console.log('LCA_PROBE:' + JSON.stringify({ ok: false, probe: 'sqlite', error: 'SQLITE_NATIVE_PROBE_FAILED' }))
+      app.exit(1)
+    }
+    return
+  }
   controller.start()
   createWindow()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
