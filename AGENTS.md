@@ -113,6 +113,8 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm package:win` | 构建 Windows x64 NSIS，产物在 `release/` |
 | `pnpm test:package` | 检查已构建包、D 盘测试安装、原生模块、界面重启、卸载测试实例 |
 | `pnpm probe:imap` | 主进程内的指定文件夹只读探针；失败仅输出固定分类 |
+| `pnpm probe:deeptech-audit` | 只读结构探针（27 项断言，不需构建）：DeepTech 审计的代码级主张与 F1／F2 修复后的行为 |
+| `pnpm experiment:deeptech-memory` | 跨产物一致性实验装置：24 条冻结经历的旧规则／守卫对照；`--holdout`、`--json` |
 
 不运行 `playwright install`。electron-builder 26.15.3 已单独提交；model-viewer 和 Tailwind 仍延期。打包前先确认当前 Electron 的原生模块已通过 `rebuild:native`／`probe:sqlite`。安装包当前未签名；测试安装命令遇到已有同名用户安装会拒绝覆盖。
 
@@ -250,3 +252,7 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 `pnpm test:room` 验证日记和房间投影。日记钥匙／正文仅用户专用读接口可取，不加进调试状态或模型上下文。
 `pnpm test:notifications` 验证急件通知。Toast 不放标题／发件人／正文；只允许急件或心流审批，禁止把普通后台活动做成通知。
 `pnpm test:characters` 验证静态角色包与角色作用域。角色包不带私人档案；私人存档恢复维持同用户／同角色校验。
+
+`pnpm probe:deeptech-audit` 是只读结构探针，核对 [DeepTech 方向审计](docs/research/deeptech-memory-audit-20261017.md) 的代码级主张，并断言 F1（依赖新鲜性守卫）与 F2（来源权限）修复后的行为。27 项断言，不写库、不发网络、不调模型，不需要构建。实验流程与止损条件见 [执行协议](docs/research/deeptech-memory-protocol-20261017.md)，修复与对照结果见 [一致性实验记录](docs/research/deeptech-memory-experiment-20261017.md)。
+
+`pnpm experiment:deeptech-memory` 是跨产物一致性实验装置：24 条冻结经历（开发 12／留出 12），用真实投影与真实 `prepareContext` 对照"旧选择规则"与"守卫后规则"，实测 6/16 → 0/16 过期条目且覆盖不降。`--holdout` 跑全部、`--json` 输出机器可读汇总。它只覆盖摘要选择与来源权限，**不代表真实模型质量或端到端产品验收**。
