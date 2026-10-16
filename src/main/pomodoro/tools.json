@@ -1,6 +1,9 @@
 [
   { "name": "plan_pomodoros", "description": "Propose a Pomodoro plan for separate user confirmation. Never confirms or starts it.", "parameters": { "type": "object", "properties": {
     "label": { "type": "string", "maxLength": 80 }, "plannedCount": { "type": "integer", "minimum": 1, "maximum": 24 },
+    "items": { "type": "array", "minItems": 1, "maxItems": 24, "items": { "type": "object", "properties": {
+      "text": { "type": "string", "minLength": 1, "maxLength": 40 }, "count": { "type": "integer", "minimum": 1, "maximum": 24 }, "assist": { "type": "boolean" }
+    }, "required": ["text", "count", "assist"], "additionalProperties": false }, "description": "Optional single-line tasks. Sum of count must equal plannedCount; assist states whether she can help alongside the user." },
     "focusDurationMs": { "type": "integer", "minimum": 1000 }, "shortBreakDurationMs": { "type": "integer", "minimum": 1000 },
     "longBreakDurationMs": { "type": "integer", "minimum": 1000 }, "longBreakEvery": { "type": "integer", "minimum": 1 },
     "timing": { "type": "string", "enum": ["standard", "demo", "custom"] }
