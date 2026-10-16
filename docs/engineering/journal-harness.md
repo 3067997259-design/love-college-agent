@@ -28,3 +28,26 @@
 新增 `pnpm probe:model`：只发一次很小的合成请求，最多等待 20 秒，不展示回复正文。2026-10-16 已在真实 Electron 主进程读取用户授权配置，用 chat 槽位通过流式请求（textPresent=true、toolCalls=0）；这只证明对话模型连接，不证明工具调用或人物提示已验收。类型、lint 和客户端 6 项单测通过。
 
 兼容格式按官方 OpenAI 文档核对：[流式事件](https://developers.openai.com/api/reference/resources/chat/subresources/completions/streaming-events)、[工具调用](https://developers.openai.com/api/docs/guides/function-calling?strict-mode=disabled)。采用既定兼容协议，没有更换供应商、模型或改用另一套 API。
+
+## 最小 harness 与真实界面接线
+
+`src/main/harness/loop.ts` 是唯一的执行循环。用户消息和调度事件先入日志／inbox；每一步用 `inbox/drain` 明确记录本次交给模型的条目。插话不会破坏 assistant tool_calls 与 tool result 的相邻关系。模型上下文只包含真正 drain 的消息；崩溃前未送达的输入标为 undelivered，不自动重发。
+
+- 默认每回合 12 步；相同工具、相同规范化参数到第三次时拦截。拼接 JSON、数组参数或不合 schema 的参数作为工具错误交回，不执行。
+- 停止先记 cancelling，同时中断模型与当前工具，清掉当时待执行的 inbox；终态随后记 aborted。熄灯中断当前请求并暂停同一回合，开灯后才继续；暂停期间不调用模型。
+- 安静时调度事件排队，用户主动提问仍能处理。切到休息后再消费积压的调度事件。真实番茄阶段和邮件事件来源尚未实现。
+- 每次实际请求前，按输入 UTF-8 字节数、输出上限和固定开销保守预留预算，写入日志；包括重试和备用槽位，不在重启时清零。默认日总额 50 万，自主部分 10 万。这是保守的 token 额度，不是供应商的精确账单；仍待设置页和跨天调度接入。
+- 工具调用先写日志再执行。恢复时仅追加“已开始但结果未知／尚未开始”的结果与 aborted，不偷偷重跑。存储失败时停止执行并退出，保留原文件。
+
+`src/main/harness/tools.json` 是当前两个内置工具的声明，实际实现经同一注册表分发：`get_clock`、`update_plan`。活动只发 templateId 和短字段，由 Claude 的 `activities.zh.json`／回退文案呈现。没有加载外部插件代码，也没有开放任意本机文件或 shell 工具。
+
+主进程接通 `message.send`、`turn.stop`，按日志更新任务、计划、活动和消息，再发安全快照。普通启动只用 `chat` 槽位；客户端具备显式备用槽位能力，但启动装配尚未自行启用其他槽位。没有内联人物或旁白提示；Claude 的人物系统提示文件尚待交接。本轮界面在整段完成或中断后上屏，尚未接逐字输出效果。回合 completed 只表示这一轮结束，不代表未调用过的外部动作已完成。
+
+新增验证命令：
+
+| 命令 | 数据与实测结果 |
+| --- | --- |
+| `pnpm test:harness` | 本机合成 HTTP 供应商＋真实 Electron：在书本界面点击发送，SSE 工具调用、代码时钟结果、后续回答、停止断连、重启保留消息且不重跑，全部通过。不读取用户的配置。 |
+| `pnpm probe:harness` | 主进程读取用户授权的本机 chat 配置：真实模型调用 get_clock，代码返回结果，回合 completed，toolVerified=true。不输出回复或配置值。 |
+
+2026-10-16 当前总检查为 9 个文件／31 项单测；另有上述 Electron 场景、真实工具调用探针，以及基础隔离／重启 smoke。完整插件加载器、调试 MCP、番茄钟状态机、人物系统提示、真实邮件和安装包仍需后续功能批次，不把最小循环当作第零圈全部完成。

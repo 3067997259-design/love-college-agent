@@ -45,7 +45,11 @@ export function openJournal(dataDir: string, owner: Pick<Scope, 'userId' | 'char
     try {
       if (fstatSync(fd).size !== bytes) throw new Error('JOURNAL_CHANGED')
       let offset = 0
-      while (offset < line.length) offset += writeSync(fd, line, offset, line.length - offset)
+      while (offset < line.length) {
+        const written = writeSync(fd, line, offset, line.length - offset)
+        if (written <= 0) throw new Error('JOURNAL_WRITE_FAILED')
+        offset += written
+      }
       fsyncSync(fd)
       bytes += line.length
       records.push(record)

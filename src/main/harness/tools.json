@@ -1,0 +1,19 @@
+[
+  {
+    "name": "get_clock",
+    "description": "Read the application clock. Use the returned timestamp as the time fact.",
+    "parameters": { "type": "object", "properties": {}, "additionalProperties": false }
+  },
+  {
+    "name": "update_plan",
+    "description": "Update the visible task checklist. This records a plan; it does not execute or complete external work.",
+    "parameters": {
+      "type": "object", "required": ["steps"], "additionalProperties": false,
+      "properties": { "steps": { "type": "array", "maxItems": 30, "items": {
+        "type": "object", "required": ["id", "text", "status"], "additionalProperties": false,
+        "properties": { "id": { "type": "string", "maxLength": 128 }, "text": { "type": "string", "maxLength": 500 },
+          "status": { "type": "string", "enum": ["pending", "active", "done", "failed"] } }
+      } } }
+    }
+  }
+]

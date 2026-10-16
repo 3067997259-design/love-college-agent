@@ -26,7 +26,9 @@
     "probe:journal": "pnpm build && node scripts/probe-electron.mjs journal",
     "probe:model": "pnpm build && node scripts/probe-electron.mjs model",
     "preview:ui": "node scripts/ui-preview.mjs",
-    "shot:ui": "node scripts/ui-shot.mjs"
+    "shot:ui": "node scripts/ui-shot.mjs",
+    "probe:harness": "pnpm build && node scripts/probe-electron.mjs harness",
+    "test:harness": "pnpm build && node scripts/smoke-harness.mjs"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",
