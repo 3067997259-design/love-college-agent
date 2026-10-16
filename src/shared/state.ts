@@ -319,6 +319,26 @@ export interface OnboardingView {
   completedAtMs: number | null
 }
 
+export const GIFT_OBJECT_IDS = ['cup', 'paper-bridge', 'leaf', 'shell', 'quill'] as const
+export type GiftObjectId = typeof GIFT_OBJECT_IDS[number]
+export type GiftMotif = 'plain' | 'sakura' | 'stars'
+export interface GeneratedGiftView {
+  id: string
+  sourceMemoryId: string
+  objectId: GiftObjectId
+  motif: GiftMotif
+  status: 'proposed' | 'making' | 'ready' | 'given' | 'failed' | 'cancelled'
+  source: 'real' | 'fake'
+  createdAtMs: number
+  readyAtMs: number | null
+  givenAtMs: number | null
+  /** Content-addressed local resource; never an upstream job token, signed URL or filesystem path. */
+  assetRef?: string
+  assetUrl?: string
+  error?: PublicError
+}
+export interface GiftsView { configured: boolean; dailyLimit: number; items: readonly GeneratedGiftView[] }
+
 export interface AppSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
@@ -349,4 +369,5 @@ export interface AppSnapshot {
   windows?: WindowsView
   /** Main-owned, persisted per private profile/owner. Booth always projects completed. */
   onboarding?: OnboardingView
+  gifts?: GiftsView
 }

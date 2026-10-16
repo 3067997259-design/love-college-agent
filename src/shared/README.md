@@ -1,5 +1,7 @@
 # 界面接口 v0
 
+第二圈礼物：`gifts` 是真实生成生命周期，和预制羽毛笔 quill 分开。gift.propose 必须绑定已见经历；物件和装饰取共享枚举，发往 Rodin 的描述由代码映射，不发送姓名、邮件或记忆原文。专注开始制作，工具取得并校验本地 GLB 后才 ready，休息才 given；取消停止本地后续处理，不承诺上游撤单或退款。每天最多一次提交，失败也占提交预算。assetUrl 仅本地受限资源，未配置时 configured=false，不能假装开始了。上游凭据、任务订阅 key 与签名下载 URL 永不进快照、日志或调试接口。
+
 此目录是两条编码线唯一共用的契约入口，不依赖 Electron、Node 或主进程模块。
 
 新手流程：真实快照提供 `onboarding`（旧 fixture 可省略）。新 profile 为 needed，userName=null、characterName="桃子"、completedAtMs=null；booth 始终投影 completed。正式界面据 status 决定是否显示向导，不从查询参数或本地存储决定入口。
