@@ -41,10 +41,14 @@ export interface PomodoroView {
   remainingMs: number
   endsAtMs: number | null
   focusIndex: number
+  /** Main derives completed focuses, excluding a currently running/paused focus. Old fixtures may omit it. */
+  completedCount?: number
   phaseDurationMs: number
   plannedCount: number
-  /** A proposed plan requires a separate user confirmation before it can run. */
+  /** Only confirmed or finished plans; replacing a proposal never changes this field or the current phase. */
   plan?: PomodoroPlanView
+  /** Pending user confirmation; a new proposal replaces only this draft. */
+  proposal?: PomodoroPlanView
 }
 export interface PomodoroPlanItem {
   /** Short single-line text, at most 40 Unicode code points; main validates it. */
@@ -56,6 +60,7 @@ export interface PomodoroPlanItem {
 export interface PomodoroPlanInput {
   label: string
   plannedCount: number
+  /** Optional daily tasks; counts include completed and currently running focuses and sum to plannedCount. */
   items?: readonly PomodoroPlanItem[]
   focusDurationMs: number
   shortBreakDurationMs: number
