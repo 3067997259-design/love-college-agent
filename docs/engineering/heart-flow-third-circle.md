@@ -22,3 +22,5 @@
 - 基础 Electron、私人存档、历史照片／引用回忆回归通过；新 preload 方法加入实际白名单枚举检查。
 
 尚未把 `/init`、`/review`、`/goal`、子代理、Git 影子提交、web_fetch 或系统命令冒充完成。现有明确权限仍是 desk-only、JavaScript 隔离运行、每次审批；不能拿 cwd 当 OS 沙箱。下一批先做只读分身和剩余心流能力，再继续全圈其他条目。
+
+2026-10-17 后续接口：`FlowGoalView` 和 heartFlow.goals/goalId、flow.goal.set/select/status 先独立合 main。目标按用户和角色跨日／跨次心流保存，只由用户命令编辑或标记状态；completed 明确是用户标记，不是模型的外部执行证据。接口这一步尚未代表后端或 UI 已实现；/init、/review 后续单独接。

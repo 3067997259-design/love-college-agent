@@ -480,6 +480,17 @@ export interface LifeWorkView {
   materials: readonly { id: string; path: string; sha256: string; source: 'fake' }[]
   jobs: readonly LifeWorkItem[]
 }
+export interface FlowGoalView {
+  id: string
+  text: string
+  status: 'active' | 'completed' | 'cancelled'
+  createdAtMs: number
+  updatedAtMs: number
+  closedAtMs: number | null
+  flowIds: readonly string[]
+  /** A user's status decision, never proof that the model performed an external action. */
+  confirmedBy: 'user'
+}
 export interface HeartFlowView {
   activeId: string | null
   mode: 'plan' | 'execute'
@@ -492,6 +503,9 @@ export interface HeartFlowView {
   lastRun?: { ok: boolean; output: string }
   /** Metadata-only subordinate work. Conclusions are unreviewed tool results for the parent flow. */
   delegates?: readonly DelegateView[]
+  /** Scoped across day pages and flow instances. Only explicit user commands may edit or close. */
+  goals?: readonly FlowGoalView[]
+  goalId?: string | null
 }
 export interface DelegateView {
   id: string

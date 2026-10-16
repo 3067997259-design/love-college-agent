@@ -119,6 +119,11 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'flow.resume'; flowId: string }
   /** Cancels only a subordinate read task of the current flow. Never restarts it automatically. */
   | { type: 'flow.delegate.cancel'; delegateId: string }
+  /** Create/update a short work goal; it is not an execution approval or an ordinary shared memory. */
+  | { type: 'flow.goal.set'; text: string; goalId?: string }
+  | { type: 'flow.goal.select'; goalId: string }
+  /** Human status decision only. No model tool may complete a long-term goal by itself. */
+  | { type: 'flow.goal.status'; goalId: string; status: 'active' | 'completed' | 'cancelled' }
   | { type: 'flow.undo'; changeId: string }
   /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
   | { type: 'flow.run'; code: string }
