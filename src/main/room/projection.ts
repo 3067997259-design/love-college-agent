@@ -46,7 +46,7 @@ export function createRoomProjection(root: string, store: SessionStore, assets: 
       if (row.type === 'diary/written') plan('日记', row.diary.dayKey + '.zip', assets.read(row.diary.asset))
       if (row.type === 'gift/state' && row.gift.status === 'given' && row.gift.assetRef) { const asset = assets.owned(row.gift.assetRef.slice(6)); if (asset) plan('礼物', row.gift.id + '.glb', assets.read(asset)) }
       // Whitelist metadata: never serialize arbitrary row fields, tool inputs/results, private prose or keys.
-      if (['turn/end', 'campus/confirmed', 'campus/exported', 'document/completed', 'flow/close', 'gift/state', 'save/restored', 'diary/written'].includes(row.type)) {
+      if (['turn/end', 'campus/confirmed', 'campus/exported', 'document/completed', 'flow/close', 'gift/state', 'save/restored', 'diary/written', 'life/work-commit'].includes(row.type)) {
         const day = calendarDay(clock, row.atMs); const records = days.get(day) ?? []; records.push(clock.iso(row.atMs) + ' ' + row.type + (row.type === 'turn/end' ? ' ' + row.reason : '')); days.set(day, records)
       }
     }

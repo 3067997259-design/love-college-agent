@@ -55,6 +55,7 @@
     "test:gifts": "pnpm build && node scripts/smoke-gifts.mjs",
     "probe:heart-flow": "pnpm build && node scripts/probe-electron.mjs heart-flow",
     "probe:life": "pnpm build && node scripts/probe-electron.mjs life",
+    "test:life-work": "pnpm build && node scripts/smoke-life-work.mjs",
     "test:room": "pnpm build && node scripts/smoke-room.mjs",
     "test:history": "pnpm build && node scripts/smoke-history.mjs",
     "test:notifications": "pnpm build && node scripts/smoke-notifications.mjs",
