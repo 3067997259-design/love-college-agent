@@ -22,7 +22,8 @@
     "test:electron": "pnpm build && node scripts/smoke-electron.mjs",
     "probe:sqlite": "pnpm build && node scripts/probe-electron.mjs sqlite",
     "setup:electron": "node scripts/run.mjs install-electron",
-    "probe:imap": "pnpm build && node scripts/probe-electron.mjs imap"
+    "probe:imap": "pnpm build && node scripts/probe-electron.mjs imap",
+    "probe:journal": "pnpm build && node scripts/probe-electron.mjs journal"
   },
   "dependencies": {
     "@chinese-fonts/xiaolai": "3.0.0",

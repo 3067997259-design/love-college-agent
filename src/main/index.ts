@@ -6,14 +6,19 @@ import { createAppController } from './bridge/controller'
 import { registerAppBridge } from './bridge/ipc'
 import { probeSqlite } from './validation/sqlite'
 import { probeImap } from './mail/probe'
+import { openSessionStore, type SessionStore } from './store/session'
+import { probeJournal } from './validation/journal'
 
 const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(process.cwd(), '.local-data'))
 mkdirSync(dataDir, { recursive: true })
 mkdirSync(join(dataDir, 'chromium'), { recursive: true })
 app.setPath('userData', dataDir)
 app.setPath('sessionData', join(dataDir, 'chromium'))
-const controller = createAppController(systemClock)
-const bridge = registerAppBridge(controller)
+const ownsData = app.requestSingleInstanceLock()
+if (!ownsData) app.quit()
+let controller: ReturnType<typeof createAppController> | undefined
+let bridge: ReturnType<typeof registerAppBridge> | undefined
+let store: SessionStore | undefined
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -23,7 +28,7 @@ function createWindow(): void {
       sandbox: true, contextIsolation: true, nodeIntegration: false,
     },
   })
-  bridge.attach(window)
+  bridge!.attach(window)
   window.once('ready-to-show', () => window.show())
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   window.webContents.on('will-navigate', (event) => event.preventDefault())
@@ -35,6 +40,17 @@ function createWindow(): void {
 }
 
 void app.whenReady().then(async () => {
+  if (!ownsData) return
+  if (process.argv.includes('--lca-probe=journal')) {
+    try {
+      console.log('LCA_PROBE:' + JSON.stringify(probeJournal(dataDir)))
+      app.exit(0)
+    } catch {
+      console.log('LCA_PROBE:' + JSON.stringify({ ok: false, probe: 'journal', error: 'JOURNAL_PROBE_FAILED' }))
+      app.exit(1)
+    }
+    return
+  }
   if (process.argv.includes('--lca-probe=sqlite')) {
     try {
       console.log('LCA_PROBE:' + JSON.stringify(probeSqlite(dataDir)))
@@ -51,9 +67,18 @@ void app.whenReady().then(async () => {
     app.exit(report.ok ? 0 : 1)
     return
   }
+  try {
+    store = openSessionStore(dataDir, { userId: 'local-user', characterId: 'default-character' }, systemClock)
+    controller = createAppController(systemClock, undefined, store)
+    bridge = registerAppBridge(controller)
+  } catch {
+    console.error('Application storage unavailable; existing data preserved.')
+    app.exit(1)
+    return
+  }
   controller.start()
   createWindow()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 })
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
-app.on('before-quit', () => { controller.dispose(); bridge.dispose() })
+app.on('before-quit', () => { controller?.dispose(); bridge?.dispose(); store?.close() })

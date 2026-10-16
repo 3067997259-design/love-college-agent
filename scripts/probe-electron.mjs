@@ -8,7 +8,7 @@ import { runtimeEnv } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const probe = process.argv[2]
-assert.ok(['sqlite', 'imap'].includes(probe), 'Unknown probe.')
+assert.ok(['sqlite', 'imap', 'journal'].includes(probe), 'Unknown probe.')
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: join(root, '.local-data', `probe-${randomUUID()}`) }
 const child = spawn(electronPath, [root, `--lca-probe=${probe}`], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
 let output = ''
