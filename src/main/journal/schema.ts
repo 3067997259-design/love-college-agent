@@ -8,6 +8,7 @@ import { onboardingSchema } from '../onboarding/schema'
 import { binaryAssetSchema } from '../storage/assets'
 import { giftSchema } from '../gifts/schema'
 import { lifeSchema } from '../life/schema'
+import { materialSchema, workItemSchema, draftSchema, digestSchema } from '../life/work/schema'
 import { diarySchema } from '../diary/schema'
 import { notificationRule } from '../notifications/schema'
 import { definitionSchema } from '../characters/package'
@@ -31,6 +32,11 @@ export type ContextMessage = {
 }
 
 export const inputSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('life/material'), material: materialSchema }),
+  z.strictObject({ type: z.literal('life/work-state'), job: workItemSchema }),
+  z.strictObject({ type: z.literal('life/work-draft'), draft: draftSchema }),
+  z.strictObject({ type: z.literal('life/work-commit'), workId: digestSchema, draftId: z.string().uuid() }),
+  z.strictObject({ type: z.literal('life/work-attempt'), workId: digestSchema, step: z.number().int().min(1).max(3), dayKey: z.iso.date() }),
   z.strictObject({ type: z.literal('history/recall-request'), requestId: id, anchor: recallAnchorSchema, sourceCount: z.number().int().positive().max(5) }),
   z.strictObject({ type: z.literal('history/recall-used'), requestId: id, turnId: id, chars: z.number().int().positive().max(20_000) }),
   z.strictObject({ type: z.literal('history/recall-read'), requestId: id, turnId: id, chars: z.number().int().positive().max(12_000) }),
