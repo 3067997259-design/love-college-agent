@@ -252,6 +252,8 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 
 `/init`／`/review` 只在 execute 心流生成用户专用草稿，最多 8 个来源／24 KB 输入；实际读写、来源版本和当前产物匹配后才 ready，不能解释成审查或测试通过。`pnpm test:flow-drafts` 验证原生落盘、预览、取消、重启、存档恢复及正文隔离；不会执行脚本或编辑源文件。
 
+`pnpm test:desk-shadow` 验证 Git 书桌的独立私人影子提交。只版本化本步修改文件的 before/after，未管理文件不在影子树里；不执行原仓库 Git／hooks，不改其 refs、索引或配置。Git 缺失或失败继续已应用的日志快照，状态明确；私人恢复从日志重建，不重放工作。
+
 `/goal 一句话` 设置／更新当前工作目标，跨日与跨次心流保留；状态仅用户能改，模型只读。`pnpm probe:heart-flow`／`pnpm test:heart-flow`／`pnpm test:backup` 已覆盖目标的关联、重启、角色隔离与私人恢复，不把用户标记完成当执行证据。
 
 `pnpm test:booth` 验证个人／展位自动分 profile：展位使用 `<dataRoot>/booth` 的独立设置与资料库，开发场景路径不变。旧版混放的资料保留原位，不自动复制个人书本进展位；需要的旧展位存档由操作员显式恢复。

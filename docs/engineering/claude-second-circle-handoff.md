@@ -4,6 +4,7 @@
 
 | 接口提交 | 范围 | 实际可接入口 |
 | --- | --- | --- |
+| `ed1dad0` | 书桌影子提交证据 | heartFlow.changes 与用户 diff 的 shadow 状态／SHA；真实独立 Git 与恢复已验收，日志快照仍权威，非仓库／失败不虚报提交 |
 | `c54c2ba` | 输出语音 | snapshot.voice、voice.set/stop/playback、书本 readVoice；主进程取消／预算／PCM 和唯一书本播放器已接。开发模式短测试音；真实供应商／音色待配置。嘴型可依 playback，mini 不重复播放，详见 voice-third-circle.md |
 | `7634e52` | 初始化／审查草稿 | flow.init/review/operation.open、heartFlow.operations；朴素入口已接真实书桌产物，ready 仅代表未审核文件。正文走原生用户预览；8 个来源／24 KB，取消／重启／私人恢复已验收 |
 | `659dd82` | 跨次工作目标 | heartFlow.goals/goalId、flow.goal.set/select/status；朴素目标区已接，跨日／跨次／私人恢复通过。用户标记完成与实际工具完成分开，模型只有只读 get_flow_goals；/goal 文本可在心流外设置 |
@@ -34,3 +35,5 @@
 下一波建议按价值排：完整角色声音和真实模型任务质量 → 历史左页照片／引用回忆 → 外景及生活产物 → 五分钟连续路演。完整心流指令、语音和更多场景按体验缺口选择；光学记忆、分身、MC、computer use 各有单独验收成本。用户尚未要求新增第四圈，不因速度快就自动扩张。
 
 真实 IMAP 仍阻塞，学校 privacy URL 未到；滤芯缺失就关闭。Rodin 今晚已成功 1 次（32.3 秒，1.21 MB），用户总预算 3 次，余 2 次，不自动耗尽。角色包／日记／资料／礼物都带私人恢复边界；不要为方便接画面而让原文、钥匙或上游句柄进入快照／模型。
+
+05:45 协作观察：Claude 工作树当时在合 main，Stage.tsx、history/OldPage.tsx、sheets/ScheduleSheet.tsx 显示冲突。主线对应修复包含旧页切换清理／拒绝过期引用、旧日未完成作品入口；请将这些数据守卫与自己的 quote/schedule 画面合并，不以整文件覆盖处理。GPT 保留该工作树及其全部 staged/unstaged 内容。

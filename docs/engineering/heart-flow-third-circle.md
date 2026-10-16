@@ -43,4 +43,14 @@ ready 要求回合 completed、来源没变、有相应读取／成功模型输�
 
 实际验收：类型／lint、51 文件 286 项单测通过（新增 9 项草稿边界）；`node scripts/smoke-flow-drafts.mjs` 使用真实 Electron／SQLite／文件／原生预览，覆盖计划拒绝、实际说明／审查、只声称完成失败、取消、重启、私人存档恢复、普通上下文隔离和外部修改保留。模型和材料均为 fake／合成，没有真实模型调用。原有心流与基础 Electron 回归另跑；当前安装包仍未包含本批。命令 `pnpm test:flow-drafts`。
 
-后续接口先行：书桌变更可有 shadow 元数据，committed 仅在独立私人 Git 副本实际创建提交后给出 SHA；not-git／unavailable／failed 继续使用日志快照。不会把用户原仓库的分支、索引或提交历史改成影子分支。实现及验收待后续功能提交。
+## 独立 Git 影子证据（ed1dad0 接口）
+
+书桌根有正常 `.git` 目录时，每项已应用写入／删除／撤回在 profile 内独立 bare 仓库生成一对 before/after 提交，只包含本步修改文件；未管理文件不在树里，不声称全项目快照。committed 和 SHA 来自真实 Git 返回，用户 diff 可查；非仓库、重定向 `.git`、Git 缺失或失败明确降级，不撤销已经写成的文件。日志 prepared/applied 和原始 before/after 仍是恢复与版本匹配撤回的依据，Git 不执行撤销副作用。
+
+Git 只在独立副本运行固定 plumbing 和 stdin，参数不进 shell，不在用户原仓库执行，隔离全局／系统配置、模板、hooks、fsmonitor 和自动维护。不读原仓库配置，不动其 HEAD／refs／索引。路径检查拒绝链接重定向；本机原生验收暴露长路径后只为本调用设置 core.longpaths，不改全局。单进程十秒上限，错误内容不返回用户或诊断。工作树指针 `.git` 文件暂不跟随，显式 unavailable。
+
+私人存档只带权威日志，不打包 Git 元数据或用户 hooks。恢复或本机副本丢失时，按日志原时间重建已有影子对象，并核对原 SHA；这属于投影恢复，不执行模型、不重放代码、不声称离线工作。Git 仍不可用时用户查阅显示 unavailable，保留历史记录。普通上下文、记忆和房间运行记录没有新增原文。
+
+五项真实 Git 单测、原生 `node scripts/smoke-desk-shadow.mjs` 已通过：中文／逗号路径、写入／删除／撤回、原 HEAD/config/index/hooks 不变、非仓库和缺失 Git 降级、链接拒绝、日志副本丢失和实际私人恢复后同 SHA。模型／材料为 fake／合成；未打新安装包。命令 `pnpm test:desk-shadow`。
+
+合并前完整类型／lint、53 文件／301 项单测通过。原生验收同时覆盖此前短临时目录单测未暴露的 Windows 长路径，不以单测通过代替 Electron 落盘证据。
