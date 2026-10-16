@@ -1,7 +1,6 @@
 import type { AppSnapshot } from '../../../shared'
-import wideRoom from '../assets/room/wide_room.webp'
-import wideRoomLine from '../assets/room/wide_room_line.webp'
-import { Character, type Shot } from './Character'
+import { Character } from './Character'
+import { resolveCharacterArt } from './characterArt'
 import { formatClock, formatRemaining } from './format'
 import { useCountdown } from './useCountdown'
 
@@ -11,32 +10,25 @@ const LOCATION_LABEL: Record<string, string> = { shore: '海岸', swing: '秋千
 /**
  * 左页：她在的地方（体验设计 §2）。画面是她的状态的投影，不是随机动画。
  * 她在：固定近景，像坐在她书桌旁边，状态变了她转头，镜头不动。近景每个姿势是一整张图（她、书桌、窗一起画，透视才对）。
- * 她不在（出门）或睡着：远景房间。她在，你就离她很近；她不在，你看到的是空房间。
+ * 出门与睡着也保持同一近景机位；出门时在桌上纸条写明去向。
  */
 export function LeftPage({ snapshot }: { snapshot: AppSnapshot }) {
   const { companion, pomodoro, messages, capabilities } = snapshot
   const remaining = useCountdown(snapshot)
   const away = companion.locationId !== 'room'
-  const shot: Shot = away || companion.pose === 'sleeping' ? 'wide' : 'close'
   const pose = away ? 'empty' : companion.pose
+  const art = resolveCharacterArt(companion)
   const mailReady = capabilities.find((c) => c.id === 'mail')?.status === 'ready'
   const newMail = mailReady && companion.mailboxUnseen > 0
   const lastLine = [...messages].reverse().find((m) => m.role === 'assistant')
   const timerOn = pomodoro.phase !== 'idle'
-  // 远景是空房间加书桌组；近景的整张图就在 Character 里，没有单独的背景
-  const back = shot === 'wide' ? [wideRoom, wideRoomLine] : null
 
   return (
     <section className="page page-left" aria-label="她在的地方">
-      <div className="room" data-shot={shot} data-location={companion.locationId} data-pose={pose}>
-        {/* 下层是铅笔线稿，上层是彩色；彩色只留中间，外圈露出铅笔：铅笔是你的，颜色是她的 */}
-        <div className="room-pencil">
-          {back && <img className="room-bg" src={back[1]} alt="" draggable={false} />}
-          <Character shot={shot} pose={pose} expression={companion.expression} variant="line" />
-        </div>
+      <div className="room" data-shot="close" data-location={companion.locationId} data-pose={pose} data-lighting={art.lighting}>
+        {/* 精修整景直接淡入书页；另制匹配线稿前，不叠旧图产生重影。 */}
         <div className="room-color">
-          {back && <img className="room-bg" src={back[0]} alt="" draggable={false} />}
-          <Character shot={shot} pose={pose} expression={companion.expression} />
+          <Character art={art} />
         </div>
 
         {/* 墙上的钟就是番茄钟；不计时的时候显示现在几点 */}
@@ -44,18 +36,17 @@ export function LeftPage({ snapshot }: { snapshot: AppSnapshot }) {
           <span className="wall-clock-time">{timerOn ? formatRemaining(remaining) : formatClock(snapshot.clock.nowMs)}</span>
           {timerOn && <span className="wall-clock-phase">{pomodoro.phase === 'focus' ? '专注' : '休息'}</span>}
         </div>
-        {/* 门牌：近景里立在书桌上，远景里挂在门上；番茄钟的阶段会自动翻转它 */}
-        <div className="door-sign" data-mode={companion.mode}>{MODE_LABEL[companion.mode]}</div>
+        {/* 外出用桌上纸条，睡着不挂“休息”牌。 */}
+        {!away && pose !== 'sleeping' && <div className="door-sign" data-mode={companion.mode}>{MODE_LABEL[companion.mode]}</div>}
         {/* 新邮件：近景是桌上的一封信，远景是门上的信箱口。只有邮箱连着的时候才显示；连不上不能显示成“没有信” */}
         {newMail && (
           <div className="mail-slot" title={`${companion.mailboxUnseen} 封新邮件`}><span className="mail-letter" /></div>
         )}
 
-        {away && <p className="away-note">她去{LOCATION_LABEL[companion.locationId] ?? companion.locationId}了</p>}
+        {away && <p className="away-note" title={`她去${LOCATION_LABEL[companion.locationId] ?? companion.locationId}了`}>她去{LOCATION_LABEL[companion.locationId] ?? companion.locationId}了</p>}
 
         {/* 光线层在最上面：钟、门牌、信都是房间里的东西，跟着房间一起暗 */}
-        <div className="room-tint" />
-        <div className="room-lamp" />
+        {art.lighting === 'ambient' && <><div className="room-tint" /><div className="room-lamp" /></>}
       </div>
 
       {lastLine && (
