@@ -1,0 +1,134 @@
+/*
+ * 设计 token（美术规格 §2.5、§6；体验设计 §1–§3）。
+ * 颜色从设定图 v1 的发色 #FCD7CB 推出（oklch 0.907 0.045 39）。
+ * 文字对比度按 WCAG 算过：正文 ≥ 4.5:1，界面元素 ≥ 3:1。
+ * 有含义的颜色在明度上也拉开，不只靠色相（照顾红绿色弱的观众）。
+ */
+
+/* 时段切换要平滑过渡，颜色变量注册成可动画的类型 */
+@property --paper { syntax: '<color>'; inherits: true; initial-value: #fbf7f0; }
+@property --desk { syntax: '<color>'; inherits: true; initial-value: #d3c1ac; }
+@property --room-tint { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --lamp { syntax: '<number>'; inherits: true; initial-value: 0; }
+
+:root {
+  /* —— 标志色：她的颜色 —— */
+  --peach: #fcd7cb;          /* 发色本身：浅色填充、高亮、完成的番茄格 */
+  --peach-mid: #b97058;      /* 界面元素：焦点环、进度、选中（对纸 3.55:1） */
+  --ink-her: #76382e;        /* 她的墨色：她的话和交付物（对纸 8.27:1，夜 7.60:1） */
+  --ink-her-faded: #8e8a86;  /* 往回翻的旧页：墨色褪成铅笔灰，字始终能读 */
+
+  /* —— 铅笔：你的颜色 —— */
+  --graphite: #66696e;       /* 用户写的字（对纸 5.16:1，夜 4.74:1）；明度比她的墨色高约 0.1 */
+  --pencil: #909296;         /* 只用于线条、边框和分隔，不用于需要读的字 */
+
+  /* —— 从设定图取的配色 —— */
+  --navy: #2e3350;           /* 书签丝带（她头发上那条）、出门的斗篷 */
+  --gold: #bb9951;           /* 斗篷金扣：极少量点缀 */
+  --lavender-shadow: #b9b2d5;/* 画里的阴影是一层薰衣草紫，界面的阴影跟着它，不用黑 */
+
+  /* —— 提示 —— */
+  --notice-bg: #f3d27a;      /* “！”标记的底：亮黄，靠明度和墨色字区分，不靠红色 */
+  --notice-ink: #3b2a12;
+
+  /* —— 纸与书桌（默认是白天，时段见下方） —— */
+  --paper: #fbf7f0;
+  --paper-edge: #e9dfcf;     /* 纸边、中缝阴影的起点 */
+  --desk: #d3c1ac;
+  --room-tint: transparent;  /* 叠在左页插画上的时段光 */
+  --room-tint-blend: multiply;
+  --lamp-light: #fbd094;     /* 台灯的暖光 */
+  --lamp: 0;                 /* 台灯强度 0–1 */
+
+  /* —— 字体（美术规格 §6.2；都随应用打包） —— */
+  --font-body: 'LXGW WenKai Screen', 'Microsoft YaHei UI', sans-serif;
+  --font-hand: 'Xiaolai SC', 'Long Cang', 'LXGW WenKai Screen', cursive; /* 手写体待用户二选一 */
+  --font-num: 'LXGW WenKai Screen', 'Consolas', monospace;               /* 配合 tabular-nums */
+
+  /* 字号按书的设计尺寸写，整本书再整体缩放；投影上要看得清 */
+  --fs-xs: 13px;
+  --fs-sm: 15px;
+  --fs-md: 18px;
+  --fs-lg: 22px;
+  --fs-xl: 28px;
+  --lh-body: 1.7;
+
+  /* —— 间距、圆角、阴影 —— */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --r-card: 10px;            /* 卡片边框另用手绘线画，这里只是裁切 */
+  --shadow-card: 0 1px 0 color-mix(in oklab, var(--lavender-shadow) 55%, transparent),
+                 0 10px 24px -14px color-mix(in oklab, var(--lavender-shadow) 90%, transparent);
+  --shadow-gutter: color-mix(in oklab, var(--paper-edge) 70%, #7a6a58 30%);
+
+  /* —— 书的设计尺寸：按这个排版，再整体缩放到窗口（美术规格 §6.1） —— */
+  --stage-w: 1600px;
+  --stage-h: 1000px;
+  --book-w: 1440px;
+  --book-h: 900px;
+  --page-w: 720px;
+
+  /* —— 动效 —— */
+  --dur-fast: 120ms;
+  --dur: 240ms;
+  --dur-slow: 480ms;
+  --dur-wash: 1400ms;        /* 晕染上色：恢复、姿势切换、新手流程共用 */
+  --dur-daypart: 4s;         /* 时段之间的过渡 */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.6, 0, 0.3, 1);
+  --breath-period: 3.5s;     /* 呼吸，缩放不超过 1%（体验设计 §3） */
+  --breath-scale: 1.008;
+
+  transition: --paper var(--dur-daypart) var(--ease-in-out),
+              --desk var(--dur-daypart) var(--ease-in-out),
+              --room-tint var(--dur-daypart) var(--ease-in-out),
+              --lamp var(--dur-daypart) var(--ease-in-out);
+}
+
+/* —— 四个时段（美术规格 §6.3）：左页完整跟随，书桌跟着变暗，右页始终好读 —— */
+:root[data-daypart='morning'] {
+  --paper: #fbf6f0;
+  --desk: #dbc9b4;
+  --room-tint: color-mix(in oklab, #f6c9a8 22%, transparent);
+  --room-tint-blend: soft-light;
+  --lamp: 0;
+}
+:root[data-daypart='day'] {
+  --paper: #fbf7f0;
+  --desk: #d3c1ac;
+  --room-tint: transparent;
+  --lamp: 0;
+}
+:root[data-daypart='evening'] {
+  --paper: #f9f1e5;
+  --desk: #ad8979;
+  --room-tint: color-mix(in oklab, #f2a98c 30%, transparent);
+  --room-tint-blend: soft-light;
+  --lamp: 0.45;
+}
+:root[data-daypart='night'] {
+  --paper: #f5eddf;          /* 夜里纸色只微暖，像在台灯下看书 */
+  --desk: #222234;
+  --room-tint: color-mix(in oklab, #3b3f6b 42%, transparent);
+  --room-tint-blend: multiply;
+  --lamp: 1;
+}
+/* 熄灯：房间更暗，台灯也关；右页照常好读 */
+:root[data-lights-out='true'] {
+  --room-tint: color-mix(in oklab, #1d1f36 62%, transparent);
+  --room-tint-blend: multiply;
+  --lamp: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-wash: 1ms;
+    --dur-daypart: 1ms;
+    --breath-scale: 1;
+  }
+}

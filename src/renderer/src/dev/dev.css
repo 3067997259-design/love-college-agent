@@ -1,0 +1,21 @@
+.dev-switcher {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 100;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 60vw;
+  padding: 6px 8px;
+  font: 12px/1.4 Consolas, monospace;
+  color: #fff;
+  background: rgb(20 20 30 / 0.72);
+  border-radius: 8px;
+  opacity: 0.35;
+  transition: opacity 0.2s;
+}
+.dev-switcher:hover { opacity: 1; }
+.dev-switcher strong { color: #f3d27a; margin-right: 4px; }
+.dev-switcher button { font: inherit; color: inherit; background: none; border: 1px solid rgb(255 255 255 / 0.3); border-radius: 4px; padding: 1px 6px; cursor: pointer; }
+.dev-switcher button[data-active='true'] { background: #f3d27a; color: #222; }

@@ -1,0 +1,6 @@
+/* 字体随应用打包，断网时不退回默认字体（美术规格 §6.2）。都是 SIL OFL 授权。 */
+@import 'lxgw-wenkai-screen-web/lxgwwenkaiscreen/result.css';
+/* 手写体候选，用户二选一后删掉另一个 */
+@import '@chinese-fonts/xiaolai/dist/Xiaolai/result.css';
+@import '@fontsource/long-cang/chinese-simplified-400.css';
+@import '@fontsource/long-cang/latin-400.css';

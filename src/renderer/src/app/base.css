@@ -1,4 +1,5 @@
-:root { font-family: system-ui, sans-serif; color: #292524; background: #fafaf9; }
-body { margin: 0; }
-main { max-width: 960px; margin: 48px auto; padding: 24px; }
+html, body, #root { height: 100%; }
+body { margin: 0; background: var(--desk); -webkit-font-smoothing: antialiased; }
 button, input, textarea { font: inherit; }
+.boot { position: fixed; inset: 0; display: grid; place-items: center; font-family: var(--font-body); color: var(--graphite); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

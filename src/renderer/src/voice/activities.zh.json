@@ -1,0 +1,38 @@
+{
+  "_说明": "工具活动的手写体小字（体验设计 §2 右页）。由代码按模板生成，不调用模型。{字段} 只能用快照里校验过的短字段。人设：克制、用词准确、不用 emoji。草稿，待用户把关。",
+  "mail.check": {
+    "running": "去邮箱里看看。",
+    "completed": "看过邮箱，{newCount} 封新邮件。",
+    "completed:zero": "看过邮箱，没有新邮件。",
+    "failed": "邮箱登不上，没看到信。"
+  },
+  "mail.read": {
+    "running": "在读：{sourceLabel}",
+    "completed": "读完了：{sourceLabel}"
+  },
+  "privacy.extract": {
+    "running": "《{fileName}》交给学校的模型整理，原文不经过我。",
+    "completed": "《{fileName}》整理好了。",
+    "failed": "学校的模型连不上，这份先放着，没有交给别处。"
+  },
+  "calendar.write": {
+    "running": "排进日程。",
+    "completed": "排进日程：{count} 件。"
+  },
+  "doc.organize": {
+    "running": "整理《{fileName}》。",
+    "completed": "《{fileName}》整理好了。"
+  },
+  "gift.make": {
+    "running": "在做一件小东西。",
+    "completed": "做好了。",
+    "failed": "这次没做成。"
+  },
+  "_fallback": {
+    "running": "在忙。",
+    "completed": "做完一件事。",
+    "failed": "有一步没做成。",
+    "cancelled": "停下了。",
+    "unknown": "这一步不确定有没有做完。"
+  }
+}

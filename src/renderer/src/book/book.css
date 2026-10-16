@@ -1,0 +1,523 @@
+/* 书本主界面（美术规格 §6，体验设计 §2）。尺寸按 1600×1000 的设计稿写，整体缩放。 */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  font-family: var(--font-body);
+  color: var(--graphite);
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 45%, color-mix(in oklab, var(--desk) 82%, white 18%), transparent 70%),
+    radial-gradient(ellipse 120% 100% at 50% 50%, var(--desk) 55%, color-mix(in oklab, var(--desk) 78%, black 22%));
+}
+/* 夜里台灯也照在书桌上 */
+.stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 45% 40% at 22% 30%, color-mix(in oklab, var(--lamp-light) 55%, transparent), transparent 70%);
+  opacity: calc(var(--lamp) * 0.55);
+  mix-blend-mode: screen;
+}
+.stage-inner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--stage-w);
+  height: var(--stage-h);
+  transform-origin: center;
+}
+
+/* —— 书 —— */
+.book {
+  position: absolute;
+  left: 80px;
+  top: 50px;
+  width: var(--book-w);
+  height: var(--book-h);
+  display: grid;
+  grid-template-columns: var(--page-w) var(--page-w);
+}
+/* 封面从书页后面露出一圈，用她丝带的深藏青 */
+.book::before {
+  content: '';
+  position: absolute;
+  inset: -14px -12px -16px;
+  border-radius: 12px;
+  background: var(--navy);
+  box-shadow: 0 30px 60px -30px rgb(20 18 40 / 0.55), 0 8px 18px -8px rgb(20 18 40 / 0.35);
+  z-index: -1;
+}
+.page {
+  position: relative;
+  height: var(--book-h);
+  background: var(--paper);
+  overflow: hidden;
+}
+/* 纸页向中缝弯下去的阴影 */
+.page-left { border-radius: 6px 0 0 6px; background: linear-gradient(to left, var(--shadow-gutter) 0, transparent 70px) var(--paper); }
+.page-right { border-radius: 0 6px 6px 0; background: linear-gradient(to right, var(--shadow-gutter) 0, transparent 70px) var(--paper); }
+.gutter {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 36px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, rgb(80 60 40 / 0.16) 44%, rgb(80 60 40 / 0.26) 50%, rgb(80 60 40 / 0.16) 56%, transparent);
+}
+
+/* —— 书签：从右页边缘伸出来；当前页用深藏青，和她头发上那条书签丝带同色 —— */
+.bookmarks {
+  position: absolute;
+  right: -44px;
+  top: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bookmark {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.2em;
+  padding: 14px 8px;
+  font: 17px var(--font-hand);
+  color: var(--graphite);
+  background: var(--paper);
+  border: 1.5px solid color-mix(in oklab, var(--pencil) 70%, transparent);
+  border-left: none;
+  border-radius: 0 9px 7px 0;
+  cursor: pointer;
+  transition: transform var(--dur) var(--ease-out);
+}
+.bookmark:hover { transform: translateX(3px); }
+.bookmark[data-active='true'] { background: var(--navy); color: var(--paper); border-color: var(--navy); }
+
+/* —— 左页：她在的地方 —— */
+.room {
+  position: absolute;
+  left: 56px;
+  top: 52px;
+  width: 600px;
+  height: 640px;
+  /* 插画像画在纸上：四边淡进纸里 */
+  -webkit-mask-image: radial-gradient(ellipse 98% 96% at 50% 50%, black 72%, transparent 100%);
+  mask-image: radial-gradient(ellipse 98% 96% at 50% 50%, black 72%, transparent 100%);
+}
+.room-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--lavender-shadow) 22%, var(--paper)) 0%, var(--paper) 75%);
+  display: grid;
+  place-items: start center;
+}
+.room-placeholder { margin-top: 28px; font: 15px var(--font-hand); color: var(--pencil); }
+.room-tint { position: absolute; inset: 0; background: var(--room-tint); mix-blend-mode: var(--room-tint-blend); pointer-events: none; }
+.room-lamp {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 80% 26%, color-mix(in oklab, var(--lamp-light) 85%, transparent), transparent 52%);
+  opacity: var(--lamp);
+  mix-blend-mode: screen;
+}
+
+.character {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 430px;
+  margin-left: -215px;
+  transform-origin: 50% 100%;
+  animation: breathe var(--breath-period) ease-in-out infinite;
+  /* 混合模式放在动画层本身：动画会建立独立的合成层，放在 img 上只会在层内混合，白底就透出来 */
+  mix-blend-mode: multiply;
+}
+.character-art { display: block; width: 100%; user-select: none; }
+.character-missing {
+  height: 420px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  font: 22px var(--font-hand);
+  color: var(--pencil);
+  border: 2px dashed color-mix(in oklab, var(--pencil) 60%, transparent);
+  border-radius: 48% 48% 12px 12px;
+}
+.character-missing small { font-size: 14px; }
+@keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(var(--breath-scale)); } }
+
+/* 桌上的钟就是番茄钟 */
+.desk-clock {
+  position: absolute;
+  left: 28px;
+  bottom: 28px;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  background: color-mix(in oklab, var(--paper) 85%, white 15%);
+  border: 2px solid var(--pencil);
+  box-shadow: var(--shadow-card);
+}
+.desk-clock-time { font: 24px var(--font-num); font-variant-numeric: tabular-nums; color: var(--graphite); }
+.desk-clock-phase { font: 13px var(--font-hand); color: var(--graphite); }
+.desk-clock[data-phase='focus'] { border-color: var(--peach-mid); }
+.desk-clock[data-phase='focus'] .desk-clock-time { color: var(--ink-her); }
+
+/* 门牌：工作中／安静／休息，番茄钟的阶段自动翻它 */
+.door-sign {
+  position: absolute;
+  right: 30px;
+  top: 34px;
+  padding: 6px 14px 5px;
+  font: 18px var(--font-hand);
+  color: var(--graphite);
+  background: var(--paper);
+  border: 1.5px solid var(--pencil);
+  border-radius: 6px;
+  transform: rotate(-4deg);
+  box-shadow: var(--shadow-card);
+}
+.door-sign::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -16px;
+  width: 26px;
+  height: 16px;
+  margin-left: -13px;
+  border: 1.5px solid var(--pencil);
+  border-bottom: none;
+  border-radius: 13px 13px 0 0;
+}
+.door-sign[data-mode='rest'] { background: var(--peach); border-color: var(--peach-mid); color: var(--ink-her); }
+.door-sign[data-mode='quiet'] { background: color-mix(in oklab, var(--lavender-shadow) 35%, var(--paper)); }
+
+/* 信箱口露出一封信 */
+.mail-slot {
+  position: absolute;
+  right: 36px;
+  bottom: 40px;
+  width: 64px;
+  height: 14px;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--navy) 85%, black);
+}
+.mail-letter {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  width: 44px;
+  height: 30px;
+  background: color-mix(in oklab, var(--paper) 80%, white);
+  border: 1.5px solid var(--pencil);
+  border-radius: 2px;
+  animation: letter-peek 2.6s var(--ease-in-out) infinite;
+}
+.mail-letter::after {
+  content: '';
+  position: absolute;
+  inset: 3px 6px auto;
+  height: 12px;
+  border-bottom: 1.5px solid var(--pencil);
+  transform: skewY(-12deg);
+}
+@keyframes letter-peek { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+/* 她最新说的一句话 */
+.speech {
+  position: absolute;
+  left: 64px;
+  right: 64px;
+  top: 722px;
+  margin: 0;
+  font-size: var(--fs-lg);
+  line-height: 1.65;
+  color: var(--ink-her);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.speech-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 3px;
+  vertical-align: -0.15em;
+  background: currentColor;
+  animation: caret 1s steps(2, start) infinite;
+}
+@keyframes caret { to { visibility: hidden; } }
+
+/* —— 右页：你的页面 —— */
+.page-right {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 44px 60px 30px 70px;
+  box-sizing: border-box;
+}
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1.5px dashed color-mix(in oklab, var(--pencil) 70%, transparent);
+}
+.page-date { font: 24px var(--font-hand); color: var(--graphite); }
+
+.tomatoes { display: flex; gap: 8px; }
+.tomatoes-empty { font: 15px var(--font-hand); color: var(--graphite); }
+.tomato {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--pencil);
+  border-radius: 8px 6px 9px 6px;
+  overflow: hidden;
+}
+.tomato[data-state='done'] { background: var(--peach); border-color: var(--peach-mid); }
+/* 做完的不只靠颜色：再打一个勾 */
+.tomato[data-state='done']::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  color: var(--ink-her);
+}
+.tomato[data-state='active'] { border-color: var(--peach-mid); border-width: 2px; }
+.tomato-fill { position: absolute; inset: 0; background: var(--peach); transform-origin: 50% 100%; transition: transform 1s linear; }
+
+.stream {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  padding: 20px 10px 20px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--pencil) 60%, transparent) transparent;
+}
+
+.msg { margin: 0; max-width: 88%; font-size: var(--fs-md); line-height: var(--lh-body); }
+.msg-assistant { align-self: flex-start; color: var(--ink-her); }
+.msg-user { align-self: flex-end; text-align: right; color: var(--graphite); }
+.msg-narrator { align-self: center; font: var(--fs-sm) var(--font-hand); color: var(--graphite); }
+/* 她的话前面一个小圆点，用她的颜色；不只靠墨色区分谁在说话 */
+.msg-who {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 8px;
+  vertical-align: 0.1em;
+  border-radius: 50%;
+  background: var(--peach);
+  border: 1.5px solid var(--ink-her);
+}
+.msg-time { margin-left: 10px; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--graphite); opacity: 0.75; }
+.msg[data-status='interrupted'] .msg-text, .msg[data-status='undelivered'] .msg-text { opacity: 0.7; }
+
+/* 任务卡：步骤逐项打勾 */
+.task { padding: 6px 0 6px 16px; border-left: 2px dashed color-mix(in oklab, var(--pencil) 80%, transparent); }
+.task-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.task-steps li { display: flex; gap: 10px; align-items: baseline; font-size: 16px; color: var(--graphite); }
+.task-steps li[data-status='done'] { color: var(--graphite); }
+.task-steps li[data-status='active'] { color: var(--ink-her); }
+.step-box {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 13px;
+  line-height: 1;
+  border: 1.5px solid var(--pencil);
+  border-radius: 4px 3px 5px 3px;
+  color: var(--ink-her);
+  transform: translateY(2px);
+}
+li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: step-pulse 1.4s var(--ease-in-out) infinite; }
+@keyframes step-pulse { 50% { background: var(--peach); } }
+
+/* 工具活动：手写体小字 */
+.activities { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+.activity { font: 17px var(--font-hand); color: var(--ink-her); opacity: 0.88; }
+.activity[data-status='running']::after { content: '…'; }
+
+/* —— 卡片：手绘感的不规则圆角，阴影用薰衣草紫 —— */
+.card {
+  position: relative;
+  max-width: 92%;
+  padding: 14px 18px 14px;
+  background: color-mix(in oklab, var(--paper) 65%, white 35%);
+  border: 1.5px solid color-mix(in oklab, var(--pencil) 75%, transparent);
+  border-radius: 15px 10px 17px 9px / 10px 16px 9px 15px;
+  box-shadow: var(--shadow-card);
+}
+/* 越过中缝来到右页（第 07 镜）：只有这次运行里新出现的卡片才播 */
+.card[data-entering='true'] { animation: cross-gutter 760ms var(--ease-out) both; }
+@keyframes cross-gutter {
+  from { transform: translateX(-160px) rotate(-2.5deg); opacity: 0; }
+  60% { opacity: 1; }
+  to { transform: none; opacity: 1; }
+}
+
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.card-source { font-size: var(--fs-xs); color: var(--graphite); }
+.card-tag { font: 14px var(--font-hand); color: var(--ink-her); border: 1px solid var(--ink-her); border-radius: 999px; padding: 0 9px; }
+.card-title { margin: 6px 0 10px; font-size: 20px; font-weight: normal; color: var(--ink-her); line-height: 1.4; }
+.card-times { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; }
+.card-times dt { font-size: 14px; color: var(--graphite); }
+.card-times dd { margin: 0; font-size: 16px; color: var(--ink-her); font-variant-numeric: tabular-nums; }
+.card-times .time-deadline { text-decoration: underline 1.5px color-mix(in oklab, var(--peach-mid) 70%, transparent); text-underline-offset: 4px; }
+.card-note {
+  margin: 10px 0 0;
+  padding: 4px 10px;
+  font-size: 14px;
+  color: var(--ink-her);
+  background: color-mix(in oklab, var(--peach) 60%, transparent);
+  border-radius: 6px;
+}
+.card-actions { display: flex; gap: 10px; margin-top: 12px; }
+.card-stamp {
+  display: inline-block;
+  margin: 12px 0 0;
+  padding: 1px 12px;
+  font: 18px var(--font-hand);
+  color: var(--peach-mid);
+  border: 2px solid var(--peach-mid);
+  border-radius: 6px;
+  transform: rotate(-6deg);
+}
+.card-stamp-muted { color: var(--graphite); border-color: var(--pencil); }
+
+.evidence {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--graphite);
+  background: color-mix(in oklab, var(--lavender-shadow) 14%, var(--paper));
+  border-left: 3px solid var(--lavender-shadow);
+  border-radius: 0 8px 8px 0;
+}
+.evidence-meta { font-size: var(--fs-xs); margin-bottom: 4px; }
+.evidence-body { white-space: pre-wrap; }
+/* 原文里的时间和地点：底色之外再加下划线，色弱也看得出 */
+.evidence mark {
+  color: var(--ink-her);
+  background: color-mix(in oklab, var(--peach) 80%, transparent);
+  text-decoration: underline 1.5px var(--peach-mid);
+  text-underline-offset: 3px;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+.evidence-loading { color: var(--graphite); }
+
+/* 交付卡 */
+.card-delivery { display: flex; align-items: center; gap: 14px; }
+.delivery-icon {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 42px;
+  background: color-mix(in oklab, var(--paper) 70%, white);
+  border: 1.5px solid var(--pencil);
+  border-radius: 3px 10px 3px 3px;
+}
+.delivery-icon::after {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 16px var(--font-hand);
+  color: var(--ink-her);
+}
+.delivery-icon[data-kind='calendar']::after { content: '日'; }
+.delivery-icon[data-kind='markdown']::after { content: '整'; }
+.delivery-icon[data-kind='document']::after { content: '文'; }
+.delivery-icon[data-kind='gift']::after { content: '礼'; }
+.delivery-body { flex: 1; display: grid; }
+.delivery-name { font-size: 17px; color: var(--ink-her); }
+
+/* —— 按钮 —— */
+.btn {
+  font: 16px var(--font-body);
+  padding: 5px 18px;
+  border-radius: 14px 11px 15px 10px;
+  cursor: pointer;
+  transition: background var(--dur-fast), transform var(--dur-fast);
+}
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible, .bookmark:focus-visible, .link-button:focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 2px; }
+.btn-primary { color: var(--ink-her); background: var(--peach); border: 1.5px solid var(--peach-mid); }
+.btn-primary:hover { background: color-mix(in oklab, var(--peach) 80%, var(--peach-mid)); }
+.btn-primary:disabled { opacity: 0.45; cursor: default; }
+.btn-ghost { color: var(--graphite); background: transparent; border: 1.5px solid var(--pencil); }
+.link-button {
+  margin-top: 8px;
+  padding: 0;
+  font: 14px var(--font-body);
+  color: var(--ink-her);
+  background: none;
+  border: none;
+  text-decoration: underline dotted 1.5px;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+/* “！”：亮黄底、深色字，靠明度区分，不靠红色 */
+.notice-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  vertical-align: 0.1em;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--notice-ink);
+  background: var(--notice-bg);
+  cursor: help;
+}
+
+/* —— 输入 —— */
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1.5px dashed color-mix(in oklab, var(--pencil) 70%, transparent);
+}
+.composer-input {
+  flex: 1;
+  min-height: 34px;
+  max-height: 120px;
+  resize: none;
+  font: var(--fs-md) / 1.6 var(--font-body);
+  color: var(--graphite);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--pencil);
+  outline: none;
+  padding: 4px 2px;
+}
+.composer-input:focus { border-bottom-color: var(--peach-mid); }
+.composer-input::placeholder { color: var(--pencil); }
+.filter-mark {
+  align-self: center;
+  padding: 1px 7px;
+  font-size: var(--fs-xs);
+  color: var(--navy);
+  border: 1.5px solid var(--navy);
+  border-radius: 5px;
+}
+
+/* 专注段：右页轻轻蒙一层，她不开口 */
+.focus-veil { position: absolute; inset: 0; pointer-events: none; background: color-mix(in oklab, var(--paper) 25%, transparent); }
