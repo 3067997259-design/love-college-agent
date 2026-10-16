@@ -30,6 +30,7 @@ export function ScenarioSwitcher({ fake }: { fake: FakeBridge }) {
       {IDS.map((id, i) => (
         <button key={id} data-active={id === current} onClick={() => pick(id)}>{i + 1} {id}</button>
       ))}
+      <button onClick={() => fake.skipPhase()} title="番茄钟的当前阶段直接到点">跳过本段</button>
     </aside>
   )
 }

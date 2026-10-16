@@ -11,7 +11,7 @@ import { chromium } from 'playwright'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = resolve(process.argv[2] ?? join(root, '.local-data', 'ui-shots'))
 const only = process.argv.slice(3)
-const scenarios = only.length ? only : ['morning-idle', 'focus-working', 'break-delivery', 'streaming', 'night-lamp', 'lights-out', 'out-shore', 'asleep', 'mail-failed']
+const scenarios = only.length ? only : ['morning-idle', 'plan-proposed', 'focus-working', 'break-delivery', 'streaming', 'night-lamp', 'lights-out', 'out-shore', 'asleep', 'mail-failed']
 const sizes = [{ name: '', width: 1600, height: 1000 }]
 if (process.env.LCA_SHOT_SMALL) sizes.push({ name: '-small', width: 1280, height: 720 })
 

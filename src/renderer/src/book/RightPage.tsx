@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppBridge, AppCommand, AppSnapshot, CandidateView, DeliveryView, MessageView } from '../../../shared'
+import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, MessageView, PomodoroPlanView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
-import { CandidateCard, DeliveryCard, TaskCard } from './cards'
+import { CandidateCard, DeliveryCard, PlanCard, TaskCard } from './cards'
+import { sendCommand, type CommandBody } from './command'
 import { formatClock } from './format'
+import { rhythmText, tomatoStates } from './plan'
 import { useCountdown } from './useCountdown'
 import { FileIntake } from '../tools/FileIntake'
 
@@ -10,6 +12,7 @@ type Item =
   | { kind: 'message'; at: number; id: string; view: MessageView }
   | { kind: 'candidate'; at: number; id: string; view: CandidateView }
   | { kind: 'delivery'; at: number; id: string; view: DeliveryView }
+  | { kind: 'plan'; at: number; id: string; view: PomodoroPlanView }
   | { kind: 'task'; at: number; id: string }
 
 /**
@@ -18,7 +21,7 @@ type Item =
  */
 function useEnteringIds(snapshot: AppSnapshot): Set<string> {
   const seen = useRef<{ epoch: string; ids: Set<string> } | null>(null)
-  const ids = [...snapshot.candidates.map((c) => c.id), ...snapshot.deliveries.map((d) => d.id)]
+  const ids = [...snapshot.candidates.map((c) => c.id), ...snapshot.deliveries.map((d) => d.id), ...(snapshot.pomodoro.plan ? [snapshot.pomodoro.plan.id] : [])]
   if (!seen.current || seen.current.epoch !== snapshot.epoch) {
     seen.current = { epoch: snapshot.epoch, ids: new Set(ids) }
     return new Set()
@@ -44,6 +47,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
     ...messages.map((view) => ({ kind: 'message' as const, at: view.createdAtMs, id: view.id, view })),
     ...candidates.filter((c) => c.status !== 'ignored').map((view) => ({ kind: 'candidate' as const, at: view.createdAtMs, id: view.id, view })),
     ...deliveries.map((view) => ({ kind: 'delivery' as const, at: view.createdAtMs, id: view.id, view })),
+    ...(pomodoro.plan ? [{ kind: 'plan' as const, at: pomodoro.plan.createdAtMs, id: pomodoro.plan.id, view: pomodoro.plan }] : []),
     ...(task ? [{ kind: 'task' as const, at: lastUserAt + 0.5, id: task.id }] : []),
   ].sort((a, b) => a.at - b.at)
   const orphanActivities = activities.filter((a) => a.taskId !== task?.id)
@@ -53,13 +57,13 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [items.length, messages.at(-1)?.text])
 
-  async function dispatch(body: DistributiveOmit<AppCommand, 'protocolVersion' | 'requestId' | 'epoch'>) {
-    const command = { protocolVersion: 1, requestId: crypto.randomUUID(), epoch: snapshot.epoch, ...body } as AppCommand
-    try {
-      const ack = await bridge.dispatch(command)
-      setCommandError(ack.status === 'rejected' ? (ack.error.code === 'not-configured' ? '聊天模型尚未连接，文字已保留。' : '当前操作未完成，请稍后重试。') : '')
-      return ack.status === 'accepted'
-    } catch { setCommandError('连接暂时中断，文字已保留。'); return false }
+  async function dispatch(body: CommandBody) {
+    const result = await sendCommand(bridge, snapshot.epoch, body)
+    const isMessage = body.type === 'message.send'
+    setCommandError(result.ok ? '' : result.code === 'disconnected'
+      ? (isMessage ? '连接暂时中断，文字已保留。' : '连接暂时中断，请稍后重试。')
+      : (isMessage && result.code === 'not-configured' ? '聊天模型尚未连接，文字已保留。' : '当前操作未完成，请稍后重试。'))
+    return result.ok
   }
   async function send() {
     const text = draft.trim()
@@ -73,7 +77,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
     <section className="page page-right" aria-label="你的页面">
       <header className="page-head">
         <span className="page-date">{dayTitle(snapshot.clock.nowMs)}</span>
-        <TomatoRow snapshot={snapshot} />
+        <PlanHead snapshot={snapshot} onCommand={(body) => { void dispatch(body) }} />
       </header>
 
       <div className="stream" ref={streamRef}>
@@ -88,6 +92,11 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
             case 'delivery': return (
               <DeliveryCard key={item.id} view={item.view} entering={entering.has(item.id)}
                 onOpen={(artifactId) => { void dispatch({ type: 'artifact.open', artifactId }) }} />
+            )
+            case 'plan': return (
+              <PlanCard key={item.id} plan={item.view} pomodoro={pomodoro} entering={entering.has(item.id)}
+                onConfirm={() => { void dispatch({ type: 'pomodoro.confirm', planId: item.id }) }}
+                onDismiss={() => { void dispatch({ type: 'pomodoro.stop' }) }} />
             )
           }
         })}
@@ -121,8 +130,6 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
   )
 }
 
-type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
-
 function Message({ view }: { view: MessageView }) {
   return (
     <p className={`msg msg-${view.role}`} data-status={view.status}>
@@ -137,24 +144,50 @@ function Message({ view }: { view: MessageView }) {
   )
 }
 
-/** 番茄格：做完的涂上她的颜色，正在进行的按进度填，没开始的只有铅笔框 */
-function TomatoRow({ snapshot }: { snapshot: AppSnapshot }) {
-  const { pomodoro } = snapshot
+const BREAK_TEXT = { 'short-break': '短休息', 'long-break': '长休息' } as const
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
+
+/**
+ * 顶部：今天的计划和番茄格，你确认以后才出现（技术方案 §3.5）。
+ * 做完的涂上她的颜色并打勾，正在做的按进度填，没开始的只有铅笔框。
+ * 下一个专注不自动开始：休息结束后这里出现“开始第 N 个”，等你点。
+ */
+function PlanHead({ snapshot, onCommand }: { snapshot: AppSnapshot; onCommand: (body: CommandBody) => void }) {
+  const { pomodoro, companion } = snapshot
+  const plan = pomodoro.plan
   const remaining = useCountdown(snapshot)
-  if (pomodoro.plannedCount <= 0) return <div className="tomatoes tomatoes-empty">今天还没开始专注</div>
+  if (pomodoro.plannedCount <= 0 || plan?.status === 'proposed') {
+    return <div className="plan-head plan-head-empty">{plan?.status === 'proposed' ? '计划等你确认' : '今天还没排番茄'}</div>
+  }
   const progress = pomodoro.phaseDurationMs > 0 ? 1 - remaining / pomodoro.phaseDurationMs : 0
+  const canStart = plan?.status === 'confirmed' && pomodoro.status === 'idle' && pomodoro.focusIndex < pomodoro.plannedCount
+  const lightsHint = companion.lightsOut ? '熄灯时计时暂停，开灯后再继续' : undefined
   return (
-    <div className="tomatoes" role="img" aria-label={`第 ${pomodoro.focusIndex} 个，共 ${pomodoro.plannedCount} 个`}>
-      {Array.from({ length: pomodoro.plannedCount }, (_, i) => {
-        const index = i + 1
-        const state = index < pomodoro.focusIndex || (index === pomodoro.focusIndex && pomodoro.phase !== 'focus')
-          ? 'done' : index === pomodoro.focusIndex ? 'active' : 'todo'
-        return (
+    <div className="plan-head">
+      {plan && pomodoro.plannedCount <= 10 && <span className="plan-label" title={plan.label}>{plan.label}</span>}
+      {plan?.timing === 'demo' && <span className="demo-tag" title={rhythmText(plan)}>演示节奏</span>}
+      <div className="tomatoes" data-dense={pomodoro.plannedCount > 6} role="img" aria-label={`第 ${pomodoro.focusIndex} 个，共 ${pomodoro.plannedCount} 个`}>
+        {tomatoStates(pomodoro).map((state, i) => (
           <span key={i} className="tomato" data-state={state}>
-            {state === 'active' && <span className="tomato-fill" style={{ transform: `scaleY(${Math.min(1, Math.max(0, progress))})` }} />}
+            {state === 'active' && <span className="tomato-fill" style={{ transform: `scaleY(${clamp01(progress)})` }} />}
           </span>
-        )
-      })}
+        ))}
+      </div>
+      {canStart && (
+        <button type="button" className="btn btn-primary btn-small" disabled={companion.lightsOut} title={lightsHint}
+          onClick={() => onCommand({ type: 'pomodoro.start', planId: plan.id })}>
+          {pomodoro.focusIndex === 0 ? '开始专注' : `开始第 ${pomodoro.focusIndex + 1} 个`}
+        </button>
+      )}
+      {pomodoro.phase === 'focus' && pomodoro.status === 'running' && (
+        <button type="button" className="btn btn-ghost btn-small" onClick={() => onCommand({ type: 'pomodoro.pause' })}>暂停</button>
+      )}
+      {pomodoro.status === 'paused' && (
+        <button type="button" className="btn btn-primary btn-small" disabled={companion.lightsOut} title={lightsHint}
+          onClick={() => onCommand({ type: 'pomodoro.resume' })}>继续</button>
+      )}
+      {(pomodoro.phase === 'short-break' || pomodoro.phase === 'long-break') && <span className="plan-state">{BREAK_TEXT[pomodoro.phase]}</span>}
+      {plan?.status === 'finished' && <span className="plan-state">{pomodoro.focusIndex >= pomodoro.plannedCount ? '都做完了' : '收起了'}</span>}
     </div>
   )
 }
