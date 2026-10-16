@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import type { AppCommand, AppEvent, AppSnapshot, CommandAck, PublicErrorCode } from '../../shared'
+import type { AppCommand, AppEvent, AppSnapshot, CommandAck, PublicErrorCode, RuntimeView, ClockView } from '../../shared'
 import { DEFAULT_EXPRESSION, PROTOCOL_VERSION } from '../../shared'
 import type { Clock } from '../clock'
 import { deriveDaypart, type DaypartSchedule } from '../clock/daypart'
@@ -22,7 +22,21 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('backup.export') }),
   z.strictObject({ ...envelope, type: z.literal('backup.import') }),
   z.strictObject({ ...envelope, type: z.literal('privacy.set'), enabled: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('plugin.enable'), pluginId: z.string().min(1).max(64), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),
+  z.strictObject({ ...envelope, type: z.literal('plugin.disable'), pluginId: z.string().min(1).max(64) }),
+  z.strictObject({ ...envelope, type: z.literal('plugin.privacy.set'), pluginId: z.string().min(1).max(64), privacy: z.enum(['none', 'optional', 'always']) }),
+  z.strictObject({ ...envelope, type: z.literal('developer.set'), enabled: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('developer.clock'), nowMs: z.number().int().min(0).max(8_640_000_000_000_000).optional(), rate: z.number().min(0.01).max(3600).optional(), frozen: z.boolean().optional() }),
+  z.strictObject({ ...envelope, type: z.literal('developer.scenario'), scenarioId: z.enum(['empty', 'clock-tool', 'pomodoro-demo']) }),
+  z.strictObject({ ...envelope, type: z.literal('app.restart') }),
 ])
+
+export interface RuntimePort {
+  view(): RuntimeView
+  clockView?(): Pick<ClockView, 'rate' | 'frozen'>
+  dispatch(command: AppCommand): PublicErrorCode | undefined
+  stateChanged?(command: AppCommand): void
+}
 
 export function createAppController(clock: Clock, daypartSchedule?: DaypartSchedule, store?: SessionStore) {
   const listeners = new Set<(event: AppEvent) => void>()
@@ -55,6 +69,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   updatePose()
   let execution: { source: 'real' | 'fake'; send(text: string, requestId: string, hash: string): void; stop(id: string): boolean; stateChanged(): void } | undefined
   let executionReady = false
+  let runtime: RuntimePort | undefined
   const readProjection = () => {
     if (!store) return
     const view = store.projection()
@@ -65,6 +80,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   const publish = (reason: AppEvent['reason'], requestId?: string) => {
     snapshot.revision++
     snapshot.clock.nowMs = clock.nowMs()
+    if (runtime) { snapshot.runtime = runtime.view(); Object.assign(snapshot.clock, runtime.clockView?.()) }
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
     const event: AppEvent = { protocolVersion: PROTOCOL_VERSION, epoch: snapshot.epoch, revision: snapshot.revision,
       occurredAtMs: snapshot.clock.nowMs, type: 'state.snapshot', reason, snapshot: structuredClone(snapshot), ...(requestId ? { requestId } : {}) }
@@ -86,6 +102,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { store?.append({ type: 'companion/mode', mode: command.mode, requestId: command.requestId, commandHash: signature }) }
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.mode = command.mode
+      runtime?.stateChanged?.(command)
+      readProjection()
       updatePose()
       publish('mode', command.requestId)
       execution?.stateChanged()
@@ -94,6 +112,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { store?.append({ type: 'companion/lights', lightsOut: command.lightsOut, requestId: command.requestId, commandHash: signature }) }
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.lightsOut = command.lightsOut
+      runtime?.stateChanged?.(command)
+      readProjection()
       updatePose()
       publish('mode', command.requestId)
       execution?.stateChanged()
@@ -105,6 +125,12 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (command.type === 'turn.stop' && execution) {
       if (!execution.stop(command.taskId)) return reject(command.requestId, 'invalid-command')
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+    } else if (runtime && (command.type.startsWith('plugin.') || command.type.startsWith('developer.') || command.type === 'app.restart')) {
+      try {
+        const error = runtime.dispatch(command)
+        ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+        publish('connection', command.requestId)
+      } catch { ack = reject(command.requestId, 'internal') }
     } else {
       ack = reject(command.requestId, command.type === 'privacy.set' ? 'privacy-unavailable' : command.type === 'message.send' && execution && !snapshot.companion.lightsOut ? 'not-configured' : 'unavailable')
     }
@@ -117,6 +143,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   const tick = () => { if (!ticking) return; publish('timer'); stopTimer = clock.after(1000, tick) }
   return {
     getSnapshot: () => structuredClone(snapshot), dispatch,
+    attachRuntime: (port: RuntimePort) => { runtime = port; publish('connection') },
     refresh: (reason: AppEvent['reason']) => { readProjection(); publish(reason) },
     attachExecution: (port: NonNullable<typeof execution>, ready: boolean) => {
       execution = port; executionReady = ready

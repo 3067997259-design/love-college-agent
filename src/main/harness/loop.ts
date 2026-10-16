@@ -22,14 +22,19 @@ function errorCode(error: unknown): PublicErrorCode {
 }
 
 export function createHarness(options: {
-  store: SessionStore; clock: Clock; model: ModelClient; tools: readonly HarnessTool[]
+  store: SessionStore; clock: Clock; model: ModelClient; tools: readonly HarnessTool[]; getTools?: () => readonly HarnessTool[]
   changed?: (reason: AppEvent['reason']) => void
   failed?: () => void
   limits?: { steps?: number; dailyTokens?: number; autonomousTokens?: number; outputTokens?: number }
 }) {
   const { store, clock, model } = options
-  const tools = new Map(options.tools.map((tool) => [tool.definition.name, tool]))
-  if (tools.size !== options.tools.length) throw new Error('DUPLICATE_TOOL')
+  const currentTools = () => {
+    const list = options.getTools?.() ?? options.tools
+    const tools = new Map(list.map((tool) => [tool.definition.name, tool]))
+    if (tools.size !== list.length) throw new Error('DUPLICATE_TOOL')
+    return tools
+  }
+  currentTools()
   const inbox: { id: string; source: 'user' | 'pomodoro' | 'mail' | 'autonomous' }[] = []
   let active: { id: string; abort: AbortController; stopping: boolean; pauseRequested: boolean } | undefined
   let worker: Promise<void> | undefined
@@ -79,7 +84,7 @@ export function createHarness(options: {
           if (step >= (options.limits?.steps ?? 12)) throw new GuardFailure('max-steps', 'step-limit')
           drain()
           const messages = store.projection().context
-          const definitions = options.tools.map((tool) => tool.definition)
+          const definitions = [...currentTools().values()].map((tool) => tool.definition)
           const outputTokens = options.limits?.outputTokens ?? 2048
           const reservation = Buffer.byteLength(JSON.stringify({ messages, tools: definitions }), 'utf8') + outputTokens + 1024
           const reply = await model.complete({ messages, tools: definitions, signal: turn.abort.signal, toolsExecuted, maxOutputTokens: outputTokens }, (attempt) => {
@@ -101,7 +106,7 @@ export function createHarness(options: {
             callIds.add(call.id)
             let args: Record<string, unknown> | undefined
             try { const parsed: unknown = JSON.parse(call.arguments); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed as Record<string, unknown> } catch { /* A tool error, never execute concatenated/non-object JSON. */ }
-            const tool = tools.get(call.name)
+            const tool = currentTools().get(call.name)
             const signature = JSON.stringify([call.name, canonical(args ?? call.arguments)])
             const count = (repeated.get(signature) ?? 0) + 1
             repeated.set(signature, count)
