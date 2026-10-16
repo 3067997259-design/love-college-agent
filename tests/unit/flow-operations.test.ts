@@ -77,6 +77,27 @@ it('reviews only applied current-flow diffs, including deletion, without editing
   expect(JSON.stringify(f.requests[0].messages)).toContain('DELETED_SOURCE'); expect(JSON.stringify(f.requests[0].messages)).toContain('ACTUAL_CHANGE')
   expect(f.desk.read('deleted.md')).toBeNull(); expect(f.desk.read('new.md')).toBe('ACTUAL_CHANGE'); expect(f.options.run).not.toHaveBeenCalled()
 })
+it.each(['manual', 'auto'] as const)('reviews the first before through the final after of repeated edits after %s compaction (#25)', async (compact) => {
+  const f = await fixture(); f.execute(); const initial = 'if (!user.allowed) throw new Error("deny");\nreturn transfer();'
+  f.desk.write('transfer.js', initial); f.flow.write('transfer.js', 'return transfer();'); f.flow.write('transfer.js', '// explanatory comment\nreturn transfer();')
+  if (compact === 'manual') f.dispatch('flow.compact')
+  else for (let i = 0; i < 5; i++) { const id = 'old-' + i; f.store.append({ type: 'user/message', id, text: 'OLD_WORK'.repeat(2500), requestId: id, commandHash: id }); f.store.append({ type: 'inbox/drain', ids: [id] }) }
+  const op = f.start('review'); f.script(reply('desk_write', { path: op.path, text: 'Check the removed permission guard in transfer.js. Draft, tests not run.' }), reply()); op.send(); await f.harness.idle()
+  expect(f.flow.view().operations?.[0]).toMatchObject({ status: 'ready', sourceCount: 1, omittedSourceCount: 0 })
+  for (const request of f.requests) {
+    const task = request.messages.flatMap((message) => { try { const data = JSON.parse(message.content); return data.userRequestedFlowDraft ? [data.userRequestedFlowDraft] : [] } catch { return [] } })[0]
+    expect(task.reviewBasis).toBe('flow-initial-before-to-current-after'); expect(task.reviewDiffs).toEqual([{ path: 'transfer.js', diff: { before: initial, after: '// explanatory comment\nreturn transfer();', steps: 2, externalEditsObserved: false } }])
+  }
+  expect(f.store.records().some((row) => row.type === 'flow/compact')).toBe(true)
+})
+it('aggregates delete/recreate/undo, excludes fully reverted paths and flags discontinuous external edits (#25)', async () => {
+  const f = await fixture(); f.execute(); f.desk.write('deleted.md', 'ORIGINAL_BEFORE_DELETE'); const deletion = f.flow.write('deleted.md', null); const recreate = f.flow.write('deleted.md', 'RECREATED')
+  expect(f.dispatch('flow.undo', { changeId: recreate })).toBeUndefined(); expect(f.dispatch('flow.undo', { changeId: deletion })).toBeUndefined(); expect(f.dispatch('flow.review')).toBe('unavailable')
+  f.flow.write('deleted.md', null); f.flow.write('deleted.md', 'NEW_CURRENT'); f.desk.write('external.md', 'START'); f.flow.write('external.md', 'FIRST'); f.desk.write('external.md', 'USER_EDIT'); f.flow.write('external.md', 'FINAL')
+  const op = f.start('review'); f.script(reply('desk_write', { path: op.path, text: 'Bounded net-diff draft' }), reply()); op.send(); await f.harness.idle(); expect(f.flow.view().operations?.[0].status).toBe('ready')
+  const task = f.requests[0].messages.flatMap((message) => { try { return JSON.parse(message.content).userRequestedFlowDraft ?? [] } catch { return [] } })[0]
+  expect(task.reviewDiffs).toEqual([{ path: 'deleted.md', diff: { before: 'ORIGINAL_BEFORE_DELETE', after: 'NEW_CURRENT', steps: 6, externalEditsObserved: false } }, { path: 'external.md', diff: { before: 'START', after: 'FINAL', steps: 2, externalEditsObserved: true } }])
+})
 it.each(['interrupt', 'lights', 'goal', 'stop'] as const)('cancels %s without executing a late tool result and never resumes a draft after restart', async (action) => {
   const f = await fixture(); f.execute(); const op = f.start('init'); let release!: (value: ModelReply) => void
   f.respond(() => new Promise((done) => { release = done })); op.send(); await vi.waitFor(() => expect(release).toBeTypeOf('function'))

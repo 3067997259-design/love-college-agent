@@ -54,3 +54,5 @@ Git 只在独立副本运行固定 plumbing 和 stdin，参数不进 shell，不
 五项真实 Git 单测、原生 `node scripts/smoke-desk-shadow.mjs` 已通过：中文／逗号路径、写入／删除／撤回、原 HEAD/config/index/hooks 不变、非仓库和缺失 Git 降级、链接拒绝、日志副本丢失和实际私人恢复后同 SHA。模型／材料为 fake／合成；未打新安装包。命令 `pnpm test:desk-shadow`。
 
 合并前完整类型／lint、53 文件／301 项单测通过。原生验收同时覆盖此前短临时目录单测未暴露的 Windows 长路径，不以单测通过代替 Electron 落盘证据。
+
+后续 #25：审查来源按路径取本次 flow 最初 before 到最终 after 的净差异，不再只审最后一次写入。完全撤回无净变化，中间外部编辑用标记说明。手动／自动压缩、多次写入、删除重建和撤回组合单测及 Electron 真正两次写入后压缩／审查的成功输入核验已通过，源哈希与实物校验不变。
