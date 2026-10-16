@@ -1,0 +1,19 @@
+# 首个 Windows 安装包
+
+2026-10-16 18:50:57 GMT+8 完成安装验收（0 h = 16:32，早于 0 h + 6 的 22:32）。
+
+- `pnpm package:win`：electron-builder 26.15.3，Electron 44.7.2，Windows x64 NSIS；使用本机已经安装的 Electron 分发文件，缓存、临时文件放 D 盘。先显式 `pnpm rebuild:native`，构建配置不再次隐式重编译。
+- `pnpm test:package`：检查 ASAR 文件清单和原生解包路径；运行构建目录的 SQLite/日志探针；NSIS 静默安装到 D 盘唯一测试目录，再运行相同探针、真实界面和重启检查；最后调用该目录的卸载程序。发现已有同名用户安装时拒绝测试，避免覆盖或卸载它。
+- 打包白名单仅应用 `out/`、package 和生产依赖；不包含 `secrets/`、本机运行数据或参考材料。运行时数据在用户数据目录，开发通过 `LCA_DATA_DIR` 隔离，不向安装目录写存档。
+
+首包 `release/Love-College-Agent-0.1.0-Setup.exe`，223,969,341 字节，SHA-256：
+
+```text
+f415f85a043401b6bf7eee125fba13df9df79726fdeed105cd9c2a266a6246fb
+```
+
+首包基于开发模式合并后的底座，尚不含随后补齐的番茄钟；完成第零圈后另打最终验收包。安装包未签名，默认 Electron 图标，尚无自动更新／发布；builder 的签名步骤提示不等于有有效签名。better-sqlite3 13 的本机重编译结果位于 `prebuilds/win32-x64.node`，随包在 ASAR 外，已实际加载验证（ABI 149）。
+
+验收期间修正了脚本的两个路径假设：Windows ASAR 列表返回反斜杠，且新版本原生模块路径不是旧版 `build/Release/better_sqlite3.node`。同时将 UI 定位限定到有姿势标记的主舞台，避免和门牌元素重复匹配。
+
+本地详细报告与安装后截图在 `test-results/package-report.json`、`test-results/installed.png`，均不提交。使用 Playwright 检查的实例明确指定不存在的测试供应商文件，没有加载真实凭据。
