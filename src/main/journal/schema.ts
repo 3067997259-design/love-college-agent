@@ -13,6 +13,7 @@ import { diarySchema } from '../diary/schema'
 import { notificationRule } from '../notifications/schema'
 import { definitionSchema } from '../characters/package'
 import { historyPhotoSchema, recallAnchorSchema } from '../history/schema'
+import { delegateState, delegateOutput } from '../delegates/schema'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -32,6 +33,8 @@ export type ContextMessage = {
 }
 
 export const inputSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('delegate/state'), view: delegateState }),
+  z.strictObject({ type: z.literal('delegate/result'), id: z.string().uuid(), flowId: z.string().min(1).max(128), output: delegateOutput }),
   z.strictObject({ type: z.literal('life/material'), material: materialSchema }),
   z.strictObject({ type: z.literal('life/work-state'), job: workItemSchema }),
   z.strictObject({ type: z.literal('life/work-draft'), draft: draftSchema }),

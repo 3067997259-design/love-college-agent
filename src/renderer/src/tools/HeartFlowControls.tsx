@@ -16,6 +16,7 @@ export function HeartFlowControls({ bridge, snapshot }: { bridge: AppBridge; sna
         <button onClick={() => void send({ type: 'flow.approve', approvalId: flow.pending!.id, allow: true })}>仅批准这一次</button><button onClick={() => void send({ type: 'flow.approve', approvalId: flow.pending!.id, allow: false })}>拒绝这一次</button></div>}
       {flow.lastRun && <pre aria-label="心流执行结果">{flow.lastRun.output}</pre>}
       <ul>{flow.changes.map((change) => <li key={change.id}>{change.path} · {change.undone ? '已撤回' : '已留快照'}<button disabled={change.undone || flow.mode === 'plan'} onClick={() => void send({ type: 'flow.undo', changeId: change.id })}>撤回此版本</button></li>)}</ul>
+      {!!flow.delegates?.length && <section aria-label="只读分身"><h3>只读分身</h3><ul>{flow.delegates.map((job) => <li key={job.id}>{job.id.slice(0, 8)} · {job.status} · {job.sourceCount} 份来源 · {job.source}{job.error ? ' · ' + job.error : ''}{job.status === 'running' && <button onClick={() => void send({ type: 'flow.delegate.cancel', delegateId: job.id })}>取消这个分身</button>}</li>)}</ul><p>结论先交回本体核对，分身不写文件或记忆。</p></section>}
     </>}
     <p>{flow.files.length} 个书桌文件 · {flow.sessions.length} 次心流</p>{error && <p role="alert">{error}</p>}
     <details><summary>历次心流</summary><ol>{flow.sessions.map((session) => <li key={session.id}>{session.id.slice(0, 8)} · {session.endedAtMs === null ? '进行中' : '已结束'}

@@ -16,6 +16,8 @@ import { probeHeartFlow } from './validation/heart-flow'
 import { createLife, type LifeService } from './life/service'
 import { createLifeWork, type LifeWorkService } from './life/work/service'
 import { createFakeLifeWorkModel } from './life/work/fake'
+import { createDelegates, type DelegatesService } from './delegates/service'
+import { createFakeDelegateModel } from './delegates/fake'
 import { probeLife } from './validation/life'
 import { createDiary, type DiaryService } from './diary/service'
 import diaryPrompts from './diary/prompts.json'
@@ -102,6 +104,7 @@ let controller: ReturnType<typeof createAppController> | undefined
 let bridge: ReturnType<typeof registerAppBridge> | undefined
 let store: SessionStore | undefined
 let lifeWork: LifeWorkService | undefined
+let delegates: DelegatesService | undefined
 let harness: ReturnType<typeof createHarness> | undefined
 let scheduler: Scheduler | undefined
 let runtime: Awaited<ReturnType<typeof attachRuntime>> | undefined
@@ -364,6 +367,9 @@ void app.whenReady().then(async () => {
         const insertion = Math.max(0, preparedContext.messages.findLastIndex((message) => message.role === 'user')); const messages = [...preparedContext.messages.slice(0, insertion), facts, ...preparedContext.messages.slice(insertion)]
         return { messages, eligibleIndexes: [...preparedContext.eligibleIndexes.map((index) => index >= insertion ? index + 1 : index), insertion] } }, entered: () => { lifeWork?.foreground(); life?.foreground() }, emit: (id, summary) => { harness?.postEvent('autonomous', summary, id) }, run: (code, signal) => runIsolatedJavaScript(code, systemClock, signal) })
     controller.attachHeartFlow(heartFlow)
+    delegates = createDelegates({ store, clock, model: prepared.developer ? createFakeDelegateModel() : taskModels.delegate,
+      flowId: () => heartFlow?.active() ? heartFlow.view().activeId : null, read: (path) => heartFlow!.read(path), changed: () => controller?.refresh('task') })
+    heartFlow.attachDelegates(delegates)
     lifeWork = createLifeWork({ store, clock, scheduler, desk, developer: prepared.developer, model: prepared.developer ? createFakeLifeWorkModel() : null,
       available: () => {
         const projection = store!.projection(); const timer = projection.pomodoro
@@ -387,7 +393,7 @@ void app.whenReady().then(async () => {
       chooseExport: async () => { const result = await dialog.showSaveDialog({ title: '导出静态角色包（不含私人资料）', defaultPath: 'character.lca-character', filters: [{ name: '角色包', extensions: ['lca-character'] }] }); return result.canceled ? null : result.filePath ?? null } })
     controller.attachCharacter(character)
     plugins.registerBuiltin('notifications', '急件与提醒标准', notificationTools(notifications))
-    plugins.registerBuiltin('coding', '书桌编码', deskTools(heartFlow))
+    plugins.registerBuiltin('coding', '书桌编码', [...deskTools(heartFlow), ...delegates.tools])
     plugins.registerBuiltin('life-work', '自主阅读与写作', [])
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
     if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])
@@ -476,6 +482,6 @@ app.on('before-quit', (event) => {
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), delegates?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })

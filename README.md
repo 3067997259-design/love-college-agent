@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+**第三圈只读分身（2026-10-17）：** 接口 `4594698` 先合 main；心流可派最多三个独立只读小任务，带每日尝试预算、取消／超时、来源指纹和过期检查，结果交本体核对，不写自己的文件或记忆。类型／lint、47 文件 234 项单测、分身与心流／存档／记忆 Electron 场景通过，父子模型均为 fake；正式 background 端口已接但未验收模型质量。命令 `pnpm test:delegates`，接口与边界见 [分身记录](docs/engineering/delegates-third-circle.md)。
+
 **第三圈心流增补（2026-10-17）：** 接口 `fac7ab1` 先合 main；`/status`、`/permissions`、`/diff` 现有真实查阅，费用未知显示 null；历史心流可看差异、以新 plan 续做，旧审批不复用，`/compact 重点` 生效。书桌 diff 只给书本窗口用户读，正文不进快照／普通记忆。类型／lint、218 项单测、原生跨日运行顺序探针与心流 Electron、基础／存档／历史回归通过，见 [心流增补](docs/engineering/heart-flow-third-circle.md)。整圈剩余项及两线分工持续记录于 [第三圈台账](docs/engineering/third-circle-ledger.md)。
 
 **第三圈自主生活产物（2026-10-17）：** 接口 `a19c596` 已先合 main，持久服务 `b2b9e8d`、运行接线 `21c1d19` 随后合 main。她能从登记过的合成书桌材料生成三步阅读笔记／写作版本，实际文件提交后才记进度或完成；前台／休息／熄灯让出，重启及私人存档保持检查点，离线不补工作。类型／lint、45 文件 215 项单测及八条相关 Electron 生产／恢复与回归场景通过，命令 `pnpm test:life-work`。本轮只接开发 fake 模型，正式模型与最终画面未接；记录和 Claude 接线见 [自主作品记录](docs/engineering/autonomous-work-third-circle.md)。
