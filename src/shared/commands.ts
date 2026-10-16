@@ -1,4 +1,4 @@
-import type { DocumentScenarioId, MailScenarioId, PomodoroPlanInput, PublicError } from './state'
+import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, PomodoroPlanInput, PublicError } from './state'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -16,6 +16,11 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'onboarding.complete' }
   /** Reopen initialization; retain names and all private business/history data. Refused in booth mode. */
   | { type: 'onboarding.reset' }
+  /** Only an existing, witnessed experience may anchor a generated gift. Object descriptions are enum-derived. */
+  | { type: 'gift.propose'; sourceMemoryId: string; objectId: GiftObjectId; motif: GiftMotif }
+  | { type: 'gift.start'; giftId: string }
+  | { type: 'gift.cancel'; giftId: string }
+  | { type: 'gift.open'; giftId: string }
   | { type: 'pomodoro.start'; planId: string }
   | { type: 'pomodoro.plan'; plan: PomodoroPlanInput }
   | { type: 'pomodoro.confirm'; planId: string }
