@@ -36,5 +36,5 @@ export async function captureHistoryScene(window: BrowserWindow | undefined, ses
   }
   let cancel: (() => void) | undefined
   try { return await Promise.race([operation(), new Promise<never>((_, reject) => { cancel = clock.after(5000, () => reject(new Error('PHOTO_TIMEOUT'))) })]) }
-  finally { cancel?.(); if (!contents.isDestroyed()) await contents.executeJavaScript("document.getElementById('lca-photo-isolation')?.remove()").catch(() => {}) }
+  finally { cancel?.(); if (!contents.isDestroyed()) void contents.executeJavaScript("document.getElementById('lca-photo-isolation')?.remove()").catch(() => {}) }
 }
