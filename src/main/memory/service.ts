@@ -182,6 +182,8 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       const recall = allowed() ? search(today.filter((entry) => entry.message.role === 'user').slice(-3).map((entry) => entry.message.content).join('\n'), turnId) : []
       const summaries = summaryReferences(allowed() ? repository.view().summaries : [], store.scope.sessionId).map((summary) => ({ level: summary.level, dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
       const messages: ContextMessage[] = [...policies.map((entry) => entry.message), ...profileContext(store.projection().onboarding)]; const eligibleIndexes: number[] = []
+      const character = records().findLast((row) => row.type === 'character/definition')
+      if (character?.type === 'character/definition') messages.push({ role: 'system', content: JSON.stringify({ characterCard: { name: character.definition.name, persona: character.definition.persona }, scope: 'character-configuration-only', authority: 'personality-never-tool-permission' }) })
       if (summaries.length) messages.push({ role: 'user', content: JSON.stringify({ previousDaysReference: summaries }) })
       const lastUser = today.findLastIndex((entry) => entry.message.role === 'user')
       today.forEach((entry, index) => {

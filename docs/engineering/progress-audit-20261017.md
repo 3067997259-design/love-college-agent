@@ -30,3 +30,4 @@
 - 外出：确定性出返、单次离线虚构结算、工作优先返回、物品来源与桌面／抽屉投影已实现，原生重启／恢复探针通过。日程和美术降级边界见 [外出记录](life-second-circle.md)。
 - 日记／房间：seen-only 背景任务、写时定钥匙／加密、用户独占查阅和文件投影已实现；Python 独立解密和 Electron 私人恢复重建通过。来源和 UI 边界见 [日记记录](diary-room-second-circle.md)。
 - 急件与变更：限频合并通知、只经人工确认的提醒标准、可核对的紧急枚举和旧活动时间显示已补齐。通知／校园 Electron 回归通过，真实系统 Toast 和外部日历边界见 [通知记录](notifications-second-circle.md)。
+- 角色包：静态导入／导出、PNG 校验／回退、重启切换独立关系作用域已实现；单测与 Electron 双角色切换／导出通过，见 [角色包记录](characters-second-circle.md)。

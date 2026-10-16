@@ -18,6 +18,7 @@ export function createBinaryAssets(root: string, store: SessionStore) {
     const bytes = readFileSync(file); if (createHash('sha256').update(bytes).digest('hex') !== asset.sha256) throw new Error('ASSET_INVALID'); return bytes
   }
   return { read,
+    has: (asset: BinaryAsset) => { try { check(); const stat = lstatSync(join(root, assetPath(binaryAssetSchema.parse(asset)))); return stat.isFile() && !stat.isSymbolicLink() && stat.nlink === 1 && stat.size === asset.byteLength } catch { return false } },
     owned: (sha: string) => (store.history?.() ?? store.records()).flatMap((row) => row.type === 'asset/stored' && row.asset.sha256 === sha ? [row.asset] : []).at(-1),
     write: (bytes: Buffer, format: BinaryAsset['format']): BinaryAsset => {
       check(); const sha256 = createHash('sha256').update(bytes).digest('hex'); const asset = binaryAssetSchema.parse({ ref: 'asset:' + sha256, sha256, format, byteLength: bytes.length })
