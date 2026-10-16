@@ -14,11 +14,20 @@ import { createModelClient } from './model/client'
 import { createHarness } from './harness/loop'
 import { builtinTools } from './harness/tools'
 import { probeHarness } from './validation/harness'
-import { openSettings } from './config/settings'
 import { createPluginRegistry } from './plugins/registry'
 import { createScheduler, type Scheduler } from './scheduler'
+import { prepareRuntime, attachRuntime } from './developer/runtime'
+import { createFakePrivacyModel } from './privacy/filter'
 
-const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(process.cwd(), '.local-data'))
+const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
+const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
+const { clock } = prepared
+const dataDir = prepared.profile.path
+const cdpPort = Number(process.env.LCA_CDP_PORT ?? 9427)
+if (prepared.developer) {
+  app.commandLine.appendSwitch('remote-debugging-address', '127.0.0.1')
+  app.commandLine.appendSwitch('remote-debugging-port', String(cdpPort))
+}
 mkdirSync(dataDir, { recursive: true })
 mkdirSync(join(dataDir, 'chromium'), { recursive: true })
 app.setPath('userData', dataDir)
@@ -30,6 +39,7 @@ let bridge: ReturnType<typeof registerAppBridge> | undefined
 let store: SessionStore | undefined
 let harness: ReturnType<typeof createHarness> | undefined
 let scheduler: Scheduler | undefined
+let runtime: Awaited<ReturnType<typeof attachRuntime>> | undefined
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -52,6 +62,7 @@ function createWindow(): void {
 
 void app.whenReady().then(async () => {
   if (!ownsData) return
+  if (prepared.developer && process.argv.some((arg) => arg.startsWith('--lca-probe='))) { console.log('LCA_PROBE:{"ok":false,"error":"DEVELOPER_PROFILE_REFUSED"}'); app.exit(1); return }
   if (process.argv.includes('--lca-probe=harness')) {
     const report = await probeHarness(dataDir, process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'), systemClock)
     console.log('LCA_PROBE:' + JSON.stringify(report))
@@ -91,26 +102,23 @@ void app.whenReady().then(async () => {
     return
   }
   try {
-    store = openSessionStore(dataDir, { userId: 'local-user', characterId: 'default-character' }, systemClock)
-    controller = createAppController(systemClock, undefined, store)
+    store = openSessionStore(dataDir, { userId: 'local-user', characterId: 'default-character' }, clock)
+    if (prepared.scene && store.records().length === 1) store.append({ type: 'companion/mode', mode: prepared.scene.mode, requestId: 'development-scene', commandHash: 'development-scene' })
+    controller = createAppController(clock, undefined, store)
     bridge = registerAppBridge(controller)
-    const settings = openSettings(dataDir)
-    const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings })
+    const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, privacyModel: prepared.developer ? createFakePrivacyModel() : null })
     plugins.registerBuiltin('core', '时钟与任务计划', builtinTools())
+    if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])
     plugins.discover()
-    const providers = await readModelProviders(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
-    harness = createHarness({ store, clock: systemClock, model: createModelClient(providers, ['chat'], systemClock), tools: [], getTools: plugins.tools, changed: (reason) => controller?.refresh(reason),
+    const providers = prepared.developer ? new Map() : await readModelProviders(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
+    harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: plugins.tools, changed: (reason) => controller?.refresh(reason),
       failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
-    controller.attachExecution(harness, providers.has('chat'))
-    scheduler = createScheduler(systemClock, () => { console.error('Scheduler stopped: local operation failed.'); app.quit() })
-    scheduler.schedule('ui.snapshot', systemClock.nowMs() + 1000, () => controller?.refresh('timer'), { everyMs: 1000, background: false })
-    controller.attachRuntime({ view: () => ({ plugins: plugins.views(), developer: { mode: settings.read().booth ? 'booth' : 'normal', requestedEnabled: false, restartRequired: false } }),
-      dispatch: (command) => {
-        if (command.type === 'plugin.enable') return plugins.enable(command.pluginId, command.fingerprint)
-        if (command.type === 'plugin.disable') return plugins.disable(command.pluginId)
-        if (command.type === 'plugin.privacy.set') return plugins.setPrivacy(command.pluginId, command.privacy)
-        return 'unavailable'
-      } })
+    controller.attachExecution(harness, prepared.developer || providers.has('chat'))
+    scheduler = createScheduler(clock, () => { console.error('Scheduler stopped: local operation failed.'); app.quit() })
+    scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => controller?.refresh('timer'), { everyMs: 1000, background: false })
+    runtime = await attachRuntime({ prepared, controller, plugins, harness, scheduler, store,
+      mcpPort: Number(process.env.LCA_MCP_PORT ?? 5175), cdpPort,
+      restart: () => { systemClock.after(100, () => { app.relaunch(); app.quit() }) } })
   } catch {
     console.error('Application storage unavailable; existing data preserved.')
     app.exit(1)
@@ -128,6 +136,6 @@ app.on('before-quit', (event) => {
     if (closing) return
     closing = true
     scheduler?.dispose()
-    void harness.dispose().finally(() => { controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close()]).finally(() => { controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })

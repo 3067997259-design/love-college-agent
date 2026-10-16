@@ -28,7 +28,8 @@
     "preview:ui": "node scripts/ui-preview.mjs",
     "shot:ui": "node scripts/ui-shot.mjs",
     "probe:harness": "pnpm build && node scripts/probe-electron.mjs harness",
-    "test:harness": "pnpm build && node scripts/smoke-harness.mjs"
+    "test:harness": "pnpm build && node scripts/smoke-harness.mjs",
+    "test:developer": "pnpm build && node scripts/smoke-developer.mjs"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",

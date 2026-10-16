@@ -31,6 +31,7 @@ function validateParameters(parameters: Record<string, unknown>) {
 
 export function createPluginRegistry(options: { root: string; settings: SettingsStore; privacyModel?: PrivacyModel | null; fileFiltering?: () => boolean }) {
   const entries = new Map<string, Entry>()
+  const services = new Map<string, (enabled: boolean) => void>()
   const filter = createPrivacyFilter(options.privacyModel ?? null)
   const wrap = (entry: Entry, tool: HarnessTool): HarnessTool => ({ ...tool, run: async (input, context): Promise<ToolResult> => {
     if (entry.view.status !== 'enabled') return { ok: false, raw: { error: 'plugin-disabled' }, visible: { error: 'plugin-disabled' } }
@@ -105,15 +106,23 @@ export function createPluginRegistry(options: { root: string; settings: Settings
       }
       options.settings.update((draft) => { draft.plugins[id] = { enabled: true, fingerprint, privacy: entry.view.privacy } })
       entry.view.status = 'enabled'
+      services.get(id)?.(true)
     } catch { entry.view.status = 'failed'; return 'internal' }
   }
   return { registerBuiltin, discover, enable,
+    mountService: (id: string, changed: (enabled: boolean) => void) => {
+      const entry = entries.get(id)
+      if (!entry || entry.view.source !== 'builtin') throw new Error('SERVICE_PLUGIN_REQUIRED')
+      services.set(id, changed); changed(entry.view.status === 'enabled')
+      return () => { services.delete(id); changed(false) }
+    },
     views: () => structuredClone([...entries.values()].map((entry) => entry.view)),
     tools: () => [...entries.values()].filter((entry) => entry.view.status === 'enabled').flatMap((entry) => entry.tools),
     disable: (id: string): PublicErrorCode | undefined => {
       const entry = entries.get(id); if (!entry) return 'invalid-command'
       options.settings.update((draft) => { draft.plugins[id] = { enabled: false, fingerprint: entry.view.fingerprint, privacy: entry.view.privacy } })
       entry.view.status = 'disabled'
+      services.get(id)?.(false)
     },
     setPrivacy: (id: string, privacy: PluginView['privacy']): PublicErrorCode | undefined => {
       const entry = entries.get(id); if (!entry) return 'invalid-command'
