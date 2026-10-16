@@ -23,6 +23,7 @@ type Item =
 function useEnteringIds(snapshot: AppSnapshot): Set<string> {
   const seen = useRef<{ epoch: string; ids: Set<string> } | null>(null)
   const ids = [...snapshot.candidates.map((c) => c.id), ...snapshot.deliveries.map((d) => d.id), ...(snapshot.pomodoro.plan ? [snapshot.pomodoro.plan.id] : []),
+    ...(snapshot.pomodoro.proposal ? [snapshot.pomodoro.proposal.id] : []),
     ...(snapshot.quill?.state === 'given' ? [snapshot.quill.id] : [])]
   if (!seen.current || seen.current.epoch !== snapshot.epoch) {
     seen.current = { epoch: snapshot.epoch, ids: new Set(ids) }
@@ -52,6 +53,8 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
     ...candidates.filter((c) => c.status !== 'ignored').map((view) => ({ kind: 'candidate' as const, at: view.createdAtMs, id: view.id, view })),
     ...deliveries.map((view) => ({ kind: 'delivery' as const, at: view.createdAtMs, id: view.id, view })),
     ...(pomodoro.plan ? [{ kind: 'plan' as const, at: pomodoro.plan.createdAtMs, id: pomodoro.plan.id, view: pomodoro.plan }] : []),
+    // 草案单独一张卡：确认前不动生效的计划和已经做完的番茄（src/shared/README.md）
+    ...(pomodoro.proposal ? [{ kind: 'plan' as const, at: pomodoro.proposal.createdAtMs, id: pomodoro.proposal.id, view: pomodoro.proposal }] : []),
     ...(quill?.state === 'given' && quill.givenAtMs !== null ? [{ kind: 'gift' as const, at: quill.givenAtMs, id: quill.id, view: quill }] : []),
     ...(task ? [{ kind: 'task' as const, at: lastUserAt + 0.5, id: task.id }] : []),
   ].sort((a, b) => a.at - b.at)
@@ -102,7 +105,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
             case 'plan': return (
               <PlanCard key={item.id} plan={item.view} pomodoro={pomodoro} entering={entering.has(item.id)}
                 onConfirm={() => { void dispatch({ type: 'pomodoro.confirm', planId: item.id }) }}
-                onDismiss={() => { void dispatch({ type: 'pomodoro.stop' }) }} />
+                onDismiss={() => { void dispatch({ type: 'pomodoro.discard', planId: item.id }) }} />
             )
           }
         })}
@@ -163,8 +166,8 @@ function PlanHead({ snapshot, onCommand }: { snapshot: AppSnapshot; onCommand: (
   const { pomodoro, companion } = snapshot
   const plan = pomodoro.plan
   const remaining = useCountdown(snapshot)
-  if (pomodoro.plannedCount <= 0 || plan?.status === 'proposed') {
-    return <div className="plan-head plan-head-empty">{plan?.status === 'proposed' ? '计划等你确认' : '今天还没排番茄'}</div>
+  if (!plan || pomodoro.plannedCount <= 0) {
+    return <div className="plan-head plan-head-empty">{pomodoro.proposal ? '计划等你确认' : '今天还没排番茄'}</div>
   }
   const progress = pomodoro.phaseDurationMs > 0 ? 1 - remaining / pomodoro.phaseDurationMs : 0
   const canStart = plan?.status === 'confirmed' && pomodoro.status === 'idle' && pomodoro.focusIndex < pomodoro.plannedCount

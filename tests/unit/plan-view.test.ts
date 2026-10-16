@@ -39,7 +39,9 @@ describe('pomodoro plan display', () => {
   })
   it('keeps the plan scenes consistent with the main-process plan rules', () => {
     const proposed = SCENARIOS['plan-proposed'].pomodoro
-    expect(proposed).toMatchObject({ phase: 'idle', status: 'idle', focusIndex: 0, plannedCount: 4, plan: { status: 'proposed', source: 'assistant', timing: 'demo' } })
+    expect(proposed.plan).toBeUndefined()
+    expect(proposed).toMatchObject({ phase: 'idle', status: 'idle', focusIndex: 0, proposal: { status: 'proposed', source: 'assistant', timing: 'demo' } })
+    expect(proposed.proposal?.items?.reduce((sum, item) => sum + item.count, 0)).toBe(proposed.proposal?.plannedCount)
     for (const id of ['focus-working', 'break-delivery'] as const) {
       const { plan, plannedCount } = SCENARIOS[id].pomodoro
       expect(plan?.status).toBe('confirmed')

@@ -634,6 +634,7 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 .plan-assist { padding: 0 8px; font: 12px / 1.6 var(--font-body); white-space: nowrap; color: var(--ink-her); background: var(--peach); border: 1px solid var(--peach-mid); border-radius: 999px; }
 .plan-span { white-space: nowrap; }
 .card-plan[data-status='finished'] .plan-tomatoes { opacity: 0.8; }
+.plan-replace { margin: 8px 0 0; font-size: 14px; color: var(--ink-her); }
 
 /* 交付卡 */
 .card-delivery { display: flex; align-items: center; gap: 14px; }
