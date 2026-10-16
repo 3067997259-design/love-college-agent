@@ -524,6 +524,20 @@ export interface HeartFlowView {
   goalId?: string | null
   /** User-only draft metadata. Contents stay in the desk/work context and native preview. */
   operations?: readonly FlowOperationView[]
+  computer?: DeskComputerView
+}
+export type DeskComputerAction = { type: 'click'; x: number; y: number } | { type: 'type'; text: string } | { type: 'key'; key: 'TAB' | 'ENTER' | 'ESCAPE' | 'BACKSPACE' }
+/** An isolated static HTML desk preview, never the user's whole computer or an existing application. */
+export interface DeskComputerView {
+  status: 'closed' | 'opening' | 'ready' | 'waiting-approval' | 'acting' | 'failed'
+  target?: { path: string; sha256: string }
+  frame?: { ref: string; sha256: string; width: number; height: number; capturedAtMs: number }
+  pending?: { id: string; frameRef: string; action: DeskComputerAction }
+  actionsUsed: number
+  maxActions: number
+  /** Scripts/network/downloads/filesystem are disabled. Reopening never inherits action approval. */
+  scope: 'static-desk-preview'
+  error?: PublicError
 }
 export interface DelegateView {
   id: string
