@@ -3,6 +3,8 @@ import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGift
 import { activityText } from '../voice/activity-text'
 import { CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
 import { sourceText } from './life/text'
+import book from '../voice/book.zh.json'
+import { QuoteChip, type Quote } from './history/OldPage'
 import { sendCommand, type CommandBody } from './command'
 import { civilFromDays, formatClock } from './format'
 import { rhythmText, tomatoStates } from './plan'
@@ -40,14 +42,21 @@ function useEnteringIds(snapshot: AppSnapshot): Set<string> {
   return fresh
 }
 
-export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf }: {
+export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTurnBack, quote = null, onClearQuote }: {
   snapshot: AppSnapshot
   bridge: AppBridge
   /** 翻到别的书签时这一页留着（草稿和滚动位置都在），只是不显示 */
   hidden?: boolean
   onOpenShelf?: () => void
+  /** 有前几天的页才能往回翻 */
+  onTurnBack?: () => void
+  /** 从旧页引用来的一段：发送时连同问题交给主进程回忆（history.recall），不当普通消息发 */
+  quote?: Quote | null
+  onClearQuote?: () => void
 }) {
   const { messages, candidates, deliveries, task, activities, pomodoro, privacy, quill, backup } = snapshot
+  const recall = snapshot.history?.recall
+  const herName = snapshot.onboarding?.characterName ?? '桃子'
   // 恢复完成（或恢复失败）的回执一直留着，直到你点“好”收起（backup.cancel 清掉回执）
   const restoreReceipt = backup && (backup.status === 'restored' || (backup.status === 'failed' && backup.error?.code === 'restore-failed')) ? backup : null
   const entering = useEnteringIds(snapshot)
@@ -90,14 +99,23 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf }: {
     const text = draft.trim()
     if (!text || sending) return
     setSending(true)
-    try { if (await dispatch({ type: 'message.send', text })) setDraft((current) => current.trim() === text ? '' : current) }
-    finally { setSending(false) }
+    try {
+      const body: CommandBody = quote ? { type: 'history.recall', anchor: quote.anchor, question: text } : { type: 'message.send', text }
+      if (await dispatch(body)) {
+        setDraft((current) => current.trim() === text ? '' : current)
+        if (quote) onClearQuote?.()
+      }
+    } finally { setSending(false) }
   }
+  const recalling = recall?.status === 'recalling'
 
   return (
     <section className="page page-right" aria-label="你的页面" hidden={hidden}>
       <header className="page-head">
-        <span className="page-date">{dayTitle(snapshot.clock.nowMs)}</span>
+        <span className="page-head-date">
+          <span className="page-date">{dayTitle(snapshot.clock.nowMs)}</span>
+          {onTurnBack && <button type="button" className="link-button turn-back" onClick={onTurnBack}>‹ {book.history.back}</button>}
+        </span>
         <PlanHead snapshot={snapshot} onCommand={(body) => { void dispatch(body) }} />
       </header>
 
@@ -125,6 +143,8 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf }: {
           }
         })}
         {restoreReceipt && <RestoreCard view={restoreReceipt} onDone={() => { void dispatch({ type: 'backup.cancel' }) }} />}
+        {/* 回忆中：书本旁白一样的小字，不替她说话；她的回答照常作为她的话出现 */}
+        {recalling && <p className="msg msg-narrator recall-line" role="status">{book.history.recalling.replace('{name}', herName)}</p>}
         {orphanActivities.length > 0 && (
           <ul className="activities">
             {orphanActivities.map((a) => (
@@ -138,17 +158,18 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf }: {
 
       <FileIntake snapshot={snapshot} bridge={bridge} />
       <footer className="composer">
+        {quote && <QuoteChip quote={quote} onClear={() => onClearQuote?.()} />}
         {commandError && <span role="alert" className="notice-mark" title={commandError} aria-label={commandError}>！</span>}
         {privacy.fileFilteringEnabled && <span className="filter-mark" title="/privacy 开着：附件和拖进来的文件只交给隐私模型">滤芯</span>}
         <textarea
-          className="composer-input" rows={1} value={draft} placeholder="写点什么……"
+          className="composer-input" rows={1} value={draft} placeholder={quote ? book.history.placeholder : '写点什么……'}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send() } }}
         />
         {task && (task.status === 'running' || task.status === 'queued' || task.status === 'waiting-user')
           ? <button className="btn btn-ghost" onClick={() => { void dispatch({ type: 'turn.stop', taskId: task.id }) }}>停止</button>
           : null}
-        <button className="btn btn-primary" onClick={() => { void send() }} disabled={!draft.trim() || sending}>发送</button>
+        <button className="btn btn-primary" onClick={() => { void send() }} disabled={!draft.trim() || sending || (!!quote && recalling)}>发送</button>
       </footer>
       {pomodoro.phase === 'focus' && <div className="focus-veil" aria-hidden />}
     </section>

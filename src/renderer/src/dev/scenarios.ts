@@ -288,11 +288,46 @@ export const SCENARIOS = {
         { id: 'diary-1016', dayKey: '2026-10-16', createdAtMs: T.sat0810, unlocked: false, clue: 'next-bookmark', source: 'fake' },
       ],
     },
+    // 往回翻：前两天各一页（内容在 fakePages，经假桥的 readSession 读）
+    session: {
+      dayKey: '2026-10-17', rolloverPending: false,
+      pages: [
+        { sessionId: 's-1015', dayKey: '2026-10-15', messageCount: 4, summarized: true },
+        { sessionId: 's-1016', dayKey: '2026-10-16', messageCount: 4, summarized: true },
+        { sessionId: 'fake-session', dayKey: '2026-10-17', messageCount: 3, summarized: false },
+      ],
+    },
+    history: { photos: [], captureStatus: 'idle', recall: { status: 'idle' } },
   })),
 } satisfies Record<string, AppSnapshot>
 
 export type ScenarioId = keyof typeof SCENARIOS
 export const DEFAULT_SCENARIO: ScenarioId = 'break-delivery'
+
+/**
+ * 预览用的旧页（fake-bridge.readSession）：recallable 模拟主进程核对过“她当时看见”的句子，
+ * 每页最后一句回复没有被再次看见，所以不能引用；photoPose 是借来当照片的整景图，10-15 那页故意没有照片。
+ */
+export const fakePages: Record<string, { dayKey: string; messages: MessageView[]; recallable: string[]; photoPose: string | null }> = {
+  's-1015': {
+    dayKey: '2026-10-15', photoPose: null, recallable: ['h1', 'h2', 'h3'],
+    messages: [
+      msg('h1', 'user', '你好。', T.fri2105 - 2 * 24 * 60 * MIN),
+      msg('h2', 'assistant', '你好。我住在这本书里。', T.fri2105 - 2 * 24 * 60 * MIN + MIN),
+      msg('h3', 'user', '这个房间是我画的？', T.fri2105 - 2 * 24 * 60 * MIN + 2 * MIN),
+      msg('h4', 'assistant', '嗯。线条是你的，颜色是我上的。', T.fri2105 - 2 * 24 * 60 * MIN + 3 * MIN),
+    ],
+  },
+  's-1016': {
+    dayKey: '2026-10-16', photoPose: 'desk-computer_calm', recallable: ['k1', 'k2', 'k3'],
+    messages: [
+      msg('k1', 'user', '明天要写数据结构的作业。', T.fri2105 - 30 * MIN),
+      msg('k2', 'assistant', '好。邮件我先读着，你写的时候我不说话。', T.fri2105 - 29 * MIN),
+      msg('k3', 'user', '写完了想喝点热的。', T.fri2105 - 5 * MIN),
+      msg('k4', 'assistant', '记下了。', T.fri2105 - 4 * MIN),
+    ],
+  },
+}
 
 /** 预览用的日记正文：假数据，不是她最终的声音；只有解锁的才读得到（fake-bridge.readDiary） */
 export const fakeDiary: Record<string, string> = {

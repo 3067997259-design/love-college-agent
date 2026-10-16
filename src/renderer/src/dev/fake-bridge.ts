@@ -4,8 +4,16 @@
  * 番茄钟照主进程的规则粗略模拟（技术方案 §3.5、docs/engineering/pomodoro.md），只为在浏览器里点得通；
  * 真正的计时、落盘和阶段事件都在主进程，这里点通不代表真实运行通过。
  */
-import type { AppBridge, AppCommand, AppEvent, AppSnapshot, CommandAck, PomodoroView, PublicErrorCode } from '../../../shared'
-import { DEFAULT_SCENARIO, evidence, fakeDiary, SCENARIOS, type ScenarioId } from './scenarios'
+import type { AppBridge, AppCommand, AppEvent, AppSnapshot, CommandAck, HistoryPhotoView, PomodoroView, PublicErrorCode } from '../../../shared'
+import { DEFAULT_SCENARIO, evidence, fakeDiary, fakePages, SCENARIOS, type ScenarioId } from './scenarios'
+import { sceneSrc } from '../book/Character'
+
+/** 假旧页的“照片”：借一张整景图当那天拍下的样子（真实照片由主进程截当时的场景） */
+function photoOf(sessionId: string): { photo?: HistoryPhotoView } {
+  const page = fakePages[sessionId]
+  const imageUrl = page?.photoPose ? sceneSrc(page.photoPose) : undefined
+  return imageUrl ? { photo: { id: `photo-${sessionId}`, sessionId, dayKey: page.dayKey, capturedAtMs: 0, reason: 'day-end', imageUrl, width: 1254, height: 1254 } } : {}
+}
 
 export interface FakeBridge extends AppBridge {
   setScenario(id: ScenarioId): void
@@ -220,6 +228,27 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
         commit({ backup: { status: 'idle' } }, 'task')
         return ack(command)
       }
+      // 引用回忆：问题作为你的话进对话，“正在回忆”一会儿，再来一句假回答；只为看画面，不是回忆的真实行为
+      if (command.type === 'history.recall' && current.history) {
+        const page = fakePages[command.anchor.sessionId]
+        if (!page?.recallable.includes(command.anchor.messageId) || current.history.recall.status === 'recalling') return ack(command, 'unavailable')
+        const requestId = command.requestId
+        commit({
+          messages: [...current.messages, { id: `q-${requestId}`, role: 'user', text: command.question, createdAtMs: current.clock.nowMs, status: 'complete' }],
+          history: { ...current.history, recall: { status: 'recalling', requestId, anchor: command.anchor, dayKey: page.dayKey, sourceCount: 3, ...photoOf(command.anchor.sessionId) } },
+        }, 'task')
+        const startedAt = performance.now()
+        const wait = () => {
+          if (current.history?.recall.requestId !== requestId) return
+          if (performance.now() - startedAt < 2600) { requestAnimationFrame(wait); return }
+          commit({
+            messages: [...current.messages, { id: `r-${requestId}`, role: 'assistant', text: '嗯，那天你说写完了想喝点热的。所以杯子是那天记下的。', createdAtMs: current.clock.nowMs, status: 'complete', emotion: 'smile' }],
+            history: { ...current.history!, recall: { ...current.history!.recall, status: 'ready' } },
+          }, 'task')
+        }
+        requestAnimationFrame(wait)
+        return ack(command)
+      }
       // 礼物架上点得通：提议的可以开始（只在专注里）或不要，做着的可以停下；做没做好仍是假数据
       if ((command.type === 'gift.start' || command.type === 'gift.cancel') && current.gifts) {
         const gift = current.gifts.items.find((item) => item.id === command.giftId)
@@ -236,6 +265,11 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
       const view = evidence[ref]
       if (!view) throw new Error('evidence not found')
       return view
+    },
+    async readSession(id) {
+      const page = fakePages[id]
+      if (!page) throw new Error('SESSION_UNAVAILABLE')
+      return { sessionId: id, dayKey: page.dayKey, messages: page.messages, truncated: false, recallableMessageIds: page.recallable, ...photoOf(id) }
     },
     // 和主进程一样：没解锁就打不开
     async readDiary(id) {

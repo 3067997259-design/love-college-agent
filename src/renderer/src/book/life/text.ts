@@ -14,6 +14,16 @@ export function dayKeyLabel(dayKey: string, weekday = false): string {
   return `${parts.month}月${parts.day}日${weekday ? ` ${parts.weekday}` : ''}`
 }
 
+/** 'YYYY-MM-DD' → 1970-01-01 起的天数（civil_from_days 的反函数），用来算旧页隔了几天 */
+export function dayNumber(dayKey: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey)
+  if (!m) return null
+  const month = Number(m[2]); const day = Number(m[3]); const year = Number(m[1]) - (month <= 2 ? 1 : 0)
+  const era = Math.floor(year / 400); const yoe = year - era * 400
+  const doy = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1
+  return era * 146097 + yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy - 719468
+}
+
 /** 毫秒时间戳 → 10月17日（UTC+8） */
 export function dateLabel(ms: number): string {
   const { month, day } = civilFromDays(Math.floor((ms + 8 * 3600_000) / 86_400_000))

@@ -9,6 +9,8 @@ import { QuillDock } from './quill/QuillDock'
 import { introStepOf, OnboardingPage, type OnboardingStep } from '../onboarding/OnboardingPage'
 import { FURNITURE } from './wash/furniture'
 import { RightPage } from './RightPage'
+import { OldPage, type Quote } from './history/OldPage'
+import { useHistoryPhoto, useOldPages } from './history/useHistory'
 import { DiaryBook, RibbonKey } from './sheets/DiaryBook'
 import { GiftShelf } from './sheets/GiftShelf'
 import { ScheduleSheet } from './sheets/ScheduleSheet'
@@ -52,11 +54,16 @@ export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot
   const [tab, setTab] = useState<Tab>(previewTab)
   const [diaryFocus, setDiaryFocus] = useState<string | null>(null)
   const [opened, markOpened] = useOpenedDiaries()
+  const old = useOldPages(snapshot, bridge)
+  const [quote, setQuote] = useState<Quote | null>(null)
+  useEffect(() => { setQuote(null) }, [snapshot.epoch])
+  const turnTab = (next: Tab) => { old.close(); setTab(next) }
   // 她进入心流时，工作视图在对话页上（体验设计 §2）：不让它藏在别的书签后面
   const flowing = !!snapshot.heartFlow?.activeId
-  useEffect(() => { if (flowing) setTab('chat') }, [flowing])
+  useEffect(() => { if (flowing) { old.close(); setTab('chat') } }, [flowing])
+  const historyPhoto = useHistoryPhoto(snapshot, tab === 'chat' ? old.view : null)
   const unread = useChatUnread(snapshot, tab === 'chat')
-  const openDiary = (id: string) => { setTab('diary'); setDiaryFocus(id) }
+  const openDiary = (id: string) => { turnTab('diary'); setDiaryFocus(id) }
   // 最近解锁的那一篇还没翻开过：钥匙夹在书签丝带上
   const latest = snapshot.diary?.entries.findLast((entry) => entry.unlocked)
   const ribbonKey = !onboarding && latest?.unlocked && !opened.has(latest.id) ? latest : null
@@ -74,13 +81,20 @@ export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot
           {ribbonKey && <RibbonKey label={fill(copy.diary.ribbonKey, { date: dayKeyLabel(ribbonKey.dayKey) })} onOpen={() => openDiary(ribbonKey.id)} />}
           <LeftPage snapshot={snapshot} bridge={bridge} intro={onboarding ? introStepOf(onboarding) : null}
             furniture={onboarding === 'alive' ? { painted, onPaint: (id) => setPainted((list) => list.includes(id) ? list : [...list, id]) } : undefined}
-            onOpenDiary={(dayKey) => { const entry = snapshot.diary?.entries.find((item) => item.dayKey === dayKey); if (entry) openDiary(entry.id) }} />
+            onOpenDiary={(dayKey) => { const entry = snapshot.diary?.entries.find((item) => item.dayKey === dayKey); if (entry) openDiary(entry.id) }}
+            historyPhoto={onboarding ? null : historyPhoto} />
           <div className="gutter" aria-hidden />
           {onboarding
             ? <OnboardingPage snapshot={snapshot} bridge={bridge} step={onboarding} painted={painted.map((id) => FURNITURE.find((f) => f.id === id)?.name ?? id)}
               onStep={setStep} onDone={() => setPreviewDone(true)} />
             : <>
-              <RightPage snapshot={snapshot} bridge={bridge} hidden={tab !== 'chat'} onOpenShelf={() => setTab('gifts')} />
+              <RightPage snapshot={snapshot} bridge={bridge} hidden={tab !== 'chat' || !!old.view} onOpenShelf={() => turnTab('gifts')}
+                onTurnBack={old.past.length ? () => old.open(old.past.at(-1)!.sessionId) : undefined}
+                quote={quote} onClearQuote={() => setQuote(null)} />
+              {tab === 'chat' && old.view && (
+                <OldPage info={old.view.info} page={old.view.page} failed={old.view.failed} older={old.neighbor(-1)} newer={old.neighbor(1)}
+                  onTurn={old.open} onToday={old.close} onQuote={(next) => { setQuote(next); old.close() }} />
+              )}
               {tab === 'gifts' && <GiftShelf snapshot={snapshot} bridge={bridge} />}
               {tab === 'diary' && <DiaryBook snapshot={snapshot} bridge={bridge} focusId={diaryFocus} onOpened={(id) => { markOpened(id); setDiaryFocus(null) }} />}
               {tab === 'schedule' && <ScheduleSheet snapshot={snapshot} />}
@@ -95,7 +109,7 @@ export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot
                   <button key={id} type="button" className="bookmark" data-active={active} data-unread={id === 'chat' && unread}
                     aria-current={active ? 'page' : undefined} disabled={settings && !onOpenTools}
                     aria-label={id === 'chat' && unread ? `${copy.tabs.chat}（${copy.chatUnread}）` : undefined}
-                    onClick={() => { if (settings) onOpenTools?.(); else setTab(id) }}>
+                    onClick={() => { if (settings) onOpenTools?.(); else turnTab(id) }}>
                     {copy.tabs[id]}
                   </button>
                 )

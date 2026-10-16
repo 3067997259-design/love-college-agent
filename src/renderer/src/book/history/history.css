@@ -1,0 +1,104 @@
+/*
+ * 往回翻（体验设计 §2“一天一页”“引用”）：旧页墨色褪成铅笔灰、字始终能读；
+ * 左页换成那天拍下的照片，越早越淡；回忆时照片短暂浮上来再淡出。
+ */
+
+/* —— 左页：那天的照片，和房间同一个框 —— */
+.history-photo {
+  position: absolute;
+  left: 56px;
+  top: 52px;
+  width: 600px;
+  height: 600px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  pointer-events: none;
+}
+.history-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  /* 越早越淡：饱和度和不透明度一起降，带一点旧纸的暖色 */
+  filter: saturate(calc(1 - 0.55 * var(--age))) sepia(calc(0.22 * var(--age)));
+  opacity: calc(1 - 0.32 * var(--age));
+  -webkit-mask-image: radial-gradient(ellipse 72% 70% at 50% 46%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(ellipse 72% 70% at 50% 46%, #000 62%, transparent 100%);
+}
+.history-photo-missing { margin: 0; font: 22px var(--font-hand); color: var(--pencil); }
+.history-photo[data-mode='page'] { animation: photo-in 520ms var(--ease-out) both; }
+/* 回忆：浮上来，回忆完淡出；淡出后留在原处但不挡任何东西 */
+.history-photo[data-mode='recall'] { background: transparent; }
+.history-photo[data-mode='recall'][data-state='in'] { animation: photo-in 900ms var(--ease-out) both; }
+.history-photo[data-mode='recall'][data-state='out'] { animation: photo-out 1400ms var(--ease-in-out) both; }
+@keyframes photo-in { from { opacity: 0; filter: blur(3px); } to { opacity: 1; filter: none; } }
+@keyframes photo-out { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+
+/* —— 右页：旧的一页 —— */
+.page-head-date { display: flex; align-items: baseline; gap: 14px; }
+.page-turn { display: flex; gap: 16px; font: 16px var(--font-hand); }
+.page-turn .link-button:disabled { opacity: 0.4; cursor: default; }
+.turn-back { font: 16px var(--font-hand); white-space: nowrap; }
+.old-page .msg-assistant { color: var(--ink-her-faded); }
+.old-page .msg-assistant .msg-who { background: var(--ink-her-faded); }
+.old-page .msg-user { color: var(--graphite); }
+.old-hint { margin: 0; font: 15px var(--font-hand); color: var(--graphite); }
+.old-page .msg-text::selection { background: color-mix(in oklab, var(--peach) 70%, transparent); }
+.old-page .msg[data-recallable='true'] .msg-text { cursor: text; }
+.quote-button {
+  margin-left: 8px;
+  padding: 0 8px;
+  font: 14px var(--font-hand);
+  color: var(--ink-her);
+  background: none;
+  border: 1px dashed color-mix(in oklab, var(--peach-mid) 70%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-out);
+}
+.old-page .msg:hover .quote-button, .quote-button:focus-visible { opacity: 1; }
+.old-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1.5px dashed color-mix(in oklab, var(--pencil) 70%, transparent);
+}
+.quote-preview {
+  flex: 1;
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--peach);
+  font-size: var(--fs-sm);
+  color: var(--ink-her-faded);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* —— 今天这一页：贴在输入框上面的引用条 —— */
+.composer:has(.quote-chip) { flex-wrap: wrap; }
+.quote-chip {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 10px;
+  background: color-mix(in oklab, var(--peach) 28%, var(--paper));
+  border-left: 3px solid var(--peach-mid);
+  border-radius: 4px 10px 10px 4px;
+}
+.quote-chip-label { flex: none; font: 15px var(--font-hand); color: var(--ink-her); }
+.quote-chip-text { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--ink-her-faded); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quote-chip-clear { flex: none; width: 24px; height: 24px; font-size: 18px; line-height: 1; color: var(--graphite); background: none; border: 0; cursor: pointer; }
+.recall-line { animation: recall-breathe 2.4s var(--ease-in-out) infinite; }
+@keyframes recall-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .history-photo[data-mode='page'], .history-photo[data-mode='recall'][data-state='in'] { animation: none; }
+  .recall-line { animation: none; }
+}

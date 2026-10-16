@@ -10,6 +10,7 @@ import { FURNITURE } from './wash/furniture'
 import { WashRoom } from './wash/WashRoom'
 import { packageScene } from './characterPackage'
 import { SillItems } from './life/SillItems'
+import { HistoryPhoto, type PhotoOverlay } from './history/HistoryPhoto'
 
 const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
 
@@ -22,7 +23,7 @@ const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
 const INTRO_ART = { key: 'desk-writing_calm', lighting: 'ambient' } as const
 const GREET_ART = { key: 'facing-user_smile', lighting: 'ambient' } as const
 
-export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiary }: {
+export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiary, historyPhoto = null }: {
   snapshot: AppSnapshot
   bridge: AppBridge
   intro?: IntroStep | null
@@ -30,6 +31,8 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   furniture?: { painted: readonly string[]; onPaint: (id: string) => void }
   /** 窗台上带回来的东西：翻到那天的日记 */
   onOpenDiary?: (dayKey: string) => void
+  /** 往回翻或回忆时，那天拍下的照片盖在房间上面 */
+  historyPhoto?: PhotoOverlay | null
 }) {
   const { companion, pomodoro, messages, capabilities } = snapshot
   const [commandFailed, setCommandFailed] = useState(false)
@@ -102,8 +105,10 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
         {/* 光线层在最上面：钟、门牌、信都是房间里的东西，跟着房间一起暗 */}
         {art.lighting === 'ambient' && <><div className="room-tint" /><div className="room-lamp" /></>}
       </div>
+      {/* 房间之外的兄弟节点：盖在上面，但不进实时拍照的根 */}
+      {historyPhoto && <HistoryPhoto view={historyPhoto} />}
 
-      {lastLine && (
+      {lastLine && historyPhoto?.mode !== 'page' && (
         <p className="speech" data-status={lastLine.status}>
           {lastLine.text}
           {lastLine.status === 'streaming' && <span className="speech-caret" />}

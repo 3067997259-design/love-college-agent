@@ -453,6 +453,8 @@
 .page-right {
   display: grid;
   grid-template-rows: auto 1fr auto;
+  /* 只有一列：标题行再挤也不能把整页撑宽 */
+  grid-template-columns: minmax(0, 1fr);
   padding: 44px 60px 30px 70px;
   box-sizing: border-box;
 }

@@ -115,5 +115,24 @@
     "diary": "读那天的日记",
     "diaryLocked": "那天的日记还锁着",
     "close": "收起"
+  },
+  "history": {
+    "back": "往回翻",
+    "older": "前一页",
+    "newer": "后一页",
+    "today": "回到今天",
+    "noPhoto": "这一天没有留下照片。",
+    "loading": "正在翻……",
+    "failed": "这一页现在翻不开。",
+    "empty": "这一页没有对话。",
+    "quote": "引用",
+    "quoteSelection": "引用这一段",
+    "quoteHint": "选中她当时看见过的话，引用给她，请她回忆那时候。",
+    "truncated": "只显示这一页末尾的一部分，完整记录还在本机。",
+    "chip": "引用 {date}",
+    "clearQuote": "不引用了",
+    "placeholder": "想和她聊这一段的什么？",
+    "recalling": "{name}正在回忆……",
+    "recallFailed": "这次没想起来。"
   }
 }
