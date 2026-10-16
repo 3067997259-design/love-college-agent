@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, readFileSync, writeFileSync, unlinkSync, mkdirSync
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { createManualClock } from '../../src/main/clock'
 import { openJournal } from '../../src/main/journal/file'
 import { projectJournal } from '../../src/main/journal/projection'
@@ -29,6 +29,24 @@ function setup(model: LifeWorkModel | null = createFakeLifeWorkModel()) {
   expect(send({ type: 'developer.life.seed' })).toBeUndefined()
   return { root, work, store, desk, clock, scheduler, options, send, previews, available: (value: boolean) => { available = value } }
 }
+it('refuses mixing fake checkpoints with a real producer and preserves the old product', async () => {
+  const f = setup(); f.send({ type: 'life.work.start', kind: 'read' }); await f.work.idle()
+  const before = f.work.view().jobs[0]; const content = f.desk.read(before.output!.path); await f.work.close()
+  const produce = vi.fn(async () => ({ markdown: 'NEW_REAL_TRANSPORT_PRODUCT' }))
+  const next = createLifeWork({ ...f.options, model: { source: 'real', produce } }); cleanups.push(next.close)
+  expect(next.dispatch({ type: 'life.work.resume', workId: before.id } as AppCommand)).toBe('unavailable')
+  await next.tick(); expect(produce).not.toHaveBeenCalled(); expect(f.desk.read(before.output!.path)).toBe(content)
+  expect(next.view().jobs[0]).toMatchObject({ source: 'fake', completedSteps: 1, status: 'failed', reason: 'model' })
+  f.scheduler.cancel('life.work'); f.clock.advanceBy(86400000)
+  expect(next.dispatch({ type: 'life.work.start', kind: 'read' } as AppCommand)).toBeUndefined(); await next.idle()
+  expect(produce).toHaveBeenCalledOnce(); expect(next.view().jobs.at(-1)).toMatchObject({ source: 'real', completedSteps: 1 })
+})
+it('reports shared reservation exhaustion as budget and never commits a product', async () => {
+  const f = setup({ source: 'fake', produce: async () => { throw Object.assign(new Error('LOCAL_BUDGET'), { code: 'budget-exceeded' }) } })
+  f.send({ type: 'life.work.start', kind: 'read' }); await f.work.idle()
+  expect(f.work.view().jobs[0]).toMatchObject({ status: 'failed', reason: 'budget', completedSteps: 0 })
+  expect(f.work.view().jobs[0].output).toBeUndefined()
+})
 it('writes reading notes and a revised manuscript as actual immutable desk checkpoints; no raw context or fake completion', async () => {
   const f = setup(); f.desk.write('用户秘密.md', 'PRIVATE_UNREGISTERED_CANARY'); const original = f.work.view().materials[0]
   for (const kind of ['read', 'write'] as const) {

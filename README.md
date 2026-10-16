@@ -1,5 +1,7 @@
 # Love, College & Agent
 
+**自主作品普通端口（2026-10-17）：** 正常模式现已接 `background` 兼容客户端，共享自主预算、30 秒取消、严格 JSON／文件校验；缺槽位保持不可用。材料入口仍只有登记合成材料，未开放任意资料注册；fake 未完成作品不静默切换生产来源。类型／lint、346 项单测及普通模式真实 HTTP／实际文件／重启续做／取消／坏输出／普通上下文隔离通过，服务为本机合成。命令 `pnpm test:life-port`，见 [作品记录](docs/engineering/autonomous-work-third-circle.md)；真实供应商质量仍未验收。
+
 **同档连续验收（2026-10-17）：** `pnpm test:showcase` 已贯通邮件证据、确认与实际日历文件、`/privacy` 资料成品、番茄小窗与读写作品、心流落盘、照片、四点翻页、引用回忆、重启及原存档恢复。普通上下文／记忆不含原文或作品正文。源码 Electron 与实际安装版均已通过；模型为 fake、时间加速，见 [连续流程](docs/engineering/showcase-third-circle.md)。
 
 **最新安装态（2026-10-17 07:08）：** 第三圈底层及现有 main 画面已重打 NSIS，七类原生探针／普通重启／历史照片引用，以及 14 项安装版场景（含同档连续链路）全部通过。构建源码 `4a34e4d`，合成服务，未签名；真实 OCR／语音／MC 双客户端及最终外景画面仍待验收。包与哈希见 [安装态记录](docs/engineering/package-third-circle.md)。

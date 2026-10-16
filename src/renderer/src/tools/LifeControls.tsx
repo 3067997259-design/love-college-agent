@@ -10,7 +10,7 @@ export function LifeControls({ bridge, snapshot }: { bridge: AppBridge; snapshot
     <button onClick={() => void send({ type: 'life.propose', place: 'coast' })}>提议去海岸</button><button onClick={() => void send({ type: 'life.propose', place: 'swing' })}>提议去秋千</button>
     {proposed && <button onClick={() => void send({ type: 'life.depart', outingId: proposed.id })}>同意这次外出</button>}{life.locationId !== 'room' && <button onClick={() => void send({ type: 'life.return' })}>请她提前回来</button>}
     <ul>{life.items.map((item) => <li key={item.id}>{item.kind === 'shell' ? '贝壳' : '树叶'} · {item.dayKey} · {label[item.place]} · {item.display === 'desk' ? '书桌' : '抽屉'}<small> · {item.outingId.slice(-8)}</small></li>)}</ul>
-    {work && <section aria-label="书桌作品"><h3>书桌作品</h3><p>{work.source === 'fake' ? '合成材料与 fake 模型' : work.source === 'none' ? '自主作品模型尚未接通' : '自主作品'} · {work.enabled ? '已启用' : '已暂停'} · 今日调用 {work.attemptsToday}/{work.dailyAttemptLimit}</p>
+    {work && <section aria-label="书桌作品"><h3>书桌作品</h3><p>{work.source === 'fake' ? '合成材料与 fake 模型' : work.source === 'none' ? '自主作品模型尚未接通' : '后台模型 · 合成材料'} · {work.enabled ? '已启用' : '已暂停'} · 今日调用 {work.attemptsToday}/{work.dailyAttemptLimit}</p>
       <p>她在用户工作且没有被交付任务时推进。休息、熄灯和前台任务会让出；重启后可从已落盘的一步续做。</p>
       {snapshot.runtime?.developer.mode === 'developer' && <button onClick={() => void send({ type: 'developer.life.seed' })}>放入合成阅读材料</button>}
       <button disabled={!work.enabled || !work.materials.length || work.source === 'none'} onClick={() => void send({ type: 'life.work.start', kind: 'read' })}>开始今日阅读</button>

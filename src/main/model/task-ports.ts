@@ -18,6 +18,8 @@ import type { DiaryModel } from '../diary/schema'
 import notificationPrompts from '../notifications/prompts.json'
 import delegatePrompts from '../delegates/prompts.json'
 import type { DelegateModel } from '../delegates/schema'
+import { workModelInput, workOutput, type LifeWorkModel } from '../life/work/schema'
+import workProtocol from '../life/work/protocol.json'
 
 /** Machine JSON tasks only. Persona, diary and dream wording remain on the voice line. */
 export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, clock: Clock, store: SessionStore, fetcher?: Parameters<typeof createModelClient>[3]) {
@@ -50,5 +52,6 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
   const narrow: PrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (text, signal) => json('privacy', prompts.narrowPrivacy, { text }, signal ?? new AbortController().signal, 512) } : null
   const diary: DiaryModel | null = providers.has('chat') ? { source: 'real', write: (input, signal) => { const card = (store.history?.() ?? store.records()).findLast((row) => row.type === 'character/definition'); return json('chat', diaryPrompts.system, { character: { name: store.projection().onboarding.characterName, persona: card?.type === 'character/definition' ? card.definition.persona : '' }, fragments: input }, signal, 1600, true) } } : null
   const delegate: DelegateModel | null = providers.has('background') ? { source: 'real', read: (input, signal) => json('background', delegatePrompts.system, input, signal, 1600, true) } : null
-  return { memory, mail, document, narrow, diary, delegate }
+  const lifeWork: LifeWorkModel | null = providers.has('background') ? { source: 'real', produce: async (input, signal) => workOutput.parse(await json('background', workProtocol.system, workModelInput.parse(input), signal, 4096)) } : null
+  return { memory, mail, document, narrow, diary, delegate, lifeWork }
 }

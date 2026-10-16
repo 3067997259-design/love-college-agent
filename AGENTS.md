@@ -248,7 +248,7 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 - 只有在用户要求时才更新跨项目的全局记忆；本工程文档不等于全局记忆。
 # 已实现的心流命令
 
-`pnpm package:win` 生成带 Git／安装器／asar 哈希回执的 Windows 包；`pnpm test:package` 对实际安装 EXE 追加 14 项原生场景（含同档连续流程，合成服务），不把源码 Electron 验收充当安装态。已有用户安装时拒绝升级／卸载；缓存与独立测试安装目录均在 D 盘。结果见 [安装态记录](docs/engineering/package-third-circle.md)。
+`pnpm package:win` 生成带 Git／安装器／asar 哈希回执的 Windows 包；`pnpm test:package` 对实际安装 EXE 追加 15 项原生场景（含同档连续流程及普通模式生产端口，合成服务），不把源码 Electron 验收充当安装态。已有用户安装时拒绝升级／卸载；缓存与独立测试安装目录均在 D 盘。结果见 [安装态记录](docs/engineering/package-third-circle.md)。
 
 `pnpm test:showcase` 跑同一 profile 的“邮件证据→确认→文件交付→/privacy 资料→番茄小窗→实际读写作品→心流→照片→跨日回忆→重启／私人恢复”。全部合成服务／加速时钟，不是长期运行、真实隐私质量或外部平台写入的验收。详见 [连续流程](docs/engineering/showcase-third-circle.md)。
 
@@ -276,7 +276,7 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 `pnpm test:delegates` 验证只读心流分身与本体收回结果。最多三个、每日十二次尝试、每次三十秒；只有指定书桌源材料，结果未审核、不独立写记忆，停止／退出／熄灯取消。正式 background 模型端口已接，fake 验收不代表真实质量。
 
 `pnpm probe:life` 验证外出事实与恢复结算水位；不要把离线虚构事件报告为实际工作。
-`pnpm test:life-work` 验证登记过的合成书桌材料、fake 阅读／写作、真实产物、暂停／重启及私人恢复。只有回读校验且已提交的产物才推进步数；离线不补工作，原文／作品正文不进普通上下文或运行记录。正式作品模型未接通，不能用假模型验收代替真实质量。
+`pnpm test:life-work` 验证登记过的合成书桌材料、fake 阅读／写作、真实产物、暂停／重启及私人恢复。只有回读校验且已提交的产物才推进步数；离线不补工作，原文／作品正文不进普通上下文或运行记录。`pnpm test:life-port` 验证普通模式后台兼容端口、共享预算、取消、非法输出拒绝、实际文件、来源不混写和重启显式续做；仍用登记合成材料及本机合成 HTTP，不读取真实供应商凭据，也不证明真实质量。材料没有新增任意文件登记入口。
 `pnpm test:room` 验证日记和房间投影。日记钥匙／正文仅用户专用读接口可取，不加进调试状态或模型上下文。
 `pnpm test:notifications` 验证急件通知。Toast 不放标题／发件人／正文；只允许急件或心流审批，禁止把普通后台活动做成通知。
 `pnpm test:characters` 验证静态角色包与角色作用域。角色包不带私人档案；私人存档恢复维持同用户／同角色校验。

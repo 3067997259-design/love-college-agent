@@ -14,6 +14,8 @@ export const workItemSchema = z.strictObject({
 })
 export const draftSchema = z.strictObject({ id: z.string().uuid(), workId: digestSchema, step: z.number().int().min(1).max(3), path: deskPathSchema, text: workText, sha256: digestSchema })
 export const workOutput = z.strictObject({ markdown: workText })
+export const workModelInput = z.strictObject({ kind: z.enum(['read', 'write']), step: z.number().int().min(1).max(3), totalSteps: z.literal(3),
+  material: workText, previous: z.string().max(12000).superRefine((text, ctx) => { if (Buffer.byteLength(text) > 12000) ctx.addIssue({ code: 'custom', message: 'Invalid work size' }) }) })
 export type WorkMaterial = z.infer<typeof materialSchema>
 export type WorkDraft = z.infer<typeof draftSchema>
 export interface LifeWorkModel {
