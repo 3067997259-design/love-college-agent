@@ -69,6 +69,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('developer.documents'), scenarioId: z.enum(DOCUMENT_SCENARIO_IDS) }),
   z.strictObject({ ...envelope, type: z.literal('developer.document.import'), fixtureId: z.enum(['assignment-pdf', 'notes-text', 'malformed-pdf', 'scanned-pdf']) }),
   z.strictObject({ ...envelope, type: z.literal('memory.extract') }),
+  z.strictObject({ ...envelope, type: z.literal('memory.consolidate') }),
   z.strictObject({ ...envelope, type: z.literal('context.compact') }),
   z.strictObject({ ...envelope, type: z.literal('session.rollover') }),
   z.strictObject({ ...envelope, type: z.literal('developer.memory'), scenarioId: z.enum(['ready', 'failure', 'invalid']) }),

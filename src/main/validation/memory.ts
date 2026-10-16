@@ -102,8 +102,14 @@ export async function probeMemory(root: string) {
       const otherStore = openSessionStore(root, otherOwner, clock); const other = openMemoryRepository(root, otherStore)
       try { if (other.view().items.length || other.view().summaries.length) throw new Error('MEMORY_SCOPE_FAILED') } finally { other.close(); otherStore.close() }
     }
+    clock.advanceBy(clock.parse('2026-11-03T12:00:00+08:00') - clock.nowMs())
+    current.memory.dispatch(command({ type: 'memory.consolidate' })); await current.memory.idle()
+    if (!current.memory.view().summaryCounts?.week || !current.memory.view().summaryCounts?.month) throw new Error('MEMORY_HIERARCHY_FAILED')
+    const operations = current.store.history!().filter((row) => row.type === 'memory/operation').length
+    current.memory.dispatch(command({ type: 'memory.consolidate' })); await current.memory.idle()
+    if (current.store.history!().filter((row) => row.type === 'memory/operation').length !== operations) throw new Error('MEMORY_HIERARCHY_REPEATED')
     return { ok: true, probe: 'memory', source: 'fake', seenOnlyExtraction: true, rawPrivateExcluded: true, correctedWithoutDeletion: true, actualSqliteProjection: true,
       contextCompactedChatPreserved: true, noMidturnOrLightsRollover: true, sameProcessDailyRollover: true, priorSummaryAndRecall: true,
-      longTermPromotion: true, oldPageUnchanged: true, pendingFactsCarried: true, failureClosed: true, failedDayRolloverAndDeferredSummary: true, restartAndCacheRebuild: true, userAndCharacterIsolated: true }
+      longTermPromotion: true, oldPageUnchanged: true, pendingFactsCarried: true, failureClosed: true, failedDayRolloverAndDeferredSummary: true, restartAndCacheRebuild: true, userAndCharacterIsolated: true, closedWeekMonthIdempotent: true }
   } catch { return { ok: false, probe: 'memory', stage } } finally { await current.close() }
 }
