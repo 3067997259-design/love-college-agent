@@ -14,6 +14,8 @@ export function MinecraftControls({ bridge, snapshot }: { bridge: AppBridge; sna
     <label>游戏 MCP<select aria-label="游戏 MCP" value={serverId} disabled={active} onChange={(event) => setSelected(event.target.value)}>{servers.map((server) => <option key={server.id} value={server.id}>{server.id} · {server.status}</option>)}</select></label>
     <button disabled={active || !serverId} onClick={() => void send({ type: 'minecraft.check', serverId })}>核对游戏玩家</button>
     {view.pilot && <p>玩家：{view.pilot.name} · {view.pilot.uuid} · {view.pilot.dimension}</p>}
+    {view.features && <p>已核对的可用能力：{view.features.join(' · ') || '基础移动'}</p>}
+    <p>确认的本轮范围包含附近移动／转向和可用的只读观察；公开聊天另行勾选。</p>
     <label>附近半径（格）<input aria-label="游戏半径" type="number" min={1} max={16} value={radius} disabled={active} onChange={(event) => setRadius(Number(event.target.value))} /></label>
     <label>本轮秒数<input aria-label="游戏秒数" type="number" min={1} max={600} value={seconds} disabled={active} onChange={(event) => setSeconds(Number(event.target.value))} /></label>
     <label><input type="checkbox" checked={chat} disabled={active} onChange={(event) => setChat(event.target.checked)} />允许本轮公开游戏聊天</label>
