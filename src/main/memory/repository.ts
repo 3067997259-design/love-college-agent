@@ -16,7 +16,7 @@ export function openMemoryRepository(root: string, store: SessionStore) {
   return { view: () => structuredClone(state),
     refresh: () => { state = projectMemory(records()) },
     append: (input: JournalInput) => { store.append(input); state = projectMemory(records()); try { cache() } catch { /* Replay repairs cache without changing durable facts. */ } },
-    close: () => db.close(),
+    close: () => { db.close() },
   }
 }
 export type MemoryRepository = ReturnType<typeof openMemoryRepository>

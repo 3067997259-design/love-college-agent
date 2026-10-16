@@ -88,17 +88,22 @@ export async function probeMemory(root: string) {
     if (current.memory.view().error?.code !== 'connection-failed' || current.repository.view().keys.length !== beforeFault) throw new Error('MEMORY_FAILURE_FAILED')
     current.memory.dispatch(command({ type: 'developer.memory', scenarioId: 'invalid' })); await extract()
     if (current.memory.view().error?.code !== 'memory-invalid-output') throw new Error('MEMORY_INVALID_FAILED')
+    const failedDay = current.store.scope.sessionId
+    clock.advanceBy(clock.parse('2026-10-17T04:03:00+08:00') - clock.nowMs()); await current.memory.maintenance()
+    if (current.store.scope.sessionId === failedDay || current.memory.view().error?.code !== 'memory-invalid-output' || current.repository.view().summaries.some((summary) => summary.sourceSessionIds.includes(failedDay))) throw new Error('MEMORY_FAILED_DAY_TRAPPED')
+    current.memory.dispatch(command({ type: 'developer.memory', scenarioId: 'ready' })); await current.memory.maintenance()
+    if (!current.repository.view().summaries.some((summary) => summary.sourceSessionIds.includes(failedDay))) throw new Error('MEMORY_DEFERRED_SUMMARY_FAILED')
     stage = 6
     await current.close()
     const cache = new Database(join(root, 'memory.sqlite')); cache.prepare('UPDATE memory_projection SET state_json=?').run('{}'); cache.close()
     current = open()
-    if (!current.repository.view().items.some((item) => item.tier === 'long_term') || current.memory.sessionView().pages.length !== 2) throw new Error('MEMORY_RESTART_FAILED')
+    if (!current.repository.view().items.some((item) => item.tier === 'long_term') || current.memory.sessionView().pages.length !== 3) throw new Error('MEMORY_RESTART_FAILED')
     for (const otherOwner of [{ ...owner, characterId: 'other-character' }, { ...owner, userId: 'other-user' }]) {
       const otherStore = openSessionStore(root, otherOwner, clock); const other = openMemoryRepository(root, otherStore)
       try { if (other.view().items.length || other.view().summaries.length) throw new Error('MEMORY_SCOPE_FAILED') } finally { other.close(); otherStore.close() }
     }
     return { ok: true, probe: 'memory', source: 'fake', seenOnlyExtraction: true, rawPrivateExcluded: true, correctedWithoutDeletion: true, actualSqliteProjection: true,
       contextCompactedChatPreserved: true, noMidturnOrLightsRollover: true, sameProcessDailyRollover: true, priorSummaryAndRecall: true,
-      longTermPromotion: true, oldPageUnchanged: true, pendingFactsCarried: true, failureClosed: true, restartAndCacheRebuild: true, userAndCharacterIsolated: true }
+      longTermPromotion: true, oldPageUnchanged: true, pendingFactsCarried: true, failureClosed: true, failedDayRolloverAndDeferredSummary: true, restartAndCacheRebuild: true, userAndCharacterIsolated: true }
   } catch { return { ok: false, probe: 'memory', stage } } finally { await current.close() }
 }
