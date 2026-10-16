@@ -10,7 +10,7 @@ import instructions from './instructions.json'
 
 type Prepared = { messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }
 export function createHeartFlow(options: { store: SessionStore; clock: Clock; desk: ReturnType<typeof createDesk>; booth: boolean; busy(): boolean; changed(): void;
-  prepare(id: string, signal: AbortSignal): Promise<Prepared>; emit(id: string, summary: string): void; run(code: string, signal: AbortSignal): Promise<string> }) {
+  prepare(id: string, signal: AbortSignal): Promise<Prepared>; entered?(): void; emit(id: string, summary: string): void; run(code: string, signal: AbortSignal): Promise<string> }) {
   const { store, desk } = options; const rows = () => store.history?.() ?? store.records()
   let pending: { id: string; code: string; hash: string; resolve?(value: string): void } | undefined; let running: AbortController | undefined; let enabled = true
   let lastRun: HeartFlowView['lastRun']; let opening = false
@@ -71,6 +71,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
             const policies = prepared.messages.filter((message) => message.role === 'system')
             const chat = store.projection().messages.slice(-12).map((message) => ({ role: message.role, text: message.text.slice(0, 500) }))
             store.append({ type: 'flow/open', id: randomUUID(), mode: 'plan', prefix: [...policies, { role: 'system', content: instructions.policy }, { role: 'user', content: JSON.stringify({ conversationReference: chat }) }] })
+            options.entered?.()
           }).catch(() => {}).finally(() => { opening = false; options.changed() }); return
         }
         safe()

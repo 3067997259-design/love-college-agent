@@ -410,3 +410,4 @@ GPT 开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER
 - `pnpm probe:heart-flow`：原生 SQLite／书桌撤回与 JavaScript 隔离验证。
 - `pnpm test:heart-flow`：Electron 书桌工具、审批、撤回和重启场景（fake 聊天模型）。
 
+`pnpm probe:life`：确定性外出、物品来源、重启与恢复空档边界（原生 Electron／SQLite，加速时钟）。
