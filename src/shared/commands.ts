@@ -35,6 +35,9 @@ export type AppCommand = CommandEnvelope & (
   /** Native file chooser. Model URLs, names and credentials stay in main. Restart applies the imported configuration. */
   | { type: 'models.configure' }
   | { type: 'window.mini' }
+  /** Expand the book and destroy its companion window; no timer or session change. */
+  | { type: 'window.expand' }
+  /** Compatibility alias for window.expand. */
   | { type: 'window.book' }
   /** Mini renderer only; main clamps motion to the connected work areas. */
   | { type: 'window.mini.hover'; over: boolean }

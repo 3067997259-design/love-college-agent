@@ -54,7 +54,7 @@
 
 ## 第一圈收尾：MCP 与私人存档
 
-`mcp.configure` 打开原生文件选择器导入标准 mcpServers 配置；配置、启动参数、地址、环境变量和令牌只在主进程。`mcp` 只给服务器 id、传输类型、来源、状态、隐私标记、允许的工具名和配置 fingerprint。连接需要用户确认当前 fingerprint，断开立即取消在途调用；工具结果按隐私策略校验后才进入模型投影。
+`mcp.configure` 打开原生文件选择器导入标准 mcpServers 配置；配置、启动参数、地址、环境变量和令牌只在主进程。`mcp` 只给服务器 id、传输类型、来源、状态、隐私标记、允许的工具名和配置 fingerprint。连接需要用户确认当前 fingerprint，再由主进程原生对话框展示实际程序／参数／工作目录或服务地址供用户核对，不把这些值传给页面。断开使迟到的确认失效，并立即取消在途调用；工具结果按隐私策略校验后才进入模型投影。
 
 `backup.export/import` 使用主进程原生对话框；公共命令不接受文件路径。导入先校验并进入 awaiting-confirmation，界面显示 incoming 摘要；只有显式 backup.restore 携带当前 restoreId 才备份现有数据并恢复。`restored` 表示实际恢复完成，动画不能仅根据选中文件播放成功效果。路径、凭据和存档字节不进入快照、事件或调试 MCP。
 
@@ -64,4 +64,6 @@
 
 `models.configure` 通过原生对话框导入本机 providers JSON，凭据不经过页面。`modelSettings` 仅含已装配的槽位名、保存状态和需要重启的标记，没有模型名、URL 或密钥。开发 profile 拒绝导入真实配置。设置保存不代表连通验证通过。
 
-`window.mini/book` 切换同一会话的书本与迷你窗，不改变计时和任务。迷你渲染入口为 ?view=mini；hover/move 只接受迷你窗口的主 frame，不能由书本伪造。主进程设置透明、置顶和鼠标穿透，校验并夹住拖动坐标，保存的是本机位置偏好。windows 是实际窗口状态投影；开始新一段专注收起一次，用户仍可点回书本，休息不抢焦点。
+`window.mini` 收起书本；`window.expand` 回到书本并销毁小窗，旧 `window.book` 兼容同一行为，不改变计时和任务。迷你渲染入口为 ?view=mini；`window.mini.hover` 携带 `over: boolean`，hover/move 只接受迷你窗口的主 frame，不能由书本伪造。主进程设置置顶和鼠标穿透，透明异常时回退不透明圆角窗；可选的 miniPresentation／miniFallbackReason 仅说明本机显示模式，不含 GPU 或配置细节。主进程夹住拖动坐标、保存 profile 位置。开始新一段专注收起一次；短／长休息、停止和熄灯保留当前窗口，不抢焦点；熄灯暂停计时／后台，点她仍可回书本。重启从书本开始，不自动复原上次小窗。
+
+`PomodoroPlanInput.items` 可省略；提供时每条为 `{ text, count, assist }`，text 是非空单行短文本（最多 40 Unicode code points），count 为正整数，全部 count 之和必须等于 plannedCount，assist 为必填布尔。工具 plan_pomodoros 使用同一校验，非法输入不写日志、不创建计划。PomodoroPlanView 保留通过校验的原始条目，不补造条目或改变 assist。

@@ -62,7 +62,9 @@
 
 第一圈资料处理已接通显式开发场景：合成附件与原生文件拖入／选择 → 暂存 → `/privacy` 隔离整理 → 用户专用 Markdown 交付。支持文字层 PDF、UTF-8 文本／Markdown；关闭滤芯时只暂存，开关在当前 profile 设置中持久化。原文在主进程私有 SQLite；整理成品只给用户，模型／MCP／日志只拿经校验元数据。PDF 使用独立解析子进程，失败不拖垮应用。见 [资料处理记录](docs/engineering/documents-first-circle.md)。
 
-第一圈文字记忆现已接通显式 fake 后台模型：仅从成功的模型输入快照抽取，带来源／纠正链／确定性检索和跨日晋升；按用户＋角色隔离，邮件、附件与整理成品原文不参与。一天一个会话，上海时间 04:00 后等回合结束、最近发送空闲两分钟、未熄灯且番茄未运行再翻页；补抽与日摘要可在失败恢复后补做。`/compact` 只压缩旧完整回合的模型投影，用户旧页聊天保留。合入美术精修后，类型、lint、22 个文件／89 项单测和完整记忆跨日窗口流程通过，原 Electron／SQLite 探针也已通过，见 [记忆与日会话记录](docs/engineering/memory-first-circle.md)。正常模式后台记忆模型尚未装配，不回退聊天槽位；周／月归并、日记、真实隐私模型、MCP 客户端、私人存档恢复和自主生活仍待后续。已有安装包仍是第零圈版本，本批未重新打包。
+第一圈文字记忆从成功模型输入的允许片段抽取，带来源／纠正链／确定性检索和跨日晋升；按用户＋角色隔离，邮件、附件与整理成品原文不参与。一天一个会话，上海时间 04:00 后等回合结束、最近发送空闲两分钟、未熄灯且番茄未运行再翻页；补抽与日摘要可在失败恢复后补做。`/compact` 只压缩旧完整回合的模型投影，用户旧页聊天保留，见 [记忆与日会话记录](docs/engineering/memory-first-circle.md)。
+
+第一圈收尾（2026-10-16 22:48）已合入 MCP 客户端、私人 `.lca-save` 校验／安全恢复／回滚、绑定实际交付和当时可见经历的首件羽毛笔、开发安全诊断、正常模式 background／privacy 专用端口和原生配置入口、原生迷你陪伴窗。Claude 的画面与晕染已合入。类型、lint、30 个文件／119 项单测及相关 Electron 流程通过，新 NSIS 已实际安装验收 SQLite／日志／计时／存档和界面重启。MCP stdio 对 Student Hub 的测试只用新空库完整性工具；没有学校扫描。IMAP 仍 blocked，学校 privacy URL 缺失，本轮没有真实模型请求；真人桌面穿透、羽毛笔美术、多机部署待验收。周／月归并、加密日记、外出、心流、角色包、Rodin 留待后续。详见 [第一圈记录](docs/engineering/first-circle-closeout.md)、[部署说明](docs/deployment.md)、[技术说明初稿](docs/engineering/architecture.md)。
 
 技术栈仍按 [技术方案](docs/tech-design.md) §1；界面与形象见 [体验设计](docs/experience-design.md)。首个工作展示必须贯通校园信息与实际资料处理，具体任务以 README 最新决策为准。
 
@@ -95,15 +97,22 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm test:documents` | 原生文件拖入／选择、合成邮件附件、持久 /privacy、用户文件与元数据隔离、重试／取消／重启 |
 | `pnpm probe:memory` | Electron／SQLite 可见经历、纠正／晋升、整回合压缩、运行中跨日、故障与作用域隔离 |
 | `pnpm test:memory` | 完整窗口的 fake 记忆、元数据边界、/compact、用户旧页、跨 4 点、熄灯与重启 |
+| `pnpm test:mcp` | 合成 HTTP、原生目标核对／取消、工具白名单、隔离、断开和重启 |
+| `pnpm probe:mcp:student-hub` | 实际外部 Python stdio，新空库 integrity_check，不扫描学校 |
+| `pnpm probe:backup` / `pnpm test:backup` | 实际四库 backup、ZIP 校验、作用域、安全备份、回滚与空白 profile 恢复 |
+| `pnpm test:model-slots` | 正常模式原生配置导入／重启，本机合成 HTTP 的 background／privacy 路由与关闭 |
+| `pnpm test:mini` | 原生透明置顶迷你窗、同会话计时、拖动限位、穿透策略和重启位置 |
 | `pnpm package:win` | 构建 Windows x64 NSIS，产物在 `release/` |
 | `pnpm test:package` | 检查已构建包、D 盘测试安装、原生模块、界面重启、卸载测试实例 |
 | `pnpm probe:imap` | 主进程内的指定文件夹只读探针；失败仅输出固定分类 |
 
 不运行 `playwright install`。electron-builder 26.15.3 已单独提交；model-viewer 和 Tailwind 仍延期。打包前先确认当前 Electron 的原生模块已通过 `rebuild:native`／`probe:sqlite`。安装包当前未签名；测试安装命令遇到已有同名用户安装会拒绝覆盖。
 
-GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER_PORT` 覆盖。源码运行数据默认 `<worktree>/.local-data`，安装版用 Electron 用户数据目录，可用 `LCA_DATA_DIR` 覆盖。在“工具与设置”打开开发者模式并重启，才开启 CDP（GPT 9527，其他 9427）和本机鉴权 MCP（5275／5175），可用 `LCA_CDP_PORT`／`LCA_MCP_PORT` 覆盖。开发模式使用独立 profile、脚本假模型，完全不读真实 providers；展位模式 `LCA_BOOTH=1` 禁用调试。场景当前只是开发 fixture，完整 `.lca-save` 仍属第一圈。详见 [开发模式](docs/engineering/developer.md)。
+GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER_PORT` 覆盖。源码运行数据默认 `<worktree>/.local-data`，安装版用 Electron 用户数据目录，可用 `LCA_DATA_DIR` 覆盖。在“工具与设置”打开开发者模式并重启，才开启 CDP（GPT 9527，其他 9427）和本机鉴权 MCP（5275／5175），可用 `LCA_CDP_PORT`／`LCA_MCP_PORT` 覆盖。开发模式使用独立 profile、脚本假模型，不读真实 providers 内容；展位模式 `LCA_BOOTH=1` 禁用调试。fixture JSON 与完整 `.lca-save` 各有独立入口；存档含私有源库且当前不加密，不能当角色包分享。详见 [开发模式](docs/engineering/developer.md)。
 
 经本轮用户明确授权，IMAP 探针由主进程读取本机 `secrets/providers.json`；worktree 可用 `LCA_PROVIDERS_FILE` 指向原 checkout 的文件。不得通过 shell 打印、拷入仓库、传给 renderer／调试接口或记录配置值。未配置隐私模型时业务保持关闭；显式 fake 仅用于测试，不是运行失败后的回退。
+
+正常模式可通过原生文件选择导入 providers JSON，保存到数据根 `connections/providers.json` 并在重启后优先加载。界面仅显示已装配槽位／保存状态，不能取配置值；开发 profile 拒绝真实配置导入。background 和 privacy 都不借用 chat。MCP 配置也只在主进程；连接必须核对当前 fingerprint 和原生对话框里的启动目标，重启不自动连接。存档恢复前自动备份，恢复继续保存的会话和剩余时长，不结算恢复空档。
 
 邮箱开发入口：打开开发模式并重启 → “工具与设置”中扫描合成邮件 → 右页查原文并确认 → “导出新确认事项” → 交付卡“打开”。场景选择提供初始、截止变更、恶意输出、滤芯失败和空邮箱。原文在主进程私有证据库，日志、模型和调试 MCP 只拿短字段；确认／忽略必须携带候选当前 revision，隐私锁不能解除。本地交付成功不代表写入手机日历，重复导入行为尚未实测。
 
