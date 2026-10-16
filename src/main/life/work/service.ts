@@ -63,7 +63,13 @@ export function createLifeWork(options: {
     const last = commits.at(-1)
     if (last) job.output = { path: last.path, sha256: last.sha256, byteLength: Buffer.byteLength(last.text) }
     const pending = [...replay.drafts.values()].findLast((draft) => draft.workId === job.id && draft.step === commits.length + 1)
-    if (job.reason !== 'conflict' && pending && desk.read(pending.path) === pending.text) checkpoint(job, pending)
+    if (job.reason !== 'conflict' && pending) {
+      try {
+        const present = desk.read(pending.path)
+        if (present === pending.text) checkpoint(job, pending)
+        else if (present !== null) { fail(job, 'conflict'); conflictedAtStartup.add(job.id) }
+      } catch { fail(job, 'conflict'); conflictedAtStartup.add(job.id) }
+    }
     // A conflict found by this startup pass stays a conflict, even when every step was committed: the user
     // has to resolve it, and settling it silently would also re-open the resume path (issue #16).
     if (conflictedAtStartup.has(job.id)) continue

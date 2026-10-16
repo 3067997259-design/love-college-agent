@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID, createHash } from 'node:crypto'
-import { mkdir, writeFile, readFile, readdir, unlink } from 'node:fs/promises'
+import { mkdir, writeFile, readFile, readdir, unlink, appendFile, stat } from 'node:fs/promises'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
@@ -84,5 +84,19 @@ try {
   await unlink(join(restoredDesk, first.path)); await accepted({ type: 'room.rebuild' }); assert.equal(await readFile(join(restoredDesk, first.path), 'utf8'), firstText)
   await accepted({ type: 'mode.set', mode: 'quiet' }); await accepted({ type: 'life.work.resume', workId: reading.id }); await waitFor((s) => job(s, 'read').completedSteps === 2, 'RESTORED_RESUME_FAILED')
   await advance(); await waitFor((s) => job(s, 'read').status === 'completed', 'RESTORED_COMPLETE_FAILED')
+  // Crash-window fixture: durable draft, no commit, then an unreadable user edit before real startup.
+  for (const invalid of ['oversized', 'nul', 'directory']) {
+    await stop(); sceneId = randomUUID(); await profile(now); await launch(); await accepted({ type: 'developer.life.seed' }); await accepted({ type: 'life.work.start', kind: 'read' })
+    const pending = job(await snapshot(), 'read'); assert.equal(pending.completedSteps, 0); const desk = join(await room(), '书桌'); await stop()
+    const own = join(data, 'developer', sceneId); const journals = join(own, 'journals'); const folder = join(journals, (await readdir(journals))[0]); const journal = join(folder, (await readdir(folder)).find((name) => name.endsWith('.jsonl')))
+    const records = (await readFile(journal, 'utf8')).trim().split('\n').map((line) => JSON.parse(line)); const path = `自主作品/${pending.id}/1.md`; const text = '# Synthetic pending draft'
+    await appendFile(journal, JSON.stringify({ version: 1, seq: records.length + 1, atMs: now, type: 'life/work-draft', draft: { id: randomUUID(), workId: pending.id, step: 1, path, text, sha256: hash(text) } }) + '\n')
+    const absolute = join(desk, path); await mkdir(dirname(absolute), { recursive: true })
+    const bad = invalid === 'oversized' ? Buffer.from('x'.repeat(64001)) : Buffer.from('before\0after')
+    if (invalid === 'directory') await mkdir(absolute); else await writeFile(absolute, bad)
+    await launch(); const conflicted = job(await snapshot(), 'read'); assert.equal(conflicted.status, 'failed'); assert.equal(conflicted.reason, 'conflict'); assert.equal(conflicted.completedSteps, 0)
+    if (invalid === 'directory') assert.ok((await stat(absolute)).isDirectory()); else assert.deepEqual(await readFile(absolute), bad)
+    await accepted({ type: 'mode.set', mode: 'quiet' }); await accepted({ type: 'life.work.start', kind: 'write' }); await waitFor((s) => job(s, 'write')?.completedSteps === 1, 'OTHER_WORK_BLOCKED_BY_PENDING_CONFLICT')
+  }
   console.log('Life work Electron PASS: registered synthetic desk only, focus-time real notes/manuscript, pause/lights/plugin guards, native user-only product preview, restart and private restore at exact checkpoint, no offline progress, regenerable products and metadata-only runtime log.')
 } finally { await stop() }
