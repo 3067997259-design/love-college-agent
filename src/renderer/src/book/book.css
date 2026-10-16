@@ -140,6 +140,8 @@
   top: 52px;
   width: 600px;
   height: 600px;
+  /* 和纸页同色，看上去没变化；拍历史照片时其他元素都藏起来，淡出的边缘才会落在纸上，而不是露出窗外的深色 */
+  background: var(--paper);
 }
 .room-pencil, .room-color { position: absolute; inset: 0; }
 /* 铅笔线稿四边淡进纸里 */
