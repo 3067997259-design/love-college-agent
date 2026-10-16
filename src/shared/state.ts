@@ -238,6 +238,7 @@ export interface MemoryView {
   source: 'real' | 'fake' | 'none'
   shortTermCount: number
   longTermCount: number
+  summaryCounts?: { day: number; week: number; month: number }
   contextChars: number
   lastExtractedAtMs: number | null
   lastCompactedAtMs: number | null
