@@ -4,6 +4,7 @@
 
 | 接口提交 | 范围 | 实际可接入口 |
 | --- | --- | --- |
+| `54646cf` | 可选光学记忆（接口先行，后端进行中） | snapshot.opticalMemory 元数据、optical.configure/enable/encode/decode；默认关闭，不以 OCR 当事实，详见 optical-third-circle.md |
 | `4594698` | 只读分身 | heartFlow.delegates 元数据活动卡、flow.delegate.cancel；子任务结论只作心流工具结果交本体，不作分身发言或独立记忆；详见 delegates-third-circle.md |
 | `fac7ab1` | 第三圈心流查阅／历史续做 | readHeartFlow 用户原文 diff；flow.inspect/status/permissions/diff、flow.resume、新 plan／旧审批失效、compact focus；详见 heart-flow-third-circle.md |
 | `a19c596` | 第三圈自主生活产物 | snapshot.life.work 元数据、life.work.start/pause/resume/open；朴素入口在生活面板，详见 autonomous-work-third-circle.md |
