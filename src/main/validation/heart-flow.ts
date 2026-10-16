@@ -22,8 +22,13 @@ export async function probeHeartFlow(root: string) {
     if (!timedOut) throw new Error('TIMEOUT_FAILED')
     const user = (id: string) => { store.append({ type: 'user/message', id, text: id, requestId: id, commandHash: 'probe' }); store.append({ type: 'inbox/drain', ids: [id] }) }
     for (let index = 0; index < 30; index++) user('old-work-' + index)
-    send({ type: 'flow.compact' }); user('YESTERDAY_AFTER_COMPACT'); flow.close(); store.close(); clock.advanceBy(86400000)
+    send({ type: 'flow.compact' }); user('YESTERDAY_AFTER_COMPACT')
+    const crossDayRun = { id: 'cross-day-run', flowId: flow.view().activeId!, codeHash: 'a'.repeat(64) }
+    store.append({ type: 'flow/run', ...crossDayRun, status: 'requested' }); store.append({ type: 'flow/run', ...crossDayRun, status: 'approved' })
+    clock.advanceBy(86400000); store.rotate?.(); store.append({ type: 'flow/run', ...crossDayRun, status: 'completed' }); flow.close(); store.close()
     store = openSessionStore(root, owner, clock); flow = open(); user('TODAY_WORK')
+    const completedRun = store.history!().findLast((row) => row.type === 'flow/run' && row.id === crossDayRun.id)
+    if (completedRun?.type !== 'flow/run' || completedRun.status !== 'completed') throw new Error('FLOW_RUN_ORDER_FAILED')
     const prepared = await flow.prepareContext('today', new AbortController().signal)
     if (!JSON.stringify(prepared.messages).includes('YESTERDAY_AFTER_COMPACT') || !JSON.stringify(prepared.messages).includes('TODAY_WORK') || prepared.eligibleIndexes.length) throw new Error('FLOW_CROSS_DAY_FAILED')
     const workSeq = store.records().find((row) => row.type === 'user/message' && row.id === 'TODAY_WORK')!.seq
@@ -38,6 +43,6 @@ export async function probeHeartFlow(root: string) {
     user('TODAY_WORK')
     const normalSeq = store.records().findLast((row) => row.type === 'user/message')!.seq; const allowed = flow.normalEntriesAllowed([workSeq, normalSeq])
     if (allowed.has(workSeq) || !allowed.has(normalSeq)) throw new Error('FLOW_NORMAL_REPLAY_FAILED')
-    return { ok: true, probe: 'heart-flow', actualSqlite: true, deskUndo: true, noNodeOrBridge: true, networkBlocked: true, infiniteLoopTerminated: true, compactedCrossDayRestart: true, normalReplayExcludesWorkByPosition: true, longPathExitAfterRestart: true }
+    return { ok: true, probe: 'heart-flow', actualSqlite: true, deskUndo: true, noNodeOrBridge: true, networkBlocked: true, infiniteLoopTerminated: true, compactedCrossDayRestart: true, crossDayCompletedRunNotInterrupted: true, normalReplayExcludesWorkByPosition: true, longPathExitAfterRestart: true }
   } finally { flow.close(); scheduler.dispose(); store.close() }
 }

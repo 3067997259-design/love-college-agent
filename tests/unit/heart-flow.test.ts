@@ -9,6 +9,7 @@ import { createDesk } from '../../src/main/heart-flow/desk'
 import { createHeartFlow, deskTools } from '../../src/main/heart-flow/service'
 import type { SessionStore } from '../../src/main/store/session'
 import type { AppCommand } from '../../src/shared'
+import { createAppController } from '../../src/main/bridge/controller'
 const cleanups: (() => void)[] = []
 afterEach(() => cleanups.splice(0).reverse().forEach((cleanup) => cleanup()))
 function fixture(booth = false) {
@@ -16,10 +17,11 @@ function fixture(booth = false) {
   const clock = createManualClock(1000); const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
   const store: SessionStore = { scope: journal.scope, records: journal.records, append: journal.append, projection: () => projectJournal(journal.records()), close: journal.close }
   const desk = createDesk(join(root, 'desk')); const run = vi.fn(async () => '42'); const emit = vi.fn()
-  const opts = { store, clock, desk, booth, busy: () => false, changed: () => {}, prepare: async () => ({ messages: [{ role: 'system' as const, content: 'frozen' }], eligibleIndexes: [] }), emit, run }
+  const inspect = vi.fn()
+  const opts = { store, clock, desk, booth, inspect, busy: () => false, changed: () => {}, prepare: async () => ({ messages: [{ role: 'system' as const, content: 'frozen' }], eligibleIndexes: [] }), emit, run }
   const flow = createHeartFlow(opts); cleanups.push(store.close); cleanups.push(flow.close)
   const dispatch = (body: Record<string, unknown>) => flow.dispatch({ ...body, protocolVersion: 1, epoch: 'x', requestId: 'x' } as AppCommand)
-  return { root, store, clock, desk, run, emit, flow, opts, dispatch }
+  return { root, store, clock, desk, run, emit, inspect, flow, opts, dispatch }
 }
 it('restricts paths, hardlinks and exact file-version undo', async () => {
   const f = fixture(); f.dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(f.flow.active()).toBe(true))
@@ -78,4 +80,42 @@ it('rejects invalid UTF-8 snapshot size and NUL before appending a write intent'
   for (const text of ['字'.repeat(22_000), 'short\0text', '\ud800']) expect(() => f.flow.write('a.txt', text)).toThrow()
   expect(f.store.records()).toHaveLength(before); expect(f.desk.read('a.txt')).toBeNull()
   f.flow.write('a.txt', '字'.repeat(21_333) + 'x'); expect(Buffer.byteLength(f.desk.read('a.txt')!)).toBe(64_000)
+})
+it('inspects only this owner flow with measured usage, bounded user-only diffs and exact external-edit status', async () => {
+  const f = fixture(); f.dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(f.flow.active()).toBe(true)); f.dispatch({ type: 'flow.mode', mode: 'execute' })
+  const id = f.flow.view().activeId!; const change = f.flow.write('private.md', 'PRIVATE_DESK_DIFF_CANARY')
+  expect(f.flow.inspect({ section: 'status' })).toMatchObject({ scope: 'desk-only', approval: 'each-run', cost: null, inputTokens: null, outputTokens: null, changes: [] })
+  f.store.append({ type: 'turn/start', turnId: 'test', trigger: 'user' })
+  f.store.append({ type: 'model/attempt', turnId: 'test', slot: 'chat', attempt: 1, waitMs: 0, status: 'success', inputTokens: 10, outputTokens: 4 })
+  f.store.append({ type: 'model/attempt', turnId: 'background-private', slot: 'privacy', attempt: 1, waitMs: 0, status: 'success', inputTokens: 1000, outputTokens: 400 })
+  expect(f.flow.inspect({ section: 'status' })).toMatchObject({ inputTokens: 10, outputTokens: 4 })
+  expect(f.flow.inspect({ section: 'diff', flowId: id }).changes).toMatchObject([{ id: change, before: null, after: 'PRIVATE_DESK_DIFF_CANARY', current: true }])
+  expect(JSON.stringify(f.flow.view())).not.toContain('PRIVATE_DESK_DIFF_CANARY'); f.desk.write('private.md', 'EXTERNAL')
+  expect(f.flow.inspect({ section: 'diff' }).changes[0].current).toBe(false)
+  expect(() => f.flow.inspect({ section: 'diff', flowId: 'foreign-flow' })).toThrow()
+  f.flow.write('long.md', 'a'.repeat(64000)); expect(f.flow.inspect({ section: 'diff' }).truncated).toBe(true)
+  expect(JSON.stringify(f.flow.inspect({ section: 'diff' })).length).toBeLessThan(100000)
+})
+it('resumes closed work as a fresh plan-only flow and never revives old approvals or ordinary context', async () => {
+  const f = fixture(); f.dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(f.flow.active()).toBe(true)); f.dispatch({ type: 'flow.mode', mode: 'execute' })
+  const oldId = f.flow.view().activeId!; f.flow.write('a.md', 'ONLY_PRIVATE_SOURCE'); f.dispatch({ type: 'flow.run', code: 'return 9' }); const approval = f.flow.view().pending!.id
+  f.dispatch({ type: 'flow.exit' }); expect(f.flow.active()).toBe(false)
+  const restarted = createHeartFlow(f.opts); expect(restarted.dispatch({ type: 'flow.resume', flowId: oldId } as AppCommand)).toBeUndefined()
+  expect(restarted.view().mode).toBe('plan'); expect(restarted.view().pending).toBeUndefined(); expect(restarted.view().activeId).not.toBe(oldId)
+  expect(() => restarted.write('a.md', 'blocked')).toThrow(); expect(restarted.dispatch({ type: 'flow.approve', approvalId: approval, allow: true } as AppCommand)).toBe('invalid-command')
+  const prepared = await restarted.prepareContext('next', new AbortController().signal); expect(prepared.eligibleIndexes).toEqual([])
+  expect(JSON.stringify(prepared.messages)).toContain(oldId); expect(JSON.stringify(prepared.messages)).not.toContain('ONLY_PRIVATE_SOURCE')
+  expect(f.run).not.toHaveBeenCalled(); restarted.close()
+})
+it('routes slash inspections and compact focus without a model turn, rejects no-op undo and mini reads', async () => {
+  const f = fixture(); f.dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(f.flow.active()).toBe(true))
+  const controller = createAppController(f.clock, undefined, f.store); controller.attachHeartFlow(f.flow)
+  const send = (text: string) => controller.dispatch({ protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId: crypto.randomUUID(), type: 'message.send', text })
+  for (const text of ['/status', '/permissions', '/diff']) expect(send(text).status).toBe('accepted')
+  expect(f.inspect.mock.calls.map(([view]) => view.section)).toEqual(['status', 'permissions', 'diff'])
+  expect(send('/undo').status).toBe('rejected'); expect(send('/compact 重点保留文件版本').status).toBe('accepted')
+  const compact = f.store.records().findLast((row) => row.type === 'flow/compact'); expect(compact).toMatchObject({ focus: '重点保留文件版本' })
+  expect(send('/compact ' + 'x'.repeat(501)).status).toBe('rejected')
+  expect(controller.dispatch({ protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId: 'mini', type: 'flow.inspect', section: 'diff' }, 'mini').status).toBe('rejected')
+  expect(f.store.records().some((row) => row.type === 'turn/start')).toBe(false); controller.dispose()
 })

@@ -58,7 +58,9 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('flow.enter') }),
   z.strictObject({ ...envelope, type: z.literal('flow.exit') }),
   z.strictObject({ ...envelope, type: z.literal('flow.mode'), mode: z.enum(['plan', 'execute']) }),
-  z.strictObject({ ...envelope, type: z.literal('flow.compact') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.compact'), focus: z.string().trim().min(1).max(500).optional() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.inspect'), section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128).optional() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.resume'), flowId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('flow.undo'), changeId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('flow.run'), code: z.string().min(1).max(10000) }),
   z.strictObject({ ...envelope, type: z.literal('flow.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
@@ -310,9 +312,11 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       publish('mode', command.requestId)
       execution?.stateChanged()
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
-    } else if (heartFlow?.active() && command.type === 'message.send' && ['/exit', '/plan', '/compact', '/permissions', '/status', '/diff', '/undo'].includes(command.text)) {
-      const action: AppCommand | undefined = command.text === '/exit' ? { ...command, type: 'flow.exit' } : command.text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : command.text === '/compact' ? { ...command, type: 'flow.compact' } : command.text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
-      const error = action ? heartFlow.dispatch(action) : undefined; ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (heartFlow?.active() && command.type === 'message.send' && /^(?:\/(?:exit|plan|permissions|status|diff|undo)$|\/compact(?:\s|$))/.test(command.text)) {
+      const text = command.text; const focus = /^\/compact\s/.test(text) ? text.slice(8).trim() || undefined : undefined
+      const section = ({ '/permissions': 'permissions', '/status': 'status', '/diff': 'diff' } as const)[text as '/permissions' | '/status' | '/diff']
+      const action: AppCommand | undefined = text === '/exit' ? { ...command, type: 'flow.exit' } : text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : text.startsWith('/compact') ? { ...command, type: 'flow.compact', ...(focus ? { focus } : {}) } : section ? { ...command, type: 'flow.inspect', section } : text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
+      const error = focus && focus.length > 500 ? 'invalid-command' : action ? heartFlow.dispatch(action) : 'unavailable'; ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (memory && !heartFlow?.active() && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
       try { const error = memory.dispatch(command.type === 'message.send' ? { ...command, type: 'context.compact' } : command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -412,6 +416,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachPhotos: (port: HistoryPhotos) => { photos = port; publish('connection') },
     attachRecall: (port: HistoryRecall) => { recall = port; publish('connection') },
     readDiary: (id: unknown) => { if (!diary || typeof id !== 'string' || !/^diary:[a-f0-9]{64}$/.test(id)) throw new Error('DIARY_UNAVAILABLE'); return diary.read(id) },
+    readHeartFlow: (input: unknown) => { const parsed = z.strictObject({ section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128).optional() }).parse(input); if (!heartFlow) throw new Error('FLOW_UNAVAILABLE'); return heartFlow.inspect(parsed) },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },

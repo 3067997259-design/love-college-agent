@@ -9,6 +9,7 @@ export function HeartFlowControls({ bridge, snapshot }: { bridge: AppBridge; sna
     {!flow.activeId ? <button onClick={() => void send({ type: 'flow.enter' })}>进入心流</button> : <>
       <button onClick={() => void send({ type: 'flow.mode', mode: flow.mode === 'plan' ? 'execute' : 'plan' })}>{flow.mode === 'plan' ? '批准计划并允许书桌写入' : '回到只读计划'}</button>
       <button onClick={() => void send({ type: 'flow.compact' })}>收起工作过程</button><button onClick={() => void send({ type: 'flow.exit' })}>退出心流</button>
+      <button onClick={() => void send({ type: 'flow.inspect', section: 'status' })}>心流状态</button><button onClick={() => void send({ type: 'flow.inspect', section: 'permissions' })}>心流权限</button><button onClick={() => void send({ type: 'flow.inspect', section: 'diff' })}>查看本次差异</button>
       <label>申请运行 JavaScript<textarea aria-label="心流 JavaScript" value={code} maxLength={10000} onChange={(event) => setCode(event.target.value)} /></label>
       <button disabled={flow.execution === 'disabled' || flow.mode === 'plan' || !!flow.pending} onClick={() => void send({ type: 'flow.run', code })}>申请执行</button>
       {flow.pending && <div role="alertdialog" aria-label="本次脚本审批"><pre>{flow.pending.code}</pre><p>无 Node、网络、系统文件、应用接口；最多 5 秒。</p>
@@ -17,5 +18,9 @@ export function HeartFlowControls({ bridge, snapshot }: { bridge: AppBridge; sna
       <ul>{flow.changes.map((change) => <li key={change.id}>{change.path} · {change.undone ? '已撤回' : '已留快照'}<button disabled={change.undone || flow.mode === 'plan'} onClick={() => void send({ type: 'flow.undo', changeId: change.id })}>撤回此版本</button></li>)}</ul>
     </>}
     <p>{flow.files.length} 个书桌文件 · {flow.sessions.length} 次心流</p>{error && <p role="alert">{error}</p>}
+    <details><summary>历次心流</summary><ol>{flow.sessions.map((session) => <li key={session.id}>{session.id.slice(0, 8)} · {session.endedAtMs === null ? '进行中' : '已结束'}
+      <button onClick={() => void send({ type: 'flow.inspect', section: 'status', flowId: session.id })}>查阅状态</button><button onClick={() => void send({ type: 'flow.inspect', section: 'diff', flowId: session.id })}>查阅差异</button>
+      <button disabled={!!flow.activeId || session.endedAtMs === null} onClick={() => void send({ type: 'flow.resume', flowId: session.id })}>接着做这次心流</button>
+    </li>)}</ol></details>
   </section>
 }

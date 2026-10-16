@@ -358,6 +358,7 @@ void app.whenReady().then(async () => {
       for (const [path, text] of restoredFiles) desk.write(path, text)
     }
     heartFlow = createHeartFlow({ store, clock, desk, booth: prepared.booth, busy: () => harness?.isBusy() ?? false, changed: () => controller?.refresh('task'),
+      inspect: (view) => previewArtifact({ id: view.flowId, artifactId: view.flowId, displayName: '心流 · ' + view.section, kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: prepared.developer ? 'fake' : 'real' }, JSON.stringify(view, null, 2), '用户专用查阅 · 书桌范围 · 每次运行单独审批 · 费用未知时为 null。'),
       prepare: async (id, signal) => { const preparedContext = await memory!.prepareContext(id, signal); const world = life?.view(); if (!world) return preparedContext
         const facts = { role: 'user' as const, content: JSON.stringify({ source: 'autonomous', worldFacts: { locationId: world.locationId, outings: world.outings.slice(-3), items: world.items.slice(-3) }, actualWorks: world.work?.jobs.slice(-6).map(({ id, kind, source, status, completedSteps, totalSteps, completedAtMs }) => ({ id, kind, source, status, completedSteps, totalSteps, completedAtMs })), fictional: true, actualOfflineWork: false }) }
         const insertion = Math.max(0, preparedContext.messages.findLastIndex((message) => message.role === 'user')); const messages = [...preparedContext.messages.slice(0, insertion), facts, ...preparedContext.messages.slice(insertion)]
