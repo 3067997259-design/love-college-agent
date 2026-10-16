@@ -15,3 +15,5 @@ MCP 使用 SDK 1.32.1 的 Streamable HTTP，地址 `/mcp`。每次启动生成�
 验证命令 `pnpm test:developer`：真实 Electron 中检查默认关闭、设置开关、独立会话、假模型工具回合、MCP 鉴权与时钟、场景 staging、展位拒绝。另有 Vitest 验证 Origin、投影打码及场景路径隔离。`pnpm test:electron` 同轮复测通过。
 
 此处参考了已安装 MCP SDK 的 stateless server 类型和 transport 生命周期；实现为本工程独立代码，未复制参考项目模块。
+
+第一圈资料入口：独立开发 profile 现有合成附件、文本／PDF 文件 fixture 和 fake 资料滤芯，见 [资料处理记录](documents-first-circle.md)。`/privacy` 在 profile 的设置里持久化，不随开发场景导出；`export_scene` 仍只是 fixture，未升级成私人备份。新建场景使用自己的默认开关。正常模式缺隐私依赖时不能开启隔离整理；当前仅支持暂存。调试 MCP 没有文件原文或成品读取接口，`get_processed_files` 只提供给 harness 查询元数据。
