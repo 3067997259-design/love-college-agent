@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import type { AppCommand, HeartFlowView, PublicErrorCode } from '../../shared'
+import type { AppCommand, HeartFlowView, PublicErrorCode, HeartFlowInspection } from '../../shared'
 import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import type { ContextMessage } from '../journal/schema'
@@ -11,10 +11,11 @@ import { flowContexts, normalContextAllowedSeqs } from './context'
 import { appliedDeskChanges } from './changes'
 import codingSkill from './coding-skill.json'
 import { flowExitSummary } from './summary'
+import { inspectHeartFlow } from './inspection'
 
 type Prepared = { messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }
 export function createHeartFlow(options: { store: SessionStore; clock: Clock; desk: ReturnType<typeof createDesk>; booth: boolean; busy(): boolean; changed(): void;
-  prepare(id: string, signal: AbortSignal): Promise<Prepared>; entered?(): void; emit(id: string, summary: string): void; run(code: string, signal: AbortSignal): Promise<string> }) {
+  prepare(id: string, signal: AbortSignal): Promise<Prepared>; entered?(): void; inspect?(view: HeartFlowInspection): void; emit(id: string, summary: string): void; run(code: string, signal: AbortSignal): Promise<string> }) {
   const { store, desk } = options; const rows = () => store.history?.() ?? store.records()
   let pending: { id: string; code: string; hash: string; resolve?(value: string): void } | undefined; let running: AbortController | undefined; let enabled = true
   let lastRun: HeartFlowView['lastRun']; let opening = false
@@ -25,7 +26,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   const cancel = () => { if (pending) { store.append({ type: 'flow/run', id: pending.id, flowId: open()?.id ?? 'interrupted', status: 'denied', codeHash: pending.hash }); pending.resolve?.('execution-denied'); pending = undefined }; running?.abort() }
   // A saved request/approval never authorizes a process after restart.
   const runs = rows().filter((row) => row.type === 'flow/run')
-  for (const row of runs) if ((row.status === 'requested' || row.status === 'approved') && !runs.some((other) => other.id === row.id && other.seq > row.seq)) store.append({ type: 'flow/run', id: row.id, flowId: row.flowId, codeHash: row.codeHash, status: 'interrupted' })
+  for (const row of runs) if ((row.status === 'requested' || row.status === 'approved') && runs.findLast((other) => other.id === row.id) === row) store.append({ type: 'flow/run', id: row.id, flowId: row.flowId, codeHash: row.codeHash, status: 'interrupted' })
   for (const row of rows()) if (row.type === 'desk/change' && row.pending && !rows().some((other) => other.type === 'desk/settled' && other.id === row.id)) {
     let matches = false; try { matches = contentHash(desk.read(row.path)) === contentHash(row.after) } catch { /* Broken file containment is not a committed change. */ }
     store.append({ type: 'desk/settled', id: row.id, status: matches ? 'applied' : 'failed' })
@@ -38,9 +39,12 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
     store.append({ type: 'desk/settled', id, status: 'applied' }); options.changed(); return id
   }
   const requestRun = (code: string) => { safe(true); if (options.booth || pending || running || code.length > 10_000 || !code.trim()) throw new Error('FLOW_UNAVAILABLE'); const id = randomUUID(); pending = { id, code, hash: contentHash(code) }; store.append({ type: 'flow/run', id, flowId: open()!.id, status: 'requested', codeHash: pending.hash }); options.changed(); return id }
-  const compact = () => {
-    const flow = open()!; const work = rows().filter((row) => row.seq > flow.seq && row.type === 'desk/change')
-    store.append({ type: 'flow/compact', id: flow.id, throughSeq: store.records().at(-1)!.seq, summary: JSON.stringify({ changes: work.slice(-25).map((row) => row.type === 'desk/change' ? { id: row.id, path: row.path } : null) }) }); options.changed()
+  const compact = (focus?: string) => {
+    const flow = open()!; const work = changes().filter((row) => row.flowId === flow.id)
+    const index = work.slice(-25).map((row) => ({ id: row.id, path: row.path }))
+    // Bound the evidence index independently of filename lengths and preserve the user's focus as data.
+    while (JSON.stringify(index).length > 4800) index.shift()
+    store.append({ type: 'flow/compact', id: flow.id, throughSeq: store.records().at(-1)!.seq, summary: JSON.stringify({ changes: index, focus: focus ?? null }), ...(focus ? { focus } : {}) }); options.changed()
   }
   const exit = () => {
     safe(); if (options.busy()) throw new Error('FLOW_UNAVAILABLE'); cancel(); const flow = open()!
@@ -51,6 +55,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   }
   return {
     active: () => !!open(),
+    inspect: (input: { section: HeartFlowInspection['section']; flowId?: string }) => inspectHeartFlow(store, desk, options.booth, { ...input, flowId: input.flowId ?? open()?.id ?? '' }),
     messages: () => {
       const combined = flowContexts(store, false); const activeFlow = open(); const activeSpan = combined.spans.find((span) => span.id === activeFlow?.id)
       const positions = new Map(store.records().flatMap((row) => row.type === 'user/message' || row.type === 'assistant/message' ? [[row.id, combined.positions.get(store.scope.sessionId + ':' + row.seq) ?? -1] as const] : []))
@@ -73,11 +78,26 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
     },
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       try {
+        if (command.type === 'flow.inspect') {
+          if (!options.inspect) return 'unavailable'
+          options.inspect(inspectHeartFlow(store, desk, options.booth, { section: command.section, flowId: command.flowId ?? open()?.id ?? '' })); return
+        }
+        if (command.type === 'flow.resume') {
+          if (!enabled || open() || opening || options.busy() || store.projection().lightsOut) return 'unavailable'
+          const source = rows().find((row) => row.type === 'flow/open' && row.id === command.flowId)
+          const closed = rows().find((row) => row.type === 'flow/close' && row.id === command.flowId)
+          if (source?.type !== 'flow/open' || closed?.type !== 'flow/close') return 'unavailable'
+          const reference: ContextMessage = { role: 'user', content: JSON.stringify({ resumedFlow: source.id, evidenceReference: closed.summary, verifyCurrentFilesWithDeskTools: true, priorApprovalsExpired: true }) }
+          // Reuse only the original stable prefix, not raw tool results or any old execution authorization.
+          const prefix = source.resumedFrom ? source.prefix.slice(0, -1) : source.prefix
+          if (prefix.length >= 200 || JSON.stringify(prefix).length > 70000) return 'unavailable'
+          store.append({ type: 'flow/open', id: randomUUID(), mode: 'plan', prefix: [...prefix, reference], resumedFrom: source.id }); options.entered?.(); options.changed(); return
+        }
         if (command.type === 'flow.enter') {
-          if (open() || opening || options.busy() || store.projection().lightsOut) return 'unavailable'
+          if (!enabled || open() || opening || options.busy() || store.projection().lightsOut) return 'unavailable'
           opening = true
           void options.prepare('flow-entry', new AbortController().signal).then((prepared) => {
-            if (options.busy() || store.projection().lightsOut) return
+            if (!enabled || options.busy() || store.projection().lightsOut) return
             const policies = prepared.messages.filter((message) => message.role === 'system')
             const chat = store.projection().messages.slice(-12).map((message) => ({ role: message.role, text: message.text.slice(0, 500) }))
             store.append({ type: 'flow/open', id: randomUUID(), mode: 'plan', prefix: [...policies, { role: 'system', content: instructions.policy }, { role: 'system', content: JSON.stringify({ builtinCodingSkill: codingSkill }) }, { role: 'user', content: JSON.stringify({ conversationReference: chat }) }] })
@@ -87,7 +107,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
         safe()
         if (command.type === 'flow.exit') { exit(); return }
         if (command.type === 'flow.mode') { if (options.busy()) return 'unavailable'; store.append({ type: 'flow/mode', id: open()!.id, mode: command.mode }); options.changed(); return }
-        if (command.type === 'flow.compact') { if (options.busy()) return 'unavailable'; compact(); return }
+        if (command.type === 'flow.compact') { if (options.busy()) return 'unavailable'; compact(command.focus?.trim().slice(0, 500)); return }
         if (command.type === 'flow.undo') {
           if (options.busy() || pending || running) return 'unavailable'
           const change = changes().find((row) => row.id === command.changeId && row.flowId === open()!.id && !row.undoes)

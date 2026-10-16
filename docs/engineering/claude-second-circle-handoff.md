@@ -4,6 +4,7 @@
 
 | 接口提交 | 范围 | 实际可接入口 |
 | --- | --- | --- |
+| `fac7ab1` | 第三圈心流查阅／历史续做 | readHeartFlow 用户原文 diff；flow.inspect/status/permissions/diff、flow.resume、新 plan／旧审批失效、compact focus；详见 heart-flow-third-circle.md |
 | `a19c596` | 第三圈自主生活产物 | snapshot.life.work 元数据、life.work.start/pause/resume/open；朴素入口在生活面板，详见 autonomous-work-third-circle.md |
 | `7db7bfb` | 第三圈历史照片／引用回忆 | snapshot.history、SessionPage.photo/recallableMessageIds、history.photo.capture、history.recall；朴素入口在记忆与日会话，详见 history-third-circle.md |
 | `c5c8b42` | 新手档案／完成／重置 | 向导已绑定快照和表单，不再依赖 ?onboarding；它仅保留浏览器美术预览 |
