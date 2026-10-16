@@ -14,6 +14,7 @@ import { LifeControls } from './LifeControls'
 import { DiaryControls } from './DiaryControls'
 import { NotificationControls } from './NotificationControls'
 import { CharacterControls } from './CharacterControls'
+import { OpticalControls } from './OpticalControls'
 
 type Action = AppCommand extends infer Command ? Command extends AppCommand ? Omit<Command, 'epoch' | 'protocolVersion' | 'requestId'> : never : never
 
@@ -42,6 +43,7 @@ export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: {
       <MailboxControls bridge={bridge} snapshot={snapshot} />
       <DocumentControls bridge={bridge} snapshot={snapshot} />
       <MemoryControls bridge={bridge} snapshot={snapshot} />
+      <OpticalControls bridge={bridge} snapshot={snapshot} />
       <BackupControls bridge={bridge} snapshot={snapshot} />
       <McpControls bridge={bridge} snapshot={snapshot} />
       <DiagnosticsControls bridge={bridge} snapshot={snapshot} />

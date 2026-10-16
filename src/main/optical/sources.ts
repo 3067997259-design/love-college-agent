@@ -12,12 +12,14 @@ export function opticalPages(store: SessionStore, sessionId: string) {
   const messages = witnessedPage(store, sessionId)
   const lines: { role: 'user' | 'assistant'; text: string; source: OpticalFrame['sources'][number] }[] = []
   for (const message of messages) {
-    let start = 0; let end = 0; let part = ''
-    const flush = () => { if (part.trim()) lines.push({ role: message.role, text: part, source: { messageId: message.messageId, frameSeq: message.frameSeq, index: message.index, start, end, sha256: opticalHash(part) } }); part = ''; start = end }
+    let start = 0; let end = 0; let part = ''; let width = 0
+    const flush = () => { if (part.trim()) lines.push({ role: message.role, text: part, source: { messageId: message.messageId, frameSeq: message.frameSeq, index: message.index, start, end, sha256: opticalHash(part) } }); part = ''; start = end; width = 0 }
     for (const char of message.text) {
       if (char === '\r' || char === '\n') { flush(); end += char.length; start = end; continue }
-      part += char; end += char.length
-      if ([...part].length >= 35) flush()
+      const units = char.codePointAt(0)! >= 0x1f000 ? 4 : char.codePointAt(0)! < 256 ? 1 : 2
+      if (width + units > 70) flush()
+      part += char; end += char.length; width += units
+      if (width >= 70) flush()
     }
     flush()
   }

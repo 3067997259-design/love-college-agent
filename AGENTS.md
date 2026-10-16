@@ -257,6 +257,7 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 `pnpm test:notifications` 验证急件通知。Toast 不放标题／发件人／正文；只允许急件或心流审批，禁止把普通后台活动做成通知。
 `pnpm test:characters` 验证静态角色包与角色作用域。角色包不带私人档案；私人存档恢复维持同用户／同角色校验。
 `pnpm test:history` 验证场景真实照片、界面叠层排除、隐藏书本捕获、旧页引用／受限扩读、跨日与私人存档恢复。照片不得进入模型上下文，回忆不得从用户独占的证据／资料接口取原文。`pnpm test:package` 还会在实际安装后的程序里运行此场景。
+`pnpm test:optical` 验证可选光学封页／四档合成 HTTP／结果守卫／取消／私人恢复。默认关闭、文字记忆继续保留，服务配置仅主进程且不进存档；OCR 原文和该回合的模型回声不得经 eligible 输入重新进入记忆。实际 OCR 质量／遗忘体验未验收，不用合成服务代替真实结论。
 
 `pnpm probe:deeptech-audit` 是只读结构探针，核对 [DeepTech 方向审计](docs/research/deeptech-memory-audit-20261017.md) 的代码级主张，并断言 F1（依赖新鲜性守卫）与 F2（来源权限）修复后的行为。27 项断言，不写库、不发网络、不调模型，不需要构建。实验流程与止损条件见 [执行协议](docs/research/deeptech-memory-protocol-20261017.md)，修复与对照结果见 [一致性实验记录](docs/research/deeptech-memory-experiment-20261017.md)。
 

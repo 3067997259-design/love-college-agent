@@ -61,6 +61,7 @@ it('guards replacements and cut negation, preserves unknown rather than inventin
   expect(JSON.stringify(f.store.records())).not.toMatch(/林红|PRIVATE_OCR_INJECTION/)
   const result = await f.optical.tool().run({ frameId: id }, { clock: f.clock, store: f.store, turnId: 'read', signal: new AbortController().signal })
   expect(result.visible).toMatchObject({ memoryAuthority: 'none', status: 'guarded', source: 'fake' })
+  const listed = await f.optical.tool().run({}, { clock: f.clock, store: f.store, turnId: 'read', signal: new AbortController().signal }); expect(listed.visible).toMatchObject({ frames: [{ frameId: id, dayKey: '2026-10-16' }], memoryAuthority: 'none' })
   f.send({ type: 'optical.enable', enabled: false }); await expect(f.optical.tool().run({ frameId: id }, { clock: f.clock, store: f.store, turnId: 'read', signal: new AbortController().signal })).rejects.toThrow()
   expect(f.optical.read(id).frameId).toBe(id)
 })

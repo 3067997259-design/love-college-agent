@@ -31,9 +31,15 @@ import type { CharacterService } from '../characters/service'
 import type { HistoryPhotos } from '../history/photos'
 import type { HistoryRecall } from '../history/recall'
 import { recallAnchorSchema } from '../history/schema'
+import type { OpticalMemoryService } from '../optical/service'
+import { opticalTier } from '../optical/schema'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('optical.configure') }),
+  z.strictObject({ ...envelope, type: z.literal('optical.enable'), enabled: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('optical.encode'), sessionId: z.string().min(1).max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('optical.decode'), frameId: z.string().regex(/^[a-f0-9]{64}$/), tier: opticalTier }),
   z.strictObject({ ...envelope, type: z.literal('developer.life.seed') }),
   z.strictObject({ ...envelope, type: z.literal('life.work.start'), kind: z.enum(['read', 'write']) }),
   z.strictObject({ ...envelope, type: z.literal('life.work.pause'), workId: z.string().regex(/^[a-f0-9]{64}$/) }),
@@ -150,6 +156,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let character: CharacterService | undefined
   let photos: HistoryPhotos | undefined
   let recall: HistoryRecall | undefined
+  let optical: OpticalMemoryService | undefined
   let room: { open(): void; rebuild(): void } | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
@@ -238,6 +245,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (notifications) snapshot.notifications = notifications.view()
     if (character) snapshot.characterPack = character.view()
     if (photos) snapshot.history = { ...photos.view(), recall: recall?.view() ?? { status: 'idle' } }
+    if (optical) snapshot.opticalMemory = optical.view()
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
@@ -260,6 +268,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('character.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('history.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('optical.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('life.work.') || command.type === 'developer.life.seed') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'onboarding.reset' && options.booth) return reject(command.requestId, 'permission-denied')
     const signature = commandHash(command)
@@ -298,6 +307,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { store?.append({ type: 'companion/lights', lightsOut: command.lightsOut, requestId: command.requestId, commandHash: signature }) }
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.lightsOut = command.lightsOut
+      optical?.foreground()
       lifeWork?.foreground()
       life?.reconcile()
       gifts?.stateChanged()
@@ -327,6 +337,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       catch { ack = reject(command.requestId, 'internal') }
     } else if (documents && (command.type === 'privacy.set' || command.type.startsWith('document.') || command.type === 'developer.documents' || command.type === 'developer.document.import' || (command.type === 'artifact.open' && documents.ownsArtifact(command.artifactId)))) {
       try { const error = command.type === 'artifact.open' ? documents.openArtifact(command.artifactId) : documents.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
+    } else if (optical && command.type.startsWith('optical.')) {
+      try { const error = optical.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (heartFlow && command.type.startsWith('flow.')) {
       const error = heartFlow.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
@@ -417,6 +430,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachCharacter: (port: CharacterService) => { character = port; publish('connection') },
     attachPhotos: (port: HistoryPhotos) => { photos = port; publish('connection') },
     attachRecall: (port: HistoryRecall) => { recall = port; publish('connection') },
+    attachOptical: (port: OpticalMemoryService) => { optical = port; publish('connection') },
+    readOpticalMemory: (id: unknown) => { if (!optical || typeof id !== 'string' || !/^[a-f0-9]{64}$/.test(id) || backup?.isBusy()) throw new Error('OPTICAL_UNAVAILABLE'); return optical.read(id) },
     readDiary: (id: unknown) => { if (!diary || typeof id !== 'string' || !/^diary:[a-f0-9]{64}$/.test(id)) throw new Error('DIARY_UNAVAILABLE'); return diary.read(id) },
     readHeartFlow: (input: unknown) => { const parsed = z.strictObject({ section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128).optional() }).parse(input); if (!heartFlow) throw new Error('FLOW_UNAVAILABLE'); return heartFlow.inspect(parsed) },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
