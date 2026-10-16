@@ -255,7 +255,31 @@ export interface SessionView {
   /** Metadata only; user-only page reads are separate from the model context. */
   pages: readonly SessionPageInfo[]
 }
-export interface SessionPage { sessionId: string; dayKey: string; messages: readonly MessageView[]; truncated: boolean }
+export interface SessionPage {
+  sessionId: string; dayKey: string; messages: readonly MessageView[]; truncated: boolean
+  /** Main verifies successful model-input visibility; archive visibility alone does not authorize recall. */
+  recallableMessageIds?: readonly string[]
+  photo?: HistoryPhotoView
+}
+/** Half-open UTF-16 offsets into the archived message. Main resolves and validates the text. */
+export interface RecallAnchor { sessionId: string; messageId: string; start: number; end: number }
+export interface HistoryPhotoView {
+  id: string; sessionId: string; dayKey: string; capturedAtMs: number
+  reason: 'manual' | 'gift' | 'outing' | 'work' | 'day-end'
+  imageUrl: string; width: number; height: number
+}
+export interface RecallView {
+  status: 'idle' | 'recalling' | 'ready' | 'failed'
+  requestId?: string; anchor?: RecallAnchor; dayKey?: string; sourceCount?: number
+  photo?: HistoryPhotoView; error?: PublicError
+}
+export interface HistoryView {
+  photos: readonly HistoryPhotoView[]
+  captureStatus: 'idle' | 'capturing' | 'failed'
+  captureError?: PublicError
+  /** Metadata only. Historical excerpts are resolved in main and never copied into snapshots. */
+  recall: RecallView
+}
 export interface McpServerView {
   id: string
   transport: 'stdio' | 'http'
@@ -369,6 +393,7 @@ export interface AppSnapshot {
   documents?: DocumentsView
   memory?: MemoryView
   session?: SessionView
+  history?: HistoryView
   mcp?: McpView
   backup?: BackupView
   quill?: QuillView

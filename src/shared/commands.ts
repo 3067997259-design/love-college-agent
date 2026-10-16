@@ -1,4 +1,4 @@
-import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, PomodoroPlanInput, PublicError } from './state'
+import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, PomodoroPlanInput, PublicError, RecallAnchor } from './state'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -65,6 +65,10 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'developer.documents'; scenarioId: DocumentScenarioId }
   | { type: 'developer.document.import'; fixtureId: 'assignment-pdf' | 'notes-text' | 'malformed-pdf' | 'scanned-pdf' }
   | { type: 'memory.extract' }
+  /** Book only. Capture the current rendered scene, never an arbitrary rectangle or renderer-supplied image. */
+  | { type: 'history.photo.capture' }
+  /** Book only, idle normal conversation. No mail/evidence/document reference or raw excerpt is accepted. */
+  | { type: 'history.recall'; anchor: RecallAnchor; question: string }
   | { type: 'flow.enter' }
   | { type: 'life.schedule'; schedule: 'auto' | 'work' | 'rest' }
   | { type: 'life.propose'; place?: 'coast' | 'swing' }
