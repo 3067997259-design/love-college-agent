@@ -14,7 +14,7 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
   let state = lifeSchema.parse(previous?.type === 'life/state' ? structuredClone(previous.view) : { dayKey: calendarDay(clock), userSchedule: 'auto', locationId: 'room', settledUntilMs: clock.nowMs(), agenda: [], outings: [], items: [] })
   const pendingFacts = new Map<string, string>()
   const save = () => { state.outings = state.outings.slice(-500); state.items = state.items.slice(-500); state = lifeSchema.parse(state); store.append({ type: 'life/state', view: state }); options.changed(); for (const [id, facts] of pendingFacts) options.emit(id, facts); pendingFacts.clear() }
-  const working = () => options.working() || store.projection().mode !== 'rest' || store.projection().pomodoro.phase === 'focus' || state.userSchedule === 'work'
+  const working = () => options.working() || store.projection().sleeping || store.projection().mode !== 'rest' || store.projection().pomodoro.phase === 'focus' || state.userSchedule === 'work'
   const resting = (day: string) => state.dayKey === day && state.userSchedule !== 'auto' ? state.userSchedule === 'rest' : isWeekend(clock, day)
   const makeOuting = (day: string, at: number, offline: boolean, place?: OutingPlace): OutingView => {
     const digest = createHash('sha256').update(JSON.stringify([store.scope.userId, store.scope.characterId, day])).digest('hex')
@@ -69,7 +69,7 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
       state.dayKey = today; state.userSchedule = 'auto'; state.agenda = ([['read', '09:00'], ['write', '11:00'], ['walk', '15:00']] as const).map(([kind, time]) => ({ kind, atMs: clock.parse(today + 'T' + time + ':00+08:00'), state: 'planned' })); changed = true
     }
     for (const item of state.agenda) if (item.kind !== 'walk' && options.work?.completed(item.kind, today) && item.state !== 'settled') { item.state = 'settled'; changed = true }
-    if (!wasLightsOut && !options.working()) for (const item of state.agenda) {
+    if (!wasLightsOut && !store.projection().sleeping && !options.working()) for (const item of state.agenda) {
       if (item.kind !== 'walk' && item.state !== 'settled' && now >= item.atMs && options.work?.view().materials.length && options.work.view().source !== 'none') {
         // Only create today's online work. Offline date reconciliation above never invokes a producer.
         options.work.ensure(item.kind, today)

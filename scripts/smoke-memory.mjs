@@ -40,6 +40,10 @@ try {
   assert.equal(await page.evaluate(() => window.lca.readSession('../private').then(() => false, () => true)), true)
   await instance.close()
   await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
+  // Start before the rollover under test, independent of the machine's current date/hour.
+  // Moving from a real 06:00 startup back to 03:59 otherwise leaves future user timestamps.
+  await mkdir(profile, { recursive: true })
+  await writeFile(join(profile, 'clock.json'), JSON.stringify({ nowMs: Date.parse('2026-10-16T20:00:00+08:00'), rate: 1, frozen: true }))
   await launch(); assert.equal((await snapshot()).memory.source, 'fake')
   const discovery = JSON.parse(await readFile(join(profile, 'debug-connection.json'), 'utf8'))
   client = new Client({ name: 'lca-memory-smoke', version: '1.0.0' })

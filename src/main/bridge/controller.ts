@@ -24,6 +24,7 @@ import type { GiftService } from '../gifts/service'
 import type { HeartFlowService } from '../heart-flow/service'
 import type { VoiceService } from '../voice/service'
 import type { LifeService } from '../life/service'
+import type { SleepService } from '../life/sleep'
 import type { LifeWorkService } from '../life/work/service'
 import type { DiaryService } from '../diary/service'
 import type { NotificationsService } from '../notifications/service'
@@ -40,6 +41,7 @@ import { goalTextSchema, goalStatusSchema } from '../heart-flow/goals'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('companion.sleep'), sleeping: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('flow.fetch.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('flow.computer.open'), path: z.string().min(1).max(180) }),
   z.strictObject({ ...envelope, type: z.literal('flow.computer.close') }),
@@ -172,6 +174,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let heartFlow: HeartFlowService | undefined
   let voice: VoiceService | undefined
   let life: LifeService | undefined
+  let sleep: SleepService | undefined
   let lifeWork: LifeWorkService | undefined
   let diary: DiaryService | undefined
   let notifications: NotificationsService | undefined
@@ -202,6 +205,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     snapshot.scope = saved.scope
     snapshot.companion.mode = saved.mode
     snapshot.companion.lightsOut = saved.lightsOut
+    snapshot.companion.sleeping = saved.sleeping
     snapshot.messages = saved.messages
     snapshot.activities = saved.activities
     snapshot.task = saved.task
@@ -209,7 +213,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     for (const request of saved.requests.slice(-1000)) requests.set(request.requestId, { signature: request.commandHash,
       ack: { protocolVersion: PROTOCOL_VERSION, requestId: request.requestId, epoch: snapshot.epoch, status: 'accepted' } })
   }
-  const updatePose = () => { snapshot.companion.pose = { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode] }
+  const updatePose = () => { snapshot.companion.pose = snapshot.companion.sleeping ? 'sleeping' : { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode] }
   updatePose()
   let execution: { source: 'real' | 'fake'; send(text: string, requestId: string, hash: string): void; stop(id: string): boolean; stateChanged(): void } | undefined
   let executionReady = false
@@ -221,7 +225,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (!store) return
     const view = store.projection()
     if (snapshot.scope.sessionId !== view.scope.sessionId) { snapshot.epoch = randomUUID(); snapshot.revision = 0; requests.clear(); snapshot.scope = view.scope }
-    snapshot.companion.mode = view.mode; snapshot.companion.lightsOut = view.lightsOut
+    snapshot.companion.mode = view.mode; snapshot.companion.lightsOut = view.lightsOut; snapshot.companion.sleeping = view.sleeping
     snapshot.onboarding = onboardingView(view.onboarding, !!options.booth)
     snapshot.messages = view.messages; snapshot.activities = view.activities; snapshot.task = view.task
     snapshot.pomodoro = pomodoro?.read() ?? view.pomodoro
@@ -295,6 +299,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('flow.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('voice.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type === 'companion.sleep' && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('room.') || command.type === 'diary.write') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('character.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -310,7 +315,15 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (minecraft?.active() && !['message.send', 'turn.stop', 'lights.set', 'mode.set', 'mcp.disconnect', 'developer.minecraft'].includes(command.type)
       && !command.type.startsWith('minecraft.') && !command.type.startsWith('window.') && !command.type.startsWith('pomodoro.')) return reject(command.requestId, 'unavailable')
     let ack: CommandAck
-    if (command.type.startsWith('voice.') && voice) {
+    // A deliberate conversation/work request is user presence. Window telemetry and
+    // background ticks do not wake her; lights remain an independent pause switch.
+    if (!snapshot.companion.lightsOut && (['message.send', 'history.recall', 'flow.enter', 'flow.resume', 'pomodoro.start', 'pomodoro.resume', 'life.work.start', 'life.work.resume', 'minecraft.start', 'life.depart'].includes(command.type)
+      || command.type === 'mode.set' && command.mode !== 'rest' || command.type === 'life.schedule' && command.schedule === 'work')) sleep?.wake()
+    if (command.type === 'companion.sleep' && sleep) {
+      const error = sleep.set(command.sleeping, 'user', { requestId: command.requestId, commandHash: signature }); readProjection()
+      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+      publish('mode', command.requestId); execution?.stateChanged()
+    } else if (command.type.startsWith('voice.') && voice) {
       const error = voice.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId)
     } else if (command.type.startsWith('minecraft.') && minecraft) {
       const error = command.type === 'minecraft.start' && !minecraftChat?.ready() ? 'not-configured' : minecraft.dispatch(command)
@@ -480,6 +493,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachVoice: (port: VoiceService) => { voice = port; publish('connection') },
     readVoice: (input: unknown) => { if (!voice || backup?.isBusy()) throw new Error('VOICE_UNAVAILABLE'); return voice.read(input) },
     attachLife: (port: LifeService) => { life = port; publish('mode') },
+    attachSleep: (port: SleepService) => { sleep = port },
     attachLifeWork: (port: LifeWorkService) => { lifeWork = port },
     attachDiary: (port: DiaryService, roomPort: NonNullable<typeof room>) => { diary = port; room = roomPort; publish('connection') },
     attachNotifications: (port: NotificationsService) => { notifications = port; publish('connection') },

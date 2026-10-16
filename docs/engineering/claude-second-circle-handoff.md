@@ -1,5 +1,7 @@
 # Claude 恢复额度后的交接
 
+第三圈睡眠接口已先合 main：`436fbbd`，见 `src/shared/state.ts`、`commands.ts`、`README.md`。`companion.sleeping` 与 lightsOut 独立，默认在四点后的安全翻页点入睡；已有 sleeping_calm／nightlight／dark 映射已由真实 Electron 接通。朴素“她的生活”有休息／唤醒入口；你可将命令 `companion.sleep { sleeping }` 接入作息入口，不能从灯或天色自行改睡眠事实。忙碌时入睡拒绝，交流／用户工作会唤醒。完整新手家具动画本轮已再次跑全流程，不再记作“代码未接”；外景仍是空房间＋纸条的诚实回退。
+
 2026-10-17。本轮用户授权 GPT 审计并完成第二圈；Claude 预计 02:30 恢复五小时窗口。主进程和朴素接线已逐项合 main，已有美术／着色器／声音未重写。请在自己的 worktree 保留未提交工作，合 main 后先审 src/shared。
 
 | 接口提交 | 范围 | 实际可接入口 |
