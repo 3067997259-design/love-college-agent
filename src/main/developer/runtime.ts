@@ -8,7 +8,7 @@ import type { createHarness } from '../harness/loop'
 import type { SessionStore } from '../store/session'
 import type { Scheduler } from '../scheduler'
 import { createScriptedModel } from './model'
-import { developmentProfile, presetScene, readScene, stageScene } from './scenes'
+import { developmentProfile, presetScene, readScene, sceneSchema, stageScene } from './scenes'
 import { startDevelopmentServer } from './server'
 
 export function prepareRuntime(root: string, real: Clock, boothOverride = false) {
@@ -17,7 +17,12 @@ export function prepareRuntime(root: string, real: Clock, boothOverride = false)
   const developer = !booth && settings.read().developer
   const profile = developer ? developmentProfile(root, settings) : { id: undefined, path: root }
   const scene = developer ? readScene(profile.path) : undefined
-  const adjusted = developer ? createAdjustableClock(real, scene?.clock) : undefined
+  let savedClock = scene?.clock
+  if (developer && existsSync(join(profile.path, 'clock.json'))) {
+    try { savedClock = sceneSchema.shape.clock.parse(JSON.parse(readFileSync(join(profile.path, 'clock.json'), 'utf8'))) }
+    catch { throw new Error('DEVELOPMENT_CLOCK_INVALID') }
+  }
+  const adjusted = developer ? createAdjustableClock(real, savedClock) : undefined
   const clock = adjusted?.clock ?? real
   const scripted = developer ? createScriptedModel(clock) : undefined
   if (scene && scripted) scripted.set(scene.modelScript)
@@ -35,6 +40,7 @@ export async function attachRuntime(options: {
   let server: Awaited<ReturnType<typeof startDevelopmentServer>> | undefined
   let error: RuntimeView['developer']['error']
   let mounted = false; let disposed = false; let service = Promise.resolve()
+  const saveClock = () => { if (p.adjusted) writeFileSync(join(p.profile.path, 'clock.json'), JSON.stringify({ nowMs: p.clock.nowMs(), ...p.adjusted.view() }), { mode: 0o600 }) }
   const view = (): RuntimeView => ({ plugins: plugins.views(), developer: {
     mode: p.booth ? 'booth' : p.developer ? 'developer' : 'normal', requestedEnabled: !p.booth && p.settings.read().developer,
     restartRequired: !p.booth && (p.settings.read().developer !== p.developer || (p.developer && p.settings.read().sceneId !== p.profile.id)),
@@ -42,7 +48,7 @@ export async function attachRuntime(options: {
   } })
   const setClock = (input: { nowMs?: number; rate?: number; frozen?: boolean }) => {
     if (!p.adjusted) throw new Error('DEVELOPER_REQUIRED')
-    p.adjusted.set(input); scheduler.reconcile(); controller.refresh('timer')
+    p.adjusted.set(input); scheduler.reconcile(); saveClock(); controller.refresh('timer')
     return controller.getSnapshot().clock
   }
   const port: RuntimePort = { view, clockView: p.adjusted?.view,
@@ -83,5 +89,7 @@ export async function attachRuntime(options: {
     })
   }) : () => {}
   await service
-  return { port, close: async () => { disposed = true; unmount(); await service; p.adjusted?.dispose() } }
+  return { port, close: async () => { disposed = true; unmount(); await service; saveClock(); p.adjusted?.dispose() } }
 }
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
