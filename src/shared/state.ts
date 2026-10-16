@@ -126,6 +126,7 @@ export interface ActivityView {
   error?: PublicError
 }
 export interface CandidateView {
+  urgency?: 'normal' | 'reply-today' | 'location-change'
   id: string
   createdAtMs: number
   kind: 'deadline' | 'event'
@@ -238,6 +239,7 @@ export interface MemoryView {
   source: 'real' | 'fake' | 'none'
   shortTermCount: number
   longTermCount: number
+  summaryCounts?: { day: number; week: number; month: number }
   contextChars: number
   lastExtractedAtMs: number | null
   lastCompactedAtMs: number | null
@@ -253,7 +255,31 @@ export interface SessionView {
   /** Metadata only; user-only page reads are separate from the model context. */
   pages: readonly SessionPageInfo[]
 }
-export interface SessionPage { sessionId: string; dayKey: string; messages: readonly MessageView[]; truncated: boolean }
+export interface SessionPage {
+  sessionId: string; dayKey: string; messages: readonly MessageView[]; truncated: boolean
+  /** Main verifies successful model-input visibility; archive visibility alone does not authorize recall. */
+  recallableMessageIds?: readonly string[]
+  photo?: HistoryPhotoView
+}
+/** Half-open UTF-16 offsets into the archived message. Main resolves and validates the text. */
+export interface RecallAnchor { sessionId: string; messageId: string; start: number; end: number }
+export interface HistoryPhotoView {
+  id: string; sessionId: string; dayKey: string; capturedAtMs: number
+  reason: 'manual' | 'gift' | 'outing' | 'work' | 'day-end'
+  imageUrl: string; width: number; height: number
+}
+export interface RecallView {
+  status: 'idle' | 'recalling' | 'ready' | 'failed'
+  requestId?: string; anchor?: RecallAnchor; dayKey?: string; sourceCount?: number
+  photo?: HistoryPhotoView; error?: PublicError
+}
+export interface HistoryView {
+  photos: readonly HistoryPhotoView[]
+  captureStatus: 'idle' | 'capturing' | 'failed'
+  captureError?: PublicError
+  /** Metadata only. Historical excerpts are resolved in main and never copied into snapshots. */
+  recall: RecallView
+}
 export interface McpServerView {
   id: string
   transport: 'stdio' | 'http'
@@ -312,7 +338,39 @@ export interface WindowsView {
   miniAlwaysOnTop: boolean
   miniClickThrough: boolean
 }
+export interface OnboardingView {
+  status: 'needed' | 'completed'
+  userName: string | null
+  characterName: string
+  completedAtMs: number | null
+}
+
+export const GIFT_OBJECT_IDS = ['cup', 'paper-bridge', 'leaf', 'shell', 'quill'] as const
+export type GiftObjectId = typeof GIFT_OBJECT_IDS[number]
+export type GiftMotif = 'plain' | 'sakura' | 'stars'
+export interface GeneratedGiftView {
+  id: string
+  sourceMemoryId: string
+  objectId: GiftObjectId
+  motif: GiftMotif
+  status: 'proposed' | 'making' | 'ready' | 'given' | 'failed' | 'cancelled'
+  source: 'real' | 'fake'
+  createdAtMs: number
+  readyAtMs: number | null
+  givenAtMs: number | null
+  /** Content-addressed local resource; never an upstream job token, signed URL or filesystem path. */
+  assetRef?: string
+  assetUrl?: string
+  error?: PublicError
+}
+export interface GiftsView { configured: boolean; dailyLimit: number; items: readonly GeneratedGiftView[] }
+
 export interface AppSnapshot {
+  characterPack?: CharacterPackView
+  notifications?: NotificationsView
+  diary?: DiaryView
+  life?: LifeView
+  heartFlow?: HeartFlowView
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
   revision: number
@@ -335,9 +393,51 @@ export interface AppSnapshot {
   documents?: DocumentsView
   memory?: MemoryView
   session?: SessionView
+  history?: HistoryView
   mcp?: McpView
   backup?: BackupView
   quill?: QuillView
   modelSettings?: ModelSettingsView
   windows?: WindowsView
+  /** Main-owned, persisted per private profile/owner. Booth always projects completed. */
+  onboarding?: OnboardingView
+  gifts?: GiftsView
+}
+export interface CharacterPackView {
+  activeId: string
+  name: string
+  /** Owned local URLs only. Missing pose -> same-pose calm -> facing-user calm -> built-in fallback. */
+  images: Readonly<Record<string, string>>
+  installed: readonly { id: string; name: string; builtin: boolean }[]
+  status: 'idle' | 'importing' | 'exporting' | 'failed'
+  restartRequired: boolean
+  selectedId: string
+}
+export interface NotificationRule { id: string; sourceRole: 'any' | 'teaching-assistant' | 'student-club' | 'library' | 'other'; keyword: string }
+export interface NotificationsView { rules: readonly NotificationRule[]; proposal?: NotificationRule; pendingCount: number; sentLastHour: number; delivery: 'native' | 'synthetic' }
+export interface DiaryView { status: 'idle' | 'writing' | 'failed' | 'unconfigured'; source: 'real' | 'fake' | 'none'; entries: readonly { id: string; dayKey: string; createdAtMs: number; unlocked: boolean; clue: 'next-bookmark'; source: 'real' | 'fake' }[] }
+/** Explicit user-only read, absent from snapshots, debug MCP, model contexts and memory. */
+export interface DiaryRead { id: string; dayKey: string; text: string; key: string; subjective: true }
+export type OutingPlace = 'coast' | 'swing'
+export interface OutingView { id: string; place: OutingPlace; startsAtMs: number; returnsAtMs: number; acquiredAtMs: number; item: 'shell' | 'leaf'; status: 'proposed' | 'away' | 'returned' | 'cut_short' | 'cancelled'; settledAtMs: number | null; offline: boolean }
+export interface LifeView {
+  dayKey: string
+  userSchedule: 'auto' | 'work' | 'rest'
+  locationId: 'room' | OutingPlace
+  settledUntilMs: number
+  /** Fictional plans and occurrences. Never proof of real work while the app was closed. */
+  agenda: readonly { kind: 'read' | 'write' | 'walk'; atMs: number; state: 'planned' | 'settled' | 'skipped' }[]
+  outings: readonly OutingView[]
+  items: readonly { id: string; outingId: string; dayKey: string; place: OutingPlace; kind: 'shell' | 'leaf'; acquiredAtMs: number; display: 'desk' | 'drawer' }[]
+}
+export interface HeartFlowView {
+  activeId: string | null
+  mode: 'plan' | 'execute'
+  execution: 'javascript-sandbox' | 'disabled'
+  /** Source and output text are user-only; models obtain approved work through desk tools. */
+  pending?: { id: string; code: string }
+  files: readonly { path: string; byteLength: number }[]
+  changes: readonly { id: string; path: string; undone: boolean }[]
+  sessions: readonly { id: string; startedAtMs: number; endedAtMs: number | null; summary: string | null }[]
+  lastRun?: { ok: boolean; output: string }
 }

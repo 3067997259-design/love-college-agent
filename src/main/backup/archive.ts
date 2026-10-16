@@ -5,15 +5,18 @@ import { existsSync, lstatSync, readFileSync, readdirSync, writeFileSync } from 
 import { join } from 'node:path'
 import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
+import type { OnboardingView } from '../../shared'
+import { assetPath, validateGlb } from '../storage/assets'
 import { parseJournalContent, journalLocation } from '../journal/file'
 import { projectJournal } from '../journal/projection'
 import { projectMemory } from '../memory/projection'
 import { DATABASES, BackupFailure, MAX_ARCHIVE_BYTES, MAX_UNPACKED_BYTES, manifestSchema, type SaveManifest } from './schema'
 import { directory, privateWriteParent, regular } from './paths'
+import { validateDeskChanges } from '../heart-flow/changes'
 
 export const sha256 = (value: Uint8Array | string) => createHash('sha256').update(value).digest('hex')
 const ownerKey = (owner: SaveManifest['owner']) => sha256(JSON.stringify([owner.userId, owner.characterId]))
-const validPath = (path: string, key: string) => (DATABASES as readonly string[]).includes(path) || new RegExp('^journals/' + key + '/\\d{4}-\\d{2}-\\d{2}\\.jsonl$').test(path) || /^artifacts\/[a-f0-9]{64}\.(md|ics)$/.test(path)
+const validPath = (path: string, key: string) => (DATABASES as readonly string[]).includes(path) || new RegExp('^journals/' + key + '/\\d{4}-\\d{2}-\\d{2}\\.jsonl$').test(path) || /^artifacts\/[a-f0-9]{64}\.(md|ics|glb|png|jpg|webp|zip)$/.test(path)
 const tableSchemas: Record<typeof DATABASES[number], Record<string, readonly string[]>> = {
   'projections.sqlite': { session_projections: ['user_id', 'character_id', 'session_id', 'journal_seq', 'state_json'] },
   'campus.sqlite': { private_mail_evidence: ['owner', 'ref', 'content_hash', 'source_key', 'payload', 'quotes'], campus_projections: ['owner', 'record_count', 'state_json'] },
@@ -79,16 +82,21 @@ function inspectZip(bytes: Buffer) {
   if (offset !== end || !names.has('manifest.json')) throw new BackupFailure('backup-invalid')
   return names
 }
-export async function exportPrivateSave(options: { root: string; store: SessionStore; clock: Clock; source: 'real' | 'fake'; fileFilteringEnabled: boolean; credentials?: readonly string[] }) {
+export async function exportPrivateSave(options: { root: string; store: SessionStore; clock: Clock; source: 'real' | 'fake'; fileFilteringEnabled: boolean; credentials?: readonly string[]; onboarding?: OnboardingView }) {
   const { root, store, clock } = options; const archiveId = randomUUID(); const stage = directory(root, join(root, '.backup-staging', archiveId))
   const owner = { userId: store.scope.userId, characterId: store.scope.characterId }; const key = ownerKey(owner)
   const files = new Map<string, Buffer>(); const allRecords = store.history?.() ?? store.records()
+  validateDeskChanges(allRecords)
   const folder = journalLocation(root, owner, clock).folder
   const activeDayKey = store.dayKey?.() ?? journalLocation(root, owner, clock).dayKey
   for (const name of readdirSync(folder).filter((name) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(name) && name <= activeDayKey + '.jsonl').sort()) {
     const path = regular(root, join(folder, name), 128 * 1024 * 1024); const bytes = readFileSync(path); parseJournalContent(bytes.toString('utf8'), owner); files.set('journals/' + key + '/' + name, bytes)
   }
   const artifacts = allRecords.flatMap((row) => row.type === 'campus/exported' ? row.artifacts : row.type === 'document/completed' ? [row.artifact] : [])
+  for (const row of allRecords) if (row.type === 'asset/stored') {
+    const path = assetPath(row.asset); const bytes = readFileSync(regular(root, join(root, path), 32 * 1024 * 1024))
+    if (bytes.length !== row.asset.byteLength || sha256(bytes) !== row.asset.sha256) throw new BackupFailure('backup-invalid'); files.set(path, bytes)
+  }
   for (const artifact of artifacts) {
     if (!validPath(artifact.relativePath, key)) throw new BackupFailure('backup-invalid')
     const bytes = readFileSync(regular(root, join(root, artifact.relativePath), 32 * 1024 * 1024))
@@ -106,7 +114,7 @@ export async function exportPrivateSave(options: { root: string; store: SessionS
   const manifest = manifestSchema.parse({ formatVersion: 1, kind: 'lca-private-save', archiveId, savedAtMs: clock.nowMs(), owner, source: options.source,
     activeDayKey, activeSessionId: store.scope.sessionId,
     pomodoro: (() => { const view = store.projection().pomodoro; if (view.status === 'running' && view.endsAtMs !== null) view.remainingMs = Math.max(0, view.endsAtMs - clock.nowMs()); return view })(),
-    pomodoroPause: store.projection().pomodoroPause, fileFilteringEnabled: options.fileFilteringEnabled,
+    pomodoroPause: store.projection().pomodoroPause, fileFilteringEnabled: options.fileFilteringEnabled, onboarding: options.onboarding ?? store.projection().onboarding,
     counts: { pageCount: [...files.keys()].filter((path) => path.startsWith('journals/')).length, messageCount: allRecords.filter((row) => row.type === 'user/message' || row.type === 'assistant/message' && row.text).length,
       memoryCount: projectMemory(allRecords).items.length, deliveryCount: new Set(artifacts.map((artifact) => artifact.view.id)).size },
     files: [...files].map(([path, bytes]) => ({ path, bytes: bytes.length, sha256: sha256(bytes) })),
@@ -133,12 +141,21 @@ export async function validatePrivateSave(bytes: Buffer, owner: SaveManifest['ow
     if (names.size !== paths.size + 1) throw new BackupFailure('backup-invalid')
     if (DATABASES.some((name) => !files.has(name))) throw new BackupFailure('backup-invalid')
     const records = [...files].filter(([path]) => path.startsWith('journals/')).sort(([a], [b]) => a.localeCompare(b)).flatMap(([, data]) => parseJournalContent(data.toString('utf8'), owner))
+    validateDeskChanges(records)
     const active = files.get('journals/' + key + '/' + manifest.activeDayKey + '.jsonl'); if (!active) throw new BackupFailure('backup-invalid')
     const projected = projectJournal(parseJournalContent(active.toString('utf8'), owner)); if (projected.scope.sessionId !== manifest.activeSessionId) throw new BackupFailure('backup-invalid')
     if (manifest.counts.pageCount !== [...files.keys()].filter((path) => path.startsWith('journals/')).length || manifest.counts.messageCount !== records.filter((row) => row.type === 'user/message' || row.type === 'assistant/message' && row.text).length || manifest.counts.memoryCount !== projectMemory(records).items.length) throw new BackupFailure('backup-invalid')
     const artifacts = records.flatMap((row) => row.type === 'campus/exported' ? row.artifacts : row.type === 'document/completed' ? [row.artifact] : [])
     if (manifest.counts.deliveryCount !== new Set(artifacts.map((artifact) => artifact.view.id)).size) throw new BackupFailure('backup-invalid')
     for (const artifact of artifacts) if (sha256(files.get(artifact.relativePath) ?? Buffer.alloc(0)) !== artifact.sha256) throw new BackupFailure('backup-invalid')
+    for (const row of records) if (row.type === 'asset/stored') { const bytes = files.get(assetPath(row.asset)); if (!bytes || bytes.length !== row.asset.byteLength || sha256(bytes) !== row.asset.sha256) throw new BackupFailure('backup-invalid'); if (row.asset.format === 'glb') validateGlb(bytes) }
+    for (const [path, data] of files) if (path.startsWith('journals/')) {
+      const page = parseJournalContent(data.toString('utf8'), owner); const header = page[0]
+      for (const row of page) if (row.type === 'history/photo') {
+        const photo = row.photo; const png = files.get(assetPath(photo.asset))
+        if (header?.type !== 'session/header' || photo.sessionId !== header.sessionId || !path.endsWith('/' + photo.dayKey + '.jsonl') || !records.some((entry) => entry.type === 'asset/stored' && entry.asset.ref === photo.asset.ref) || !png || png.length < 33 || png.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' || png.toString('ascii', 12, 16) !== 'IHDR' || png.readUInt32BE(16) !== photo.width || png.readUInt32BE(20) !== photo.height) throw new BackupFailure('backup-invalid')
+      }
+    }
     return { manifest, files }
   } catch (cause) { if (cause instanceof BackupFailure) throw cause; throw new BackupFailure('backup-invalid') }
 }

@@ -7,6 +7,7 @@ import { civilFromDays, formatClock } from './format'
 import { rhythmText, tomatoStates } from './plan'
 import { useCountdown } from './useCountdown'
 import { FileIntake } from '../tools/FileIntake'
+import { HeartFlowControls } from '../tools/HeartFlowControls'
 
 type Item =
   | { kind: 'message'; at: number; id: string; view: MessageView }
@@ -89,6 +90,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
       </header>
 
       <div className="stream" ref={streamRef}>
+        {snapshot.heartFlow?.activeId && <HeartFlowControls bridge={bridge} snapshot={snapshot} />}
         {items.map((item) => {
           switch (item.kind) {
             case 'message': return <Message key={item.id} view={item.view} />

@@ -1,4 +1,4 @@
-import type { DocumentScenarioId, MailScenarioId, PomodoroPlanInput, PublicError } from './state'
+import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, PomodoroPlanInput, PublicError, RecallAnchor } from './state'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -11,6 +11,16 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'turn.stop'; taskId: string }
   | { type: 'mode.set'; mode: 'work' | 'quiet' | 'rest' }
   | { type: 'lights.set'; lightsOut: boolean }
+  /** Trimmed single-line text: userName <= 20 code points, characterName <= 12. Empty resets to null / 桃子. */
+  | { type: 'onboarding.profile'; userName?: string; characterName?: string }
+  | { type: 'onboarding.complete' }
+  /** Reopen initialization; retain names and all private business/history data. Refused in booth mode. */
+  | { type: 'onboarding.reset' }
+  /** Only an existing, witnessed experience may anchor a generated gift. Object descriptions are enum-derived. */
+  | { type: 'gift.propose'; sourceMemoryId: string; objectId: GiftObjectId; motif: GiftMotif }
+  | { type: 'gift.start'; giftId: string }
+  | { type: 'gift.cancel'; giftId: string }
+  | { type: 'gift.open'; giftId: string }
   | { type: 'pomodoro.start'; planId: string }
   | { type: 'pomodoro.plan'; plan: PomodoroPlanInput }
   | { type: 'pomodoro.confirm'; planId: string }
@@ -55,6 +65,35 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'developer.documents'; scenarioId: DocumentScenarioId }
   | { type: 'developer.document.import'; fixtureId: 'assignment-pdf' | 'notes-text' | 'malformed-pdf' | 'scanned-pdf' }
   | { type: 'memory.extract' }
+  /** Book only. Capture the current rendered scene, never an arbitrary rectangle or renderer-supplied image. */
+  | { type: 'history.photo.capture' }
+  /** Book only, idle normal conversation. No mail/evidence/document reference or raw excerpt is accepted. */
+  | { type: 'history.recall'; anchor: RecallAnchor; question: string }
+  | { type: 'flow.enter' }
+  | { type: 'life.schedule'; schedule: 'auto' | 'work' | 'rest' }
+  | { type: 'life.propose'; place?: 'coast' | 'swing' }
+  | { type: 'life.depart'; outingId: string }
+  | { type: 'life.return' }
+  | { type: 'diary.write' }
+  | { type: 'room.open' }
+  | { type: 'room.rebuild' }
+  | { type: 'character.import' }
+  | { type: 'character.export' }
+  /** Persists selection; explicit app.restart opens its separate relationship scope. */
+  | { type: 'character.select'; characterId: string }
+  | { type: 'notification.rule.add'; sourceRole: 'any' | 'teaching-assistant' | 'student-club' | 'library' | 'other'; keyword: string }
+  | { type: 'notification.rule.remove'; ruleId: string }
+  | { type: 'notification.rule.confirm'; ruleId: string }
+  | { type: 'notification.rule.discard'; ruleId: string }
+  | { type: 'flow.exit' }
+  | { type: 'flow.mode'; mode: 'plan' | 'execute' }
+  | { type: 'flow.compact' }
+  | { type: 'flow.undo'; changeId: string }
+  /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
+  | { type: 'flow.run'; code: string }
+  | { type: 'flow.approve'; approvalId: string; allow: boolean }
+  /** Consolidate closed calendar periods from grounded day summaries; repeated identical inputs are no-ops. */
+  | { type: 'memory.consolidate' }
   | { type: 'context.compact' }
   | { type: 'session.rollover' }
   | { type: 'developer.memory'; scenarioId: 'ready' | 'failure' | 'invalid' }

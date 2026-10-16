@@ -8,6 +8,7 @@ import { useCountdown } from './useCountdown'
 import type { IntroStep } from './wash/intro'
 import { FURNITURE } from './wash/furniture'
 import { WashRoom } from './wash/WashRoom'
+import { packageScene } from './characterPackage'
 
 const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
 
@@ -37,6 +38,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture }: {
   const away = companion.locationId !== 'room'
   const pose = away ? 'empty' : companion.pose
   const art = intro ? (intro === 'done' ? GREET_ART : INTRO_ART) : resolveCharacterArt(companion)
+  const importedScene = packageScene(snapshot, art.key)
   const mailReady = capabilities.find((c) => c.id === 'mail')?.status === 'ready'
   const newMail = mailReady && companion.mailboxUnseen > 0
   const lastLine = [...messages].reverse().find((m) => m.role === 'assistant')
@@ -49,7 +51,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture }: {
     <section className="page page-left" aria-label="她在的地方" data-intro={intro ?? undefined}>
       {intro ? (
         <div className="room" data-shot="close" data-location="room" data-pose={art.key.split('_')[0]} data-lighting="ambient">
-          <WashRoom art={art} restoreId={null} intro={intro === 'done' ? null : intro} paintFurniture={furniture?.painted} />
+          {importedScene ? <div className="character character-color"><img className="character-art" data-character-package alt="" src={importedScene} draggable={false} /></div> : <WashRoom art={art} restoreId={null} intro={intro === 'done' ? null : intro} paintFurniture={furniture?.painted} />}
           {furniture && (
             <svg className="furniture-hits" viewBox="0 0 1 1" preserveAspectRatio="none" aria-label="房间里的家具">
               {FURNITURE.map((item) => {
@@ -74,12 +76,12 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture }: {
         onClick={() => { void command({ type: 'lights.set', lightsOut: !companion.lightsOut }) }}>
         <span className="pull-cord-string" aria-hidden><span className="pull-cord-bead" /></span>
       </button>
-      <div className="room" data-shot="close" data-location={companion.locationId} data-pose={pose} data-lighting={art.lighting}>
+      <div className="room" data-photo-scene data-session-id={snapshot.scope.sessionId} data-shot="close" data-location={companion.locationId} data-pose={pose} data-lighting={art.lighting}>
         {/* 精修整景：颜色聚在她周围，往外褪成从彩图实时提取的铅笔线（体验设计 §7.1，用户批准） */}
-        <WashRoom art={art} restoreId={restoreId} />
+        {importedScene ? <div className="character character-color"><img className="character-art" data-character-package alt="" src={importedScene} draggable={false} /></div> : <WashRoom art={art} restoreId={restoreId} />}
 
         {/* 墙上的钟就是番茄钟；不计时的时候显示现在几点 */}
-        <div className="wall-clock" data-phase={pomodoro.phase} data-status={pomodoro.status}>
+        <div className="wall-clock" data-photo-omit data-phase={pomodoro.phase} data-status={pomodoro.status}>
           <span className="wall-clock-time">{timerOn ? formatRemaining(remaining) : formatClock(snapshot.clock.nowMs)}</span>
           {timerOn && <span className="wall-clock-phase">{pomodoro.phase === 'focus' ? '专注' : '休息'}</span>}
         </div>
@@ -127,7 +129,7 @@ function DoorSign({ snapshot, onCommand, failed }: { snapshot: AppSnapshot; onCo
   const interrupts = pomodoro.phase === 'focus' && pomodoro.status !== 'idle'
 
   return (
-    <div className="door" ref={ref}>
+    <div className="door" data-photo-omit ref={ref}>
       <button type="button" className="door-sign" data-mode={companion.mode} aria-haspopup="menu" aria-expanded={open}
         title="门牌：点一下翻面" onClick={() => setOpen((value) => !value)}>
         {MODE_LABEL[companion.mode]}

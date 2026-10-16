@@ -1,6 +1,6 @@
 import type { AppCommand, CommandAck } from './commands'
 import type { AppEvent } from './events'
-import type { AppSnapshot, DiagnosticsView, EvidenceView, FileImportAck, SessionPage } from './state'
+import type { AppSnapshot, DiagnosticsView, EvidenceView, FileImportAck, SessionPage, DiaryRead } from './state'
 
 export interface AppBridge {
   getSnapshot(): Promise<AppSnapshot>
@@ -15,6 +15,7 @@ export interface AppBridge {
   readSession?(sessionId: string): Promise<SessionPage>
   /** Developer mode only; safe projections and counters, never raw evidence or configuration. */
   readDiagnostics?(): Promise<DiagnosticsView>
+  readDiary?(diaryId: string): Promise<DiaryRead>
 }
 
 export const IPC_CHANNELS = {
@@ -25,4 +26,5 @@ export const IPC_CHANNELS = {
   files: 'lca:user-files',
   session: 'lca:user-session',
   diagnostics: 'lca:diagnostics',
+  diary: 'lca:user-diary',
 } as const

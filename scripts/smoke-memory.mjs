@@ -7,14 +7,14 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', 'memory-smoke-' + randomUUID()); const sceneId = randomUUID()
 const profile = join(data, 'developer', sceneId)
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-test-providers.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '19531' }
 let instance; let page; let client
-async function launch() { instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 }); page = await instance.firstWindow(); await page.locator('[data-mode][data-pose]').waitFor() }
+async function launch() { instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 }); page = await instance.firstWindow(); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 async function waitFor(predicate, error) { for (let i = 0; i < 150; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(error) }
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) }, body)
@@ -79,7 +79,7 @@ try {
   assert.equal((await snapshot()).messages.length, originalCount)
   await tools(); const oldSession = (await snapshot()).scope.sessionId
   await page.getByLabel('历史会话', { exact: true }).selectOption(oldSession)
-  await page.getByRole('region', { name: '历史聊天', exact: true }).getByText('你：我把纸桥放在书桌上，给它取名叫周五桥。', { exact: true }).waitFor()
+  await page.getByRole('region', { name: '历史聊天', exact: true }).getByText('我把纸桥放在书桌上，给它取名叫周五桥。', { exact: true }).waitFor()
   await page.getByRole('button', { name: '收起旧页', exact: true }).click(); await closeTools()
   await setClock('2026-10-17T03:59:50+08:00')
   await waitFor((s) => !['extracting', 'compacting'].includes(s.memory.status), 'BACKGROUND_NOT_IDLE')
@@ -103,7 +103,7 @@ try {
   const recall = prepared.findIndex((message) => message.content.includes('memoryReference'))
   assert.ok(oldSummary >= 0 && recall > oldSummary && recall < prepared.length - 1, 'NEXT_DAY_CONTEXT_ORDER_FAILED')
   await tools(); await page.getByLabel('历史会话', { exact: true }).selectOption(oldSession)
-  await page.getByRole('region', { name: '历史聊天', exact: true }).getByText('你：我把纸桥放在书桌上，给它取名叫周五桥。', { exact: true }).waitFor()
+  await page.getByRole('region', { name: '历史聊天', exact: true }).getByText('我把纸桥放在书桌上，给它取名叫周五桥。', { exact: true }).waitFor()
   assert.equal((await snapshot()).messages.some((message) => message.text === '/compact'), false)
   await closeTools(); await memoryAction('memory.extract')
   safe(await snapshot()); safe(await mcp('get_state'))

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot } from '../../../shared'
 import './tools.css'
 import { MailboxControls } from './MailboxControls'
@@ -8,6 +8,12 @@ import { McpControls } from './McpControls'
 import { BackupControls } from './BackupControls'
 import { DiagnosticsControls } from './DiagnosticsControls'
 import { ModelControls } from './ModelControls'
+import { GiftControls } from './GiftControls'
+import { HeartFlowControls } from './HeartFlowControls'
+import { LifeControls } from './LifeControls'
+import { DiaryControls } from './DiaryControls'
+import { NotificationControls } from './NotificationControls'
+import { CharacterControls } from './CharacterControls'
 
 type Action = AppCommand extends infer Command ? Command extends AppCommand ? Omit<Command, 'epoch' | 'protocolVersion' | 'requestId'> : never : never
 
@@ -17,6 +23,7 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
   const [approving, setApproving] = useState<string | null>(null)
   const [plannedCount, setPlannedCount] = useState(2)
   const [demo, setDemo] = useState(false)
+  useEffect(() => { if (snapshot.heartFlow?.activeId) setOpen(false) }, [snapshot.heartFlow?.activeId])
   const send = async (action: Action) => {
     try {
       const ack = await bridge.dispatch({ ...action, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() })
@@ -36,6 +43,12 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
       <McpControls bridge={bridge} snapshot={snapshot} />
       <DiagnosticsControls bridge={bridge} snapshot={snapshot} />
       <ModelControls bridge={bridge} snapshot={snapshot} />
+      <GiftControls bridge={bridge} snapshot={snapshot} />
+      {!snapshot.heartFlow?.activeId && <HeartFlowControls bridge={bridge} snapshot={snapshot} />}
+      <LifeControls bridge={bridge} snapshot={snapshot} />
+      <DiaryControls bridge={bridge} snapshot={snapshot} />
+      <NotificationControls bridge={bridge} snapshot={snapshot} />
+      <CharacterControls bridge={bridge} snapshot={snapshot} />
       <h2>番茄钟</h2>
       <div aria-label="番茄钟控制" data-phase={snapshot.pomodoro.phase} data-status={snapshot.pomodoro.status}>
         <p>{({ idle: '等待开始', focus: '专注', 'short-break': '短休息', 'long-break': '长休息' })[snapshot.pomodoro.phase]} · {Math.ceil(snapshot.pomodoro.remainingMs / 1000)} 秒 · {snapshot.pomodoro.focusIndex}/{snapshot.pomodoro.plannedCount}</p>
@@ -74,6 +87,7 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
         </div>}
       </div>)}
       <h2>开发者模式</h2>
+      <button type="button" disabled={snapshot.runtime.developer.mode === 'booth'} onClick={() => void send({ type: 'onboarding.reset' })}>重新初始化</button>
       <p>当前：{snapshot.runtime.developer.mode}</p>
       <label><input type="checkbox" checked={snapshot.runtime.developer.requestedEnabled} disabled={snapshot.runtime.developer.mode === 'booth'} onChange={(event) => void send({ type: 'developer.set', enabled: event.target.checked })} />使用独立的假数据与假模型（重启生效）</label>
       {snapshot.runtime.developer.restartRequired && <button type="button" onClick={() => void send({ type: 'app.restart' })}>重启应用</button>}

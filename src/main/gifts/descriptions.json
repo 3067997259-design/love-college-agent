@@ -1,0 +1,5 @@
+{
+  "objects": { "cup": "A small ceramic tea cup", "paper-bridge": "A tiny folded-paper bridge on a simple base", "leaf": "A small leaf-shaped keepsake", "shell": "A small seashell keepsake", "quill": "A feather quill on a simple stand" },
+  "motifs": { "plain": "plain subtle decoration", "sakura": "a few painted cherry blossoms", "stars": "a few tiny painted stars" },
+  "style": "hand-painted illustration texture, simple low-poly collectible, single object, no text, no names, no logos"
+}

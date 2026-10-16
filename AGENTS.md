@@ -108,9 +108,13 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm probe:backup` / `pnpm test:backup` | 实际四库 backup、ZIP 校验、作用域、安全备份、回滚与空白 profile 恢复 |
 | `pnpm test:model-slots` | 正常模式原生配置导入／重启，本机合成 HTTP 的 background／privacy 路由与关闭 |
 | `pnpm test:mini` | 原生迷你窗、物理像素拖动限位／高 DPI、点穿调用、重启位置／失效归位、独立诊断窗与只读权限 |
+| `pnpm test:onboarding:backend` / `pnpm test:onboarding` | 主进程档案／重启／私人存档；后者覆盖真实向导输入、重启预填、完成与恢复跳过 |
+| `pnpm test:gifts` / `pnpm probe:rodin` | 合成实时礼物全链；真实付费探针（明确运行才提交，当前夜间授权最多 3 次） |
 | `pnpm package:win` | 构建 Windows x64 NSIS，产物在 `release/` |
 | `pnpm test:package` | 检查已构建包、D 盘测试安装、原生模块、界面重启、卸载测试实例 |
 | `pnpm probe:imap` | 主进程内的指定文件夹只读探针；失败仅输出固定分类 |
+| `pnpm probe:deeptech-audit` | 只读结构探针（27 项断言，不需构建）：DeepTech 审计的代码级主张与 F1／F2 修复后的行为 |
+| `pnpm experiment:deeptech-memory` | 跨产物一致性实验装置：24 条冻结经历的旧规则／守卫对照；`--holdout`、`--json` |
 
 不运行 `playwright install`。electron-builder 26.15.3 已单独提交；model-viewer 和 Tailwind 仍延期。打包前先确认当前 Electron 的原生模块已通过 `rebuild:native`／`probe:sqlite`。安装包当前未签名；测试安装命令遇到已有同名用户安装会拒绝覆盖。
 
@@ -240,3 +244,16 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 - 更新时记录实际发生的变化，保持待办和完成状态可辨。
 - 实现落地后，把实际可用的命令写进 README 和本文件。
 - 只有在用户要求时才更新跨项目的全局记忆；本工程文档不等于全局记忆。
+# 已实现的心流命令
+
+`pnpm probe:heart-flow` 运行原生隔离探针；`pnpm test:heart-flow` 运行 Electron 闭环。JavaScript 沙箱不提供 Node／shell／网络／系统文件；不要把批准一次扩展成后续操作授权。
+
+`pnpm probe:life` 验证外出事实与恢复结算水位；不要把离线虚构事件报告为实际工作。
+`pnpm test:room` 验证日记和房间投影。日记钥匙／正文仅用户专用读接口可取，不加进调试状态或模型上下文。
+`pnpm test:notifications` 验证急件通知。Toast 不放标题／发件人／正文；只允许急件或心流审批，禁止把普通后台活动做成通知。
+`pnpm test:characters` 验证静态角色包与角色作用域。角色包不带私人档案；私人存档恢复维持同用户／同角色校验。
+`pnpm test:history` 验证场景真实照片、界面叠层排除、隐藏书本捕获、旧页引用／受限扩读、跨日与私人存档恢复。照片不得进入模型上下文，回忆不得从用户独占的证据／资料接口取原文。`pnpm test:package` 还会在实际安装后的程序里运行此场景。
+
+`pnpm probe:deeptech-audit` 是只读结构探针，核对 [DeepTech 方向审计](docs/research/deeptech-memory-audit-20261017.md) 的代码级主张，并断言 F1（依赖新鲜性守卫）与 F2（来源权限）修复后的行为。27 项断言，不写库、不发网络、不调模型，不需要构建。实验流程与止损条件见 [执行协议](docs/research/deeptech-memory-protocol-20261017.md)，修复与对照结果见 [一致性实验记录](docs/research/deeptech-memory-experiment-20261017.md)。
+
+`pnpm experiment:deeptech-memory` 是跨产物一致性实验装置：24 条冻结经历（开发 12／留出 12），用真实投影与真实 `prepareContext` 对照"旧选择规则"与"守卫后规则"，实测 6/16 → 0/16 过期条目且覆盖不降。`--holdout` 跑全部、`--json` 输出机器可读汇总。它只覆盖摘要选择与来源权限，**不代表真实模型质量或端到端产品验收**。

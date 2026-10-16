@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `harness-smoke-${randomUUID()}`)
@@ -47,14 +47,15 @@ const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: fixtu
 let instance
 try {
   instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
-  let page = await instance.firstWindow()
+  let page = await instance.firstWindow(); await initializeTestBook(page)
   await page.locator('[data-mode][data-pose][data-location]').waitFor()
   await page.getByRole('textbox').fill('synthetic user question')
   await page.getByRole('button', { name: '发送', exact: true }).click()
   await page.locator('.task[data-status="completed"]').waitFor()
   await page.locator('.msg-assistant .msg-text').getByText('synthetic final response', { exact: true }).first().waitFor()
   assert.equal(requests.length, 2)
-  assert.deepEqual(requests[1].messages.map((message) => message.role), ['user', 'assistant', 'tool'])
+  assert.equal(requests[1].messages[0].role, 'system'); assert.ok(requests[1].messages.some((message) => message.role === 'system' && message.content.includes('桃子')))
+  assert.deepEqual(requests[1].messages.filter((message) => message.role !== 'system' && !message.content.includes('"worldFacts"')).map((message) => message.role), ['user', 'assistant', 'tool'])
   const toolResult = JSON.parse(requests[1].messages.at(-1).content)
   assert.equal(typeof toolResult.nowMs, 'number')
   const before = await page.evaluate(() => window.lca.getSnapshot())
@@ -73,7 +74,7 @@ try {
   await instance.close()
   const count = requests.length
   instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
-  page = await instance.firstWindow()
+  page = await instance.firstWindow(); await initializeTestBook(page)
   await page.locator('[data-mode][data-pose][data-location]').waitFor()
   const after = await page.evaluate(() => window.lca.getSnapshot())
   assert.equal(after.scope.sessionId, before.scope.sessionId)

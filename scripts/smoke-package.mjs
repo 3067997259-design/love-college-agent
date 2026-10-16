@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 import { dirname, join, relative, resolve, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
-import { runtimeEnv } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const release = join(root, 'release')
@@ -51,25 +51,29 @@ try {
     assert.equal(occupied.trim(), 'free', 'Existing user installation detected; test refuses to upgrade or uninstall it.')
   }
   const unpacked = join(release, 'win-unpacked/LoveCollegeAgent.exe')
-  await probe(unpacked, 'sqlite'); await probe(unpacked, 'journal'); await probe(unpacked, 'pomodoro'); await probe(unpacked, 'backup')
+  for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'heart-flow']) await probe(unpacked, name)
   await run(installer, ['/S', '/currentuser', `/D=${installDir}`]); installed = true
   const exe = join(installDir, 'LoveCollegeAgent.exe'); assert.ok((await stat(exe)).isFile())
-  await probe(exe, 'sqlite'); await probe(exe, 'journal'); await probe(exe, 'pomodoro'); await probe(exe, 'backup')
+  for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'heart-flow']) await probe(exe, name)
   env.LCA_DATA_DIR = join(root, '.local-data', `installed-ui-${randomUUID()}`)
   env.LCA_PROVIDERS_FILE = join(env.LCA_DATA_DIR, 'absent-test-providers.json')
   const launch = () => _electron.launch({ executablePath: exe, args: [], env, timeout: 30_000 })
-  instance = await launch(); let page = await instance.firstWindow()
+  instance = await launch(); let page = await instance.firstWindow(); await initializeTestBook(page)
   await page.locator('[data-mode][data-pose][data-location]').waitFor()
   const original = await page.evaluate(() => window.lca.getSnapshot())
   assert.equal(original.runtime.developer.mode, 'normal')
   await page.evaluate(async () => { const s = await window.lca.getSnapshot(); await window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), type: 'mode.set', mode: 'quiet' }) })
-  await page.locator('[data-mode="quiet"][data-pose]').waitFor(); await instance.close(); instance = await launch(); page = await instance.firstWindow()
+  await page.locator('[data-mode="quiet"][data-pose]').waitFor(); await instance.close(); instance = await launch(); page = await instance.firstWindow(); await initializeTestBook(page)
   await page.locator('[data-mode="quiet"][data-pose]').waitFor()
   assert.equal((await page.evaluate(() => window.lca.getSnapshot())).scope.sessionId, original.scope.sessionId)
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results/installed.png') })
+  await instance.close(); instance = undefined
+  env.LCA_HISTORY_EXECUTABLE = exe
+  await run(process.execPath, [join(root, 'scripts/smoke-history.mjs')])
+  delete env.LCA_HISTORY_EXECUTABLE
   const bytes = await readFile(installer)
   const report = { ok: true, atIso: new Date().toISOString(), installer, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
-    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: true, privateSaveProbe: true, installedUiRestart: true }
+    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: true, privateSaveProbe: true, installedUiRestart: true, historyQuoteAndPhoto: true, secondCircleProbes: ['memory', 'life', 'heart-flow'] }
   await writeFile(join(root, 'test-results/package-report.json'), JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report))
 } finally {

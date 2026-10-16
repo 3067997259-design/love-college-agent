@@ -4,6 +4,14 @@ import { viewSchema } from '../pomodoro/schema'
 import { artifactSchema, candidateSchema, deliverySchema, mailboxSchema, mailFactsSchema, opaqueId } from '../campus/schema'
 import { attachmentRecordSchema, documentCompletedSchema, documentJobSchema } from '../documents/schema'
 import { memoryBatchSchema, memorySourceSchema, memorySummarySchema } from '../memory/schema'
+import { onboardingSchema } from '../onboarding/schema'
+import { binaryAssetSchema } from '../storage/assets'
+import { giftSchema } from '../gifts/schema'
+import { lifeSchema } from '../life/schema'
+import { diarySchema } from '../diary/schema'
+import { notificationRule } from '../notifications/schema'
+import { definitionSchema } from '../characters/package'
+import { historyPhotoSchema, recallAnchorSchema } from '../history/schema'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -23,11 +31,33 @@ export type ContextMessage = {
 }
 
 export const inputSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('history/recall-request'), requestId: id, anchor: recallAnchorSchema, sourceCount: z.number().int().positive().max(5) }),
+  z.strictObject({ type: z.literal('history/recall-used'), requestId: id, turnId: id, chars: z.number().int().positive().max(20_000) }),
+  z.strictObject({ type: z.literal('history/recall-read'), requestId: id, turnId: id, chars: z.number().int().positive().max(12_000) }),
+  z.strictObject({ type: z.literal('history/photo'), photo: historyPhotoSchema }),
+  z.strictObject({ type: z.literal('history/photo-attempt'), eventId: z.string().max(200), sessionId: id, status: z.enum(['started', 'failed']) }),
+  z.strictObject({ type: z.literal('character/definition'), definition: definitionSchema }),
+  z.strictObject({ type: z.literal('notification/rule'), rule: notificationRule, enabled: z.boolean() }),
+  z.strictObject({ type: z.literal('notification/proposal'), rule: notificationRule.nullable() }),
+  z.strictObject({ type: z.literal('notification/sent'), kind: z.enum(['urgent-mail', 'flow-approval']), keys: z.array(z.string().max(180)).min(1).max(32) }),
+  z.strictObject({ type: z.literal('diary/attempt'), dayKey: z.iso.date() }),
+  z.strictObject({ type: z.literal('diary/written'), diary: diarySchema }),
+  z.strictObject({ type: z.literal('life/state'), view: lifeSchema }),
+  z.strictObject({ type: z.literal('flow/open'), id, prefix: z.array(contextMessageSchema).max(200), mode: z.enum(['plan', 'execute']) }),
+  z.strictObject({ type: z.literal('flow/mode'), id, mode: z.enum(['plan', 'execute']) }),
+  z.strictObject({ type: z.literal('flow/close'), id, summary: z.string().max(2000) }),
+  z.strictObject({ type: z.literal('flow/compact'), id, throughSeq: z.number().int().positive(), summary: z.string().max(6000) }),
+  z.strictObject({ type: z.literal('desk/change'), id, flowId: id, path: z.string().max(180), before: z.string().max(64000).nullable(), after: z.string().max(64000).nullable(), undoes: id.optional(), pending: z.boolean().optional() }),
+  z.strictObject({ type: z.literal('desk/settled'), id, status: z.enum(['applied', 'failed']) }),
+  z.strictObject({ type: z.literal('flow/run'), id, flowId: id, status: z.enum(['requested', 'approved', 'denied', 'completed', 'failed', 'interrupted']), codeHash: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ type: z.literal('session/header'), userId: id, characterId: id, sessionId: id }),
+  z.strictObject({ type: z.literal('asset/stored'), asset: binaryAssetSchema }),
+  z.strictObject({ type: z.literal('gift/state'), gift: giftSchema }),
   z.strictObject({ type: z.literal('session/carry'), sourceSessionId: id, sourceSeq: z.number().int().positive(),
     mode: z.enum(['work', 'quiet', 'rest']), lightsOut: z.boolean(), pomodoro: viewSchema, pomodoroPause: z.enum(['manual', 'lights']).nullable(),
     pomodoroEvents: z.array(z.strictObject({ id, text: z.string().max(2000) })).max(1000),
-    pendingEvents: z.array(z.strictObject({ id, source: z.enum(['pomodoro', 'mail', 'document']), text: z.string().max(2000) })).max(32).optional() }),
+    pendingEvents: z.array(z.strictObject({ id, source: z.enum(['pomodoro', 'mail', 'document']), text: z.string().max(2000) })).max(32).optional(), onboarding: onboardingSchema.optional() }),
+  z.strictObject({ type: z.literal('onboarding/state'), view: onboardingSchema, cause: z.enum(['profile', 'completed', 'reset', 'restored']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/mode'), mode: z.enum(['work', 'quiet', 'rest']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/lights'), lightsOut: z.boolean(), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('mail/state'), view: mailboxSchema }),

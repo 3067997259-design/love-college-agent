@@ -1,6 +1,16 @@
 # 界面接口 v0
 
+`memory.summaryCounts` 提供有效日／周／月摘要数量；同一周期来源不变不重复调用。`memory.consolidate` 只归并已关闭周期的已有日摘要，不读取原始邮件或附件。晚到的来源追加新版本，旧记录保留；给模型的层级参考不重复覆盖同一来源会话，也不参与新的经历抽取。
+
+第二圈礼物：`gifts` 是真实生成生命周期，和预制羽毛笔 quill 分开。gift.propose 必须绑定已见经历；物件和装饰取共享枚举，发往 Rodin 的描述由代码映射，不发送姓名、邮件或记忆原文。专注开始制作，工具取得并校验本地 GLB 后才 ready，休息才 given；取消停止本地后续处理，不承诺上游撤单或退款。每天最多一次提交，失败也占提交预算。assetUrl 仅本地受限资源，未配置时 configured=false，不能假装开始了。上游凭据、任务订阅 key 与签名下载 URL 永不进快照、日志或调试接口。
+
 此目录是两条编码线唯一共用的契约入口，不依赖 Electron、Node 或主进程模块。
+
+新手流程：真实快照提供 `onboarding`（旧 fixture 可省略）。新 profile 为 needed，userName=null、characterName="桃子"、completedAtMs=null；booth 始终投影 completed。正式界面据 status 决定是否显示向导，不从查询参数或本地存储决定入口。
+
+`onboarding.profile` 只修改提供的名字字段：userName 最多 20 个 Unicode code points，characterName 最多 12 个；拒绝换行／控制字符，trim 后空白分别设为 null／桃子；至少提供一项。不改变完成状态，写后重启仍在。`onboarding.complete` 标为 completed，用统一时钟记录 completedAtMs，重复完成保留原时间。`onboarding.reset` 清完成标记并重新进入向导，保留名字、聊天和业务数据；展位拒绝 reset。三条命令只能由书本主窗口发送。
+
+characterName 进入角色的系统称呼，userName 进入用户档案的“关于你”；二者都是用户配置，不是共同经历，不从配置事件生成聊天或记忆。私人存档携带以上字段，恢复已完成存档直接回书本。开头的“我已经有一本书了”复用 backup.import → awaiting-confirmation → backup.restore，不把选中文件当恢复成功。
 
 - `state.ts`：安全快照、时钟、角色状态、任务、消息、活动、候选与交付卡。
 - `commands.ts`：白名单命令与回执。accepted 只表示接收；完成必须看后续快照里的任务终态。
@@ -75,3 +85,23 @@
 主进程加载 `?view=mini`，新小窗为 280×350 DIP；首次在主屏工作区右下角留 24 DIP 边距。有位置偏好则按 profile 和显示器恢复，越界／显示器缺失归位；应用重启只开书本。`window.diagnostics.open` 仅开发模式开放独立诊断窗，normal／booth 拒绝；diagnosticsOpen 表示它是否存在。诊断窗只读安全快照和 readDiagnostics，不获文件／原文入口或业务命令权限。
 
 `pomodoro.confirm(planId)` 只确认当前 proposal，任何阶段可确认；plannedCount 是今天的总数，包含已完成和正在进行的那个，少于 focusIndex 时拒绝。确认保留当前阶段、剩余时长、截止点、已完成进度，更新生效计划及总数，清 proposal；新时长从下一阶段使用。`pomodoro.discard(planId)` 只丢弃匹配的 proposal；`pomodoro.stop` 只结束生效计划，不再丢草案。完成数由主进程提供 completedCount（旧 fixture 可省略），正在进行／暂停的专注不计已完成；get_timer 返回它供模型排当天总数。渲染层不要从新草案重新起算进度。
+# 心流
+
+`heartFlow` 是书桌工作的安全投影。`flow.enter` 冻结前缀；`flow.mode` 切换只读计划／执行；`flow.compact` 仅压工作层；`flow.exit` 追加有证据的工作摘要。`flow.run` 申请执行 JavaScript，`flow.approve` 仅书本窗口能发，审批不持久复用；展位禁止运行。没有 shell／Node 权限。`flow.undo` 只撤回最新的匹配文件版本，追加事件，不删除历史。
+
+# 世界泡
+
+`life` 的出返、地点、拾取时刻和物品由主进程确定。`life.schedule` 是用户今天作息的明确输入；`life.propose` 仅提议，用户在时用 `life.depart` 同意出发，`life.return` 提前结束。离线事实带 offline=true，只结算最近三天的虚构外出；恢复私人存档直接校准 settledUntilMs，不补空档。桌面最多三件，其余入抽屉。素材缺失时界面用文字回退。
+
+# 日记与房间
+
+`diary` 只投影日期、锁状态和来源。`readDiary(id)` 是用户独占入口，主进程检查解锁后返回主观正文和既定钥匙；禁止喂回模型、记忆或调试 MCP。`diary.write` 尝试为已结束的一天写一次；已有篇章永不覆写。`room.open/rebuild` 只打开／重建程序自己的投影目录，不接受任意路径。正文为带密码 ZIP；运行记录只含类型、时间和成败。
+
+# 急件提醒
+
+仅近 24 小时截止、可核对的固定紧急枚举、用户批准的规则，以及专注中待人工审批可发系统通知。通知只含代码模板、计数和截止时刻；15 秒合并、每小时最多三次、按事项版本去重，熄灯暂停。规则作用于隐私校验后的短标题和来源类别，不获取正文；模型只能提议，用户确认后生效。开发／展位使用 synthetic 投递，不弹真实系统通知。
+
+# 静态角色包
+
+`character.import/export` 走原生文件选择器，格式是版本化 `.lca-character` ZIP，首版只接名字、人设和具名 PNG。包中不允许代码、URL、私人档案或未声明文件。`character.select` 保存选择，重启后开独立角色日志、记忆、资料和房间；从不复制共同经历。`characterPack.images` 只返回当前角色自己的本地资源 URL，缺姿势回退同姿势 calm、正面 calm，最后内置场景。私人存档恢复仍要求同用户／同角色：新机器先导入同一角色包并切换，再恢复对应存档。
+

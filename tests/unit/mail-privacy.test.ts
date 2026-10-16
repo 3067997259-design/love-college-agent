@@ -10,6 +10,15 @@ const mail: SourceMail = { uidValidity: '1', uid: 1, subject: '第三次作业�
 const output = { kind: 'deadline', task: '第三次作业', titleQuote: '第三次作业', sourceRole: 'teaching-assistant', deadline: { iso: '2026-10-24T23:59:00+08:00', quote: '2026 年 10 月 24 日（周六）23:59' } }
 const signal = () => new AbortController().signal
 describe('mail isolation and evidence-bound extraction', () => {
+  it('requires grounded positive phrases for urgency enums', async () => {
+    for (const [quote, level] of [['今天内回复', 'reply-today'], ['教室已变更', 'location-change']] as const) {
+      const input = { ...mail, body: mail.body + quote }
+      expect(await extractMail(input, { source: 'fake', extract: async () => ({ ...output, urgency: { level, quote } }) }, clock, signal())).toMatchObject({ ok: true, value: { urgency: level } })
+    }
+    for (const quote of ['今天不必回复', '取消教室变更', 'invented']) {
+      expect(await extractMail({ ...mail, body: mail.body + quote }, { source: 'fake', extract: async () => ({ ...output, urgency: { level: 'reply-today', quote } }) }, clock, signal())).toMatchObject({ ok: false })
+    }
+  })
   it('removes fixed identifiers before invoking the isolated no-tools dependency', async () => {
     const extract = vi.fn(async (input) => { const json = JSON.stringify(input); expect(json).not.toContain('13800138000'); expect(json).not.toContain('fixture@example.invalid'); expect(json).not.toContain('2026001234'); expect(json).not.toContain('sk-synthetic'); expect(input.tools).toBeUndefined(); return output })
     const result = await extractMail(mail, { source: 'fake', extract }, clock, signal())

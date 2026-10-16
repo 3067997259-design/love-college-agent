@@ -29,9 +29,11 @@ export function createHarness(options: {
   changed?: (reason: AppEvent['reason']) => void
   failed?: () => void
   enabled?: () => boolean
+  backgroundQuiet?: () => boolean
   limits?: { steps?: number; dailyTokens?: number; autonomousTokens?: number; outputTokens?: number }
   prepareContext?(turnId: string, signal: AbortSignal): Promise<{ messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }>
   foreground?(): void
+  userWork?(): void
   settled?(): void
 }) {
   const { store, clock, model } = options
@@ -48,7 +50,7 @@ export function createHarness(options: {
   let disposed = false
   let resumeGate: (() => void) | undefined
   const record = (input: JournalInput) => { store.append(input); if (input.type !== 'model/attempt') options.changed?.(input.type === 'user/message' || input.type === 'assistant/message' ? 'message' : 'task') }
-  const quiet = () => { const view = store.projection(); return view.mode === 'quiet' || view.pomodoro.phase === 'focus' }
+  const quiet = () => { const view = store.projection(); return options.backgroundQuiet?.() || view.mode === 'quiet' || view.pomodoro.phase === 'focus' }
   const eligible = () => !disposed && (options.enabled?.() ?? true) && !store.projection().lightsOut && inbox.some((entry) => entry.source === 'user' || !quiet())
   const drain = () => {
     const entries = inbox.filter((entry) => entry.source === 'user' || !quiet())
@@ -184,6 +186,7 @@ export function createHarness(options: {
     send: (text: string, requestId: string, commandHash: string) => {
       if (disposed || inbox.length >= 32 || store.projection().lightsOut) throw new Error('INBOX_UNAVAILABLE')
       options.foreground?.()
+      options.userWork?.()
       const id = randomUUID()
       record({ type: 'user/message', id, text, requestId, commandHash })
       inbox.push({ id, source: 'user' }); kick()

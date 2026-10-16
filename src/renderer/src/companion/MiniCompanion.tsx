@@ -2,6 +2,7 @@ import { useId, useRef } from 'react'
 import type { ActivityView, AppSnapshot } from '../../../shared'
 import { useRootAmbience } from '../book/ambience'
 import { sceneSrc } from '../book/Character'
+import { packageScene } from '../book/characterPackage'
 import { resolveCharacterArt } from '../book/characterArt'
 import { formatRemaining } from '../book/format'
 import { locationLabel } from '../book/labels'
@@ -41,7 +42,7 @@ export function MiniCompanion({ snapshot, onExpand, onHover, onMove }: {
   const remaining = useCountdown(snapshot)
   const id = useId().replace(/:/g, '')
   const art = resolveCharacterArt(companion)
-  const src = sceneSrc(art.key)
+  const src = packageScene(snapshot, art.key) ?? sceneSrc(art.key)
   const onBreak = pomodoro.phase === 'short-break' || pomodoro.phase === 'long-break'
   const away = companion.locationId !== 'room'
   const mailReady = capabilities.find((c) => c.id === 'mail')?.status === 'ready'

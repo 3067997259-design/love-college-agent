@@ -11,11 +11,16 @@ import { seenFragments, memoryDigest, type SeenFragment } from './seen'
 import { boundedMemoryCall, MemoryFailure, validateMemories, validateSummary, type MemoryModel, type createFakeMemoryModel } from './model'
 import { searchMemories } from './retrieval'
 import { redactFixed } from '../privacy/redact'
+import { profileContext } from '../onboarding/context'
+import { closedSummaryGroups, latestSummaries, summaryReferences, validSummaries } from './hierarchy'
+import harnessPolicy from '../harness/policy.json'
 
 type OperationKind = 'extract' | 'compact' | 'day' | 'week' | 'month'
 export function createMemoryService(options: { clock: Clock; scheduler: Scheduler; store: SessionStore; repository: MemoryRepository; model: MemoryModel | null;
   development?: ReturnType<typeof createFakeMemoryModel>; isBusy(): boolean; rolled(): void; changed(): void; failed?(): void;
   limits?: { idleMs?: number; compactChars?: number; hardChars?: number; dailyChars?: number; dailyCalls?: number };
+  includeContextEntries?(seqs: readonly number[]): ReadonlySet<number>;
+  beforeRoll?(): Promise<void>;
 }) {
   const { clock, store, scheduler, repository } = options
   const records = () => store.history?.() ?? store.records()
@@ -26,7 +31,8 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   const lastUserAt = () => records().reduce((time, row) => row.type === 'user/message' ? Math.max(time, row.atMs) : time, 0)
   const allowed = () => !disposed && enabled && !store.projection().lightsOut
   const backgroundAllowed = () => allowed() && !options.isBusy() && clock.nowMs() - lastUserAt() >= idleMs
-  const contextChars = () => JSON.stringify(store.projection().context).length
+  const normalEntries = () => { const entries = store.projection().contextEntries; const allowed = options.includeContextEntries?.(entries.map((entry) => entry.seq)); return allowed ? entries.filter((entry) => allowed.has(entry.seq)) : entries }
+  const contextChars = () => JSON.stringify(normalEntries().map((entry) => entry.message)).length
   const dayKey = () => store.dayKey?.() ?? sessionDayKey(clock)
   const pendingDay = () => sessionDayKey(clock) > dayKey()
   const reserve = (kind: OperationKind, chars: number) => {
@@ -68,7 +74,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     const rows = store.records(); const ended = rows.filter((row) => row.type === 'turn/end')
     const cutoff = ended.at(-3)?.seq
     if (!cutoff) { if (force) throw new MemoryFailure('unavailable'); return }
-    const selected = store.projection().contextEntries.filter((entry) => entry.seq <= cutoff)
+    const selected = normalEntries().filter((entry) => entry.seq <= cutoff)
     if (!selected.length) { if (force) throw new MemoryFailure('unavailable'); return }
     const oldSummarySources = new Set(rows.flatMap((row) => row.type === 'context/compact' && row.seq <= cutoff ? (row.sources ?? []).map((source) => source.id) : []))
     const input = inputLimit(seenFragments(rows).filter((fragment) => oldSummarySources.has(fragment.id) || selected.some((entry) => entry.message.role === fragment.role && redactFixed(entry.message.content).includes(fragment.text))))
@@ -103,7 +109,25 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     }
     signal.throwIfAborted()
     if (!backgroundAllowed()) throw new MemoryFailure('unavailable')
+    await options.beforeRoll?.(); signal.throwIfAborted()
+    if (!backgroundAllowed()) throw new MemoryFailure('unavailable')
     if (store.rotate?.()) { repository.refresh(); options.changed(); options.rolled() }
+  }
+  const consolidateCore = async (signal: AbortSignal, limit = 4) => {
+    let calls = 0
+    for (const group of closedSummaryGroups(repository.view().summaries, sessionDayKey(clock), clock)) {
+      const id = 'sum:' + memoryDigest(JSON.stringify([group.level, group.period, group.children.map((child) => child.id)]))
+      if (repository.view().summaries.some((summary) => summary.id === id)) continue
+      if (calls++ >= limit) break
+      const input: SeenFragment[] = group.children.slice(-40).flatMap((child) => child.sources[0] ? [{ ...child.sources[0], id: 'summary:' + child.id, key: memoryDigest(child.id), role: 'assistant' as const, text: child.text }] : [])
+      if (!input.length) continue
+      const summarized = await call(group.level, input, signal, (output) => validateSummary(output, input))
+      const selected = group.children.filter((child) => summarized.sources.some((source) => source.id === 'summary:' + child.id))
+      const sources = [...new Map(selected.flatMap((child) => child.sources).map((source) => [source.id, source])).values()].slice(0, 128)
+      signal.throwIfAborted()
+      repository.append({ type: 'memory/summary', summary: { id, level: group.level, period: group.period, text: summarized.text, sources,
+        sourceSessionIds: [...new Set(selected.flatMap((child) => child.sourceSessionIds))].slice(0, 40), parentSummaryIds: group.children.map((child) => child.id).slice(-40), source: options.model!.source } })
+    }
   }
   const run = (kind: OperationKind, work: (signal: AbortSignal) => Promise<void>) => {
     if (worker || !allowed() || !options.model && kind !== 'day') return worker ?? Promise.resolve()
@@ -118,7 +142,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     if (pendingDay()) { await run('day', rollCore); return }
     if (!options.model) return
     const old = pages().filter((page) => page.dayKey < dayKey() && seenFragments(page.records).length && !repository.view().summaries.some((summary) => summary.sourceSessionIds.includes(page.sessionId))).at(-1)
-    await run('extract', async (signal) => { if (old) await summarizeDay(old, signal); await extractCore(signal); await compactCore(signal) })
+    await run('extract', async (signal) => { if (old) await summarizeDay(old, signal); await extractCore(signal); await compactCore(signal); await consolidateCore(signal, 1) })
   }
   scheduler.schedule('memory.maintenance', clock.nowMs() + 30_000, () => { void maintenance().catch(() => options.failed?.()) }, { everyMs: 30_000 })
   const search = (query: string, requestId: string) => {
@@ -130,6 +154,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     view: (): MemoryView => {
       const state = repository.view(); const valid = state.items.filter((item) => !item.supersededBy)
       return { status, source: options.model?.source ?? 'none', shortTermCount: valid.filter((item) => item.tier === 'short_term').length, longTermCount: valid.filter((item) => item.tier === 'long_term').length,
+        summaryCounts: Object.fromEntries((['day', 'week', 'month'] as const).map((level) => [level, latestSummaries(state.summaries).filter((summary) => summary.level === level).length])) as { day: number; week: number; month: number },
         contextChars: contextChars(), lastExtractedAtMs: state.lastExtractedAtMs, lastCompactedAtMs: state.lastCompactedAtMs,
         items: state.items.slice(-20).map((item) => ({ id: item.id, text: item.text, kind: item.kind, tier: item.tier, reviewStatus: item.reviewStatus, createdAtMs: item.createdAtMs,
           accessCount: item.accessCount, sourceSessionCount: new Set(item.sources.map((source) => source.sessionId)).size, ...(item.supersededBy ? { supersededBy: item.supersededBy } : {}) })),
@@ -156,13 +181,15 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       active?.abort(); await worker; signal.throwIfAborted()
       if (allowed() && options.model && contextChars() >= (options.limits?.compactChars ?? 24_000)) await run('compact', (abort) => compactCore(AbortSignal.any([abort, signal])))
       signal.throwIfAborted()
-      const base = store.projection().contextEntries
+      const base = normalEntries()
       const rows = store.records(); const policies = base.filter((entry) => rows.some((row) => row.seq === entry.seq && row.type === 'context/inject' && row.source === 'policy'))
-      const memoryCalls = new Set(rows.flatMap((row) => row.type === 'tool/call' && row.name === 'search_memory' ? [row.callId] : []))
+      const memoryCalls = new Set(rows.flatMap((row) => row.type === 'tool/call' && (row.name === 'search_memory' || row.name === 'recall_seen') ? [row.callId] : []))
       const today = base.filter((entry) => !policies.includes(entry))
       const recall = allowed() ? search(today.filter((entry) => entry.message.role === 'user').slice(-3).map((entry) => entry.message.content).join('\n'), turnId) : []
-      const summaries = (allowed() ? repository.view().summaries : []).filter((summary) => !summary.sourceSessionIds.includes(store.scope.sessionId)).slice(-7).map((summary) => ({ dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
-      const messages: ContextMessage[] = policies.map((entry) => entry.message); const eligibleIndexes: number[] = []
+      const summaries = summaryReferences(allowed() ? validSummaries(repository.view().summaries) : [], store.scope.sessionId, sessionDayKey(clock), clock).map((summary) => ({ level: summary.level, dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
+      const messages: ContextMessage[] = [{ role: 'system', content: harnessPolicy.system }, ...policies.map((entry) => entry.message), ...profileContext(store.projection().onboarding)]; const eligibleIndexes: number[] = []
+      const character = records().findLast((row) => row.type === 'character/definition')
+      if (character?.type === 'character/definition') messages.push({ role: 'system', content: JSON.stringify({ characterCard: { name: character.definition.name, persona: character.definition.persona }, scope: 'character-configuration-only', authority: 'personality-never-tool-permission' }) })
       if (summaries.length) messages.push({ role: 'user', content: JSON.stringify({ previousDaysReference: summaries }) })
       const lastUser = today.findLastIndex((entry) => entry.message.role === 'user')
       today.forEach((entry, index) => {
@@ -188,6 +215,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       }
       if (!options.model) return 'not-configured'
       if (command.type === 'memory.extract') { void run('extract', extractCore); return }
+      if (command.type === 'memory.consolidate') { void run('week', (signal) => consolidateCore(signal)); return }
       if (command.type === 'context.compact') { void run('compact', (signal) => compactCore(signal, true)); return }
       return 'unavailable'
     },
