@@ -182,6 +182,10 @@ function PlanHead({ snapshot, onCommand }: { snapshot: AppSnapshot; onCommand: (
       {pomodoro.phase === 'focus' && pomodoro.status === 'running' && (
         <button type="button" className="btn btn-ghost btn-small" onClick={() => onCommand({ type: 'pomodoro.pause' })}>暂停</button>
       )}
+      {pomodoro.phase === 'focus' && snapshot.windows?.mode === 'book' && (
+        <button type="button" className="btn btn-ghost btn-small" title="书合上，缩成桌面角落的小窗；计时照走"
+          onClick={() => onCommand({ type: 'window.mini' })}>合上</button>
+      )}
       {pomodoro.status === 'paused' && (
         <button type="button" className="btn btn-primary btn-small" disabled={companion.lightsOut} title={lightsHint}
           onClick={() => onCommand({ type: 'pomodoro.resume' })}>继续</button>

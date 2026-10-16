@@ -1,24 +1,29 @@
 import { useEffect, useState } from 'react'
 import type { AppBridge, AppSnapshot } from '../../../shared'
 import { connectBridge } from '../app/connect-bridge'
+import { sendCommand } from '../book/command'
 import { ScenarioSwitcher } from '../dev/ScenarioSwitcher'
 import type { FakeBridge } from '../dev/fake-bridge'
 import { MiniCompanion } from './MiniCompanion'
 
 /**
  * 迷你窗的根：主进程用 ?view=mini 载入同一套渲染代码，走同一个 bridge。
- * “回到书本”“鼠标在纸上”“挪窗口”三条命令等 GPT 的窗口接口落地后再接；
- * 在那之前，只有浏览器预览里点纸会换回书本页面，拖动在预览里挪的是假桌面上的框。
+ * 点纸发 window.book 回到书本；悬停发 window.mini.hover，主进程据此切换点穿；拖动发 window.mini.move，主进程夹住坐标并记住位置。
+ * 浏览器预览没有真窗口：点纸换回书本页面，拖动挪的是假桌面上的框。
  */
 export function MiniApp({ bridge, fake }: { bridge: AppBridge; fake: FakeBridge | null }) {
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null)
   useEffect(() => connectBridge(bridge, setSnapshot, () => setSnapshot(null)), [bridge])
   if (!snapshot) return null
 
-  const mini = (
-    <MiniCompanion snapshot={snapshot} onExpand={() => { if (fake) openBookPreview() }} onHover={() => {}}
-      onMove={(dx, dy) => { if (fake) movePreviewFrame(dx, dy) }} />
-  )
+  const send = (body: Parameters<typeof sendCommand>[2]) => { void sendCommand(bridge, snapshot.epoch, body) }
+  const mini = fake
+    ? <MiniCompanion snapshot={snapshot} onExpand={openBookPreview} onHover={() => {}} onMove={movePreviewFrame} />
+    : (
+      <MiniCompanion snapshot={snapshot} onExpand={() => send({ type: 'window.book' })}
+        onHover={(over) => send({ type: 'window.mini.hover', over })}
+        onMove={(dx, dy) => send({ type: 'window.mini.move', dx: Math.round(dx), dy: Math.round(dy) })} />
+    )
   if (!fake) return mini
   return (
     <div className="mini-desktop">
