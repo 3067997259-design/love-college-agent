@@ -5,6 +5,9 @@ import { z } from 'zod'
 
 export const deskPathSchema = z.string().min(1).max(180).refine((value) => !isAbsolute(value) && !/[\\:]/.test(value) && [...value].every((char) => char.charCodeAt(0) > 31 && char.charCodeAt(0) !== 127) && value.split('/').every((part) => /^[^ .][^<>"|?*]*$/.test(part) && !part.endsWith('.') && !part.endsWith(' ') && !/^(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(part) && part !== '..'))
 export const contentHash = (text: string | null) => createHash('sha256').update(text === null ? 'absent' : 'text:' + text).digest('hex')
+export function validateDeskText(text: string | null) {
+  if (text !== null && (Buffer.byteLength(text, 'utf8') > 64_000 || text.includes('\0') || Buffer.from(text, 'utf8').toString('utf8') !== text)) throw new Error('DESK_INVALID')
+}
 export function createDesk(root: string) {
   mkdirSync(root, { recursive: true }); if (lstatSync(root).isSymbolicLink()) throw new Error('DESK_INVALID')
   const base = realpathSync(root)
@@ -24,7 +27,7 @@ export function createDesk(root: string) {
   }
   const read = (file: string): string | null => { const target = path(file); if (!existsSync(target)) return null; if (!lstatSync(target).isFile() || lstatSync(target).size > 64_000) throw new Error('DESK_INVALID'); const bytes = readFileSync(target); const text = bytes.toString('utf8'); if (!Buffer.from(text).equals(bytes) || text.includes('\0')) throw new Error('DESK_INVALID'); return text }
   const write = (file: string, text: string | null) => {
-    if (text !== null && (Buffer.byteLength(text) > 64_000 || text.includes('\0'))) throw new Error('DESK_INVALID')
+    validateDeskText(text)
     const target = path(file, true); if (existsSync(target) && !lstatSync(target).isFile()) throw new Error('DESK_INVALID')
     if (text === null) { if (existsSync(target)) unlinkSync(target); return }
     const temporary = join(dirname(target), '.lca-' + randomUUID() + '.tmp')

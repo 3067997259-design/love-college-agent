@@ -72,3 +72,10 @@ it('can exit after many long-path writes and runs, including after restart', asy
   expect(JSON.parse(summary)).toMatchObject({ fileCount: 12, runCount: 12 })
   expect(JSON.parse(summary).fileEvidence.length).toBeGreaterThan(0); expect(JSON.parse(summary).runs.length).toBeGreaterThan(0)
 })
+it('rejects invalid UTF-8 snapshot size and NUL before appending a write intent', async () => {
+  const f = fixture(); f.dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(f.flow.active()).toBe(true)); f.dispatch({ type: 'flow.mode', mode: 'execute' })
+  const before = f.store.records().length
+  for (const text of ['字'.repeat(22_000), 'short\0text', '\ud800']) expect(() => f.flow.write('a.txt', text)).toThrow()
+  expect(f.store.records()).toHaveLength(before); expect(f.desk.read('a.txt')).toBeNull()
+  f.flow.write('a.txt', '字'.repeat(21_333) + 'x'); expect(Buffer.byteLength(f.desk.read('a.txt')!)).toBe(64_000)
+})

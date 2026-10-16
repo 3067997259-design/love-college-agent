@@ -4,10 +4,11 @@ import { randomUUID } from 'node:crypto'
 import { validatePrivateSave, sha256 } from '../../src/main/backup/archive'
 import { DATABASES } from '../../src/main/backup/schema'
 import { idleTimer } from '../../src/main/pomodoro/schema'
+import type { JournalInput } from '../../src/main/journal/schema'
 
 const owner = { userId: 'test-user', characterId: 'test-character' }
-async function fixture() {
-  const journal = Buffer.from(JSON.stringify({ version: 1, seq: 1, atMs: 1000, type: 'session/header', ...owner, sessionId: 'session' }) + '\n')
+async function fixture(events: JournalInput[] = []) {
+  const journal = Buffer.from([{ type: 'session/header', ...owner, sessionId: 'session' }, ...events].map((row, index) => JSON.stringify({ ...row, version: 1, seq: index + 1, atMs: 1000 })).join('\n') + '\n')
   const key = sha256(JSON.stringify([owner.userId, owner.characterId])); const files = new Map<string, Buffer>([['journals/' + key + '/2026-10-16.jsonl', journal], ...DATABASES.map((name): [string, Buffer] => [name, Buffer.from('schema validation belongs to native SQLite stage')])])
   const manifest = { formatVersion: 1, kind: 'lca-private-save', archiveId: randomUUID(), savedAtMs: 1000, owner, source: 'fake', activeDayKey: '2026-10-16', activeSessionId: 'session', pomodoro: idleTimer(), pomodoroPause: null, fileFilteringEnabled: false,
     counts: { pageCount: 1, messageCount: 0, memoryCount: 0, deliveryCount: 0 }, files: [...files].map(([path, data]) => ({ path, bytes: data.length, sha256: sha256(data) })) }
@@ -15,6 +16,16 @@ async function fixture() {
   return { manifest, zip, bytes: () => zip.generateAsync({ type: 'nodebuffer' }) }
 }
 describe('untrusted private-save validation before touching current data', () => {
+  it('rejects non-replayable applied desk snapshots but preserves failed legacy intents', async () => {
+    for (const invalid of [{ path: 'a.txt', after: '字'.repeat(22_000) }, { path: 'a.txt', after: 'short\0text' }, { path: '../outside', after: 'text' }, { path: 'a.txt', after: '\ud800' }]) {
+      const change: JournalInput = { type: 'desk/change', id: 'write', flowId: 'flow', before: null, ...invalid }
+      for (const events of [[change], [{ ...change, pending: true }, { type: 'desk/settled', id: 'write', status: 'applied' }]] as JournalInput[][]) {
+        const f = await fixture(events); await expect(validatePrivateSave(await f.bytes(), owner, 'fake')).rejects.toMatchObject({ code: 'backup-invalid' })
+      }
+      const failed = await fixture([{ ...change, pending: true }, { type: 'desk/settled', id: 'write', status: 'failed' }])
+      await expect(validatePrivateSave(await failed.bytes(), owner, 'fake')).resolves.toHaveProperty('manifest')
+    }
+  })
   it('preserves a completed onboarding profile and validates untrusted names and status', async () => {
     const f = await fixture(); const onboarding = { status: 'completed', userName: '小林', characterName: '小桃', completedAtMs: 1000 }
     f.zip.file('manifest.json', JSON.stringify({ ...f.manifest, onboarding }))

@@ -11,6 +11,10 @@ import { openDocumentVault } from '../documents/vault'
 import { exportPrivateSave, stagePrivateSave, validatePrivateSave } from '../backup/archive'
 import { applyPendingRestore, queueRestore } from '../backup/restore'
 import { journalLocation } from '../journal/file'
+import { createDesk } from '../heart-flow/desk'
+import { createHeartFlow } from '../heart-flow/service'
+import { appliedDeskChanges } from '../heart-flow/changes'
+import type { AppCommand } from '../../shared'
 
 export async function probeBackup(root: string) {
   const clock = createManualClock(0); clock.advanceBy(clock.parse('2026-10-16T20:00:00+08:00'))
@@ -18,6 +22,16 @@ export async function probeBackup(root: string) {
   const store = openSessionStore(root, owner, clock); const memory = openMemoryRepository(root, store); const evidence = openEvidenceVault(root, owner); const documents = openDocumentVault(root, owner)
   let stage = 0
   try {
+    const desk = createDesk(join(root, 'desk'))
+    const flowOptions = { store, clock, desk, booth: false, busy: () => false, changed: () => {}, prepare: async () => ({ messages: [], eligibleIndexes: [] }), emit: () => {}, run: async () => '' }
+    const flow = createHeartFlow(flowOptions); flow.dispatch({ type: 'flow.enter' } as AppCommand); await Promise.resolve(); await Promise.resolve()
+    flow.dispatch({ type: 'flow.mode', mode: 'execute' } as AppCommand); flow.write('saved.txt', '字'.repeat(21_333) + 'x')
+    const beforeInvalid = store.records().length
+    for (const text of ['字'.repeat(22_000), 'short\0text']) { let rejected = false; try { flow.write('invalid.txt', text) } catch { rejected = true }; if (!rejected) throw new Error('DESK_INVALID_ACCEPTED') }
+    if (store.records().length !== beforeInvalid) throw new Error('DESK_INVALID_INTENT_APPENDED')
+    const failedFlow = createHeartFlow({ ...flowOptions, desk: { ...desk, write: () => { throw new Error('SYNTHETIC_DISK_FAILURE') } } })
+    let failed = false; try { failedFlow.write('failed.txt', 'NEVER_WRITTEN') } catch { failed = true }; if (!failed) throw new Error('DESK_FAILURE_NOT_SIMULATED')
+    if (flow.dispatch({ type: 'flow.exit' } as AppCommand)) throw new Error('DESK_FLOW_EXIT_FAILED')
     store.append({ type: 'user/message', id: 'saved-message', text: 'SYNTHETIC_SAVED_EXPERIENCE', requestId: 'saved-message', commandHash: 'probe' })
     const sourceRef = documents.put(new Uint8Array(Buffer.from('SYNTHETIC_PRIVATE_DOCUMENT')), 'text')
     const privateRef = evidence.put('synthetic', { uidValidity: '1', uid: 1, senderAddress: 'fixture@example.invalid', senderName: 'SYNTHETIC_SENDER', subject: 'SYNTHETIC_SUBJECT', body: 'RAW_ONLY_SAVED_MAIL', sentAtMs: clock.nowMs(), receivedAtMs: clock.nowMs() }, [])
@@ -45,6 +59,9 @@ export async function probeBackup(root: string) {
     if (applied?.status !== 'restored') throw new Error('SAVE_RESTORE_FAILED'); stage = 3
     const nextStore = openSessionStore(root, owner, clock); const nextDocuments = openDocumentVault(root, owner); const nextEvidence = openEvidenceVault(root, owner)
     try {
+      const restoredDesk = createDesk(join(root, 'restored-desk'))
+      for (const [path, text] of new Map(appliedDeskChanges(nextStore.history!()).map((row) => [row.path, row.after] as const))) restoredDesk.write(path, text)
+      if (restoredDesk.read('saved.txt') !== '字'.repeat(21_333) + 'x' || restoredDesk.read('failed.txt') !== null || restoredDesk.read('invalid.txt') !== null) throw new Error('DESK_SNAPSHOT_RESTORE_FAILED')
       if (JSON.stringify(nextStore.history?.()).includes('AFTER_SAVE_SHOULD_BE_REWOUND') || !JSON.stringify(nextStore.history?.()).includes('SYNTHETIC_SAVED_EXPERIENCE')) throw new Error('SAVE_CHAT_FAILED')
       if (Buffer.from(nextDocuments.read(sourceRef).bytes).toString() !== 'SYNTHETIC_PRIVATE_DOCUMENT' || nextEvidence.read(privateRef, nextStore.scope).excerpt !== 'RAW_ONLY_SAVED_MAIL') throw new Error('SAVE_PRIVATE_RESTORE_FAILED')
       const oldDb = new Database(join(root, '.backup-staging', staged.restoreId, 'rollback', 'documents.sqlite'), { readonly: true }); oldDb.close()
@@ -66,7 +83,7 @@ export async function probeBackup(root: string) {
       credentialVault.put(new Uint8Array(Buffer.from('APPLICATION_CREDENTIAL_CANARY')), 'text')
       if (!(await exportPrivateSave({ root, store: credentialStore, clock, source: 'fake', fileFilteringEnabled: false, credentials: ['APPLICATION_CREDENTIAL_CANARY'] }).then(() => false, () => true))) throw new Error('SAVE_EMBEDDED_CREDENTIAL_EXPORTED')
     } finally { credentialVault.close(); credentialStore.close() }
-    return { ok: true, probe: 'backup', sqliteBackupApi: true, privateSourcesPreserved: true, applicationSecretsExcluded: true, embeddedKnownCredentialRefused: true, manifestHashesChecked: true, scopeChecked: true, otherUserPreserved: true, actualRestore: true, preRestoreDataPreserved: true, interruptedRestoreRolledBack: true }
+    return { ok: true, probe: 'backup', sqliteBackupApi: true, privateSourcesPreserved: true, applicationSecretsExcluded: true, embeddedKnownCredentialRefused: true, manifestHashesChecked: true, scopeChecked: true, otherUserPreserved: true, actualRestore: true, preRestoreDataPreserved: true, interruptedRestoreRolledBack: true, rejectedDeskWritesNotRestored: true, multibyteDeskBoundary: true }
   } catch { return { ok: false, probe: 'backup', stage } }
   finally { try { memory.close(); evidence.close(); documents.close(); store.close() } catch { /* Probe may have closed all handles before replacement. */ } }
 }
