@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { createManualClock, systemClock } from '../../src/main/clock'
 import { startMcpFixture } from '../../src/main/mcp/fixture'
 import { createMcpConnection } from '../../src/main/mcp/connection'
+import { createMcpService } from '../../src/main/mcp/service'
 import { boundedMcp } from '../../src/main/mcp/bounded'
 import { mcpConfigSchema, readMcpConfig, saveMcpConfig } from '../../src/main/mcp/config'
 import { createFakePrivacyModel } from '../../src/main/privacy/filter'
@@ -20,6 +21,22 @@ async function setup(privacy = true) {
   return { fixture, connection, context }
 }
 describe('MCP configuration, transport and private result boundaries', () => {
+  it('requires native target consent and cannot accept a late approval after disconnect', async () => {
+    const fixture = await startMcpFixture(systemClock); cleanups.push(fixture.close)
+    let answer: (value: boolean) => void = () => {}; const confirm = vi.fn(() => new Promise<boolean>((resolve) => { answer = resolve }))
+    const service = createMcpService({ clock: systemClock, configPath: 'unused', source: 'fake', privacyModel: createFakePrivacyModel(), developmentConfig: fixture.config,
+      chooseConfig: async () => null, confirmConnection: confirm, changed: () => {}, canConfigure: () => true })
+    cleanups.push(service.close)
+    const server = service.view().servers[0]
+    const connect = () => service.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'connect', type: 'mcp.connect', serverId: server.id, fingerprint: server.fingerprint })
+    expect(connect()).toBeUndefined(); expect(confirm).toHaveBeenCalledWith(server.id, fixture.config.mcpServers[server.id])
+    expect(service.view().servers[0].status).toBe('disconnected'); answer(false); await service.idle()
+    expect(service.tools()).toHaveLength(0)
+    connect(); service.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'disconnect', type: 'mcp.disconnect', serverId: server.id }); answer(true); await service.idle()
+    expect(service.view().servers[0].status).toBe('disconnected')
+    connect(); answer(true); await service.idle(); expect(service.view().servers[0].status).toBe('ready')
+    expect(JSON.stringify(service.view())).not.toContain('http://127.0.0.1:')
+  })
   it('reads standard stdio/http configurations privately with explicit tool selection', () => {
     const root = mkdtempSync(join(tmpdir(), 'lca-mcp-'))
     const cleanup = () => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-mcp-'))) throw new Error('Unsafe cleanup'); rmSync(root, { recursive: true, force: true }) }

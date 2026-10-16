@@ -50,7 +50,7 @@ export function createCompanionWindows(options: { book: BrowserWindow; clock: Cl
     dispatch: (command: AppCommand, surface: WindowSurface): PublicErrorCode | undefined => {
       if (disposed) return 'unavailable'
       if (command.type === 'window.mini') { collapse(); return }
-      if (command.type === 'window.book') { defer(expand); return }
+      if (command.type === 'window.book') { wantMini = false; defer(expand); return }
       if (surface !== 'mini') return 'permission-denied'
       if (command.type === 'window.mini.hover') { if (mode === 'mini') { ignore(!command.over); options.changed() }; return }
       if (command.type === 'window.mini.move') {

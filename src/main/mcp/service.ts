@@ -2,13 +2,14 @@ import type { AppCommand, McpView, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { PrivacyModel } from '../privacy/filter'
 import { createMcpConnection, type McpConnection } from './connection'
-import { readMcpConfig, saveMcpConfig, type McpConfig } from './config'
+import { readMcpConfig, saveMcpConfig, type McpConfig, type McpConfigEntry } from './config'
 
 export function createMcpService(options: { clock: Clock; configPath: string; source: 'real' | 'fake'; privacyModel: PrivacyModel | null;
-  developmentConfig?: McpConfig; chooseConfig(): Promise<string | null>; changed(): void; canConfigure(): boolean }) {
+  developmentConfig?: McpConfig; chooseConfig(): Promise<string | null>; confirmConnection(id: string, config: McpConfigEntry): Promise<boolean>; changed(): void; canConfigure(): boolean }) {
   let connections = new Map<string, McpConnection>(); let error: McpView['error']; let enabled = true; let disposed = false; let worker: Promise<void> | undefined
+  let privateConfig: McpConfig = { mcpServers: {} }; const approving = new Map<string, symbol>()
   const jobs = new Set<Promise<void>>()
-  const install = (config: McpConfig) => { connections = new Map(Object.entries(config.mcpServers).filter(([, value]) => !value.disabled).map(([id, config]) => [id,
+  const install = (config: McpConfig) => { privateConfig = config; connections = new Map(Object.entries(config.mcpServers).filter(([, value]) => !value.disabled).map(([id, config]) => [id,
     createMcpConnection({ id, config, clock: options.clock, source: options.source, privacyModel: options.privacyModel, changed: options.changed })])) }
   try { install(options.developmentConfig ?? readMcpConfig(options.configPath)) } catch { error = { code: 'configuration-failed', retryable: true } }
   const disconnect = async () => { await Promise.all([...connections.values()].map((connection) => connection.disconnect())) }
@@ -19,7 +20,7 @@ export function createMcpService(options: { clock: Clock; configPath: string; so
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       if (!enabled || disposed) return 'unavailable'
       if (command.type === 'mcp.configure') {
-        if (options.developmentConfig || worker || !options.canConfigure()) return 'unavailable'
+        if (options.developmentConfig || worker || approving.size || !options.canConfigure()) return 'unavailable'
         worker = (async () => {
           const path = await options.chooseConfig(); if (!path || disposed) return
           const config = readMcpConfig(path); await disconnect(); if (disposed) return
@@ -29,11 +30,15 @@ export function createMcpService(options: { clock: Clock; configPath: string; so
       if (command.type !== 'mcp.connect' && command.type !== 'mcp.disconnect') return 'invalid-command'
       const connection = connections.get(command.serverId); if (!connection) return 'invalid-command'
       if (command.type === 'mcp.connect') {
-        if (worker || command.fingerprint !== connection.view().fingerprint) return 'permission-denied'
-        track(connection.connect())
-      } else track(connection.disconnect())
+        if (worker || approving.has(command.serverId) || command.fingerprint !== connection.view().fingerprint) return 'permission-denied'
+        if (connection.view().status === 'ready' || connection.view().status === 'connecting') return
+        const id = command.serverId; const approval = Symbol(); approving.set(id, approval)
+        track((async () => {
+          if (await options.confirmConnection(id, privateConfig.mcpServers[id]) && approving.get(id) === approval && enabled && !disposed && connections.get(id) === connection) await connection.connect()
+        })().catch(() => { error = { code: 'connection-failed', retryable: true } }).finally(() => { if (approving.get(id) === approval) approving.delete(id); options.changed() }))
+      } else { approving.delete(command.serverId); track(connection.disconnect()) }
     },
-    setEnabled: (value: boolean) => { enabled = value; if (!value) track(disconnect()); options.changed() },
+    setEnabled: (value: boolean) => { enabled = value; if (!value) { approving.clear(); track(disconnect()) }; options.changed() },
     idle: async () => { await worker; await Promise.all([...jobs]) },
     close: async () => { disposed = true; await disconnect(); await worker; await Promise.all([...jobs]) },
   }
