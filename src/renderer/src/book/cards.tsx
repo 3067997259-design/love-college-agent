@@ -117,7 +117,13 @@ export function PlanCard({ plan, pomodoro, entering, onConfirm, onDismiss }: {
   onConfirm: () => void
   onDismiss: () => void
 }) {
+  const proposal = plan.status === 'proposed'
+  // 草案的番茄数是今天的总数：已经做完的照主进程的进度画，不从草案重新起算
+  const view = proposal ? { ...pomodoro, plannedCount: plan.plannedCount } : pomodoro
+  const states = tomatoStates(view)
+  const done = pomodoro.completedCount ?? states.filter((state) => state === 'done').length
   const allDone = pomodoro.focusIndex >= plan.plannedCount
+  const replacing = proposal && pomodoro.plan && pomodoro.plan.status !== 'finished'
   return (
     <article className="card card-plan" data-status={plan.status} data-entering={entering}>
       <header className="card-head">
@@ -126,13 +132,14 @@ export function PlanCard({ plan, pomodoro, entering, onConfirm, onDismiss }: {
       </header>
       <h3 className="card-title">{plan.label}</h3>
       {plan.items?.length
-        ? <PlanItems items={plan.items} states={tomatoStates(pomodoro)} />
+        ? <PlanItems items={plan.items} states={states} />
         : (
           <div className="plan-tomatoes" role="img" aria-label={`${plan.plannedCount} 个番茄`}>
-            {tomatoStates(pomodoro).map((state, i) => <span key={i} className="tomato" data-state={state} />)}
+            {states.map((state, i) => <span key={i} className="tomato" data-state={state} />)}
           </div>
         )}
       <p className="plan-rhythm">{rhythmText(plan)}<span className="plan-span">，一共约 {formatSpan(planSpanMs(plan))}</span></p>
+      {replacing && <p className="plan-replace">确认后换掉今天的计划；已经做完的 {done} 个照算。</p>}
       {plan.status === 'proposed'
         ? (
           <footer className="card-actions">

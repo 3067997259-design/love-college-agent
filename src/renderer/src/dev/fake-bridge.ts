@@ -91,15 +91,28 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
     const { lightsOut } = current.companion
     switch (command.type) {
       case 'pomodoro.plan': {
-        if (view.status !== 'idle') return 'unavailable'
+        // 草案只写 proposal：不动生效计划、进度和正在走的计时；已有草案就替换草案
         const next = { ...command.plan, id: `fake-plan-${++planCount}`, createdAtMs: current.clock.nowMs, status: 'proposed' as const, source: 'user' as const }
-        commit({ pomodoro: { ...idleTimer(), plan: next, plannedCount: next.plannedCount } }, 'timer')
+        commit({ pomodoro: { ...view, proposal: next } }, 'timer')
         return
       }
-      case 'pomodoro.confirm':
-        if (!plan || plan.id !== command.planId || plan.status !== 'proposed') return 'invalid-command'
-        commit({ pomodoro: { ...view, plan: { ...plan, status: 'confirmed' } } }, 'timer')
+      case 'pomodoro.confirm': {
+        const proposal = view.proposal
+        if (!proposal || proposal.id !== command.planId) return 'invalid-command'
+        if (proposal.plannedCount < view.focusIndex) return 'invalid-command'
+        // 任何阶段都能确认：当前阶段照走，已完成的保留，总数换成新的
+        const { proposal: _dropped, ...rest } = view
+        void _dropped
+        commit({ pomodoro: { ...rest, plan: { ...proposal, status: 'confirmed' }, plannedCount: proposal.plannedCount } }, 'timer')
         return
+      }
+      case 'pomodoro.discard': {
+        if (!view.proposal || view.proposal.id !== command.planId) return 'invalid-command'
+        const { proposal: _dropped, ...rest } = view
+        void _dropped
+        commit({ pomodoro: rest }, 'timer')
+        return
+      }
       case 'pomodoro.start':
         if (lightsOut || view.status !== 'idle') return 'unavailable'
         if (!plan || plan.id !== command.planId || plan.status !== 'confirmed' || view.focusIndex >= plan.plannedCount) return 'invalid-command'
@@ -120,7 +133,8 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
       case 'pomodoro.stop':
         if (view.status === 'idle' && !plan) return 'unavailable'
         commit({
-          pomodoro: { ...idleTimer(), ...(plan ? { plan: { ...plan, status: 'finished' as const }, plannedCount: view.plannedCount, focusIndex: view.focusIndex } : {}) },
+          pomodoro: { ...idleTimer(), ...(plan ? { plan: { ...plan, status: 'finished' as const }, plannedCount: view.plannedCount, focusIndex: view.focusIndex } : {}),
+            ...(view.proposal ? { proposal: view.proposal } : {}) },
           companion: { ...current.companion, mode: 'rest' },
         }, 'timer')
         return

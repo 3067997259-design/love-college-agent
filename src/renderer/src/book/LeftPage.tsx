@@ -5,6 +5,7 @@ import { sendCommand, type CommandBody } from './command'
 import { formatClock, formatRemaining } from './format'
 import { locationLabel, MODE_LABEL } from './labels'
 import { useCountdown } from './useCountdown'
+import type { IntroStep } from './wash/intro'
 import { WashRoom } from './wash/WashRoom'
 
 const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
@@ -14,7 +15,11 @@ const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
  * 她在：固定近景，像坐在她书桌旁边，状态变了她转头，镜头不动。近景每个姿势是一整张图（她、书桌、窗一起画，透视才对）。
  * 出门与睡着也保持同一近景机位；出门时在桌上纸条写明去向。
  */
-export function LeftPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: AppBridge }) {
+// 新手流程里她先在书桌前写字，最后转过来注意到你
+const INTRO_ART = { key: 'desk-writing_calm', lighting: 'ambient' } as const
+const GREET_ART = { key: 'facing-user_smile', lighting: 'ambient' } as const
+
+export function LeftPage({ snapshot, bridge, intro = null }: { snapshot: AppSnapshot; bridge: AppBridge; intro?: IntroStep | null }) {
   const { companion, pomodoro, messages, capabilities } = snapshot
   const [commandFailed, setCommandFailed] = useState(false)
   const command = async (body: CommandBody) => {
@@ -24,7 +29,7 @@ export function LeftPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: 
   const remaining = useCountdown(snapshot)
   const away = companion.locationId !== 'room'
   const pose = away ? 'empty' : companion.pose
-  const art = resolveCharacterArt(companion)
+  const art = intro ? (intro === 'done' ? GREET_ART : INTRO_ART) : resolveCharacterArt(companion)
   const mailReady = capabilities.find((c) => c.id === 'mail')?.status === 'ready'
   const newMail = mailReady && companion.mailboxUnseen > 0
   const lastLine = [...messages].reverse().find((m) => m.role === 'assistant')
@@ -34,7 +39,12 @@ export function LeftPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: 
   const restoreId = backup?.status === 'restored' ? (backup.restoreId ?? backup.operationId ?? null) : null
 
   return (
-    <section className="page page-left" aria-label="她在的地方">
+    <section className="page page-left" aria-label="她在的地方" data-intro={intro ?? undefined}>
+      {intro ? (
+        <div className="room" data-shot="close" data-location="room" data-pose={art.key.split('_')[0]} data-lighting="ambient">
+          <WashRoom art={art} restoreId={null} intro={intro === 'done' ? null : intro} />
+        </div>
+      ) : <>
       {/* 熄灯开关是页边垂下的一根拉线：她睡着、出门、门牌收起来的时候也拉得到 */}
       <button type="button" className="pull-cord" data-on={!companion.lightsOut}
         aria-label={companion.lightsOut ? '拉线开灯' : '拉线熄灯'}
@@ -70,6 +80,7 @@ export function LeftPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: 
           {lastLine.status === 'streaming' && <span className="speech-caret" />}
         </p>
       )}
+      </>}
     </section>
   )
 }

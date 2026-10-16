@@ -129,7 +129,7 @@ export const SCENARIOS = {
   'plan-proposed': scenario((s) => ({
     clock: { ...s.clock, nowMs: T.sat1420 - 2 * MIN },
     companion: { ...s.companion, mode: 'rest', pose: 'facing-user', expression: 'smile', mailboxUnseen: 3 },
-    pomodoro: { ...s.pomodoro, plannedCount: 4, plan: afternoonPlan('proposed') },
+    pomodoro: { ...s.pomodoro, proposal: afternoonPlan('proposed') },
     messages: [
       msg('m1', 'user', '下午要写数据结构第三次作业，那几封邮件也还没看。', T.sat1420 - 5 * MIN),
       msg('m2', 'assistant', '排了四个：前三个你写作业，最后一个我们一起过邮件。你写的时候，邮件我先读着。', T.sat1420 - 3 * MIN - 20_000, { emotion: 'smile' }),

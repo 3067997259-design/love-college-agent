@@ -4,6 +4,7 @@ import { useRootAmbience } from './ambience'
 import { sendCommand } from './command'
 import { LeftPage } from './LeftPage'
 import { QuillDock } from './quill/QuillDock'
+import { introStepOf, OnboardingPage, type OnboardingStep } from '../onboarding/OnboardingPage'
 import { RightPage } from './RightPage'
 import './book.css'
 
@@ -32,6 +33,7 @@ export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: App
   const { ref, scale } = useFitScale()
   const { companion } = snapshot
   useRootAmbience(companion)
+  const [onboarding, setOnboarding] = useState<OnboardingStep | null>(previewOnboarding)
 
   return (
     <div className="stage" ref={ref} data-mode={companion.mode} data-phase={snapshot.pomodoro.phase}
@@ -43,10 +45,12 @@ export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: App
           {(['tl', 'tr', 'bl', 'br'] as const).map((c) => <span key={c} className={`corner corner-${c}`} aria-hidden />)}
           {/* 中缝垂下的丝带书签：就是她头发上那条 */}
           <span className="ribbon" aria-hidden />
-          <LeftPage snapshot={snapshot} bridge={bridge} />
+          <LeftPage snapshot={snapshot} bridge={bridge} intro={onboarding ? introStepOf(onboarding) : null} />
           <div className="gutter" aria-hidden />
-          <RightPage snapshot={snapshot} bridge={bridge} />
-          <QuillDock snapshot={snapshot} onExport={() => { void sendCommand(bridge, snapshot.epoch, { type: 'backup.export' }) }} />
+          {onboarding
+            ? <OnboardingPage snapshot={snapshot} bridge={bridge} step={onboarding} onStep={setOnboarding} onDone={() => setOnboarding(null)} />
+            : <RightPage snapshot={snapshot} bridge={bridge} />}
+          {!onboarding && <QuillDock snapshot={snapshot} onExport={() => { void sendCommand(bridge, snapshot.epoch, { type: 'backup.export' }) }} />}
           <nav className="bookmarks" aria-label="书签">
             {TABS.map((tab, i) => (
               <button key={tab} className="bookmark" data-active={i === 0} aria-current={i === 0 ? 'page' : undefined}>{tab}</button>
@@ -56,4 +60,10 @@ export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: App
       </div>
     </div>
   )
+}
+
+/** 只在浏览器预览（没有 preload）里用 ?onboarding 打开新手流程；正式入口等主进程记录“是否完成” */
+function previewOnboarding(): OnboardingStep | null {
+  if ('lca' in window) return null
+  return new URLSearchParams(location.search).has('onboarding') ? 'cover' : null
 }
