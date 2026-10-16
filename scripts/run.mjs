@@ -6,8 +6,12 @@ import { runtimeEnv } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const env = runtimeEnv(root)
 const mode = process.argv[2]
-const command = mode === 'rebuild' ? '@electron/rebuild/lib/cli.js' : 'electron-vite/bin/electron-vite.js'
-const args = mode === 'rebuild' ? ['-f', '-w', 'better-sqlite3'] : [mode, ...process.argv.slice(3)]
+const command = mode === 'rebuild' ? '@electron/rebuild/lib/cli.js' : mode === 'install-electron' ? 'electron/install.js' : 'electron-vite/bin/electron-vite.js'
+const args = mode === 'rebuild' ? ['-f', '-w', 'better-sqlite3', '--build-from-source', '--jobs', '2'] : mode === 'install-electron' ? [] : [mode, ...process.argv.slice(3)]
+if (mode === 'install-electron' && (env.HTTPS_PROXY || env.HTTP_PROXY)) {
+  env.ELECTRON_GET_USE_PROXY = '1'
+  env.GLOBAL_AGENT_HTTP_PROXY = env.HTTPS_PROXY ?? env.HTTP_PROXY
+}
 const child = spawn(process.execPath, [join(root, 'node_modules', command), ...args], { cwd: root, env, stdio: 'inherit' })
 child.on('error', () => { console.error('Unable to start development tool.'); process.exitCode = 1 })
 child.on('exit', (code) => { process.exitCode = code ?? 1 })
