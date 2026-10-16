@@ -18,15 +18,15 @@ function room(prefix: string) {
 const digest = (seed: string) => seed.repeat(64).slice(0, 64)
 const assetRef = 'asset:' + 'a'.repeat(64)
 
-function harness(rows: JournalRecord[]) {
+function harness(rows: JournalRecord[], ownerKey = 'a'.repeat(64)) {
   const root = room('lca-room-projection-')
   const assets = { read: (asset: { sha256: string }) => Buffer.from('ASSET_' + asset.sha256.slice(0, 4)), owned: (sha: string) => ({ sha256: sha, format: 'zip', bytes: 8 }) } as unknown as BinaryAssets
   const history = [...rows]
   const store = { history: () => history, records: () => history } as unknown as SessionStore
   const clock = createManualClock(1000)
   clock.advanceBy(clock.parse('2026-10-17T12:00:00+08:00') - clock.nowMs())
-  const projection = createRoomProjection(root, store, assets, clock)
-  return { clock, root, projection, history, folder: (name: string) => join(root, name), present: (path: string) => existsSync(join(root, path)), read: (path: string) => readFileSync(join(root, path), 'utf8') }
+  const projection = createRoomProjection(root, store, assets, clock, ownerKey)
+  return { clock, root, projection, history, ownerKey, assets, store, folder: (name: string) => join(root, name), present: (path: string) => existsSync(join(root, path)), read: (path: string) => readFileSync(join(root, path), 'utf8') }
 }
 
 const diaryRow = (dayKey: string): JournalRecord => ({ type: 'diary/written', atMs: 1_000, diary: { dayKey, asset: { sha256: digest('b'), format: 'zip', bytes: 8 } } } as unknown as JournalRecord)
@@ -103,5 +103,17 @@ describe('room projection ownership is recorded, not guessed (issue #10)', () =>
     // 首次运行（或台账不可读）无法证明所有权，因此不删任何东西，只开始记录。
     expect(f.present(join('日记', '2026-10-01.zip'))).toBe(true)
     expect(f.present(join('日记', '2026-10-17.zip'))).toBe(true)
+  })
+  it('keeps another owner\u2019s files when a room folder is reused by a different profile', () => {
+    const first = harness([diaryRow('2026-10-17')], 'a'.repeat(64))
+    first.projection.rebuild()
+    expect(first.present(join('日记', '2026-10-17.zip'))).toBe(true)
+    // 同一个房间目录被另一个 owner 使用（例如切换角色后落到同一路径，或房间被复制）：
+    // 台账里的 owner 不匹配，本轮不删任何东西，也不会把别人的投影当成自己的。
+    const rows = [diaryRow('2026-10-16')]
+    const projection = createRoomProjection(first.root, { history: () => rows, records: () => rows } as unknown as SessionStore, first.assets, first.clock, 'b'.repeat(64))
+    projection.rebuild()
+    expect(first.present(join('日记', '2026-10-17.zip'))).toBe(true)
+    expect(first.present(join('日记', '2026-10-16.zip'))).toBe(true)
   })
 })
