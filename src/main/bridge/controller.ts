@@ -13,6 +13,7 @@ import { MAIL_SCENARIO_IDS } from '../../shared'
 import { DOCUMENT_SCENARIO_IDS, type FileImportAck } from '../../shared'
 import type { DocumentService } from '../documents/service'
 import type { MemoryService } from '../memory/service'
+import type { McpService } from '../mcp/service'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
@@ -33,6 +34,11 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('artifact.open'), artifactId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('backup.export') }),
   z.strictObject({ ...envelope, type: z.literal('backup.import') }),
+  z.strictObject({ ...envelope, type: z.literal('backup.restore'), restoreId: z.string().min(1).max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('backup.cancel') }),
+  z.strictObject({ ...envelope, type: z.literal('mcp.configure') }),
+  z.strictObject({ ...envelope, type: z.literal('mcp.connect'), serverId: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),
+  z.strictObject({ ...envelope, type: z.literal('mcp.disconnect'), serverId: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/) }),
   z.strictObject({ ...envelope, type: z.literal('privacy.set'), enabled: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('document.attachment'), attachmentId: z.string().max(128) }),
   z.strictObject({ ...envelope, type: z.literal('document.retry'), documentId: z.string().max(128) }),
@@ -64,6 +70,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   const listeners = new Set<(event: AppEvent) => void>()
   let documents: DocumentService | undefined
   let memory: MemoryService | undefined
+  let mcp: McpService | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
     protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0,
@@ -134,6 +141,10 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       snapshot.pomodoro = pomodoro.read()
       snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'pomodoro' ? { ...item, status: timerReady?.() ? 'ready' : 'unavailable' } : item)
     }
+    if (mcp) {
+      snapshot.mcp = mcp.view()
+      snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'mcp' ? { id: 'mcp', status: snapshot.mcp!.servers.some((server) => server.status === 'ready') ? 'ready' : snapshot.mcp!.servers.some((server) => server.status === 'connecting') ? 'connecting' : snapshot.mcp!.error || snapshot.mcp!.servers.some((server) => server.status === 'failed') ? 'failed' : 'unconfigured', source: snapshot.mcp!.servers.some((server) => server.source === 'fake') ? 'fake' : snapshot.mcp!.servers.length ? 'real' : 'none' } : item)
+    }
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
     const event: AppEvent = { protocolVersion: PROTOCOL_VERSION, epoch: snapshot.epoch, revision: snapshot.revision,
       occurredAtMs: snapshot.clock.nowMs, type: 'state.snapshot', reason, snapshot: structuredClone(snapshot), ...(requestId ? { requestId } : {}) }
@@ -189,6 +200,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (documents && (command.type === 'privacy.set' || command.type.startsWith('document.') || command.type === 'developer.documents' || command.type === 'developer.document.import' || (command.type === 'artifact.open' && documents.ownsArtifact(command.artifactId)))) {
       try { const error = command.type === 'artifact.open' ? documents.openArtifact(command.artifactId) : documents.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
+    } else if (mcp && command.type.startsWith('mcp.')) {
+      try { const error = mcp.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
     } else if (command.type === 'message.send' && execution && executionReady && !snapshot.companion.lightsOut) {
       try { execution.send(command.text, command.requestId, signature) }
       catch { return reject(command.requestId, 'internal') }
@@ -230,6 +244,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachCampus: (port: CampusService) => { campus = port; publish('connection') },
     attachDocuments: (port: DocumentService) => { documents = port; publish('connection') },
     attachMemory: (port: MemoryService) => { memory = port; publish('connection') },
+    attachMcp: (port: McpService) => { mcp = port; publish('connection') },
     readSession: (id: unknown) => {
       if (!memory || typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error('SESSION_UNAVAILABLE')
       try { return memory.readSession(id) } catch { throw new Error('SESSION_UNAVAILABLE') }
