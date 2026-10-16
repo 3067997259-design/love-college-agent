@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import type { OnboardingView } from '../../shared'
+import { assetPath, validateGlb } from '../storage/assets'
 import { parseJournalContent, journalLocation } from '../journal/file'
 import { projectJournal } from '../journal/projection'
 import { projectMemory } from '../memory/projection'
@@ -14,7 +15,7 @@ import { directory, privateWriteParent, regular } from './paths'
 
 export const sha256 = (value: Uint8Array | string) => createHash('sha256').update(value).digest('hex')
 const ownerKey = (owner: SaveManifest['owner']) => sha256(JSON.stringify([owner.userId, owner.characterId]))
-const validPath = (path: string, key: string) => (DATABASES as readonly string[]).includes(path) || new RegExp('^journals/' + key + '/\\d{4}-\\d{2}-\\d{2}\\.jsonl$').test(path) || /^artifacts\/[a-f0-9]{64}\.(md|ics)$/.test(path)
+const validPath = (path: string, key: string) => (DATABASES as readonly string[]).includes(path) || new RegExp('^journals/' + key + '/\\d{4}-\\d{2}-\\d{2}\\.jsonl$').test(path) || /^artifacts\/[a-f0-9]{64}\.(md|ics|glb|png|jpg|webp|zip)$/.test(path)
 const tableSchemas: Record<typeof DATABASES[number], Record<string, readonly string[]>> = {
   'projections.sqlite': { session_projections: ['user_id', 'character_id', 'session_id', 'journal_seq', 'state_json'] },
   'campus.sqlite': { private_mail_evidence: ['owner', 'ref', 'content_hash', 'source_key', 'payload', 'quotes'], campus_projections: ['owner', 'record_count', 'state_json'] },
@@ -90,6 +91,10 @@ export async function exportPrivateSave(options: { root: string; store: SessionS
     const path = regular(root, join(folder, name), 128 * 1024 * 1024); const bytes = readFileSync(path); parseJournalContent(bytes.toString('utf8'), owner); files.set('journals/' + key + '/' + name, bytes)
   }
   const artifacts = allRecords.flatMap((row) => row.type === 'campus/exported' ? row.artifacts : row.type === 'document/completed' ? [row.artifact] : [])
+  for (const row of allRecords) if (row.type === 'asset/stored') {
+    const path = assetPath(row.asset); const bytes = readFileSync(regular(root, join(root, path), 32 * 1024 * 1024))
+    if (bytes.length !== row.asset.byteLength || sha256(bytes) !== row.asset.sha256) throw new BackupFailure('backup-invalid'); files.set(path, bytes)
+  }
   for (const artifact of artifacts) {
     if (!validPath(artifact.relativePath, key)) throw new BackupFailure('backup-invalid')
     const bytes = readFileSync(regular(root, join(root, artifact.relativePath), 32 * 1024 * 1024))
@@ -140,6 +145,7 @@ export async function validatePrivateSave(bytes: Buffer, owner: SaveManifest['ow
     const artifacts = records.flatMap((row) => row.type === 'campus/exported' ? row.artifacts : row.type === 'document/completed' ? [row.artifact] : [])
     if (manifest.counts.deliveryCount !== new Set(artifacts.map((artifact) => artifact.view.id)).size) throw new BackupFailure('backup-invalid')
     for (const artifact of artifacts) if (sha256(files.get(artifact.relativePath) ?? Buffer.alloc(0)) !== artifact.sha256) throw new BackupFailure('backup-invalid')
+    for (const row of records) if (row.type === 'asset/stored') { const bytes = files.get(assetPath(row.asset)); if (!bytes || bytes.length !== row.asset.byteLength || sha256(bytes) !== row.asset.sha256) throw new BackupFailure('backup-invalid'); if (row.asset.format === 'glb') validateGlb(bytes) }
     return { manifest, files }
   } catch (cause) { if (cause instanceof BackupFailure) throw cause; throw new BackupFailure('backup-invalid') }
 }

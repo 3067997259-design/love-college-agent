@@ -19,6 +19,8 @@ import type { QuillService } from '../gifts/quill'
 import type { ModelSettingsService } from '../config/model-settings'
 import type { CompanionWindows, WindowSurface } from '../windows/companion'
 import { characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
+import { giftSpecSchema } from '../gifts/schema'
+import type { GiftService } from '../gifts/service'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
@@ -29,6 +31,10 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('onboarding.profile'), userName: userNameInput.optional(), characterName: characterNameInput.optional() }).refine((value) => value.userName !== undefined || value.characterName !== undefined),
   z.strictObject({ ...envelope, type: z.literal('onboarding.complete') }),
   z.strictObject({ ...envelope, type: z.literal('onboarding.reset') }),
+  z.strictObject({ ...envelope, type: z.literal('gift.propose'), ...giftSpecSchema.shape }),
+  z.strictObject({ ...envelope, type: z.literal('gift.start'), giftId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('gift.cancel'), giftId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('gift.open'), giftId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.start'), planId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.plan'), plan: planSchema }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.confirm'), planId: z.string().min(1).max(128) }),
@@ -93,6 +99,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let diagnostics: (() => DiagnosticsView) | undefined
   let modelSettings: ModelSettingsService | undefined
   let windows: CompanionWindows | undefined
+  let gifts: GiftService | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
     protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0, onboarding: onboardingView(store?.projection().onboarding ?? initialOnboarding(), !!options.booth),
@@ -173,6 +180,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'backup' ? { id: 'backup', status: snapshot.backup!.status === 'failed' ? 'failed' : 'ready', source: 'real' } : item)
     }
     if (quill) snapshot.quill = quill.read()
+    if (gifts) { snapshot.gifts = gifts.view(); snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'rodin' ? { ...item, status: snapshot.gifts!.configured ? 'ready' : 'unconfigured', source: snapshot.gifts!.items.at(-1)?.source ?? 'none' } : item) }
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
@@ -225,6 +233,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { store?.append({ type: 'companion/lights', lightsOut: command.lightsOut, requestId: command.requestId, commandHash: signature }) }
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.lightsOut = command.lightsOut
+      gifts?.stateChanged()
       pomodoro?.stateChanged(command)
       campus?.stateChanged()
       documents?.stateChanged()
@@ -244,6 +253,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       catch { ack = reject(command.requestId, 'internal') }
     } else if (documents && (command.type === 'privacy.set' || command.type.startsWith('document.') || command.type === 'developer.documents' || command.type === 'developer.document.import' || (command.type === 'artifact.open' && documents.ownsArtifact(command.artifactId)))) {
       try { const error = command.type === 'artifact.open' ? documents.openArtifact(command.artifactId) : documents.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
+    } else if (gifts && command.type.startsWith('gift.')) {
+      try { const error = gifts.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (windows && command.type.startsWith('window.')) {
       try { const error = windows.dispatch(command, surface); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('mode', command.requestId) }
@@ -301,6 +313,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachMcp: (port: McpService) => { mcp = port; publish('connection') },
     attachBackup: (port: BackupService) => { backup = port; publish('connection') },
     attachQuill: (port: QuillService) => { quill = port; publish('connection') },
+    attachGifts: (port: GiftService) => { gifts = port; publish('connection') },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },

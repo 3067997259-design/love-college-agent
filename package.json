@@ -48,10 +48,13 @@
     "test:model-slots": "pnpm build && node scripts/smoke-model-slots.mjs",
     "test:mini": "pnpm build && node scripts/smoke-mini.mjs",
     "test:onboarding": "pnpm build && node scripts/smoke-onboarding.mjs",
-    "test:onboarding:backend": "pnpm build && node scripts/smoke-onboarding.mjs --backend-only"
+    "test:onboarding:backend": "pnpm build && node scripts/smoke-onboarding.mjs --backend-only",
+    "probe:rodin": "pnpm build && node scripts/probe-electron.mjs rodin",
+    "test:gifts": "pnpm build && node scripts/smoke-gifts.mjs"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",
+    "@google/model-viewer": "^4.4.0",
     "@modelcontextprotocol/sdk": "1.32.1",
     "better-sqlite3": "13.0.3",
     "imapflow": "2.4.3",

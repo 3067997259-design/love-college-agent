@@ -109,6 +109,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm test:model-slots` | 正常模式原生配置导入／重启，本机合成 HTTP 的 background／privacy 路由与关闭 |
 | `pnpm test:mini` | 原生迷你窗、物理像素拖动限位／高 DPI、点穿调用、重启位置／失效归位、独立诊断窗与只读权限 |
 | `pnpm test:onboarding:backend` / `pnpm test:onboarding` | 主进程档案／重启／私人存档；后者覆盖真实向导输入、重启预填、完成与恢复跳过 |
+| `pnpm test:gifts` / `pnpm probe:rodin` | 合成实时礼物全链；真实付费探针（明确运行才提交，当前夜间授权最多 3 次） |
 | `pnpm package:win` | 构建 Windows x64 NSIS，产物在 `release/` |
 | `pnpm test:package` | 检查已构建包、D 盘测试安装、原生模块、界面重启、卸载测试实例 |
 | `pnpm probe:imap` | 主进程内的指定文件夹只读探针；失败仅输出固定分类 |

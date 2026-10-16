@@ -17,7 +17,7 @@ async function verifyFonts(page) {
   // Reload with listeners installed: launch may have already begun loading fonts before firstWindow resolves.
   await page.addInitScript(() => {
     window.__lcaCspViolations = []
-    document.addEventListener('securitypolicyviolation', (event) => { window.__lcaCspViolations.push(event.effectiveDirective) })
+    document.addEventListener('securitypolicyviolation', (event) => { window.__lcaCspViolations.push({ directive: event.effectiveDirective, kind: event.blockedURI.split(':')[0], line: event.lineNumber, column: event.columnNumber }) })
   })
   await page.reload()
   await page.locator('[data-mode][data-pose][data-location]').waitFor()
@@ -31,7 +31,7 @@ async function verifyFonts(page) {
       local: sources.every((url) => url.protocol === location.protocol && url.origin === location.origin) }
   })
   page.off('console', onConsole)
-  assert.equal(fonts.violations.length, 0, 'Renderer must not violate CSP while loading fonts')
+  assert.equal(fonts.violations.length, 0, 'Renderer must not violate CSP while loading fonts: ' + JSON.stringify(fonts.violations))
   assert.equal(errors.length, 0, 'Renderer console must not report errors during font loading')
   assert.equal(fonts.failed, 0, 'FontFaceSet must not contain failed fonts')
   assert.ok(fonts.loaded > 0 && fonts.sources > 0 && fonts.local, 'Fonts must load successfully and CSS must reference local files: ' + JSON.stringify(fonts))

@@ -8,7 +8,7 @@ import { runtimeEnv } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const probe = process.argv[2]
-assert.ok(['sqlite', 'imap', 'journal', 'model', 'harness', 'pomodoro', 'campus', 'documents', 'memory', 'mcp-student-hub', 'backup'].includes(probe), 'Unknown probe.')
+assert.ok(['sqlite', 'imap', 'journal', 'model', 'harness', 'pomodoro', 'campus', 'documents', 'memory', 'mcp-student-hub', 'backup', 'rodin'].includes(probe), 'Unknown probe.')
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: join(root, '.local-data', `probe-${randomUUID()}`) }
 const child = spawn(electronPath, [root, `--lca-probe=${probe}`], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
 let output = ''
@@ -17,7 +17,7 @@ child.stderr.resume()
 child.stdout.on('data', (chunk) => {
   output = (output + chunk.toString()).slice(-16_384)
 })
-const deadline = setTimeout(() => { child.kill(); console.error('Probe timed out (details suppressed).'); process.exitCode = 1 }, 60_000)
+const deadline = setTimeout(() => { child.kill(); console.error('Probe timed out (details suppressed).'); process.exitCode = 1 }, probe === 'rodin' ? 9 * 60_000 : 60_000)
 child.on('error', () => { clearTimeout(deadline); console.error('Unable to start Electron probe.'); process.exitCode = 1 })
 child.on('exit', (code) => {
   clearTimeout(deadline)

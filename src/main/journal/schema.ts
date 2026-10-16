@@ -5,6 +5,8 @@ import { artifactSchema, candidateSchema, deliverySchema, mailboxSchema, mailFac
 import { attachmentRecordSchema, documentCompletedSchema, documentJobSchema } from '../documents/schema'
 import { memoryBatchSchema, memorySourceSchema, memorySummarySchema } from '../memory/schema'
 import { onboardingSchema } from '../onboarding/schema'
+import { binaryAssetSchema } from '../storage/assets'
+import { giftSchema } from '../gifts/schema'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -25,6 +27,8 @@ export type ContextMessage = {
 
 export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('session/header'), userId: id, characterId: id, sessionId: id }),
+  z.strictObject({ type: z.literal('asset/stored'), asset: binaryAssetSchema }),
+  z.strictObject({ type: z.literal('gift/state'), gift: giftSchema }),
   z.strictObject({ type: z.literal('session/carry'), sourceSessionId: id, sourceSeq: z.number().int().positive(),
     mode: z.enum(['work', 'quiet', 'rest']), lightsOut: z.boolean(), pomodoro: viewSchema, pomodoroPause: z.enum(['manual', 'lights']).nullable(),
     pomodoroEvents: z.array(z.strictObject({ id, text: z.string().max(2000) })).max(1000),
