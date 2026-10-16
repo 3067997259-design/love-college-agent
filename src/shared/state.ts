@@ -491,6 +491,21 @@ export interface FlowGoalView {
   /** A user's status decision, never proof that the model performed an external action. */
   confirmedBy: 'user'
 }
+export interface FlowOperationView {
+  id: string
+  flowId: string
+  kind: 'init' | 'review'
+  /** ready means an actual unreviewed draft file exists, never that code passed review or tests. */
+  status: 'running' | 'ready' | 'failed' | 'cancelled'
+  source: 'real' | 'fake'
+  sourceCount: number
+  omittedSourceCount: number
+  outputPath: string
+  createdAtMs: number
+  updatedAtMs: number
+  artifact?: { changeId: string; sha256: string; byteLength: number }
+  error?: 'no-product' | 'source-changed' | 'interrupted' | 'cancelled' | 'unavailable'
+}
 export interface HeartFlowView {
   activeId: string | null
   mode: 'plan' | 'execute'
@@ -506,6 +521,8 @@ export interface HeartFlowView {
   /** Scoped across day pages and flow instances. Only explicit user commands may edit or close. */
   goals?: readonly FlowGoalView[]
   goalId?: string | null
+  /** User-only draft metadata. Contents stay in the desk/work context and native preview. */
+  operations?: readonly FlowOperationView[]
 }
 export interface DelegateView {
   id: string
