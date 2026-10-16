@@ -77,6 +77,10 @@ try {
   await send({ type: 'pomodoro.resume' }); await send({ type: 'mode.set', mode: 'rest' })
   assert.equal((await snapshot()).pomodoro.phase, 'short-break'); assert.equal((await snapshot()).pomodoro.focusIndex, 1)
   await send({ type: 'pomodoro.stop' }); assert.equal((await snapshot()).pomodoro.plan.status, 'finished')
+  // Focus has collapsed the book. A user opens the paper before inspecting or capturing the book.
+  await send({ type: 'window.book' })
+  for (let i = 0; i < 100 && (await snapshot()).windows?.mode !== 'book'; i++) await new Promise((done) => setTimeout(done, 50))
+  assert.equal((await snapshot()).windows?.mode, 'book')
   await page.screenshot({ path: join(root, 'test-results/pomodoro.png') })
   console.log('Pomodoro smoke: user-confirmed plan, 1m/20s timing, SQLite deadline, persisted restart, unique phase events, no auto-next, lights pause and interrupted focus verified.')
   }
