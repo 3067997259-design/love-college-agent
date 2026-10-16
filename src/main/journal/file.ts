@@ -30,8 +30,9 @@ export function parseJournalContent(content: string, owner: Pick<Scope, 'userId'
 }
 
 /** One Electron owner per data directory; journal fsync precedes every projection write. */
-export function openJournal(dataDir: string, owner: Pick<Scope, 'userId' | 'characterId'>, clock: Clock): Journal {
-  const { folder, dayKey } = journalLocation(dataDir, owner, clock)
+export function openJournal(dataDir: string, owner: Pick<Scope, 'userId' | 'characterId'>, clock: Clock, resumeDayKey?: string): Journal {
+  const location = journalLocation(dataDir, owner, clock); const folder = location.folder; const dayKey = resumeDayKey ?? location.dayKey
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) throw new Error('JOURNAL_DAY_INVALID')
   mkdirSync(folder, { recursive: true })
   // Shanghai local day starting at 04:00; runtime owner decides when it is safe to rotate.
   const fd = openSync(join(folder, `${dayKey}.jsonl`), 'a+')

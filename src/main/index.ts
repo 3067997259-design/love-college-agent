@@ -6,10 +6,10 @@ import { createAppController } from './bridge/controller'
 import { registerAppBridge } from './bridge/ipc'
 import { probeSqlite } from './validation/sqlite'
 import { probeImap } from './mail/probe'
-import { openSessionStore, type SessionStore } from './store/session'
+import { openSessionStore, resumeSavedSession, type SessionStore } from './store/session'
 import { probeJournal } from './validation/journal'
 import { probeModel } from './validation/model'
-import { readModelProviders } from './config/providers'
+import { readModelProviders, readPrivateCredentialValues } from './config/providers'
 import { createModelClient } from './model/client'
 import { createHarness } from './harness/loop'
 import { builtinTools } from './harness/tools'
@@ -41,6 +41,9 @@ import { probeMemory } from './validation/memory'
 import { createMcpService, type McpService } from './mcp/service'
 import { startMcpFixture } from './mcp/fixture'
 import { probeStudentHubMcp } from './validation/mcp'
+import { createBackupService, type BackupService } from './backup/service'
+import { applyPendingRestore } from './backup/restore'
+import { probeBackup } from './validation/backup'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -72,6 +75,7 @@ let memoryRepository: MemoryRepository | undefined
 let memory: MemoryService | undefined
 let mcp: McpService | undefined
 let mcpFixture: Awaited<ReturnType<typeof startMcpFixture>> | undefined
+let backup: BackupService | undefined
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -103,6 +107,11 @@ void app.whenReady().then(async () => {
   if (process.argv.includes('--lca-probe=memory')) {
     try { const report = await probeMemory(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(report.ok ? 0 : 1) }
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"memory","error":"MEMORY_PROBE_FAILED"}'); app.exit(1) }
+    return
+  }
+  if (process.argv.includes('--lca-probe=backup')) {
+    try { const report = await probeBackup(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(report.ok ? 0 : 1) }
+    catch { console.log('LCA_PROBE:{"ok":false,"probe":"backup","error":"PRIVATE_SAVE_PROBE_FAILED"}'); app.exit(1) }
     return
   }
   if (process.argv.includes('--lca-probe=documents')) {
@@ -159,7 +168,18 @@ void app.whenReady().then(async () => {
     return
   }
   try {
+    const restoreReceipt = applyPendingRestore(dataDir, { userId: 'local-user', characterId: 'default-character' }, prepared.developer ? 'fake' : 'real', clock)
+    if (restoreReceipt?.status === 'restored') {
+      prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = restoreReceipt.manifest.fileFilteringEnabled })
+      resumeSavedSession(dataDir, restoreReceipt.manifest.owner, restoreReceipt.manifest.activeDayKey, restoreReceipt.manifest.activeSessionId)
+    }
     store = openSessionStore(dataDir, { userId: 'local-user', characterId: 'default-character' }, clock)
+    if (restoreReceipt?.status === 'restored') {
+      const timer = structuredClone(restoreReceipt.manifest.pomodoro)
+      if (timer.status === 'running') timer.endsAtMs = clock.nowMs() + timer.remainingMs
+      store.append({ type: 'pomodoro/state', view: timer, pauseReason: restoreReceipt.manifest.pomodoroPause, cause: 'restored' })
+      store.append({ type: 'save/restored', archiveId: restoreReceipt.manifest.archiveId, restoreId: restoreReceipt.restoreId, exportedAtMs: restoreReceipt.manifest.savedAtMs, restoredAtMs: clock.nowMs() })
+    }
     if (prepared.scene && store.records().length === 1) store.append({ type: 'companion/mode', mode: prepared.scene.mode, requestId: 'development-scene', commandHash: 'development-scene' })
     controller = createAppController(clock, undefined, store)
     scheduler = createScheduler(clock, () => { console.error('Scheduler stopped: local operation failed.'); app.quit() })
@@ -209,6 +229,14 @@ void app.whenReady().then(async () => {
       prepareContext: (id, signal) => memory!.prepareContext(id, signal), foreground: () => memory?.foreground(),
       failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     controller.attachExecution(harness, modelReady)
+    const privateCredentials = prepared.developer ? [] : await readPrivateCredentialValues(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
+    backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials,
+      canStart: () => !harness!.isBusy() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
+      freeze: async () => { scheduler!.pauseBackground(true); memory!.foreground(); await memory!.idle(); if (harness!.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
+      chooseExport: async (name) => { const selected = await dialog.showSaveDialog({ title: '导出私人存档', defaultPath: name, filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePath ?? null },
+      chooseImport: async () => { const selected = await dialog.showOpenDialog({ title: '选择私人存档', properties: ['openFile'], filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
+      restart: () => { systemClock.after(100, () => { app.relaunch(); app.quit() }) }, changed: () => controller?.refresh('restore') })
+    controller.attachBackup(backup)
     controller.attachPomodoro(pomodoro, () => plugins.views().some((item) => item.id === 'pomodoro' && item.status === 'enabled'))
     plugins.mountService('pomodoro', (enabled) => { if (enabled) pomodoro?.reconcile(); else pomodoro?.pause() })
     plugins.mountService('mail', (enabled) => campus?.setEnabled(enabled))
@@ -219,9 +247,10 @@ void app.whenReady().then(async () => {
     harness.stateChanged()
     scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => controller?.refresh('timer'), { everyMs: 1000, background: false })
     runtime = await attachRuntime({ prepared, controller, plugins, harness, scheduler, store,
+      locked: () => backup?.isBusy() ?? false,
       mcpPort: Number(process.env.LCA_MCP_PORT ?? 5175), cdpPort,
       restart: () => { systemClock.after(100, () => { app.relaunch(); app.quit() }) } })
-    powerMonitor.on('resume', () => { pomodoro?.reconcile(); scheduler?.reconcile() })
+    powerMonitor.on('resume', () => { if (!backup?.isBusy()) { pomodoro?.reconcile(); scheduler?.reconcile() } })
   } catch {
     console.error('Application storage unavailable; existing data preserved.')
     app.exit(1)
@@ -243,6 +272,6 @@ app.on('before-quit', (event) => {
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), backup?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })
