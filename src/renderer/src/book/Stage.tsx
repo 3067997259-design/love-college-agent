@@ -93,6 +93,9 @@ export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot
                 quote={quote} onClearQuote={() => setQuote(null)} />
               {tab === 'chat' && old.view && (
                 <OldPage key={old.view.info.sessionId} info={old.view.info} page={old.view.page} failed={old.view.failed} older={old.neighbor(-1)} newer={old.neighbor(1)}
+                  optical={snapshot.opticalMemory?.enabled && bridge.readOpticalMemory
+                    ? { frames: snapshot.opticalMemory.frames.filter((frame) => frame.sessionId === old.view!.info.sessionId), read: (frameId) => bridge.readOpticalMemory!(frameId) }
+                    : null}
                   onTurn={old.open} onToday={old.close} onQuote={(next) => { setQuote(next); old.close() }} />
               )}
               {tab === 'gifts' && <GiftShelf snapshot={snapshot} bridge={bridge} />}

@@ -197,6 +197,19 @@
     "clearQuote": "不引用了",
     "placeholder": "想和她聊这一段的什么？",
     "recalling": "{name}正在回忆……",
-    "recallFailed": "这次没想起来。"
+    "recallFailed": "这次没想起来。",
+    "impression": {
+      "open": "她的印象",
+      "back": "回到原话",
+      "pages": "这一页封成了 {n} 张",
+      "page": "第 {i}／{n} 张",
+      "note": "这是她对这一页的印象，没有审核过；只留下能对上原话的几行，细节以原话为准。",
+      "rejected": "另有 {n} 行对不上原话，没有采用。",
+      "empty": "这一档没有留下能对上原话的行。",
+      "loading": "正在取那张封页……",
+      "failed": "这一页的印象现在打不开。",
+      "tiers": { "large": "高清", "base": "标准", "small": "低清", "tiny": "极低" },
+      "tierNote": "清晰度只是重新读这张封页时用的分辨率，不代表过了多久。"
+    }
   }
 }

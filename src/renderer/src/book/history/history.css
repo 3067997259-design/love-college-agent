@@ -102,3 +102,23 @@
   .history-photo[data-mode='page'], .history-photo[data-mode='recall'][data-state='in'] { animation: none; }
   .recall-line { animation: none; }
 }
+
+/* —— 她的印象（可选光学记忆）：一张封页的小样，旁边是各清晰度读回来、还能对上原话的几行 —— */
+.impression { display: grid; gap: 12px; }
+.impression-pages { justify-content: center; align-items: center; }
+.impression-body { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 18px; align-items: start; }
+.impression-sheet {
+  width: 200px;
+  max-height: 280px;
+  object-fit: contain;
+  background: white;
+  border: 1px solid color-mix(in oklab, var(--pencil) 70%, transparent);
+  box-shadow: var(--shadow-card);
+  transform: rotate(-1.2deg);
+}
+.impression-tiers { display: grid; gap: 10px; min-width: 0; }
+.impression-tier h3 { margin: 0; font: normal 17px var(--font-hand); color: var(--ink-her-faded); }
+.impression-tier ul { margin: 2px 0 0; padding-left: 1.1em; font-size: var(--fs-sm); line-height: 1.6; color: var(--ink-her-faded); }
+.impression-tier p, .impression-tier small { margin: 2px 0 0; font-size: var(--fs-xs); color: var(--graphite); }
+.impression-tier[data-status='rejected'] h3 { color: var(--graphite); }
+.impression-toggle[aria-pressed='true'] { color: var(--ink-her); font-weight: bold; }

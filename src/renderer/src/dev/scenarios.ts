@@ -333,6 +333,14 @@ export const SCENARIOS = {
       ],
     },
     history: { photos: [], captureStatus: 'idle', recall: { status: 'idle' } },
+    // 可选光学记忆：10-16 那页封成一张，四档读回来（印象内容在 fakeImpressions，经假桥 readOpticalMemory 读）
+    opticalMemory: {
+      enabled: true, source: 'fake', status: 'idle',
+      frames: [{ id: 'frame-1016', sessionId: 's-1016', createdAtMs: T.sat0810, sourceCount: 4, pageIndex: 0, pageCount: 1 }],
+      impressions: (['large', 'base', 'small', 'tiny'] as const).map((tier, index) => ({
+        frameId: 'frame-1016', tier, createdAtMs: T.sat0810, status: index < 2 ? 'guarded' as const : 'rejected' as const, verifiedLineCount: Math.max(0, 3 - index), rejectedLineCount: index,
+      })),
+    },
   })),
 } satisfies Record<string, AppSnapshot>
 
@@ -362,6 +370,16 @@ export const fakePages: Record<string, { dayKey: string; messages: MessageView[]
       msg('k4', 'assistant', '记下了。', T.fri2105 - 4 * MIN),
     ],
   },
+}
+
+/** 预览用的光学印象：每档还能对上原话的整行残片（假数据；真实的由主进程的守卫回查当时可见的来源） */
+export const fakeImpressions: Record<string, { tier: 'large' | 'base' | 'small' | 'tiny'; status: 'guarded' | 'rejected'; fragments: string[]; rejectedLineCount: number }[]> = {
+  'frame-1016': [
+    { tier: 'large', status: 'guarded', fragments: ['明天要写数据结构的作业。', '写完了想喝点热的。', '记下了。'], rejectedLineCount: 0 },
+    { tier: 'base', status: 'guarded', fragments: ['写完了想喝点热的。'], rejectedLineCount: 1 },
+    { tier: 'small', status: 'rejected', fragments: [], rejectedLineCount: 2 },
+    { tier: 'tiny', status: 'rejected', fragments: [], rejectedLineCount: 3 },
+  ],
 }
 
 /** 预览用的日记正文：假数据，不是她最终的声音；只有解锁的才读得到（fake-bridge.readDiary） */

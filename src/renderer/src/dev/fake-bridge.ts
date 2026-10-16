@@ -5,7 +5,22 @@
  * 真正的计时、落盘和阶段事件都在主进程，这里点通不代表真实运行通过。
  */
 import type { AppBridge, AppCommand, AppEvent, AppSnapshot, CommandAck, HistoryPhotoView, PomodoroView, PublicErrorCode } from '../../../shared'
-import { DEFAULT_SCENARIO, evidence, fakeDiary, fakePages, SCENARIOS, type ScenarioId } from './scenarios'
+import { DEFAULT_SCENARIO, evidence, fakeDiary, fakeImpressions, fakePages, SCENARIOS, type ScenarioId } from './scenarios'
+
+/** 预览用：把几行对话排成一张白底印刷页，返回 data URL（CSP 允许 img-src data:） */
+function printedPage(lines: readonly string[]): string {
+  const canvas = document.createElement('canvas')
+  canvas.width = 480
+  canvas.height = 640
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return ''
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.fillStyle = '#222222'
+  ctx.font = '22px "Microsoft YaHei UI", sans-serif'
+  lines.forEach((line, index) => ctx.fillText(line, 32, 64 + index * 40, canvas.width - 64))
+  return canvas.toDataURL('image/png')
+}
 import { sceneSrc } from '../book/Character'
 
 /** 假旧页的“照片”：借一张整景图当那天拍下的样子（真实照片由主进程截当时的场景） */
@@ -279,6 +294,13 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
       const page = fakePages[id]
       if (!page) throw new Error('SESSION_UNAVAILABLE')
       return { sessionId: id, dayKey: page.dayKey, messages: page.messages, truncated: false, recallableMessageIds: page.recallable, ...photoOf(id) }
+    },
+    // 封页小样：预览里用画布现画一张印刷页（真实的是主进程渲染并存进私人资产的 PNG）
+    async readOpticalMemory(frameId) {
+      const frame = current.opticalMemory?.frames.find((item) => item.id === frameId)
+      const impressions = fakeImpressions[frameId]
+      if (!frame || !impressions) throw new Error('OPTICAL_UNAVAILABLE')
+      return { frameId, imageUrl: printedPage(fakePages[frame.sessionId]?.messages.map((m) => `${m.role === 'user' ? '你' : '她'}：${m.text}`) ?? []), impressions, uncertainty: 'unreviewed-impression' }
     },
     // 和主进程一样：没解锁就打不开
     async readDiary(id) {

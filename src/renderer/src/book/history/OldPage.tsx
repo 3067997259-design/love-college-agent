@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { MessageView, SessionPage, SessionPageInfo } from '../../../../shared'
+import type { MessageView, OpticalMemoryRead, OpticalMemoryView, SessionPage, SessionPageInfo } from '../../../../shared'
+import { Impression } from './Impression'
 import { MAX_QUOTE, quoteOnPage, type Quote } from './quote'
 import copy from '../../voice/book.zh.json'
 import { formatClock } from '../format'
@@ -11,7 +12,7 @@ export type { Quote }
  * 往回翻的一页（体验设计 §2“一天一页”）：她的墨色褪成铅笔灰，字始终能读；左页同时换成那天的照片。
  * 只有主进程核对过“她当时确实看见”的句子才能引用（recallableMessageIds），正文由主进程按锚点取，这里只交位置。
  */
-export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQuote }: {
+export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQuote, optical = null }: {
   info: SessionPageInfo
   page: SessionPage | null
   failed: boolean
@@ -20,7 +21,10 @@ export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQ
   onTurn: (sessionId: string) => void
   onToday: () => void
   onQuote: (quote: Quote) => void
+  /** 可选光学记忆开着、这一页封过：她对这一页的印象（只走用户独占读取） */
+  optical?: { frames: readonly OpticalMemoryView['frames'][number][]; read: (frameId: string) => Promise<OpticalMemoryRead> } | null
 }) {
+  const [impression, setImpression] = useState(false)
   const [selection, setPending] = useState<Quote | null>(null)
   // 选段只属于选它的那一页：翻页时组件按 sessionId 重建，这里再兜一层，读取中／失败时也不交别页的锚点（GitHub #19）
   const pending = quoteOnPage(selection, page)
@@ -51,12 +55,18 @@ export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQ
       <header className="page-head">
         <span className="page-date">{dayKeyLabel(info.dayKey, true)}</span>
         <nav className="page-turn" aria-label="翻页">
+          {optical && optical.frames.length > 0 && (
+            <button type="button" className="link-button impression-toggle" aria-pressed={impression} onClick={() => setImpression(!impression)}>
+              {impression ? copy.history.impression.back : copy.history.impression.open}
+            </button>
+          )}
           <button type="button" className="link-button" disabled={!older} onClick={() => older && onTurn(older.sessionId)}>‹ {copy.history.older}</button>
           <button type="button" className="link-button" onClick={() => newer ? onTurn(newer.sessionId) : onToday()}>{newer ? `${copy.history.newer} ›` : `${copy.history.today} ›`}</button>
         </nav>
       </header>
       <div className="stream old-stream">
-        {failed ? <p className="sheet-status" role="alert">{copy.history.failed}</p>
+        {impression && optical ? <Impression frames={optical.frames} read={optical.read} />
+          : failed ? <p className="sheet-status" role="alert">{copy.history.failed}</p>
           : !page ? <p className="sheet-status" role="status">{copy.history.loading}</p>
           : page.messages.length === 0 ? <p className="sheet-empty">{copy.history.empty}</p>
           : <>
@@ -77,7 +87,7 @@ export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQ
           </>}
       </div>
       <footer className="old-foot">
-        {pending
+        {impression ? null : pending
           ? <>
             <blockquote className="quote-preview">{pending.text}</blockquote>
             <button type="button" className="btn btn-primary btn-small" onClick={() => onQuote(pending)}>{copy.history.quoteSelection}</button>
