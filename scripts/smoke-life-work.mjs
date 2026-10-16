@@ -44,10 +44,15 @@ try {
   await accepted({ type: 'life.work.pause', workId: reading.id }); await accepted({ type: 'pomodoro.stop' }); await accepted({ type: 'mode.set', mode: 'rest' })
   const archive = join(data, 'partial.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
   await accepted({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'WORK_EXPORT_FAILED')
+  // Queue the old checkpoint while in rest, then close. Restart must mark it interrupted, not hide it.
+  await accepted({ type: 'life.work.resume', workId: reading.id })
   await stop(); now += 3 * 86400000; await profile(now); await launch(); await debug('set_clock', { nowMs: now, frozen: true })
-  reading = job(await snapshot(), 'read'); assert.equal(reading.completedSteps, 1); assert.equal(reading.status, 'paused'); assert.deepEqual(reading.output, first)
+  reading = job(await snapshot(), 'read'); assert.equal(reading.completedSteps, 1); assert.equal(reading.status, 'interrupted'); assert.deepEqual(reading.output, first)
+  await page.getByRole('button', { name: '日程', exact: true }).click()
+  const interruptedRow = page.locator(`.work-row[data-work-id="${reading.id}"][data-status="interrupted"]`)
+  await interruptedRow.waitFor(); assert.equal(await interruptedRow.locator('.work-progress span[data-done="true"]').count(), 1)
   await accepted({ type: 'mode.set', mode: 'quiet' }); await advance(); assert.equal(job(await snapshot(), 'read').completedSteps, 1)
-  await accepted({ type: 'life.work.resume', workId: reading.id }); await waitFor((s) => job(s, 'read').completedSteps === 2, 'RESTART_RESUME_FAILED')
+  await interruptedRow.getByRole('button', { name: '接着做', exact: true }).click(); await waitFor((s) => s.life.work.jobs.find((entry) => entry.id === reading.id)?.completedSteps === 2, 'RESTART_RESUME_FAILED')
   await accepted({ type: 'lights.set', lightsOut: true }); await advance(); assert.equal(job(await snapshot(), 'read').completedSteps, 2)
   await accepted({ type: 'lights.set', lightsOut: false }); await advance(); await waitFor((s) => job(s, 'read').status === 'completed', 'READ_COMPLETE_FAILED')
   // Current-day reading may also be queued after midnight; explicitly pause it so writing gets its turn.
