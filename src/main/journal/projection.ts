@@ -12,6 +12,8 @@ export interface SessionProjection {
   task: TaskView | null
   evidenceSeqs: number[]
   context: ContextMessage[]
+  contextEntries: { seq: number; message: ContextMessage }[]
+  lastModelContext?: ContextMessage[]
   requests: { requestId: string; commandHash: string }[]
   pomodoro: PomodoroView
   pomodoroPause: 'manual' | 'lights' | null
@@ -23,8 +25,8 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
   const header = records[0]
   if (!header || header.type !== 'session/header') throw new Error('JOURNAL_HEADER_REQUIRED')
   const result: SessionProjection = { scope: { userId: header.userId, characterId: header.characterId, sessionId: header.sessionId },
-    lastSeq: 0, mode: 'rest', lightsOut: false, messages: [], activities: [], task: null, evidenceSeqs: [], context: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [] }
-  const context: { seq: number; message: ContextMessage }[] = []
+    lastSeq: 0, mode: 'rest', lightsOut: false, messages: [], activities: [], task: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [] }
+  const context: { seq: number; order?: number; message: ContextMessage }[] = []
   const compacted = records.filter((record) => record.type === 'context/compact')
   const inbox = new Map<string, ContextMessage>()
   const heldMessages: MessageView[] = []
@@ -32,7 +34,7 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
   const release = () => { if (!quiet()) { result.messages.push(...heldMessages.splice(0)); result.messages.sort((a, b) => a.createdAtMs - b.createdAtMs) } }
   for (const record of records) {
     result.lastSeq = record.seq
-    if ('requestId' in record) result.requests.push({ requestId: record.requestId, commandHash: record.commandHash })
+    if ('requestId' in record && 'commandHash' in record) result.requests.push({ requestId: record.requestId, commandHash: record.commandHash })
     switch (record.type) {
       case 'session/carry':
         result.mode = record.mode; result.lightsOut = record.lightsOut; result.pomodoro = record.pomodoro
@@ -82,10 +84,12 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
         context.push({ seq: record.seq, message: { role: 'tool', content: JSON.stringify(record.visible), toolCallId: record.callId } }); break
       }
       case 'context/inject': context.push({ seq: record.seq, message: { role: 'system', content: record.text } }); break
-      case 'context/compact': context.push({ seq: record.seq, message: { role: 'system', content: record.summary } }); break
+      case 'context/compact': context.push({ seq: record.seq, order: record.fromSeq - 0.5, message: { role: 'system', content: record.summary } }); break
+      case 'model/seen': result.lastModelContext = record.messages; break
     }
   }
   // Compact changes only model context. Chat history and all source events remain intact.
-  result.context = context.filter((entry) => !compacted.some((range) => entry.seq >= range.fromSeq && entry.seq <= range.toSeq)).map((entry) => entry.message)
+  result.contextEntries = context.filter((entry) => !compacted.some((range) => entry.seq >= range.fromSeq && entry.seq <= range.toSeq)).sort((a, b) => (a.order ?? a.seq) - (b.order ?? b.seq)).map(({ seq, message }) => ({ seq, message }))
+  result.context = result.contextEntries.map((entry) => entry.message)
   return result
 }

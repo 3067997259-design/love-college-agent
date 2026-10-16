@@ -3,6 +3,7 @@ import type { AppEvent, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import type { JournalInput } from '../journal/schema'
+import type { ContextMessage } from '../journal/schema'
 import { ModelFailure, type ModelClient } from '../model/types'
 import type { HarnessTool } from './tools'
 
@@ -27,6 +28,9 @@ export function createHarness(options: {
   failed?: () => void
   enabled?: () => boolean
   limits?: { steps?: number; dailyTokens?: number; autonomousTokens?: number; outputTokens?: number }
+  prepareContext?(turnId: string, signal: AbortSignal): Promise<{ messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }>
+  foreground?(): void
+  settled?(): void
 }) {
   const { store, clock, model } = options
   const currentTools = () => {
@@ -90,7 +94,9 @@ export function createHarness(options: {
           turn.abort.signal.throwIfAborted()
           if (step >= (options.limits?.steps ?? 12)) throw new GuardFailure('max-steps', 'step-limit')
           userEngaged = drain() || userEngaged
-          const messages = store.projection().context
+          const prepared = options.prepareContext ? await options.prepareContext(turn.id, turn.abort.signal) : undefined
+          const messages = prepared?.messages ?? store.projection().context
+          const seen = { messages: structuredClone([...messages]), eligibleIndexes: prepared ? [...prepared.eligibleIndexes] : messages.flatMap((message, index) => message.role === 'system' ? [] : [index]) }
           const definitions = [...currentTools().values()].map((tool) => tool.definition)
           const outputTokens = options.limits?.outputTokens ?? 2048
           const reservation = Buffer.byteLength(JSON.stringify({ messages, tools: definitions }), 'utf8') + outputTokens + 1024
@@ -105,6 +111,7 @@ export function createHarness(options: {
             record({ type: 'model/attempt', turnId: turn.id, ...attempt, bucket, ...(attempt.status === 'started' ? { reservedTokens: reservation } : {}) })
           })
           turn.abort.signal.throwIfAborted()
+          record({ type: 'model/seen', turnId: turn.id, source: model.source, ...seen })
           if (new Set(reply.toolCalls.map((call) => call.id)).size !== reply.toolCalls.length || reply.toolCalls.some((call) => callIds.has(call.id))) throw new GuardFailure('loop', 'repeat-limit')
           record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: reply.text, status: 'complete',
             ...delivery(), ...(reply.toolCalls.length ? { toolCalls: reply.toolCalls } : {}) })
@@ -161,17 +168,19 @@ export function createHarness(options: {
   }
   const kick = () => {
     if (worker || !eligible()) return
+    options.foreground?.()
     worker = (async () => {
       while (eligible()) {
         const trigger = inbox.find((entry) => entry.source === 'user')?.source ?? inbox[0].source
         await run(trigger)
       }
-    })().catch(() => { disposed = true; options.failed?.() /* Never print private exceptions. */ }).finally(() => { worker = undefined; if (eligible()) kick() })
+    })().catch(() => { disposed = true; options.failed?.() /* Never print private exceptions. */ }).finally(() => { worker = undefined; options.settled?.(); if (eligible()) kick() })
   }
   return {
     source: model.source,
     send: (text: string, requestId: string, commandHash: string) => {
       if (disposed || inbox.length >= 32 || store.projection().lightsOut) throw new Error('INBOX_UNAVAILABLE')
+      options.foreground?.()
       const id = randomUUID()
       record({ type: 'user/message', id, text, requestId, commandHash })
       inbox.push({ id, source: 'user' }); kick()
@@ -194,6 +203,7 @@ export function createHarness(options: {
     },
     stateChanged: () => { if (store.projection().lightsOut && active) { active.pauseRequested = true; active.abort.abort() } else { resumeGate?.(); kick() } },
     idle: async () => { await worker },
+    isBusy: () => !!worker || !!active || inbox.some((item) => item.source === 'user'),
     dispose: async () => { disposed = true; active?.abort.abort(); resumeGate?.(); await worker },
   }
 }

@@ -1,0 +1,9 @@
+{
+  "description": "Synthetic experiences for the explicit fake background model. Not production extraction or persona prose.",
+  "items": [
+    { "quote": "我把纸桥放在书桌上，给它取名叫周五桥。", "kind": "experience", "topic": "纸桥", "replaceTopic": false },
+    { "quote": "我喜欢的饮料是咖啡。", "kind": "fact", "topic": "饮料", "replaceTopic": false },
+    { "quote": "我喜欢的饮料现在改为红茶，不再喝咖啡。", "kind": "fact", "topic": "饮料", "replaceTopic": true },
+    { "quote": "我们约好先完成作业，再一起整理纸桥的照片。", "kind": "experience", "topic": "纸桥", "replaceTopic": false }
+  ]
+}
