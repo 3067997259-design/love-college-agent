@@ -11,6 +11,7 @@ import { createHeartFlow, deskTools } from '../../src/main/heart-flow/service'
 import type { SessionStore } from '../../src/main/store/session'
 import type { AppCommand } from '../../src/shared'
 import { createAppController } from '../../src/main/bridge/controller'
+import { createHarness } from '../../src/main/harness/loop'
 const cleanups: (() => void)[] = []
 afterEach(() => cleanups.splice(0).reverse().forEach((cleanup) => cleanup()))
 function fixture(booth = false) {
@@ -143,4 +144,20 @@ it('routes /goal with text locally even outside a flow and rejects empty, privat
   expect(send('/goal sk-syntheticgoalcredential1234567890').status).toBe('rejected')
   expect(controller.dispatch({ protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId: randomUUID(), type: 'flow.goal.set', text: 'mini' }, 'mini').status).toBe('rejected')
   expect(f.store.records().some((row) => row.type === 'turn/start')).toBe(false); controller.dispose()
+})
+it('retains the active request through real harness read/write steps after automatic 80k compaction (#2)', async () => {
+  const f = fixture(); f.dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(f.flow.active()).toBe(true)); f.dispatch({ type: 'flow.mode', mode: 'execute' }); f.flow.write('input.md', 'SYNTHETIC_INPUT')
+  for (let index = 0; index < 6; index++) { f.store.append({ type: 'user/message', id: 'old-' + index, text: 'old'.repeat(6000), requestId: 'old-' + index, commandHash: 'old' }); f.store.append({ type: 'inbox/drain', ids: ['old-' + index] }) }
+  let count = 0; const inputs: string[] = []
+  const harness = createHarness({ store: f.store, clock: f.clock, tools: deskTools(f.flow), prepareContext: f.flow.prepareContext, model: { source: 'fake', complete: async (request) => {
+    inputs.push(JSON.stringify(request.messages)); const index = count++
+    return { text: index === 2 ? 'done' : '', usage: { inputTokens: 0, outputTokens: 0 }, toolCalls: index < 2 ? [{ id: 'step-' + index, name: index === 0 ? 'desk_read' : 'desk_write', arguments: JSON.stringify(index === 0 ? { path: 'input.md' } : { path: 'result.md', text: 'REAL_SAVED_PRODUCT' }) }] : [] }
+  } } })
+  try {
+    harness.send('CURRENT_REQUEST_CANARY: read input.md then write result.md', 'current', 'current'); await harness.idle()
+    expect(inputs).toHaveLength(3); for (const input of inputs) expect(input).toContain('CURRENT_REQUEST_CANARY')
+    expect(f.desk.read('result.md')).toBe('REAL_SAVED_PRODUCT')
+    const checkpoint = f.store.records().findLast((row) => row.type === 'flow/compact'); expect(JSON.stringify(checkpoint)).toContain('CURRENT_REQUEST_CANARY')
+    const reopened = createHeartFlow(f.opts); expect(JSON.stringify((await reopened.prepareContext('after-restart', new AbortController().signal)).messages)).toContain('CURRENT_REQUEST_CANARY'); reopened.close()
+  } finally { await harness.dispose() }
 })

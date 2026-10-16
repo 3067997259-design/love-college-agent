@@ -45,13 +45,13 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
     store.append({ type: 'desk/settled', id, status: 'applied' }); options.changed(); return id
   }
   const requestRun = (code: string) => { safe(true); if (options.booth || pending || running || code.length > 10_000 || !code.trim()) throw new Error('FLOW_UNAVAILABLE'); const id = randomUUID(); pending = { id, code, hash: contentHash(code) }; store.append({ type: 'flow/run', id, flowId: open()!.id, status: 'requested', codeHash: pending.hash }); options.changed(); return id }
-  const compact = (focus?: string) => {
+  const compact = (focus?: string, retained?: { turnId: string; messages: readonly ContextMessage[] }) => {
     const flow = open()!; const work = changes().filter((row) => row.flowId === flow.id)
     const index = work.slice(-25).map((row) => ({ id: row.id, path: row.path }))
     // Bound the evidence index independently of filename lengths and preserve the user's focus as data.
     while (JSON.stringify(index).length > 4800) index.shift()
     const summary = JSON.stringify({ changes: index, focus: focus ?? null })
-    store.append({ type: 'flow/compact', id: flow.id, throughSeq: store.records().at(-1)!.seq, summary, ...(focus ? { focus } : {}) }); options.changed()
+    store.append({ type: 'flow/compact', id: flow.id, throughSeq: store.records().at(-1)!.seq, summary, ...(focus ? { focus } : {}), ...(retained ? { retained: { turnId: retained.turnId, messages: [...retained.messages] } } : {}) }); options.changed()
     return summary
   }
   const exit = () => {
@@ -82,10 +82,16 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
       const combined = flowContexts(store); const checkpointIndex = combined.rows.findLastIndex((row) => row.type === 'flow/compact' && row.id === flow.id); const checkpoint = combined.rows[checkpointIndex]
       const threshold = checkpointIndex >= 0 ? checkpointIndex : combined.spans.find((span) => span.id === flow.id)!.start
       const work = combined.context.filter((entry) => entry.position > threshold && combined.rows[entry.position]?.type !== 'context/inject')
-      const messages: ContextMessage[] = [...flow.prefix, ...goalContext(), ...(checkpoint?.type === 'flow/compact' ? [{ role: 'user' as const, content: checkpoint.summary }] : []), ...work.map((entry) => entry.message)]
+      const retained = checkpoint?.type === 'flow/compact' ? checkpoint.retained : undefined
+      const messages: ContextMessage[] = [...flow.prefix, ...goalContext(), ...(checkpoint?.type === 'flow/compact' ? [{ role: 'user' as const, content: checkpoint.summary }, ...(retained?.messages ?? [])] : []), ...work.map((entry) => entry.message)]
       if (JSON.stringify(messages).length > 80_000) {
-        const summary = compact(); const latestRequest = work.findLast((entry) => entry.message.role === 'user')
-        const compacted: ContextMessage[] = [...flow.prefix, ...goalContext(), { role: 'user', content: instructions.compacted }, { role: 'user', content: summary }, ...(latestRequest ? [latestRequest.message] : [])]
+        const turnStart = combined.rows.findLastIndex((row) => row.type === 'turn/start' && row.turnId === id)
+        const current = turnStart >= 0 ? work.filter((entry) => entry.position > turnStart).map((entry) => entry.message)
+          : work.filter((entry) => entry.message.role === 'user').slice(-1).map((entry) => entry.message)
+        const ongoing = [...(retained?.turnId === id ? retained.messages : []), ...current]
+        if (ongoing.length > 200 || JSON.stringify([...flow.prefix, ...goalContext(), ...ongoing]).length > 90_000) throw new Error('FLOW_CONTEXT_TOO_LARGE')
+        const summary = compact(undefined, { turnId: id, messages: ongoing })
+        const compacted: ContextMessage[] = [...flow.prefix, ...goalContext(), { role: 'user', content: instructions.compacted }, { role: 'user', content: summary }, ...ongoing]
         if (JSON.stringify(compacted).length > 96_000) throw new Error('FLOW_CONTEXT_TOO_LARGE')
         return { messages: compacted, eligibleIndexes: [] }
       }
