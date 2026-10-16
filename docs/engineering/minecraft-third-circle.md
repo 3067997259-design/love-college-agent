@@ -24,3 +24,7 @@
 ## 当前依赖
 
 语音／真实 OCR 的服务配置信息仍待用户回答，其他工作继续。光学接线已在 1afbc4c 合 main，CI 通过；合并最新记忆新鲜性守卫后，类型检查、光学／记忆服务 16 项定向单测及光学 Electron 再次通过。
+
+已补主进程内部的 `McpConnection.protocol`：只读已批准 allowTools／实际 schema；privacy=always 的连接拒绝结构化旁路，普通模型工具仍走原遮盖路径。具名协议调用在主进程内解析 JSON，断线／取消会拒绝迟到结果；标识校验会拒绝与配置凭据相同的值，普通公开文本继续遮盖。`McpService.tools(excludeServers)` 为后续游戏情境阻断通用工具绕行预留。没有把此对象挂到 AppBridge 或调试 MCP。
+
+本批类型／定向 lint、MCP 7 项单测通过，包含实际本机 MCP HTTP 握手下的 allowTools、schema、字段支持、隐私拒绝和断线检查。**它只是必要的协议底层，不是 MC 已能玩或实机通过。** 游戏状态机、范围／租约、事件和场景仍待下一批。

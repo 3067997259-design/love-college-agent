@@ -16,7 +16,9 @@ export function createMcpService(options: { clock: Clock; configPath: string; so
   const track = (promise: Promise<void>) => { jobs.add(promise); void promise.finally(() => jobs.delete(promise)) }
   return {
     view: (): McpView => ({ servers: [...connections.values()].map((connection) => connection.view()), ...(error ? { error } : {}) }),
-    tools: () => enabled && !disposed ? [...connections.values()].flatMap((connection) => connection.tools()) : [],
+    tools: (excludeServers: readonly string[] = []) => enabled && !disposed ? [...connections].filter(([id]) => !excludeServers.includes(id)).flatMap(([, connection]) => connection.tools()) : [],
+    /** Main-only typed adapters; not a renderer/debug API or an alternate unfiltered model-tool path. */
+    protocol: (serverId: string) => enabled && !disposed ? connections.get(serverId)?.protocol : undefined,
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       if (!enabled || disposed) return 'unavailable'
       if (command.type === 'mcp.configure') {
