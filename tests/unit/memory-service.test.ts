@@ -12,6 +12,7 @@ import { projectMemory } from '../../src/main/memory/projection'
 import type { MemoryRepository } from '../../src/main/memory/repository'
 import { createMemoryService } from '../../src/main/memory/service'
 import { createFakeMemoryModel, type MemoryModel } from '../../src/main/memory/model'
+import { summaryPeriod, summaryReferences } from '../../src/main/memory/hierarchy'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
@@ -36,6 +37,30 @@ function fixture(model?: MemoryModel, limits?: { dailyCalls?: number }) {
   return { clock, store, memory, repository, fake, command, turn, setBusy: (value: boolean) => { busy = value } }
 }
 describe('background memory scheduling and context assembly', () => {
+  it('consolidates closed periods once, keeps original provenance, and retries invalid output', async () => {
+    const f = fixture(); f.clock.advanceBy(f.clock.parse('2026-11-03T12:00:00+08:00') - f.clock.nowMs())
+    const addDay = (day: string, suffix = '') => f.repository.append({ type: 'memory/summary', summary: { id: 'day-' + day + suffix, level: 'day', period: day, text: '可见经历' + day + suffix,
+      sources: [{ id: 'seen-' + day + suffix, sessionId: day, frameSeq: 3, index: 1, offset: 0, atMs: f.clock.parse(day + 'T12:00:00+08:00') }], sourceSessionIds: [day], source: 'fake' } })
+    addDay('2026-10-15'); addDay('2026-10-16')
+    f.fake.select('invalid'); f.memory.dispatch(f.command({ type: 'memory.consolidate' })); await f.memory.idle()
+    expect(f.memory.view().error?.code).toBe('memory-invalid-output'); expect(f.repository.view().summaries).toHaveLength(2)
+    f.fake.select('ready'); f.memory.dispatch(f.command({ type: 'memory.consolidate' })); await f.memory.idle()
+    expect(f.memory.view().summaryCounts).toEqual({ day: 2, week: 1, month: 1 })
+    const before = f.store.records().length
+    f.memory.dispatch(f.command({ type: 'memory.consolidate' })); await f.memory.idle(); expect(f.store.records()).toHaveLength(before)
+    const month = f.repository.view().summaries.find((summary) => summary.level === 'month')!
+    expect(month.sources.map((source) => source.id)).toEqual(['seen-2026-10-15', 'seen-2026-10-16'])
+    expect(summaryReferences(f.repository.view().summaries, 'current').map((summary) => summary.level)).toEqual(['month'])
+    addDay('2026-10-16', '-revised'); f.memory.dispatch(f.command({ type: 'memory.consolidate' })); await f.memory.idle()
+    expect(f.memory.view().summaryCounts).toEqual({ day: 2, week: 1, month: 1 })
+    expect(f.repository.view().summaries.filter((summary) => summary.level === 'month')).toHaveLength(2)
+  })
+  it('labels weeks at Shanghai Monday even around UTC Sunday', () => {
+    const f = fixture()
+    expect(summaryPeriod('2026-10-18', 'week', f.clock)).toBe('2026-10-12')
+    expect(summaryPeriod('2026-10-19', 'week', f.clock)).toBe('2026-10-19')
+    expect(summaryPeriod('2026-11-01', 'month', f.clock)).toBe('2026-11')
+  })
   it('extracts visible experience and excludes reference injection from future extraction eligibility', async () => {
     const f = fixture(); f.turn('我把纸桥放在书桌上，给它取名叫周五桥。')
     expect(f.memory.dispatch(f.command({ type: 'memory.extract' }))).toBeUndefined(); await f.memory.idle()

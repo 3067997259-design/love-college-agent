@@ -20,6 +20,8 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
     <p>当前页 {session.dayKey} · 短期 {memory.shortTermCount} · 长期 {memory.longTermCount} · 上下文 {memory.contextChars} 字符</p>
     <p>只从实际模型可见记录抽取；原文和整理成品不进入记忆。抽取在空闲时进行，新回合会让后台让路。</p>
     <button type="button" disabled={busy || memory.status === 'unconfigured'} onClick={() => void send({ type: 'memory.extract' })}>抽取可见经历</button>
+    <button type="button" disabled={busy || memory.status === 'unconfigured'} onClick={() => void send({ type: 'memory.consolidate' })}>归并已结束周期</button>
+    {memory.summaryCounts && <p>日摘要 {memory.summaryCounts.day} · 周摘要 {memory.summaryCounts.week} · 月摘要 {memory.summaryCounts.month}</p>}
     <button type="button" disabled={busy || memory.status === 'unconfigured'} onClick={() => void send({ type: 'context.compact' })}>压缩旧回合</button>
     {session.rolloverPending && <p>新的一天已到；等待回合结束、空闲两分钟且未熄灯后翻页。</p>}
     <button type="button" disabled={busy || !session.rolloverPending} onClick={() => void send({ type: 'session.rollover' })}>检查翻页条件</button>
