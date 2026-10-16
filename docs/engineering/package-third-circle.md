@@ -6,4 +6,6 @@
 
 测试安装目录是 D 盘独立 GUID 目录，预先核对绝对路径归属；已有同名用户安装时拒绝升级／卸载。测试结束只调用自己本轮安装目录的卸载器。各场景使用独立 profile，未加载用户凭据或正常书本；不得为绕过检查删除用户的安装记录。
 
-本项运行结果及安装器实际 SHA 待构建完成后追加；此段仅说明已实现的可复现流程。
+2026-10-17 06:58 实测通过：七类探针分别跑解包版与安装版、普通界面重启、完整历史照片／引用／私人恢复，以及上述 13 项安装版原生场景，最终 `ok=true`。测试安装已卸载。源码回执 `47c098144d3bde0d78f2d6ae69deaeca922ce1d4`，trackedDirty=false。安装器 238117048 字节，SHA-256 `69eb7ef94fd891a3d4ce881cde4de13a64ac69c7c33e45065358de32644e6f52`；实际 Authenticode 状态 NotSigned。
+
+本机安装器：`D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe`；构建回执 `release/build-receipt.json`，验收报告 `test-results/package-report.json`。main checkout 的 release 不会随 Git 合并更新。13 个场景按独立 profile 顺序跑，仍不是同一书本里的五分钟连续路演或真实供应商质量证明。
