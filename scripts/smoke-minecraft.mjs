@@ -8,7 +8,7 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'minecraft-' + randomUUID()); const sceneId = randomUUID(); const profile = join(data, 'developer', sceneId)
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19558', LCA_MCP_PORT: '0' }
 let instance; let page; let client; let now = Date.parse('2026-10-17T12:00:00+08:00')
@@ -18,7 +18,7 @@ async function accepted(body) { const ack = await send(body); assert.equal(ack.s
 async function waitFor(test, error) { for (let index = 0; index < 140; index++) { if (test(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(error) }
 async function debug(name, args = {}) { const value = await client.callTool({ name, arguments: args }); assert.ok(!value.isError); return JSON.parse(value.content[0].text) }
 async function launch() {
-  instance = await _electron.launch({ executablePath: electronPath, args: [root], env }); page = await instance.firstWindow(); await initializeTestBook(page)
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env }); page = await instance.firstWindow(); await initializeTestBook(page)
   const config = JSON.parse(await readFile(join(profile, 'debug-connection.json'), 'utf8')); client = new Client({ name: 'minecraft-smoke', version: '1.0.0' }); await client.connect(new StreamableHTTPClientTransport(new URL(config.url), { requestInit: { headers: { Authorization: 'Bearer ' + config.token } } }))
 }
 async function stop() { await client?.close(); client = undefined; await instance?.close(); instance = undefined }

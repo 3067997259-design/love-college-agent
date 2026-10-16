@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
 import JSZip from 'jszip'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'computer-smoke-' + randomUUID()); const profile = join(data, 'profile'); const requests = []
 let index = 0; let scenario = 'interact'; let forbidden = 0
 const call = (name, args) => ({ id: randomUUID(), type: 'function', function: { name, arguments: JSON.stringify(args) } })
@@ -28,7 +28,7 @@ const server = createServer((request, response) => { void (async () => {
 await new Promise((done) => server.listen(0, '127.0.0.1', done)); const endpoint = 'http://127.0.0.1:' + server.address().port
 await mkdir(data, { recursive: true }); const providers = join(data, 'synthetic-providers.json'); await writeFile(providers, JSON.stringify({ providers: { chat: { base_url: endpoint + '/v1', api_key: 'synthetic-test-only', model: 'synthetic-test-only' } } }))
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: profile, LCA_PROVIDERS_FILE: providers }; let instance; let page
-async function launch() { instance = await _electron.launch({ executablePath: electronPath, args: [root], env }); page = await instance.firstWindow(); await initializeTestBook(page) }
+async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env }); page = await instance.firstWindow(); await initializeTestBook(page) }
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), ...body }) }, body)
 async function waitFor(test, message) { for (let i = 0; i < 150; i++) { if (test(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(message) }

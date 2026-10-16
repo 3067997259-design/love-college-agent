@@ -5,13 +5,13 @@ import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'booth-' + randomUUID())
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json') }; delete env.LCA_BOOTH
 const owner = ['local-user', 'default-character']; const hash = (text) => createHash('sha256').update(text).digest('hex'); let instance; let page
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID() }) }, body)
-async function launch(booth) { instance = await _electron.launch({ executablePath: electronPath, args: [root], env: { ...env, ...(booth ? { LCA_BOOTH: '1' } : {}) } }); page = await instance.firstWindow(); await initializeTestBook(page) }
+async function launch(booth) { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env: { ...env, ...(booth ? { LCA_BOOTH: '1' } : {}) } }); page = await instance.firstWindow(); await initializeTestBook(page) }
 async function stop() { await instance?.close(); instance = undefined }
 try {
   const atMs = Date.now(); const day = new Date(atMs + 4 * 3600000).toISOString().slice(0, 10); const folder = join(data, 'journals', hash(JSON.stringify(owner))); await mkdir(folder, { recursive: true })
