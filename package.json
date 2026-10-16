@@ -25,6 +25,7 @@
     "probe:imap": "pnpm build && node scripts/probe-electron.mjs imap",
     "probe:deeptech-audit": "node --experimental-transform-types scripts/probe-deeptech-audit.mjs",
     "experiment:deeptech-memory": "node --experimental-transform-types scripts/experiment-deeptech-memory.mjs",
+    "experiment:deeptech-grounding": "node --experimental-transform-types scripts/experiment-deeptech-grounding.mjs",
     "probe:journal": "pnpm build && node scripts/probe-electron.mjs journal",
     "probe:model": "pnpm build && node scripts/probe-electron.mjs model",
     "preview:ui": "node scripts/ui-preview.mjs",
