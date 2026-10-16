@@ -27,3 +27,11 @@
 第零圈补充：`runtime` 为可选安全视图，包含插件状态、权限类别和开发模式状态，不包含路径、代码、配置值或调试令牌。旧假场景可以暂时省略；真实主进程提供它。启用代码插件必须提交当前 fingerprint，变更后重新确认。开发模式在独立测试数据中运行且不加载真实供应商，展位模式拒绝开启。
 
 番茄计划由 `pomodoro.plan` 提议、`pomodoro.confirm` 用户确认、`pomodoro.start` 开始；模型不能代替用户确认。`pomodoro.resume` 仅继续暂停的当前阶段；下一个专注仍需 start。`plan.timing=demo` 必须在界面明确标注。新入口未接通前仍由主进程拒绝，不给占位成功。
+# 邮箱与候选确认（第一圈）
+
+`AppSnapshot.mailbox` 只含来源、健康状态和计数；`unseenCount: null` 表示未能观察，不能当作没有邮件。开发邮件、候选和交付均标记 `source: fake`。`mail.scan` 只启动扫描，不确认事项。正常 IMAP 仍为 blocked，不会因开发场景而变为可用。
+
+真实候选包含递增 `revision`；`candidate.confirm`／`candidate.ignore` 必须携带画面上的 `expectedRevision`，省略或过期均拒绝。确认可另外提交用户计划完成时间，绝不改写原始截止时间。变更卡通过 `change` 保留旧时间和旧证据入口，活动可提供结束时间；原文仍只走 `readEvidence`，不进快照、事件、模型上下文或调试上下文。
+
+确认与本地交付分开：`campus.export` 仅导出新确认／重新确认的版本，生成日历与 Markdown 交付卡。改期沿用 UID 并递增 SEQUENCE。导出文件不代表写入任何外部日历。`developer.mailbox` 只在独立开发 profile 切换合成场景（初始、改期、恶意、滤芯失败、空邮箱）。邮箱固定走隔离路径的隐私标记显示 `privacyLocked`，不允许设置页悄悄关闭。
+
