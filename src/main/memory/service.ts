@@ -7,7 +7,7 @@ import type { ContextMessage } from '../journal/schema'
 import { sessionDayKey } from '../journal/file'
 import { projectJournal } from '../journal/projection'
 import type { MemoryRepository } from './repository'
-import { seenFragments, memoryDigest, type SeenFragment } from './seen'
+import { seenFragments, memoryDigest, memoryInputBytes, type SeenFragment } from './seen'
 import { boundedMemoryCall, MemoryFailure, validateMemories, validateSummary, type MemoryModel, type createFakeMemoryModel } from './model'
 import { searchMemories } from './retrieval'
 import { redactFixed } from '../privacy/redact'
@@ -44,7 +44,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     return operationId
   }
   const call = async <T>(kind: OperationKind, input: readonly SeenFragment[], signal: AbortSignal, validate: (output: unknown) => T): Promise<T> => {
-    const operationId = reserve(kind, JSON.stringify(input).length)
+    const operationId = reserve(kind, memoryInputBytes(input))
     try {
       const output = await boundedMemoryCall(options.model, kind === 'extract' ? 'extract' : 'summarize', input, clock, signal)
       signal.throwIfAborted(); const validated = validate(output)
@@ -56,9 +56,9 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       throw cause
     }
   }
-  const inputLimit = (input: readonly SeenFragment[], chars = 28_000) => {
-    const result: SeenFragment[] = []; let used = 0
-    for (const fragment of input) { if (used + fragment.text.length > chars) break; result.push(fragment); used += fragment.text.length }
+  const inputLimit = (input: readonly SeenFragment[], bytes = 28_000) => {
+    const result: SeenFragment[] = []
+    for (const fragment of input) { if (memoryInputBytes([...result, fragment]) > bytes) break; result.push(fragment) }
     return result
   }
   const extractCore = async (signal: AbortSignal) => {

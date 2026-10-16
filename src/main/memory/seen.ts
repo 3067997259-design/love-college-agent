@@ -11,6 +11,19 @@ export const memoryDigest = (text: string) => createHash('sha256').update(text).
 export type SeenOrigin = 'user' | 'mail' | 'document' | 'pomodoro' | 'autonomous' | 'model' | 'tool' | 'unknown'
 /** Optional so message-transport snapshots built outside this module keep compiling; absent means unknown. */
 export interface SeenFragment extends MemorySource { key: string; text: string; role: 'user' | 'assistant' | 'tool'; origin?: SeenOrigin; source?: string }
+/** Model DTO: the full grounding source stays local rather than repeating once per 2k fragment.
+ * Small neighboring windows help the extractor notice operators across a split; only text is quotable.
+ * Validation still checks the complete local source, including operators outside these windows.
+ */
+export function memoryModelInput(input: readonly SeenFragment[]) {
+  return input.map((fragment) => {
+    const source = fragment.source
+    const context = source && source.slice(fragment.offset, fragment.offset + fragment.text.length) === fragment.text
+      ? { before: source.slice(Math.max(0, fragment.offset - 256), fragment.offset), after: source.slice(fragment.offset + fragment.text.length, fragment.offset + fragment.text.length + 256) } : undefined
+    return { id: fragment.id, role: fragment.role, origin: fragment.origin ?? 'unknown', text: fragment.text, ...(context ? { context } : {}) }
+  })
+}
+export const memoryInputBytes = (input: readonly SeenFragment[]) => Buffer.byteLength(JSON.stringify(memoryModelInput(input)), 'utf8')
 /** Origins that carry the user's own explicit statement, and only those, may replace an established fact. */
 export const userOrigins = (origin: SeenOrigin | undefined) => origin === undefined || origin === 'user'
 const EVENT_ORIGINS: readonly SeenOrigin[] = ['user', 'mail', 'document', 'pomodoro', 'autonomous']
