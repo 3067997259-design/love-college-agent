@@ -1,5 +1,7 @@
 # 第零圈开发模式验收
 
+**第一圈更新（2026-10-16 22:48）：** 安全诊断和 `get_diagnostics` 已接通；完整 `.lca-save` 已有独立原生导出／导入／确认恢复入口，fixture JSON 尚未统一为该格式。正常模式 background／privacy 端口与原生 providers 导入已装配；开发模式仍只用 fake，不读取真实配置内容。以下第零圈描述保留历史边界，最新结果见 [第一圈收尾](first-circle-closeout.md) 和 [部署说明](../deployment.md)。
+
 2026-10-16。默认关闭，通过“工具与设置”手动打开并重启。`LCA_BOOTH=1` 或主进程 settings 的 booth 标记优先，展位模式拒绝打开。正常模式不开本实现的 CDP/MCP；Playwright 验收进程的 inspector 由测试器建立，验收一律指定不存在的测试凭据文件或合成供应商。
 
 开发模式使用 `<数据根>/developer/<sceneId>/`，不会打开正常模式的日志／SQLite，也不读取真实 providers 文件。chat 是脚本假模型，隐私与记忆后台模型是显式 fake；Rodin 等尚未接通的能力仍显示 unavailable，没有伪装真实来源。退出开发者模式后重启回到原数据根。第一圈现已加入明确标记的合成邮箱，入口与原文边界见 [邮箱主线记录](mail-first-circle.md)。正常模式的真实邮箱仍为 blocked。
