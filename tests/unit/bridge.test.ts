@@ -3,8 +3,18 @@ import { createAppController } from '../../src/main/bridge/controller'
 import { createManualClock } from '../../src/main/clock'
 import type { AppEvent } from '../../src/shared'
 import type { BackupService } from '../../src/main/backup/service'
+import type { DiagnosticsView } from '../../src/shared'
 
 describe('public bridge controller', () => {
+  it('refuses diagnostics outside developer mode before invoking the reader', () => {
+    const controller = createAppController(createManualClock()); let reads = 0
+    controller.attachDiagnostics(() => { reads++; return {} as DiagnosticsView })
+    expect(() => controller.readDiagnostics()).toThrow('DIAGNOSTICS_UNAVAILABLE'); expect(reads).toBe(0)
+    controller.attachRuntime({ view: () => ({ plugins: [], developer: { mode: 'booth', requestedEnabled: false, restartRequired: false } }), dispatch: () => undefined })
+    expect(() => controller.readDiagnostics()).toThrow('DIAGNOSTICS_UNAVAILABLE'); expect(reads).toBe(0)
+    controller.attachRuntime({ view: () => ({ plugins: [], developer: { mode: 'developer', requestedEnabled: true, restartRequired: false } }), dispatch: () => undefined })
+    controller.readDiagnostics(); expect(reads).toBe(1)
+  })
   it('blocks new writes while a backup is active and still returns the original ack for a repeated request', () => {
     const controller = createAppController(createManualClock()); let busy = false
     const backup = { view: () => ({ status: 'idle' }), isBusy: () => busy, dispatch: () => { busy = true; return undefined } } as unknown as BackupService

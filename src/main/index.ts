@@ -45,6 +45,7 @@ import { createBackupService, type BackupService } from './backup/service'
 import { applyPendingRestore } from './backup/restore'
 import { probeBackup } from './validation/backup'
 import { createQuillService, quillTools, type QuillService } from './gifts/quill'
+import { buildDiagnostics } from './developer/diagnostics'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -242,6 +243,8 @@ void app.whenReady().then(async () => {
     quill = createQuillService({ clock, store, scheduler, artifacts, memory: memoryRepository, isBusy: () => harness?.isBusy() ?? false, emit: (source, text, id) => harness?.postEvent(source, text, id), changed: () => controller?.refresh('task') })
     controller.attachQuill(quill)
     plugins.registerBuiltin('gifts', '第一件礼物', quillTools(quill))
+    controller.attachDiagnostics(() => buildDiagnostics({ clock, store: store!, scheduler: scheduler!, memory: memoryRepository!, fileFilteringEnabled: prepared.pluginSettings.read().fileFilteringEnabled, mailStatus: campus!.view().status,
+      pendingFiles: documents!.view().jobs.filter((job) => ['staged', 'queued', 'processing'].includes(job.status)).length }))
     controller.attachPomodoro(pomodoro, () => plugins.views().some((item) => item.id === 'pomodoro' && item.status === 'enabled'))
     plugins.mountService('pomodoro', (enabled) => { if (enabled) pomodoro?.reconcile(); else pomodoro?.pause() })
     plugins.mountService('mail', (enabled) => campus?.setEnabled(enabled))

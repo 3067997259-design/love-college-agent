@@ -50,7 +50,7 @@ try {
   assert.equal(contract.eventCount, 1)
   assert.equal(contract.unknown, 'rejected')
   assert.equal(contract.evidenceRejected, true)
-  assert.deepEqual(contract.methods, ['dispatch', 'getSnapshot', 'importFiles', 'readEvidence', 'readSession', 'subscribe'])
+  assert.deepEqual(contract.methods, ['dispatch', 'getSnapshot', 'importFiles', 'readDiagnostics', 'readEvidence', 'readSession', 'subscribe'])
   assert.equal(contract.requireType, 'undefined')
   assert.equal(contract.processType, 'undefined')
   await page.screenshot({ path: join(root, 'test-results', 'scaffold.png') })
