@@ -11,6 +11,9 @@ import type { SessionStore } from '../../src/main/store/session'
 const cleanup: (() => void)[] = []
 afterEach(() => cleanup.splice(0).reverse().forEach((fn) => fn()))
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7ioAAAAASUVORK5CYII=', 'base64')
+/** A ready campus delivery artifact, shaped exactly like `artifactSchema`. */
+const workArtifact = (seed: string) => ({ view: { id: 'd-' + seed, createdAtMs: 1_000, artifactId: 'a-' + seed, displayName: '交付' + seed, kind: 'calendar' as const, status: 'ready' as const, sourceRefs: [], source: 'fake' as const },
+  relativePath: 'artifacts/' + seed.padEnd(64, '0').slice(0, 64) + '.ics', sha256: seed.padEnd(64, '1').slice(0, 64) })
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'lca-photos-')); cleanup.push(() => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-photos-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })
   const clock = createManualClock(1000); const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock); cleanup.push(journal.close)
@@ -39,4 +42,37 @@ it('drops a capture that finishes after shutdown', async () => {
   f.capture.mockImplementation(() => new Promise((resolve) => { release = resolve }))
   f.photos.capture(); await Promise.resolve(); const closing = f.photos.close(); release({ png, width: 1, height: 1 }); await closing
   expect(f.photos.photos()).toEqual([]); expect(f.store.records().some((row) => row.type === 'asset/stored')).toBe(false)
+})
+it('does not let an exhausted event block later automatic photos (issue #11)', async () => {
+  const f = fixture(); f.capture.mockRejectedValue(new Error('SYNTHETIC_CAPTURE_FAILURE'))
+  f.store.append({ type: 'campus/exported', candidateId: 'a', revision: 1, sequence: 1, artifacts: [workArtifact('a1'), workArtifact('a2')] })
+  for (let index = 0; index < 4; index++) { f.photos.reconcile(); await f.photos.idle() }
+  expect(f.capture).toHaveBeenCalledTimes(3)
+  // B 到达后仍能拍照：坏事件不能让当天剩下的自动照片全部消失。
+  f.store.append({ type: 'campus/exported', candidateId: 'b', revision: 1, sequence: 2, artifacts: [workArtifact('b1'), workArtifact('b2')] })
+  f.capture.mockResolvedValue({ png, width: 1, height: 1 })
+  f.photos.reconcile(); await f.photos.idle()
+  expect(f.capture).toHaveBeenCalledTimes(4); expect(f.photos.photos()).toHaveLength(1)
+  // 已经拍过的事件不再重复尝试，reconcile 空转不会增加调用。
+  f.photos.reconcile(); f.photos.reconcile(); await f.photos.idle()
+  expect(f.capture).toHaveBeenCalledTimes(4)
+})
+it('treats the first quill gift as a gift moment (issue #13)', async () => {
+  const f = fixture()
+  f.store.append({ type: 'campus/exported', candidateId: 'a', revision: 1, sequence: 1, artifacts: [workArtifact('a1'), workArtifact('a2')] })
+  f.photos.reconcile(); await f.photos.idle()
+  expect(f.photos.photo(f.store.scope.sessionId)?.reason).toBe('work')
+  f.store.append({ type: 'quill/given', id: 'quill-1' })
+  f.photos.reconcile(); await f.photos.idle()
+  const photo = f.photos.photo(f.store.scope.sessionId)!
+  expect(photo.reason).toBe('gift')
+  expect(f.store.records().some((row) => row.type === 'history/photo' && row.photo.eventId === 'quill:quill-1')).toBe(true)
+  expect(f.capture).toHaveBeenCalledTimes(2)
+})
+it('captures a quill gift even when the page has nothing else and the day has rolled over', async () => {
+  const f = fixture()
+  f.store.append({ type: 'quill/given', id: 'quill-1' })
+  f.clock.advanceBy(24 * 3600000)
+  f.photos.reconcile(); await f.photos.idle()
+  expect(f.photos.photo(f.store.scope.sessionId)?.reason).toBe('gift')
 })
