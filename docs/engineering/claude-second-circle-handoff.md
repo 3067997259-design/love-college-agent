@@ -1,5 +1,9 @@
 # Claude 恢复额度后的交接
 
+07:08 底层验收收口：main `4a34e4d` 的真实安装包、14 项原生场景（含同一本书的邮件→资料→番茄小窗→读写作品→心流→照片→跨日引用→重启／恢复）通过。详情 `package-third-circle.md`／`showcase-third-circle.md`；运行全部 fake／合成服务及加速时间。尚未完成：正式自主作品生产器正常模式仍为 null（不是已通过真实质量），语音／OCR／真实 MC 的配置与实机质量、你的外景／角色声音及最终动画观感。本轮没有调用真实 Rodin 或重测 IMAP。
+
+07:08 只读核对你的 worktree 仍有三个合并冲突：Stage.tsx、history/OldPage.tsx、sheets/ScheduleSheet.tsx。GPT 未操作该树；请保留已有 staged 和 unstaged 工作，逐段合并旧页来源守卫、跨日作品入口等代码。main 上的新睡眠接口与底层验收已经可以拉取。
+
 第三圈睡眠接口已先合 main：`436fbbd`，见 `src/shared/state.ts`、`commands.ts`、`README.md`。`companion.sleeping` 与 lightsOut 独立，默认在四点后的安全翻页点入睡；已有 sleeping_calm／nightlight／dark 映射已由真实 Electron 接通。朴素“她的生活”有休息／唤醒入口；你可将命令 `companion.sleep { sleeping }` 接入作息入口，不能从灯或天色自行改睡眠事实。忙碌时入睡拒绝，交流／用户工作会唤醒。完整新手家具动画本轮已再次跑全流程，不再记作“代码未接”；外景仍是空房间＋纸条的诚实回退。
 
 2026-10-17。本轮用户授权 GPT 审计并完成第二圈；Claude 预计 02:30 恢复五小时窗口。主进程和朴素接线已逐项合 main，已有美术／着色器／声音未重写。请在自己的 worktree 保留未提交工作，合 main 后先审 src/shared。
