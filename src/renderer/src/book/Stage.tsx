@@ -50,6 +50,10 @@ export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: App
       <h1 className="visually-hidden">Love, College &amp; Agent</h1>
       <div className="stage-inner" style={{ transform: `translate(-50%, -50%) scale(${scale})` }}>
         <div className="book">
+          {/* 金色护角，呼应斗篷上的小金扣 */}
+          {(['tl', 'tr', 'bl', 'br'] as const).map((c) => <span key={c} className={`corner corner-${c}`} aria-hidden />)}
+          {/* 中缝垂下的丝带书签：就是她头发上那条 */}
+          <span className="ribbon" aria-hidden />
           <LeftPage snapshot={snapshot} />
           <div className="gutter" aria-hidden />
           <RightPage snapshot={snapshot} bridge={bridge} />

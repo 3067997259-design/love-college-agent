@@ -39,25 +39,64 @@
   display: grid;
   grid-template-columns: var(--page-w) var(--page-w);
 }
-/* 封面从书页后面露出一圈，用她丝带的深藏青 */
+/* 封面从书页后面露出一圈：深藏青布面，用她丝带的颜色；细细的经纬纹，近看才看得出 */
 .book::before {
   content: '';
   position: absolute;
-  inset: -14px -12px -16px;
+  inset: -16px -14px -18px;
   border-radius: 12px;
-  background: var(--navy);
-  box-shadow: 0 30px 60px -30px rgb(20 18 40 / 0.55), 0 8px 18px -8px rgb(20 18 40 / 0.35);
-  z-index: -1;
+  background:
+    repeating-linear-gradient(0deg, rgb(255 255 255 / 0.035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.06) 0 1px, transparent 1px 3px),
+    var(--navy);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06), 0 30px 60px -30px rgb(20 18 40 / 0.55), 0 8px 18px -8px rgb(20 18 40 / 0.35);
+  z-index: -2;
 }
+/* 金色护角 */
+.corner {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  z-index: -1;
+  background: linear-gradient(135deg, color-mix(in oklab, var(--gold) 70%, white) 0%, var(--gold) 45%, color-mix(in oklab, var(--gold) 70%, black) 100%);
+}
+.corner-tl { left: -16px; top: -18px; clip-path: polygon(0 0, 100% 0, 0 100%); border-top-left-radius: 12px; }
+.corner-tr { right: -14px; top: -18px; clip-path: polygon(0 0, 100% 0, 100% 100%); border-top-right-radius: 12px; }
+.corner-bl { left: -16px; bottom: -18px; clip-path: polygon(0 0, 100% 100%, 0 100%); border-bottom-left-radius: 12px; }
+.corner-br { right: -14px; bottom: -18px; clip-path: polygon(100% 0, 100% 100%, 0 100%); border-bottom-right-radius: 12px; }
+
+/* 中缝垂下的丝带书签，末端剪成燕尾，轻轻地晃 */
+.ribbon {
+  position: absolute;
+  left: calc(50% + 10px);
+  top: calc(var(--book-h) - 30px);
+  width: 13px;
+  height: 92px;
+  z-index: -1;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--navy) 80%, white) 0%, var(--navy) 35%, color-mix(in oklab, var(--navy) 85%, black) 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%);
+  transform-origin: 50% 0;
+  animation: ribbon-sway 7s var(--ease-in-out) infinite;
+}
+@keyframes ribbon-sway { 0%, 100% { transform: rotate(-1.2deg); } 50% { transform: rotate(1.4deg); } }
+
 .page {
   position: relative;
   height: var(--book-h);
   background: var(--paper);
   overflow: hidden;
 }
-/* 纸页向中缝弯下去的阴影 */
-.page-left { border-radius: 6px 0 0 6px; background: linear-gradient(to left, var(--shadow-gutter) 0, transparent 70px) var(--paper); }
-.page-right { border-radius: 0 6px 6px 0; background: linear-gradient(to right, var(--shadow-gutter) 0, transparent 70px) var(--paper); }
+/* 纸页向中缝弯下去的阴影；外缘露出一层层纸边，像一本用了很久的书 */
+.page-left {
+  border-radius: 6px 0 0 6px;
+  background: linear-gradient(to left, var(--shadow-gutter) 0, transparent 70px) var(--paper);
+  box-shadow: -2px 2px 0 -0.5px var(--paper-edge), -4px 4px 0 -1px color-mix(in oklab, var(--paper-edge) 85%, #8a7a66), -6px 6px 0 -1.5px var(--paper-edge), -8px 7px 0 -2px color-mix(in oklab, var(--paper-edge) 75%, #8a7a66);
+}
+.page-right {
+  border-radius: 0 6px 6px 0;
+  background: linear-gradient(to right, var(--shadow-gutter) 0, transparent 70px) var(--paper);
+  box-shadow: 2px 2px 0 -0.5px var(--paper-edge), 4px 4px 0 -1px color-mix(in oklab, var(--paper-edge) 85%, #8a7a66), 6px 6px 0 -1.5px var(--paper-edge), 8px 7px 0 -2px color-mix(in oklab, var(--paper-edge) 75%, #8a7a66);
+}
 .gutter {
   position: absolute;
   left: 50%;
@@ -100,25 +139,35 @@
   left: 56px;
   top: 52px;
   width: 600px;
-  height: 640px;
-  /* 插画像画在纸上：四边淡进纸里 */
-  -webkit-mask-image: radial-gradient(ellipse 98% 96% at 50% 50%, black 72%, transparent 100%);
-  mask-image: radial-gradient(ellipse 98% 96% at 50% 50%, black 72%, transparent 100%);
+  height: 600px;
 }
-.room-bg {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, color-mix(in oklab, var(--lavender-shadow) 22%, var(--paper)) 0%, var(--paper) 75%);
-  display: grid;
-  place-items: start center;
+.room-pencil, .room-color { position: absolute; inset: 0; }
+/* 铅笔线稿四边淡进纸里 */
+.room-pencil {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 9%, black 91%, transparent), linear-gradient(to bottom, transparent, black 7%, black 90%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, black 9%, black 91%, transparent), linear-gradient(to bottom, transparent, black 7%, black 90%, transparent);
+  mask-composite: intersect;
+  opacity: 0.85;
 }
-.room-placeholder { margin-top: 28px; font: 15px var(--font-hand); color: var(--pencil); }
+/* 颜色聚在她周围，往外淡成只剩线条；晕染动画就是让这块遮罩长开 */
+.room-color {
+  --wash: 1;
+  -webkit-mask-image: radial-gradient(ellipse calc(52% * var(--wash)) calc(54% * var(--wash)) at 52% 56%, black 58%, transparent 100%);
+  mask-image: radial-gradient(ellipse calc(52% * var(--wash)) calc(54% * var(--wash)) at 52% 56%, black 58%, transparent 100%);
+}
+.room-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; }
+/* 时段光只落在有颜色的地方，外圈的铅笔线照旧留在纸上 */
+.room-tint, .room-lamp {
+  -webkit-mask-image: radial-gradient(ellipse 58% 60% at 52% 56%, black 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse 58% 60% at 52% 56%, black 55%, transparent 100%);
+}
 .room-tint { position: absolute; inset: 0; background: var(--room-tint); mix-blend-mode: var(--room-tint-blend); pointer-events: none; }
 .room-lamp {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(circle at 80% 26%, color-mix(in oklab, var(--lamp-light) 85%, transparent), transparent 52%);
+  background: radial-gradient(circle at 38% 47%, color-mix(in oklab, var(--lamp-light) 90%, transparent), transparent 34%);
   opacity: var(--lamp);
   mix-blend-mode: screen;
 }
@@ -127,12 +176,11 @@
   position: absolute;
   bottom: 0;
   left: 50%;
-  width: 430px;
-  margin-left: -215px;
-  transform-origin: 50% 100%;
+  bottom: -40px;
+  width: 528px;
+  margin-left: -264px;
+  transform-origin: 50% 85%;
   animation: breathe var(--breath-period) ease-in-out infinite;
-  /* 混合模式放在动画层本身：动画会建立独立的合成层，放在 img 上只会在层内混合，白底就透出来 */
-  mix-blend-mode: multiply;
 }
 .character-art { display: block; width: 100%; user-select: none; }
 .character-missing {
@@ -148,13 +196,13 @@
 .character-missing small { font-size: 14px; }
 @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(var(--breath-scale)); } }
 
-/* 桌上的钟就是番茄钟 */
-.desk-clock {
+/* 墙上的钟就是番茄钟 */
+.wall-clock {
   position: absolute;
-  left: 28px;
-  bottom: 28px;
-  width: 96px;
-  height: 96px;
+  left: 23%;
+  top: 9%;
+  width: 78px;
+  height: 78px;
   border-radius: 50%;
   display: grid;
   place-content: center;
@@ -163,18 +211,18 @@
   border: 2px solid var(--pencil);
   box-shadow: var(--shadow-card);
 }
-.desk-clock-time { font: 24px var(--font-num); font-variant-numeric: tabular-nums; color: var(--graphite); }
-.desk-clock-phase { font: 13px var(--font-hand); color: var(--graphite); }
-.desk-clock[data-phase='focus'] { border-color: var(--peach-mid); }
-.desk-clock[data-phase='focus'] .desk-clock-time { color: var(--ink-her); }
+.wall-clock-time { font: 20px var(--font-num); font-variant-numeric: tabular-nums; color: var(--graphite); }
+.wall-clock-phase { font: 13px var(--font-hand); color: var(--graphite); }
+.wall-clock[data-phase='focus'] { border-color: var(--peach-mid); }
+.wall-clock[data-phase='focus'] .wall-clock-time { color: var(--ink-her); }
 
-/* 门牌：工作中／安静／休息，番茄钟的阶段自动翻它 */
+/* 门牌挂在门上：工作中／安静／休息，番茄钟的阶段自动翻它 */
 .door-sign {
   position: absolute;
-  right: 30px;
-  top: 34px;
-  padding: 6px 14px 5px;
-  font: 18px var(--font-hand);
+  left: 1.2%;
+  top: 27%;
+  padding: 4px 9px 3px;
+  font: 16px var(--font-hand);
   color: var(--graphite);
   background: var(--paper);
   border: 1.5px solid var(--pencil);
@@ -197,22 +245,22 @@
 .door-sign[data-mode='rest'] { background: var(--peach); border-color: var(--peach-mid); color: var(--ink-her); }
 .door-sign[data-mode='quiet'] { background: color-mix(in oklab, var(--lavender-shadow) 35%, var(--paper)); }
 
-/* 信箱口露出一封信 */
+/* 门上的信箱口露出一封信 */
 .mail-slot {
   position: absolute;
-  right: 36px;
-  bottom: 40px;
-  width: 64px;
-  height: 14px;
+  left: 2.2%;
+  top: 52%;
+  width: 46px;
+  height: 10px;
   border-radius: 3px;
   background: color-mix(in oklab, var(--navy) 85%, black);
 }
 .mail-letter {
   position: absolute;
-  left: 10px;
-  bottom: 8px;
-  width: 44px;
-  height: 30px;
+  left: 6px;
+  bottom: 5px;
+  width: 34px;
+  height: 22px;
   background: color-mix(in oklab, var(--paper) 80%, white);
   border: 1.5px solid var(--pencil);
   border-radius: 2px;
@@ -228,12 +276,28 @@
 }
 @keyframes letter-peek { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
+/* 她出门了：房间里是空椅子，墙边一张便签 */
+.away-note {
+  position: absolute;
+  right: 5%;
+  top: 38%;
+  margin: 0;
+  padding: 4px 12px;
+  font: 20px var(--font-hand);
+  color: var(--graphite);
+  background: color-mix(in oklab, var(--paper) 88%, white);
+  border: 1.5px solid var(--pencil);
+  border-radius: 4px;
+  transform: rotate(3deg);
+  box-shadow: var(--shadow-card);
+}
+
 /* 她最新说的一句话 */
 .speech {
   position: absolute;
   left: 64px;
   right: 64px;
-  top: 722px;
+  top: 690px;
   margin: 0;
   font-size: var(--fs-lg);
   line-height: 1.65;

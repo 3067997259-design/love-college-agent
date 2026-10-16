@@ -42,7 +42,7 @@
 
   /* —— 字体（美术规格 §6.2；都随应用打包） —— */
   --font-body: 'LXGW WenKai Screen', 'Microsoft YaHei UI', sans-serif;
-  --font-hand: 'Xiaolai SC', 'Long Cang', 'LXGW WenKai Screen', cursive; /* 手写体待用户二选一 */
+  --font-hand: 'Long Cang', 'LXGW WenKai Screen', cursive; /* 2026-10-16 用户定默认 Long Cang；以后允许装自己的字体包 */
   --font-num: 'LXGW WenKai Screen', 'Consolas', monospace;               /* 配合 tabular-nums */
 
   /* 字号按书的设计尺寸写，整本书再整体缩放；投影上要看得清 */

@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@chinese-fonts/xiaolai':
-        specifier: 3.0.0
-        version: 3.0.0
       '@fontsource/long-cang':
         specifier: 5.3.0
         version: 5.3.0
@@ -184,9 +181,6 @@ packages:
 
   '@cacheable/utils@2.5.0':
     resolution: {integrity: sha512-buipgOVDkkPXNR5+xBpDw7Zk2n1EvU7qBJCNUcL7rhQ//kfpOXPAvQ511Os0vpLYJ1pZnvudNytkQt2hst3wqA==}
-
-  '@chinese-fonts/xiaolai@3.0.0':
-    resolution: {integrity: sha512-22d5xFPzxPQZuvx8doHn6sHrzvrdG/0QuQWBXQoX9TlKVVAyTvEADWHQv9FBGHIYTINaCZTCnQ6O4rfic/bWdg==}
 
   '@electron-internal/extract-zip@1.0.5':
     resolution: {integrity: sha512-+bqFCP98pLI0Tt0XQo1TmlXtwjWchISndDOxCkEcIuUgXWpBnLyRI+2DU+mesvnMMX6L1XDqYNA0lXNDHd/yiA==}
@@ -1970,8 +1964,6 @@ snapshots:
     dependencies:
       hashery: 1.5.1
       keyv: 5.6.0
-
-  '@chinese-fonts/xiaolai@3.0.0': {}
 
   '@electron-internal/extract-zip@1.0.5': {}
 
