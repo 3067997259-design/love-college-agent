@@ -44,6 +44,7 @@ import { probeStudentHubMcp } from './validation/mcp'
 import { createBackupService, type BackupService } from './backup/service'
 import { applyPendingRestore } from './backup/restore'
 import { probeBackup } from './validation/backup'
+import { createQuillService, quillTools, type QuillService } from './gifts/quill'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -76,6 +77,7 @@ let memory: MemoryService | undefined
 let mcp: McpService | undefined
 let mcpFixture: Awaited<ReturnType<typeof startMcpFixture>> | undefined
 let backup: BackupService | undefined
+let quill: QuillService | undefined
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -237,6 +239,9 @@ void app.whenReady().then(async () => {
       chooseImport: async () => { const selected = await dialog.showOpenDialog({ title: '选择私人存档', properties: ['openFile'], filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
       restart: () => { systemClock.after(100, () => { app.relaunch(); app.quit() }) }, changed: () => controller?.refresh('restore') })
     controller.attachBackup(backup)
+    quill = createQuillService({ clock, store, scheduler, artifacts, memory: memoryRepository, isBusy: () => harness?.isBusy() ?? false, emit: (source, text, id) => harness?.postEvent(source, text, id), changed: () => controller?.refresh('task') })
+    controller.attachQuill(quill)
+    plugins.registerBuiltin('gifts', '第一件礼物', quillTools(quill))
     controller.attachPomodoro(pomodoro, () => plugins.views().some((item) => item.id === 'pomodoro' && item.status === 'enabled'))
     plugins.mountService('pomodoro', (enabled) => { if (enabled) pomodoro?.reconcile(); else pomodoro?.pause() })
     plugins.mountService('mail', (enabled) => campus?.setEnabled(enabled))
@@ -268,6 +273,7 @@ app.on('before-quit', (event) => {
     if (closing) return
     closing = true
     pomodoro?.dispose()
+    quill?.dispose()
     const closeCampus = campus?.close()
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()

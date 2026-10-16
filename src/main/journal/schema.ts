@@ -65,6 +65,8 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('memory/access'), ids: z.array(id).max(10), requestId: id, sessionId: id }),
   z.strictObject({ type: z.literal('memory/summary'), summary: memorySummarySchema }),
   z.strictObject({ type: z.literal('save/restored'), archiveId: z.string().uuid(), restoreId: z.string().uuid(), exportedAtMs: z.number().int().nonnegative(), restoredAtMs: z.number().int().nonnegative() }),
+  z.strictObject({ type: z.literal('quill/ready'), id: opaqueId, sourceMemoryId: opaqueId, sourceEventId: opaqueId }),
+  z.strictObject({ type: z.literal('quill/given'), id: opaqueId }),
   z.strictObject({ type: z.literal('memory/operation'), operationId: id, kind: z.enum(['extract', 'compact', 'day', 'week', 'month']), source: z.enum(['real', 'fake']),
     status: z.enum(['started', 'success', 'failed']), reservedChars: z.number().int().nonnegative(), error: publicError.optional() }),
   z.strictObject({ type: z.literal('model/attempt'), turnId: id, slot: z.enum(['chat', 'background', 'chat_google', 'chat_claude', 'privacy']), attempt: z.number().int().positive(),
