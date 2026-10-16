@@ -16,6 +16,7 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
   }
   return <div aria-label="记忆与日会话控制">
     <h2>记忆与日会话</h2>
+    {snapshot.history && <p><button type="button" disabled={snapshot.history.captureStatus === 'capturing'} onClick={() => void send({ type: 'history.photo.capture' })}>保存当前场景照片</button> · {snapshot.history.captureStatus}{snapshot.history.captureError && ' · 照片未保存，可重试'}</p>}
     <p>{memory.source === 'fake' ? '合成经历 · fake 后台模型' : memory.source === 'none' ? '后台模型未配置' : '后台记忆模型'} · {memory.status}</p>
     <p>当前页 {session.dayKey} · 短期 {memory.shortTermCount} · 长期 {memory.longTermCount} · 上下文 {memory.contextChars} 字符</p>
     <p>只从实际模型可见记录抽取；原文和整理成品不进入记忆。抽取在空闲时进行，新回合会让后台让路。</p>
@@ -40,6 +41,7 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
     }}><option value="">选择一页</option>{session.pages.map((info) => <option key={info.sessionId} value={info.sessionId}>{info.dayKey} · {info.messageCount} 条 · {info.summarized ? '有摘要' : '未生成摘要'}</option>)}</select></label>}
     {page && <section aria-label="历史聊天" className="memory-archive">
       <h3>{page.dayKey}</h3><button type="button" onClick={() => { request.current++; setPage(null); setPageId('') }}>收起旧页</button>
+      {page.photo && <img data-history-photo src={page.photo.imageUrl} alt={`${page.dayKey} 保存的场景照片`} style={{ maxWidth: '100%', maxHeight: 240 }} />}
       {page.messages.map((message) => <p key={message.id}>{message.role === 'user' ? '你' : '她'}：{message.text}</p>)}
       {page.truncated && <p>当前仅显示这一页末尾的有限聊天；完整记录仍在本机日志中。</p>}
     </section>}
