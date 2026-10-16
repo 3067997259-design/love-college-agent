@@ -82,12 +82,26 @@ describe('background memory scheduling and context assembly', () => {
     expect(selected.filter((summary) => summary.level === 'day' && summary.period > '2026-10-11')).toHaveLength(7)
     // 引用总条数仍受预算限制，宽摘要不能把上下文挤成无界增长。
     expect(selected.length).toBeLessThanOrEqual(13)
+    expect(selected.reduce((sum, summary) => sum + summary.text.length, 0)).toBeLessThanOrEqual(32_000)
     // 同一输入在生产调用路径（prepareContext 的 previousDaysReference）上也要带上更早的周摘要。
     f.turn('今天把上周的事情对一下。')
     const prepared = await f.memory.prepareContext('budget-turn', new AbortController().signal)
     const reference = prepared.messages.filter((message) => message.content.includes('previousDaysReference')).map((message) => message.content).join('\n')
     expect(reference).toContain('这一周2026-10-05'); expect(reference).toContain('可见经历2026-10-18')
     expect(reference).not.toContain('可见经历2026-10-05')
+  })
+  it('trims the reference text instead of letting one injection eat the context budget', () => {
+    const f = fixture(); f.clock.advanceBy(f.clock.parse('2026-10-19T12:00:00+08:00') - f.clock.nowMs())
+    const today = f.clock.iso(f.clock.nowMs()).slice(0, 10)
+    const long = '长'.repeat(5900)
+    for (const day of ['2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17', '2026-10-18']) {
+      f.repository.append({ type: 'memory/summary', summary: { id: 'day-' + day, level: 'day', period: day, text: long + day,
+        sources: [{ id: 'seen-' + day, sessionId: 's:' + day, frameSeq: 3, index: 1, offset: 0, atMs: f.clock.parse(day + 'T12:00:00+08:00') }], sourceSessionIds: ['s:' + day], source: 'fake' } })
+    }
+    const selected = summaryReferences(f.repository.view().summaries, 's:today', today, f.clock)
+    expect(selected.reduce((sum, summary) => sum + summary.text.length, 0)).toBeLessThanOrEqual(32_000)
+    // 未被裁到上限的最近几天保持全文；被裁的是较早的引用，不是最近的那份。
+    expect(selected.find((summary) => summary.period === '2026-10-18')?.text).toBe(long + '2026-10-18')
   })
   it('labels weeks at Shanghai Monday even around UTC Sunday', () => {
     const f = fixture()
