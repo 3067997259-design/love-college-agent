@@ -36,6 +36,8 @@ import { captureHistoryScene } from './history/capture'
 import { createHistoryRecall, type HistoryRecall } from './history/recall'
 import { createVoice, type VoiceService } from './voice/service'
 import { readVoiceConfig, createSpeechPort, createFakeVoice } from './voice/port'
+import { createDeskComputer, type DeskComputer } from './computer/service'
+import { openDeskPreview } from './computer/preview'
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'lca-media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 import { createAppController } from './bridge/controller'
@@ -131,6 +133,7 @@ let quill: QuillService | undefined
 let gifts: GiftService | undefined
 let heartFlow: HeartFlowService | undefined
 let voice: VoiceService | undefined
+let computer: DeskComputer | undefined
 let minecraft: MinecraftService | undefined
 let minecraftChat: MinecraftChat | undefined
 let life: LifeService | undefined
@@ -389,6 +392,10 @@ void app.whenReady().then(async () => {
     delegates = createDelegates({ store, clock, model: prepared.developer ? createFakeDelegateModel() : taskModels.delegate,
       flowId: () => heartFlow?.active() ? heartFlow.view().activeId : null, read: (path) => heartFlow!.read(path), changed: () => controller?.refresh('task') })
     heartFlow.attachDelegates(delegates)
+    computer = createDeskComputer({ store, clock, assets: binaryAssets, allowed: () => !!heartFlow?.active() && heartFlow.view().mode === 'execute' && !store!.projection().lightsOut && !prepared.booth,
+      flowId: () => heartFlow?.view().activeId ?? null, read: (path) => heartFlow!.read(path), open: openDeskPreview, changed: () => controller?.refresh('task') })
+    heartFlow.attachComputer(computer)
+    scheduler.schedule('computer.guard', clock.nowMs() + 250, () => computer?.stateChanged(), { everyMs: 250 })
     lifeWork = createLifeWork({ store, clock, scheduler, desk, developer: prepared.developer, model: prepared.developer ? createFakeLifeWorkModel() : null,
       available: () => {
         const projection = store!.projection(); const timer = projection.pomodoro
@@ -407,7 +414,7 @@ void app.whenReady().then(async () => {
       available: () => !harness?.isBusy() && !heartFlow?.active() && !lifeWork?.active() && !minecraft?.active() && !backup?.isBusy() && controller?.getSnapshot().onboarding?.status === 'completed',
       changed: () => controller?.refresh('task'), protectCredential: (value) => { if (value && !privateCredentials.includes(value)) privateCredentials.push(value) } })
     controller.attachOptical(optical)
-    notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => heartFlow?.view().pending?.id, changed: () => controller?.refresh('connection'),
+    notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => heartFlow?.view().pending?.id ?? computer?.view().pending?.id, changed: () => controller?.refresh('connection'),
       notify: ({ title, body }) => { if (prepared.developer || prepared.booth || !Notification.isSupported()) return; const notification = new Notification({ title, body, silent: true }); notification.on('click', () => { const view = controller!.getSnapshot(); controller!.dispatch({ protocolVersion: 1, requestId: randomUUID(), epoch: view.epoch, type: 'window.expand' }) }); notification.show() } })
     controller.attachNotifications(notifications)
     character = createCharacterService({ library: characterLibrary, active: activeCharacter, settings: prepared.pluginSettings, assets: binaryAssets, busy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!backup?.isBusy(), changed: () => controller?.refresh('connection'),
@@ -417,7 +424,7 @@ void app.whenReady().then(async () => {
       chooseExport: async () => { const result = await dialog.showSaveDialog({ title: '导出静态角色包（不含私人资料）', defaultPath: 'character.lca-character', filters: [{ name: '角色包', extensions: ['lca-character'] }] }); return result.canceled ? null : result.filePath ?? null } })
     controller.attachCharacter(character)
     plugins.registerBuiltin('notifications', '急件与提醒标准', notificationTools(notifications))
-    plugins.registerBuiltin('coding', '书桌编码', [...deskTools(heartFlow), ...delegates.tools])
+    plugins.registerBuiltin('coding', '书桌编码', [...deskTools(heartFlow), ...delegates.tools, ...computer.tools()])
     plugins.registerBuiltin('life-work', '自主阅读与写作', [])
     plugins.registerBuiltin('optical-memory', '可选光学记忆', [optical.tool()])
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
@@ -459,8 +466,10 @@ void app.whenReady().then(async () => {
     minecraftChat = createMinecraftChat({ root: join(dataDir, 'minecraft'), clock, mainStore: store, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), game: () => minecraft!, enabled: () => modelReady,
       persona: () => ({ name: controller!.getSnapshot().onboarding?.characterName ?? '桃子', persona: activeCharacter.persona }), credentials: privateCredentials, changed: () => controller?.refresh('message') })
     controller.attachMinecraft(minecraft, minecraftChat, mcpFixture ? (scenario) => mcpFixture!.game.select(scenario) : undefined)
-    harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
-      prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); return heartFlow!.active() ? preparedContext : recall!.prepare(id, preparedContext) }, foreground: () => { memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, userWork: () => life?.foreground(),
+    harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
+      prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); if (!heartFlow!.active()) return recall!.prepare(id, preparedContext)
+        const seen = new Set<string>(); const messages = preparedContext.messages.slice().reverse().map((message) => { if (!message.imageRefs) return message; const imageRefs = message.imageRefs.filter((ref) => { if (seen.has(ref) || seen.size >= 2) return false; seen.add(ref); return true }); return { ...message, imageRefs } }).reverse(); return { ...preparedContext, messages }
+      }, foreground: () => { memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, userWork: () => life?.foreground(),
       settled: () => { heartFlow?.settled(); voice?.observe() }, failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     const voiceConfig = prepared.developer ? null : await readVoiceConfig(providersFile)
     voice = createVoice({ store, clock, port: prepared.developer ? createFakeVoice(clock) : voiceConfig ? createSpeechPort(voiceConfig) : null,

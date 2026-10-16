@@ -4,6 +4,7 @@
 
 | 接口提交 | 范围 | 实际可接入口 |
 | --- | --- | --- |
+| `65dc9b4` | 隔离书桌预览 | heartFlow.computer、flow.computer.open/close/approve；朴素控制与原生静态预览、真实截图／多模态 HTTP／逐次审批及恢复通过。主进程只开用户所选 desk HTML，每动作确认，画面仅看元数据；不是整机控制，详见 computer-third-circle.md |
 | `ed1dad0` | 书桌影子提交证据 | heartFlow.changes 与用户 diff 的 shadow 状态／SHA；真实独立 Git 与恢复已验收，日志快照仍权威，非仓库／失败不虚报提交 |
 | `c54c2ba` | 输出语音 | snapshot.voice、voice.set/stop/playback、书本 readVoice；主进程取消／预算／PCM 和唯一书本播放器已接。开发模式短测试音；真实供应商／音色待配置。嘴型可依 playback，mini 不重复播放，详见 voice-third-circle.md |
 | `7634e52` | 初始化／审查草稿 | flow.init/review/operation.open、heartFlow.operations；朴素入口已接真实书桌产物，ready 仅代表未审核文件。正文走原生用户预览；8 个来源／24 KB，取消／重启／私人恢复已验收 |

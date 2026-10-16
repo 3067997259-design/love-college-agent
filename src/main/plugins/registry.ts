@@ -11,6 +11,7 @@ import { manifestSchema, type PluginManifest } from './manifest'
 
 interface Entry { view: PluginView; manifest?: PluginManifest; folder?: string; code?: string; tools: HarnessTool[]; handlesPrivacy?: boolean }
 const resultSchema = z.strictObject({ ok: z.boolean(), raw: z.json(), visible: z.json(),
+  imageRefs: z.array(z.string().regex(/^work-frame:[a-f0-9]{64}$/)).max(1).optional(),
   fields: z.record(z.string().max(40), z.union([z.string().max(100), z.number().finite(), z.boolean()])).optional() })
 const hash = (text: string) => createHash('sha256').update(text).digest('hex')
 function contained(root: string, file: string) {

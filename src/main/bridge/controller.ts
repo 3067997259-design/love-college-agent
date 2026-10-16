@@ -40,6 +40,9 @@ import { goalTextSchema, goalStatusSchema } from '../heart-flow/goals'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('flow.computer.open'), path: z.string().min(1).max(180) }),
+  z.strictObject({ ...envelope, type: z.literal('flow.computer.close') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.computer.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('voice.set'), enabled: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('voice.stop'), utteranceId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('voice.playback'), utteranceId: z.string().uuid(), status: z.enum(['playing', 'ended', 'failed']) }),
@@ -453,6 +456,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     }
     minecraft?.stateChanged()
     voice?.stateChanged()
+    heartFlow?.stateChanged()
     requests.set(command.requestId, { signature, ack })
     if (requests.size > 1000) requests.delete(requests.keys().next().value!)
     return structuredClone(ack)

@@ -27,8 +27,10 @@ const publicError = z.strictObject({
 const step = z.strictObject({ id, text: z.string().max(500), status: z.enum(['pending', 'active', 'done', 'failed']) })
 const toolCall = z.strictObject({ id, name: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/), arguments: z.string().max(64_000) })
 export const contextMessageSchema = z.strictObject({ role: z.enum(['system', 'user', 'assistant', 'tool']), content: text,
+  imageRefs: z.array(z.string().regex(/^work-frame:[a-f0-9]{64}$/)).max(1).optional(),
   toolCallId: id.optional(), toolCalls: z.array(toolCall).max(16).optional() })
 export type ContextMessage = {
+  imageRefs?: string[]
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string
   toolCallId?: string
@@ -84,6 +86,8 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('companion/mode'), mode: z.enum(['work', 'quiet', 'rest']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/lights'), lightsOut: z.boolean(), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('voice/settings'), enabled: z.boolean() }),
+  z.strictObject({ type: z.literal('flow/computer-frame'), flowId: id, ref: z.string().regex(/^work-frame:[a-f0-9]{64}$/), asset: binaryAssetSchema.refine((asset) => asset.format === 'png' && asset.byteLength <= 131072), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),
+  z.strictObject({ type: z.literal('flow/computer-action'), flowId: id, approvalId: id, status: z.enum(['requested', 'denied', 'dispatched', 'failed', 'cancelled']), actionHash: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ type: z.literal('desk/shadow'), changeId: id, status: z.enum(['committed', 'not-git', 'unavailable', 'failed']), commit: z.string().regex(/^[a-f0-9]{40}$/).optional() }).refine((row) => (row.status === 'committed') === !!row.commit),
   z.strictObject({ type: z.literal('voice/attempt'), id, dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), charCount: z.number().int().min(1).max(1200), source: z.enum(['real', 'fake']) }),
   z.strictObject({ type: z.literal('mail/state'), view: mailboxSchema }),
@@ -111,6 +115,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('assistant/message'), id, turnId: id, text, status: z.enum(['complete', 'interrupted']), delivery: z.enum(['immediate', 'rest']).optional(), toolCalls: z.array(toolCall).max(16).optional() }),
   z.strictObject({ type: z.literal('tool/call'), turnId: id, callId: id, name: toolCall.shape.name, arguments: z.record(z.string(), z.json()), templateId: id }),
   z.strictObject({ type: z.literal('tool/result'), turnId: id, callId: id, ok: z.boolean(), raw: z.json(), visible: z.json(), elapsedMs: z.number().nonnegative(),
+    imageRefs: contextMessageSchema.shape.imageRefs,
     fields: z.record(z.string().max(40), z.union([z.string().max(100), z.number().finite(), z.boolean()])).optional() }),
   z.strictObject({ type: z.literal('plan/update'), turnId: id, steps: z.array(step).max(30) }),
   z.strictObject({ type: z.literal('context/inject'), source: z.enum(['policy', 'memory', 'scheduler']), text }),

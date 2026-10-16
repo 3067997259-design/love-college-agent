@@ -104,7 +104,7 @@ export function createHarness(options: {
           const seen = { messages: structuredClone([...messages]), eligibleIndexes: prepared ? [...prepared.eligibleIndexes] : messages.flatMap((message, index) => message.role === 'system' ? [] : [index]) }
           const definitions = [...currentTools().values()].map((tool) => tool.definition)
           const outputTokens = options.limits?.outputTokens ?? 2048
-          const reservation = Buffer.byteLength(JSON.stringify({ messages, tools: definitions }), 'utf8') + outputTokens + 1024
+          const reservation = Buffer.byteLength(JSON.stringify({ messages, tools: definitions }), 'utf8') + messages.reduce((n, message) => n + (message.imageRefs?.length ?? 0) * 16384, 0) + outputTokens + 1024
           const reply = await model.complete({ messages, tools: definitions, signal: turn.abort.signal, toolsExecuted, maxOutputTokens: outputTokens }, (attempt) => {
             const bucket = trigger === 'user' ? 'work' : 'autonomous'
             if (attempt.status === 'started') {
