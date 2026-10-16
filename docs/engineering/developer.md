@@ -2,7 +2,7 @@
 
 2026-10-16。默认关闭，通过“工具与设置”手动打开并重启。`LCA_BOOTH=1` 或主进程 settings 的 booth 标记优先，展位模式拒绝打开。正常模式不开本实现的 CDP/MCP；Playwright 验收进程的 inspector 由测试器建立，验收一律指定不存在的测试凭据文件或合成供应商。
 
-开发模式使用 `<数据根>/developer/<sceneId>/`，不会打开正常模式的日志／SQLite，也不读取真实 providers 文件。chat 是脚本假模型，隐私模型是显式 fake；邮件、Rodin、记忆尚未接通的能力仍显示 unavailable，没有伪装真实来源。退出开发者模式后重启回到原数据根。
+开发模式使用 `<数据根>/developer/<sceneId>/`，不会打开正常模式的日志／SQLite，也不读取真实 providers 文件。chat 是脚本假模型，隐私模型是显式 fake；Rodin、记忆尚未接通的能力仍显示 unavailable，没有伪装真实来源。退出开发者模式后重启回到原数据根。第一圈现已加入明确标记的合成邮箱，入口与原文边界见 [邮箱主线记录](mail-first-circle.md)。正常模式的真实邮箱仍为 blocked。
 
 CDP 默认主 checkout 9427、GPT worktree 9527；MCP 默认 5175/5275，均监听本机。通过 `LCA_CDP_PORT`、`LCA_MCP_PORT` 覆盖以隔离实例。CDP 无鉴权，仅开发模式开启。MCP 是内置 `developer` 插件的服务，停用插件关闭服务。
 
