@@ -7,4 +7,9 @@ import './design/tokens.css'
 import './app/base.css'
 
 const { bridge, fake } = resolveBridge()
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App bridge={bridge} fake={fake} /></React.StrictMode>)
+const root = createRoot(document.getElementById('root')!)
+if (fake && new URLSearchParams(location.search).get('view') === 'specimen') {
+  void import('./dev/Specimen').then(({ Specimen }) => root.render(<Specimen />))
+} else {
+  root.render(<React.StrictMode><App bridge={bridge} fake={fake} /></React.StrictMode>)
+}
