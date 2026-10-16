@@ -11,6 +11,7 @@ import { createPomodoro } from '../../src/main/pomodoro/service'
 import { pomodoroTools } from '../../src/main/pomodoro/tools'
 import { createHarness } from '../../src/main/harness/loop'
 import type { ModelClient, ModelReply } from '../../src/main/model/types'
+import { planSchema, viewSchema } from '../../src/main/pomodoro/schema'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
@@ -42,6 +43,35 @@ function begin(f: ReturnType<ReturnType<typeof fixture>['open']>) {
   expect(f.timer.start(planId)).toBeUndefined(); return planId
 }
 describe('durable Pomodoro phases through the single inbox', () => {
+  it('retains exact optional task items in the projection, confirmation, start and journal replay', async () => {
+    const base = fixture(); let f = base.open({ emit: false })
+    const items = [{ text: '读完课程材料', count: 1, assist: true }, { text: '自己完成练习', count: 1, assist: false }]
+    expect(f.timer.propose({ ...demo, items }, 'user')).toBeUndefined()
+    let plan = f.timer.read().plan!; expect(plan.items).toEqual(items); expect(viewSchema.safeParse(f.timer.read()).success).toBe(true)
+    f.timer.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'confirm-items', type: 'pomodoro.confirm', planId: plan.id })
+    f.timer.start(plan.id); expect(f.timer.read().plan!.items).toEqual(items)
+    await f.close(); f = base.open({ emit: false }); plan = f.timer.read().plan!
+    expect(plan.items).toEqual(items); expect(plan.status).toBe('confirmed')
+    expect(planSchema.safeParse(demo).success).toBe(true)
+    expect(planSchema.safeParse({ ...demo, items: [{ text: '桃'.repeat(40), count: 2, assist: true }] }).success).toBe(true)
+    expect(planSchema.safeParse({ ...demo, items: [{ text: '🍑'.repeat(40), count: 2, assist: false }] }).success).toBe(true)
+  })
+  it('rejects invalid item lengths, counts, sums and assist at both the model tool and service without appending facts', async () => {
+    const base = fixture(); const f = base.open({ emit: false }); const tool = pomodoroTools(f.timer).find((tool) => tool.definition.name === 'plan_pomodoros')!
+    for (const items of [[], [{ text: '桃'.repeat(41), count: 2, assist: true }], [{ text: '🍑'.repeat(41), count: 2, assist: true }],
+      [{ text: '   ', count: 2, assist: true }], [{ text: '第一行\n第二行', count: 2, assist: true }], [{ text: '任务', count: 0, assist: true }],
+      [{ text: '任务', count: 1.5, assist: true }], [{ text: '任务', count: 1, assist: true }], [{ text: '任务', count: 3, assist: true }],
+      [{ text: '任务', count: 2, assist: 'yes' }], [{ text: '任务', count: 2 }]]) {
+      const input = { ...demo, items }; const before = f.store.records().length
+      expect(tool.validate(input)).toBe(false)
+      const result = await tool.run(input, { signal: new AbortController().signal } as Parameters<typeof tool.run>[1])
+      expect(result).toMatchObject({ ok: false, visible: { error: 'invalid-command' } }); expect(f.store.records()).toHaveLength(before)
+    }
+    const input = { ...demo, items: [{ text: '课程资料', count: 2, assist: true }] }
+    expect(tool.validate(input)).toBe(true)
+    expect((await tool.run(input, { signal: new AbortController().signal } as Parameters<typeof tool.run>[1])).ok).toBe(true)
+    expect(f.timer.read().plan!.items).toEqual(input.items)
+  })
   it('requires user confirmation, uses long breaks, and waits before the next focus', async () => {
     const base = fixture(); const f = base.open(); const planId = begin(f)
     expect(f.store.projection().mode).toBe('quiet'); expect(f.store.projection().messages).toHaveLength(0)
