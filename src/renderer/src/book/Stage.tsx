@@ -1,7 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { AppBridge, AppSnapshot } from '../../../shared'
 import { useRootAmbience } from './ambience'
+import { sendCommand } from './command'
 import { LeftPage } from './LeftPage'
+import { QuillDock } from './quill/QuillDock'
 import { RightPage } from './RightPage'
 import './book.css'
 
@@ -44,6 +46,7 @@ export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: App
           <LeftPage snapshot={snapshot} bridge={bridge} />
           <div className="gutter" aria-hidden />
           <RightPage snapshot={snapshot} bridge={bridge} />
+          <QuillDock snapshot={snapshot} onExport={() => { void sendCommand(bridge, snapshot.epoch, { type: 'backup.export' }) }} />
           <nav className="bookmarks" aria-label="书签">
             {TABS.map((tab, i) => (
               <button key={tab} className="bookmark" data-active={i === 0} aria-current={i === 0 ? 'page' : undefined}>{tab}</button>

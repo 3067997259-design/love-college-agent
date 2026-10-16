@@ -38,6 +38,25 @@ export function formatClock(ms: number): string {
   return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`
 }
 
+/** 毫秒时间戳 → 10月17日 14:20（UTC+8） */
+export function formatDateTime(ms: number): string {
+  const { month, day } = civilFromDays(Math.floor((ms + OFFSET_MS) / 86_400_000))
+  return `${month}月${day}日 ${formatClock(ms)}`
+}
+
+/** Howard Hinnant 的 civil_from_days：1970-01-01 起的天数 → 公历日期 */
+export function civilFromDays(z: number) {
+  z += 719468
+  const era = Math.floor(z / 146097)
+  const doe = z - era * 146097
+  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365)
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100))
+  const mp = Math.floor((5 * doy + 2) / 153)
+  const day = doy - Math.floor((153 * mp + 2) / 5) + 1
+  const month = mp < 10 ? mp + 3 : mp - 9
+  return { year: yoe + era * 400 + (month <= 2 ? 1 : 0), month, day }
+}
+
 /** 剩余毫秒 → 04:59 */
 export function formatRemaining(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000))

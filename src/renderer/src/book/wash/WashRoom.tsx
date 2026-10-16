@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Character, sceneSrc } from '../Character'
 import type { CharacterArt } from '../characterArt'
+import { QuillArt } from '../quill/QuillArt'
 import { WashRenderer, type Frame, type Layer } from './renderer'
 import { dryness, noiseAmplitude, transitionKind, washProgress, washRadius } from './wash-math'
 
@@ -26,6 +27,8 @@ interface Transition { kind: 'wash' | 'crossfade'; durationMs: number; startedAt
 export function WashRoom({ art, restoreId }: { art: CharacterArt; restoreId: string | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [fallback, setFallback] = useState(false)
+  // 恢复时笔尖点在她身上：这一次晕染的编号，动画放完就收起
+  const [quillTouch, setQuillTouch] = useState<string | null>(null)
   const engine = useRef<{
     renderer: WashRenderer
     current?: Layer
@@ -114,7 +117,7 @@ export function WashRoom({ art, restoreId }: { art: CharacterArt; restoreId: str
       const previous = state.current
       state.current = layer
       state.key = art.key
-      if (state.pendingRestore) { state.pendingRestore = undefined; start('wash', RESTORE_MS) }
+      if (state.pendingRestore) { setQuillTouch(state.pendingRestore); state.pendingRestore = undefined; start('wash', RESTORE_MS) }
       else if (kind === 'wash') start('wash', POSE_MS, previous)
       else if (kind === 'crossfade') start('crossfade', CROSSFADE_MS, previous)
       paint()
@@ -127,13 +130,24 @@ export function WashRoom({ art, restoreId }: { art: CharacterArt; restoreId: str
     const state = engine.current
     if (!state || !restoreId || playedRestore() === restoreId) return
     rememberRestore(restoreId)
-    if (state.current) { start('wash', RESTORE_MS); paint() }
+    if (state.current) { setQuillTouch(restoreId); start('wash', RESTORE_MS); paint() }
     else state.pendingRestore = restoreId
   }, [restoreId, fallback])
 
   // 退回 CSS 版：原来的径向遮罩把整景淡进纸里，没有铅笔层
   if (fallback) return <div className="room-color"><Character art={art} /></div>
-  return <canvas ref={canvasRef} className="room-wash" data-art={art.key} aria-hidden />
+  return (
+    <>
+      <canvas ref={canvasRef} className="room-wash" data-art={art.key} aria-hidden />
+      {/* 颜色从羽毛笔的笔尖晕开（体验设计 §2、视频第 18 镜） */}
+      {quillTouch && (
+        <div key={quillTouch} className="wash-quill" style={{ left: `${ORIGIN[0] * 100}%`, top: `${ORIGIN[1] * 100}%` }}
+          onAnimationEnd={() => setQuillTouch(null)}>
+          <QuillArt />
+        </div>
+      )}
+    </>
+  )
 }
 
 const PLAYED_KEY = 'lca:restore-wash'

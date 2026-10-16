@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, MessageView, PomodoroPlanView } from '../../../shared'
+import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, MessageView, PomodoroPlanView, QuillView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
-import { CandidateCard, DeliveryCard, PlanCard, TaskCard } from './cards'
+import { CandidateCard, DeliveryCard, GiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
 import { sendCommand, type CommandBody } from './command'
-import { formatClock } from './format'
+import { civilFromDays, formatClock } from './format'
 import { rhythmText, tomatoStates } from './plan'
 import { useCountdown } from './useCountdown'
 import { FileIntake } from '../tools/FileIntake'
@@ -13,6 +13,7 @@ type Item =
   | { kind: 'candidate'; at: number; id: string; view: CandidateView }
   | { kind: 'delivery'; at: number; id: string; view: DeliveryView }
   | { kind: 'plan'; at: number; id: string; view: PomodoroPlanView }
+  | { kind: 'gift'; at: number; id: string; view: QuillView }
   | { kind: 'task'; at: number; id: string }
 
 /**
@@ -21,7 +22,8 @@ type Item =
  */
 function useEnteringIds(snapshot: AppSnapshot): Set<string> {
   const seen = useRef<{ epoch: string; ids: Set<string> } | null>(null)
-  const ids = [...snapshot.candidates.map((c) => c.id), ...snapshot.deliveries.map((d) => d.id), ...(snapshot.pomodoro.plan ? [snapshot.pomodoro.plan.id] : [])]
+  const ids = [...snapshot.candidates.map((c) => c.id), ...snapshot.deliveries.map((d) => d.id), ...(snapshot.pomodoro.plan ? [snapshot.pomodoro.plan.id] : []),
+    ...(snapshot.quill?.state === 'given' ? [snapshot.quill.id] : [])]
   if (!seen.current || seen.current.epoch !== snapshot.epoch) {
     seen.current = { epoch: snapshot.epoch, ids: new Set(ids) }
     return new Set()
@@ -32,7 +34,9 @@ function useEnteringIds(snapshot: AppSnapshot): Set<string> {
 }
 
 export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: AppBridge }) {
-  const { messages, candidates, deliveries, task, activities, pomodoro, privacy } = snapshot
+  const { messages, candidates, deliveries, task, activities, pomodoro, privacy, quill, backup } = snapshot
+  // 恢复完成（或恢复失败）的回执一直留着，直到你点“好”收起（backup.cancel 清掉回执）
+  const restoreReceipt = backup && (backup.status === 'restored' || (backup.status === 'failed' && backup.error?.code === 'restore-failed')) ? backup : null
   const entering = useEnteringIds(snapshot)
   const streamRef = useRef<HTMLDivElement>(null)
   const [draft, setDraft] = useState('')
@@ -48,6 +52,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
     ...candidates.filter((c) => c.status !== 'ignored').map((view) => ({ kind: 'candidate' as const, at: view.createdAtMs, id: view.id, view })),
     ...deliveries.map((view) => ({ kind: 'delivery' as const, at: view.createdAtMs, id: view.id, view })),
     ...(pomodoro.plan ? [{ kind: 'plan' as const, at: pomodoro.plan.createdAtMs, id: pomodoro.plan.id, view: pomodoro.plan }] : []),
+    ...(quill?.state === 'given' && quill.givenAtMs !== null ? [{ kind: 'gift' as const, at: quill.givenAtMs, id: quill.id, view: quill }] : []),
     ...(task ? [{ kind: 'task' as const, at: lastUserAt + 0.5, id: task.id }] : []),
   ].sort((a, b) => a.at - b.at)
   const orphanActivities = activities.filter((a) => a.taskId !== task?.id)
@@ -55,7 +60,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
   useEffect(() => {
     const el = streamRef.current
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-  }, [items.length, messages.at(-1)?.text])
+  }, [items.length, messages.at(-1)?.text, restoreReceipt?.status])
 
   async function dispatch(body: CommandBody) {
     const result = await sendCommand(bridge, snapshot.epoch, body)
@@ -93,6 +98,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
               <DeliveryCard key={item.id} view={item.view} entering={entering.has(item.id)}
                 onOpen={(artifactId) => { void dispatch({ type: 'artifact.open', artifactId }) }} />
             )
+            case 'gift': return <GiftCard key={item.id} entering={entering.has(item.id)} />
             case 'plan': return (
               <PlanCard key={item.id} plan={item.view} pomodoro={pomodoro} entering={entering.has(item.id)}
                 onConfirm={() => { void dispatch({ type: 'pomodoro.confirm', planId: item.id }) }}
@@ -100,6 +106,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
             )
           }
         })}
+        {restoreReceipt && <RestoreCard view={restoreReceipt} onDone={() => { void dispatch({ type: 'backup.cancel' }) }} />}
         {orphanActivities.length > 0 && (
           <ul className="activities">
             {orphanActivities.map((a) => (
@@ -202,16 +209,4 @@ function dayTitle(ms: number): string {
   const days = Math.floor((ms + 8 * 3600_000) / 86_400_000)
   const { month, day } = civilFromDays(days)
   return `${month}月${day}日 ${WEEKDAYS[(days + 4) % 7]}`
-}
-/** Howard Hinnant 的 civil_from_days：天数 → 公历日期 */
-function civilFromDays(z: number) {
-  z += 719468
-  const era = Math.floor(z / 146097)
-  const doe = z - era * 146097
-  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365)
-  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100))
-  const mp = Math.floor((5 * doy + 2) / 153)
-  const day = doy - Math.floor((153 * mp + 2) / 5) + 1
-  const month = mp < 10 ? mp + 3 : mp - 9
-  return { year: yoe + era * 400 + (month <= 2 ? 1 : 0), month, day }
 }

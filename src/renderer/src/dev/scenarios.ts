@@ -187,6 +187,7 @@ export const SCENARIOS = {
     ],
     candidates,
     deliveries,
+    quill: { id: 'quill:fake', kind: 'quill', state: 'given', createdAtMs: T.sat1445 - 8_000, givenAtMs: T.sat1445 - 5_000, sourceMemoryId: 'mem:fake-first-work', sourceEventId: 'first-work:fake' },
   })),
 
   /** 她说到一半：流式输出 */

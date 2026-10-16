@@ -12,6 +12,4 @@
 .memory-item { margin-block: 7px; }
 .memory-item[data-superseded="true"] { opacity: .6; }
 .memory-archive { max-height: 300px; overflow: auto; overflow-wrap: anywhere; white-space: pre-wrap; }
-.quill-entry { position: fixed; left: 16px; bottom: 16px; z-index: 85; }
-.quill-entry button { padding: 8px 12px; border: 1px solid #b2a389; border-radius: 6px; color: #29241d; background: #fffaf3; font: 14px/1.5 system-ui, sans-serif; cursor: pointer; }
 .diagnostics-data pre { max-height: 240px; overflow: auto; overflow-wrap: anywhere; white-space: pre-wrap; font: 11px/1.4 monospace; }

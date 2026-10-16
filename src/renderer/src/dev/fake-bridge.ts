@@ -175,6 +175,23 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
         }
         return ack(command)
       }
+      if (command.type === 'backup.export') {
+        if (current.backup && ['exporting', 'validating', 'restoring'].includes(current.backup.status)) return ack(command, 'unavailable')
+        commit({ backup: { status: 'exporting', operationId: `fake-export-${current.revision}` } }, 'task')
+        // 预览里没有原生对话框：过一会儿当作写好了
+        const startedAt = performance.now()
+        const wait = () => {
+          if (current.backup?.status !== 'exporting') return
+          if (performance.now() - startedAt < 1200) { requestAnimationFrame(wait); return }
+          commit({ backup: { status: 'exported', operationId: current.backup.operationId, archiveId: 'fake-archive', exportedAtMs: current.clock.nowMs } }, 'task')
+        }
+        requestAnimationFrame(wait)
+        return ack(command)
+      }
+      if (command.type === 'backup.cancel') {
+        commit({ backup: { status: 'idle' } }, 'task')
+        return ack(command)
+      }
       // 其余命令明确拒绝，不假装执行过
       return ack(command, command.type.startsWith('pomodoro.') ? pomodoroCommand(command) : 'unavailable')
     },

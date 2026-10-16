@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppBridge, CandidateView, DeliveryView, EvidenceView, PlanStep, PomodoroPlanView, PomodoroView, TaskView, ActivityView } from '../../../shared'
+import type { AppBridge, BackupView, CandidateView, DeliveryView, EvidenceView, PlanStep, PomodoroPlanView, PomodoroView, TaskView, ActivityView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
-import { formatIso } from './format'
+import { formatDateTime, formatIso } from './format'
+import { QuillArt } from './quill/QuillArt'
 import { formatSpan, planSpanMs, rhythmText, tomatoStates } from './plan'
 
 /* —— 候选卡：证据 → 候选 → 确认，要让评委亲眼看到（体验设计 §2） —— */
@@ -138,6 +139,45 @@ export function PlanCard({ plan, pomodoro, entering, onConfirm, onDismiss }: {
         : plan.status === 'confirmed'
           ? <p className="card-stamp">排进今天了</p>
           : <p className={allDone ? 'card-stamp' : 'card-stamp card-stamp-muted'}>{allDone ? '做完了' : '收起了'}</p>}
+    </article>
+  )
+}
+
+/* —— 礼物卡：做完第一件真事以后，她把羽毛笔从左页递过来（第 13 镜）。预制礼物，不说成实时生成 —— */
+export function GiftCard({ entering }: { entering: boolean }) {
+  return (
+    <article className="card card-gift" data-entering={entering}>
+      <QuillArt className="gift-quill" />
+      <div className="gift-body">
+        <span className="card-source">她送你的</span>
+        <h3 className="card-title">一支羽毛笔</h3>
+        <p className="gift-text">做完第一件事以后，她把这支笔递给你。以后的私人存档，都从书缝里这支笔导出。</p>
+      </div>
+    </article>
+  )
+}
+
+/* —— 恢复结果卡：应用重启后才看得到；数字来自存档清单，不是渲染层自己数的 —— */
+export function RestoreCard({ view, onDone }: { view: BackupView; onDone: () => void }) {
+  const restored = view.status === 'restored'
+  const incoming = view.incoming
+  return (
+    <article className="card card-restore" data-status={view.status}>
+      <h3 className="card-title">{restored ? '存档恢复了' : '这次没恢复成功'}</h3>
+      {restored && incoming && (
+        <p className="restore-detail">
+          来自 {formatDateTime(incoming.savedAtMs)} 的{incoming.source === 'fake' ? '开发' : ''}存档：{incoming.pageCount} 页对话、{incoming.messageCount} 条聊天、{incoming.memoryCount} 条记忆、{incoming.deliveryCount} 份交付。
+        </p>
+      )}
+      <p className="restore-note">
+        {restored
+          ? (view.safetyBackupId ? '恢复之前，原来的数据先另存了一份。' : '')
+          : '现在用的还是恢复前的数据。'}
+        {!restored && view.error?.detailsId && <span className="notice-mark" title={`诊断编号 ${view.error.detailsId}`}>！</span>}
+      </p>
+      <footer className="card-actions">
+        <button className="btn btn-primary" onClick={onDone}>{restored ? '好' : '知道了'}</button>
+      </footer>
     </article>
   )
 }

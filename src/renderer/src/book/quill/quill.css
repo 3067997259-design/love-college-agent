@@ -1,0 +1,85 @@
+/* 羽毛笔：夹在书缝里，笔尖朝下，斜斜地跨过两页 */
+.quill-dock {
+  position: absolute;
+  left: calc(50% - 26px);
+  top: 548px;
+  z-index: 4;
+  width: 52px;
+  height: 260px;
+  pointer-events: none;
+}
+.quill-button {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  pointer-events: auto;
+  transform: rotate(16deg);
+  transform-origin: 50% 90%;
+  filter: drop-shadow(2px 6px 5px color-mix(in oklab, var(--lavender-shadow) 80%, rgb(60 50 80 / 0.45)));
+  transition: transform var(--dur) var(--ease-out), translate var(--dur) var(--ease-out);
+}
+.quill-button:hover:not(:disabled), .quill-button:focus-visible { translate: -3px -8px; transform: rotate(13deg); }
+.quill-button:focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 4px; border-radius: 12px; }
+.quill-button:disabled { cursor: progress; }
+.quill-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+/* 写存档的时候，笔尖像在纸上写字一样轻轻地动 */
+.quill-dock[data-status='exporting'] .quill-button { animation: quill-write 0.9s var(--ease-in-out) infinite; }
+@keyframes quill-write {
+  0%, 100% { translate: 0 0; }
+  25% { translate: 2px -3px; }
+  50% { translate: -1px -1px; }
+  75% { translate: 3px -2px; }
+}
+/* 结果写在笔尖下面的书缝里，不压右页的卡片，也不压左页她的话 */
+.quill-note {
+  position: absolute;
+  left: 50%;
+  top: 266px;
+  width: 136px;
+  translate: -62% 0;
+  rotate: -3deg;
+  font: 15px / 1.35 var(--font-hand);
+  text-align: center;
+  color: var(--ink-her);
+  pointer-events: auto;
+}
+.quill-note[data-failed='true'] { color: var(--graphite); }
+
+/* 礼物卡：她把笔递过来（第 13 镜） */
+.card-gift { display: flex; align-items: center; gap: 18px; }
+.gift-quill { flex: none; width: 34px; height: 170px; transform: rotate(-12deg); margin: -6px 2px -6px 4px; }
+.gift-body { display: grid; gap: 2px; }
+.gift-text { margin: 4px 0 0; font-size: 15px; line-height: 1.6; color: var(--graphite); }
+
+/* 恢复结果卡 */
+.card-restore .card-title { margin-top: 0; }
+.restore-detail { margin: 0; font-size: 16px; line-height: 1.6; color: var(--ink-her); }
+.restore-note { margin: 6px 0 0; font-size: 14px; color: var(--graphite); }
+
+/* 恢复时，笔从右下方（书写者那一侧）伸进来，笔尖点在她身上，颜色从这里晕开；随后笔退回去淡出。
+   羽毛落在她的手臂一侧，不挡脸 */
+.wash-quill {
+  position: absolute;
+  z-index: 2;
+  width: 40px;
+  height: 200px;
+  translate: -50% -100%;
+  transform: rotate(148deg);
+  transform-origin: 50% 100%;
+  pointer-events: none;
+  filter: drop-shadow(-2px -5px 5px rgb(60 50 80 / 0.28));
+  animation: quill-touch 2.8s var(--ease-out) both;
+}
+@keyframes quill-touch {
+  0% { opacity: 0; translate: calc(-50% + 26px) calc(-100% + 30px); }
+  14% { opacity: 1; translate: -50% -100%; }
+  58% { opacity: 1; translate: -50% -100%; }
+  100% { opacity: 0; translate: calc(-50% + 34px) calc(-100% + 40px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wash-quill { animation-duration: 1ms; }
+  .quill-dock[data-status='exporting'] .quill-button { animation: none; }
+}
