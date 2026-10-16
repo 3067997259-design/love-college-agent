@@ -28,6 +28,7 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
     <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}>工具与设置</button>
     {open && <section aria-label="工具与设置">
       <button type="button" onClick={() => setOpen(false)}>关闭</button>
+      {snapshot.windows && <button type="button" onClick={() => void send({ type: 'window.mini' })}>收起为迷你窗</button>}
       <MailboxControls bridge={bridge} snapshot={snapshot} />
       <DocumentControls bridge={bridge} snapshot={snapshot} />
       <MemoryControls bridge={bridge} snapshot={snapshot} />

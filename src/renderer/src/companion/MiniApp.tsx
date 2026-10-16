@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { AppBridge, AppSnapshot } from '../../../shared'
 import { connectBridge } from '../app/connect-bridge'
 import { sendCommand } from '../book/command'
@@ -14,9 +14,15 @@ import { MiniCompanion } from './MiniCompanion'
 export function MiniApp({ bridge, fake }: { bridge: AppBridge; fake: FakeBridge | null }) {
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null)
   useEffect(() => connectBridge(bridge, setSnapshot, () => setSnapshot(null)), [bridge])
+  const send = useCallback((body: Parameters<typeof sendCommand>[2]) => { void bridge.getSnapshot().then((current) => sendCommand(bridge, current.epoch, body)).catch(() => {}) }, [bridge])
+  useEffect(() => {
+    if (fake) return
+    const released = (event: PointerEvent) => send({ type: 'window.mini.hover', over: !!document.elementFromPoint(event.clientX, event.clientY)?.closest('.mini-paper') })
+    window.addEventListener('pointerup', released); window.addEventListener('pointercancel', released)
+    return () => { window.removeEventListener('pointerup', released); window.removeEventListener('pointercancel', released) }
+  }, [send, fake])
   if (!snapshot) return null
 
-  const send = (body: Parameters<typeof sendCommand>[2]) => { void sendCommand(bridge, snapshot.epoch, body) }
   const mini = fake
     ? <MiniCompanion snapshot={snapshot} onExpand={openBookPreview} onHover={() => {}} onMove={movePreviewFrame} />
     : (
