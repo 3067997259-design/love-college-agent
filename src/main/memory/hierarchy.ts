@@ -31,3 +31,31 @@ export function summaryReferences(summaries: readonly MemorySummary[], currentSe
   for (const summary of candidates) { if (summary.sourceSessionIds.some((id) => covered.has(id))) continue; selected.push(summary); summary.sourceSessionIds.forEach((id) => covered.add(id)) }
   return selected.sort((a, b) => b.period.localeCompare(a.period)).slice(0, 7)
 }
+
+/**
+ * Dependency freshness guard. A derived summary declares the child summaries it was built from in
+ * `parentSummaryIds`; once one of those children is superseded by a newer version of the same period,
+ * the derived text describes a state that no longer holds and must stop representing that period.
+ *
+ * A declared parent that is absent from `summaries` is treated as unknown, not stale: record loss is a
+ * different problem, and the existing behaviour for that case is preserved. Because validity is decided
+ * before `summaryReferences` deduplicates by source session, an invalidated wider summary no longer
+ * suppresses the narrower current summary that covers the same session.
+ */
+export function validSummaries(summaries: readonly MemorySummary[]): MemorySummary[] {
+  const byId = new Map(summaries.map((summary) => [summary.id, summary]))
+  const heads = new Map(summaries.map((summary) => [summary.level + ':' + summary.period, summary.id]))
+  const state = new Map<string, boolean>()
+  const valid = (summary: MemorySummary, path: ReadonlySet<string>): boolean => {
+    const cached = state.get(summary.id); if (cached !== undefined) return cached
+    if (path.has(summary.id)) return false
+    const next = new Set(path); next.add(summary.id)
+    const result = (summary.parentSummaryIds ?? []).every((id) => {
+      const parent = byId.get(id); if (!parent) return true
+      if (heads.get(parent.level + ':' + parent.period) !== id) return false
+      return valid(parent, next)
+    })
+    state.set(summary.id, result); return result
+  }
+  return summaries.filter((summary) => valid(summary, new Set()))
+}
