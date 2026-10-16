@@ -1,4 +1,4 @@
-import type { PomodoroPlanInput, PublicError } from './state'
+import type { DocumentScenarioId, MailScenarioId, PomodoroPlanInput, PublicError } from './state'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -17,18 +17,27 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'pomodoro.resume' }
   | { type: 'pomodoro.pause' }
   | { type: 'pomodoro.stop' }
-  | { type: 'candidate.confirm'; candidateId: string }
-  | { type: 'candidate.ignore'; candidateId: string }
+  | { type: 'mail.scan' }
+  /** Real candidate mutations require the rendered revision; omissions reject at runtime. */
+  | { type: 'candidate.confirm'; candidateId: string; expectedRevision?: number; plannedCompletionIso?: string | null }
+  | { type: 'candidate.ignore'; candidateId: string; expectedRevision?: number }
+  | { type: 'campus.export' }
   | { type: 'artifact.open'; artifactId: string }
   | { type: 'backup.export' }
   | { type: 'backup.import' }
   | { type: 'privacy.set'; enabled: boolean }
+  | { type: 'document.attachment'; attachmentId: string }
+  | { type: 'document.retry'; documentId: string }
+  | { type: 'document.cancel'; documentId: string }
+  | { type: 'developer.documents'; scenarioId: DocumentScenarioId }
+  | { type: 'developer.document.import'; fixtureId: 'assignment-pdf' | 'notes-text' | 'malformed-pdf' | 'scanned-pdf' }
   | { type: 'plugin.enable'; pluginId: string; fingerprint: string }
   | { type: 'plugin.disable'; pluginId: string }
   | { type: 'plugin.privacy.set'; pluginId: string; privacy: 'none' | 'optional' | 'always' }
   | { type: 'developer.set'; enabled: boolean }
   | { type: 'developer.clock'; nowMs?: number; rate?: number; frozen?: boolean }
   | { type: 'developer.scenario'; scenarioId: 'empty' | 'clock-tool' | 'pomodoro-demo' }
+  | { type: 'developer.mailbox'; scenarioId: MailScenarioId }
   | { type: 'app.restart' }
 )
 

@@ -1,4 +1,5 @@
-import type { ActivityView, InteractionMode, MessageView, Scope, TaskView } from '../../shared'
+import type { ActivityView, InteractionMode, MessageView, PomodoroView, Scope, TaskView } from '../../shared'
+import { idleTimer } from '../pomodoro/schema'
 import type { ContextMessage, JournalRecord } from './schema'
 
 export interface SessionProjection {
@@ -12,6 +13,9 @@ export interface SessionProjection {
   evidenceSeqs: number[]
   context: ContextMessage[]
   requests: { requestId: string; commandHash: string }[]
+  pomodoro: PomodoroView
+  pomodoroPause: 'manual' | 'lights' | null
+  pomodoroEvents: { id: string; text: string }[]
 }
 
 /** Raw tool data is deliberately absent from both UI and model projections. */
@@ -19,16 +23,29 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
   const header = records[0]
   if (!header || header.type !== 'session/header') throw new Error('JOURNAL_HEADER_REQUIRED')
   const result: SessionProjection = { scope: { userId: header.userId, characterId: header.characterId, sessionId: header.sessionId },
-    lastSeq: 0, mode: 'rest', lightsOut: false, messages: [], activities: [], task: null, evidenceSeqs: [], context: [], requests: [] }
+    lastSeq: 0, mode: 'rest', lightsOut: false, messages: [], activities: [], task: null, evidenceSeqs: [], context: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [] }
   const context: { seq: number; message: ContextMessage }[] = []
   const compacted = records.filter((record) => record.type === 'context/compact')
   const inbox = new Map<string, ContextMessage>()
+  const heldMessages: MessageView[] = []
+  const quiet = () => result.mode === 'quiet' || result.pomodoro.phase === 'focus' || result.lightsOut
+  const release = () => { if (!quiet()) { result.messages.push(...heldMessages.splice(0)); result.messages.sort((a, b) => a.createdAtMs - b.createdAtMs) } }
   for (const record of records) {
     result.lastSeq = record.seq
     if ('requestId' in record) result.requests.push({ requestId: record.requestId, commandHash: record.commandHash })
     switch (record.type) {
-      case 'companion/mode': result.mode = record.mode; break
-      case 'companion/lights': result.lightsOut = record.lightsOut; break
+      case 'session/carry':
+        result.mode = record.mode; result.lightsOut = record.lightsOut; result.pomodoro = record.pomodoro
+        result.pomodoroPause = record.pomodoroPause; result.pomodoroEvents = record.pomodoroEvents
+        break
+      case 'companion/mode': result.mode = record.mode; release(); break
+      case 'companion/lights': result.lightsOut = record.lightsOut; release(); break
+      case 'pomodoro/state':
+        result.pomodoro = record.view; result.pomodoroPause = record.pauseReason
+        if (record.mode) result.mode = record.mode
+        release()
+        if (record.event) result.pomodoroEvents.push(record.event)
+        break
       case 'user/message':
         result.messages.push({ id: record.id, role: 'user', text: record.text, createdAtMs: record.atMs, status: 'complete' })
         inbox.set(record.id, { role: 'user', content: record.text })
@@ -41,7 +58,7 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
         for (const id of record.ids) { inbox.delete(id); const message = result.messages.find((item) => item.id === id); if (message) message.status = 'undelivered' }
         break
       case 'assistant/message':
-        if (record.text) result.messages.push({ id: record.id, role: 'assistant', text: record.text, createdAtMs: record.atMs, status: record.status })
+        if (record.text) (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'assistant', text: record.text, createdAtMs: record.atMs, status: record.status })
         context.push({ seq: record.seq, message: { role: 'assistant', content: record.text, ...(record.toolCalls?.length ? { toolCalls: record.toolCalls } : {}) } }); break
       case 'turn/start': result.task = { id: record.turnId, status: 'running', steps: [] }; break
       case 'turn/cancelling': if (result.task?.id === record.turnId) result.task.status = 'cancelling'; break

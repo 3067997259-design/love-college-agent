@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
-    build: { rollupOptions: { output: { format: 'cjs', entryFileNames: 'index.cjs' } } },
+    build: { rollupOptions: { input: { index: resolve('src/main/index.ts'), documentWorker: resolve('src/main/documents/pdf-worker.ts') }, output: { format: 'cjs', entryFileNames: '[name].cjs' } } },
   },
   preload: {
     plugins: [externalizeDepsPlugin()],

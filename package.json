@@ -28,7 +28,15 @@
     "preview:ui": "node scripts/ui-preview.mjs",
     "shot:ui": "node scripts/ui-shot.mjs",
     "probe:harness": "pnpm build && node scripts/probe-electron.mjs harness",
-    "test:harness": "pnpm build && node scripts/smoke-harness.mjs"
+    "test:harness": "pnpm build && node scripts/smoke-harness.mjs",
+    "test:developer": "pnpm build && node scripts/smoke-developer.mjs",
+    "package:win": "node scripts/package-win.mjs",
+    "test:package": "node scripts/smoke-package.mjs",
+    "test:pomodoro": "pnpm build && node scripts/smoke-pomodoro.mjs",
+    "test:pomodoro:realtime": "pnpm build && node scripts/smoke-pomodoro.mjs --real-time",
+    "probe:pomodoro": "pnpm build && node scripts/probe-electron.mjs pomodoro",
+    "probe:campus": "pnpm build && node scripts/probe-electron.mjs campus",
+    "test:campus": "pnpm build && node scripts/smoke-campus.mjs"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",
@@ -54,6 +62,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
     "electron": "44.7.2",
+    "electron-builder": "26.15.3",
     "electron-vite": "6.0.0",
     "eslint": "10.12.0",
     "globals": "17.13.0",

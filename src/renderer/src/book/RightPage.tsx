@@ -32,6 +32,8 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
   const entering = useEnteringIds(snapshot)
   const streamRef = useRef<HTMLDivElement>(null)
   const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const [commandError, setCommandError] = useState('')
 
   // 任务卡没有时间戳：放在发起它的那条用户消息、以及她紧接着的那句应答后面
   const lastUserIndex = messages.findLastIndex((m) => m.role === 'user')
@@ -50,15 +52,20 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [items.length, messages.at(-1)?.text])
 
-  function dispatch(body: DistributiveOmit<AppCommand, 'protocolVersion' | 'requestId' | 'epoch'>) {
+  async function dispatch(body: DistributiveOmit<AppCommand, 'protocolVersion' | 'requestId' | 'epoch'>) {
     const command = { protocolVersion: 1, requestId: crypto.randomUUID(), epoch: snapshot.epoch, ...body } as AppCommand
-    void bridge.dispatch(command)
+    try {
+      const ack = await bridge.dispatch(command)
+      setCommandError(ack.status === 'rejected' ? (ack.error.code === 'not-configured' ? '聊天模型尚未连接，文字已保留。' : '当前操作未完成，请稍后重试。') : '')
+      return ack.status === 'accepted'
+    } catch { setCommandError('连接暂时中断，文字已保留。'); return false }
   }
-  function send() {
+  async function send() {
     const text = draft.trim()
-    if (!text) return
-    dispatch({ type: 'message.send', text })
-    setDraft('')
+    if (!text || sending) return
+    setSending(true)
+    try { if (await dispatch({ type: 'message.send', text })) setDraft((current) => current.trim() === text ? '' : current) }
+    finally { setSending(false) }
   }
 
   return (
@@ -74,12 +81,12 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
             case 'message': return <Message key={item.id} view={item.view} />
             case 'task': return task && <TaskCard key={item.id} task={task} activities={activities} />
             case 'candidate': return (
-              <CandidateCard key={item.id} view={item.view} bridge={bridge} entering={entering.has(item.id)}
-                onCommand={(type, candidateId) => dispatch({ type, candidateId })} />
+              <CandidateCard key={`${item.id}:${item.view.revision ?? 0}`} view={item.view} bridge={bridge} entering={entering.has(item.id)}
+                onCommand={(type, candidateId, expectedRevision, plannedCompletionIso) => { void dispatch(type === 'candidate.confirm' ? { type, candidateId, expectedRevision, plannedCompletionIso } : { type, candidateId, expectedRevision }) }} />
             )
             case 'delivery': return (
               <DeliveryCard key={item.id} view={item.view} entering={entering.has(item.id)}
-                onOpen={(artifactId) => dispatch({ type: 'artifact.open', artifactId })} />
+                onOpen={(artifactId) => { void dispatch({ type: 'artifact.open', artifactId }) }} />
             )
           }
         })}
@@ -95,16 +102,17 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
       </div>
 
       <footer className="composer">
+        {commandError && <span role="alert" className="notice-mark" title={commandError} aria-label={commandError}>！</span>}
         {privacy.fileFilteringEnabled && <span className="filter-mark" title="/privacy 开着：附件和拖进来的文件只交给隐私模型">滤芯</span>}
         <textarea
           className="composer-input" rows={1} value={draft} placeholder="写点什么……"
           onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send() } }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send() } }}
         />
-        {task && (task.status === 'running' || task.status === 'queued')
-          ? <button className="btn btn-ghost" onClick={() => dispatch({ type: 'turn.stop', taskId: task.id })}>停止</button>
+        {task && (task.status === 'running' || task.status === 'queued' || task.status === 'waiting-user')
+          ? <button className="btn btn-ghost" onClick={() => { void dispatch({ type: 'turn.stop', taskId: task.id }) }}>停止</button>
           : null}
-        <button className="btn btn-primary" onClick={send} disabled={!draft.trim()}>发送</button>
+        <button className="btn btn-primary" onClick={() => { void send() }} disabled={!draft.trim() || sending}>发送</button>
       </footer>
       {pomodoro.phase === 'focus' && <div className="focus-veil" aria-hidden />}
     </section>

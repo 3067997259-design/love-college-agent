@@ -1,0 +1,12 @@
+[
+  { "name": "plan_pomodoros", "description": "Propose a Pomodoro plan for separate user confirmation. Never confirms or starts it.", "parameters": { "type": "object", "properties": {
+    "label": { "type": "string", "maxLength": 80 }, "plannedCount": { "type": "integer", "minimum": 1, "maximum": 24 },
+    "focusDurationMs": { "type": "integer", "minimum": 1000 }, "shortBreakDurationMs": { "type": "integer", "minimum": 1000 },
+    "longBreakDurationMs": { "type": "integer", "minimum": 1000 }, "longBreakEvery": { "type": "integer", "minimum": 1 },
+    "timing": { "type": "string", "enum": ["standard", "demo", "custom"] }
+  }, "required": ["label", "plannedCount", "focusDurationMs", "shortBreakDurationMs", "longBreakDurationMs", "longBreakEvery", "timing"], "additionalProperties": false } },
+  { "name": "start_focus", "description": "Start the next focus of an already user-confirmed plan. The next focus never starts automatically.", "parameters": { "type": "object", "properties": { "planId": { "type": "string" } }, "required": ["planId"], "additionalProperties": false } },
+  { "name": "pause", "description": "Pause the current Pomodoro timer without cancelling the plan.", "parameters": { "type": "object", "properties": {}, "additionalProperties": false } },
+  { "name": "stop", "description": "Stop the current Pomodoro plan.", "parameters": { "type": "object", "properties": {}, "additionalProperties": false } },
+  { "name": "get_timer", "description": "Read deterministic Pomodoro phase and remaining time.", "parameters": { "type": "object", "properties": {}, "additionalProperties": false } }
+]

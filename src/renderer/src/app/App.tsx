@@ -4,6 +4,7 @@ import { Stage } from '../book/Stage'
 import { ScenarioSwitcher } from '../dev/ScenarioSwitcher'
 import type { FakeBridge } from '../dev/fake-bridge'
 import { connectBridge } from './connect-bridge'
+import { ToolsPanel } from '../tools/ToolsPanel'
 
 export function App({ bridge, fake }: { bridge: AppBridge; fake: FakeBridge | null }): React.JSX.Element {
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null)
@@ -14,6 +15,7 @@ export function App({ bridge, fake }: { bridge: AppBridge; fake: FakeBridge | nu
   return (
     <>
       <Stage snapshot={snapshot} bridge={bridge} />
+      {!fake && <ToolsPanel bridge={bridge} snapshot={snapshot} />}
       {fake && <ScenarioSwitcher fake={fake} />}
     </>
   )

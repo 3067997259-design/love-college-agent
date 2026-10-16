@@ -2,14 +2,18 @@ import Database from 'better-sqlite3'
 import { join } from 'node:path'
 import type { Clock } from '../clock'
 import type { Scope } from '../../shared'
-import { openJournal, type Journal } from '../journal/file'
+import { journalLocation, openJournal, parseJournalContent, type Journal } from '../journal/file'
+import { readFileSync, readdirSync } from 'node:fs'
 import { projectJournal, type SessionProjection } from '../journal/projection'
 import type { JournalInput } from '../journal/schema'
+import { carryPreviousState } from './carry'
 
 export interface SessionStore {
   readonly scope: Scope
   projection(): SessionProjection
   records: Journal['records']
+  /** Scoped global facts for campus replay. Current-day model context still uses records(). */
+  history?(): ReturnType<Journal['records']>
   append(input: JournalInput): void
   close(): void
 }
@@ -18,6 +22,10 @@ export function openSessionStore(dataDir: string, owner: Pick<Scope, 'userId' | 
   const journal = openJournal(dataDir, owner, clock)
   let database: Database.Database | undefined
   try {
+    carryPreviousState(journal, dataDir, owner, clock)
+    const location = journalLocation(dataDir, owner, clock)
+    const history = readdirSync(location.folder).filter((name) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(name) && name < `${location.dayKey}.jsonl`).sort()
+      .flatMap((name) => parseJournalContent(readFileSync(join(location.folder, name), 'utf8'), owner))
     database = new Database(join(dataDir, 'projections.sqlite'))
     database.pragma('journal_mode = WAL')
     database.exec(`CREATE TABLE IF NOT EXISTS session_projections (
@@ -33,6 +41,7 @@ export function openSessionStore(dataDir: string, owner: Pick<Scope, 'userId' | 
     db.transaction(cache)()
     return {
       scope: journal.scope, projection: () => structuredClone(state), records: journal.records,
+      history: () => structuredClone([...history, ...journal.records()]),
       append: (input) => {
         journal.append(input)
         state = projectJournal(journal.records())

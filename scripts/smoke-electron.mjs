@@ -21,6 +21,11 @@ try {
   })
   assert.deepEqual(settings, { sandbox: true, contextIsolation: true, nodeIntegration: false })
   await page.locator('[data-mode][data-pose][data-location]').waitFor()
+  await page.getByRole('textbox').fill('synthetic unsent draft')
+  await page.getByRole('button', { name: '发送', exact: true }).click()
+  await page.getByRole('alert').waitFor()
+  assert.equal(await page.getByRole('textbox').inputValue(), 'synthetic unsent draft')
+  assert.equal((await page.evaluate(() => window.lca.getSnapshot())).messages.length, 0)
   const original = await page.evaluate(() => window.lca.getSnapshot())
   await page.evaluate(async () => {
     const snapshot = await window.lca.getSnapshot()

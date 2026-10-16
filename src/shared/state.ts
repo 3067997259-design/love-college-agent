@@ -10,7 +10,9 @@ export type InteractionMode = 'work' | 'quiet' | 'rest'
 export type Availability = 'unavailable' | 'unconfigured' | 'connecting' | 'ready' | 'failed'
 export type TaskStatus = 'queued' | 'running' | 'waiting-user' | 'cancelling' | 'completed' | 'aborted' | 'failed'
 export const PUBLIC_ERROR_CODES = ['invalid-command', 'stale-epoch', 'unavailable', 'not-configured', 'permission-denied', 'connection-failed', 'privacy-unavailable', 'internal',
-  'configuration-failed', 'upstream-busy', 'quota-exhausted', 'stream-interrupted', 'invalid-model-output', 'step-limit', 'repeat-limit', 'budget-exceeded'] as const
+  'configuration-failed', 'upstream-busy', 'quota-exhausted', 'stream-interrupted', 'invalid-model-output', 'step-limit', 'repeat-limit', 'budget-exceeded',
+  'privacy-invalid-output', 'evidence-unavailable', 'stale-candidate', 'export-failed', 'source-blocked',
+  'unsupported-file', 'file-too-large', 'file-unreadable', 'document-parse-failed', 'document-interrupted'] as const
 export type PublicErrorCode = typeof PUBLIC_ERROR_CODES[number]
 
 export interface PublicError {
@@ -66,6 +68,8 @@ export interface PluginView {
   status: 'enabled' | 'disabled' | 'needs-approval' | 'incompatible' | 'failed'
   tools: readonly string[]
   privacy: 'none' | 'optional' | 'always'
+  /** Mandatory source isolation cannot be weakened by a plugin preference. */
+  privacyLocked?: boolean
   permissions: readonly ('local-code' | 'network' | 'filesystem')[]
   /** Consent is bound to this exact manifest/code revision, never only a plugin name. */
   fingerprint: string
@@ -116,7 +120,13 @@ export interface CandidateView {
   plannedCompletionIso: string | null
   status: 'candidate' | 'confirmed' | 'changed' | 'ignored'
   eventStartIso?: string
+  eventEndIso?: string
   locationText?: string
+  /** Present on real IPC snapshots; optional only for older UI fixtures. */
+  revision?: number
+  source?: 'real' | 'fake'
+  /** A changed proposal leaves the previously accepted schedule in force until confirmed. */
+  change?: { previousDeadlineIso: string | null; previousEventStartIso?: string; previousEvidenceRef: string }
   /** Validated short label, not a raw subject or sender address. */
   sourceLabel: string
   /** Evidence is fetched separately for the user, never carried into model context. */
@@ -130,6 +140,7 @@ export interface DeliveryView {
   kind: 'calendar' | 'markdown' | 'document' | 'gift'
   status: 'ready' | 'failed'
   sourceRefs: readonly string[]
+  source?: 'real' | 'fake'
 }
 export interface EvidenceView {
   subject: string
@@ -137,12 +148,64 @@ export interface EvidenceView {
   receivedAtMs: number
   excerpt: string
   /** UTF-16 offsets into excerpt; start inclusive, end exclusive. */
-  highlights: readonly { start: number; end: number; field: 'deadlineIso' | 'eventStartIso' | 'locationText' | 'title' }[]
+  highlights: readonly { start: number; end: number; field: 'deadlineIso' | 'eventStartIso' | 'eventEndIso' | 'locationText' | 'title' }[]
+}
+export const MAIL_SCENARIO_IDS = ['initial', 'deadline-change', 'malicious', 'privacy-failure', 'empty'] as const
+export type MailScenarioId = typeof MAIL_SCENARIO_IDS[number]
+export interface MailboxView {
+  status: 'blocked' | 'idle' | 'scanning' | 'ready' | 'failed' | 'disabled'
+  source: 'real' | 'fake'
+  folderLabel: '桃子'
+  /** Null means not observed; failure is never converted to zero unread. */
+  unseenCount: number | null
+  lastAttemptAtMs: number | null
+  lastSuccessAtMs: number | null
+  processedCount: number
+  pendingReviewCount: number
+  scenarioId?: MailScenarioId
+  error?: PublicError
 }
 export interface CapabilityView {
   id: 'chat' | 'pomodoro' | 'mail' | 'privacy' | 'memory' | 'backup' | 'mcp' | 'rodin' | 'heart-flow'
   status: Availability
   source: 'real' | 'fake' | 'none'
+  error?: PublicError
+}
+export type DocumentFormat = 'pdf' | 'text' | 'markdown'
+export const DOCUMENT_SCENARIO_IDS = ['ready', 'privacy-failure', 'malicious'] as const
+export type DocumentScenarioId = typeof DOCUMENT_SCENARIO_IDS[number]
+export interface FileAttachmentView {
+  id: string
+  candidateId?: string
+  /** Code-generated label, never an original attachment name or local path. */
+  displayName: string
+  byteLength: number
+  format: DocumentFormat
+  source: 'real' | 'fake'
+}
+export interface DocumentView {
+  id: string
+  createdAtMs: number
+  updatedAtMs: number
+  displayName: string
+  origin: 'mail-attachment' | 'drop'
+  format: DocumentFormat
+  byteLength: number
+  source: 'real' | 'fake'
+  status: 'staged' | 'queued' | 'processing' | 'ready' | 'failed' | 'cancelled'
+  pageCount: number | null
+  deadlineIso: string | null
+  error?: PublicError
+}
+export interface DocumentsView {
+  jobs: readonly DocumentView[]
+  attachments: readonly FileAttachmentView[]
+  privacyAvailable: boolean
+  scenarioId?: DocumentScenarioId
+}
+export interface FileImportAck {
+  acceptedIds: readonly string[]
+  rejectedCount: number
   error?: PublicError
 }
 export interface AppSnapshot {
@@ -162,4 +225,8 @@ export interface AppSnapshot {
   privacy: { mode: 'follow-main' | 'isolated'; fileFilteringEnabled: boolean }
   /** Optional for older renderer fixtures; the real runtime supplies this. Never contains credentials. */
   runtime?: RuntimeView
+  /** Source health and counts only; no message headers or bodies. */
+  mailbox?: MailboxView
+  /** Metadata only. Neither extracted text nor generated document contents belong here. */
+  documents?: DocumentsView
 }

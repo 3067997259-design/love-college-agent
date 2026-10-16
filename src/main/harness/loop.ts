@@ -22,26 +22,33 @@ function errorCode(error: unknown): PublicErrorCode {
 }
 
 export function createHarness(options: {
-  store: SessionStore; clock: Clock; model: ModelClient; tools: readonly HarnessTool[]
+  store: SessionStore; clock: Clock; model: ModelClient; tools: readonly HarnessTool[]; getTools?: () => readonly HarnessTool[]
   changed?: (reason: AppEvent['reason']) => void
   failed?: () => void
+  enabled?: () => boolean
   limits?: { steps?: number; dailyTokens?: number; autonomousTokens?: number; outputTokens?: number }
 }) {
   const { store, clock, model } = options
-  const tools = new Map(options.tools.map((tool) => [tool.definition.name, tool]))
-  if (tools.size !== options.tools.length) throw new Error('DUPLICATE_TOOL')
+  const currentTools = () => {
+    const list = options.getTools?.() ?? options.tools
+    const tools = new Map(list.map((tool) => [tool.definition.name, tool]))
+    if (tools.size !== list.length) throw new Error('DUPLICATE_TOOL')
+    return tools
+  }
+  currentTools()
   const inbox: { id: string; source: 'user' | 'pomodoro' | 'mail' | 'autonomous' }[] = []
   let active: { id: string; abort: AbortController; stopping: boolean; pauseRequested: boolean } | undefined
   let worker: Promise<void> | undefined
   let disposed = false
   let resumeGate: (() => void) | undefined
   const record = (input: JournalInput) => { store.append(input); if (input.type !== 'model/attempt') options.changed?.(input.type === 'user/message' || input.type === 'assistant/message' ? 'message' : 'task') }
-  const eligible = () => !disposed && !store.projection().lightsOut && inbox.some((entry) => entry.source === 'user' || store.projection().mode !== 'quiet')
+  const quiet = () => { const view = store.projection(); return view.mode === 'quiet' || view.pomodoro.phase === 'focus' }
+  const eligible = () => !disposed && (options.enabled?.() ?? true) && !store.projection().lightsOut && inbox.some((entry) => entry.source === 'user' || !quiet())
   const drain = () => {
-    const quiet = store.projection().mode === 'quiet'
-    const entries = inbox.filter((entry) => entry.source === 'user' || !quiet)
+    const entries = inbox.filter((entry) => entry.source === 'user' || !quiet())
     for (const entry of entries) inbox.splice(inbox.indexOf(entry), 1)
     if (entries.length) record({ type: 'inbox/drain', ids: entries.map((entry) => entry.id) })
+    return entries.some((entry) => entry.source === 'user')
   }
   const finishOpenCalls = (turnId: string) => {
     const rows = store.records()
@@ -60,7 +67,10 @@ export function createHarness(options: {
     record({ type: 'turn/end', turnId: previous.id, reason: 'aborted' })
   }
   const consumed = new Set(store.records().flatMap((row) => row.type === 'inbox/drain' || row.type === 'inbox/drop' ? row.ids : []))
-  const undelivered = store.records().filter((row) => (row.type === 'user/message' || row.type === 'inbox/event') && !consumed.has(row.id)).map((row) => 'id' in row ? row.id : '')
+  const pending = store.records().filter((row) => (row.type === 'user/message' || row.type === 'inbox/event') && !consumed.has(row.id))
+  // Deterministic phase facts survive restart; interrupted user work still requires resubmission.
+  for (const row of pending) if (row.type === 'inbox/event' && (row.source === 'pomodoro' || row.source === 'mail')) inbox.push({ id: row.id, source: row.source })
+  const undelivered = pending.filter((row) => row.type !== 'inbox/event' || (row.source !== 'pomodoro' && row.source !== 'mail')).map((row) => 'id' in row ? row.id : '')
   for (let index = 0; index < undelivered.length; index += 32) record({ type: 'inbox/drop', ids: undelivered.slice(index, index + 32) })
 
   const run = async (trigger: 'user' | 'pomodoro' | 'mail' | 'autonomous') => {
@@ -70,6 +80,8 @@ export function createHarness(options: {
     const repeated = new Map<string, number>()
     const callIds = new Set<string>()
     let toolsExecuted = false
+    let userEngaged = trigger === 'user'
+    const delivery = () => !userEngaged && (quiet() || store.projection().lightsOut) ? { delivery: 'rest' as const } : {}
     let reason: Extract<JournalInput, { type: 'turn/end' }>['reason'] = 'completed'
     let failure: PublicErrorCode | undefined
     try {
@@ -77,9 +89,9 @@ export function createHarness(options: {
         try {
           turn.abort.signal.throwIfAborted()
           if (step >= (options.limits?.steps ?? 12)) throw new GuardFailure('max-steps', 'step-limit')
-          drain()
+          userEngaged = drain() || userEngaged
           const messages = store.projection().context
-          const definitions = options.tools.map((tool) => tool.definition)
+          const definitions = [...currentTools().values()].map((tool) => tool.definition)
           const outputTokens = options.limits?.outputTokens ?? 2048
           const reservation = Buffer.byteLength(JSON.stringify({ messages, tools: definitions }), 'utf8') + outputTokens + 1024
           const reply = await model.complete({ messages, tools: definitions, signal: turn.abort.signal, toolsExecuted, maxOutputTokens: outputTokens }, (attempt) => {
@@ -94,14 +106,15 @@ export function createHarness(options: {
           })
           turn.abort.signal.throwIfAborted()
           if (new Set(reply.toolCalls.map((call) => call.id)).size !== reply.toolCalls.length || reply.toolCalls.some((call) => callIds.has(call.id))) throw new GuardFailure('loop', 'repeat-limit')
-          record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: reply.text, status: 'complete', ...(reply.toolCalls.length ? { toolCalls: reply.toolCalls } : {}) })
+          record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: reply.text, status: 'complete',
+            ...delivery(), ...(reply.toolCalls.length ? { toolCalls: reply.toolCalls } : {}) })
           for (const call of reply.toolCalls) {
             turn.abort.signal.throwIfAborted()
             if (callIds.has(call.id)) throw new GuardFailure('loop', 'repeat-limit')
             callIds.add(call.id)
             let args: Record<string, unknown> | undefined
             try { const parsed: unknown = JSON.parse(call.arguments); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed as Record<string, unknown> } catch { /* A tool error, never execute concatenated/non-object JSON. */ }
-            const tool = tools.get(call.name)
+            const tool = currentTools().get(call.name)
             const signature = JSON.stringify([call.name, canonical(args ?? call.arguments)])
             const count = (repeated.get(signature) ?? 0) + 1
             repeated.set(signature, count)
@@ -122,7 +135,7 @@ export function createHarness(options: {
           if (!reply.toolCalls.length && !eligible()) break
         } catch (error) {
           if (turn.pauseRequested && !turn.stopping && !disposed) {
-            if (error instanceof ModelFailure && error.partialText) record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: error.partialText, status: 'interrupted' })
+            if (error instanceof ModelFailure && error.partialText) record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: error.partialText, status: 'interrupted', ...delivery() })
             finishOpenCalls(turn.id)
             record({ type: 'turn/paused', turnId: turn.id })
             if (store.projection().lightsOut) await new Promise<void>((resolve) => { resumeGate = resolve })
@@ -138,7 +151,7 @@ export function createHarness(options: {
       }
     } catch (error) {
       reason = turn.abort.signal.aborted ? 'aborted' : error instanceof GuardFailure ? error.reason : 'error'
-      if (error instanceof ModelFailure && error.partialText) record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: error.partialText, status: 'interrupted' })
+      if (error instanceof ModelFailure && error.partialText) record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: error.partialText, status: 'interrupted', ...delivery() })
       if (reason !== 'aborted') failure = errorCode(error)
     } finally {
       active = undefined
@@ -163,9 +176,10 @@ export function createHarness(options: {
       record({ type: 'user/message', id, text, requestId, commandHash })
       inbox.push({ id, source: 'user' }); kick()
     },
-    postEvent: (source: 'pomodoro' | 'mail' | 'autonomous', text: string) => {
-      if (disposed || inbox.length >= 32) throw new Error('INBOX_UNAVAILABLE')
-      const id = randomUUID(); record({ type: 'inbox/event', id, source, text }); inbox.push({ id, source }); kick()
+    postEvent: (source: 'pomodoro' | 'mail' | 'autonomous', text: string, eventId: string = randomUUID()) => {
+      if (store.records().some((row) => row.type === 'inbox/event' && row.id === eventId)) return false
+      if (disposed || inbox.length >= 32) return false
+      record({ type: 'inbox/event', id: eventId, source, text }); inbox.push({ id: eventId, source }); kick(); return true
     },
     stop: (taskId: string) => {
       if (!active || active.id !== taskId) return false

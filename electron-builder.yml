@@ -1,0 +1,34 @@
+appId: dev.lca.desktop
+productName: Love College Agent
+directories:
+  output: release
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+  - '!**/secrets/**'
+  - '!**/.local-data/**'
+asar: true
+asarUnpack:
+  - '**/*.node'
+npmRebuild: false
+electronDist: node_modules/electron/dist
+electronVersion: 44.7.2
+win:
+  executableName: LoveCollegeAgent
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  artifactName: Love-College-Agent-${version}-Setup.${ext}
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: false
+  createStartMenuShortcut: false
+  runAfterFinish: false
+  deleteAppDataOnUninstall: false
+publish: null
