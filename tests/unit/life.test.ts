@@ -73,3 +73,27 @@ it('uses a single departure guard and repairs legacy overlapping outings on rest
   expect(restarted.view().outings.every((outing) => outing.status === 'cut_short')).toBe(true)
   expect(restarted.view().locationId).toBe('room'); expect(restarted.view().items).toHaveLength(0)
 })
+it.each(['2026-10-17T17:00:00+08:00', '2026-10-17T23:50:00+08:00'])(
+  'settles a completed arrival-day outing when closed at %s', (closedAt) => {
+    const f = fixture(); f.clock.advanceBy(f.clock.parse(closedAt) - f.clock.nowMs()); f.life.close()
+    f.clock.advanceBy(f.clock.parse('2026-10-18T16:00:00+08:00') - f.clock.nowMs())
+    const restarted = createLife(f.options); f.scheduler.cancel('life.settle')
+    expect(restarted.view().outings).toMatchObject([{ offline: true, status: 'returned', startsAtMs: f.clock.parse('2026-10-18T15:00:00+08:00'), returnsAtMs: f.clock.nowMs() }])
+    expect(restarted.view().items).toHaveLength(1); expect(restarted.view().locationId).toBe('room')
+    expect(createLife(f.options).view()).toEqual(restarted.view()); f.scheduler.cancel('life.settle')
+  },
+)
+it('enumerates across midnight and only settles fully covered outings within 72 hours', () => {
+  const f = fixture(); f.clock.advanceBy(f.clock.parse('2026-10-17T23:50:00+08:00') - f.clock.nowMs()); f.life.close()
+  f.clock.advanceBy(20 * 60000)
+  const midnight = createLife(f.options); f.scheduler.cancel('life.settle'); expect(midnight.view().outings).toHaveLength(0)
+  f.clock.advanceBy(f.clock.parse('2026-10-20T16:00:00+08:00') - f.clock.nowMs())
+  const restarted = createLife(f.options); f.scheduler.cancel('life.settle')
+  expect(restarted.view().outings.filter((outing) => outing.offline)).toMatchObject([{ startsAtMs: f.clock.parse('2026-10-18T15:00:00+08:00') }])
+  expect(restarted.view().outings).toHaveLength(1); expect(restarted.view().items).toHaveLength(1)
+  // With an older saved watermark the window starts Saturday 16:00: Saturday's 15:00 trip is outside it.
+  const older = fixture(); older.life.close(); older.clock.advanceBy(3 * 86400000 + 6 * 3600000)
+  const bounded = createLife(older.options); older.scheduler.cancel('life.settle')
+  expect(bounded.view().outings.filter((outing) => outing.offline)).toHaveLength(1)
+  expect(bounded.view().outings[0].startsAtMs).toBe(older.clock.parse('2026-10-18T15:00:00+08:00'))
+})

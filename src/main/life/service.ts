@@ -51,7 +51,9 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
     if (options.restored && startup) { if (away) settle(away, Math.min(now, state.settledUntilMs), true); state.locationId = 'room'; state.settledUntilMs = now; save(); return }
     if (startup && previous && !wasLightsOut && now > state.settledUntilMs + 2 * 60000 && !working()) {
       const from = Math.max(state.settledUntilMs, now - 3 * DAY)
-      for (let dayAt = from; dayAt <= now; dayAt += DAY) {
+      // Start at Shanghai midnight, not the watermark's time-of-day: otherwise
+      // a late shutdown skips a completed trip on the earlier-hour arrival day.
+      for (let dayAt = clock.parse(calendarDay(clock, from) + 'T00:00:00+08:00'); dayAt <= now; dayAt += DAY) {
         const day = calendarDay(clock, dayAt); const start = clock.parse(day + 'T15:00:00+08:00'); const planned = makeOuting(day, start, true)
         if (!resting(day) || start < from || planned.returnsAtMs > now || state.outings.some((outing) => outing.id === planned.id)) continue
         planned.status = 'away'; state.outings.push(planned); settle(planned, planned.returnsAtMs, false); changed = true
