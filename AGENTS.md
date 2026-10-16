@@ -56,7 +56,7 @@
 
 ## 当前工程状态（2026-10-16，赛中）
 
-用户已于 2026-10-16 16:32（GMT+8）宣布开赛。已有 electron-vite + React + TypeScript + pnpm 脚手架、`src/shared/` 接口、受限 IPC、统一时钟、CI 和书本界面；better-sqlite3 已从源码重编译并在 Electron 内完成落盘重开验证。163 IMAP 在认证前连接重置，尚未打开邮箱；这不表示没有邮件。append-only 日志、SQLite 投影和模式状态的重启恢复已接通，兼容模型客户端和 chat 槽位真实流式探针已通过；最小 harness 已接通 inbox、守卫、取消、熄灯暂停与两个内置工具；番茄钟业务和完整邮件管线尚未实现。证据见 [首批记录](docs/engineering/first-hour.md) 与 [日志／执行底座](docs/engineering/journal-harness.md)。
+用户已于 2026-10-16 16:32（GMT+8）宣布开赛。第零圈底座已接通：脚手架、共享接口、受限 IPC、append-only 日志与 SQLite 投影、统一时钟与调度、模型客户端、最小 harness、插件加载器、隔离开发模式和调试 MCP、持久番茄钟及阶段事件。better-sqlite3 已源码重编译并在 Electron 与实际安装后的程序内验证；首个 Windows NSIS 安装包于 18:50 验收通过。类型、lint、49 项单测及 Electron 场景通过；真实 chat 流式／工具探针与真实 80 秒计时也有独立记录。163 IMAP 仍在认证前被重置，未打开邮箱，不代表没有邮件。完整邮件、记忆、私人存档恢复与自主生活仍属后续圈。总入口见 [第零圈记录](docs/engineering/zero-circle.md)，早期证据见 [首批记录](docs/engineering/first-hour.md) 与 [日志／执行底座](docs/engineering/journal-harness.md)。
 
 技术栈仍按 [技术方案](docs/tech-design.md) §1；界面与形象见 [体验设计](docs/experience-design.md)。首个工作展示必须贯通校园信息与实际资料处理，具体任务以 README 最新决策为准。
 
@@ -79,11 +79,17 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm probe:model` | 主进程 chat 槽位的有界极小流式请求，结果不含配置或回复正文 |
 | `pnpm probe:harness` | 真实 chat 模型调用代码时钟并结束回合的有界探针 |
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron 的发送／工具／停止／重启场景 |
+| `pnpm test:developer` | 隔离假模型、MCP 鉴权／时钟、文件夹插件授权、场景与展位拒绝 |
+| `pnpm test:pomodoro` | Electron 内确认计划、SQLite 截止点、重启、熄灯、中断 |
+| `pnpm test:pomodoro:realtime` | 正常模式真实计时约 80 秒，不用加速时钟 |
+| `pnpm probe:pomodoro` | 合成时钟＋实际 SQLite：跨 4 点重启与过期只结算一次 |
+| `pnpm package:win` | 构建 Windows x64 NSIS，产物在 `release/` |
+| `pnpm test:package` | 检查已构建包、D 盘测试安装、原生模块、界面重启、卸载测试实例 |
 | `pnpm probe:imap` | 主进程内的指定文件夹只读探针；失败仅输出固定分类 |
 
-不运行 `playwright install`。尚无安装包命令；electron-builder、model-viewer 和 Tailwind 的安装已说明延期，后续添加依赖单独提交。
+不运行 `playwright install`。electron-builder 26.15.3 已单独提交；model-viewer 和 Tailwind 仍延期。打包前先确认当前 Electron 的原生模块已通过 `rebuild:native`／`probe:sqlite`。安装包当前未签名；测试安装命令遇到已有同名用户安装会拒绝覆盖。
 
-GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER_PORT` 覆盖。数据默认 `<worktree>/.local-data`，可用 `LCA_DATA_DIR` 覆盖。远程调试默认关闭；本次仅在无凭据的 UI 启动检查中临时使用 9527，检查后关闭。调试 MCP 尚未实现，不能虚构可用端口。
+GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER_PORT` 覆盖。源码运行数据默认 `<worktree>/.local-data`，安装版用 Electron 用户数据目录，可用 `LCA_DATA_DIR` 覆盖。在“工具与设置”打开开发者模式并重启，才开启 CDP（GPT 9527，其他 9427）和本机鉴权 MCP（5275／5175），可用 `LCA_CDP_PORT`／`LCA_MCP_PORT` 覆盖。开发模式使用独立 profile、脚本假模型，完全不读真实 providers；展位模式 `LCA_BOOTH=1` 禁用调试。场景当前只是开发 fixture，完整 `.lca-save` 仍属第一圈。详见 [开发模式](docs/engineering/developer.md)。
 
 经本轮用户明确授权，IMAP 探针由主进程读取本机 `secrets/providers.json`；worktree 可用 `LCA_PROVIDERS_FILE` 指向原 checkout 的文件。不得通过 shell 打印、拷入仓库、传给 renderer／调试接口或记录配置值。未配置隐私模型时业务保持关闭；显式 fake 仅用于测试，不是运行失败后的回退。
 
