@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import type { AppCommand, AppEvent, AppSnapshot, CommandAck, PublicErrorCode, RuntimeView, ClockView } from '../../shared'
+import type { AppCommand, AppEvent, AppSnapshot, CommandAck, DiagnosticsView, PublicErrorCode, RuntimeView, ClockView } from '../../shared'
 import { DEFAULT_EXPRESSION, PROTOCOL_VERSION } from '../../shared'
 import type { Clock } from '../clock'
 import { deriveDaypart, type DaypartSchedule } from '../clock/daypart'
@@ -75,6 +75,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let mcp: McpService | undefined
   let backup: BackupService | undefined
   let quill: QuillService | undefined
+  let diagnostics: (() => DiagnosticsView) | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
     protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0,
@@ -260,6 +261,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachMcp: (port: McpService) => { mcp = port; publish('connection') },
     attachBackup: (port: BackupService) => { backup = port; publish('connection') },
     attachQuill: (port: QuillService) => { quill = port; publish('connection') },
+    attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },
+    readDiagnostics: () => { if (runtime?.view().developer.mode !== 'developer' || !diagnostics) throw new Error('DIAGNOSTICS_UNAVAILABLE'); return diagnostics() },
     readSession: (id: unknown) => {
       if (!memory || typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error('SESSION_UNAVAILABLE')
       try { return memory.readSession(id) } catch { throw new Error('SESSION_UNAVAILABLE') }

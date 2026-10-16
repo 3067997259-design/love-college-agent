@@ -12,6 +12,7 @@ export interface DevelopmentHandlers {
   enabled(): boolean
   state(): unknown
   context(): unknown
+  diagnostics(): unknown
   queue(): unknown
   clock(input: { nowMs?: number; rate?: number; frozen?: boolean }): unknown
   inject(input: { source: 'pomodoro' | 'mail' | 'autonomous'; text: string }): unknown
@@ -45,6 +46,7 @@ export async function startDevelopmentServer(root: string, port: number, handler
       }
       server.registerTool('get_state', { description: 'Read safe development state', inputSchema: {} }, reply(handlers.state))
       server.registerTool('get_context', { description: 'Read the model-visible projection only', inputSchema: {} }, reply(handlers.context))
+      server.registerTool('get_diagnostics', { description: 'Read safe turn counters, visible context, queue and retrieval scores only', inputSchema: {} }, reply(handlers.diagnostics))
       server.registerTool('get_queue', { description: 'Read named scheduled jobs', inputSchema: {} }, reply(handlers.queue))
       server.registerTool('set_clock', { description: 'Adjust the development clock', inputSchema: { nowMs: z.number().int().min(0).max(8_640_000_000_000_000).optional(), rate: z.number().min(0.01).max(3600).optional(), frozen: z.boolean().optional() } }, (input) => reply(() => handlers.clock(input))())
       server.registerTool('inject_event', { description: 'Inject explicit synthetic facts into the inbox', inputSchema: { source: z.enum(['pomodoro', 'mail', 'autonomous']), text: z.string().min(1).max(2000) } }, (input) => reply(() => handlers.inject(input))())
