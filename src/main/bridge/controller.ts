@@ -15,6 +15,7 @@ import type { DocumentService } from '../documents/service'
 import type { MemoryService } from '../memory/service'
 import type { McpService } from '../mcp/service'
 import type { BackupService } from '../backup/service'
+import type { QuillService } from '../gifts/quill'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
@@ -73,6 +74,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let memory: MemoryService | undefined
   let mcp: McpService | undefined
   let backup: BackupService | undefined
+  let quill: QuillService | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
     protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0,
@@ -151,6 +153,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       snapshot.backup = backup.view()
       snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'backup' ? { id: 'backup', status: snapshot.backup!.status === 'failed' ? 'failed' : 'ready', source: 'real' } : item)
     }
+    if (quill) snapshot.quill = quill.read()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
     const event: AppEvent = { protocolVersion: PROTOCOL_VERSION, epoch: snapshot.epoch, revision: snapshot.revision,
       occurredAtMs: snapshot.clock.nowMs, type: 'state.snapshot', reason, snapshot: structuredClone(snapshot), ...(requestId ? { requestId } : {}) }
@@ -256,6 +259,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachMemory: (port: MemoryService) => { memory = port; publish('connection') },
     attachMcp: (port: McpService) => { mcp = port; publish('connection') },
     attachBackup: (port: BackupService) => { backup = port; publish('connection') },
+    attachQuill: (port: QuillService) => { quill = port; publish('connection') },
     readSession: (id: unknown) => {
       if (!memory || typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error('SESSION_UNAVAILABLE')
       try { return memory.readSession(id) } catch { throw new Error('SESSION_UNAVAILABLE') }
