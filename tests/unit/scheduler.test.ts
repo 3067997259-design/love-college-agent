@@ -24,4 +24,12 @@ describe('shared scheduler and adjustable development clock', () => {
     adjustable.clock.after(10_000, called); adjustable.set({ nowMs: 50_000, frozen: true }); real.advanceBy(0)
     expect(called).toHaveBeenCalledTimes(2); adjustable.dispose()
   })
+  it('keeps interval cancellation valid after the first tick without cancelling its replacement', () => {
+    const clock = createManualClock(); const scheduler = createScheduler(clock); const callback = vi.fn()
+    const cancel = scheduler.schedule('repeat', 1000, callback, { everyMs: 1000 })
+    clock.advanceBy(1000); cancel(); clock.advanceBy(2000); expect(callback).toHaveBeenCalledTimes(1)
+    const old = scheduler.schedule('repeat', 4000, callback, { everyMs: 1000 })
+    scheduler.schedule('repeat', 4000, callback); old(); clock.advanceBy(1000)
+    expect(callback).toHaveBeenCalledTimes(2); scheduler.dispose()
+  })
 })
