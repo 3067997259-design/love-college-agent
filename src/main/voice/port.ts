@@ -2,15 +2,13 @@ import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import type { Clock } from '../clock'
 
-const configSchema = z.strictObject({ protocol: z.literal('openai-speech'), base_url: z.string().url(), api_key: z.string().min(1).max(4096), model: z.string().min(1).max(128), voice: z.string().min(1).max(128) })
-export type VoiceConfig = z.infer<typeof configSchema>
+export const voiceConfigSchema = z.strictObject({ protocol: z.literal('openai-speech'), base_url: z.string().url().max(4096).refine((value) => { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.hash && !url.search }), api_key: z.string().min(1).max(4096), model: z.string().min(1).max(128), voice: z.string().min(1).max(128) })
+export type VoiceConfig = z.infer<typeof voiceConfigSchema>
 export interface VoicePort { source: 'real' | 'fake'; synthesize(text: string, signal: AbortSignal, chunk: (pcm: Uint8Array) => void): Promise<void> }
 /** Main only. An explicit protocol, model and stock/designed voice are required; nothing defaults to another provider. */
 export async function readVoiceConfig(filename: string): Promise<VoiceConfig | null> {
   try {
-    const parsed = configSchema.parse(JSON.parse(await readFile(filename, 'utf8')).providers?.tts); const url = new URL(parsed.base_url)
-    if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.search) return null
-    return parsed
+    return voiceConfigSchema.parse(JSON.parse(await readFile(filename, 'utf8')).providers?.tts)
   } catch { return null }
 }
 export function createSpeechPort(config: VoiceConfig, transport: typeof fetch = fetch, source: VoicePort['source'] = 'real'): VoicePort {
