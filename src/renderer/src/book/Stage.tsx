@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { AppBridge, AppSnapshot } from '../../../shared'
+import { useRootAmbience } from './ambience'
 import { LeftPage } from './LeftPage'
 import { RightPage } from './RightPage'
 import './book.css'
@@ -28,21 +29,7 @@ function useFitScale() {
 export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: AppBridge }) {
   const { ref, scale } = useFitScale()
   const { companion } = snapshot
-
-  // 时段和熄灯挂在根元素上，设计 token 跟着切换（tokens.css）。
-  // 第一次显示直接到位，不从白天慢慢变暗；之后的切换才走平滑过渡。
-  const first = useRef(true)
-  useLayoutEffect(() => {
-    const root = document.documentElement
-    if (first.current) root.style.transition = 'none'
-    root.dataset.daypart = companion.daypart
-    root.dataset.lightsOut = String(companion.lightsOut)
-    if (first.current) {
-      first.current = false
-      void getComputedStyle(root).getPropertyValue('--paper') // 先让样式落定，再恢复过渡
-      requestAnimationFrame(() => { root.style.transition = '' })
-    }
-  }, [companion.daypart, companion.lightsOut])
+  useRootAmbience(companion)
 
   return (
     <div className="stage" ref={ref} data-mode={companion.mode} data-phase={snapshot.pomodoro.phase}
