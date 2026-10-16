@@ -32,6 +32,8 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'mcp.configure' }
   | { type: 'mcp.connect'; serverId: string; fingerprint: string }
   | { type: 'mcp.disconnect'; serverId: string }
+  /** Native file chooser. Model URLs, names and credentials stay in main. Restart applies the imported configuration. */
+  | { type: 'models.configure' }
   | { type: 'privacy.set'; enabled: boolean }
   | { type: 'document.attachment'; attachmentId: string }
   | { type: 'document.retry'; documentId: string }
