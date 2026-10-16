@@ -36,12 +36,25 @@ try {
   await waitFor((s) => s.mcp.error?.code === 'configuration-failed', 'INVALID_CONFIG_NOT_REJECTED'); safe(await snapshot())
   await instance.close(); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
   await launch(); await tools()
+  let nativeConsentCount = 0
+  await instance.evaluate(({ dialog }) => { dialog.showMessageBox = async (options) => {
+    if (options.title !== '核对 MCP 启动配置' || !options.detail.startsWith('服务地址：http://127.0.0.1:')) throw new Error('NATIVE_TARGET_REVIEW_MISSING')
+    return { response: 0, checkboxChecked: false }
+  } })
+  const refused = (await snapshot()).mcp.servers[0]
+  await send({ type: 'mcp.connect', serverId: refused.id, fingerprint: refused.fingerprint })
+  await page.waitForTimeout(200); assert.equal((await snapshot()).mcp.servers[0].status, 'disconnected')
+  await instance.evaluate(({ dialog }) => { globalThis.lcaNativeConsentCount = 0; dialog.showMessageBox = async (options) => {
+    if (options.title !== '核对 MCP 启动配置' || !options.detail.startsWith('服务地址：http://127.0.0.1:')) throw new Error('NATIVE_TARGET_REVIEW_MISSING')
+    globalThis.lcaNativeConsentCount++; return { response: 1, checkboxChecked: false }
+  } })
   for (const id of ['synthetic-public', 'synthetic-private']) {
     await page.locator(`.mcp-server[data-id="${id}"]`).getByRole('button', { name: '连接', exact: true }).click()
     await page.getByRole('alertdialog', { name: 'MCP 连接确认' }).getByRole('button', { name: '确认此配置并连接', exact: true }).click()
     await waitFor((s) => s.mcp.servers.find((server) => server.id === id)?.status === 'ready', 'MCP_CONNECTION_FAILED')
   }
   const server = (await snapshot()).mcp.servers[0]
+  nativeConsentCount = await instance.evaluate(() => globalThis.lcaNativeConsentCount); assert.equal(nativeConsentCount, 2)
   assert.equal((await send({ type: 'mcp.connect', serverId: server.id, fingerprint: '0'.repeat(64) })).error.code, 'permission-denied')
   await closeTools()
   const discovery = JSON.parse(await readFile(join(profile, 'debug-connection.json'), 'utf8')); client = new Client({ name: 'lca-mcp-smoke', version: '1.0.0' })

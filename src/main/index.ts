@@ -243,6 +243,12 @@ void app.whenReady().then(async () => {
     mcp = createMcpService({ clock, configPath: process.env.LCA_MCP_CONFIG ?? join(dataDir, 'connections/mcp.json'), source: prepared.developer ? 'fake' : 'real',
       privacyModel: prepared.developer ? createFakePrivacyModel() : taskModels.narrow, developmentConfig: mcpFixture?.config,
       chooseConfig: async () => { const selected = await dialog.showOpenDialog({ title: '导入 MCP 配置（配置仅由主进程读取）', properties: ['openFile'], filters: [{ name: 'MCP 配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
+      confirmConnection: async (id, config) => {
+        // Show the exact launch target only in a native, user-only dialog, never in renderer/debug projections.
+        const detail = 'command' in config ? ['程序：' + config.command, '参数（JSON 数组）：' + JSON.stringify(config.args), '工作目录：' + (config.cwd ?? '应用默认目录'), '环境变量名：' + Object.keys(config.env).join(', ')].join('\n') : '服务地址：' + config.url
+        const selected = await dialog.showMessageBox({ type: 'question', title: '核对 MCP 启动配置', message: '是否连接 ' + id + '？', detail, buttons: ['取消', '连接此配置'], defaultId: 0, cancelId: 0, noLink: true })
+        return selected.response === 1
+      },
       canConfigure: () => !harness?.isBusy(), changed: () => controller?.refresh('connection') })
     controller.attachMcp(mcp)
     harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: () => [...plugins.tools(), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason),
