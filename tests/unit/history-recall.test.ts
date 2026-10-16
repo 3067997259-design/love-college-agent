@@ -69,8 +69,19 @@ it('restricts model expansion to this quote and turn, with durable read limits',
   await expect(tool.run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).rejects.toThrow('RECALL_BUDGET_EXCEEDED')
   f.recall.setEnabled(false); await expect(tool.run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).rejects.toThrow()
 })
-it('only attaches summary text grounded in allowed seen sources', () => {
-  const f = fixture(); const fragment = seenFragments(f.store.history!()).find((entry) => entry.text.includes('周五桥'))!
+it('keeps the reference and expansion available when the user interjects mid-turn (issue #12)', async () => {
+  const f = fixture(); f.recall.request(f.anchor, '回忆', 'request', 'h')
+  const first = f.recall.prepare('turn', f.prepared)
+  expect(first.messages.some((message) => message.content.includes('recalledSeenReference'))).toBe(true)
+  const context = { clock: f.clock, store: f.store, turnId: 'turn', signal: new AbortController().signal }
+  expect((await f.recall.tool().run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).ok).toBe(true)
+  // 同回合内的普通插话：新 user/message 带自己的 requestId，不属于这次回忆。
+  f.store.append({ type: 'user/message', id: 'interject', text: '顺便问一句别的。', requestId: 'interject', commandHash: 'h' })
+  const second = f.recall.prepare('turn', f.prepared)
+  expect(second.messages.some((message) => message.content.includes('recalledSeenReference'))).toBe(true)
+  expect((await f.recall.tool().run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).ok).toBe(true)
+})
+it('only attaches summary text grounded in allowed seen sources', () => {  const f = fixture(); const fragment = seenFragments(f.store.history!()).find((entry) => entry.text.includes('周五桥'))!
   const { id, sessionId, frameSeq, index, offset, atMs } = fragment; const source = { id, sessionId, frameSeq, index, offset, atMs }
   f.store.append({ type: 'memory/summary', summary: { id: 'safe', level: 'day', period: '1970-01-01', text: '周五桥', sources: [source], sourceSessionIds: [sessionId], source: 'fake' } })
   f.store.append({ type: 'memory/summary', summary: { id: 'bad-summary', level: 'week', period: '1969-12-29', text: 'RAW_PRIVATE_SUMMARY', sources: [source], sourceSessionIds: [sessionId], source: 'fake' } })
