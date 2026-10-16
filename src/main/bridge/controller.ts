@@ -23,6 +23,7 @@ import { giftSpecSchema } from '../gifts/schema'
 import type { GiftService } from '../gifts/service'
 import type { HeartFlowService } from '../heart-flow/service'
 import type { LifeService } from '../life/service'
+import type { LifeWorkService } from '../life/work/service'
 import type { DiaryService } from '../diary/service'
 import type { NotificationsService } from '../notifications/service'
 import { notificationRuleInput } from '../notifications/schema'
@@ -33,6 +34,11 @@ import { recallAnchorSchema } from '../history/schema'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('developer.life.seed') }),
+  z.strictObject({ ...envelope, type: z.literal('life.work.start'), kind: z.enum(['read', 'write']) }),
+  z.strictObject({ ...envelope, type: z.literal('life.work.pause'), workId: z.string().regex(/^[a-f0-9]{64}$/) }),
+  z.strictObject({ ...envelope, type: z.literal('life.work.resume'), workId: z.string().regex(/^[a-f0-9]{64}$/) }),
+  z.strictObject({ ...envelope, type: z.literal('life.work.open'), workId: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ ...envelope, type: z.literal('history.photo.capture') }),
   z.strictObject({ ...envelope, type: z.literal('history.recall'), anchor: recallAnchorSchema, question: z.string().trim().min(1).max(4000) }),
   z.strictObject({ ...envelope, type: z.literal('character.import') }),
@@ -52,7 +58,9 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('flow.enter') }),
   z.strictObject({ ...envelope, type: z.literal('flow.exit') }),
   z.strictObject({ ...envelope, type: z.literal('flow.mode'), mode: z.enum(['plan', 'execute']) }),
-  z.strictObject({ ...envelope, type: z.literal('flow.compact') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.compact'), focus: z.string().trim().min(1).max(500).optional() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.inspect'), section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128).optional() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.resume'), flowId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('flow.undo'), changeId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('flow.run'), code: z.string().min(1).max(10000) }),
   z.strictObject({ ...envelope, type: z.literal('flow.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
@@ -135,6 +143,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let gifts: GiftService | undefined
   let heartFlow: HeartFlowService | undefined
   let life: LifeService | undefined
+  let lifeWork: LifeWorkService | undefined
   let diary: DiaryService | undefined
   let notifications: NotificationsService | undefined
   let character: CharacterService | undefined
@@ -250,6 +259,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('character.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('history.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if ((command.type.startsWith('life.work.') || command.type === 'developer.life.seed') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'onboarding.reset' && options.booth) return reject(command.requestId, 'permission-denied')
     const signature = commandHash(command)
     const prior = requests.get(command.requestId)
@@ -271,6 +281,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { store?.append({ type: 'companion/mode', mode: command.mode, requestId: command.requestId, commandHash: signature }) }
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.mode = command.mode
+      lifeWork?.foreground()
       life?.reconcile()
       pomodoro?.stateChanged(command)
       campus?.stateChanged()
@@ -286,6 +297,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { store?.append({ type: 'companion/lights', lightsOut: command.lightsOut, requestId: command.requestId, commandHash: signature }) }
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.lightsOut = command.lightsOut
+      lifeWork?.foreground()
       life?.reconcile()
       gifts?.stateChanged()
       heartFlow?.stateChanged()
@@ -300,9 +312,11 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       publish('mode', command.requestId)
       execution?.stateChanged()
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
-    } else if (heartFlow?.active() && command.type === 'message.send' && ['/exit', '/plan', '/compact', '/permissions', '/status', '/diff', '/undo'].includes(command.text)) {
-      const action: AppCommand | undefined = command.text === '/exit' ? { ...command, type: 'flow.exit' } : command.text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : command.text === '/compact' ? { ...command, type: 'flow.compact' } : command.text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
-      const error = action ? heartFlow.dispatch(action) : undefined; ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (heartFlow?.active() && command.type === 'message.send' && /^(?:\/(?:exit|plan|permissions|status|diff|undo)$|\/compact(?:\s|$))/.test(command.text)) {
+      const text = command.text; const focus = /^\/compact\s/.test(text) ? text.slice(8).trim() || undefined : undefined
+      const section = ({ '/permissions': 'permissions', '/status': 'status', '/diff': 'diff' } as const)[text as '/permissions' | '/status' | '/diff']
+      const action: AppCommand | undefined = text === '/exit' ? { ...command, type: 'flow.exit' } : text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : text.startsWith('/compact') ? { ...command, type: 'flow.compact', ...(focus ? { focus } : {}) } : section ? { ...command, type: 'flow.inspect', section } : text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
+      const error = focus && focus.length > 500 ? 'invalid-command' : action ? heartFlow.dispatch(action) : 'unavailable'; ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (memory && !heartFlow?.active() && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
       try { const error = memory.dispatch(command.type === 'message.send' ? { ...command, type: 'context.compact' } : command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -327,7 +341,11 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       void diary.write(true); ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (room && (command.type === 'room.open' || command.type === 'room.rebuild')) {
       try { if (command.type === 'room.open') room.open(); else room.rebuild(); ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' } } catch { ack = reject(command.requestId, 'internal') }
+    } else if (lifeWork && (command.type.startsWith('life.work.') || command.type === 'developer.life.seed')) {
+      try { const error = lifeWork.dispatch(command); life?.reconcile(); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
     } else if (life && command.type.startsWith('life.')) {
+      lifeWork?.foreground()
       const error = life.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('mode', command.requestId)
     } else if (gifts && command.type.startsWith('gift.')) {
       try { const error = gifts.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
@@ -391,12 +409,14 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachGifts: (port: GiftService) => { gifts = port; publish('connection') },
     attachHeartFlow: (port: HeartFlowService) => { heartFlow = port; publish('connection') },
     attachLife: (port: LifeService) => { life = port; publish('mode') },
+    attachLifeWork: (port: LifeWorkService) => { lifeWork = port },
     attachDiary: (port: DiaryService, roomPort: NonNullable<typeof room>) => { diary = port; room = roomPort; publish('connection') },
     attachNotifications: (port: NotificationsService) => { notifications = port; publish('connection') },
     attachCharacter: (port: CharacterService) => { character = port; publish('connection') },
     attachPhotos: (port: HistoryPhotos) => { photos = port; publish('connection') },
     attachRecall: (port: HistoryRecall) => { recall = port; publish('connection') },
     readDiary: (id: unknown) => { if (!diary || typeof id !== 'string' || !/^diary:[a-f0-9]{64}$/.test(id)) throw new Error('DIARY_UNAVAILABLE'); return diary.read(id) },
+    readHeartFlow: (input: unknown) => { const parsed = z.strictObject({ section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128).optional() }).parse(input); if (!heartFlow) throw new Error('FLOW_UNAVAILABLE'); return heartFlow.inspect(parsed) },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },

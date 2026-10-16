@@ -126,7 +126,7 @@ previous = [{ id: 'mem:old', text: '报告截止周五', kind: 'fact', topic: '�
 check('邮件事件被投影成 role=user，但片段携带真实来源种类', () => {
   assert.equal(fragments[0].role, 'user')
   assert.equal(fragments[0].origin, 'mail')
-  assert.deepEqual(Object.keys(fragments[0]).sort(), ['atMs', 'frameSeq', 'id', 'index', 'key', 'offset', 'origin', 'role', 'sessionId', 'text'])
+  assert.deepEqual(Object.keys(fragments[0]).sort(), ['atMs', 'frameSeq', 'id', 'index', 'key', 'offset', 'origin', 'role', 'sessionId', 'source', 'text'])
 })
 check('含纠正关键词的不可信邮件已被拒绝替换事实（F2）', () => {
   assert.throws(() => validateMemories({ items: [{ sourceId: fragments[0].id, quote: claim, kind: 'fact', topic: '报告', replaceTopic: true }] }, fragments, owner, previous))
@@ -158,10 +158,12 @@ check('外部通知仍可被抽取成经历：只挡事实替换权，不挡记�
   assert.equal(result.length, 1)
   assert.equal(result[0].kind, 'experience')
 })
-check('字面出处不等于语义支持：否定句可抽出肯定命题', () => {
-  const negative = { ...fragments[0], id: 'source:negative', text: '我没有提交报告。', role: 'user' }
-  const stripped = validateMemories({ items: [{ sourceId: negative.id, quote: '提交报告', kind: 'fact', topic: '报告', replaceTopic: false }] }, [negative], owner, [])
-  assert.equal(stripped[0].text, '提交报告')
+check('字面出处不等于语义支持：否定句里的肯定命题已被拒绝', () => {
+  const fragment = (id, text) => ({ id, key: id, sessionId: 's:fixture', frameSeq: 9, index: 0, offset: 0, atMs: 3000, role: 'user', origin: 'user', text, source: text })
+  const negative = fragment('source:negative', '我没有提交报告。')
+  assert.throws(() => validateMemories({ items: [{ sourceId: negative.id, quote: '提交报告', kind: 'fact', topic: '报告', replaceTopic: false }] }, [negative], owner, []))
+  const affirmative = fragment('source:affirmative', '我提交报告了。')
+  assert.equal(validateMemories({ items: [{ sourceId: affirmative.id, quote: '提交报告', kind: 'fact', topic: '报告', replaceTopic: false }] }, [affirmative], owner, [])[0].text, '提交报告')
 })
 check('工具原始结果不进记忆入口（原文隔离层仍然有效）', () => {
   const only = seenFragments([header, { type: 'tool/result', seq: 2, atMs: 1000, raw: 'PRIVATE_FIXTURE', visible: {}, ok: true, callId: 'tool:fixture', turnId: 'turn:fixture' }])

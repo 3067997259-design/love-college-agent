@@ -14,6 +14,8 @@ import { contentHash, createDesk } from './heart-flow/desk'
 import { runIsolatedJavaScript } from './heart-flow/runner'
 import { probeHeartFlow } from './validation/heart-flow'
 import { createLife, type LifeService } from './life/service'
+import { createLifeWork, type LifeWorkService } from './life/work/service'
+import { createFakeLifeWorkModel } from './life/work/fake'
 import { probeLife } from './validation/life'
 import { createDiary, type DiaryService } from './diary/service'
 import diaryPrompts from './diary/prompts.json'
@@ -99,6 +101,7 @@ if (!ownsData) app.quit()
 let controller: ReturnType<typeof createAppController> | undefined
 let bridge: ReturnType<typeof registerAppBridge> | undefined
 let store: SessionStore | undefined
+let lifeWork: LifeWorkService | undefined
 let harness: ReturnType<typeof createHarness> | undefined
 let scheduler: Scheduler | undefined
 let runtime: Awaited<ReturnType<typeof attachRuntime>> | undefined
@@ -316,12 +319,12 @@ void app.whenReady().then(async () => {
     memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, model: fakeMemory?.model ?? taskModels.memory, development: fakeMemory,
       includeContextEntries: (seqs) => heartFlow?.normalEntriesAllowed(seqs) ?? new Set(seqs),
       beforeRoll: async () => { if (photos && !photos.photo(store!.scope.sessionId)) { photos.capture('day-end', 'day-end:' + store!.scope.sessionId); await photos.idle() } },
-      isBusy: () => !!harness?.isBusy() || !!heartFlow?.active(), changed: () => controller?.refresh('connection'),
+      isBusy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active(), changed: () => controller?.refresh('connection'),
       rolled: () => { controller?.refresh('connection'); harness?.sessionChanged(); pomodoro?.reconcile(); campus?.stateChanged(); documents?.stateChanged() },
       failed: () => { console.error('Memory processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachMemory(memory)
     campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? createBlockedImapSource(), privacy: fakeMailbox?.privacy ?? taskModels.mail,
-      canProcess: () => !life || life.view().locationId === 'room',
+      canProcess: () => (!life || life.view().locationId === 'room') && !lifeWork?.active(),
       artifacts, openArtifact: previewArtifact, attachment: (record) => documents!.registerAttachment(record),
       development: fakeMailbox, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('mail', text, id) },
       failed: () => { console.error('Campus processing stopped: local storage unavailable.'); app.quit() } })
@@ -355,15 +358,25 @@ void app.whenReady().then(async () => {
       for (const [path, text] of restoredFiles) desk.write(path, text)
     }
     heartFlow = createHeartFlow({ store, clock, desk, booth: prepared.booth, busy: () => harness?.isBusy() ?? false, changed: () => controller?.refresh('task'),
+      inspect: (view) => previewArtifact({ id: view.flowId, artifactId: view.flowId, displayName: '心流 · ' + view.section, kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: prepared.developer ? 'fake' : 'real' }, JSON.stringify(view, null, 2), '用户专用查阅 · 书桌范围 · 每次运行单独审批 · 费用未知时为 null。'),
       prepare: async (id, signal) => { const preparedContext = await memory!.prepareContext(id, signal); const world = life?.view(); if (!world) return preparedContext
-        const facts = { role: 'user' as const, content: JSON.stringify({ worldFacts: { locationId: world.locationId, outings: world.outings.slice(-3), items: world.items.slice(-3) }, fictional: true, actualOfflineWork: false }) }
+        const facts = { role: 'user' as const, content: JSON.stringify({ source: 'autonomous', worldFacts: { locationId: world.locationId, outings: world.outings.slice(-3), items: world.items.slice(-3) }, actualWorks: world.work?.jobs.slice(-6).map(({ id, kind, source, status, completedSteps, totalSteps, completedAtMs }) => ({ id, kind, source, status, completedSteps, totalSteps, completedAtMs })), fictional: true, actualOfflineWork: false }) }
         const insertion = Math.max(0, preparedContext.messages.findLastIndex((message) => message.role === 'user')); const messages = [...preparedContext.messages.slice(0, insertion), facts, ...preparedContext.messages.slice(insertion)]
-        return { messages, eligibleIndexes: [...preparedContext.eligibleIndexes.map((index) => index >= insertion ? index + 1 : index), insertion] } }, entered: () => life?.foreground(), emit: (id, summary) => { harness?.postEvent('autonomous', summary, id) }, run: (code, signal) => runIsolatedJavaScript(code, systemClock, signal) })
+        return { messages, eligibleIndexes: [...preparedContext.eligibleIndexes.map((index) => index >= insertion ? index + 1 : index), insertion] } }, entered: () => { lifeWork?.foreground(); life?.foreground() }, emit: (id, summary) => { harness?.postEvent('autonomous', summary, id) }, run: (code, signal) => runIsolatedJavaScript(code, systemClock, signal) })
     controller.attachHeartFlow(heartFlow)
-    life = createLife({ store, clock, scheduler, restored: restoreReceipt?.status === 'restored', working: () => !!harness?.isBusy() || !!heartFlow?.active(), changed: () => controller?.refresh('mode'), emit: (id, facts) => { harness?.postEvent('autonomous', facts, id) } })
+    lifeWork = createLifeWork({ store, clock, scheduler, desk, developer: prepared.developer, model: prepared.developer ? createFakeLifeWorkModel() : null,
+      available: () => {
+        const projection = store!.projection(); const timer = projection.pomodoro
+        return !backup?.isBusy() && !harness?.isBusy() && !heartFlow?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing') && diary?.view().status !== 'writing' && !['extracting', 'compacting'].includes(memory?.view().status ?? '')
+          && controller?.getSnapshot().onboarding?.status === 'completed' && life?.view().locationId === 'room'
+          && (timer.phase === 'focus' && timer.status === 'running' || !['short-break', 'long-break'].includes(timer.phase) && (life?.view().userSchedule === 'work' || projection.mode !== 'rest'))
+      }, changed: () => controller?.refresh('task'), projected: () => { life?.reconcile(); roomProjection.rebuild() },
+      open: (path, text) => previewArtifact({ id: 'life-work', artifactId: 'life-work', displayName: path.split('/').at(-1)!, kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: 'fake' }, text, '书桌作品 · 仅供用户查阅，不注入对话。') })
+    controller.attachLifeWork(lifeWork)
+    life = createLife({ store, clock, scheduler, work: lifeWork, restored: restoreReceipt?.status === 'restored', working: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active(), changed: () => controller?.refresh('mode'), emit: (id, facts) => { harness?.postEvent('autonomous', facts, id) } })
     controller.attachLife(life)
-    diary = createDiary({ clock, scheduler, store, assets: binaryAssets, model: prepared.developer ? { source: 'fake', write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary, busy: () => !!harness?.isBusy() || !!heartFlow?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
-    controller.attachDiary(diary, { rebuild: roomProjection.rebuild, open: () => { void shell.openPath(roomProjection.root) } })
+    diary = createDiary({ clock, scheduler, store, assets: binaryAssets, model: prepared.developer ? { source: 'fake', write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary, busy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
+    controller.attachDiary(diary, { rebuild: () => { lifeWork?.rebuild(); roomProjection.rebuild() }, open: () => { void shell.openPath(roomProjection.root) } })
     notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => heartFlow?.view().pending?.id, changed: () => controller?.refresh('connection'),
       notify: ({ title, body }) => { if (prepared.developer || prepared.booth || !Notification.isSupported()) return; const notification = new Notification({ title, body, silent: true }); notification.on('click', () => { const view = controller!.getSnapshot(); controller!.dispatch({ protocolVersion: 1, requestId: randomUUID(), epoch: view.epoch, type: 'window.expand' }) }); notification.show() } })
     controller.attachNotifications(notifications)
@@ -375,6 +388,7 @@ void app.whenReady().then(async () => {
     controller.attachCharacter(character)
     plugins.registerBuiltin('notifications', '急件与提醒标准', notificationTools(notifications))
     plugins.registerBuiltin('coding', '书桌编码', deskTools(heartFlow))
+    plugins.registerBuiltin('life-work', '自主阅读与写作', [])
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
     if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])
     plugins.discover()
@@ -392,7 +406,7 @@ void app.whenReady().then(async () => {
       canConfigure: () => !harness?.isBusy(), changed: () => controller?.refresh('connection') })
     controller.attachMcp(mcp)
     harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk')), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => heartFlow?.active() ?? false,
-      prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); return heartFlow!.active() ? preparedContext : recall!.prepare(id, preparedContext) }, foreground: () => { memory?.foreground(); diary?.foreground() }, userWork: () => life?.foreground(),
+      prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); return heartFlow!.active() ? preparedContext : recall!.prepare(id, preparedContext) }, foreground: () => { memory?.foreground(); diary?.foreground(); lifeWork?.foreground() }, userWork: () => life?.foreground(),
       failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     controller.attachExecution(harness, modelReady)
     const privateCredentials = prepared.developer ? [] : await readPrivateCredentialValues(providersFile)
@@ -401,7 +415,7 @@ void app.whenReady().then(async () => {
     controller.attachModelSettings(modelSettings)
     backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials, onboarding: () => controller!.getSnapshot().onboarding!,
       canStart: () => !harness!.isBusy() && !heartFlow?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
-      freeze: async () => { scheduler!.pauseBackground(true); memory!.foreground(); diary?.foreground(); await Promise.all([memory!.idle(), diary?.idle(), photos?.idle()]); if (harness!.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
+      freeze: async () => { scheduler!.pauseBackground(true); memory!.foreground(); diary?.foreground(); lifeWork?.foreground(); await Promise.all([memory!.idle(), diary?.idle(), photos?.idle(), lifeWork?.idle()]); if (harness!.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
       chooseExport: async (name) => { const selected = await dialog.showSaveDialog({ title: '导出私人存档', defaultPath: name, filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePath ?? null },
       chooseImport: async () => { const selected = await dialog.showOpenDialog({ title: '选择私人存档', properties: ['openFile'], filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
       restart: () => { systemClock.after(100, () => { app.relaunch(); app.quit() }) }, changed: () => controller?.refresh('restore') })
@@ -426,6 +440,7 @@ void app.whenReady().then(async () => {
     plugins.mountService('mcp', (enabled) => mcp?.setEnabled(enabled))
     plugins.mountService('gifts', (enabled) => gifts?.setEnabled(enabled))
     plugins.mountService('coding', (enabled) => heartFlow?.setEnabled(enabled))
+    plugins.mountService('life-work', (enabled) => lifeWork?.setEnabled(enabled))
     plugins.mountService('notifications', (enabled) => notifications?.setEnabled(enabled))
     if (prepared.scene?.preset === 'pomodoro-demo' && store.records().length <= 2) pomodoro.propose({ label: '开发演示', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }, 'user')
     harness.stateChanged()
@@ -461,6 +476,6 @@ app.on('before-quit', (event) => {
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })

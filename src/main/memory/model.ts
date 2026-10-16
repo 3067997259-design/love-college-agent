@@ -3,6 +3,7 @@ import type { Clock } from '../clock'
 import { redactFixed } from '../privacy/redact'
 import type { SeenFragment } from './seen'
 import { memoryDigest, userOrigins } from './seen'
+import { groundedIn } from './grounding'
 import type { MemoryEntry, MemorySource } from './schema'
 import fixtures from './fixtures.json'
 
@@ -27,6 +28,8 @@ export function validateMemories(output: unknown, input: readonly SeenFragment[]
     for (const item of ordered) {
       const fragment = input.find((source) => source.id === item.sourceId)
       if (!fragment || !fragment.text.includes(item.quote) || !item.quote.includes(item.topic)) throw new Error('MEMORY_UNGROUNDED')
+      // A substring is not an entailment: reject quotes whose negation or scope was left outside the span.
+      if (!groundedIn(fragment.source ?? fragment.text, item.quote).entailed) throw new Error('MEMORY_UNGROUNDED')
       const id = 'mem:' + memoryDigest(JSON.stringify([owner.userId, owner.characterId, item.kind, item.quote]))
       const supersedes = item.replaceTopic ? [...existing, ...result].filter((old) => old.id !== id && !('supersededBy' in old && old.supersededBy) && !result.some((entry) => entry.supersedes.includes(old.id)) && old.kind === 'fact' && old.topic === item.topic && old.text.includes(item.topic)
         && old.sources.every((source) => source.atMs < fragment.atMs || source.atMs === fragment.atMs && (source.sessionId !== fragment.sessionId || source.frameSeq < fragment.frameSeq || source.frameSeq === fragment.frameSeq && source.index <= fragment.index))).map((old) => old.id) : []

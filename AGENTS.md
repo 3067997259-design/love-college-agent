@@ -115,6 +115,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm probe:imap` | 主进程内的指定文件夹只读探针；失败仅输出固定分类 |
 | `pnpm probe:deeptech-audit` | 只读结构探针（27 项断言，不需构建）：DeepTech 审计的代码级主张与 F1／F2 修复后的行为 |
 | `pnpm experiment:deeptech-memory` | 跨产物一致性实验装置：24 条冻结经历的旧规则／守卫对照；`--holdout`、`--json` |
+| `pnpm experiment:deeptech-grounding` | 子串接地实验装置：32 条对抗＋20 条良性句对照四组检查器；`--holdout`、`--json` |
 
 不运行 `playwright install`。electron-builder 26.15.3 已单独提交；model-viewer 和 Tailwind 仍延期。打包前先确认当前 Electron 的原生模块已通过 `rebuild:native`／`probe:sqlite`。安装包当前未签名；测试安装命令遇到已有同名用户安装会拒绝覆盖。
 
@@ -249,6 +250,7 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 `pnpm probe:heart-flow` 运行原生隔离探针；`pnpm test:heart-flow` 运行 Electron 闭环。JavaScript 沙箱不提供 Node／shell／网络／系统文件；不要把批准一次扩展成后续操作授权。
 
 `pnpm probe:life` 验证外出事实与恢复结算水位；不要把离线虚构事件报告为实际工作。
+`pnpm test:life-work` 验证登记过的合成书桌材料、fake 阅读／写作、真实产物、暂停／重启及私人恢复。只有回读校验且已提交的产物才推进步数；离线不补工作，原文／作品正文不进普通上下文或运行记录。正式作品模型未接通，不能用假模型验收代替真实质量。
 `pnpm test:room` 验证日记和房间投影。日记钥匙／正文仅用户专用读接口可取，不加进调试状态或模型上下文。
 `pnpm test:notifications` 验证急件通知。Toast 不放标题／发件人／正文；只允许急件或心流审批，禁止把普通后台活动做成通知。
 `pnpm test:characters` 验证静态角色包与角色作用域。角色包不带私人档案；私人存档恢复维持同用户／同角色校验。
@@ -257,3 +259,5 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 `pnpm probe:deeptech-audit` 是只读结构探针，核对 [DeepTech 方向审计](docs/research/deeptech-memory-audit-20261017.md) 的代码级主张，并断言 F1（依赖新鲜性守卫）与 F2（来源权限）修复后的行为。27 项断言，不写库、不发网络、不调模型，不需要构建。实验流程与止损条件见 [执行协议](docs/research/deeptech-memory-protocol-20261017.md)，修复与对照结果见 [一致性实验记录](docs/research/deeptech-memory-experiment-20261017.md)。
 
 `pnpm experiment:deeptech-memory` 是跨产物一致性实验装置：24 条冻结经历（开发 12／留出 12），用真实投影与真实 `prepareContext` 对照"旧选择规则"与"守卫后规则"，实测 6/16 → 0/16 过期条目且覆盖不降。`--holdout` 跑全部、`--json` 输出机器可读汇总。它只覆盖摘要选择与来源权限，**不代表真实模型质量或端到端产品验收**。
+
+`pnpm experiment:deeptech-grounding` 是子串接地的语义保真实验装置：32 条对抗＋20 条良性合成句，对照 `.includes`、引文内正则、整句正则与 `src/main/memory/grounding.ts` 的作用域检查。实测留出集 FAR 从 22/24 降到 0/24、FRR 0/20。接地检查已接入记忆抽取（`memory/model.ts`）与邮件标题（`mail/privacy.ts`）：**逐字包含不等于被来源蕴含**。它是可枚举的作用域规则，不是自然逻辑演算；合成句结果不能外推为中文蕴含准确率。详见 [接地实验记录](docs/research/deeptech-grounding-experiment-20261017.md)。

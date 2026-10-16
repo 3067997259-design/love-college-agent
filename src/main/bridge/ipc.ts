@@ -22,11 +22,12 @@ export function registerAppBridge(controller: ReturnType<typeof createAppControl
   ipcMain.handle(IPC_CHANNELS.session, (event, id: unknown) => { assertUserSurface(event); return controller.readSession(id) })
   ipcMain.handle(IPC_CHANNELS.diagnostics, (event) => { assertTrusted(event); return controller.readDiagnostics() })
   ipcMain.handle(IPC_CHANNELS.diary, (event, id: unknown) => { if (assertTrusted(event) !== 'book') throw new Error('Restricted user read.'); return controller.readDiary(id) })
+  ipcMain.handle(IPC_CHANNELS.heartFlow, (event, input: unknown) => { if (assertTrusted(event) !== 'book') throw new Error('Restricted user read.'); return controller.readHeartFlow(input) })
   const unsubscribe = controller.subscribe((event) => {
     for (const window of windows.keys()) if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.event, event)
   })
   return {
     attach: (window: BrowserWindow, surface: WindowSurface = 'book') => { windows.set(window, surface); window.once('closed', () => windows.delete(window)) },
-    dispose: () => { unsubscribe(); for (const channel of [IPC_CHANNELS.snapshot, IPC_CHANNELS.command, IPC_CHANNELS.evidence, IPC_CHANNELS.files, IPC_CHANNELS.session, IPC_CHANNELS.diagnostics, IPC_CHANNELS.diary]) ipcMain.removeHandler(channel); windows.clear() },
+    dispose: () => { unsubscribe(); for (const channel of [IPC_CHANNELS.snapshot, IPC_CHANNELS.command, IPC_CHANNELS.evidence, IPC_CHANNELS.files, IPC_CHANNELS.session, IPC_CHANNELS.diagnostics, IPC_CHANNELS.diary, IPC_CHANNELS.heartFlow]) ipcMain.removeHandler(channel); windows.clear() },
   }
 }

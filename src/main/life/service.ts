@@ -4,10 +4,11 @@ import type { Clock } from '../clock'
 import type { Scheduler } from '../scheduler'
 import type { SessionStore } from '../store/session'
 import { lifeSchema } from './schema'
+import type { LifeWorkService } from './work/service'
 const DAY = 86_400_000
 export const calendarDay = (clock: Clock, at = clock.nowMs()) => clock.iso(at + 8 * 3600000).slice(0, 10)
 export const isWeekend = (clock: Clock, day: string) => { const weekday = ((Math.floor(clock.parse(day + 'T12:00:00+08:00') / DAY) + 4) % 7 + 7) % 7; return weekday === 0 || weekday === 6 }
-export function createLife(options: { store: SessionStore; clock: Clock; scheduler: Scheduler; working(): boolean; changed(): void; emit(id: string, facts: string): void; restored?: boolean }) {
+export function createLife(options: { store: SessionStore; clock: Clock; scheduler: Scheduler; working(): boolean; changed(): void; emit(id: string, facts: string): void; restored?: boolean; work?: LifeWorkService }) {
   const { clock, store } = options; const rows = () => store.history?.() ?? store.records()
   const previous = rows().findLast((row) => row.type === 'life/state')
   let state = lifeSchema.parse(previous?.type === 'life/state' ? structuredClone(previous.view) : { dayKey: calendarDay(clock), userSchedule: 'auto', locationId: 'room', settledUntilMs: clock.nowMs(), agenda: [], outings: [], items: [] })
@@ -67,9 +68,16 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
     if (today !== state.dayKey || !state.agenda.length) {
       state.dayKey = today; state.userSchedule = 'auto'; state.agenda = ([['read', '09:00'], ['write', '11:00'], ['walk', '15:00']] as const).map(([kind, time]) => ({ kind, atMs: clock.parse(today + 'T' + time + ':00+08:00'), state: 'planned' })); changed = true
     }
+    for (const item of state.agenda) if (item.kind !== 'walk' && options.work?.completed(item.kind, today) && item.state !== 'settled') { item.state = 'settled'; changed = true }
     if (!wasLightsOut && !options.working()) for (const item of state.agenda) {
+      if (item.kind !== 'walk' && item.state !== 'settled' && now >= item.atMs && options.work?.view().materials.length && options.work.view().source !== 'none') {
+        // Only create today's online work. Offline date reconciliation above never invokes a producer.
+        options.work.ensure(item.kind, today)
+        if (item.state !== 'planned') { item.state = 'planned'; changed = true }
+        continue
+      }
       if (item.state !== 'planned' || now < item.atMs) continue
-      // Reading/writing have no producer yet: a due placeholder is not a completed work.
+      // Missing materials/model are skipped, never passed off as a completed work.
       item.state = item.kind !== 'walk' || !resting(today) || working() ? 'skipped' : 'settled'; changed = true
       if (item.kind === 'walk' && item.state === 'settled' && !state.outings.some((outing) => outing.status === 'away' || outing.status === 'proposed' || calendarDay(clock, outing.startsAtMs) === today)) {
         const outing = makeOuting(today, now, false); state.outings.push(outing)
@@ -82,7 +90,7 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
   reconcile(true)
   options.scheduler.schedule('life.settle', clock.nowMs() + 60000, () => reconcile(), { everyMs: 60000 })
   return {
-    view: () => structuredClone(state), reconcile,
+    view: () => ({ ...structuredClone(state), ...(options.work ? { work: options.work.view() } : {}) }), reconcile,
     foreground: () => { const away = state.outings.findLast((outing) => outing.status === 'away'); if (away) { settle(away, clock.nowMs(), true); state.settledUntilMs = clock.nowMs(); save() } },
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       if (expireProposals(clock.nowMs())) save()

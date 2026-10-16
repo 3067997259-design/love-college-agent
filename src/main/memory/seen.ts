@@ -10,7 +10,7 @@ export const memoryDigest = (text: string) => createHash('sha256').update(text).
  */
 export type SeenOrigin = 'user' | 'mail' | 'document' | 'pomodoro' | 'autonomous' | 'model' | 'tool' | 'unknown'
 /** Optional so message-transport snapshots built outside this module keep compiling; absent means unknown. */
-export interface SeenFragment extends MemorySource { key: string; text: string; role: 'user' | 'assistant' | 'tool'; origin?: SeenOrigin }
+export interface SeenFragment extends MemorySource { key: string; text: string; role: 'user' | 'assistant' | 'tool'; origin?: SeenOrigin; source?: string }
 /** Origins that carry the user's own explicit statement, and only those, may replace an established fact. */
 export const userOrigins = (origin: SeenOrigin | undefined) => origin === undefined || origin === 'user'
 const EVENT_ORIGINS: readonly SeenOrigin[] = ['user', 'mail', 'document', 'pomodoro', 'autonomous']
@@ -44,7 +44,7 @@ export function seenFragments(records: readonly JournalRecord[]): SeenFragment[]
         const key = memoryDigest(JSON.stringify([sessionId, message.role, text, offset]))
         if (seen.has(key)) continue
         seen.add(key)
-        result.push({ id: `${sessionId}:${row.seq}:${index}:${offset}`, key, sessionId, frameSeq: row.seq, index, offset, atMs: row.atMs, role: message.role, origin, text: text.slice(offset, offset + 2000) })
+        result.push({ id: `${sessionId}:${row.seq}:${index}:${offset}`, key, sessionId, frameSeq: row.seq, index, offset, atMs: row.atMs, role: message.role, origin, text: text.slice(offset, offset + 2000), source: text })
       }
     }
   }

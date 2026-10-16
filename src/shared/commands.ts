@@ -74,6 +74,15 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'life.propose'; place?: 'coast' | 'swing' }
   | { type: 'life.depart'; outingId: string }
   | { type: 'life.return' }
+  /** One work of each kind per calendar day; only registered desk materials, online execution only. */
+  | { type: 'life.work.start'; kind: 'read' | 'write' }
+  | { type: 'life.work.pause'; workId: string }
+  /** Continues from the last verified checkpoint; never resets completed steps or backfills offline work. */
+  | { type: 'life.work.resume'; workId: string }
+  /** Book-only, user-only native preview of the latest verified product. No text in snapshots/contexts. */
+  | { type: 'life.work.open'; workId: string }
+  /** Developer profile only: registers and writes fixed synthetic desk materials, without overwriting user files. */
+  | { type: 'developer.life.seed' }
   | { type: 'diary.write' }
   | { type: 'room.open' }
   | { type: 'room.rebuild' }
@@ -87,7 +96,13 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'notification.rule.discard'; ruleId: string }
   | { type: 'flow.exit' }
   | { type: 'flow.mode'; mode: 'plan' | 'execute' }
-  | { type: 'flow.compact' }
+  | { type: 'flow.compact'; focus?: string }
+  /** User-only inspection. Native preview contains desk diffs; never a model/debug read channel. */
+  | { type: 'flow.inspect'; section: 'status' | 'permissions' | 'diff'; flowId?: string }
+  /** Start a new plan-only flow from a closed flow's frozen reference and evidence index. Fresh run approvals required. */
+  | { type: 'flow.resume'; flowId: string }
+  /** Cancels only a subordinate read task of the current flow. Never restarts it automatically. */
+  | { type: 'flow.delegate.cancel'; delegateId: string }
   | { type: 'flow.undo'; changeId: string }
   /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
   | { type: 'flow.run'; code: string }

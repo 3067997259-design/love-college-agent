@@ -13,6 +13,7 @@ import { projectMemory } from '../memory/projection'
 import { DATABASES, BackupFailure, MAX_ARCHIVE_BYTES, MAX_UNPACKED_BYTES, manifestSchema, type SaveManifest } from './schema'
 import { directory, privateWriteParent, regular } from './paths'
 import { validateDeskChanges } from '../heart-flow/changes'
+import { workRecords } from '../life/work/records'
 
 export const sha256 = (value: Uint8Array | string) => createHash('sha256').update(value).digest('hex')
 const ownerKey = (owner: SaveManifest['owner']) => sha256(JSON.stringify([owner.userId, owner.characterId]))
@@ -87,6 +88,7 @@ export async function exportPrivateSave(options: { root: string; store: SessionS
   const owner = { userId: store.scope.userId, characterId: store.scope.characterId }; const key = ownerKey(owner)
   const files = new Map<string, Buffer>(); const allRecords = store.history?.() ?? store.records()
   validateDeskChanges(allRecords)
+  workRecords(allRecords)
   const folder = journalLocation(root, owner, clock).folder
   const activeDayKey = store.dayKey?.() ?? journalLocation(root, owner, clock).dayKey
   for (const name of readdirSync(folder).filter((name) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(name) && name <= activeDayKey + '.jsonl').sort()) {
@@ -142,6 +144,7 @@ export async function validatePrivateSave(bytes: Buffer, owner: SaveManifest['ow
     if (DATABASES.some((name) => !files.has(name))) throw new BackupFailure('backup-invalid')
     const records = [...files].filter(([path]) => path.startsWith('journals/')).sort(([a], [b]) => a.localeCompare(b)).flatMap(([, data]) => parseJournalContent(data.toString('utf8'), owner))
     validateDeskChanges(records)
+    workRecords(records)
     const active = files.get('journals/' + key + '/' + manifest.activeDayKey + '.jsonl'); if (!active) throw new BackupFailure('backup-invalid')
     const projected = projectJournal(parseJournalContent(active.toString('utf8'), owner)); if (projected.scope.sessionId !== manifest.activeSessionId) throw new BackupFailure('backup-invalid')
     if (manifest.counts.pageCount !== [...files.keys()].filter((path) => path.startsWith('journals/')).length || manifest.counts.messageCount !== records.filter((row) => row.type === 'user/message' || row.type === 'assistant/message' && row.text).length || manifest.counts.memoryCount !== projectMemory(records).items.length) throw new BackupFailure('backup-invalid')

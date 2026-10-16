@@ -429,6 +429,36 @@ export interface LifeView {
   agenda: readonly { kind: 'read' | 'write' | 'walk'; atMs: number; state: 'planned' | 'settled' | 'skipped' }[]
   outings: readonly OutingView[]
   items: readonly { id: string; outingId: string; dayKey: string; place: OutingPlace; kind: 'shell' | 'leaf'; acquiredAtMs: number; display: 'desk' | 'drawer' }[]
+  /** Actual online work, separate from fictional outings. Text stays in the private journal/desk. */
+  work?: LifeWorkView
+}
+export type LifeWorkKind = 'read' | 'write'
+export interface LifeWorkItem {
+  id: string
+  dayKey: string
+  kind: LifeWorkKind
+  source: 'real' | 'fake'
+  materialId: string
+  status: 'queued' | 'running' | 'paused' | 'interrupted' | 'failed' | 'completed'
+  completedSteps: number
+  totalSteps: number
+  createdAtMs: number
+  updatedAtMs: number
+  completedAtMs: number | null
+  /** Codes only; never provider errors, input excerpts or generated prose. */
+  reason?: 'user' | 'interrupted' | 'busy' | 'lights' | 'conflict' | 'model' | 'budget'
+  /** Latest verified, immutable checkpoint in her desk; present even before the whole work completes. */
+  output?: { path: string; sha256: string; byteLength: number }
+}
+export interface LifeWorkView {
+  enabled: boolean
+  source: 'real' | 'fake' | 'none'
+  runningId: string | null
+  attemptsToday: number
+  dailyAttemptLimit: number
+  /** Explicitly registered materials only; no recursive reading of arbitrary desk files. */
+  materials: readonly { id: string; path: string; sha256: string; source: 'fake' }[]
+  jobs: readonly LifeWorkItem[]
 }
 export interface HeartFlowView {
   activeId: string | null
@@ -440,4 +470,32 @@ export interface HeartFlowView {
   changes: readonly { id: string; path: string; undone: boolean }[]
   sessions: readonly { id: string; startedAtMs: number; endedAtMs: number | null; summary: string | null }[]
   lastRun?: { ok: boolean; output: string }
+  /** Metadata-only subordinate work. Conclusions are unreviewed tool results for the parent flow. */
+  delegates?: readonly DelegateView[]
+}
+export interface DelegateView {
+  id: string
+  flowId: string
+  status: 'running' | 'completed' | 'failed' | 'cancelled'
+  source: 'real' | 'fake'
+  sourceCount: number
+  createdAtMs: number
+  updatedAtMs: number
+  error?: 'unavailable' | 'cancelled' | 'timeout' | 'invalid-output' | 'interrupted'
+}
+/** Explicit user lookup only. Raw desk diffs never enter snapshots, debug MCP or ordinary memory. */
+export interface HeartFlowInspection {
+  flowId: string
+  section: 'status' | 'permissions' | 'diff'
+  mode: 'plan' | 'execute'
+  scope: 'desk-only'
+  approval: 'each-run'
+  execution: 'javascript-sandbox' | 'disabled'
+  contextChars: number
+  inputTokens: number | null
+  outputTokens: number | null
+  /** Unknown pricing is null, never a fabricated zero. No private provider/model values. */
+  cost: number | null
+  changes: readonly { id: string; path: string; before: string | null; after: string | null; current: boolean; undone: boolean }[]
+  truncated: boolean
 }
