@@ -5,9 +5,9 @@
   "reportedModel": null,
   "assets": [
     {
-      "source": "2026-10-16-v1/facing-user_worried-v1.png",
+      "source": "2026-10-16-v8/facing-user_interlaced-worried-v1.png",
       "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_worried.png",
-      "sha256": "9DCBDD295C502AC101AD1828DE9D0535D0EDB1C5A1252408926646DFB48531E1"
+      "sha256": "BF5D76E2C70D82FD15951E9552FFDD1018F765827C07A58F151D13E3F2636E15"
     },
     {
       "source": "2026-10-16-v2/sleeping-close-night-v2.png",
@@ -20,9 +20,9 @@
       "sha256": "BBA0F61D334C825360FF1AC3F2102F7FD4177D225800D16388ED9B868958D6D4"
     },
     {
-      "source": "2026-10-16-v2/desk-writing-night-v2.png",
+      "source": "2026-10-16-v8/desk-writing-original-face-night-v4.png",
       "runtime": "src/renderer/src/assets/character/taozi/approved/desk-writing_night.png",
-      "sha256": "E7EE5CAD4B07918C58B1CDBE0463388FC58A539C97600D7DCCB5C6092B8178AE"
+      "sha256": "E2ED8F2BBA48577C5673836A96309E2261C6D33B26CDA046E228DD4395894133"
     },
     {
       "source": "2026-10-16-v1/desk-computer_calm-v1.png",
@@ -35,19 +35,19 @@
       "sha256": "0F6B11B5994482D7537A3C18F65ACFA38744F31F38B5B9883A291E3C475278BE"
     },
     {
-      "source": "2026-10-16-v2/desk-writing_calm-v2.png",
+      "source": "2026-10-16-v8/desk-writing-original-face-day-v4.png",
       "runtime": "src/renderer/src/assets/character/taozi/approved/desk-writing_calm.png",
-      "sha256": "246705E2FD980DC6B6B9150B983BDC732B81DB34F806DAFEE5C223DE32CAA2E7"
+      "sha256": "C981B9BE4B1D5467D1395E5C2C063D03039F0428462C2FC2E440177D336279AE"
     },
     {
-      "source": "2026-10-16-v1/facing-user_calm-v1.png",
+      "source": "2026-10-16-v5/facing-user_hands-overlap-calm-v1.png",
       "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_calm.png",
-      "sha256": "C27A152100CAA1EDF60E6A18EFE3F92FB1E21B02FF905F533B22C395DBD59086"
+      "sha256": "2BF35342CDB89202A0305AD27CF8D3D0E7F65937736DE32BB8CE19288B21729A"
     },
     {
-      "source": "2026-10-16-v1/facing-user_smile-v1.png",
+      "source": "2026-10-16-v7/facing-user_hands-overlap-smile-v1.png",
       "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_smile.png",
-      "sha256": "20364A60DB6E269EDEF2F9FEC1E05255FCBAE91BFFEBD6B85032CC39D2442FFB"
+      "sha256": "B8E5DF5F488C217C4B4ED889DD896B896135B5470D66C02602202C16A0888A24"
     },
     {
       "source": "2026-10-16-v3/sleeping-close-nightlight-v3.png",
@@ -200,5 +200,6 @@
       "claude_notified": false
     }
   ],
-  "note": "Nested generation records are historical review-stage snapshots; approval and runtime mapping in this manifest supersede their pending flags. Only the approved output pixels are copied; no new image synthesis or resampling in this integration."
+  "note": "Nested generation records are historical review-stage snapshots; approval and runtime mapping in this manifest supersede their pending flags. Only the approved output pixels are copied; no new image synthesis or resampling in this integration.",
+  "latestAdoptionRecord": "art/retouch-round2-adopted.json"
 }
