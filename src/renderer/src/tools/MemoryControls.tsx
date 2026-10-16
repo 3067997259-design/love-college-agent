@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppBridge, AppCommand, AppSnapshot, SessionPage } from '../../../shared'
+import type { AppBridge, AppCommand, AppSnapshot, SessionPage, RecallAnchor } from '../../../shared'
 
 export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
   const [error, setError] = useState('')
   const [page, setPage] = useState<SessionPage | null>(null)
   const [pageId, setPageId] = useState('')
+  const [anchor, setAnchor] = useState<RecallAnchor | null>(null)
+  const [question, setQuestion] = useState('')
   const request = useRef(0)
-  useEffect(() => { request.current++; setPage(null); setPageId(''); setError(''); return () => { request.current++ } }, [snapshot.epoch])
+  useEffect(() => { request.current++; setPage(null); setPageId(''); setError(''); setAnchor(null); setQuestion(''); return () => { request.current++ } }, [snapshot.epoch])
   const memory = snapshot.memory; const session = snapshot.session
   if (!memory || !session) return null
   const busy = memory.status === 'extracting' || memory.status === 'compacting'
@@ -35,14 +37,29 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
     </li>)}</ul>
     {bridge.readSession && <label>历史会话 <select aria-label="历史会话" value={pageId} onChange={(event) => {
       const id = event.target.value; const generation = ++request.current
-      setPageId(id)
+      setPageId(id); setAnchor(null)
       if (!id) { setPage(null); return }
       void bridge.readSession!(id).then((next) => { if (request.current === generation) setPage(next) }, () => { if (request.current === generation) setError('旧页读取失败') })
     }}><option value="">选择一页</option>{session.pages.map((info) => <option key={info.sessionId} value={info.sessionId}>{info.dayKey} · {info.messageCount} 条 · {info.summarized ? '有摘要' : '未生成摘要'}</option>)}</select></label>}
     {page && <section aria-label="历史聊天" className="memory-archive">
       <h3>{page.dayKey}</h3><button type="button" onClick={() => { request.current++; setPage(null); setPageId('') }}>收起旧页</button>
       {page.photo && <img data-history-photo src={page.photo.imageUrl} alt={`${page.dayKey} 保存的场景照片`} style={{ maxWidth: '100%', maxHeight: 240 }} />}
-      {page.messages.map((message) => <p key={message.id}>{message.role === 'user' ? '你' : '她'}：{message.text}</p>)}
+      {page.messages.map((message) => <p key={message.id}>{message.role === 'user' ? '你' : '她'}：<span data-history-message={message.id} onMouseUp={(event) => {
+        const selection = window.getSelection(); if (!selection?.rangeCount || !page.recallableMessageIds?.includes(message.id)) return
+        const range = selection.getRangeAt(0); if (!event.currentTarget.contains(range.startContainer) || !event.currentTarget.contains(range.endContainer)) return
+        const prefix = range.cloneRange(); prefix.selectNodeContents(event.currentTarget); prefix.setEnd(range.startContainer, range.startOffset)
+        const start = prefix.toString().length; const end = start + range.toString().length
+        if (end > start && end - start <= 1000) setAnchor({ sessionId: page.sessionId, messageId: message.id, start, end })
+      }}>{message.text}</span> {page.recallableMessageIds?.includes(message.id) && <button type="button" data-quote-message={message.id} onClick={() => {
+        let end = Math.min(1000, message.text.length); if (/[\uD800-\uDBFF]/.test(message.text[end - 1])) end--
+        setAnchor({ sessionId: page.sessionId, messageId: message.id, start: 0, end })
+      }}>引用这句话</button>}</p>)}
+      {anchor?.sessionId === page.sessionId && <div aria-label="引用回忆">
+        <blockquote>{page.messages.find((message) => message.id === anchor.messageId)?.text.slice(anchor.start, anchor.end)}</blockquote>
+        <input aria-label="回忆问题" maxLength={4000} value={question} placeholder="想和她聊这段经历的什么？" onChange={(event) => setQuestion(event.target.value)} />
+        <button type="button" disabled={!question.trim() || snapshot.history?.recall.status === 'recalling' || !!snapshot.heartFlow?.activeId} onClick={() => void send({ type: 'history.recall', anchor, question })}>引用并回忆</button>
+        <p role="status" data-recall-status={snapshot.history?.recall.status}>{snapshot.history?.recall.status === 'recalling' ? '正在回忆……' : snapshot.history?.recall.status === 'ready' ? '已回忆，可回到书本查看回复。' : snapshot.history?.recall.status === 'failed' ? '本次回忆未完成。' : '只引用她当时看见过的对话。'}</p>
+      </div>}
       {page.truncated && <p>当前仅显示这一页末尾的有限聊天；完整记录仍在本机日志中。</p>}
     </section>}
   </div>

@@ -28,10 +28,13 @@ import type { NotificationsService } from '../notifications/service'
 import { notificationRuleInput } from '../notifications/schema'
 import type { CharacterService } from '../characters/service'
 import type { HistoryPhotos } from '../history/photos'
+import type { HistoryRecall } from '../history/recall'
+import { recallAnchorSchema } from '../history/schema'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('history.photo.capture') }),
+  z.strictObject({ ...envelope, type: z.literal('history.recall'), anchor: recallAnchorSchema, question: z.string().trim().min(1).max(4000) }),
   z.strictObject({ ...envelope, type: z.literal('character.import') }),
   z.strictObject({ ...envelope, type: z.literal('character.export') }),
   z.strictObject({ ...envelope, type: z.literal('character.select'), characterId: z.string().regex(/^(?:default-character|character:[a-f0-9]{64})$/) }),
@@ -136,6 +139,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let notifications: NotificationsService | undefined
   let character: CharacterService | undefined
   let photos: HistoryPhotos | undefined
+  let recall: HistoryRecall | undefined
   let room: { open(): void; rebuild(): void } | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
@@ -223,7 +227,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (diary) snapshot.diary = diary.view()
     if (notifications) snapshot.notifications = notifications.view()
     if (character) snapshot.characterPack = character.view()
-    if (photos) snapshot.history = { ...photos.view(), recall: snapshot.history?.recall ?? { status: 'idle' } }
+    if (photos) snapshot.history = { ...photos.view(), recall: recall?.view() ?? { status: 'idle' } }
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
@@ -311,6 +315,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       catch { ack = reject(command.requestId, 'internal') }
     } else if (heartFlow && command.type.startsWith('flow.')) {
       const error = heartFlow.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (recall && command.type === 'history.recall') {
+      const error = recall.request(command.anchor, command.question, command.requestId, signature); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (photos && command.type === 'history.photo.capture') {
       const error = photos.capture(); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (character && command.type.startsWith('character.')) {
@@ -389,6 +395,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachNotifications: (port: NotificationsService) => { notifications = port; publish('connection') },
     attachCharacter: (port: CharacterService) => { character = port; publish('connection') },
     attachPhotos: (port: HistoryPhotos) => { photos = port; publish('connection') },
+    attachRecall: (port: HistoryRecall) => { recall = port; publish('connection') },
     readDiary: (id: unknown) => { if (!diary || typeof id !== 'string' || !/^diary:[a-f0-9]{64}$/.test(id)) throw new Error('DIARY_UNAVAILABLE'); return diary.read(id) },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
@@ -396,7 +403,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     readDiagnostics: () => { if (runtime?.view().developer.mode !== 'developer' || !diagnostics) throw new Error('DIAGNOSTICS_UNAVAILABLE'); return diagnostics() },
     readSession: (id: unknown) => {
       if (!memory || typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error('SESSION_UNAVAILABLE')
-      try { return { ...memory.readSession(id), ...(photos?.photo(id) ? { photo: photos.photo(id) } : {}) } } catch { throw new Error('SESSION_UNAVAILABLE') }
+      try { return { ...memory.readSession(id), recallableMessageIds: recall?.recallable(id) ?? [], ...(photos?.photo(id) ? { photo: photos.photo(id) } : {}) } } catch { throw new Error('SESSION_UNAVAILABLE') }
     },
     importUserFiles: (input: unknown): FileImportAck => {
       if (backup?.isBusy()) return { acceptedIds: [], rejectedCount: 1, error: { code: 'unavailable', retryable: true } }
