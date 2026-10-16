@@ -58,7 +58,9 @@
 
 用户已于 2026-10-16 16:32（GMT+8）宣布开赛。第零圈底座已接通：脚手架、共享接口、受限 IPC、append-only 日志与 SQLite 投影、统一时钟与调度、模型客户端、最小 harness、插件加载器、隔离开发模式和调试 MCP、持久番茄钟及阶段事件。better-sqlite3 已源码重编译并在 Electron 与实际安装后的程序内验证；首个 Windows NSIS 安装包于 18:50 验收通过。第零圈有 49 项单测、真实 chat 工具探针与真实 80 秒计时的独立记录，见 [第零圈记录](docs/engineering/zero-circle.md)。
 
-第一圈当前完成邮箱主线的显式开发场景：合成邮件 → 无工具的 fake 隐私模型 → 代码校验 → 候选与用户原文对照 → 版本确认 → 实际本地 .ics／Markdown → 改期复核与同 UID 更新。类型、lint、17 个文件／64 项单测及真实 Electron 场景通过。正常 IMAP 仍被认证前重置阻塞，本批没有连接或读取真实邮箱；真实隐私模型未配置时关闭业务，不回退主模型。附件与 `/privacy`、记忆、MCP 客户端、私人存档恢复、自主生活尚未实现；已有安装包仍是第零圈版本，本批未重新打包。范围与运行步骤见 [邮箱主线记录](docs/engineering/mail-first-circle.md)，早期证据见 [首批记录](docs/engineering/first-hour.md) 与 [日志／执行底座](docs/engineering/journal-harness.md)。
+第一圈当前完成邮箱主线的显式开发场景：合成邮件 → 无工具的 fake 隐私模型 → 代码校验 → 候选与用户原文对照 → 版本确认 → 实际本地 .ics／Markdown → 改期复核与同 UID 更新。正常 IMAP 仍被认证前重置阻塞，本批没有连接或读取真实邮箱；真实隐私模型未配置时关闭业务，不回退主模型。范围与运行步骤见 [邮箱主线记录](docs/engineering/mail-first-circle.md)，早期证据见 [首批记录](docs/engineering/first-hour.md) 与 [日志／执行底座](docs/engineering/journal-harness.md)。
+
+第一圈资料处理已接通显式开发场景：合成附件与原生文件拖入／选择 → 暂存 → `/privacy` 隔离整理 → 用户专用 Markdown 交付。支持文字层 PDF、UTF-8 文本／Markdown；关闭滤芯时只暂存，开关在当前 profile 设置中持久化。原文在主进程私有 SQLite；整理成品只给用户，模型／MCP／日志只拿经校验元数据。PDF 使用独立解析子进程，失败不拖垮应用。类型、lint、19 个文件／73 项单测、Electron 完整资料场景通过，见 [资料处理记录](docs/engineering/documents-first-circle.md)。真实隐私模型、记忆、MCP 客户端、私人存档恢复、自主生活尚未接通；已有安装包仍是第零圈版本，本批未重新打包。
 
 技术栈仍按 [技术方案](docs/tech-design.md) §1；界面与形象见 [体验设计](docs/experience-design.md)。首个工作展示必须贯通校园信息与实际资料处理，具体任务以 README 最新决策为准。
 
@@ -87,6 +89,8 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm probe:pomodoro` | 合成时钟＋实际 SQLite：跨 4 点重启与过期只结算一次 |
 | `pnpm probe:campus` | Electron／SQLite 合成邮件探针：证据隔离、幂等候选、改期与实际文件重启 |
 | `pnpm test:campus` | Electron 界面完整场景、原文高亮、版本确认、本地文件预览、MCP／模型／日志隔离 |
+| `pnpm probe:documents` | Electron／SQLite 私有源库、真实 PDF 解析子进程、文件交付与失败关闭 |
+| `pnpm test:documents` | 原生文件拖入／选择、合成邮件附件、持久 /privacy、用户文件与元数据隔离、重试／取消／重启 |
 | `pnpm package:win` | 构建 Windows x64 NSIS，产物在 `release/` |
 | `pnpm test:package` | 检查已构建包、D 盘测试安装、原生模块、界面重启、卸载测试实例 |
 | `pnpm probe:imap` | 主进程内的指定文件夹只读探针；失败仅输出固定分类 |
@@ -98,6 +102,8 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 经本轮用户明确授权，IMAP 探针由主进程读取本机 `secrets/providers.json`；worktree 可用 `LCA_PROVIDERS_FILE` 指向原 checkout 的文件。不得通过 shell 打印、拷入仓库、传给 renderer／调试接口或记录配置值。未配置隐私模型时业务保持关闭；显式 fake 仅用于测试，不是运行失败后的回退。
 
 邮箱开发入口：打开开发模式并重启 → “工具与设置”中扫描合成邮件 → 右页查原文并确认 → “导出新确认事项” → 交付卡“打开”。场景选择提供初始、截止变更、恶意输出、滤芯失败和空邮箱。原文在主进程私有证据库，日志、模型和调试 MCP 只拿短字段；确认／忽略必须携带候选当前 revision，隐私锁不能解除。本地交付成功不代表写入手机日历，重复导入行为尚未实测。
+
+资料入口：拖入窗口／右页“选择资料”，或设置页“整理附件”；输入 `/privacy` 切换，`/privacy on/off` 显式设定，也可在设置页勾选。关闭时暂存；开启且依赖可用时整理，完成后在交付卡查看。单文件最多 10 MiB／120000 字符，PDF 最多 60 页；最多 5 份同时导入、20 份待处理。`documentWorker.cjs` 是构建生成的解析子进程入口，使用 Electron 自带 Node，禁止继承供应商环境，不额外安装 Node 或浏览器。当前 fake 只是确定性开发排版，不能报告为真实模型整理质量；公开文件跟随主模型整理的路线留待后续。
 
 赛事约 48 小时：2026-10-16（周五）15:00 开赛，10-18（周日）16:00 代码冻结并提交；周日 15:00–17:00 评委巡场看 Demo，路演队伍从这里选出，17:00 的集市不计分，18:00 起路演（2026-10-15 组委会赛程图，日程见 [开赛清单](docs/kickoff.md) §3）。破冰会（2026-10-10）后不再允许一人参赛，当前两人；核心开发能力仍按用户一人加不受限的 AI 辅助估算，另一位成员是需要从头学 agent coding 的新手，使用 opencode。分工见 [赛前统筹](docs/team-plan.md)。路演为 5 分钟硬时限，提问在其后。按这一实际能力安排范围，为联调和演示留时间，不因 AI 可用就扩张成多条庞大产品线。开发辅助充足不等于允许运行时无界消耗模型资源。
 
