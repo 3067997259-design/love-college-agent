@@ -75,6 +75,8 @@ export function createModelClient(configs: ReadonlyMap<ProviderSlot, ProviderCon
       if (!config) continue
       let consecutive503 = 0
       for (let attempt = 1; attempt <= 4; attempt++) {
+        // Reservation/logging can reject before any network request. Do not catch and retry that failure.
+        onAttempt({ slot, attempt, status: 'started', waitMs: 0 })
         try {
           const reply = await once(config, request)
           onAttempt({ slot, attempt, status: 'success', waitMs: 0, inputTokens: reply.usage.inputTokens, outputTokens: reply.usage.outputTokens })

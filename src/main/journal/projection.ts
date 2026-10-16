@@ -22,6 +22,7 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
     lastSeq: 0, mode: 'rest', lightsOut: false, messages: [], activities: [], task: null, evidenceSeqs: [], context: [], requests: [] }
   const context: { seq: number; message: ContextMessage }[] = []
   const compacted = records.filter((record) => record.type === 'context/compact')
+  const inbox = new Map<string, ContextMessage>()
   for (const record of records) {
     result.lastSeq = record.seq
     if ('requestId' in record) result.requests.push({ requestId: record.requestId, commandHash: record.commandHash })
@@ -30,11 +31,22 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
       case 'companion/lights': result.lightsOut = record.lightsOut; break
       case 'user/message':
         result.messages.push({ id: record.id, role: 'user', text: record.text, createdAtMs: record.atMs, status: 'complete' })
-        context.push({ seq: record.seq, message: { role: 'user', content: record.text } }); break
+        inbox.set(record.id, { role: 'user', content: record.text })
+        break
+      case 'inbox/event': inbox.set(record.id, { role: 'user', content: JSON.stringify({ source: record.source, facts: record.text }) }); break
+      case 'inbox/drain':
+        for (const id of record.ids) { const message = inbox.get(id); if (message) { context.push({ seq: record.seq, message }); inbox.delete(id) } }
+        break
+      case 'inbox/drop':
+        for (const id of record.ids) { inbox.delete(id); const message = result.messages.find((item) => item.id === id); if (message) message.status = 'undelivered' }
+        break
       case 'assistant/message':
         if (record.text) result.messages.push({ id: record.id, role: 'assistant', text: record.text, createdAtMs: record.atMs, status: record.status })
         context.push({ seq: record.seq, message: { role: 'assistant', content: record.text, ...(record.toolCalls?.length ? { toolCalls: record.toolCalls } : {}) } }); break
       case 'turn/start': result.task = { id: record.turnId, status: 'running', steps: [] }; break
+      case 'turn/cancelling': if (result.task?.id === record.turnId) result.task.status = 'cancelling'; break
+      case 'turn/paused': if (result.task?.id === record.turnId) result.task.status = 'waiting-user'; break
+      case 'turn/resumed': if (result.task?.id === record.turnId) result.task.status = 'running'; break
       case 'turn/end':
         if (result.task?.id === record.turnId) result.task = { ...result.task,
           status: record.reason === 'completed' ? 'completed' : record.reason === 'aborted' ? 'aborted' : 'failed', ...(record.error ? { error: record.error } : {}) }
@@ -44,7 +56,11 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
       case 'tool/call': result.activities.push({ id: record.callId, taskId: record.turnId, toolCallId: record.callId, templateId: record.templateId, status: 'running', fields: {} }); break
       case 'tool/result': {
         const activity = result.activities.find((item) => item.toolCallId === record.callId && item.taskId === record.turnId)
-        if (activity) { activity.status = record.ok ? 'completed' : 'failed'; activity.fields = record.fields ?? {} }
+        if (activity) {
+          const detail = record.visible && typeof record.visible === 'object' && !Array.isArray(record.visible) ? record.visible : {}
+          activity.status = record.ok ? 'completed' : detail.error === 'cancelled' ? 'cancelled' : detail.execution === 'unknown' ? 'unknown' : 'failed'
+          activity.fields = record.fields ?? {}
+        }
         result.evidenceSeqs.push(record.seq)
         context.push({ seq: record.seq, message: { role: 'tool', content: JSON.stringify(record.visible), toolCallId: record.callId } }); break
       }

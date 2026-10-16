@@ -53,6 +53,15 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   }
   const updatePose = () => { snapshot.companion.pose = snapshot.companion.lightsOut ? 'sleeping' : { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode] }
   updatePose()
+  let execution: { source: 'real' | 'fake'; send(text: string, requestId: string, hash: string): void; stop(id: string): boolean; stateChanged(): void } | undefined
+  let executionReady = false
+  const readProjection = () => {
+    if (!store) return
+    const view = store.projection()
+    snapshot.companion.mode = view.mode; snapshot.companion.lightsOut = view.lightsOut
+    snapshot.messages = view.messages; snapshot.activities = view.activities; snapshot.task = view.task
+    updatePose()
+  }
   const publish = (reason: AppEvent['reason'], requestId?: string) => {
     snapshot.revision++
     snapshot.clock.nowMs = clock.nowMs()
@@ -79,6 +88,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       snapshot.companion.mode = command.mode
       updatePose()
       publish('mode', command.requestId)
+      execution?.stateChanged()
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else if (command.type === 'lights.set') {
       try { store?.append({ type: 'companion/lights', lightsOut: command.lightsOut, requestId: command.requestId, commandHash: signature }) }
@@ -86,9 +96,17 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       snapshot.companion.lightsOut = command.lightsOut
       updatePose()
       publish('mode', command.requestId)
+      execution?.stateChanged()
+      ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+    } else if (command.type === 'message.send' && execution && executionReady && !snapshot.companion.lightsOut) {
+      try { execution.send(command.text, command.requestId, signature) }
+      catch { return reject(command.requestId, 'internal') }
+      ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+    } else if (command.type === 'turn.stop' && execution) {
+      if (!execution.stop(command.taskId)) return reject(command.requestId, 'invalid-command')
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else {
-      ack = reject(command.requestId, command.type === 'privacy.set' ? 'privacy-unavailable' : 'unavailable')
+      ack = reject(command.requestId, command.type === 'privacy.set' ? 'privacy-unavailable' : command.type === 'message.send' && execution && !snapshot.companion.lightsOut ? 'not-configured' : 'unavailable')
     }
     requests.set(command.requestId, { signature, ack })
     if (requests.size > 1000) requests.delete(requests.keys().next().value!)
@@ -99,6 +117,12 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   const tick = () => { if (!ticking) return; publish('timer'); stopTimer = clock.after(1000, tick) }
   return {
     getSnapshot: () => structuredClone(snapshot), dispatch,
+    refresh: (reason: AppEvent['reason']) => { readProjection(); publish(reason) },
+    attachExecution: (port: NonNullable<typeof execution>, ready: boolean) => {
+      execution = port; executionReady = ready
+      snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'chat' ? { id: 'chat', status: ready ? 'ready' : 'unconfigured', source: ready ? port.source : 'none' } : item)
+      publish('connection')
+    },
     subscribe: (listener: (event: AppEvent) => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
     start: () => { if (!ticking) { ticking = true; stopTimer = clock.after(1000, tick) } },
     dispose: () => { ticking = false; stopTimer?.(); listeners.clear(); requests.clear() },

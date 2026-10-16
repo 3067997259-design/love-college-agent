@@ -40,6 +40,47 @@ export interface PomodoroView {
   focusIndex: number
   phaseDurationMs: number
   plannedCount: number
+  /** A proposed plan requires a separate user confirmation before it can run. */
+  plan?: PomodoroPlanView
+}
+export interface PomodoroPlanInput {
+  label: string
+  plannedCount: number
+  focusDurationMs: number
+  shortBreakDurationMs: number
+  longBreakDurationMs: number
+  longBreakEvery: number
+  timing: 'standard' | 'demo' | 'custom'
+}
+export interface PomodoroPlanView extends PomodoroPlanInput {
+  id: string
+  createdAtMs: number
+  status: 'proposed' | 'confirmed' | 'finished'
+  source: 'user' | 'assistant'
+}
+export interface PluginView {
+  id: string
+  name: string
+  version: string
+  source: 'builtin' | 'folder'
+  status: 'enabled' | 'disabled' | 'needs-approval' | 'incompatible' | 'failed'
+  tools: readonly string[]
+  privacy: 'none' | 'optional' | 'always'
+  permissions: readonly ('local-code' | 'network' | 'filesystem')[]
+  /** Consent is bound to this exact manifest/code revision, never only a plugin name. */
+  fingerprint: string
+}
+export interface RuntimeView {
+  plugins: readonly PluginView[]
+  developer: {
+    mode: 'normal' | 'developer' | 'booth'
+    requestedEnabled: boolean
+    restartRequired: boolean
+    mcpPort?: number
+    cdpPort?: number
+    sceneId?: string
+    error?: PublicError
+  }
 }
 export interface PlanStep { id: string; text: string; status: 'pending' | 'active' | 'done' | 'failed' }
 export interface TaskView {
@@ -119,4 +160,6 @@ export interface AppSnapshot {
   deliveries: readonly DeliveryView[]
   capabilities: readonly CapabilityView[]
   privacy: { mode: 'follow-main' | 'isolated'; fileFilteringEnabled: boolean }
+  /** Optional for older renderer fixtures; the real runtime supplies this. Never contains credentials. */
+  runtime?: RuntimeView
 }
