@@ -66,6 +66,8 @@
 
 第一圈收尾（2026-10-16 22:48）已合入 MCP 客户端、私人 `.lca-save` 校验／安全恢复／回滚、绑定实际交付和当时可见经历的首件羽毛笔、开发安全诊断、正常模式 background／privacy 专用端口和原生配置入口、原生迷你陪伴窗。Claude 的画面与晕染已合入。类型、lint、30 个文件／119 项单测及相关 Electron 流程通过，新 NSIS 已实际安装验收 SQLite／日志／计时／存档和界面重启。MCP stdio 对 Student Hub 的测试只用新空库完整性工具；没有学校扫描。IMAP 仍 blocked，学校 privacy URL 缺失，本轮没有真实模型请求；真人桌面穿透、羽毛笔美术、多机部署待验收。周／月归并、加密日记、外出、心流、角色包、Rodin 留待后续。详见 [第一圈记录](docs/engineering/first-circle-closeout.md)、[部署说明](docs/deployment.md)、[技术说明初稿](docs/engineering/architecture.md)。
 
+23:04 增补：番茄计划可选 items（text／count／assist），统一校验并保留投影；`window.expand` 销毁小窗，旧 window.book 兼容。休息、停止、熄灯保留当前窗口，不抢焦点，重启不恢复小窗；GPU／黑角失败回退不透明原生圆角，可用 `LCA_MINI_OPAQUE=1` 强制。合入 Claude 的条目和羽毛笔画面后，类型／lint／123 项单测及 `test:pomodoro` 双窗口、`test:mini`、`test:backup` 通过；高 DPI 越界修正后相关检查与窗口流程再次通过。细节与人工验收边界见 [增补记录](docs/engineering/pomodoro-mini-update.md)；已有 22:47 安装包未重打。
+
 技术栈仍按 [技术方案](docs/tech-design.md) §1；界面与形象见 [体验设计](docs/experience-design.md)。首个工作展示必须贯通校园信息与实际资料处理，具体任务以 README 最新决策为准。
 
 ### 已有命令与实例隔离
@@ -88,7 +90,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm probe:harness` | 真实 chat 模型调用代码时钟并结束回合的有界探针 |
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron 的发送／工具／停止／重启场景 |
 | `pnpm test:developer` | 隔离假模型、MCP 鉴权／时钟、文件夹插件授权、场景与展位拒绝 |
-| `pnpm test:pomodoro` | Electron 内确认计划、SQLite 截止点、重启、熄灯、中断 |
+| `pnpm test:pomodoro` | Electron 计划／SQLite／计时；双窗口、点穿 API、展开销毁、展位强制回退、合成黑角替换、重启无残留 |
 | `pnpm test:pomodoro:realtime` | 正常模式真实计时约 80 秒，不用加速时钟 |
 | `pnpm probe:pomodoro` | 合成时钟＋实际 SQLite：跨 4 点重启与过期只结算一次 |
 | `pnpm probe:campus` | Electron／SQLite 合成邮件探针：证据隔离、幂等候选、改期与实际文件重启 |

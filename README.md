@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+**增补（2026-10-16 23:04）：** 计划可带 `items: { text, count, assist }[]`，代码校验 40 字上限和总番茄数；用户 IPC 与模型工具共用校验。迷你窗新增 `window.expand` 实际销毁小窗，兼容旧按钮；支持黑底检测、GPU 故障与 `LCA_MINI_OPAQUE=1` 不透明圆角回退，展位可用。合并 Claude 的计划条目和羽毛笔界面后，类型／lint／123 项单测及番茄双窗口、迷你窗、存档回归通过；高 DPI 越界修正后相关检查与窗口流程再次通过。休息／停止／熄灯保留当前窗口，不抢焦点，重启只开书本。记录见 [番茄与迷你窗增补](docs/engineering/pomodoro-mini-update.md)；22:47 安装包尚不含本次增补。
+
 **最新（2026-10-16 22:48，赛中）：** 第一圈 GPT 底层已合入 main：邮箱／资料／文字记忆的开发主线，以及受限 MCP 客户端、私人存档与安全恢复、首件羽毛笔逻辑、安全诊断、正常模式 background／privacy 端口与原生配置入口。Claude 的迷你窗和晕染已合入，原生窗口也已接通。类型、lint、30 个文件／119 项单测、各条 Electron 流程和八个原生探针通过；22:47 新 NSIS 已在本机实际安装，SQLite／日志／计时／存档和界面重启验收通过。真实 IMAP 仍 blocked；学校 privacy URL 未提供，本轮模型验收使用 fake 或本机合成 HTTP，不能当真实质量验收。羽毛笔最终美术、真人桌面穿透手感、另一台干净机器复现待验收。详见 [第一圈收尾记录](docs/engineering/first-circle-closeout.md)、[部署说明](docs/deployment.md) 和 [技术说明初稿](docs/engineering/architecture.md)。
 
 **2026-10-16 美术精修已获用户批准：** 书本 Demo 已采用 NovelAI 原图经 GPT-image 精修的十张整景素材；写字本朝向她，睡姿改同机位近景且电脑和本子合上，夜间睡眠保留柔和夜灯，外出去向写在空房间桌上的纸条。用户同时授权接入、提交并向 Claude 交接；新工作方法见 [美术规格 §6.9](docs/art-spec.md#69-精修素材采用与-demo-接入2026-10-16-晚)，实际检查、素材映射与尚缺的匹配线稿见 [精修交接](docs/engineering/art-retouch-handoff.md)。这是源码与浏览器 Demo 的美术更新，不代表已有安装包已更新。
@@ -352,7 +354,7 @@ pnpm dev
 | `pnpm build` / `pnpm start` | 构建／构建后预览，已启动检查 |
 | `pnpm typecheck` | main／preload／shared／renderer／单测类型检查通过 |
 | `pnpm lint` | 通过，业务时间调用及 renderer 特权 import 受限制 |
-| `pnpm test` | 第一圈收尾 30 个文件、119 项通过；历史批次结果另见各记录 |
+| `pnpm test` | 番茄条目／迷你窗增补后 30 个文件、123 项通过；历史批次结果另见各记录 |
 | `pnpm test:electron` | 真实 Electron 窗口、隔离、IPC 及退订检查通过 |
 | `pnpm probe:sqlite` | 原生加载与落盘重开通过，无需退回 sql.js |
 | `pnpm probe:journal` | 日志重放、过期／缺失缓存重建、作用域与原文隔离通过 |
@@ -360,7 +362,7 @@ pnpm dev
 | `pnpm probe:harness` | 真实模型调用 get_clock 并结束回合，通过 |
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron：发送、工具往返、停止断连、重启恢复通过 |
 | `pnpm test:developer` | 隔离假模型、鉴权 MCP、时钟、目录插件确认、场景与展位拒绝通过 |
-| `pnpm test:pomodoro` | 确认计划、SQLite 截止点、重启、熄灯与中断通过 |
+| `pnpm test:pomodoro` | 计划、SQLite、重启、熄灯／中断，以及双窗口／点穿 API／展开销毁／展位不透明回退／合成黑底替换通过 |
 | `pnpm test:pomodoro:realtime` | 正常模式真实约 80 秒；60,000 ms 专注＋20,047 ms 休息通过 |
 | `pnpm probe:pomodoro` | 合成时钟＋真实 SQLite，跨 4 点重启保留截止点且只结算一次 |
 | `pnpm probe:campus` | Electron／SQLite 合成邮箱：证据隔离、幂等候选、版本确认、同 UID 改期与实际文件重启 |

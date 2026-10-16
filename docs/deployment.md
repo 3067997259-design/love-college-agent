@@ -21,6 +21,8 @@ pnpm dev
 
 源码数据默认 `<checkout>/.local-data`，安装版使用 Electron userData；可用 `LCA_DATA_DIR` 为实例指定独立目录。GPT 默认渲染端口 5273，其他 checkout 为 5173，可用 `LCA_RENDERER_PORT` 覆盖。开发调试默认关闭，只有显式开发模式才开启 CDP／鉴权本机 MCP。
 
+透明小窗若在显卡上出现黑底，可在启动前设置 `$env:LCA_MINI_OPAQUE = '1'`，强制不透明圆角回退；程序也检测 GPU 不可用、异常退出和可观察的黑角。详情与验收边界见 [迷你窗增补](engineering/pomodoro-mini-update.md)。该增补发生于 22:47 安装包之后，当前请从新源码运行；旧安装包不含它。
+
 ## 安装与模型配置
 
 构建 `pnpm package:win`，运行 `release/Love-College-Agent-0.1.0-Setup.exe`。安装不需要系统 Node 或 pnpm；当前 Windows x64、未签名、默认图标。应用数据不写在安装目录，卸载不自动删除用户数据。
