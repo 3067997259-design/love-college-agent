@@ -284,6 +284,12 @@ export interface DiagnosticsView {
   memoryScores: readonly { id: string; score: number; relevance: number; tier: 'short_term' | 'long_term' }[]
   privacy: { mailStatus: string; fileFilteringEnabled: boolean; pendingFiles: number; evidenceAccess: 'user-only' }
 }
+export interface ModelSettingsView {
+  status: 'idle' | 'selecting' | 'saved' | 'failed'
+  configuredSlots: readonly ('chat' | 'background' | 'chat_google' | 'chat_claude' | 'privacy')[]
+  restartRequired: boolean
+  error?: PublicError
+}
 export interface AppSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
@@ -310,4 +316,5 @@ export interface AppSnapshot {
   mcp?: McpView
   backup?: BackupView
   quill?: QuillView
+  modelSettings?: ModelSettingsView
 }
