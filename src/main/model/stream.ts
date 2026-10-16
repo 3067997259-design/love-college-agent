@@ -62,7 +62,10 @@ export async function readCompletionStream(response: Response, signal: AbortSign
     buffer += decoder.decode()
     if (buffer.trim()) frame(buffer)
     if (!finished) throw new ModelFailure(text ? 'interrupted' : 'network', visible())
-    const toolCalls = [...calls.entries()].sort((a, b) => a[0] - b[0]).map(([, call]) => ({ id: redact(call.id), name: redact(call.name), arguments: redact(call.arguments) }))
+    // Arguments are JSON encoded inside SSE JSON. Decode individual string tokens before redacting
+    // so Unicode/slash escapes cannot carry a private provider value into parsed tool arguments.
+    const cleanArguments = (value: string) => redact(value.replace(/"(?:[^"\\]|\\.)*"/g, (token) => { try { return JSON.stringify(redact(JSON.parse(token))) } catch { return redact(token) } }))
+    const toolCalls = [...calls.entries()].sort((a, b) => a[0] - b[0]).map(([, call]) => ({ id: redact(call.id), name: redact(call.name), arguments: cleanArguments(call.arguments) }))
     if (toolCalls.some((call) => !call.id || !/^[a-zA-Z0-9_-]{1,64}$/.test(call.name)) || new Set(toolCalls.map((call) => call.id)).size !== toolCalls.length) throw new ModelFailure('invalid-output')
     // Inline reasoning tags must never reach a user-facing message or tool loop.
     if (text && !visible()) throw new ModelFailure('invalid-output')
