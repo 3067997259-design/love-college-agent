@@ -274,6 +274,16 @@ export interface QuillView {
   /** Built-in first gift. Live Rodin generation is a later feature. */
   kind: 'quill'
 }
+export interface DiagnosticsView {
+  contextSource: 'last-successful-input' | 'not-yet-sent'
+  context: readonly { role: 'system' | 'user' | 'assistant' | 'tool'; layer: 'policy' | 'summary' | 'conversation' | 'recall'; text: string }[]
+  contextTruncated: boolean
+  turns: readonly { id: string; startedAtMs: number; endedAtMs: number | null; status: string; inputTokens: number | null; outputTokens: number | null; durationMs: number | null; firstTokenLatencyMs: number | null; cachedInputTokens: number | null; cost: number | null }[]
+  queue: readonly { id: string; atMs: number; everyMs?: number; paused: boolean }[]
+  inbox: readonly { id: string; source: string }[]
+  memoryScores: readonly { id: string; score: number; relevance: number; tier: 'short_term' | 'long_term' }[]
+  privacy: { mailStatus: string; fileFilteringEnabled: boolean; pendingFiles: number; evidenceAccess: 'user-only' }
+}
 export interface AppSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
