@@ -73,6 +73,10 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'diary.write' }
   | { type: 'room.open' }
   | { type: 'room.rebuild' }
+  | { type: 'notification.rule.add'; sourceRole: 'any' | 'teaching-assistant' | 'student-club' | 'library' | 'other'; keyword: string }
+  | { type: 'notification.rule.remove'; ruleId: string }
+  | { type: 'notification.rule.confirm'; ruleId: string }
+  | { type: 'notification.rule.discard'; ruleId: string }
   | { type: 'flow.exit' }
   | { type: 'flow.mode'; mode: 'plan' | 'execute' }
   | { type: 'flow.compact' }

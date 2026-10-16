@@ -126,6 +126,7 @@ export interface ActivityView {
   error?: PublicError
 }
 export interface CandidateView {
+  urgency?: 'normal' | 'reply-today' | 'location-change'
   id: string
   createdAtMs: number
   kind: 'deadline' | 'event'
@@ -341,6 +342,7 @@ export interface GeneratedGiftView {
 export interface GiftsView { configured: boolean; dailyLimit: number; items: readonly GeneratedGiftView[] }
 
 export interface AppSnapshot {
+  notifications?: NotificationsView
   diary?: DiaryView
   life?: LifeView
   heartFlow?: HeartFlowView
@@ -375,6 +377,8 @@ export interface AppSnapshot {
   onboarding?: OnboardingView
   gifts?: GiftsView
 }
+export interface NotificationRule { id: string; sourceRole: 'any' | 'teaching-assistant' | 'student-club' | 'library' | 'other'; keyword: string }
+export interface NotificationsView { rules: readonly NotificationRule[]; proposal?: NotificationRule; pendingCount: number; sentLastHour: number; delivery: 'native' | 'synthetic' }
 export interface DiaryView { status: 'idle' | 'writing' | 'failed' | 'unconfigured'; source: 'real' | 'fake' | 'none'; entries: readonly { id: string; dayKey: string; createdAtMs: number; unlocked: boolean; clue: 'next-bookmark'; source: 'real' | 'fake' }[] }
 /** Explicit user-only read, absent from snapshots, debug MCP, model contexts and memory. */
 export interface DiaryRead { id: string; dayKey: string; text: string; key: string; subjective: true }
