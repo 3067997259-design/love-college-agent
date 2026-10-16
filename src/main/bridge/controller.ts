@@ -33,9 +33,15 @@ import type { HistoryRecall } from '../history/recall'
 import { recallAnchorSchema } from '../history/schema'
 import type { OpticalMemoryService } from '../optical/service'
 import { opticalTier } from '../optical/schema'
+import { minecraftScopeSchema, type MinecraftService } from '../minecraft/service'
+import type { MinecraftChat } from '../minecraft/chat'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('minecraft.check'), serverId: z.string().min(1).max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('minecraft.start'), serverId: z.string().min(1).max(128), expectedPlayerUuid: z.string().uuid(), scope: minecraftScopeSchema }),
+  z.strictObject({ ...envelope, type: z.literal('minecraft.stop') }),
+  z.strictObject({ ...envelope, type: z.literal('developer.minecraft'), scenario: z.enum(['ready', 'chat', 'world-change', 'unsafe', 'unreachable']) }),
   z.strictObject({ ...envelope, type: z.literal('optical.configure') }),
   z.strictObject({ ...envelope, type: z.literal('optical.enable'), enabled: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('optical.encode'), sessionId: z.string().min(1).max(128) }),
@@ -157,6 +163,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let photos: HistoryPhotos | undefined
   let recall: HistoryRecall | undefined
   let optical: OpticalMemoryService | undefined
+  let minecraft: MinecraftService | undefined
+  let minecraftChat: MinecraftChat | undefined
+  let gameScenario: ((scenario: Extract<AppCommand, { type: 'developer.minecraft' }>['scenario']) => void) | undefined
   let room: { open(): void; rebuild(): void } | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
@@ -246,6 +255,10 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (character) snapshot.characterPack = character.view()
     if (photos) snapshot.history = { ...photos.view(), recall: recall?.view() ?? { status: 'idle' } }
     if (optical) snapshot.opticalMemory = optical.view()
+    if (minecraft) {
+      snapshot.minecraft = minecraft.view()
+      if (minecraft.active() && minecraftChat) { const game = minecraftChat.view(); snapshot.messages = [...game.messages]; snapshot.activities = [...game.activities]; snapshot.task = game.task }
+    }
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
@@ -269,14 +282,30 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('character.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('history.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('optical.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if ((command.type.startsWith('minecraft.') || command.type === 'developer.minecraft') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('life.work.') || command.type === 'developer.life.seed') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'onboarding.reset' && options.booth) return reject(command.requestId, 'permission-denied')
     const signature = commandHash(command)
     const prior = requests.get(command.requestId)
     if (prior) return prior.signature === signature ? structuredClone(prior.ack) : reject(command.requestId, 'invalid-command')
     if (backup?.isBusy()) return reject(command.requestId, 'unavailable')
+    if (minecraft?.active() && !['message.send', 'turn.stop', 'lights.set', 'mode.set', 'mcp.disconnect', 'developer.minecraft'].includes(command.type)
+      && !command.type.startsWith('minecraft.') && !command.type.startsWith('window.') && !command.type.startsWith('pomodoro.')) return reject(command.requestId, 'unavailable')
     let ack: CommandAck
-    if (command.type === 'onboarding.profile' || command.type === 'onboarding.complete' || command.type === 'onboarding.reset') {
+    if (command.type.startsWith('minecraft.') && minecraft) {
+      const error = command.type === 'minecraft.start' && !minecraftChat?.ready() ? 'not-configured' : minecraft.dispatch(command)
+      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (command.type === 'developer.minecraft') {
+      if (!gameScenario) return reject(command.requestId, 'permission-denied'); gameScenario(command.scenario); minecraft?.stateChanged()
+      ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (minecraft?.active() && command.type === 'message.send') {
+      if (!minecraftChat || minecraft.view().status !== 'playing' || surface !== 'book') return reject(command.requestId, 'unavailable')
+      try { minecraftChat.send(command.text, command.requestId, signature) } catch { return reject(command.requestId, 'unavailable') }
+      ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+    } else if (minecraft?.active() && command.type === 'turn.stop') {
+      if (!minecraftChat?.stop(command.taskId)) return reject(command.requestId, 'invalid-command'); void minecraft.stop()
+      ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+    } else if (command.type === 'onboarding.profile' || command.type === 'onboarding.complete' || command.type === 'onboarding.reset') {
       const current = snapshot.onboarding ?? initialOnboarding()
       const view = command.type === 'onboarding.profile' ? { ...current,
         ...(command.userName !== undefined ? { userName: command.userName || null } : {}), ...(command.characterName !== undefined ? { characterName: command.characterName || '桃子' } : {}) }
@@ -405,6 +434,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else {
       ack = reject(command.requestId, command.type === 'privacy.set' ? 'privacy-unavailable' : command.type === 'message.send' && execution && !snapshot.companion.lightsOut ? 'not-configured' : 'unavailable')
     }
+    minecraft?.stateChanged()
     requests.set(command.requestId, { signature, ack })
     if (requests.size > 1000) requests.delete(requests.keys().next().value!)
     return structuredClone(ack)
@@ -419,6 +449,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachDocuments: (port: DocumentService) => { documents = port; publish('connection') },
     attachMemory: (port: MemoryService) => { memory = port; publish('connection') },
     attachMcp: (port: McpService) => { mcp = port; publish('connection') },
+    attachMinecraft: (port: MinecraftService, chat: MinecraftChat, scenario?: typeof gameScenario) => { minecraft = port; minecraftChat = chat; gameScenario = scenario; publish('connection') },
     attachBackup: (port: BackupService) => { backup = port; publish('connection') },
     attachQuill: (port: QuillService) => { quill = port; publish('connection') },
     attachGifts: (port: GiftService) => { gifts = port; publish('connection') },

@@ -86,6 +86,8 @@ import { createCompanionWindows, type CompanionWindows } from './windows/compani
 import { roundedMiniShape, type MiniFallbackReason } from './windows/presentation'
 import { resolveRoomLayout, resolveRoomRoot } from './room/paths'
 import { migrateLegacyDesk } from './room/legacy-desk'
+import { createMinecraft, type MinecraftService } from './minecraft/service'
+import { createMinecraftChat, type MinecraftChat } from './minecraft/chat'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -125,6 +127,8 @@ let backup: BackupService | undefined
 let quill: QuillService | undefined
 let gifts: GiftService | undefined
 let heartFlow: HeartFlowService | undefined
+let minecraft: MinecraftService | undefined
+let minecraftChat: MinecraftChat | undefined
 let life: LifeService | undefined
 let diary: DiaryService | undefined
 let notifications: NotificationsService | undefined
@@ -327,12 +331,12 @@ void app.whenReady().then(async () => {
     memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, model: fakeMemory?.model ?? taskModels.memory, development: fakeMemory,
       includeContextEntries: (seqs) => heartFlow?.normalEntriesAllowed(seqs) ?? new Set(seqs),
       beforeRoll: async () => { if (photos && !photos.photo(store!.scope.sessionId)) { photos.capture('day-end', 'day-end:' + store!.scope.sessionId); await photos.idle() } },
-      isBusy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active(), changed: () => controller?.refresh('connection'),
+      isBusy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('connection'),
       rolled: () => { controller?.refresh('connection'); harness?.sessionChanged(); pomodoro?.reconcile(); campus?.stateChanged(); documents?.stateChanged() },
       failed: () => { console.error('Memory processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachMemory(memory)
     campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? createBlockedImapSource(), privacy: fakeMailbox?.privacy ?? taskModels.mail,
-      canProcess: () => (!life || life.view().locationId === 'room') && !lifeWork?.active(),
+      canProcess: () => (!life || life.view().locationId === 'room') && !lifeWork?.active() && !minecraft?.active(),
       artifacts, openArtifact: previewArtifact, attachment: (record) => documents!.registerAttachment(record),
       development: fakeMailbox, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('mail', text, id) },
       failed: () => { console.error('Campus processing stopped: local storage unavailable.'); app.quit() } })
@@ -379,19 +383,19 @@ void app.whenReady().then(async () => {
     lifeWork = createLifeWork({ store, clock, scheduler, desk, developer: prepared.developer, model: prepared.developer ? createFakeLifeWorkModel() : null,
       available: () => {
         const projection = store!.projection(); const timer = projection.pomodoro
-        return !backup?.isBusy() && !harness?.isBusy() && !heartFlow?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing') && diary?.view().status !== 'writing' && !['extracting', 'compacting'].includes(memory?.view().status ?? '')
+        return !backup?.isBusy() && !harness?.isBusy() && !heartFlow?.active() && !minecraft?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing') && diary?.view().status !== 'writing' && !['extracting', 'compacting'].includes(memory?.view().status ?? '')
           && controller?.getSnapshot().onboarding?.status === 'completed' && life?.view().locationId === 'room'
           && (timer.phase === 'focus' && timer.status === 'running' || !['short-break', 'long-break'].includes(timer.phase) && (life?.view().userSchedule === 'work' || projection.mode !== 'rest'))
       }, changed: () => controller?.refresh('task'), projected: () => { life?.reconcile(); roomProjection.rebuild() },
       open: (path, text) => previewArtifact({ id: 'life-work', artifactId: 'life-work', displayName: path.split('/').at(-1)!, kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: 'fake' }, text, '书桌作品 · 仅供用户查阅，不注入对话。') })
     controller.attachLifeWork(lifeWork)
-    life = createLife({ store, clock, scheduler, work: lifeWork, restored: restoreReceipt?.status === 'restored', working: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active(), changed: () => controller?.refresh('mode'), emit: (id, facts) => { harness?.postEvent('autonomous', facts, id) } })
+    life = createLife({ store, clock, scheduler, work: lifeWork, restored: restoreReceipt?.status === 'restored', working: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('mode'), emit: (id, facts) => { harness?.postEvent('autonomous', facts, id) } })
     controller.attachLife(life)
-    diary = createDiary({ clock, scheduler, store, assets: binaryAssets, model: prepared.developer ? { source: 'fake', write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary, busy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
+    diary = createDiary({ clock, scheduler, store, assets: binaryAssets, model: prepared.developer ? { source: 'fake', write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary, busy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
     controller.attachDiary(diary, { rebuild: () => { lifeWork?.rebuild(); roomProjection.rebuild() }, open: () => { void shell.openPath(roomProjection.root) } })
     optical = createOpticalMemory({ root: dataDir, store, clock, assets: binaryAssets, developer: prepared.developer, render: (text, signal) => renderOpticalPage(text, systemClock, signal),
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入光学解码配置（地址与凭据仅在主进程）', properties: ['openFile'], filters: [{ name: '光学服务配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
-      available: () => !harness?.isBusy() && !heartFlow?.active() && !lifeWork?.active() && !backup?.isBusy() && controller?.getSnapshot().onboarding?.status === 'completed',
+      available: () => !harness?.isBusy() && !heartFlow?.active() && !lifeWork?.active() && !minecraft?.active() && !backup?.isBusy() && controller?.getSnapshot().onboarding?.status === 'completed',
       changed: () => controller?.refresh('task'), protectCredential: (value) => { if (value && !privateCredentials.includes(value)) privateCredentials.push(value) } })
     controller.attachOptical(optical)
     notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => heartFlow?.view().pending?.id, changed: () => controller?.refresh('connection'),
@@ -421,9 +425,31 @@ void app.whenReady().then(async () => {
         const selected = await dialog.showMessageBox({ type: 'question', title: '核对 MCP 启动配置', message: '是否连接 ' + id + '？', detail, buttons: ['取消', '连接此配置'], defaultId: 0, cancelId: 0, noLink: true })
         return selected.response === 1
       },
-      canConfigure: () => !harness?.isBusy(), changed: () => controller?.refresh('connection') })
+      canConfigure: () => !harness?.isBusy() && !minecraft?.active(), changed: () => { minecraft?.stateChanged(); controller?.refresh('connection') } })
     controller.attachMcp(mcp)
-    harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => heartFlow?.active() ?? false,
+    const round = store.history!().findLast((row) => row.type === 'minecraft/round')
+    minecraft = createMinecraft({ clock, scheduler, protocol: (id) => {
+      const protocol = mcp?.protocol(id); if (!protocol) return
+      return { ...protocol, identifierAllowed: (value) => protocol.identifierAllowed(value) && !privateCredentials.some((credential) => credential && value.includes(credential)),
+        text: (value) => privateCredentials.reduce((text, credential) => credential ? text.replaceAll(credential, '[redacted]') : text, protocol.text(value)) }
+    }, source: (id) => mcp?.view().servers.find((server) => server.id === id)?.source ?? 'none',
+      interrupted: restoreReceipt?.status !== 'restored' && round?.type === 'minecraft/round' && !round.stopVerified ? round : undefined,
+      blocked: () => { const projection = store!.projection(); return projection.lightsOut || projection.mode === 'quiet' || projection.pomodoro.phase === 'focus' && projection.pomodoro.status === 'running' || !!heartFlow?.active() || !!minecraft?.view().serverId && !mcp?.protocol(minecraft.view().serverId!) },
+      available: () => (prepared.developer || prepared.booth) && !harness?.isBusy() && !lifeWork?.active() && !backup?.isBusy() && minecraftChat?.ready() !== false && life?.view().locationId === 'room',
+      stopping: () => { void minecraftChat?.end() }, events: (messages) => minecraftChat?.events(messages),
+      record: (receipt) => {
+        store!.append({ type: 'minecraft/round', ...receipt })
+        if (receipt.status === 'started') { memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground(); minecraftChat?.begin(receipt.roundId) }
+        else if (receipt.stopVerified) {
+          const view = minecraft!.view()
+          harness?.postEvent('autonomous', JSON.stringify({ kind: 'minecraft-round-ended', source: view.source, actionsAttempted: view.actionsUsed, stopVerified: true, lastAction: view.lastAction ?? null, authority: 'attempt-count-and-observed-status-only' }), 'minecraft-ended:' + receipt.roundId)
+        }
+      },
+      changed: () => controller?.refresh('task') })
+    minecraftChat = createMinecraftChat({ root: join(dataDir, 'minecraft'), clock, mainStore: store, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), game: () => minecraft!, enabled: () => modelReady,
+      persona: () => ({ name: controller!.getSnapshot().onboarding?.characterName ?? '桃子', persona: activeCharacter.persona }), credentials: privateCredentials, changed: () => controller?.refresh('message') })
+    controller.attachMinecraft(minecraft, minecraftChat, mcpFixture ? (scenario) => mcpFixture!.game.select(scenario) : undefined)
+    harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
       prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); return heartFlow!.active() ? preparedContext : recall!.prepare(id, preparedContext) }, foreground: () => { memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, userWork: () => life?.foreground(),
       failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     controller.attachExecution(harness, modelReady)
@@ -431,13 +457,13 @@ void app.whenReady().then(async () => {
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入模型槽位配置（内容仅由主进程读取）', properties: ['openFile'], filters: [{ name: '模型配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null }, changed: () => controller?.refresh('connection') })
     controller.attachModelSettings(modelSettings)
     backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials, onboarding: () => controller!.getSnapshot().onboarding!,
-      canStart: () => !harness!.isBusy() && !heartFlow?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
+      canStart: () => !harness!.isBusy() && !heartFlow?.active() && !minecraft?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
       freeze: async () => { scheduler!.pauseBackground(true); memory!.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground(); await Promise.all([memory!.idle(), diary?.idle(), photos?.idle(), lifeWork?.idle(), optical?.idle()]); if (harness!.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
       chooseExport: async (name) => { const selected = await dialog.showSaveDialog({ title: '导出私人存档', defaultPath: name, filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePath ?? null },
       chooseImport: async () => { const selected = await dialog.showOpenDialog({ title: '选择私人存档', properties: ['openFile'], filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
       restart: () => { systemClock.after(100, () => { app.relaunch(); app.quit() }) }, changed: () => controller?.refresh('restore') })
     controller.attachBackup(backup)
-    quill = createQuillService({ clock, store, scheduler, artifacts, memory: memoryRepository, isBusy: () => harness?.isBusy() ?? false, emit: (source, text, id) => harness?.postEvent(source, text, id), changed: () => controller?.refresh('task') })
+    quill = createQuillService({ clock, store, scheduler, artifacts, memory: memoryRepository, isBusy: () => !!harness?.isBusy() || !!minecraft?.active(), emit: (source, text, id) => harness?.postEvent(source, text, id), changed: () => controller?.refresh('task') })
     controller.attachQuill(quill)
     const rodinConfig = prepared.developer ? null : await readRodinConfig(providersFile)
     const rodinApi = prepared.developer ? { submit: async () => ({ uuid: randomUUID(), subscription_key: 'synthetic-private-handle' }), poll: async () => 'ready' as const, download: async () => syntheticGlb() } : rodinConfig ? createRodinApi(rodinConfig, clock) : null
@@ -462,7 +488,7 @@ void app.whenReady().then(async () => {
     plugins.mountService('notifications', (enabled) => notifications?.setEnabled(enabled))
     if (prepared.scene?.preset === 'pomodoro-demo' && store.records().length <= 2) pomodoro.propose({ label: '开发演示', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }, 'user')
     harness.stateChanged()
-    scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => controller?.refresh('timer'), { everyMs: 1000, background: false })
+    scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => { minecraft?.stateChanged(); controller?.refresh('timer') }, { everyMs: 1000, background: false })
     runtime = await attachRuntime({ prepared, controller, plugins, harness, scheduler, store,
       locked: () => backup?.isBusy() ?? false,
       mcpPort: Number(process.env.LCA_MCP_PORT ?? 5175), cdpPort,
@@ -494,6 +520,8 @@ app.on('before-quit', (event) => {
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), delegates?.close(), optical?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
+    const closeGame = (async () => { await minecraft?.close(); await minecraftChat?.end(); await mcp?.close() })()
+    // Keep the development clock alive until every service has finished its cancellation/release RPCs.
+    void Promise.all([harness.dispose(), closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), delegates?.close(), optical?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })
