@@ -46,9 +46,17 @@ export interface PomodoroView {
   /** A proposed plan requires a separate user confirmation before it can run. */
   plan?: PomodoroPlanView
 }
+export interface PomodoroPlanItem {
+  /** Short single-line text, at most 40 Unicode code points; main validates it. */
+  text: string
+  /** Positive integer; all item counts must sum exactly to plannedCount. */
+  count: number
+  assist: boolean
+}
 export interface PomodoroPlanInput {
   label: string
   plannedCount: number
+  items?: readonly PomodoroPlanItem[]
   focusDurationMs: number
   shortBreakDurationMs: number
   longBreakDurationMs: number
@@ -292,6 +300,8 @@ export interface ModelSettingsView {
 }
 export interface WindowsView {
   mode: 'book' | 'mini'
+  miniPresentation?: 'transparent' | 'opaque'
+  miniFallbackReason?: 'forced' | 'gpu-unavailable' | 'black-background' | 'gpu-crash' | null
   miniBounds: { x: number; y: number; width: number; height: number } | null
   miniAlwaysOnTop: boolean
   miniClickThrough: boolean
