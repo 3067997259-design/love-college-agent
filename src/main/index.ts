@@ -14,6 +14,8 @@ import { createModelClient } from './model/client'
 import { createHarness } from './harness/loop'
 import { builtinTools } from './harness/tools'
 import { probeHarness } from './validation/harness'
+import { openSettings } from './config/settings'
+import { createPluginRegistry } from './plugins/registry'
 
 const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(process.cwd(), '.local-data'))
 mkdirSync(dataDir, { recursive: true })
@@ -90,10 +92,21 @@ void app.whenReady().then(async () => {
     store = openSessionStore(dataDir, { userId: 'local-user', characterId: 'default-character' }, systemClock)
     controller = createAppController(systemClock, undefined, store)
     bridge = registerAppBridge(controller)
+    const settings = openSettings(dataDir)
+    const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings })
+    plugins.registerBuiltin('core', '时钟与任务计划', builtinTools())
+    plugins.discover()
     const providers = await readModelProviders(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
-    harness = createHarness({ store, clock: systemClock, model: createModelClient(providers, ['chat'], systemClock), tools: builtinTools(), changed: (reason) => controller?.refresh(reason),
+    harness = createHarness({ store, clock: systemClock, model: createModelClient(providers, ['chat'], systemClock), tools: [], getTools: plugins.tools, changed: (reason) => controller?.refresh(reason),
       failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     controller.attachExecution(harness, providers.has('chat'))
+    controller.attachRuntime({ view: () => ({ plugins: plugins.views(), developer: { mode: settings.read().booth ? 'booth' : 'normal', requestedEnabled: false, restartRequired: false } }),
+      dispatch: (command) => {
+        if (command.type === 'plugin.enable') return plugins.enable(command.pluginId, command.fingerprint)
+        if (command.type === 'plugin.disable') return plugins.disable(command.pluginId)
+        if (command.type === 'plugin.privacy.set') return plugins.setPrivacy(command.pluginId, command.privacy)
+        return 'unavailable'
+      } })
   } catch {
     console.error('Application storage unavailable; existing data preserved.')
     app.exit(1)
