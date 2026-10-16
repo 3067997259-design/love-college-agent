@@ -1,4 +1,4 @@
-import { app, BrowserWindow, powerMonitor } from 'electron'
+import { app, BrowserWindow, dialog, powerMonitor } from 'electron'
 import { join, resolve } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { systemClock } from './clock'
@@ -38,6 +38,9 @@ import { createMemoryService, type MemoryService } from './memory/service'
 import { createFakeMemoryModel } from './memory/model'
 import { memoryTools } from './memory/tools'
 import { probeMemory } from './validation/memory'
+import { createMcpService, type McpService } from './mcp/service'
+import { startMcpFixture } from './mcp/fixture'
+import { probeStudentHubMcp } from './validation/mcp'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -67,6 +70,8 @@ let documentVault: DocumentVault | undefined
 let documents: DocumentService | undefined
 let memoryRepository: MemoryRepository | undefined
 let memory: MemoryService | undefined
+let mcp: McpService | undefined
+let mcpFixture: Awaited<ReturnType<typeof startMcpFixture>> | undefined
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -90,6 +95,11 @@ function createWindow(): void {
 void app.whenReady().then(async () => {
   if (!ownsData) return
   if (prepared.developer && process.argv.some((arg) => arg.startsWith('--lca-probe='))) { console.log('LCA_PROBE:{"ok":false,"error":"DEVELOPER_PROFILE_REFUSED"}'); app.exit(1); return }
+  if (process.argv.includes('--lca-probe=mcp-student-hub')) {
+    try { const report = await probeStudentHubMcp(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(report.ok ? 0 : 1) }
+    catch { console.log('LCA_PROBE:{"ok":false,"probe":"mcp-student-hub","error":"MCP_STUDENT_HUB_PROBE_FAILED"}'); app.exit(1) }
+    return
+  }
   if (process.argv.includes('--lca-probe=memory')) {
     try { const report = await probeMemory(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(report.ok ? 0 : 1) }
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"memory","error":"MEMORY_PROBE_FAILED"}'); app.exit(1) }
@@ -184,11 +194,18 @@ void app.whenReady().then(async () => {
     plugins.registerBuiltin('mail', '邮箱与校园候选', mailTools(campus), { handlesPrivacy: true, permissions: ['network'] })
     plugins.registerBuiltin('documents', '附件与资料整理', documentTools(documents), { handlesPrivacy: true, permissions: ['filesystem'] })
     plugins.registerBuiltin('memory', '经历记忆与日会话', memoryTools(memory))
+    plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
     if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])
     plugins.discover()
     const providers = prepared.developer ? new Map() : await readModelProviders(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
     const modelReady = prepared.developer || providers.has('chat')
-    harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: plugins.tools, enabled: () => modelReady, changed: (reason) => controller?.refresh(reason),
+    if (prepared.developer) mcpFixture = await startMcpFixture(clock)
+    mcp = createMcpService({ clock, configPath: process.env.LCA_MCP_CONFIG ?? join(dataDir, 'connections/mcp.json'), source: prepared.developer ? 'fake' : 'real',
+      privacyModel: prepared.developer ? createFakePrivacyModel() : null, developmentConfig: mcpFixture?.config,
+      chooseConfig: async () => { const selected = await dialog.showOpenDialog({ title: '导入 MCP 配置（配置仅由主进程读取）', properties: ['openFile'], filters: [{ name: 'MCP 配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
+      canConfigure: () => !harness?.isBusy(), changed: () => controller?.refresh('connection') })
+    controller.attachMcp(mcp)
+    harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: () => [...plugins.tools(), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason),
       prepareContext: (id, signal) => memory!.prepareContext(id, signal), foreground: () => memory?.foreground(),
       failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     controller.attachExecution(harness, modelReady)
@@ -197,6 +214,7 @@ void app.whenReady().then(async () => {
     plugins.mountService('mail', (enabled) => campus?.setEnabled(enabled))
     plugins.mountService('documents', (enabled) => documents?.setEnabled(enabled))
     plugins.mountService('memory', (enabled) => memory?.setEnabled(enabled))
+    plugins.mountService('mcp', (enabled) => mcp?.setEnabled(enabled))
     if (prepared.scene?.preset === 'pomodoro-demo' && store.records().length <= 2) pomodoro.propose({ label: '开发演示', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }, 'user')
     harness.stateChanged()
     scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => controller?.refresh('timer'), { everyMs: 1000, background: false })
@@ -225,6 +243,6 @@ app.on('before-quit', (event) => {
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory]).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })
