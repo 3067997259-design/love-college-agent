@@ -17,9 +17,11 @@ afterEach(() => cleanups.splice(0).reverse().forEach((cleanup) => cleanup()))
 it('creates traditional encrypted ZIP independently readable by Python zipfile', () => {
   const zip = encryptDiaryZip('主观日记\nSYNTHETIC_DIARY', 'SYNTHETIC_TEST_PASSWORD', '2026-10-16')
   expect(zip.includes(Buffer.from('SYNTHETIC_DIARY'))).toBe(false); expect(decryptDiaryZip(zip, 'SYNTHETIC_TEST_PASSWORD')).toContain('SYNTHETIC_DIARY'); expect(() => decryptDiaryZip(zip, 'wrong')).toThrow()
-  const result = execFileSync('python', ['-c', 'import sys,json,base64,io,zipfile\nx=json.load(sys.stdin)\nz=zipfile.ZipFile(io.BytesIO(base64.b64decode(x["zip"])))\nassert z.read("2026-10-16.md",pwd=b"SYNTHETIC_TEST_PASSWORD").decode("utf-8")=="主观日记\\nSYNTHETIC_DIARY"\nprint("PASS")'], { input: JSON.stringify({ zip: zip.toString('base64') }), encoding: 'utf8', windowsHide: true })
+  // Windows CI's cold Python startup took 8s. Bound the child itself and leave time for process setup;
+  // retain the independent-reader/content assertions instead of replacing them with our own decoder.
+  const result = execFileSync('python', ['-c', 'import sys,json,base64,io,zipfile\nx=json.load(sys.stdin)\nz=zipfile.ZipFile(io.BytesIO(base64.b64decode(x["zip"])))\nassert z.read("2026-10-16.md",pwd=b"SYNTHETIC_TEST_PASSWORD").decode("utf-8")=="主观日记\\nSYNTHETIC_DIARY"\nprint("PASS")'], { input: JSON.stringify({ zip: zip.toString('base64') }), encoding: 'utf8', windowsHide: true, timeout: 20_000 })
   expect(result.trim()).toBe('PASS')
-})
+}, 30_000)
 it('writes once from seen-only materials, locks then unlocks immutable keys, rebuilds encrypted projections', async () => {
   const root = mkdtempSync(join(tmpdir(), 'lca-diary-')); cleanups.push(() => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-diary-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })
   const clock = createManualClock(0); clock.advanceBy(clock.parse('2026-10-16T12:00:00+08:00')); const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
