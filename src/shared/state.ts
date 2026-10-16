@@ -525,6 +525,15 @@ export interface HeartFlowView {
   /** User-only draft metadata. Contents stay in the desk/work context and native preview. */
   operations?: readonly FlowOperationView[]
   computer?: DeskComputerView
+  webFetch?: FlowFetchView
+}
+export interface FlowFetchView {
+  source: 'real' | 'fake'
+  requestsUsed: number
+  maxRequests: number
+  pending?: { id: string; url: string }
+  status: 'idle' | 'waiting-approval' | 'fetching'
+  last?: { url: string; status: 'fetched' | 'denied' | 'failed' | 'cancelled'; atMs: number; receivedBytes?: number; truncated?: boolean }
 }
 export type DeskComputerAction = { type: 'click'; x: number; y: number } | { type: 'type'; text: string } | { type: 'key'; key: 'TAB' | 'ENTER' | 'ESCAPE' | 'BACKSPACE' }
 /** An isolated static HTML desk preview, never the user's whole computer or an existing application. */

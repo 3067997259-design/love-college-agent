@@ -133,6 +133,7 @@ export type AppCommand = CommandEnvelope & (
   /** User explicitly opens one desk HTML file; the model cannot select or replace the target. */
   | { type: 'flow.computer.open'; path: string }
   | { type: 'flow.computer.close' }
+  | { type: 'flow.fetch.approve'; approvalId: string; allow: boolean }
   | { type: 'flow.computer.approve'; approvalId: string; allow: boolean }
   | { type: 'flow.review' }
   /** Book-only native preview. Draft prose is never carried in snapshots or ordinary memory. */
