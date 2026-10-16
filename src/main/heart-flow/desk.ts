@@ -8,7 +8,9 @@ export const contentHash = (text: string | null) => createHash('sha256').update(
 export function createDesk(root: string) {
   mkdirSync(root, { recursive: true }); if (lstatSync(root).isSymbolicLink()) throw new Error('DESK_INVALID')
   const base = realpathSync(root)
+  const check = () => { if (lstatSync(root).isSymbolicLink() || realpathSync(root) !== base) throw new Error('DESK_INVALID') }
   const path = (input: string, create = false) => {
+    check()
     deskPathSchema.parse(input); const target = resolve(base, input); const rel = relative(base, target)
     if (!rel || rel.startsWith('..') || isAbsolute(rel)) throw new Error('DESK_INVALID')
     let at = base
@@ -16,7 +18,7 @@ export function createDesk(root: string) {
       at = join(at, part)
       if (!existsSync(at)) { if (create && at !== target) mkdirSync(at); continue }
       const stat = lstatSync(at)
-      if (stat.isSymbolicLink() || stat.nlink > 1 || !realpathSync(at).startsWith(base + '\\') && !realpathSync(at).startsWith(base + '/')) throw new Error('DESK_INVALID')
+      if (stat.isSymbolicLink() || stat.isFile() && stat.nlink !== 1 || !realpathSync(at).startsWith(base + '\\') && !realpathSync(at).startsWith(base + '/')) throw new Error('DESK_INVALID')
     }
     return target
   }
@@ -29,6 +31,7 @@ export function createDesk(root: string) {
     writeFileSync(temporary, text, { flag: 'wx', mode: 0o600 }); renameSync(temporary, target)
   }
   const list = () => {
+    check()
     const result: { path: string; byteLength: number }[] = []
     const visit = (dir: string, depth: number) => { if (depth > 8) return; for (const entry of readdirSync(dir, { withFileTypes: true })) { if (result.length >= 300) return; if (entry.isSymbolicLink()) continue; const full = join(dir, entry.name); if (entry.isDirectory()) visit(full, depth + 1); else if (entry.isFile() && lstatSync(full).nlink === 1) { const file = relative(base, full).replaceAll('\\', '/'); if (deskPathSchema.safeParse(file).success) result.push({ path: file, byteLength: lstatSync(full).size }) } } }
     visit(base, 0); return result

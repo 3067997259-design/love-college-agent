@@ -51,3 +51,9 @@ it('keeps the frozen prefix stable and marks all work as ineligible for memory',
   expect(second.messages.slice(0, first.messages.length)).toEqual(first.messages); expect(second.eligibleIndexes).toEqual([])
   const tools = deskTools(f.flow); expect(tools.some((tool) => tool.definition.name === 'run_javascript')).toBe(true)
 })
+it('does not project a failed write as an applied change', async () => {
+  const f = fixture(); f.dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(f.flow.active()).toBe(true)); f.dispatch({ type: 'flow.mode', mode: 'execute' })
+  vi.spyOn(f.desk, 'write').mockImplementation(() => { throw new Error('SYNTHETIC_DISK_FAILURE') })
+  expect(() => f.flow.write('failed.txt', 'NEVER_WRITTEN')).toThrow(); expect(f.flow.view().changes).toHaveLength(0)
+  expect(f.store.records().filter((row) => row.type === 'desk/settled')).toMatchObject([{ status: 'failed' }])
+})

@@ -4,7 +4,7 @@ export function HeartFlowControls({ bridge, snapshot }: { bridge: AppBridge; sna
   const [code, setCode] = useState('return 6 * 7'); const [error, setError] = useState(''); const flow = snapshot.heartFlow
   if (!flow) return null
   const send = async (body: Record<string, unknown>) => { try { const result = await bridge.dispatch({ ...body, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() } as AppCommand); setError(result.status === 'rejected' ? result.error.code : '') } catch { setError('connection-failed') } }
-  return <section aria-label="书桌心流"><h2>书桌心流</h2>
+  return <section className="flow-work" aria-label="书桌心流"><h2>书桌心流</h2>
     <p>仅她的书桌 · JavaScript 沙箱 · 每次运行都审批 · {flow.mode === 'plan' ? '只读计划' : '可写执行'}</p>
     {!flow.activeId ? <button onClick={() => void send({ type: 'flow.enter' })}>进入心流</button> : <>
       <button onClick={() => void send({ type: 'flow.mode', mode: flow.mode === 'plan' ? 'execute' : 'plan' })}>{flow.mode === 'plan' ? '批准计划并允许书桌写入' : '回到只读计划'}</button>

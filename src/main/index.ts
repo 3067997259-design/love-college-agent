@@ -23,6 +23,7 @@ import { createCharacterLibrary } from './characters/library'
 import { builtinCharacter, createCharacterService, type CharacterService } from './characters/service'
 import { definitionSchema } from './characters/package'
 import { exportBuiltinCharacter } from './characters/builtin'
+import { appliedDeskChanges } from './heart-flow/changes'
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'lca-media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 import { createAppController } from './bridge/controller'
@@ -167,6 +168,7 @@ function createWindow(): void {
 
 void app.whenReady().then(async () => {
   if (!ownsData) return
+  if (prepared.developer && process.argv.some((arg) => arg.startsWith('--lca-probe='))) { console.log('LCA_PROBE:{"ok":false,"error":"DEVELOPER_PROFILE_REFUSED"}'); app.exit(1); return }
   if (process.argv.includes('--lca-probe=life')) {
     try { console.log('LCA_PROBE:' + JSON.stringify(probeLife(dataDir))); app.exit(0) }
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"life","error":"LIFE_PROBE_FAILED"}'); app.exit(1) }; return
@@ -176,7 +178,6 @@ void app.whenReady().then(async () => {
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"heart-flow","error":"FLOW_PROBE_FAILED"}'); app.exit(1) }
     return
   }
-  if (prepared.developer && process.argv.some((arg) => arg.startsWith('--lca-probe='))) { console.log('LCA_PROBE:{"ok":false,"error":"DEVELOPER_PROFILE_REFUSED"}'); app.exit(1); return }
   if (process.argv.includes('--lca-probe=rodin')) {
     try { const report = await probeRodin(dataDir, providersFile, join(app.getAppPath(), '.local-data', 'rodin-live-budget-20261017.json'), systemClock); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(report.ok ? 0 : 1) }
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"rodin","error":"RODIN_LIVE_PROBE_FAILED"}'); app.exit(1) }
@@ -300,6 +301,7 @@ void app.whenReady().then(async () => {
     memoryRepository = openMemoryRepository(dataDir, store)
     const fakeMemory = prepared.developer ? createFakeMemoryModel() : undefined
     memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, model: fakeMemory?.model ?? taskModels.memory, development: fakeMemory,
+      includeContextEntries: (seqs) => heartFlow?.normalEntriesAllowed(seqs) ?? new Set(seqs),
       isBusy: () => !!harness?.isBusy() || !!heartFlow?.active(), changed: () => controller?.refresh('connection'),
       rolled: () => { controller?.refresh('connection'); harness?.sessionChanged(); pomodoro?.reconcile(); campus?.stateChanged(); documents?.stateChanged() },
       failed: () => { console.error('Memory processing stopped: local storage unavailable.'); app.quit() } })
@@ -320,12 +322,12 @@ void app.whenReady().then(async () => {
     plugins.registerBuiltin('documents', '附件与资料整理', documentTools(documents), { handlesPrivacy: true, permissions: ['filesystem'] })
     plugins.registerBuiltin('memory', '经历记忆与日会话', memoryTools(memory))
     const ownerRoom = contentHash(JSON.stringify([store.scope.userId, store.scope.characterId]))
-    const roomRoot = prepared.developer || prepared.booth ? join(dataDir, 'rooms', ownerRoom) : join(app.getPath('documents'), '桃子的房间', ownerRoom.slice(0, 12))
+    const roomRoot = prepared.developer || prepared.booth || process.env.LCA_DATA_DIR ? join(dataDir, 'rooms', ownerRoom) : join(app.getPath('documents'), '桃子的房间', ownerRoom.slice(0, 12))
     const roomProjection = createRoomProjection(roomRoot, store, binaryAssets, clock)
     scheduler.schedule('room.projection', clock.nowMs() + 30000, () => roomProjection.rebuild(), { everyMs: 60000 })
     const desk = createDesk(join(roomRoot, '书桌'))
     if (restoreReceipt?.status === 'restored') {
-      const restoredFiles = new Map(store.history!().flatMap((row) => row.type === 'desk/change' ? [[row.path, row.after] as const] : []))
+      const restoredFiles = new Map(appliedDeskChanges(store.history!()).map((row) => [row.path, row.after] as const))
       for (const [path, text] of restoredFiles) desk.write(path, text)
     }
     heartFlow = createHeartFlow({ store, clock, desk, booth: prepared.booth, busy: () => harness?.isBusy() ?? false, changed: () => controller?.refresh('task'),

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot } from '../../../shared'
 import './tools.css'
 import { MailboxControls } from './MailboxControls'
@@ -23,6 +23,7 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
   const [approving, setApproving] = useState<string | null>(null)
   const [plannedCount, setPlannedCount] = useState(2)
   const [demo, setDemo] = useState(false)
+  useEffect(() => { if (snapshot.heartFlow?.activeId) setOpen(false) }, [snapshot.heartFlow?.activeId])
   const send = async (action: Action) => {
     try {
       const ack = await bridge.dispatch({ ...action, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() })
@@ -43,7 +44,7 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
       <DiagnosticsControls bridge={bridge} snapshot={snapshot} />
       <ModelControls bridge={bridge} snapshot={snapshot} />
       <GiftControls bridge={bridge} snapshot={snapshot} />
-      <HeartFlowControls bridge={bridge} snapshot={snapshot} />
+      {!snapshot.heartFlow?.activeId && <HeartFlowControls bridge={bridge} snapshot={snapshot} />}
       <LifeControls bridge={bridge} snapshot={snapshot} />
       <DiaryControls bridge={bridge} snapshot={snapshot} />
       <NotificationControls bridge={bridge} snapshot={snapshot} />
