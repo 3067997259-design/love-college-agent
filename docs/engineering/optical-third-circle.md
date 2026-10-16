@@ -18,6 +18,6 @@
 
 ## 当前进度与依赖
 
-接口提交后先合 main，再实现。整个第三圈台账见 third-circle-ledger.md。
+接口 **54646cf** 已先合 main，再继续后端。整个第三圈台账见 third-circle-ledger.md。
 
-分身接口 `4594698` 已在 main，功能及验收保存在 `codex/gpt-foundation`（`8307d51`、`815e520`，已推远程）；main 研究线正改 `heart-flow/service.ts`，等待其提交后保留双方功能合并。当前使用同一 `D:/lca-gpt` worktree 的 `codex/third-optical`，从 main `39b7939` 起，不覆盖其未提交修改。Claude 可先按共享接口准备活动卡，不能把尚未合入的功能报告成 main 已可运行。
+分身接口 `4594698`、功能 `8307d51` 和验收已在 **b6ccddc** 合 main；期间保留了研究线的同文件未提交工作。当前使用同一 `D:/lca-gpt` worktree 的 `codex/third-optical`，已同步这次合并。Claude 可按光学共享接口准备元数据卡；光学后端仍未完成，不能报告已可运行。
