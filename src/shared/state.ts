@@ -429,6 +429,36 @@ export interface LifeView {
   agenda: readonly { kind: 'read' | 'write' | 'walk'; atMs: number; state: 'planned' | 'settled' | 'skipped' }[]
   outings: readonly OutingView[]
   items: readonly { id: string; outingId: string; dayKey: string; place: OutingPlace; kind: 'shell' | 'leaf'; acquiredAtMs: number; display: 'desk' | 'drawer' }[]
+  /** Actual online work, separate from fictional outings. Text stays in the private journal/desk. */
+  work?: LifeWorkView
+}
+export type LifeWorkKind = 'read' | 'write'
+export interface LifeWorkItem {
+  id: string
+  dayKey: string
+  kind: LifeWorkKind
+  source: 'real' | 'fake'
+  materialId: string
+  status: 'queued' | 'running' | 'paused' | 'interrupted' | 'failed' | 'completed'
+  completedSteps: number
+  totalSteps: number
+  createdAtMs: number
+  updatedAtMs: number
+  completedAtMs: number | null
+  /** Codes only; never provider errors, input excerpts or generated prose. */
+  reason?: 'user' | 'interrupted' | 'busy' | 'lights' | 'conflict' | 'model' | 'budget'
+  /** Latest verified, immutable checkpoint in her desk; present even before the whole work completes. */
+  output?: { path: string; sha256: string; byteLength: number }
+}
+export interface LifeWorkView {
+  enabled: boolean
+  source: 'real' | 'fake' | 'none'
+  runningId: string | null
+  attemptsToday: number
+  dailyAttemptLimit: number
+  /** Explicitly registered materials only; no recursive reading of arbitrary desk files. */
+  materials: readonly { id: string; path: string; sha256: string; source: 'fake' }[]
+  jobs: readonly LifeWorkItem[]
 }
 export interface HeartFlowView {
   activeId: string | null
