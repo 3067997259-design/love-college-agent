@@ -17,6 +17,7 @@ import { goalSchema, projectFlowGoals } from './goals'
 import { createFlowOperations } from './operations'
 import { type DeskShadow, shadowViews } from './shadow'
 import type { DeskComputer } from '../computer/service'
+import type { FlowFetch } from '../web-fetch/service'
 
 type Prepared = { messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }
 export function createHeartFlow(options: { store: SessionStore; clock: Clock; desk: ReturnType<typeof createDesk>; booth: boolean; busy(): boolean; changed(): void;
@@ -27,6 +28,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   let lastRun: HeartFlowView['lastRun']; let opening = false
   let delegates: DelegatesService | undefined
   let computer: DeskComputer | undefined
+  let webFetch: FlowFetch | undefined
   const open = () => { const list = rows(); return list.findLast((row) => row.type === 'flow/open' && !list.some((other) => other.type === 'flow/close' && other.id === row.id)) as Extract<ReturnType<typeof rows>[number], { type: 'flow/open' }> | undefined }
   const mode = () => { const flow = open(); const updated = rows().findLast((row) => row.type === 'flow/mode' && row.id === flow?.id); return updated?.type === 'flow/mode' ? updated.mode : flow?.mode ?? 'plan' }
   const changes = () => appliedDeskChanges(rows())
@@ -34,7 +36,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   const linkGoal = (flowId: string) => { const goal = goals().current; if (goal?.status === 'active' && !goal.flowIds.includes(flowId)) store.append({ type: 'flow/goal-linked', goalId: goal.id, flowId }) }
   const goalContext = (): ContextMessage[] => { const goal = goals().current; return goal ? [{ role: 'user', content: JSON.stringify({ selectedWorkGoal: goal, authority: 'user-selected-work-data', completionMeaning: 'user-status-decision-only-not-tool-proof' }) }] : [] }
   const safe = (write = false) => { if (!enabled || !open() || store.projection().lightsOut || write && mode() !== 'execute') throw new Error('FLOW_UNAVAILABLE') }
-  const cancel = () => { computer?.close(); operations?.cancel(); delegates?.cancelAll(); if (pending) { store.append({ type: 'flow/run', id: pending.id, flowId: open()?.id ?? 'interrupted', status: 'denied', codeHash: pending.hash }); pending.resolve?.('execution-denied'); pending = undefined }; running?.abort() }
+  const cancel = () => { webFetch?.cancel(); computer?.close(); operations?.cancel(); delegates?.cancelAll(); if (pending) { store.append({ type: 'flow/run', id: pending.id, flowId: open()?.id ?? 'interrupted', status: 'denied', codeHash: pending.hash }); pending.resolve?.('execution-denied'); pending = undefined }; running?.abort() }
   // A saved request/approval never authorizes a process after restart.
   const runs = rows().filter((row) => row.type === 'flow/run')
   for (const row of runs) if ((row.status === 'requested' || row.status === 'approved') && runs.findLast((other) => other.id === row.id) === row) store.append({ type: 'flow/run', id: row.id, flowId: row.flowId, codeHash: row.codeHash, status: 'interrupted' })
@@ -65,7 +67,8 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
     const completedRuns = rows().flatMap((row) => row.type === 'flow/run' && row.flowId === flow.id && (row.status === 'completed' || row.status === 'failed') ? [{ id: row.id, status: row.status }] : [])
     const actions = rows().filter((row) => row.type === 'flow/computer-action' && row.flowId === flow.id); const observations = rows().filter((row) => row.type === 'flow/computer-frame' && row.flowId === flow.id).length
     const count = (status: 'dispatched' | 'denied' | 'failed' | 'cancelled') => actions.filter((row) => row.type === 'flow/computer-action' && row.status === status).length
-    const summary = flowExitSummary(flow.id, evidence, completedRuns, delegates?.views(flow.id).map(({ id, status }) => ({ id, status })), observations ? { dispatched: count('dispatched'), denied: count('denied'), failed: count('failed'), cancelled: count('cancelled'), observations } : undefined)
+    const requests = rows().filter((row) => row.type === 'flow/web-fetch' && row.flowId === flow.id); const webCount = (status: 'requested' | 'fetched' | 'denied' | 'failed' | 'cancelled') => requests.filter((row) => row.type === 'flow/web-fetch' && row.status === status).length
+    const summary = flowExitSummary(flow.id, evidence, completedRuns, delegates?.views(flow.id).map(({ id, status }) => ({ id, status })), observations ? { dispatched: count('dispatched'), denied: count('denied'), failed: count('failed'), cancelled: count('cancelled'), observations } : undefined, requests.length ? { source: webFetch?.view().source ?? 'real', requested: webCount('requested'), fetched: webCount('fetched'), denied: webCount('denied'), failed: webCount('failed'), cancelled: webCount('cancelled') } : undefined)
     store.append({ type: 'flow/close', id: flow.id, summary }); options.emit('flow:' + flow.id, summary); options.changed()
   }
   const operations = createFlowOperations({ store, clock: options.clock, desk, flowId: () => open()?.id ?? null, request: options.requestDraft, cancelTask: options.cancelTask, source: () => options.modelSource?.() ?? 'none', changed: options.changed, preview: options.previewDraft })
@@ -77,10 +80,12 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   return {
     attachDelegates: (port: DelegatesService) => { delegates = port },
     attachComputer: (port: DeskComputer) => { computer = port },
-    stopChildren: () => { computer?.close(); operations?.cancel(); delegates?.cancelAll() },
+    attachWebFetch: (port: FlowFetch) => { webFetch = port },
+    stopChildren: () => { webFetch?.cancel(); computer?.close(); operations?.cancel(); delegates?.cancelAll() },
     settled: () => operations?.settled(),
-    interruptDraft: () => { computer?.interruptPending(); operations?.cancel() },
+    interruptDraft: () => { webFetch?.cancel(); computer?.interruptPending(); operations?.cancel() },
     active: () => !!open(),
+    id: () => open()?.id ?? null,
     inspect,
     messages: () => {
       const combined = flowContexts(store, false); const activeFlow = open(); const activeSpan = combined.spans.find((span) => span.id === activeFlow?.id)
@@ -88,7 +93,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
       return store.projection().messages.filter((message) => { const position = positions.get(message.id) ?? -1; return activeSpan ? position > activeSpan.start : !combined.spans.some((span) => position > span.start && (span.end < 0 || position < span.end)) })
     },
     normalEntriesAllowed: (seqs: readonly number[]) => normalContextAllowedSeqs(store, seqs),
-      view: (): HeartFlowView => ({ activeId: open()?.id ?? null, mode: mode(), execution: options.booth ? 'disabled' : 'javascript-sandbox', ...(computer ? { computer: computer.view() } : {}), ...(pending ? { pending: { id: pending.id, code: pending.code } } : {}), files: desk.list(), goals: goals().visible, goalId: goals().selected, operations: operations?.views() ?? [], ...(delegates ? { delegates: delegates.views(open()?.id) } : {}),
+      view: (): HeartFlowView => ({ activeId: open()?.id ?? null, mode: mode(), execution: options.booth ? 'disabled' : 'javascript-sandbox', ...(computer ? { computer: computer.view() } : {}), ...(webFetch ? { webFetch: webFetch.view() } : {}), ...(pending ? { pending: { id: pending.id, code: pending.code } } : {}), files: desk.list(), goals: goals().visible, goalId: goals().selected, operations: operations?.views() ?? [], ...(delegates ? { delegates: delegates.views(open()?.id) } : {}),
       changes: changes().filter((row) => row.flowId === open()?.id && !row.undoes).slice(-50).map((row) => ({ id: row.id, path: row.path, undone: changes().some((other) => other.undoes === row.id), ...((options.shadow?.view(row.id) ?? shadowViews(store).get(row.id)) ? { shadow: options.shadow?.view(row.id) ?? shadowViews(store).get(row.id) } : {}) })),
       sessions: rows().filter((row) => row.type === 'flow/open').slice(-30).map((row) => { const closed = rows().find((other) => other.type === 'flow/close' && other.id === row.id); return { id: row.id, startedAtMs: row.atMs, endedAtMs: closed?.atMs ?? null, summary: closed?.type === 'flow/close' ? closed.summary : null } }), ...(lastRun ? { lastRun } : {}) }),
     prepareContext: async (id: string, signal: AbortSignal): Promise<Prepared> => {
@@ -159,6 +164,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
           }).catch(() => {}).finally(() => { opening = false; options.changed() }); return
         }
         safe()
+        if (command.type === 'flow.fetch.approve') return webFetch ? webFetch.dispatch(command) : 'unavailable'
         if (command.type === 'flow.computer.open' || command.type === 'flow.computer.approve') {
           if (options.booth || mode() !== 'execute') return 'permission-denied'
           if (command.type === 'flow.computer.open' && (options.busy() || operations?.active() || pending || running)) return 'unavailable'
@@ -200,7 +206,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
       signal.throwIfAborted(); requestRun(code)
       return await new Promise<string>((resolve) => { pending!.resolve = resolve; const stop = () => { cancel(); resolve('execution-cancelled') }; signal.addEventListener('abort', stop, { once: true }); const settle = resolve; pending!.resolve = (value) => { signal.removeEventListener('abort', stop); settle(value) }; if (signal.aborted) stop() })
     },
-    stateChanged: () => { if (store.projection().lightsOut) cancel(); computer?.stateChanged() },
+    stateChanged: () => { if (store.projection().lightsOut) cancel(); computer?.stateChanged(); webFetch?.stateChanged() },
     setEnabled: (value: boolean) => { enabled = value; if (!value) cancel(); options.changed() }, close: cancel,
   }
 }

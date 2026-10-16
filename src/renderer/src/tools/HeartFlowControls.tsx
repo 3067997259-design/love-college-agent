@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot } from '../../../shared'
 import { ComputerControls } from './ComputerControls'
+import { WebFetchControls } from './WebFetchControls'
 export function HeartFlowControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
   const [code, setCode] = useState('return 6 * 7'); const [goalText, setGoalText] = useState(''); const [error, setError] = useState(''); const flow = snapshot.heartFlow
   if (!flow) return null
@@ -22,6 +23,7 @@ export function HeartFlowControls({ bridge, snapshot }: { bridge: AppBridge; sna
       {!!flow.delegates?.length && <section aria-label="只读分身"><h3>只读分身</h3><ul>{flow.delegates.map((job) => <li key={job.id}>{job.id.slice(0, 8)} · {job.status} · {job.sourceCount} 份来源 · {job.source}{job.error ? ' · ' + job.error : ''}{job.status === 'running' && <button onClick={() => void send({ type: 'flow.delegate.cancel', delegateId: job.id })}>取消这个分身</button>}</li>)}</ul><p>结论先交回本体核对，分身不写文件或记忆。</p></section>}
     </>}
     <ComputerControls bridge={bridge} snapshot={snapshot} />
+    <WebFetchControls bridge={bridge} snapshot={snapshot} />
     <p>{flow.files.length} 个书桌文件 · {flow.sessions.length} 次心流</p>{error && <p role="alert">{error}</p>}
     {!!flow.operations?.length && <section aria-label="项目说明与审查草稿"><h3>工作草稿</h3><p>草稿已落盘不表示审查通过或测试通过。</p><ul>{flow.operations.map((op) => <li key={op.id} data-operation-id={op.id}>{op.kind === 'init' ? '项目说明' : '改动审查'} · {op.status} · {op.source} · {op.sourceCount} 份来源{op.omittedSourceCount > 0 && ` · ${op.omittedSourceCount} 份未纳入`}{op.error && ` · ${op.error}`}
       {op.artifact && <button onClick={() => void send({ type: 'flow.operation.open', operationId: op.id })}>查阅工作草稿</button>}</li>)}</ul></section>}
