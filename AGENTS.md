@@ -54,9 +54,34 @@
 - `videos/`、`music/`、`references/pv-frames/`、`references/hackathon official/`、`ReLU.zip` 只在本机（已 gitignore）：体验与制作参考，不是交付素材；主办方材料含兑换码，不进公开仓库。
 - Read 工具可直接查看 PNG 和 PDF 页面（参考截图、主办方 PDF）；读不出来时再请用户把图粘贴进对话。
 
-## 当前工程状态（2026-10，赛前）
+## 当前工程状态（2026-10-16，赛中）
 
-本工程尚无应用代码和构建／测试脚本：没有 `package.json`、构建、lint 或测试命令。技术栈已定（[技术方案](docs/tech-design.md) §1）：Electron（Windows 桌面端）、React + Vite + TypeScript、OpenAI 兼容模型层按槽位配置、MCP 客户端、IMAP 只读；其余标“默认”的选择（electron-vite、pnpm、Zustand、SQLite 等）可改，改之前先说明需求与代价。界面与形象见 [体验设计](docs/experience-design.md)。首个工作展示必须贯通校园信息与实际资料处理，具体任务以 README 最新决策为准。
+用户已于 2026-10-16 16:32（GMT+8）宣布开赛。已有 electron-vite + React + TypeScript + pnpm 脚手架、`src/shared/` 接口、受限 IPC、统一时钟、CI 和朴素界面；better-sqlite3 已从源码重编译并在 Electron 内完成落盘重开验证。163 IMAP 在认证前连接重置，尚未打开邮箱；这不表示没有邮件。日志与投影、模型客户端、harness、番茄钟业务和完整邮件管线尚未实现，当前内存快照不是持久日志投影。首批证据与交接见 [工程记录](docs/engineering/first-hour.md)。
+
+技术栈仍按 [技术方案](docs/tech-design.md) §1；界面与形象见 [体验设计](docs/experience-design.md)。首个工作展示必须贯通校园信息与实际资料处理，具体任务以 README 最新决策为准。
+
+### 已有命令与实例隔离
+
+Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装依赖，不能共用同一个 `node_modules`。
+
+| 命令 | 用途 |
+| --- | --- |
+| `pnpm store path` | 本机已确认 `D:\.pnpm-store\v11` |
+| `pnpm install --frozen-lockfile` | 按锁文件安装依赖 |
+| `pnpm setup:electron` | 安装／确认 Electron 二进制，缓存与临时目录放 D 盘 |
+| `pnpm rebuild:native` | 为当前 Electron 从源码重编译 better-sqlite3 |
+| `pnpm dev` | 开发服务器及 Electron |
+| `pnpm build` / `pnpm start` | 构建／构建后预览 Electron |
+| `pnpm typecheck` / `pnpm lint` / `pnpm test` | 类型、时钟与边界 lint、Vitest |
+| `pnpm test:electron` | Playwright 驱动 Electron，检查窗口、隔离及 IPC |
+| `pnpm probe:sqlite` | Electron 内加载原生模块、事务写入、关闭后重开 |
+| `pnpm probe:imap` | 主进程内的指定文件夹只读探针；失败仅输出固定分类 |
+
+不运行 `playwright install`。尚无安装包命令；electron-builder、model-viewer 和 Tailwind 的安装已说明延期，后续添加依赖单独提交。
+
+GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER_PORT` 覆盖。数据默认 `<worktree>/.local-data`，可用 `LCA_DATA_DIR` 覆盖。远程调试默认关闭；本次仅在无凭据的 UI 启动检查中临时使用 9527，检查后关闭。调试 MCP 尚未实现，不能虚构可用端口。
+
+经本轮用户明确授权，IMAP 探针由主进程读取本机 `secrets/providers.json`；worktree 可用 `LCA_PROVIDERS_FILE` 指向原 checkout 的文件。不得通过 shell 打印、拷入仓库、传给 renderer／调试接口或记录配置值。未配置隐私模型时业务保持关闭；显式 fake 仅用于测试，不是运行失败后的回退。
 
 赛事约 48 小时：2026-10-16（周五）15:00 开赛，10-18（周日）16:00 代码冻结并提交；周日 15:00–17:00 评委巡场看 Demo，路演队伍从这里选出，17:00 的集市不计分，18:00 起路演（2026-10-15 组委会赛程图，日程见 [开赛清单](docs/kickoff.md) §3）。破冰会（2026-10-10）后不再允许一人参赛，当前两人；核心开发能力仍按用户一人加不受限的 AI 辅助估算，另一位成员是需要从头学 agent coding 的新手，使用 opencode。分工见 [赛前统筹](docs/team-plan.md)。路演为 5 分钟硬时限，提问在其后。按这一实际能力安排范围，为联调和演示留时间，不因 AI 可用就扩张成多条庞大产品线。开发辅助充足不等于允许运行时无界消耗模型资源。
 
