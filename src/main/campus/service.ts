@@ -78,7 +78,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
             const accepted = previous?.accepted
             candidate = candidateSchema.parse({ ...content, id: candidateId, revision: (previous?.current.revision ?? 0) + 1, source: source.source, createdAtMs: clock.nowMs(),
               status: accepted ? 'changed' : 'candidate', plannedCompletionIso: previous?.current.plannedCompletionIso ?? null, evidenceRef,
-              ...(accepted ? { change: { previousDeadlineIso: accepted.deadlineIso, previousEventStartIso: accepted.eventStartIso, previousEvidenceRef: accepted.evidenceRef } } : {}) })
+              ...(accepted ? { change: { previousDeadlineIso: accepted.deadlineIso, ...(accepted.eventStartIso ? { previousEventStartIso: accepted.eventStartIso } : {}), previousEvidenceRef: accepted.evidenceRef } } : {}) })
             repository.append({ type: 'campus/proposed', candidate, calendarUid: previous?.calendarUid ?? randomUUID() }); candidateCount++
           }
           const facts = mailFactsSchema.parse({ ...content, candidateId, revision: candidate!.revision, source: source.source, trust: 'untrusted' })
