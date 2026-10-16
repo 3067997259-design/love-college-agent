@@ -35,3 +35,11 @@
 
 确认与本地交付分开：`campus.export` 仅导出新确认／重新确认的版本，生成日历与 Markdown 交付卡。改期沿用 UID 并递增 SEQUENCE。导出文件不代表写入任何外部日历。`developer.mailbox` 只在独立开发 profile 切换合成场景（初始、改期、恶意、滤芯失败、空邮箱）。邮箱固定走隔离路径的隐私标记显示 `privacyLocked`，不允许设置页悄悄关闭。
 
+
+## 附件与文件处理
+
+`documents` 只包含通用文件标签、来源类型、进度、页数和经代码校验的截止时间；原文、源路径、真实文件名和整理成品均不进入快照或模型上下文。`document.attachment` 按 opaque id 暂存邮件附件；`importFiles(File[], epoch)` 仅供用户拖入／选择，preload 用 native File 解析路径并直接传主进程。没有接受任意路径的公共命令。
+
+`/privacy` 是本地控制指令，等同 `privacy.set`，不发给模型；开关在设置中持久化。当前仅实现隔离整理：关闭时暂存，开启且隔离依赖可用时处理；关闭、熄灯或取消停止在途处理，失败不回退主模型。完成后只给用户交付卡，模型最多收到通用文件名、类型、页数和校验过的截止时间。
+
+`document.retry/cancel` 控制资料任务。`developer.documents` 和 `developer.document.import` 仅在独立开发 profile 提供合成 fixture／故障场景，不代表真实模型、真实附件或 IMAP 已接通。旧 UI fixture 可以省略新视图和导入方法；真实 preload 提供它们。

@@ -1,4 +1,4 @@
-import type { MailScenarioId, PomodoroPlanInput, PublicError } from './state'
+import type { DocumentScenarioId, MailScenarioId, PomodoroPlanInput, PublicError } from './state'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -26,6 +26,11 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'backup.export' }
   | { type: 'backup.import' }
   | { type: 'privacy.set'; enabled: boolean }
+  | { type: 'document.attachment'; attachmentId: string }
+  | { type: 'document.retry'; documentId: string }
+  | { type: 'document.cancel'; documentId: string }
+  | { type: 'developer.documents'; scenarioId: DocumentScenarioId }
+  | { type: 'developer.document.import'; fixtureId: 'assignment-pdf' | 'notes-text' | 'malformed-pdf' | 'scanned-pdf' }
   | { type: 'plugin.enable'; pluginId: string; fingerprint: string }
   | { type: 'plugin.disable'; pluginId: string }
   | { type: 'plugin.privacy.set'; pluginId: string; privacy: 'none' | 'optional' | 'always' }
