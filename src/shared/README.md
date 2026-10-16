@@ -64,4 +64,6 @@
 
 `models.configure` 通过原生对话框导入本机 providers JSON，凭据不经过页面。`modelSettings` 仅含已装配的槽位名、保存状态和需要重启的标记，没有模型名、URL 或密钥。开发 profile 拒绝导入真实配置。设置保存不代表连通验证通过。
 
-`window.mini/book` 切换同一会话的书本与迷你窗，不改变计时和任务。迷你渲染入口为 ?view=mini；hover/move 只接受迷你窗口的主 frame，不能由书本伪造。主进程设置透明、置顶和鼠标穿透，校验并夹住拖动坐标，保存的是本机位置偏好。windows 是实际窗口状态投影；开始新一段专注收起一次，用户仍可点回书本，休息不抢焦点。
+`window.mini` 收起书本；`window.expand` 回到书本并销毁小窗，旧 `window.book` 兼容同一行为，不改变计时和任务。迷你渲染入口为 ?view=mini；`window.mini.hover` 携带 `over: boolean`，hover/move 只接受迷你窗口的主 frame，不能由书本伪造。主进程设置置顶和鼠标穿透，透明异常时回退不透明圆角窗；可选的 miniPresentation／miniFallbackReason 仅说明本机显示模式，不含 GPU 或配置细节。主进程夹住拖动坐标、保存 profile 位置。开始新一段专注收起一次；短／长休息、停止和熄灯保留当前窗口，不抢焦点；熄灯暂停计时／后台，点她仍可回书本。重启从书本开始，不自动复原上次小窗。
+
+`PomodoroPlanInput.items` 可省略；提供时每条为 `{ text, count, assist }`，text 是非空单行短文本（最多 40 Unicode code points），count 为正整数，全部 count 之和必须等于 plannedCount，assist 为必填布尔。工具 plan_pomodoros 使用同一校验，非法输入不写日志、不创建计划。PomodoroPlanView 保留通过校验的原始条目，不补造条目或改变 assist。
