@@ -15,11 +15,12 @@ import { inspectHeartFlow } from './inspection'
 import type { DelegatesService } from '../delegates/service'
 import { goalSchema, projectFlowGoals } from './goals'
 import { createFlowOperations } from './operations'
+import { type DeskShadow, shadowViews } from './shadow'
 
 type Prepared = { messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }
 export function createHeartFlow(options: { store: SessionStore; clock: Clock; desk: ReturnType<typeof createDesk>; booth: boolean; busy(): boolean; changed(): void;
   prepare(id: string, signal: AbortSignal): Promise<Prepared>; entered?(): void; inspect?(view: HeartFlowInspection): void; emit(id: string, summary: string): void; run(code: string, signal: AbortSignal): Promise<string>;
-  requestDraft?(text: string, requestId: string, hash: string): string; cancelTask?(turnId: string): void; modelSource?(): 'real' | 'fake' | 'none'; previewDraft?(view: FlowOperationView, text: string): void }) {
+  requestDraft?(text: string, requestId: string, hash: string): string; cancelTask?(turnId: string): void; modelSource?(): 'real' | 'fake' | 'none'; previewDraft?(view: FlowOperationView, text: string): void; shadow?: DeskShadow }) {
   const { store, desk } = options; const rows = () => store.history?.() ?? store.records()
   let pending: { id: string; code: string; hash: string; resolve?(value: string): void } | undefined; let running: AbortController | undefined; let enabled = true
   let lastRun: HeartFlowView['lastRun']; let opening = false
@@ -44,7 +45,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
     // Snapshot is durable before touching disk. Recovery/undo uses the exact expected after version.
     store.append({ type: 'desk/change', id, flowId: open()!.id, path, before, after: text, pending: true, ...(undoes ? { undoes } : {}) })
     try { desk.write(path, text) } catch { store.append({ type: 'desk/settled', id, status: 'failed' }); throw new Error('DESK_WRITE_FAILED') }
-    store.append({ type: 'desk/settled', id, status: 'applied' }); options.changed(); return id
+    store.append({ type: 'desk/settled', id, status: 'applied' }); options.shadow?.record(changes().find((row) => row.id === id)!); options.changed(); return id
   }
   const requestRun = (code: string) => { safe(true); if (operations?.active() || options.booth || pending || running || code.length > 10_000 || !code.trim()) throw new Error('FLOW_UNAVAILABLE'); const id = randomUUID(); pending = { id, code, hash: contentHash(code) }; store.append({ type: 'flow/run', id, flowId: open()!.id, status: 'requested', codeHash: pending.hash }); options.changed(); return id }
   const compact = (focus?: string, retained?: { turnId: string; messages: readonly ContextMessage[] }) => {
@@ -65,13 +66,17 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   }
   const operations = createFlowOperations({ store, clock: options.clock, desk, flowId: () => open()?.id ?? null, request: options.requestDraft, cancelTask: options.cancelTask, source: () => options.modelSource?.() ?? 'none', changed: options.changed, preview: options.previewDraft })
   const draftContext = () => operations?.context() ?? []
+  const inspect = (input: { section: HeartFlowInspection['section']; flowId?: string }) => {
+    const result = inspectHeartFlow(store, desk, options.booth, { ...input, flowId: input.flowId ?? open()?.id ?? '' }); const receipts = shadowViews(store)
+    return { ...result, changes: result.changes.map((change) => { const shadow = options.shadow?.view(change.id) ?? receipts.get(change.id); return { ...change, ...(shadow ? { shadow } : {}) } }) }
+  }
   return {
     attachDelegates: (port: DelegatesService) => { delegates = port },
     stopChildren: () => { operations?.cancel(); delegates?.cancelAll() },
     settled: () => operations?.settled(),
     interruptDraft: () => operations?.cancel(),
     active: () => !!open(),
-    inspect: (input: { section: HeartFlowInspection['section']; flowId?: string }) => inspectHeartFlow(store, desk, options.booth, { ...input, flowId: input.flowId ?? open()?.id ?? '' }),
+    inspect,
     messages: () => {
       const combined = flowContexts(store, false); const activeFlow = open(); const activeSpan = combined.spans.find((span) => span.id === activeFlow?.id)
       const positions = new Map(store.records().flatMap((row) => row.type === 'user/message' || row.type === 'assistant/message' ? [[row.id, combined.positions.get(store.scope.sessionId + ':' + row.seq) ?? -1] as const] : []))
@@ -79,7 +84,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
     },
     normalEntriesAllowed: (seqs: readonly number[]) => normalContextAllowedSeqs(store, seqs),
       view: (): HeartFlowView => ({ activeId: open()?.id ?? null, mode: mode(), execution: options.booth ? 'disabled' : 'javascript-sandbox', ...(pending ? { pending: { id: pending.id, code: pending.code } } : {}), files: desk.list(), goals: goals().visible, goalId: goals().selected, operations: operations?.views() ?? [], ...(delegates ? { delegates: delegates.views(open()?.id) } : {}),
-      changes: changes().filter((row) => row.flowId === open()?.id && !row.undoes).slice(-50).map((row) => ({ id: row.id, path: row.path, undone: changes().some((other) => other.undoes === row.id) })),
+      changes: changes().filter((row) => row.flowId === open()?.id && !row.undoes).slice(-50).map((row) => ({ id: row.id, path: row.path, undone: changes().some((other) => other.undoes === row.id), ...((options.shadow?.view(row.id) ?? shadowViews(store).get(row.id)) ? { shadow: options.shadow?.view(row.id) ?? shadowViews(store).get(row.id) } : {}) })),
       sessions: rows().filter((row) => row.type === 'flow/open').slice(-30).map((row) => { const closed = rows().find((other) => other.type === 'flow/close' && other.id === row.id); return { id: row.id, startedAtMs: row.atMs, endedAtMs: closed?.atMs ?? null, summary: closed?.type === 'flow/close' ? closed.summary : null } }), ...(lastRun ? { lastRun } : {}) }),
     prepareContext: async (id: string, signal: AbortSignal): Promise<Prepared> => {
       const flow = open(); if (!flow) {
@@ -123,7 +128,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
         }
         if (command.type === 'flow.inspect') {
           if (!options.inspect) return 'unavailable'
-          options.inspect(inspectHeartFlow(store, desk, options.booth, { section: command.section, flowId: command.flowId ?? open()?.id ?? '' })); return
+          options.inspect(inspect({ section: command.section, flowId: command.flowId })); return
         }
         if (command.type === 'flow.resume') {
           if (!enabled || open() || opening || options.busy() || store.projection().lightsOut) return 'unavailable'

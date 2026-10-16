@@ -11,6 +11,7 @@ import { syntheticGlb } from './gifts/fixture'
 import { randomUUID } from 'node:crypto'
 import { createHeartFlow, deskTools, type HeartFlowService } from './heart-flow/service'
 import { contentHash, createDesk } from './heart-flow/desk'
+import { createDeskShadow } from './heart-flow/shadow'
 import { runIsolatedJavaScript } from './heart-flow/runner'
 import { probeHeartFlow } from './validation/heart-flow'
 import { createLife, type LifeService } from './life/service'
@@ -373,7 +374,8 @@ void app.whenReady().then(async () => {
       const restoredFiles = new Map(appliedDeskChanges(store.history!()).map((row) => [row.path, row.after] as const))
       for (const [path, text] of restoredFiles) desk.write(path, text)
     }
-    heartFlow = createHeartFlow({ store, clock, desk, booth: prepared.booth, busy: () => harness?.isBusy() ?? false, changed: () => controller?.refresh('task'),
+    const shadow = createDeskShadow({ root: join(dataDir, 'desk-shadows', ownerRoom), deskRoot: join(roomRoot, '书桌'), store })
+    heartFlow = createHeartFlow({ store, clock, desk, shadow, booth: prepared.booth, busy: () => harness?.isBusy() ?? false, changed: () => controller?.refresh('task'),
       modelSource: () => prepared.developer ? 'fake' : providers.has('chat') ? 'real' : 'none',
       requestDraft: (text, requestId, hash) => { if (!harness) throw new Error('MODEL_UNAVAILABLE'); harness.send(text, requestId, hash); const id = store!.projection().task?.id; if (!id) throw new Error('MODEL_UNAVAILABLE'); return id },
       cancelTask: (id) => { harness?.stop(id) },

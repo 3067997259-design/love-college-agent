@@ -84,6 +84,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('companion/mode'), mode: z.enum(['work', 'quiet', 'rest']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/lights'), lightsOut: z.boolean(), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('voice/settings'), enabled: z.boolean() }),
+  z.strictObject({ type: z.literal('desk/shadow'), changeId: id, status: z.enum(['committed', 'not-git', 'unavailable', 'failed']), commit: z.string().regex(/^[a-f0-9]{40}$/).optional() }).refine((row) => (row.status === 'committed') === !!row.commit),
   z.strictObject({ type: z.literal('voice/attempt'), id, dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), charCount: z.number().int().min(1).max(1200), source: z.enum(['real', 'fake']) }),
   z.strictObject({ type: z.literal('mail/state'), view: mailboxSchema }),
   z.strictObject({ type: z.literal('mail/processed'), sourceKey: opaqueId, contentHash: z.string().regex(/^[a-f0-9]{64}$/), evidenceRef: opaqueId, result: z.enum(['candidate', 'notice']), candidateId: opaqueId.optional(), facts: mailFactsSchema.optional() }),
