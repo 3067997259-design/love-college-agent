@@ -1,6 +1,18 @@
 # Windows 安装包验收
 
-## 当前第零圈包
+## 当前第一圈包
+
+2026-10-16 **22:47:53 GMT+8** 完成验收。包含 main `364028e` 的全部功能代码，之后仅维护文档。产物 `D:\lca-gpt\release\Love-College-Agent-0.1.0-Setup.exe`，**235,230,435 字节**，SHA-256：
+
+```text
+679fb8f2b2581e8ef73e663566088d87a7f231d8eb70d2d2660e25d88bfd4c10
+```
+
+`pnpm package:win` 与 `pnpm test:package` 通过：ASAR 白名单／原生模块解包检查；解包目录和实际 NSIS 安装后的 SQLite、日志、番茄钟、私人存档四组探针；安装版界面和重启保留会话。每个探针独立数据目录，不读真实 providers。测试安装到 D 盘唯一目录，测试实例已卸载，用户数据没有被清空。另实际检查 Authenticode，状态 `NotSigned`；builder 的 signtool 提示不代表有效签名。
+
+本包包含第一圈主进程、正常模式模型配置入口、Claude 迷你窗与晕染、原生双窗口。源码相关流程还通过 119 项单测和 Electron 测试，详见 [第一圈记录](first-circle-closeout.md)。这不是另一台干净机器验收，未验证真实 IMAP／学校隐私模型／Rodin。文件名仍为 0.1.0，请用上述 SHA 区分旧包；未发布或上传安装包。
+
+## 第零圈包历史
 
 2026-10-16 19:12:09 GMT+8，包含 `491f1cd` 的全部功能代码（之后仅文档提交）。当前 `release/Love-College-Agent-0.1.0-Setup.exe` 为 223,974,573 字节，SHA-256：
 
