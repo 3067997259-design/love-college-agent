@@ -16,6 +16,7 @@ import { builtinTools } from './harness/tools'
 import { probeHarness } from './validation/harness'
 import { openSettings } from './config/settings'
 import { createPluginRegistry } from './plugins/registry'
+import { createScheduler, type Scheduler } from './scheduler'
 
 const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(process.cwd(), '.local-data'))
 mkdirSync(dataDir, { recursive: true })
@@ -28,6 +29,7 @@ let controller: ReturnType<typeof createAppController> | undefined
 let bridge: ReturnType<typeof registerAppBridge> | undefined
 let store: SessionStore | undefined
 let harness: ReturnType<typeof createHarness> | undefined
+let scheduler: Scheduler | undefined
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -100,6 +102,8 @@ void app.whenReady().then(async () => {
     harness = createHarness({ store, clock: systemClock, model: createModelClient(providers, ['chat'], systemClock), tools: [], getTools: plugins.tools, changed: (reason) => controller?.refresh(reason),
       failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     controller.attachExecution(harness, providers.has('chat'))
+    scheduler = createScheduler(systemClock, () => { console.error('Scheduler stopped: local operation failed.'); app.quit() })
+    scheduler.schedule('ui.snapshot', systemClock.nowMs() + 1000, () => controller?.refresh('timer'), { everyMs: 1000, background: false })
     controller.attachRuntime({ view: () => ({ plugins: plugins.views(), developer: { mode: settings.read().booth ? 'booth' : 'normal', requestedEnabled: false, restartRequired: false } }),
       dispatch: (command) => {
         if (command.type === 'plugin.enable') return plugins.enable(command.pluginId, command.fingerprint)
@@ -112,7 +116,6 @@ void app.whenReady().then(async () => {
     app.exit(1)
     return
   }
-  controller.start()
   createWindow()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 })
@@ -124,6 +127,7 @@ app.on('before-quit', (event) => {
     event.preventDefault()
     if (closing) return
     closing = true
+    scheduler?.dispose()
     void harness.dispose().finally(() => { controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true; app.quit() })
-  } else if (!storageClosed) { controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
+  } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })
