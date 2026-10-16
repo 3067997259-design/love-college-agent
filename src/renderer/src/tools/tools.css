@@ -17,3 +17,7 @@
 .diagnostics-window h1 { font-size: 1.2rem; }
 .diagnostics-window pre { max-height: 420px; overflow: auto; white-space: pre-wrap; }
 .diagnostics-window .diagnostics-live { max-height: 240px; overflow: auto; }
+.flow-work { padding: 12px; border: 1px solid var(--graphite, #b2a389); border-radius: 6px; font-family: var(--font-body); overflow-wrap: anywhere; }
+.flow-work button, .flow-work textarea { font: inherit; }
+.flow-work textarea { display: block; box-sizing: border-box; width: 100%; min-height: 60px; }
+.flow-work pre { max-height: 160px; overflow: auto; white-space: pre-wrap; }

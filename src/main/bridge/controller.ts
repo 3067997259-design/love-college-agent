@@ -215,7 +215,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     }
     if (quill) snapshot.quill = quill.read()
     if (gifts) { snapshot.gifts = gifts.view(); snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'rodin' ? { ...item, status: snapshot.gifts!.configured ? 'ready' : 'unconfigured', source: snapshot.gifts!.items.at(-1)?.source ?? 'none' } : item) }
-    if (heartFlow) { snapshot.heartFlow = heartFlow.view(); snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'heart-flow' ? { ...item, status: 'ready', source: 'real' } : item); if (snapshot.heartFlow.activeId) snapshot.companion.pose = 'desk-computer' }
+    if (heartFlow) { snapshot.heartFlow = heartFlow.view(); snapshot.messages = heartFlow.messages(); snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'heart-flow' ? { ...item, status: 'ready', source: 'real' } : item); if (snapshot.heartFlow.activeId) snapshot.companion.pose = 'desk-computer' }
     if (life) { snapshot.life = life.view(); snapshot.companion.locationId = snapshot.life.locationId }
     if (diary) snapshot.diary = diary.view()
     if (notifications) snapshot.notifications = notifications.view()

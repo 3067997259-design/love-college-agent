@@ -51,6 +51,8 @@ describe('background memory scheduling and context assembly', () => {
     const month = f.repository.view().summaries.find((summary) => summary.level === 'month')!
     expect(month.sources.map((source) => source.id)).toEqual(['seen-2026-10-15', 'seen-2026-10-16'])
     expect(summaryReferences(f.repository.view().summaries, 'current').map((summary) => summary.level)).toEqual(['month'])
+    expect(summaryReferences(f.repository.view().summaries, 'current', '2026-10-19', f.clock).every((summary) => summary.level === 'day')).toBe(true)
+    expect(summaryReferences(f.repository.view().summaries, 'current', '2026-11-03', f.clock).map((summary) => summary.level)).toEqual(['week'])
     addDay('2026-10-16', '-revised'); f.memory.dispatch(f.command({ type: 'memory.consolidate' })); await f.memory.idle()
     expect(f.memory.view().summaryCounts).toEqual({ day: 2, week: 1, month: 1 })
     expect(f.repository.view().summaries.filter((summary) => summary.level === 'month')).toHaveLength(2)

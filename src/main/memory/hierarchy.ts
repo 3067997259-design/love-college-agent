@@ -19,9 +19,15 @@ export function closedSummaryGroups(summaries: readonly MemorySummary[], today: 
   })
 }
 /** Prefer wider references, but never feed the same source session through overlapping summaries. */
-export function summaryReferences(summaries: readonly MemorySummary[], currentSessionId: string) {
+export function summaryReferences(summaries: readonly MemorySummary[], currentSessionId: string, today?: string, clock?: Clock) {
   const covered = new Set<string>(); const selected: MemorySummary[] = []; const rank = { month: 0, week: 1, day: 2 }
-  const candidates = latestSummaries(summaries).filter((summary) => !summary.sourceSessionIds.includes(currentSessionId)).sort((a, b) => rank[a.level] - rank[b.level] || b.period.localeCompare(a.period))
+  const latest = latestSummaries(summaries); const days = new Map(latest.filter((summary) => summary.level === 'day').flatMap((summary) => summary.sourceSessionIds.map((id) => [id, summary.period] as const)))
+  const candidates = latest.filter((summary) => {
+    if (summary.sourceSessionIds.includes(currentSessionId)) return false
+    if (summary.level === 'day' || !today || !clock) return true
+    const cutoff = clock.iso(clock.parse(today + 'T12:00:00+08:00') - (summary.level === 'week' ? 7 : 30) * 86400000).slice(0, 10)
+    return summary.sourceSessionIds.every((id) => (days.get(id) ?? today) < cutoff)
+  }).sort((a, b) => rank[a.level] - rank[b.level] || b.period.localeCompare(a.period))
   for (const summary of candidates) { if (summary.sourceSessionIds.some((id) => covered.has(id))) continue; selected.push(summary); summary.sourceSessionIds.forEach((id) => covered.add(id)) }
   return selected.sort((a, b) => b.period.localeCompare(a.period)).slice(0, 7)
 }

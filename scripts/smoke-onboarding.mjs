@@ -55,8 +55,8 @@ try {
   // Main's final request is observed at a local synthetic HTTP server, never a real provider.
   await send({ type: 'message.send', text: '只核对合成档案分层' }); await waitFor((s) => s.task?.status === 'completed', 'SYNTHETIC_CONTEXT_NOT_COMPLETED')
   assert.equal(requests.length, 1); const messages = requests[0].messages
-  assert.equal(messages[0].role, 'system'); assert.ok(messages[0].content.includes('杏子')); assert.ok(!messages[0].content.includes('程同学'))
-  assert.equal(messages[1].role, 'system'); assert.ok(messages[1].content.includes('关于你') && messages[1].content.includes('程同学'))
+  assert.equal(messages[0].role, 'system'); assert.ok(messages[1].content.includes('杏子')); assert.ok(!messages[1].content.includes('程同学'))
+  assert.equal(messages[2].role, 'system'); assert.ok(messages[2].content.includes('关于你') && messages[2].content.includes('程同学'))
   assert.equal((await snapshot()).memory.items.length, 0)
   const archiveFile = join(data, 'completed.lca-save')
   await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archiveFile)

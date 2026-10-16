@@ -11,7 +11,8 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
   const { clock, store } = options; const rows = () => store.history?.() ?? store.records()
   const previous = rows().findLast((row) => row.type === 'life/state')
   let state = lifeSchema.parse(previous?.type === 'life/state' ? structuredClone(previous.view) : { dayKey: calendarDay(clock), userSchedule: 'auto', locationId: 'room', settledUntilMs: clock.nowMs(), agenda: [], outings: [], items: [] })
-  const save = () => { state.outings = state.outings.slice(-500); state.items = state.items.slice(-500); state = lifeSchema.parse(state); store.append({ type: 'life/state', view: state }); options.changed() }
+  const pendingFacts = new Map<string, string>()
+  const save = () => { state.outings = state.outings.slice(-500); state.items = state.items.slice(-500); state = lifeSchema.parse(state); store.append({ type: 'life/state', view: state }); options.changed(); for (const [id, facts] of pendingFacts) options.emit(id, facts); pendingFacts.clear() }
   const working = () => options.working() || store.projection().mode !== 'rest' || store.projection().pomodoro.phase === 'focus' || state.userSchedule === 'work'
   const resting = (day: string) => state.dayKey === day && state.userSchedule !== 'auto' ? state.userSchedule === 'rest' : isWeekend(clock, day)
   const makeOuting = (day: string, at: number, offline: boolean, place?: OutingPlace): OutingView => {
@@ -26,7 +27,7 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
       state.items.push({ id: 'item:' + outing.id, outingId: outing.id, dayKey: calendarDay(clock, outing.startsAtMs), place: outing.place, kind: outing.item, acquiredAtMs: outing.acquiredAtMs, display: 'desk' })
       state.items.forEach((item, index) => { item.display = index >= state.items.length - 3 ? 'desk' : 'drawer' })
     }
-    options.emit(outing.id + ':return', JSON.stringify({ fictionalOuting: outing, broughtItem: state.items.find((item) => item.outingId === outing.id)?.kind ?? null, actualWorkWhileOffline: false }))
+    pendingFacts.set(outing.id + ':return', JSON.stringify({ fictionalOuting: outing, broughtItem: state.items.find((item) => item.outingId === outing.id)?.kind ?? null, actualWorkWhileOffline: false }))
   }
   const reconcile = (startup = false) => {
     const now = clock.nowMs(); const wasLightsOut = store.projection().lightsOut; let changed = false

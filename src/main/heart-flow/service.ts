@@ -7,6 +7,9 @@ import type { ContextMessage } from '../journal/schema'
 import { contentHash, createDesk, deskPathSchema } from './desk'
 import type { HarnessTool } from '../harness/tools'
 import instructions from './instructions.json'
+import { flowContexts, normalContextAllowedSeqs } from './context'
+import { appliedDeskChanges } from './changes'
+import codingSkill from './coding-skill.json'
 
 type Prepared = { messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }
 export function createHeartFlow(options: { store: SessionStore; clock: Clock; desk: ReturnType<typeof createDesk>; booth: boolean; busy(): boolean; changed(): void;
@@ -16,16 +19,22 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   let lastRun: HeartFlowView['lastRun']; let opening = false
   const open = () => { const list = rows(); return list.findLast((row) => row.type === 'flow/open' && !list.some((other) => other.type === 'flow/close' && other.id === row.id)) as Extract<ReturnType<typeof rows>[number], { type: 'flow/open' }> | undefined }
   const mode = () => { const flow = open(); const updated = rows().findLast((row) => row.type === 'flow/mode' && row.id === flow?.id); return updated?.type === 'flow/mode' ? updated.mode : flow?.mode ?? 'plan' }
-  const changes = () => rows().filter((row) => row.type === 'desk/change') as Extract<ReturnType<typeof rows>[number], { type: 'desk/change' }>[]
+  const changes = () => appliedDeskChanges(rows())
   const safe = (write = false) => { if (!enabled || !open() || store.projection().lightsOut || write && mode() !== 'execute') throw new Error('FLOW_UNAVAILABLE') }
   const cancel = () => { if (pending) { store.append({ type: 'flow/run', id: pending.id, flowId: open()?.id ?? 'interrupted', status: 'denied', codeHash: pending.hash }); pending.resolve?.('execution-denied'); pending = undefined }; running?.abort() }
   // A saved request/approval never authorizes a process after restart.
   const runs = rows().filter((row) => row.type === 'flow/run')
   for (const row of runs) if ((row.status === 'requested' || row.status === 'approved') && !runs.some((other) => other.id === row.id && other.seq > row.seq)) store.append({ type: 'flow/run', id: row.id, flowId: row.flowId, codeHash: row.codeHash, status: 'interrupted' })
+  for (const row of rows()) if (row.type === 'desk/change' && row.pending && !rows().some((other) => other.type === 'desk/settled' && other.id === row.id)) {
+    let matches = false; try { matches = contentHash(desk.read(row.path)) === contentHash(row.after) } catch { /* Broken file containment is not a committed change. */ }
+    store.append({ type: 'desk/settled', id: row.id, status: matches ? 'applied' : 'failed' })
+  }
   const write = (path: string, text: string | null, undoes?: string) => {
     safe(true); const before = desk.read(path); const id = randomUUID()
     // Snapshot is durable before touching disk. Recovery/undo uses the exact expected after version.
-    store.append({ type: 'desk/change', id, flowId: open()!.id, path, before, after: text, ...(undoes ? { undoes } : {}) }); desk.write(path, text); options.changed(); return id
+    store.append({ type: 'desk/change', id, flowId: open()!.id, path, before, after: text, pending: true, ...(undoes ? { undoes } : {}) })
+    try { desk.write(path, text) } catch { store.append({ type: 'desk/settled', id, status: 'failed' }); throw new Error('DESK_WRITE_FAILED') }
+    store.append({ type: 'desk/settled', id, status: 'applied' }); options.changed(); return id
   }
   const requestRun = (code: string) => { safe(true); if (options.booth || pending || running || code.length > 10_000 || !code.trim()) throw new Error('FLOW_UNAVAILABLE'); const id = randomUUID(); pending = { id, code, hash: contentHash(code) }; store.append({ type: 'flow/run', id, flowId: open()!.id, status: 'requested', codeHash: pending.hash }); options.changed(); return id }
   const compact = () => {
@@ -40,23 +49,22 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   }
   return {
     active: () => !!open(),
+    messages: () => {
+      const combined = flowContexts(store, false); const activeFlow = open(); const activeSpan = combined.spans.find((span) => span.id === activeFlow?.id)
+      const positions = new Map(store.records().flatMap((row) => row.type === 'user/message' || row.type === 'assistant/message' ? [[row.id, combined.positions.get(store.scope.sessionId + ':' + row.seq) ?? -1] as const] : []))
+      return store.projection().messages.filter((message) => { const position = positions.get(message.id) ?? -1; return activeSpan ? position > activeSpan.start : !combined.spans.some((span) => position > span.start && (span.end < 0 || position < span.end)) })
+    },
+    normalEntriesAllowed: (seqs: readonly number[]) => normalContextAllowedSeqs(store, seqs),
     view: (): HeartFlowView => ({ activeId: open()?.id ?? null, mode: mode(), execution: options.booth ? 'disabled' : 'javascript-sandbox', ...(pending ? { pending: { id: pending.id, code: pending.code } } : {}), files: desk.list(),
       changes: changes().filter((row) => row.flowId === open()?.id && !row.undoes).slice(-50).map((row) => ({ id: row.id, path: row.path, undone: changes().some((other) => other.undoes === row.id) })),
       sessions: rows().filter((row) => row.type === 'flow/open').slice(-30).map((row) => { const closed = rows().find((other) => other.type === 'flow/close' && other.id === row.id); return { id: row.id, startedAtMs: row.atMs, endedAtMs: closed?.atMs ?? null, summary: closed?.type === 'flow/close' ? closed.summary : null } }), ...(lastRun ? { lastRun } : {}) }),
     prepareContext: async (id: string, signal: AbortSignal): Promise<Prepared> => {
       const flow = open(); if (!flow) {
-        const prepared = await options.prepare(id, signal)
-        const list = store.records(); const spans = list.filter((row) => row.type === 'flow/open').map((row) => ({ start: row.seq, end: list.find((other) => other.type === 'flow/close' && other.id === row.id)?.seq ?? Infinity }))
-        const hidden = new Set(store.projection().contextEntries.filter((entry) => spans.some((span) => entry.seq > span.start && entry.seq < span.end)).map((entry) => JSON.stringify(entry.message)))
-        // Normal conversation is rebuilt from its own records, excluding all work turns and file bodies.
-        const filtered = prepared.messages.flatMap((message, index) => {
-          return hidden.has(JSON.stringify(message)) ? [] : [{ message, eligible: prepared.eligibleIndexes.includes(index) }]
-        })
-        return { messages: filtered.map((entry) => entry.message), eligibleIndexes: filtered.flatMap((entry, index) => entry.eligible ? [index] : []) }
+        return options.prepare(id, signal)
       }
-      const checkpoint = rows().findLast((row) => row.type === 'flow/compact' && row.id === flow.id)
-      const threshold = checkpoint?.type === 'flow/compact' ? checkpoint.throughSeq : flow.seq
-      const work = store.projection().contextEntries.filter((entry) => entry.seq > threshold && !rows().some((row) => row.seq === entry.seq && row.type === 'context/inject'))
+      const combined = flowContexts(store); const checkpointIndex = combined.rows.findLastIndex((row) => row.type === 'flow/compact' && row.id === flow.id); const checkpoint = combined.rows[checkpointIndex]
+      const threshold = checkpointIndex >= 0 ? checkpointIndex : combined.spans.find((span) => span.id === flow.id)!.start
+      const work = combined.context.filter((entry) => entry.position > threshold && combined.rows[entry.position]?.type !== 'context/inject')
       const messages: ContextMessage[] = [...flow.prefix, ...(checkpoint?.type === 'flow/compact' ? [{ role: 'user' as const, content: checkpoint.summary }] : []), ...work.map((entry) => entry.message)]
       if (JSON.stringify(messages).length > 80_000) { compact(); return { messages: [...flow.prefix, { role: 'user', content: instructions.compacted }], eligibleIndexes: [] } }
       return { messages, eligibleIndexes: [] }
@@ -70,7 +78,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
             if (options.busy() || store.projection().lightsOut) return
             const policies = prepared.messages.filter((message) => message.role === 'system')
             const chat = store.projection().messages.slice(-12).map((message) => ({ role: message.role, text: message.text.slice(0, 500) }))
-            store.append({ type: 'flow/open', id: randomUUID(), mode: 'plan', prefix: [...policies, { role: 'system', content: instructions.policy }, { role: 'user', content: JSON.stringify({ conversationReference: chat }) }] })
+            store.append({ type: 'flow/open', id: randomUUID(), mode: 'plan', prefix: [...policies, { role: 'system', content: instructions.policy }, { role: 'system', content: JSON.stringify({ builtinCodingSkill: codingSkill }) }, { role: 'user', content: JSON.stringify({ conversationReference: chat }) }] })
             options.entered?.()
           }).catch(() => {}).finally(() => { opening = false; options.changed() }); return
         }
@@ -87,6 +95,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
         if (command.type === 'flow.run') { requestRun(command.code); return }
         if (command.type === 'flow.approve') {
           if (!pending || pending.id !== command.approvalId || running) return 'invalid-command'
+          if (command.allow && (options.booth || mode() !== 'execute')) return 'permission-denied'
           const job = pending; pending = undefined
           store.append({ type: 'flow/run', id: job.id, flowId: open()!.id, status: command.allow ? 'approved' : 'denied', codeHash: job.hash })
           if (!command.allow) { job.resolve?.('execution-denied'); options.changed(); return }
