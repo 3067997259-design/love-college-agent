@@ -20,6 +20,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   development?: ReturnType<typeof createFakeMemoryModel>; isBusy(): boolean; rolled(): void; changed(): void; failed?(): void;
   limits?: { idleMs?: number; compactChars?: number; hardChars?: number; dailyChars?: number; dailyCalls?: number };
   includeContextEntries?(seqs: readonly number[]): ReadonlySet<number>;
+  beforeRoll?(): Promise<void>;
 }) {
   const { clock, store, scheduler, repository } = options
   const records = () => store.history?.() ?? store.records()
@@ -107,6 +108,8 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       }
     }
     signal.throwIfAborted()
+    if (!backgroundAllowed()) throw new MemoryFailure('unavailable')
+    await options.beforeRoll?.(); signal.throwIfAborted()
     if (!backgroundAllowed()) throw new MemoryFailure('unavailable')
     if (store.rotate?.()) { repository.refresh(); options.changed(); options.rolled() }
   }

@@ -56,6 +56,7 @@
     "probe:heart-flow": "pnpm build && node scripts/probe-electron.mjs heart-flow",
     "probe:life": "pnpm build && node scripts/probe-electron.mjs life",
     "test:room": "pnpm build && node scripts/smoke-room.mjs",
+    "test:history": "pnpm build && node scripts/smoke-history.mjs",
     "test:notifications": "pnpm build && node scripts/smoke-notifications.mjs",
     "test:characters": "pnpm build && node scripts/smoke-characters.mjs",
     "test:heart-flow": "pnpm build && node scripts/smoke-heart-flow.mjs"

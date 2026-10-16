@@ -113,6 +113,7 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [] }: 
     moveCursor(cursor)
     e.renderer.keep(e.current, e.empty, frame.previous)
     e.renderer.draw(frame)
+    if (canvasRef.current) canvasRef.current.dataset.photoReady = String(!again && e.mode === 'static')
     if (again) e.frame = requestAnimationFrame(paint)
   }
 
@@ -180,6 +181,7 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [] }: 
     const e = engine.current
     const src = sceneSrc(art.key)
     if (!e || !src) return
+    if (canvasRef.current) canvasRef.current.dataset.photoReady = 'false'
     let cancelled = false
     e.renderer.keep(e.current)
     e.renderer.layer(src).then((layer) => {
