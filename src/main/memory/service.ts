@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { AppCommand, MemoryView, PublicErrorCode, SessionPage, SessionView } from '../../shared'
+import type { AppCommand, MemoryView, MessageView, PublicErrorCode, SessionPage, SessionView } from '../../shared'
 import type { Clock } from '../clock'
 import type { Scheduler } from '../scheduler'
 import type { SessionStore } from '../store/session'
@@ -30,7 +30,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   const dayKey = () => store.dayKey?.() ?? sessionDayKey(clock)
   const pendingDay = () => sessionDayKey(clock) > dayKey()
   const reserve = (kind: OperationKind, chars: number) => {
-    const started = store.records().filter((row) => row.type === 'memory/operation' && row.status === 'started')
+    const started = records().filter((row) => row.type === 'memory/operation' && row.status === 'started' && sessionDayKey(clock, row.atMs) === sessionDayKey(clock))
     const used = started.reduce((sum, row) => sum + (row.type === 'memory/operation' ? row.reservedChars : 0), 0)
     if (started.length >= (options.limits?.dailyCalls ?? 32) || used + chars > (options.limits?.dailyChars ?? 240_000)) throw new MemoryFailure('budget-exceeded')
     const operationId = randomUUID()
@@ -91,9 +91,16 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   }
   const rollCore = async (signal: AbortSignal) => {
     if (!pendingDay() || !backgroundAllowed() || store.projection().pomodoro.status === 'running') throw new MemoryFailure('unavailable')
-    if (options.model) for (let i = 0; i < 4; i++) await extractCore(signal)
     const old = pages().find((page) => page.sessionId === store.scope.sessionId)!
-    if (options.model) await summarizeDay(old, signal)
+    if (options.model) {
+      try { for (let i = 0; i < 4; i++) await extractCore(signal); await summarizeDay(old, signal) }
+      catch (cause) {
+        signal.throwIfAborted()
+        if (!(cause instanceof MemoryFailure)) throw cause
+        // A failed background dependency does not trap all future chat in yesterday's session.
+        status = 'failed'; error = { code: cause.code, retryable: true }
+      }
+    }
     signal.throwIfAborted()
     if (!backgroundAllowed()) throw new MemoryFailure('unavailable')
     if (store.rotate?.()) { repository.refresh(); options.changed(); options.rolled() }
@@ -110,7 +117,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     if (!backgroundAllowed() || worker) return
     if (pendingDay()) { await run('day', rollCore); return }
     if (!options.model) return
-    const old = pages().filter((page) => page.dayKey < dayKey() && !repository.view().summaries.some((summary) => summary.sourceSessionIds.includes(page.sessionId))).at(-1)
+    const old = pages().filter((page) => page.dayKey < dayKey() && seenFragments(page.records).length && !repository.view().summaries.some((summary) => summary.sourceSessionIds.includes(page.sessionId))).at(-1)
     await run('extract', async (signal) => { if (old) await summarizeDay(old, signal); await extractCore(signal); await compactCore(signal) })
   }
   scheduler.schedule('memory.maintenance', clock.nowMs() + 30_000, () => { void maintenance().catch(() => options.failed?.()) }, { everyMs: 30_000 })
@@ -133,7 +140,14 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       summarized: repository.view().summaries.some((summary) => summary.sourceSessionIds.includes(page.sessionId)) })) }),
     readSession: (id: string): SessionPage => {
       const page = pages().find((page) => page.sessionId === id); if (!page) throw new Error('SESSION_UNAVAILABLE')
-      const messages = projectJournal(page.records).messages; const selected = messages.slice(-200); let chars = 0
+      const delivered = new Map(projectJournal(page.records).messages.map((message) => [message.id, message]))
+      // Explicit user archive access also includes public replies held until rest. It never returns tool results.
+      const messages = page.records.flatMap((row): MessageView[] => {
+        if (row.type === 'user/message') return [delivered.get(row.id) ?? { id: row.id, role: 'user', text: row.text, createdAtMs: row.atMs, status: 'complete' }]
+        if (row.type === 'assistant/message' && row.text) return [{ id: row.id, role: 'assistant', text: row.text, createdAtMs: row.atMs, status: row.status }]
+        return []
+      })
+      const selected = messages.slice(-200); let chars = 0
       const bounded = selected.filter((message) => { chars += message.text.length; return chars <= 200_000 })
       return { sessionId: page.sessionId, dayKey: page.dayKey, messages: bounded, truncated: bounded.length !== messages.length }
     },
@@ -144,6 +158,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       signal.throwIfAborted()
       const base = store.projection().contextEntries
       const rows = store.records(); const policies = base.filter((entry) => rows.some((row) => row.seq === entry.seq && row.type === 'context/inject' && row.source === 'policy'))
+      const memoryCalls = new Set(rows.flatMap((row) => row.type === 'tool/call' && row.name === 'search_memory' ? [row.callId] : []))
       const today = base.filter((entry) => !policies.includes(entry))
       const recall = allowed() ? search(today.filter((entry) => entry.message.role === 'user').slice(-3).map((entry) => entry.message.content).join('\n'), turnId) : []
       const summaries = (allowed() ? repository.view().summaries : []).filter((summary) => !summary.sourceSessionIds.includes(store.scope.sessionId)).slice(-7).map((summary) => ({ dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
@@ -152,7 +167,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       const lastUser = today.findLastIndex((entry) => entry.message.role === 'user')
       today.forEach((entry, index) => {
         if (index === lastUser && recall.length) messages.push({ role: 'user', content: JSON.stringify({ memoryReference: recall, trust: 'unreviewed-reference' }) })
-        if (entry.message.role !== 'system') eligibleIndexes.push(messages.length)
+        if (entry.message.role !== 'system' && !(entry.message.role === 'tool' && memoryCalls.has(entry.message.toolCallId ?? ''))) eligibleIndexes.push(messages.length)
         messages.push(entry.message)
       })
       if (JSON.stringify(messages).length > (options.limits?.hardChars ?? 96_000)) throw new MemoryFailure('context-too-large')
