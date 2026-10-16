@@ -36,7 +36,7 @@ export function createHarness(options: {
     return tools
   }
   currentTools()
-  const inbox: { id: string; source: 'user' | 'pomodoro' | 'mail' | 'autonomous' }[] = []
+  const inbox: { id: string; source: 'user' | 'pomodoro' | 'mail' | 'document' | 'autonomous' }[] = []
   let active: { id: string; abort: AbortController; stopping: boolean; pauseRequested: boolean } | undefined
   let worker: Promise<void> | undefined
   let disposed = false
@@ -69,11 +69,11 @@ export function createHarness(options: {
   const consumed = new Set(store.records().flatMap((row) => row.type === 'inbox/drain' || row.type === 'inbox/drop' ? row.ids : []))
   const pending = store.records().filter((row) => (row.type === 'user/message' || row.type === 'inbox/event') && !consumed.has(row.id))
   // Deterministic phase facts survive restart; interrupted user work still requires resubmission.
-  for (const row of pending) if (row.type === 'inbox/event' && (row.source === 'pomodoro' || row.source === 'mail')) inbox.push({ id: row.id, source: row.source })
-  const undelivered = pending.filter((row) => row.type !== 'inbox/event' || (row.source !== 'pomodoro' && row.source !== 'mail')).map((row) => 'id' in row ? row.id : '')
+  for (const row of pending) if (row.type === 'inbox/event' && (row.source === 'pomodoro' || row.source === 'mail' || row.source === 'document')) inbox.push({ id: row.id, source: row.source })
+  const undelivered = pending.filter((row) => row.type !== 'inbox/event' || (row.source !== 'pomodoro' && row.source !== 'mail' && row.source !== 'document')).map((row) => 'id' in row ? row.id : '')
   for (let index = 0; index < undelivered.length; index += 32) record({ type: 'inbox/drop', ids: undelivered.slice(index, index + 32) })
 
-  const run = async (trigger: 'user' | 'pomodoro' | 'mail' | 'autonomous') => {
+  const run = async (trigger: 'user' | 'pomodoro' | 'mail' | 'document' | 'autonomous') => {
     const turn = { id: randomUUID(), abort: new AbortController(), stopping: false, pauseRequested: false }
     active = turn
     record({ type: 'turn/start', turnId: turn.id, trigger })
@@ -176,7 +176,7 @@ export function createHarness(options: {
       record({ type: 'user/message', id, text, requestId, commandHash })
       inbox.push({ id, source: 'user' }); kick()
     },
-    postEvent: (source: 'pomodoro' | 'mail' | 'autonomous', text: string, eventId: string = randomUUID()) => {
+    postEvent: (source: 'pomodoro' | 'mail' | 'document' | 'autonomous', text: string, eventId: string = randomUUID()) => {
       if (store.records().some((row) => row.type === 'inbox/event' && row.id === eventId)) return false
       if (disposed || inbox.length >= 32) return false
       record({ type: 'inbox/event', id: eventId, source, text }); inbox.push({ id: eventId, source }); kick(); return true

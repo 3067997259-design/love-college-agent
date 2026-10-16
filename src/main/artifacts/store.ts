@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { artifactSchema, type CampusArtifact } from '../campus/schema'
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex')
-export interface ArtifactSpec { candidateId: string; revision: number; format: 'ics' | 'md'; displayName: string; source: 'real' | 'fake'; createdAtMs: number; content: string }
+export interface ArtifactSpec { candidateId: string; revision: number; format: 'ics' | 'md'; displayName: string; source: 'real' | 'fake'; createdAtMs: number; content: string; kind?: 'document' }
 export function createArtifactStore(dataDir: string, owner: { userId: string; characterId: string }) {
   mkdirSync(dataDir, { recursive: true })
   const base = realpathSync(dataDir); const root = join(base, 'artifacts')
@@ -20,7 +20,7 @@ export function createArtifactStore(dataDir: string, owner: { userId: string; ch
   checkRoot()
   const describe = (spec: Omit<ArtifactSpec, 'content'>): CampusArtifact['view'] => {
     const id = hash(JSON.stringify([owner.userId, owner.characterId, spec.candidateId, spec.revision, spec.format]))
-    return { id: 'd:' + id, artifactId: 'a:' + id, displayName: spec.displayName, kind: spec.format === 'ics' ? 'calendar' : 'markdown', status: 'ready', createdAtMs: spec.createdAtMs, sourceRefs: [spec.candidateId], source: spec.source }
+    return { id: 'd:' + id, artifactId: 'a:' + id, displayName: spec.displayName, kind: spec.kind ?? (spec.format === 'ics' ? 'calendar' : 'markdown'), status: 'ready', createdAtMs: spec.createdAtMs, sourceRefs: [spec.candidateId], source: spec.source }
   }
   const read = (artifact: CampusArtifact): string => {
     const parsed = artifactSchema.parse(artifact); const file = join(base, parsed.relativePath)

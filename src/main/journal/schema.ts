@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { PUBLIC_ERROR_CODES } from '../../shared'
 import { viewSchema } from '../pomodoro/schema'
 import { artifactSchema, candidateSchema, deliverySchema, mailboxSchema, mailFactsSchema, opaqueId } from '../campus/schema'
+import { attachmentRecordSchema, documentCompletedSchema, documentJobSchema } from '../documents/schema'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -32,14 +33,17 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('campus/ignored'), candidateId: opaqueId, revision: z.number().int().positive(), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('campus/exported'), candidateId: opaqueId, revision: z.number().int().positive(), sequence: z.number().int().nonnegative(), artifacts: z.array(artifactSchema).length(2) }),
   z.strictObject({ type: z.literal('campus/export-failed'), candidateId: opaqueId, revision: z.number().int().positive(), deliveries: z.array(deliverySchema.extend({ status: z.literal('failed') })).length(2) }),
+  z.strictObject({ type: z.literal('document/job'), job: documentJobSchema }),
+  z.strictObject({ type: z.literal('document/attachment'), attachment: attachmentRecordSchema }),
+  z.strictObject({ type: z.literal('document/completed'), ...documentCompletedSchema.shape }),
   z.strictObject({ type: z.literal('pomodoro/state'), view: viewSchema, pauseReason: z.enum(['manual', 'lights']).nullable(),
     cause: z.enum(['plan', 'confirmed', 'started', 'paused', 'resumed', 'stopped', 'elapsed', 'interrupted']),
     mode: z.enum(['work', 'quiet', 'rest']).optional(), event: z.strictObject({ id, text: z.string().max(2000) }).optional() }),
   z.strictObject({ type: z.literal('user/message'), id, text: z.string().min(1).max(20_000), requestId: id, commandHash: id }),
-  z.strictObject({ type: z.literal('inbox/event'), id, source: z.enum(['pomodoro', 'mail', 'autonomous']), text: z.string().max(2000) }),
+  z.strictObject({ type: z.literal('inbox/event'), id, source: z.enum(['pomodoro', 'mail', 'document', 'autonomous']), text: z.string().max(2000) }),
   z.strictObject({ type: z.literal('inbox/drain'), ids: z.array(id).max(32) }),
   z.strictObject({ type: z.literal('inbox/drop'), ids: z.array(id).max(32) }),
-  z.strictObject({ type: z.literal('turn/start'), turnId: id, trigger: z.enum(['user', 'pomodoro', 'mail', 'autonomous']) }),
+  z.strictObject({ type: z.literal('turn/start'), turnId: id, trigger: z.enum(['user', 'pomodoro', 'mail', 'document', 'autonomous']) }),
   z.strictObject({ type: z.literal('turn/cancelling'), turnId: id }),
   z.strictObject({ type: z.literal('turn/paused'), turnId: id }),
   z.strictObject({ type: z.literal('turn/resumed'), turnId: id }),

@@ -10,6 +10,8 @@ import { planSchema } from '../pomodoro/schema'
 import type { PomodoroService } from '../pomodoro/service'
 import type { CampusService } from '../campus/service'
 import { MAIL_SCENARIO_IDS } from '../../shared'
+import { DOCUMENT_SCENARIO_IDS, type FileImportAck } from '../../shared'
+import type { DocumentService } from '../documents/service'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
@@ -31,6 +33,11 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('backup.export') }),
   z.strictObject({ ...envelope, type: z.literal('backup.import') }),
   z.strictObject({ ...envelope, type: z.literal('privacy.set'), enabled: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('document.attachment'), attachmentId: z.string().max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('document.retry'), documentId: z.string().max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('document.cancel'), documentId: z.string().max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('developer.documents'), scenarioId: z.enum(DOCUMENT_SCENARIO_IDS) }),
+  z.strictObject({ ...envelope, type: z.literal('developer.document.import'), fixtureId: z.enum(['assignment-pdf', 'notes-text', 'malformed-pdf', 'scanned-pdf']) }),
   z.strictObject({ ...envelope, type: z.literal('plugin.enable'), pluginId: z.string().min(1).max(64), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ ...envelope, type: z.literal('plugin.disable'), pluginId: z.string().min(1).max(64) }),
   z.strictObject({ ...envelope, type: z.literal('plugin.privacy.set'), pluginId: z.string().min(1).max(64), privacy: z.enum(['none', 'optional', 'always']) }),
@@ -50,6 +57,7 @@ export interface RuntimePort {
 
 export function createAppController(clock: Clock, daypartSchedule?: DaypartSchedule, store?: SessionStore) {
   const listeners = new Set<(event: AppEvent) => void>()
+  let documents: DocumentService | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
     protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0,
@@ -105,6 +113,11 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
         status: status === 'blocked' || status === 'failed' ? 'failed' : status === 'disabled' ? 'unavailable' : 'ready', ...(snapshot.mailbox!.error ? { error: snapshot.mailbox!.error } : {}) }
         : item.id === 'privacy' ? { id: 'privacy', source: campus!.privacyStatus() === 'unconfigured' ? 'none' : snapshot.mailbox!.source, status: campus!.privacyStatus() } : item)
     }
+    if (documents) {
+      snapshot.documents = documents.view()
+      snapshot.privacy.fileFilteringEnabled = documents.filteringEnabled()
+      snapshot.deliveries = [...(campus?.deliveries() ?? []), ...documents.deliveries()]
+    }
     if (pomodoro) {
       snapshot.pomodoro = pomodoro.read()
       snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'pomodoro' ? { ...item, status: timerReady?.() ? 'ready' : 'unavailable' } : item)
@@ -132,6 +145,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       snapshot.companion.mode = command.mode
       pomodoro?.stateChanged(command)
       campus?.stateChanged()
+      documents?.stateChanged()
       runtime?.stateChanged?.(command)
       readProjection()
       updatePose()
@@ -144,12 +158,20 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       snapshot.companion.lightsOut = command.lightsOut
       pomodoro?.stateChanged(command)
       campus?.stateChanged()
+      documents?.stateChanged()
       runtime?.stateChanged?.(command)
       readProjection()
       updatePose()
       publish('mode', command.requestId)
       execution?.stateChanged()
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+    } else if (documents && command.type === 'message.send' && /^\/privacy(?:\s+(?:on|off))?$/i.test(command.text)) {
+      const value = command.text.trim().split(/\s+/)[1]?.toLowerCase()
+      try { const error = documents.dispatch({ ...command, type: 'privacy.set', enabled: value ? value === 'on' : !documents.filteringEnabled() }); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
+    } else if (documents && (command.type === 'privacy.set' || command.type.startsWith('document.') || command.type === 'developer.documents' || command.type === 'developer.document.import' || (command.type === 'artifact.open' && documents.ownsArtifact(command.artifactId)))) {
+      try { const error = command.type === 'artifact.open' ? documents.openArtifact(command.artifactId) : documents.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
     } else if (command.type === 'message.send' && execution && executionReady && !snapshot.companion.lightsOut) {
       try { execution.send(command.text, command.requestId, signature) }
       catch { return reject(command.requestId, 'internal') }
@@ -189,6 +211,14 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     getSnapshot: () => structuredClone(snapshot), dispatch,
     attachRuntime: (port: RuntimePort) => { runtime = port; publish('connection') },
     attachCampus: (port: CampusService) => { campus = port; publish('connection') },
+    attachDocuments: (port: DocumentService) => { documents = port; publish('connection') },
+    importUserFiles: (input: unknown): FileImportAck => {
+      const parsed = z.strictObject({ epoch: z.string().max(128), paths: z.array(z.string().min(1).max(4096)).min(1).max(5) }).safeParse(input)
+      if (!parsed.success) return { acceptedIds: [], rejectedCount: 1, error: { code: 'invalid-command', retryable: false } }
+      if (parsed.data.epoch !== snapshot.epoch) return { acceptedIds: [], rejectedCount: parsed.data.paths.length, error: { code: 'stale-epoch', retryable: false } }
+      if (!documents) return { acceptedIds: [], rejectedCount: parsed.data.paths.length, error: { code: 'unavailable', retryable: false } }
+      return documents.importPaths(parsed.data.paths)
+    },
     attachPomodoro: (port: PomodoroService, ready: () => boolean) => {
       pomodoro = port; timerReady = ready
       snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'pomodoro' ? { id: 'pomodoro', status: 'ready', source: 'real' } : item)

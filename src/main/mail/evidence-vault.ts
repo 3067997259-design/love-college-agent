@@ -9,10 +9,11 @@ import type { CheckedMail } from './privacy'
 import type { SourceMail } from './types'
 
 const sourceSchema = z.strictObject({ uidValidity: z.string().regex(/^\d{1,20}$/), uid: z.number().int().positive().max(4_294_967_295), senderAddress: z.string().min(1).max(320), senderName: z.string().max(80),
-  subject: z.string().max(256), body: z.string().max(64_000), sentAtMs: z.number().int().nonnegative(), receivedAtMs: z.number().int().nonnegative() })
+  subject: z.string().max(256), body: z.string().max(64_000), sentAtMs: z.number().int().nonnegative(), receivedAtMs: z.number().int().nonnegative(),
+  attachments: z.array(z.strictObject({ partId: z.string().regex(/^\d+(?:\.\d+)*$/).max(40), format: z.enum(['pdf', 'text', 'markdown']), byteLength: z.number().int().positive().max(10 * 1024 * 1024) })).max(10).optional() })
 const quotesSchema = z.array(z.strictObject({ field: z.enum(['deadlineIso', 'eventStartIso', 'eventEndIso', 'locationText', 'title']), text: z.string().min(1).max(300) })).max(10)
 export const digest = (value: string) => createHash('sha256').update(value).digest('hex')
-export const mailContentHash = (mail: SourceMail) => digest(JSON.stringify(sourceSchema.parse(mail)))
+export const mailContentHash = (mail: SourceMail) => { const { attachments: _attachments, ...body } = sourceSchema.parse(mail); void _attachments; return digest(JSON.stringify(body)) }
 
 /** Presentation is user-only. Fixed-pattern credentials remain hidden even in this separate view. */
 export function evidenceView(mail: SourceMail, quotes: CheckedMail['quotes']): EvidenceView {

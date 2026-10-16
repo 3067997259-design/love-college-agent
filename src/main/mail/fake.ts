@@ -3,6 +3,7 @@ import type { Clock } from '../clock'
 import type { EmailPrivacyModel } from './privacy'
 import type { MailSource } from './types'
 import fixture from './fixtures.json'
+import { syntheticPdf } from '../documents/fixtures'
 
 export function createFakeMailbox(clock: Clock) {
   let scenario: MailScenarioId = 'initial'
@@ -11,8 +12,13 @@ export function createFakeMailbox(clock: Clock) {
     signal.throwIfAborted()
     const messages = fixture.messages.filter((message) => ids[scenario].includes(message.uid)).map((message) => ({ uid: message.uid, uidValidity: '1',
       senderAddress: message.senderAddress, senderName: message.senderName, subject: message.subject, body: message.body,
-      sentAtMs: clock.parse(message.sentAtIso), receivedAtMs: clock.parse(message.sentAtIso) + 1000 }))
+      sentAtMs: clock.parse(message.sentAtIso), receivedAtMs: clock.parse(message.sentAtIso) + 1000,
+      ...(message.uid === 1 ? { attachments: [{ partId: '2', format: 'pdf' as const, byteLength: syntheticPdf().length }] } : {}) }))
     return { unseenCount: messages.length, messages }
+  }, readAttachment: async (mail, signal) => {
+    signal.throwIfAborted()
+    if (mail.uidValidity !== '1' || mail.uid !== 1 || mail.partId !== '2') throw new Error('SYNTHETIC_ATTACHMENT_UNKNOWN')
+    return syntheticPdf()
   } }
   const privacy: EmailPrivacyModel = { source: 'fake', extract: async (input, signal) => {
     signal.throwIfAborted()
