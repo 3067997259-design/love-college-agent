@@ -13,6 +13,7 @@ import { redactFixed } from '../privacy/redact'
 import type { MinecraftService } from './service'
 import definitions from './tools.json'
 import policy from './policy.json'
+import playSkill from './play-with-user.md?raw'
 
 /** Separate game journals/projection/harness: ordinary model input, memories and private saves never
  * read this root. Only attempt counters are mirrored into the main journal for the shared budget.
@@ -56,11 +57,15 @@ export function createMinecraftChat(options: { root: string; clock: Clock; mainS
         })
         return { ...reply, text: scrub(reply.text), toolCalls: reply.toolCalls.map((call) => ({ ...call, arguments: scrub(call.arguments) })) }
       } }
-      harness = createHarness({ clock: options.clock, store: current, model, tools, getTools: () => tools.filter((tool) => tool.definition.name !== 'minecraft_chat' || options.game().view().scope?.allowChat), limits: { steps: 8, dailyTokens: 60_000, autonomousTokens: 60_000, outputTokens: 800 },
+      harness = createHarness({ clock: options.clock, store: current, model, tools, getTools: () => {
+        const view = options.game().view(); const feature = { minecraft_inventory: 'inventory', minecraft_scene: 'scene', minecraft_look: 'look' } as const
+        return tools.filter((tool) => (tool.definition.name !== 'minecraft_chat' || view.scope?.allowChat)
+          && (!(tool.definition.name in feature) || view.features?.includes(feature[tool.definition.name as keyof typeof feature])))
+      }, limits: { steps: 8, dailyTokens: 80_000, autonomousTokens: 80_000, outputTokens: 800 },
         enabled: () => options.enabled() && options.game().view().status === 'playing', changed: options.changed,
         prepareContext: async (_id, signal) => {
           signal.throwIfAborted(); const view = options.game().view(); const persona = options.persona()
-          const messages = [{ role: 'system' as const, content: policy.system }, { role: 'system' as const, content: JSON.stringify({ character: { name: scrub(persona.name), persona: scrub(persona.persona) }, authority: 'personality-only' }) },
+          const messages = [{ role: 'system' as const, content: policy.system }, { role: 'system' as const, content: playSkill }, { role: 'system' as const, content: JSON.stringify({ character: { name: scrub(persona.name), persona: scrub(persona.persona) }, authority: 'personality-only' }) },
             { role: 'user' as const, content: JSON.stringify({ round: { pilot: view.pilot, scope: view.scope, endsAtMs: view.endsAtMs, actionsRemaining: view.maxActions - view.actionsUsed }, trust: 'code-facts' }) }, ...current.projection().context]
           if (Buffer.byteLength(JSON.stringify(messages)) > 28_000) throw new MemoryFailure('context-too-large')
           return { messages, eligibleIndexes: [] }

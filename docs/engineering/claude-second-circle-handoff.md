@@ -1,5 +1,7 @@
 # Claude 恢复额度后的交接
 
+MC 新接口 `37cb419`（state.ts／shared README）已先合；此批已接 inventory／scene／look 三项与真正注入的 Markdown skill，现七个工具，源码 356 单测／Electron 合成 MCP 通过。features 只列当前主进程能用且已核对的端点能力；截图／挖掘字段预留，当前 true 会拒绝，后续分功能补。转向由新玩家角度定成功，不按动画猜。主要工具活动台词和游戏画面请你接；技术 skill 在 minecraft/play-with-user.md。整圈还缺的工程项见 third-circle-completion-audit.md。
+
 普通自主作品端口已补（接口形状不变）：background 槽位可生成已登记合成材料的读写检查点，普通模式合成 HTTP／实际落盘／取消／重启与坏输出通过。没有增加任意文件登记。ScheduleSheet 唯一接线改动是 `job.source==='fake' || material?.source==='fake'` 都保留现有演示标签，避免把真实客户端处理合成材料误标成真实资料；请在你对应冲突文件里保留此条件。模型事实另带 materialSource，作品正文仍不进普通上下文。
 
 07:28 底层验收收口：main `6571c05` 的真实安装包、15 项原生场景（含同一本书的邮件→资料→番茄小窗→读写作品→心流→照片→跨日引用→重启／恢复）通过。详情 `package-third-circle.md`／`showcase-third-circle.md`；运行全部 fake／合成服务及加速时间。正常自主作品端口已接 background 并经本机合成 HTTP 验收，材料仍限登记合成材料。尚未完成：语音／OCR／真实 MC 的配置与实机质量、你的外景／角色声音及最终动画观感。本轮没有调用真实 Rodin 或重测 IMAP。

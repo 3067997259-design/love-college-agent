@@ -4,11 +4,14 @@ import type { AppCommand, MinecraftView, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { Scheduler } from '../scheduler'
 import { checkedPermissions, checkedPlayer, checkedStamp, checkedWorld, checkToolset, sameWorld, type GameProtocol, type GameWorld, type GamePlayer } from './protocol'
+import { inventoryObservation, minecraftFeatures, sceneObservation } from './observations'
 
-export const minecraftScopeSchema = z.strictObject({ radiusBlocks: z.number().int().min(1).max(16), durationMs: z.number().int().min(1000).max(600_000), allowChat: z.boolean() })
+export const minecraftScopeSchema = z.strictObject({ radiusBlocks: z.number().int().min(1).max(16), durationMs: z.number().int().min(1000).max(600_000), allowChat: z.boolean(), allowScreenshots: z.boolean().default(false), allowMining: z.boolean().default(false) })
 const targetSchema = z.strictObject({ x: z.number().int(), y: z.number().int(), z: z.number().int() })
 const chatSchema = z.strictObject({ message: z.string().trim().min(1).max(160).refine((text) => !/^[／/]/.test(text.normalize('NFKC')) && !/[\p{Cc}\p{Cf}]/u.test(text)) })
 const empty = z.strictObject({})
+const lookSchema = z.strictObject({ yaw: z.number().finite().min(-180).max(180), pitch: z.number().finite().min(-90).max(90) })
+const angleDistance = (a: number, b: number) => Math.abs(((a - b + 540) % 360 + 360) % 360 - 180)
 // Closed states observed in the pinned mcpfabric source; unknown protocol text never reaches a journal.
 const navigationState = z.enum(['idle', 'navigating', 'reached', 'deadline', 'path_exhausted', 'cancelled', 'reflex_preempted', 'disconnected', 'world_exit', 'death', 'bridge_timeout', 'world_session_changed'])
 const distance = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)
@@ -22,6 +25,7 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
   available?(): boolean; stopping?(): void;
   record?(receipt: GameReceipt): void; interrupted?: GameReceipt; events?(messages: readonly { id: number; text: string; sender: string }[]): void }) {
   const { clock, scheduler } = options
+  let lastObservationTick = 0
   const state: MinecraftView = { status: options.interrupted && !options.interrupted.stopVerified ? 'paused' : 'idle', source: 'none', serverId: options.interrupted?.serverId ?? null, roundId: options.interrupted?.roundId ?? null, endsAtMs: null, actionsUsed: 0, maxActions: 24, chatSeen: 0, stopVerified: !options.interrupted || options.interrupted.stopVerified }
   let bound: GameWorld | undefined; let player: GamePlayer | undefined; let anchor: GamePlayer | undefined
   let lease: Lease | undefined = options.interrupted && !options.interrupted.stopVerified ? { serverId: options.interrupted.serverId, controlSessionId: options.interrupted.controlSessionId } : undefined
@@ -119,12 +123,13 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
         }
         const inspected = await inspect(command.serverId, abort.signal); abort.signal.throwIfAborted()
         if (generation !== ticket || options.blocked() || closed) throw new Error('GAME_STOPPED')
-        bound = inspected.world; player = inspected.current; state.source = options.source(command.serverId); state.pilot = pilot(); state.stopVerified = true
+        bound = inspected.world; player = inspected.current; state.source = options.source(command.serverId); state.pilot = pilot(); state.stopVerified = true; state.features = minecraftFeatures(port())
         state.checks = { commandsDisabled: true, worldWriteDisabled: true, worldBound: true }
         if (command.type === 'minecraft.check') { state.status = 'ready'; state.roundId = null; state.endsAtMs = null; delete state.scope; publish(); return }
         const scope = minecraftScopeSchema.parse(command.scope)
+        if (scope.allowScreenshots && !state.features?.includes('screenshot') || scope.allowMining && !state.features?.includes('mining')) throw new Error('GAME_UNSUPPORTED')
         if (command.expectedPlayerUuid !== player.uuid || scope.allowChat && !port().allows('send_chat', ['expectedWorldSessionId'])) throw new Error('GAME_PILOT_CHANGED')
-        anchor = player; sequence = 0; reads = 0; polls = 0; stream = undefined; cursor = undefined; target = undefined
+        anchor = player; sequence = 0; reads = 0; polls = 0; stream = undefined; cursor = undefined; target = undefined; lastObservationTick = 0
         state.scope = scope; state.roundId = randomUUID(); state.endsAtMs = clock.nowMs() + scope.durationMs; state.actionsUsed = 0; state.chatSeen = 0; delete state.lastAction
         lease = { serverId: command.serverId, controlSessionId: randomUUID() }; state.stopVerified = false
         options.record?.({ roundId: state.roundId, ...lease, status: 'started', stopVerified: false })
@@ -139,6 +144,30 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
     toolRunning = true
     try {
       if (name === 'minecraft_observe') { empty.parse(input); const current = await verifyPlayer(combined, ticket); return { pilot: { uuid: current.uuid, name: current.name, dimension: current.dimension, position: { x: current.x, y: current.y, z: current.z } }, scope: state.scope!, actionsRemaining: state.maxActions - state.actionsUsed, endsAtMs: state.endsAtMs } }
+      if (name === 'minecraft_inventory' || name === 'minecraft_scene') {
+        empty.parse(input); const inventory = name === 'minecraft_inventory'; const feature = inventory ? 'inventory' : 'scene'
+        if (!state.features?.includes(feature)) throw new Error('GAME_UNSUPPORTED')
+        const current = await verifyPlayer(combined, ticket); const maxDistance = Math.min(16, state.scope!.radiusBlocks)
+        const observed = inventory ? inventoryObservation(await rpc('get_inventory', {}, combined, ticket), bound!, port())
+          : sceneObservation(await rpc('describe_scene', { maxDistance, rayColumns: 3, rayRows: 3 }, combined, ticket), bound!, port(), maxDistance)
+        if (observed.sourceTick < lastObservationTick || 'eye' in observed && distance(current, observed.eye) > 3) throw new Error('GAME_STALE_OBSERVATION')
+        const after = await verifyPlayer(combined, ticket); if (distance(current, after) > 0.5) throw new Error('GAME_STALE_OBSERVATION')
+        lastObservationTick = observed.sourceTick
+        return { ...observed, observedAtMs: clock.nowMs() }
+      }
+      if (name === 'minecraft_look') {
+        const angles = lookSchema.parse(input)
+        if (!state.features?.includes('look') || state.actionsUsed >= state.maxActions) throw new Error('GAME_OUT_OF_SCOPE')
+        await verifyPlayer(combined, ticket); await permissions(combined, ticket)
+        const navigation = z.object({ active: z.boolean() }).parse(await rpc('navigation_status', {}, combined, ticket)); if (navigation.active) throw new Error('GAME_NAVIGATION_BUSY')
+        state.actionsUsed++; state.lastAction = { kind: 'look', status: 'running', atMs: clock.nowMs() }; publish()
+        z.object({ yaw: z.number().finite(), pitch: z.number().finite() }).parse(await rpc('look', { ...angles, controlSessionId: lease!.controlSessionId, sequence: ++sequence }, combined, ticket))
+        z.object({ owned: z.literal(true), controlSessionId: z.literal(lease!.controlSessionId), source: z.literal('client-process') }).parse(await rpc('get_process_state', { controlSessionId: lease!.controlSessionId }, combined, ticket))
+        const current = await verifyPlayer(combined, ticket)
+        if (current.yaw === undefined || current.pitch === undefined || angleDistance(current.yaw, angles.yaw) > 0.5 || Math.abs(current.pitch - angles.pitch) > 0.5) throw new Error('GAME_LOOK_UNVERIFIED')
+        state.lastAction = { kind: 'look', status: 'succeeded', atMs: clock.nowMs() }; publish()
+        return { observed: true, yaw: current.yaw, pitch: current.pitch, source: 'fresh-client-player-state' }
+      }
       if (name === 'minecraft_navigation_status') {
         empty.parse(input)
         if (target) z.object({ owned: z.literal(true), controlSessionId: z.literal(lease!.controlSessionId), source: z.literal('client-process') }).parse(await rpc('get_process_state', { controlSessionId: lease!.controlSessionId }, combined, ticket))

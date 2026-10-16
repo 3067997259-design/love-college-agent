@@ -10,9 +10,9 @@ afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await c
 function fixture(interrupted?: GameReceipt) {
   const clock = createManualClock(1000); const scheduler = createScheduler(clock)
   const world = { instanceId: randomUUID(), sessionId: randomUUID(), revision: 1, connected: true, playerUuid: randomUUID(), dimension: 'minecraft:overworld' }
-  const player = { uuid: world.playerUuid, name: 'SyntheticPilot', dimension: world.dimension, x: 0, y: 64, z: 0, alive: true }
+  const player = { uuid: world.playerUuid, name: 'SyntheticPilot', dimension: world.dimension, x: 0, y: 64, z: 0, alive: true, yaw: 0, pitch: 0 }
   let blocked = false; let unsafe = false; let releaseFails = false; let connected = true; let active = false; let streamId = randomUUID(); let cursor = 20
-  let owner: string | undefined; let events: unknown[] = []; let hang: Promise<unknown> | undefined; const calls: { name: string; input: Record<string, unknown> }[] = []; const receipts: GameReceipt[] = []; const seen: unknown[] = []
+  let owner: string | undefined; let events: unknown[] = []; let hang: Promise<unknown> | undefined; let applyLook = true; const calls: { name: string; input: Record<string, unknown> }[] = []; const receipts: GameReceipt[] = []; const seen: unknown[] = []
   const protocol: GameProtocol = { allows: () => true, identifierAllowed: (value) => value !== 'credential', text: (value) => value.replaceAll('PRIVATE', '[redacted]'), call: async (name, input) => {
     calls.push({ name, input }); const stamp = (value: Record<string, unknown>) => ({ ...value, worldSession: { ...world } })
     if (name === 'get_status') return stamp({ mod: 'mcpfabric', side: 'client', serverPresent: true, integratedServer: true })
@@ -20,6 +20,7 @@ function fixture(interrupted?: GameReceipt) {
     if (name === 'get_world_session') return { ...world }
     if (input.expectedWorldSessionId !== world.sessionId) throw new Error('SYNTHETIC_STALE_WORLD')
     if (name === 'get_self') return stamp({ ...player })
+    if (name === 'look') { owner = String(input.controlSessionId); if (applyLook) { player.yaw = Number(input.yaw); player.pitch = Number(input.pitch) }; return stamp({ yaw: input.yaw, pitch: input.pitch }) }
     if (name === 'poll_event_page') return stamp({ streamId, cursor, gap: false, events: input.tail ? [] : events })
     if (name === 'navigate_to') { owner = String(input.controlSessionId); active = true; if (hang) return hang; return stamp({ started: true }) }
     if (name === 'navigation_status') return stamp({ active, state: active ? 'navigating' : 'reached' })
@@ -31,14 +32,50 @@ function fixture(interrupted?: GameReceipt) {
   const game = createMinecraft({ clock, scheduler, protocol: () => connected ? protocol : undefined, source: () => 'fake', blocked: () => blocked, changed: () => {}, record: (receipt) => receipts.push(receipt), interrupted, events: (messages) => seen.push(...messages) })
   cleanup.push(async () => { connected = true; releaseFails = false; await game.close(); scheduler.dispose() })
   const send = (command: Record<string, unknown>) => game.dispatch({ ...command, protocolVersion: 1, epoch: 'test', requestId: randomUUID() } as AppCommand)
-  const start = async (scope = { radiusBlocks: 8, durationMs: 60000, allowChat: true }) => { expect(send({ type: 'minecraft.start', serverId: 'game', expectedPlayerUuid: player.uuid, scope })).toBeUndefined(); await game.idle() }
-  return { game, clock, scheduler, world, player, protocol, calls, receipts, seen, send, start, finish: () => { active = false }, setBlocked: (value: boolean) => { blocked = value; game.stateChanged() }, setUnsafe: () => { unsafe = true }, setReleaseFailure: (value: boolean) => { releaseFails = value }, disconnect: () => { connected = false }, setEvents: (value: unknown[], latest: number) => { events = value; cursor = latest }, newStream: () => { streamId = randomUUID(); cursor = 0 }, setHang: (value: Promise<unknown>) => { hang = value } }
+  const start = async (scope: Extract<AppCommand, { type: 'minecraft.start' }>['scope'] = { radiusBlocks: 8, durationMs: 60000, allowChat: true }) => { expect(send({ type: 'minecraft.start', serverId: 'game', expectedPlayerUuid: player.uuid, scope })).toBeUndefined(); await game.idle() }
+  return { game, clock, scheduler, world, player, protocol, calls, receipts, seen, send, start, finish: () => { active = false }, setLookApplied: (value: boolean) => { applyLook = value }, setBlocked: (value: boolean) => { blocked = value; game.stateChanged() }, setUnsafe: () => { unsafe = true }, setReleaseFailure: (value: boolean) => { releaseFails = value }, disconnect: () => { connected = false }, setEvents: (value: unknown[], latest: number) => { events = value; cursor = latest }, newStream: () => { streamId = randomUUID(); cursor = 0 }, setHang: (value: Promise<unknown>) => { hang = value } }
 }
 const signal = () => new AbortController().signal
 it('requires the observed pilot, read-only host flags and world-bound schemas before a round', async () => {
   const f = fixture(); f.send({ type: 'minecraft.check', serverId: 'game' }); await f.game.idle(); expect(f.game.view()).toMatchObject({ status: 'ready', source: 'fake', pilot: { uuid: f.player.uuid }, checks: { commandsDisabled: true } })
   f.send({ type: 'minecraft.start', serverId: 'game', expectedPlayerUuid: randomUUID(), scope: { radiusBlocks: 8, durationMs: 60000, allowChat: true } }); await f.game.idle(); expect(f.game.view().status).toBe('failed'); expect(f.receipts).toHaveLength(0)
   f.setUnsafe(); await f.start(); expect(f.game.view().status).toBe('failed'); expect(f.calls.some((call) => call.name === 'navigate_to')).toBe(false)
+})
+it('uses a qualified input owner for look and verifies fresh player angles before success', async () => {
+  const f = fixture(); await f.start()
+  expect(await f.game.tool('minecraft_look', { yaw: -90, pitch: 20 }, signal())).toMatchObject({ observed: true, yaw: -90, pitch: 20 })
+  expect(f.calls.find((call) => call.name === 'look')!.input).toMatchObject({ expectedWorldSessionId: f.world.sessionId, controlSessionId: f.receipts[0].controlSessionId, sequence: 1 })
+  expect(f.game.view().lastAction).toMatchObject({ kind: 'look', status: 'succeeded' }); expect(f.game.view().actionsUsed).toBe(1)
+})
+it('does not claim a turn from an echo acknowledgement or fight active navigation', async () => {
+  const f = fixture(); await f.start(); f.setLookApplied(false)
+  await expect(f.game.tool('minecraft_look', { yaw: -90, pitch: 20 }, signal())).rejects.toThrow()
+  expect(f.game.view()).toMatchObject({ status: 'failed', stopVerified: true, lastAction: { kind: 'look', status: 'unknown' } })
+  const moving = fixture(); await moving.start(); await moving.game.tool('minecraft_navigate', { x: 3, y: 64, z: 0 }, signal())
+  await expect(moving.game.tool('minecraft_look', { yaw: 90, pitch: 0 }, signal())).rejects.toThrow()
+  expect(moving.calls.some((call) => call.name === 'look')).toBe(false)
+})
+it('hides optional capabilities unless the approved endpoint has qualified schemas', async () => {
+  const f = fixture(); f.protocol.allows = (name) => !['get_inventory', 'describe_scene', 'look'].includes(name); await f.start()
+  expect(f.game.view().features).toEqual([])
+  await expect(f.game.tool('minecraft_inventory', {}, signal())).rejects.toThrow()
+  expect(f.calls.some((call) => call.name === 'get_inventory')).toBe(false)
+})
+it('accepts explicit false consent fields and refuses features that are not implemented yet', async () => {
+  const f = fixture(); await f.start({ radiusBlocks: 8, durationMs: 60000, allowChat: true, allowScreenshots: false, allowMining: false })
+  expect(f.game.view().status).toBe('playing')
+  for (const field of ['allowScreenshots', 'allowMining']) {
+    const other = fixture(); await other.start({ radiusBlocks: 8, durationMs: 60000, allowChat: true, [field]: true })
+    expect(other.game.view().status).toBe('failed'); expect(other.receipts).toHaveLength(0)
+  }
+})
+it('rejects an older inventory sample even if its world stamp is still valid', async () => {
+  const f = fixture(); const original = f.protocol.call; let tick = 50
+  f.protocol.call = async (name, input, signal) => name === 'get_inventory'
+    ? { source: 'client-player', sourceTick: tick, dimension: f.world.dimension, selectedSlot: 0, storageSlots: 36, emptyStorageSlots: 36, hotbar: [], main: [], armor: [], offhand: { empty: true }, worldSession: { ...f.world } }
+    : original(name, input, signal)
+  await f.start(); expect(await f.game.tool('minecraft_inventory', {}, signal())).toMatchObject({ sourceTick: 50 })
+  tick = 49; await expect(f.game.tool('minecraft_inventory', {}, signal())).rejects.toThrow(); expect(f.game.view().stopVerified).toBe(true)
 })
 it('uses owned short navigation and never calls started an arrival', async () => {
   const f = fixture(); await f.start(); expect(f.game.view().status).toBe('playing')
