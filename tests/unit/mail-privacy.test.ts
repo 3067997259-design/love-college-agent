@@ -10,6 +10,15 @@ const mail: SourceMail = { uidValidity: '1', uid: 1, subject: '第三次作业�
 const output = { kind: 'deadline', task: '第三次作业', titleQuote: '第三次作业', sourceRole: 'teaching-assistant', deadline: { iso: '2026-10-24T23:59:00+08:00', quote: '2026 年 10 月 24 日（周六）23:59' } }
 const signal = () => new AbortController().signal
 describe('mail isolation and evidence-bound extraction', () => {
+  it('validates the released task inside its own evidence occurrence, including polarity and numerals', async () => {
+    for (const [titleQuote, task] of [['本周不交作业', '交作业'], ['如果交作业', '交作业'], ['提交第12次作业', '2次作业']]) {
+      // A positive occurrence elsewhere must not rescue the negative/conditional/numeral-cut citation.
+      const input = { ...mail, subject: titleQuote, body: task + '。' + titleQuote + '，原截止：' + output.deadline.quote }
+      expect(await extractMail(input, { source: 'fake', extract: async () => ({ ...output, titleQuote, task }) }, clock, signal())).toEqual({ ok: false, error: 'privacy-invalid-output' })
+    }
+    const input = { ...mail, subject: '本周请交作业', body: '本周请交作业，截止：' + output.deadline.quote }
+    expect(await extractMail(input, { source: 'fake', extract: async () => ({ ...output, titleQuote: input.subject, task: '交作业' }) }, clock, signal())).toMatchObject({ ok: true, value: { title: '交作业' } })
+  })
   it('requires grounded positive phrases for urgency enums', async () => {
     for (const [quote, level] of [['今天内回复', 'reply-today'], ['教室已变更', 'location-change']] as const) {
       const input = { ...mail, body: mail.body + quote }

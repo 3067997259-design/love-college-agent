@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { EvidenceView } from '../../shared'
 import type { Clock } from '../clock'
 import { redactFixed } from '../privacy/redact'
-import { groundedIn } from '../memory/grounding'
+import { groundingVerdict } from '../memory/grounding'
 import type { SourceMail } from './types'
 
 const short = (length: number) => z.string().trim().min(1).max(length).refine((text) => [...text].every((char) => char.charCodeAt(0) > 31 && char.charCodeAt(0) !== 127)
@@ -86,9 +86,17 @@ export async function extractMail(mail: SourceMail, model: EmailPrivacyModel | n
     if (parsed.kind === 'notice') return { ok: true, value: null }
     const source = mail.subject + '\n' + mail.body
     const quotes: CheckedMail['quotes'] = []
-    if (!source.includes(parsed.titleQuote) || !parsed.titleQuote.includes(parsed.task)) throw new Error('MAIL_TITLE_UNGROUNDED')
-    // "本周不交作业" must not become the task "交作业": the title has to be entailed, not merely contained.
-    if (!groundedIn(source, parsed.titleQuote).entailed) throw new Error('MAIL_TITLE_UNGROUNDED')
+    // Validate the released task at the very occurrence inside its cited quote. A valid surrounding
+    // negative sentence (or an unrelated affirmative occurrence elsewhere) cannot justify a cut title.
+    let titleGrounded = false
+    for (let quoteAt = source.indexOf(parsed.titleQuote); quoteAt >= 0 && !titleGrounded; quoteAt = source.indexOf(parsed.titleQuote, quoteAt + 1)) {
+      if (!groundingVerdict(source, parsed.titleQuote, quoteAt, quoteAt + parsed.titleQuote.length).entailed) continue
+      for (let taskAt = parsed.titleQuote.indexOf(parsed.task); taskAt >= 0; taskAt = parsed.titleQuote.indexOf(parsed.task, taskAt + 1)) {
+        const start = quoteAt + taskAt
+        if (groundingVerdict(source, parsed.task, start, start + parsed.task.length).entailed) { titleGrounded = true; break }
+      }
+    }
+    if (!titleGrounded) throw new Error('MAIL_TITLE_UNGROUNDED')
     quotes.push({ field: 'title', text: parsed.task })
     const checkedDate = (value: z.infer<typeof date> | undefined | null, field: 'deadlineIso' | 'eventStartIso' | 'eventEndIso') => {
       if (!value) return undefined
