@@ -13,3 +13,7 @@
 .memory-item[data-superseded="true"] { opacity: .6; }
 .memory-archive { max-height: 300px; overflow: auto; overflow-wrap: anywhere; white-space: pre-wrap; }
 .diagnostics-data pre { max-height: 240px; overflow: auto; overflow-wrap: anywhere; white-space: pre-wrap; font: 11px/1.4 monospace; }
+.diagnostics-window { box-sizing: border-box; min-height: 100%; padding: 20px; background: var(--paper, #fff8ee); color: var(--graphite, #333); font-family: var(--font-body); overflow-wrap: anywhere; }
+.diagnostics-window h1 { font-size: 1.2rem; }
+.diagnostics-window pre { max-height: 420px; overflow: auto; white-space: pre-wrap; }
+.diagnostics-window .diagnostics-live { max-height: 240px; overflow: auto; }
