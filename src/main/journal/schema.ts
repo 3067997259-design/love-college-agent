@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { goalSchema } from '../heart-flow/goals'
+import { operationSchema } from '../heart-flow/operations'
 import { PUBLIC_ERROR_CODES } from '../../shared'
 import { viewSchema } from '../pomodoro/schema'
 import { artifactSchema, candidateSchema, deliverySchema, mailboxSchema, mailFactsSchema, opaqueId } from '../campus/schema'
@@ -25,8 +27,10 @@ const publicError = z.strictObject({
 const step = z.strictObject({ id, text: z.string().max(500), status: z.enum(['pending', 'active', 'done', 'failed']) })
 const toolCall = z.strictObject({ id, name: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/), arguments: z.string().max(64_000) })
 export const contextMessageSchema = z.strictObject({ role: z.enum(['system', 'user', 'assistant', 'tool']), content: text,
+  imageRefs: z.array(z.string().regex(/^work-frame:[a-f0-9]{64}$/)).max(1).optional(),
   toolCallId: id.optional(), toolCalls: z.array(toolCall).max(16).optional() })
 export type ContextMessage = {
+  imageRefs?: string[]
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string
   toolCallId?: string
@@ -57,10 +61,17 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('diary/attempt'), dayKey: z.iso.date() }),
   z.strictObject({ type: z.literal('diary/written'), diary: diarySchema }),
   z.strictObject({ type: z.literal('life/state'), view: lifeSchema }),
+  z.strictObject({ type: z.literal('minecraft/round'), roundId: z.string().uuid(), serverId: id, controlSessionId: z.string().uuid(), status: z.enum(['started', 'stopped']), stopVerified: z.boolean() }),
+  z.strictObject({ type: z.literal('flow/goal'), goal: goalSchema }),
+  z.strictObject({ type: z.literal('flow/operation'), operation: operationSchema }),
+  z.strictObject({ type: z.literal('flow/operation-read'), operationId: z.string().uuid(), path: z.string().min(1).max(180), sha256: z.string().regex(/^[a-f0-9]{64}$/) }),
+  z.strictObject({ type: z.literal('flow/goal-selected'), goalId: z.string().uuid() }),
+  z.strictObject({ type: z.literal('flow/goal-linked'), goalId: z.string().uuid(), flowId: id }),
   z.strictObject({ type: z.literal('flow/open'), id, prefix: z.array(contextMessageSchema).max(200), mode: z.enum(['plan', 'execute']), resumedFrom: id.optional() }),
   z.strictObject({ type: z.literal('flow/mode'), id, mode: z.enum(['plan', 'execute']) }),
   z.strictObject({ type: z.literal('flow/close'), id, summary: z.string().max(2000) }),
-  z.strictObject({ type: z.literal('flow/compact'), id, throughSeq: z.number().int().positive(), summary: z.string().max(6000), focus: z.string().max(500).optional() }),
+  z.strictObject({ type: z.literal('flow/compact'), id, throughSeq: z.number().int().positive(), summary: z.string().max(6000), focus: z.string().max(500).optional(),
+    retained: z.strictObject({ turnId: id, messages: z.array(contextMessageSchema).max(200) }).optional() }),
   z.strictObject({ type: z.literal('desk/change'), id, flowId: id, path: z.string().max(180), before: z.string().max(64000).nullable(), after: z.string().max(64000).nullable(), undoes: id.optional(), pending: z.boolean().optional() }),
   z.strictObject({ type: z.literal('desk/settled'), id, status: z.enum(['applied', 'failed']) }),
   z.strictObject({ type: z.literal('flow/run'), id, flowId: id, status: z.enum(['requested', 'approved', 'denied', 'completed', 'failed', 'interrupted']), codeHash: z.string().regex(/^[a-f0-9]{64}$/) }),
@@ -68,12 +79,19 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('asset/stored'), asset: binaryAssetSchema }),
   z.strictObject({ type: z.literal('gift/state'), gift: giftSchema }),
   z.strictObject({ type: z.literal('session/carry'), sourceSessionId: id, sourceSeq: z.number().int().positive(),
-    mode: z.enum(['work', 'quiet', 'rest']), lightsOut: z.boolean(), pomodoro: viewSchema, pomodoroPause: z.enum(['manual', 'lights']).nullable(),
+    mode: z.enum(['work', 'quiet', 'rest']), lightsOut: z.boolean(), sleeping: z.boolean().optional(), pomodoro: viewSchema, pomodoroPause: z.enum(['manual', 'lights']).nullable(),
     pomodoroEvents: z.array(z.strictObject({ id, text: z.string().max(2000) })).max(1000),
     pendingEvents: z.array(z.strictObject({ id, source: z.enum(['pomodoro', 'mail', 'document']), text: z.string().max(2000) })).max(32).optional(), onboarding: onboardingSchema.optional() }),
   z.strictObject({ type: z.literal('onboarding/state'), view: onboardingSchema, cause: z.enum(['profile', 'completed', 'reset', 'restored']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/mode'), mode: z.enum(['work', 'quiet', 'rest']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/lights'), lightsOut: z.boolean(), requestId: id, commandHash: id }),
+  z.strictObject({ type: z.literal('companion/sleep'), sleeping: z.boolean(), cause: z.enum(['user', 'day-end', 'interaction']), requestId: id.optional(), commandHash: id.optional() }).refine((row) => !!row.requestId === !!row.commandHash),
+  z.strictObject({ type: z.literal('voice/settings'), enabled: z.boolean() }),
+  z.strictObject({ type: z.literal('flow/web-fetch'), flowId: id, id, urlHash: z.string().regex(/^[a-f0-9]{64}$/), status: z.enum(['requested', 'approved', 'fetched', 'denied', 'failed', 'cancelled']), source: z.enum(['real', 'fake']), receivedBytes: z.number().int().nonnegative().optional(), truncated: z.boolean().optional() }),
+  z.strictObject({ type: z.literal('flow/computer-frame'), flowId: id, ref: z.string().regex(/^work-frame:[a-f0-9]{64}$/), asset: binaryAssetSchema.refine((asset) => asset.format === 'png' && asset.byteLength <= 131072), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),
+  z.strictObject({ type: z.literal('flow/computer-action'), flowId: id, approvalId: id, status: z.enum(['requested', 'denied', 'dispatched', 'failed', 'cancelled']), actionHash: z.string().regex(/^[a-f0-9]{64}$/) }),
+  z.strictObject({ type: z.literal('desk/shadow'), changeId: id, status: z.enum(['committed', 'not-git', 'unavailable', 'failed']), commit: z.string().regex(/^[a-f0-9]{40}$/).optional() }).refine((row) => (row.status === 'committed') === !!row.commit),
+  z.strictObject({ type: z.literal('voice/attempt'), id, dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), charCount: z.number().int().min(1).max(1200), source: z.enum(['real', 'fake']) }),
   z.strictObject({ type: z.literal('mail/state'), view: mailboxSchema }),
   z.strictObject({ type: z.literal('mail/processed'), sourceKey: opaqueId, contentHash: z.string().regex(/^[a-f0-9]{64}$/), evidenceRef: opaqueId, result: z.enum(['candidate', 'notice']), candidateId: opaqueId.optional(), facts: mailFactsSchema.optional() }),
   z.strictObject({ type: z.literal('campus/proposed'), candidate: candidateSchema, calendarUid: opaqueId }),
@@ -99,6 +117,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('assistant/message'), id, turnId: id, text, status: z.enum(['complete', 'interrupted']), delivery: z.enum(['immediate', 'rest']).optional(), toolCalls: z.array(toolCall).max(16).optional() }),
   z.strictObject({ type: z.literal('tool/call'), turnId: id, callId: id, name: toolCall.shape.name, arguments: z.record(z.string(), z.json()), templateId: id }),
   z.strictObject({ type: z.literal('tool/result'), turnId: id, callId: id, ok: z.boolean(), raw: z.json(), visible: z.json(), elapsedMs: z.number().nonnegative(),
+    imageRefs: contextMessageSchema.shape.imageRefs,
     fields: z.record(z.string().max(40), z.union([z.string().max(100), z.number().finite(), z.boolean()])).optional() }),
   z.strictObject({ type: z.literal('plan/update'), turnId: id, steps: z.array(step).max(30) }),
   z.strictObject({ type: z.literal('context/inject'), source: z.enum(['policy', 'memory', 'scheduler']), text }),

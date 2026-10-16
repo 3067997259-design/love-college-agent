@@ -9,7 +9,12 @@ interface CommandEnvelope {
 export type AppCommand = CommandEnvelope & (
   | { type: 'message.send'; text: string }
   | { type: 'turn.stop'; taskId: string }
+  | { type: 'voice.set'; enabled: boolean }
+  | { type: 'voice.stop'; utteranceId: string }
+  /** Book playback reports only; this is renderer telemetry, not synthesis or external-action evidence. */
+  | { type: 'voice.playback'; utteranceId: string; status: 'playing' | 'ended' | 'failed' }
   | { type: 'mode.set'; mode: 'work' | 'quiet' | 'rest' }
+  | { type: 'companion.sleep'; sleeping: boolean }
   | { type: 'lights.set'; lightsOut: boolean }
   /** Trimmed single-line text: userName <= 20 code points, characterName <= 12. Empty resets to null / 桃子. */
   | { type: 'onboarding.profile'; userName?: string; characterName?: string }
@@ -119,6 +124,21 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'flow.resume'; flowId: string }
   /** Cancels only a subordinate read task of the current flow. Never restarts it automatically. */
   | { type: 'flow.delegate.cancel'; delegateId: string }
+  /** Create/update a short work goal; it is not an execution approval or an ordinary shared memory. */
+  | { type: 'flow.goal.set'; text: string; goalId?: string }
+  | { type: 'flow.goal.select'; goalId: string }
+  /** Human status decision only. No model tool may complete a long-term goal by itself. */
+  | { type: 'flow.goal.status'; goalId: string; status: 'active' | 'completed' | 'cancelled' }
+  /** Explicit user task; requires an active execute flow. Creates only a desk draft, not verified claims. */
+  | { type: 'flow.init' }
+  /** User explicitly opens one desk HTML file; the model cannot select or replace the target. */
+  | { type: 'flow.computer.open'; path: string }
+  | { type: 'flow.computer.close' }
+  | { type: 'flow.fetch.approve'; approvalId: string; allow: boolean }
+  | { type: 'flow.computer.approve'; approvalId: string; allow: boolean }
+  | { type: 'flow.review' }
+  /** Book-only native preview. Draft prose is never carried in snapshots or ordinary memory. */
+  | { type: 'flow.operation.open'; operationId: string }
   | { type: 'flow.undo'; changeId: string }
   /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
   | { type: 'flow.run'; code: string }

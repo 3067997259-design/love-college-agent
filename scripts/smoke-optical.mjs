@@ -9,7 +9,7 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'optical-' + randomUUID()); let sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19571', LCA_MCP_PORT: '0' }
 const credential = 'SYNTHETIC_OPTICAL_' + randomUUID(); const requests = []; let hang = false; let interrupted = 0
@@ -25,7 +25,7 @@ const server = createServer(async (req, res) => {
 await new Promise((done) => server.listen(0, '127.0.0.1', done)); const endpoint = 'http://127.0.0.1:' + server.address().port + '/decode'
 let instance; let page; let client
 async function profile(time) { await mkdir(data, { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId })); await mkdir(join(data, 'developer', sceneId), { recursive: true }); await writeFile(join(data, 'developer', sceneId, 'clock.json'), JSON.stringify({ nowMs: time, frozen: true, rate: 1 })) }
-async function launch() { instance = await _electron.launch({ executablePath: electronPath, args: [root], env }); page = await instance.firstWindow(); await initializeTestBook(page)
+async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env }); page = await instance.firstWindow(); await initializeTestBook(page)
   const config = JSON.parse(await readFile(join(data, 'developer', sceneId, 'debug-connection.json'), 'utf8')); client = new Client({ name: 'optical-smoke', version: '1.0.0' }); await client.connect(new StreamableHTTPClientTransport(new URL(config.url), { requestInit: { headers: { Authorization: 'Bearer ' + config.token } } })) }
 async function stop() { await client?.close(); client = undefined; await instance?.close(); instance = undefined }
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())

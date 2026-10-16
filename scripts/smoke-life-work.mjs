@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { randomUUID, createHash } from 'node:crypto'
-import { mkdir, writeFile, readFile, readdir, unlink } from 'node:fs/promises'
+import { mkdir, writeFile, readFile, readdir, unlink, appendFile, stat } from 'node:fs/promises'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'life-work-' + randomUUID()); let sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19551', LCA_MCP_PORT: '0' }
 const initialTime = Date.parse('2026-10-17T10:00:00+08:00'); let instance; let page; let client; let now = initialTime
@@ -17,7 +17,7 @@ async function profile(time) {
   await mkdir(join(data, 'developer', sceneId), { recursive: true }); await writeFile(join(data, 'developer', sceneId, 'clock.json'), JSON.stringify({ nowMs: time, rate: 1, frozen: true }))
 }
 async function launch() {
-  instance = await _electron.launch({ executablePath: electronPath, args: [root], env }); page = await instance.firstWindow(); await initializeTestBook(page)
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env }); page = await instance.firstWindow(); await initializeTestBook(page)
   const config = JSON.parse(await readFile(join(data, 'developer', sceneId, 'debug-connection.json'), 'utf8')); client = new Client({ name: 'life-work-smoke', version: '1.0.0' })
   await client.connect(new StreamableHTTPClientTransport(new URL(config.url), { requestInit: { headers: { Authorization: 'Bearer ' + config.token } } }))
 }
@@ -72,6 +72,15 @@ try {
   assert.ok(!JSON.stringify(await snapshot()).includes('留给下一座纸桥')); const context = JSON.stringify(await debug('get_context')); assert.ok(!context.includes('PRIVATE_DESK_CANARY')); assert.ok(!context.includes('修订稿'))
   await accepted({ type: 'room.rebuild' }); const logs = join(await room(), '运行记录'); const contents = (await Promise.all((await readdir(logs)).map((file) => readFile(join(logs, file), 'utf8')))).join('\n')
   assert.ok(contents.includes('life/work-commit')); assert.ok(!contents.includes('修订稿')); assert.ok(!contents.includes('PRIVATE_DESK_CANARY'))
+  // A 3/3 conflict cannot become completed just by clicking resume; verify bytes before settling.
+  await stop(); await writeFile(join(desk, writing.output.path), 'USER_EDITED_COMPLETED_WORK'); await launch()
+  let conflicting = (await work()).jobs.find((entry) => entry.id === writing.id); assert.equal(conflicting.status, 'failed'); assert.equal(conflicting.reason, 'conflict')
+  const attemptsBeforeResume = (await work()).attemptsToday
+  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); const row = page.locator(`[data-work-id="${writing.id}"]`)
+  await row.getByRole('button', { name: '续做作品', exact: true }).click(); conflicting = (await work()).jobs.find((entry) => entry.id === writing.id)
+  assert.equal(conflicting.status, 'failed'); assert.equal(conflicting.reason, 'conflict'); assert.equal((await work()).attemptsToday, attemptsBeforeResume); assert.equal(await readFile(join(desk, writing.output.path), 'utf8'), 'USER_EDITED_COMPLETED_WORK')
+  await writeFile(join(desk, writing.output.path), text); await row.getByRole('button', { name: '续做作品', exact: true }).click(); await waitFor((s) => s.life.work.jobs.find((entry) => entry.id === writing.id)?.status === 'completed', 'VERIFIED_COMPLETED_WORK_NOT_SETTLED')
+  assert.equal((await work()).attemptsToday, attemptsBeforeResume)
   // Restore the incomplete save into a genuinely empty profile, with no desk folder carried over.
   await stop(); sceneId = randomUUID(); now += 2 * 86400000; await profile(now); await launch()
   assert.equal((await work()).jobs.length, 0)
@@ -84,5 +93,19 @@ try {
   await unlink(join(restoredDesk, first.path)); await accepted({ type: 'room.rebuild' }); assert.equal(await readFile(join(restoredDesk, first.path), 'utf8'), firstText)
   await accepted({ type: 'mode.set', mode: 'quiet' }); await accepted({ type: 'life.work.resume', workId: reading.id }); await waitFor((s) => job(s, 'read').completedSteps === 2, 'RESTORED_RESUME_FAILED')
   await advance(); await waitFor((s) => job(s, 'read').status === 'completed', 'RESTORED_COMPLETE_FAILED')
+  // Crash-window fixture: durable draft, no commit, then an unreadable user edit before real startup.
+  for (const invalid of ['oversized', 'nul', 'directory']) {
+    await stop(); sceneId = randomUUID(); await profile(now); await launch(); await accepted({ type: 'developer.life.seed' }); await accepted({ type: 'life.work.start', kind: 'read' })
+    const pending = job(await snapshot(), 'read'); assert.equal(pending.completedSteps, 0); const desk = join(await room(), '书桌'); await stop()
+    const own = join(data, 'developer', sceneId); const journals = join(own, 'journals'); const folder = join(journals, (await readdir(journals))[0]); const journal = join(folder, (await readdir(folder)).find((name) => name.endsWith('.jsonl')))
+    const records = (await readFile(journal, 'utf8')).trim().split('\n').map((line) => JSON.parse(line)); const path = `自主作品/${pending.id}/1.md`; const text = '# Synthetic pending draft'
+    await appendFile(journal, JSON.stringify({ version: 1, seq: records.length + 1, atMs: now, type: 'life/work-draft', draft: { id: randomUUID(), workId: pending.id, step: 1, path, text, sha256: hash(text) } }) + '\n')
+    const absolute = join(desk, path); await mkdir(dirname(absolute), { recursive: true })
+    const bad = invalid === 'oversized' ? Buffer.from('x'.repeat(64001)) : Buffer.from('before\0after')
+    if (invalid === 'directory') await mkdir(absolute); else await writeFile(absolute, bad)
+    await launch(); const conflicted = job(await snapshot(), 'read'); assert.equal(conflicted.status, 'failed'); assert.equal(conflicted.reason, 'conflict'); assert.equal(conflicted.completedSteps, 0)
+    if (invalid === 'directory') assert.ok((await stat(absolute)).isDirectory()); else assert.deepEqual(await readFile(absolute), bad)
+    await accepted({ type: 'mode.set', mode: 'quiet' }); await accepted({ type: 'life.work.start', kind: 'write' }); await waitFor((s) => job(s, 'write')?.completedSteps === 1, 'OTHER_WORK_BLOCKED_BY_PENDING_CONFLICT')
+  }
   console.log('Life work Electron PASS: registered synthetic desk only, focus-time real notes/manuscript, pause/lights/plugin guards, native user-only product preview, restart and private restore at exact checkpoint, no offline progress, regenerable products and metadata-only runtime log.')
 } finally { await stop() }

@@ -2,7 +2,8 @@ import { createManualClock, systemClock } from '../clock'
 import { createScheduler } from '../scheduler'
 import { openSessionStore } from '../store/session'
 import { createDesk } from '../heart-flow/desk'
-import { createHeartFlow } from '../heart-flow/service'
+import { createHeartFlow, deskTools } from '../heart-flow/service'
+import { createHarness } from '../harness/loop'
 import { runIsolatedJavaScript } from '../heart-flow/runner'
 import { join } from 'node:path'
 import type { AppCommand } from '../../shared'
@@ -66,6 +67,34 @@ export async function probeHeartFlow(root: string) {
       if (!includes(prepared.messages, newWrite, 'new-day.txt') || !includes(prepared.messages, thirdWrite, 'third-day.txt') || !JSON.stringify(prepared.messages).includes('AUTOMATIC_REQUEST_4') || JSON.stringify(prepared.messages).includes('PRIVATE_THIRD_DAY') || prepared.eligibleIndexes.length) throw new Error('FLOW_AUTO_COMPACT_EVIDENCE_FAILED')
       send({ type: 'flow.exit' })
     }
-    return { ok: true, probe: 'heart-flow', actualSqlite: true, deskUndo: true, noNodeOrBridge: true, networkBlocked: true, infiniteLoopTerminated: true, compactedCrossDayRestart: true, crossDayCompletedRunNotInterrupted: true, compactAfterReopeningLowSeqDay: true, multipleDayAutomaticCompactHasEvidenceAndRequest: true, normalReplayExcludesWorkByPosition: true, longPathExitAfterRestart: true }
+    send({ type: 'flow.enter' }); await Promise.resolve(); await Promise.resolve(); send({ type: 'flow.mode', mode: 'execute' }); flow.write('multi-input.md', 'SYNTHETIC_INPUT')
+    for (let index = 0; index < 6; index++) user('multi-old-' + index, 'old'.repeat(6000))
+    flow.close(); store.close(); clock.advanceBy(86400000); store = openSessionStore(root, owner, clock); flow = open()
+    let modelSteps = 0; const requestSeen: boolean[] = []
+    const harness = createHarness({ store, clock, tools: deskTools(flow), prepareContext: flow.prepareContext, model: { source: 'fake', complete: async (request) => {
+      requestSeen.push(JSON.stringify(request.messages).includes('NATIVE_CURRENT_REQUEST_CANARY')); const step = modelSteps++
+      return { text: step === 2 ? 'Synthetic multi-step finished.' : '', usage: { inputTokens: 0, outputTokens: 0 }, toolCalls: step < 2 ? [{ id: 'native-step-' + step, name: step === 0 ? 'desk_read' : 'desk_write', arguments: JSON.stringify(step === 0 ? { path: 'multi-input.md' } : { path: 'multi-result.md', text: 'SYNTHETIC_MULTI_PRODUCT' }) }] : [] }
+    } } })
+    try { harness.send('NATIVE_CURRENT_REQUEST_CANARY: read multi-input.md then write multi-result.md', 'native-current', 'probe'); await harness.idle() } finally { await harness.dispose() }
+    if (modelSteps !== 3 || requestSeen.some((seen) => !seen) || desk.read('multi-result.md') !== 'SYNTHETIC_MULTI_PRODUCT') throw new Error('FLOW_MULTI_STEP_REQUEST_LOST')
+    flow.close(); store.close(); store = openSessionStore(root, owner, clock); flow = open()
+    if (!JSON.stringify((await flow.prepareContext('reopened-multi', new AbortController().signal)).messages).includes('NATIVE_CURRENT_REQUEST_CANARY')) throw new Error('FLOW_RETAINED_RESTART_FAILED')
+    send({ type: 'flow.exit' })
+    send({ type: 'flow.goal.set', text: 'WORK_GOAL_ONLY' }); const goalId = flow.view().goalId!
+    send({ type: 'flow.enter' }); await Promise.resolve(); await Promise.resolve(); const firstGoalFlow = flow.view().activeId!
+    const beforeGoal = await flow.prepareContext('goal', new AbortController().signal)
+    if (!JSON.stringify(beforeGoal.messages).includes('WORK_GOAL_ONLY') || beforeGoal.eligibleIndexes.length) throw new Error('GOAL_WORK_CONTEXT_FAILED')
+    flow.close(); store.close(); clock.advanceBy(86400000); store = openSessionStore(root, owner, clock); flow = open()
+    if (flow.view().goalId !== goalId || flow.view().goals?.[0]?.text !== 'WORK_GOAL_ONLY') throw new Error('GOAL_RESTART_FAILED')
+    send({ type: 'flow.exit' }); send({ type: 'flow.resume', flowId: firstGoalFlow })
+    if (flow.view().goals?.[0]?.flowIds.length !== 2 || flow.view().mode !== 'plan') throw new Error('GOAL_FLOW_LINK_FAILED')
+    send({ type: 'flow.goal.status', goalId, status: 'completed' }); flow.close(); store.close(); store = openSessionStore(root, owner, clock); flow = open()
+    if (flow.view().goals?.[0]?.status !== 'completed' || flow.view().goals?.[0]?.confirmedBy !== 'user') throw new Error('GOAL_USER_STATUS_FAILED')
+    const foreign = openSessionStore(root, { ...owner, characterId: 'other-character' }, clock)
+    try {
+      const other = createHeartFlow({ store: foreign, clock, desk, booth: false, busy: () => false, changed: () => {}, prepare: async () => ({ messages: [], eligibleIndexes: [] }), emit: () => {}, run: async () => '' })
+      if (other.view().goals?.length) throw new Error('GOAL_SCOPE_FAILED'); other.close()
+    } finally { foreign.close() }
+    return { ok: true, probe: 'heart-flow', actualSqlite: true, deskUndo: true, noNodeOrBridge: true, networkBlocked: true, infiniteLoopTerminated: true, compactedCrossDayRestart: true, crossDayCompletedRunNotInterrupted: true, compactAfterReopeningLowSeqDay: true, multipleDayAutomaticCompactHasEvidenceAndRequest: true, realHarnessMultiStepRetainsRequestAcrossCompactAndRestart: true, normalReplayExcludesWorkByPosition: true, longPathExitAfterRestart: true, scopedGoalsAcrossDaysAndFlows: true, goalStatusIsUserConfirmed: true }
   } finally { flow.close(); scheduler.dispose(); store.close() }
 }

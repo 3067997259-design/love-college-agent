@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, readFileSync, writeFileSync, unlinkSync, mkdirSync
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { createManualClock } from '../../src/main/clock'
 import { openJournal } from '../../src/main/journal/file'
 import { projectJournal } from '../../src/main/journal/projection'
@@ -29,6 +29,24 @@ function setup(model: LifeWorkModel | null = createFakeLifeWorkModel()) {
   expect(send({ type: 'developer.life.seed' })).toBeUndefined()
   return { root, work, store, desk, clock, scheduler, options, send, previews, available: (value: boolean) => { available = value } }
 }
+it('refuses mixing fake checkpoints with a real producer and preserves the old product', async () => {
+  const f = setup(); f.send({ type: 'life.work.start', kind: 'read' }); await f.work.idle()
+  const before = f.work.view().jobs[0]; const content = f.desk.read(before.output!.path); await f.work.close()
+  const produce = vi.fn(async () => ({ markdown: 'NEW_REAL_TRANSPORT_PRODUCT' }))
+  const next = createLifeWork({ ...f.options, model: { source: 'real', produce } }); cleanups.push(next.close)
+  expect(next.dispatch({ type: 'life.work.resume', workId: before.id } as AppCommand)).toBe('unavailable')
+  await next.tick(); expect(produce).not.toHaveBeenCalled(); expect(f.desk.read(before.output!.path)).toBe(content)
+  expect(next.view().jobs[0]).toMatchObject({ source: 'fake', completedSteps: 1, status: 'failed', reason: 'model' })
+  f.scheduler.cancel('life.work'); f.clock.advanceBy(86400000)
+  expect(next.dispatch({ type: 'life.work.start', kind: 'read' } as AppCommand)).toBeUndefined(); await next.idle()
+  expect(produce).toHaveBeenCalledOnce(); expect(next.view().jobs.at(-1)).toMatchObject({ source: 'real', completedSteps: 1 })
+})
+it('reports shared reservation exhaustion as budget and never commits a product', async () => {
+  const f = setup({ source: 'fake', produce: async () => { throw Object.assign(new Error('LOCAL_BUDGET'), { code: 'budget-exceeded' }) } })
+  f.send({ type: 'life.work.start', kind: 'read' }); await f.work.idle()
+  expect(f.work.view().jobs[0]).toMatchObject({ status: 'failed', reason: 'budget', completedSteps: 0 })
+  expect(f.work.view().jobs[0].output).toBeUndefined()
+})
 it('writes reading notes and a revised manuscript as actual immutable desk checkpoints; no raw context or fake completion', async () => {
   const f = setup(); f.desk.write('用户秘密.md', 'PRIVATE_UNREGISTERED_CANARY'); const original = f.work.view().materials[0]
   for (const kind of ['read', 'write'] as const) {
@@ -141,4 +159,31 @@ it('survives an oversized or unreadable checkpoint instead of failing app startu
   // 路径被换成目录同样只影响这一项。
   unlinkSync(file); mkdirSync(file)
   expect(() => createLifeWork(f.options)).not.toThrow()
+})
+it('isolates unreadable pending drafts without committing, overwriting or blocking another job (reopened #16)', async () => {
+  for (const kind of ['oversized', 'nul', 'directory'] as const) {
+    const f = setup(); const job = f.work.ensure('read')!; const other = f.work.ensure('write')!
+    const text = '# Interrupted synthetic draft'; const path = workPath(job.id, 1)
+    f.store.append({ type: 'life/work-draft', draft: { id: randomUUID(), workId: job.id, step: 1, path, text, sha256: workHash(text) } })
+    f.desk.write(path, text); const absolute = join(f.root, '书桌', path)
+    if (kind === 'directory') { unlinkSync(absolute); mkdirSync(absolute) } else writeFileSync(absolute, kind === 'oversized' ? 'x'.repeat(64001) : 'before\0after')
+    let restarted!: ReturnType<typeof createLifeWork>
+    expect(() => { restarted = createLifeWork(f.options) }).not.toThrow(); cleanups.push(restarted.close)
+    expect(restarted.view().jobs.find((entry) => entry.id === job.id)).toMatchObject({ status: 'failed', reason: 'conflict', completedSteps: 0 })
+    expect(workRecords(f.store.records()).committed.get(job.id)).toBeUndefined()
+    if (kind !== 'directory') expect(readFileSync(absolute)).toEqual(Buffer.from(kind === 'oversized' ? 'x'.repeat(64001) : 'before\0after'))
+    expect(restarted.dispatch({ type: 'life.work.resume', workId: other.id } as AppCommand)).toBeUndefined(); await restarted.idle()
+    expect(restarted.view().jobs.find((entry) => entry.id === other.id)?.completedSteps).toBe(1)
+  }
+})
+it('keeps 3/3 conflicts until actual material and checkpoints match, including without a producer (reopened #17)', async () => {
+  const f = setup(); const job = await completedThenConflict(f); const attempts = f.store.records().filter((row) => row.type === 'life/work-attempt').length
+  const next = createLifeWork({ ...f.options, model: null }); cleanups.push(next.close)
+  expect(next.view().jobs.find((entry) => entry.id === job.id)).toMatchObject({ status: 'failed', reason: 'conflict', completedSteps: 3 })
+  expect(next.dispatch({ type: 'life.work.resume', workId: job.id } as AppCommand)).toBe('unavailable')
+  expect(next.completed('write', job.dayKey)).toBe(false); expect(next.view().jobs.find((entry) => entry.id === job.id)?.reason).toBe('conflict'); expect(next.active()).toBe(false)
+  const draft = workRecords(f.store.records()).committed.get(job.id)!.at(-1)!
+  expect(f.desk.read(draft.path)).toBe('USER_EDITED_OUTSIDE_THE_APP')
+  f.desk.write(draft.path, draft.text); expect(next.dispatch({ type: 'life.work.resume', workId: job.id } as AppCommand)).toBeUndefined()
+  expect(next.completed('write', job.dayKey)).toBe(true); expect(f.store.records().filter((row) => row.type === 'life/work-attempt')).toHaveLength(attempts)
 })

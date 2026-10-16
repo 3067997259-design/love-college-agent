@@ -1,5 +1,15 @@
 # Love, College & Agent
 
+**MC 观察增补（2026-10-17）：** 接口 `37cb419` 先合 main；背包、原生射线场景、带 owner／新角度核验的转向及 Markdown 陪玩 skill 已接入，游戏工具增为七个。类型／lint、356 项单测和真实本机合成 MCP＋Electron 链路通过，原文仍不回普通日志／存档。截图、挖掘、展位预算与实机仍待推进，见 [观察记录](docs/engineering/minecraft-observations-third-circle.md) 和 [完整性复核](docs/engineering/third-circle-completion-audit.md)。
+
+**自主作品普通端口（2026-10-17）：** 正常模式现已接 `background` 兼容客户端，共享自主预算、30 秒取消、严格 JSON／文件校验；缺槽位保持不可用。材料入口仍只有登记合成材料，未开放任意资料注册；fake 未完成作品不静默切换生产来源。类型／lint、346 项单测及普通模式真实 HTTP／实际文件／重启续做／取消／坏输出／普通上下文隔离通过，服务为本机合成。命令 `pnpm test:life-port`，见 [作品记录](docs/engineering/autonomous-work-third-circle.md)；真实供应商质量仍未验收。
+
+**同档连续验收（2026-10-17）：** `pnpm test:showcase` 已贯通邮件证据、确认与实际日历文件、`/privacy` 资料成品、番茄小窗与读写作品、心流落盘、照片、四点翻页、引用回忆、重启及原存档恢复。普通上下文／记忆不含原文或作品正文。源码 Electron 与实际安装版均已通过；模型为 fake、时间加速，见 [连续流程](docs/engineering/showcase-third-circle.md)。
+
+**最新安装态（2026-10-17 07:28）：** 第三圈底层及现有 main 画面已重打 NSIS，七类原生探针／普通重启／历史照片引用，以及 15 项安装版场景（含同档连续链路及普通作品端口）全部通过。构建源码 `6571c05`，合成服务，未签名；真实 OCR／语音／MC 双客户端及最终外景画面仍待验收。包与哈希见 [安装态记录](docs/engineering/package-third-circle.md)。
+
+**第三圈睡眠接线（2026-10-17）：** `436fbbd` 接口先合 main；沿用四点后安全翻页点入睡，独立于熄灯，已有夜灯／熄灯睡姿实际显示。用户回来交流可唤醒，睡眠期间不生产作品或出门；重启与私人恢复保留状态。类型／lint、340 项单测和 `pnpm test:sleep` 原生流程通过（合成时钟／fake 模型）。见 [睡眠记录](docs/engineering/sleep-third-circle.md)。
+
 > 一个面向大学生活的个人 Agent。她能够处理实际事务，拥有持续的记忆和自己的日常；你们在工作、安静共处和彼此参与中，逐渐形成一段独有的关系。
 
 这是为学校首届黑客松准备的新项目。名字借用了《爱，死亡和机器人》的命名形式，目前使用工作名 **Love, College & Agent**。
@@ -423,9 +433,19 @@ GPT 开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER
 
 - `pnpm probe:heart-flow`：原生 SQLite／书桌撤回与 JavaScript 隔离验证。
 - `pnpm test:heart-flow`：Electron 书桌工具、审批、撤回和重启场景（fake 聊天模型）。
+- `pnpm test:flow-drafts`：Electron `/init`／`/review` 真实书桌草稿、原生预览、取消／重启／私人恢复与普通上下文隔离（fake 模型）。
+- `pnpm test:desk-shadow`：书桌根是 Git 仓库时，独立私人 Git 的真实 before/after 提交、原仓库不受干预、撤回和日志／私人恢复重建；未安装 Git 或非仓库继续日志快照。
+- `pnpm test:computer`：隔离书桌静态 HTML、真实截图／兼容多模态 HTTP、每次用户审批后的真实点击输入、陈旧页面拒绝、取消／重启／私人恢复；不控制整机或已有应用，见 [预览记录](docs/engineering/computer-third-circle.md)。
+- `pnpm test:web-fetch`：网页请求的原生逐次确认／拒绝、停止、重启和正文工作层隔离（明确合成网页）。
+- `pnpm probe:web-fetch`：单次公共 OpenAI 文档 GET，独立转译运行生产 Node 端口，不读配置／凭据、不重试；本机首次返回 unavailable，不能视为真实公网验收通过，见 [网页记录](docs/engineering/web-fetch-third-circle.md)。
+- `pnpm test:voice`：PCM 输出语音分块、真实 AudioContext 排程（测试静音）、取消、白名单和重启不重播；开发模式是测试音，真实供应商／音色待配置，见 [语音记录](docs/engineering/voice-third-circle.md)。
 
 `pnpm probe:life`：确定性外出、物品来源、重启与恢复空档边界（原生 Electron／SQLite，加速时钟）。
 `pnpm test:room`：加密日记、用户查阅、脱敏房间投影、私人存档恢复（fake 模型；正式日记走 chat）。
 `pnpm test:room:upgrade`：普通模式不设数据目录环境变量，验证旧书桌升级、文件不覆盖、撤销与重启不复活删除项；只用隔离合成资料。
+`pnpm test:minecraft`：开发专用合成 MCP 世界、独立游戏上下文、玩家／范围确认、导航核验、专注停玩、存档隔离与关机释放；不是实机 Minecraft 验收。入口与接口见 [展位游戏记录](docs/engineering/minecraft-third-circle.md)。
+`pnpm test:booth`：同一数据根切换个人／展位并重启的隔离验收。`LCA_BOOTH=1` 自动把展位资料放进 `<数据根>/booth`，不会自动复制个人书本或旧版混放的展位数据。
+
+心流目标入口：设置中的“工作目标”，或 `/goal 一句话`（更新当前活动目标，没有时新建）。目标跨日／跨次保留，只有用户标记状态；不进入普通记忆，也不自动批准脚本。现有 `pnpm probe:heart-flow`、`pnpm test:heart-flow`、`pnpm test:backup` 覆盖它的范围和恢复边界。
 `pnpm test:notifications`：急件合并、规则操作、重启去重（开发模式合成投递，不弹系统通知）。
 `pnpm test:characters`：静态角色包原生导入／导出、素材回退、角色隔离与切回原关系。

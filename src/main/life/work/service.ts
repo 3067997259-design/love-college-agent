@@ -12,7 +12,7 @@ import { lifeWorkFixtures } from './fake'
 const DAILY_ATTEMPTS = 8
 export function createLifeWork(options: {
   store: SessionStore; clock: Clock; scheduler: Scheduler; desk: ReturnType<typeof createDesk>; model: LifeWorkModel | null; developer: boolean
-  available(): boolean; changed(): void; projected(): void; open(path: string, text: string): void
+  available(): boolean; changed(): void; projected(): void; open(path: string, text: string, source: LifeWorkItem['source']): void
 }) {
   const { store, clock, desk } = options; const rows = () => store.history?.() ?? store.records()
   let enabled = true; let closed = false; let active: AbortController | undefined; let worker: Promise<void> | undefined
@@ -41,7 +41,8 @@ export function createLifeWork(options: {
     const conflicted = new Set<string>()
     const replay = workRecords(rows())
     for (const material of replay.materials.values()) {
-      try { const present = desk.read(material.path); if (present === null) desk.write(material.path, material.text) } catch { /* The material stays missing; checkpoint conflicts below still decide the job. */ }
+      const conflict = () => { for (const job of jobs.values()) if (job.materialId === material.id) { if (job.reason !== 'conflict') fail(job, 'conflict'); conflicted.add(job.id) } }
+      try { const present = desk.read(material.path); if (present === null) desk.write(material.path, material.text); else if (present !== material.text) conflict() } catch { conflict() }
     }
     for (const [id, checkpoints] of replay.committed) for (const draft of checkpoints) {
       try {
@@ -63,7 +64,13 @@ export function createLifeWork(options: {
     const last = commits.at(-1)
     if (last) job.output = { path: last.path, sha256: last.sha256, byteLength: Buffer.byteLength(last.text) }
     const pending = [...replay.drafts.values()].findLast((draft) => draft.workId === job.id && draft.step === commits.length + 1)
-    if (job.reason !== 'conflict' && pending && desk.read(pending.path) === pending.text) checkpoint(job, pending)
+    if (job.reason !== 'conflict' && pending) {
+      try {
+        const present = desk.read(pending.path)
+        if (present === pending.text) checkpoint(job, pending)
+        else if (present !== null) { fail(job, 'conflict'); conflictedAtStartup.add(job.id) }
+      } catch { fail(job, 'conflict'); conflictedAtStartup.add(job.id) }
+    }
     // A conflict found by this startup pass stays a conflict, even when every step was committed: the user
     // has to resolve it, and settling it silently would also re-open the resume path (issue #16).
     if (conflictedAtStartup.has(job.id)) continue
@@ -86,6 +93,8 @@ export function createLifeWork(options: {
     if (blocked()) return Promise.resolve()
     const job = [...jobs.values()].find((job) => job.status === 'queued' || job.status === 'paused' && (job.reason === 'busy' || job.reason === 'lights'))
     if (!job) return Promise.resolve()
+    // A fake checkpoint cannot quietly become a real-model work on mode/config changes.
+    if (job.source !== options.model!.source) { fail(job, 'model'); return Promise.resolve() }
     // Never attempt a step that does not exist: `life/work-attempt.step` is capped at the last step, so a
     // job whose steps are all committed must settle as completed instead of leaving a phantom "running".
     if (job.completedSteps >= job.totalSteps) { job.status = 'completed'; job.completedAtMs = clock.nowMs(); delete job.reason; save(job); return Promise.resolve() }
@@ -116,10 +125,10 @@ export function createLifeWork(options: {
         if (present !== null && present !== text) { conflict = true; throw new Error('WORK_CONFLICT') }
         store.append({ type: 'life/work-draft', draft })
         try { if (present === null) desk.write(draft.path, text); checkpoint(job, draft) } catch { conflict = true; throw new Error('WORK_CONFLICT') }
-      } catch {
+      } catch (cause) {
         if (job.status === 'running') {
           if (abort.signal.aborted) pause(job, blocked() ? reason() : 'interrupted')
-          else fail(job, conflict ? 'conflict' : 'model')
+          else fail(job, conflict ? 'conflict' : cause && typeof cause === 'object' && 'code' in cause && cause.code === 'budget-exceeded' ? 'budget' : 'model')
         }
       } finally { stop(); remove(); active = undefined; worker = undefined; options.changed() }
     }); return worker
@@ -148,12 +157,21 @@ export function createLifeWork(options: {
       if (command.type === 'life.work.open') {
         if (!job.output) return 'unavailable'
         const text = desk.read(job.output.path); if (text === null || workHash(text) !== job.output.sha256) return 'unavailable'
-        options.open(job.output.path, text); return
+        options.open(job.output.path, text, job.source); return
       }
       if (job.status === 'completed') return 'unavailable'
       if (command.type === 'life.work.pause') { if (active && job.status === 'running') active.abort(); pause(job, 'user'); return }
-      if (job.completedSteps >= job.totalSteps) { job.status = 'completed'; job.completedAtMs = clock.nowMs(); delete job.reason; save(job); return }
+      if (job.completedSteps >= job.totalSteps) {
+        // Progress count alone cannot clear a real conflict. Re-check the material and every committed
+        // product before settling, even when no model is configured; never schedule a fourth step.
+        const replay = workRecords(rows()); const material = replay.materials.get(job.materialId)
+        try {
+          if (!material || desk.read(material.path) !== material.text || (replay.committed.get(job.id) ?? []).some((draft) => desk.read(draft.path) !== draft.text)) throw new Error('WORK_CONFLICT')
+        } catch { fail(job, 'conflict'); return 'unavailable' }
+        job.status = 'completed'; job.completedAtMs = rows().findLast((row) => row.type === 'life/work-commit' && row.workId === job.id)?.atMs ?? clock.nowMs(); delete job.reason; save(job); return
+      }
       if (!enabled || !options.model || worker) return 'unavailable'
+      if (job.source !== options.model.source) { fail(job, 'model'); return 'unavailable' }
       job.status = 'queued'; delete job.reason; save(job); void tick()
     },
     idle: async () => { await worker },

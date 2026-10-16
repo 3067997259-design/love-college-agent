@@ -248,13 +248,35 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 - 只有在用户要求时才更新跨项目的全局记忆；本工程文档不等于全局记忆。
 # 已实现的心流命令
 
+`pnpm package:win` 生成带 Git／安装器／asar 哈希回执的 Windows 包；`pnpm test:package` 对实际安装 EXE 追加 15 项原生场景（含同档连续流程及普通模式生产端口，合成服务），不把源码 Electron 验收充当安装态。已有用户安装时拒绝升级／卸载；缓存与独立测试安装目录均在 D 盘。结果见 [安装态记录](docs/engineering/package-third-circle.md)。
+
+`pnpm test:showcase` 跑同一 profile 的“邮件证据→确认→文件交付→/privacy 资料→番茄小窗→实际读写作品→心流→照片→跨日回忆→重启／私人恢复”。全部合成服务／加速时钟，不是长期运行、真实隐私质量或外部平台写入的验收。详见 [连续流程](docs/engineering/showcase-third-circle.md)。
+
+`pnpm test:sleep` 验证独立于熄灯的睡眠、夜灯／熄灯睡姿、忙时拒绝、安全翻页、用户唤醒、零离线生产和私人恢复。睡眠在主进程决定，渲染层不能从天色或 lightsOut 推导；模型和时间为合成，不当长期验收。
+
+输出语音：`pnpm test:voice` 验证 PCM／AudioContext、取消、书本白名单与不重播；默认静音，开发模式为合成测试音。真实 `providers.tts` 必须显式指定兼容协议、HTTPS 前缀、模型、音色和密钥，仍待真实服务验收；不把合成音当角色声音。见 [语音记录](docs/engineering/voice-third-circle.md)。
+
+`/init`／`/review` 只在 execute 心流生成用户专用草稿，最多 8 个来源／24 KB 输入；实际读写、来源版本和当前产物匹配后才 ready，不能解释成审查或测试通过。`pnpm test:flow-drafts` 验证原生落盘、预览、取消、重启、存档恢复及正文隔离；不会执行脚本或编辑源文件。
+
+`pnpm test:desk-shadow` 验证 Git 书桌的独立私人影子提交。只版本化本步修改文件的 before/after，未管理文件不在影子树里；不执行原仓库 Git／hooks，不改其 refs、索引或配置。Git 缺失或失败继续已应用的日志快照，状态明确；私人恢复从日志重建，不重放工作。
+
+`pnpm test:computer` 验证隔离书桌预览：仅用户明确打开的静态 HTML，脚本／网络／Node／IPC／导航／下载／文件选择关闭。每个模型动作重新审批，最多 8 个动作、20 帧；变更页面、停止、熄灯或重启不继承审批。PNG 只供当前心流，不走公共素材 broker、普通记忆或原文调试，私人恢复保留截图，不自动开窗。真实外部应用范围仍待用户给出。
+
+`pnpm test:web-fetch` 验证合成网页的原生逐次确认、拒绝、取消、重启和正文隔离；`desk_web_fetch` 仅 execute、每 URL 确认、只公共 HTTPS/IPv4、不跟重定向、不发凭据。`pnpm probe:web-fetch` 会向固定官方文档发一次真实 GET；首次本机 unavailable，不读本机密钥，不把合成验收当真实联网通过。
+
+`/goal 一句话` 设置／更新当前工作目标，跨日与跨次心流保留；状态仅用户能改，模型只读。`pnpm probe:heart-flow`／`pnpm test:heart-flow`／`pnpm test:backup` 已覆盖目标的关联、重启、角色隔离与私人恢复，不把用户标记完成当执行证据。
+
+`pnpm test:booth` 验证个人／展位自动分 profile：展位使用 `<dataRoot>/booth` 的独立设置与资料库，开发场景路径不变。旧版混放的资料保留原位，不自动复制个人书本进展位；需要的旧展位存档由操作员显式恢复。
+
+`pnpm test:minecraft` 跑自有合成 MCP 世界与独立游戏 harness 的真实 Electron 场景。只有开发／展位可开轮，游戏上下文和目录不混入普通记忆／私人存档；真实桥配置须经原生核对，不能从参考项目自动接管实例。真实双客户端和模型质量未验收。
+
 `pnpm test:room:upgrade` 验证普通模式不设 `LCA_DATA_DIR` 的旧书桌升级：只复制本 profile 日志引用过的旧文件，保留源文件，同名冲突不覆盖；一次性回执防止删除项重启复活。测试用独立 cwd／Documents，不碰用户正常资料。
 
 `pnpm probe:heart-flow` 运行原生隔离探针；`pnpm test:heart-flow` 运行 Electron 闭环。JavaScript 沙箱不提供 Node／shell／网络／系统文件；不要把批准一次扩展成后续操作授权。
 `pnpm test:delegates` 验证只读心流分身与本体收回结果。最多三个、每日十二次尝试、每次三十秒；只有指定书桌源材料，结果未审核、不独立写记忆，停止／退出／熄灯取消。正式 background 模型端口已接，fake 验收不代表真实质量。
 
 `pnpm probe:life` 验证外出事实与恢复结算水位；不要把离线虚构事件报告为实际工作。
-`pnpm test:life-work` 验证登记过的合成书桌材料、fake 阅读／写作、真实产物、暂停／重启及私人恢复。只有回读校验且已提交的产物才推进步数；离线不补工作，原文／作品正文不进普通上下文或运行记录。正式作品模型未接通，不能用假模型验收代替真实质量。
+`pnpm test:life-work` 验证登记过的合成书桌材料、fake 阅读／写作、真实产物、暂停／重启及私人恢复。只有回读校验且已提交的产物才推进步数；离线不补工作，原文／作品正文不进普通上下文或运行记录。`pnpm test:life-port` 验证普通模式后台兼容端口、共享预算、取消、非法输出拒绝、实际文件、来源不混写和重启显式续做；仍用登记合成材料及本机合成 HTTP，不读取真实供应商凭据，也不证明真实质量。材料没有新增任意文件登记入口。
 `pnpm test:room` 验证日记和房间投影。日记钥匙／正文仅用户专用读接口可取，不加进调试状态或模型上下文。
 `pnpm test:notifications` 验证急件通知。Toast 不放标题／发件人／正文；只允许急件或心流审批，禁止把普通后台活动做成通知。
 `pnpm test:characters` 验证静态角色包与角色作用域。角色包不带私人档案；私人存档恢复维持同用户／同角色校验。

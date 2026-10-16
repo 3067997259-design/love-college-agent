@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
 import JSZip from 'jszip'
-import { runtimeEnv } from './runtime-env.mjs'
+import { runtimeEnv, electronLaunchTarget } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'onboarding-smoke-' + randomUUID())
 const backendOnly = process.argv.includes('--backend-only'); const requests = []
@@ -22,7 +22,7 @@ await mkdir(data, { recursive: true }); const fixture = join(data, 'synthetic-pr
 await writeFile(fixture, JSON.stringify({ providers: { chat: { base_url: 'http://127.0.0.1:' + server.address().port + '/v1', api_key: 'synthetic-test-only', model: 'synthetic-test-only' } } }))
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: join(data, 'source'), LCA_PROVIDERS_FILE: fixture, LCA_CDP_PORT: '19535', LCA_MCP_PORT: '0' }
 let instance; let page
-async function launch() { instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 }); page = await instance.firstWindow(); await page.locator('[data-mode][data-pose]').waitFor() }
+async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 }); page = await instance.firstWindow(); await page.locator('[data-mode][data-pose]').waitFor() }
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), ...body }) }, body)
 async function waitFor(predicate, message) { for (let i = 0; i < 100; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(message) }

@@ -1,5 +1,9 @@
 # 界面接口 v0
 
+展位 MC 完整子集增补：`minecraft.features` 仅列出已批准端点并经 schema 核对的 inventory／scene／look／screenshot／mining。`MinecraftScope.allowScreenshots` 与 `allowMining` 是逐轮显式同意，省略均为 false；不是 MCP 首次连接批准的延续，也不复用上一轮。截图只来自她的客户端；挖掘只允许近身 survival 原生动作，不放开管理员／world_write。`lastAction.kind` 增加 look／mine；started／dispatch 不能直接当作成功。背包与眼前射线是结构化观察，不代替模型实际收到截图。观察正文和像素只留游戏上下文，不回普通记忆或私人存档。
+
+第三圈睡眠：`companion.sleeping` 是主进程持久状态，缺省视为醒着；`pose='sleeping'` 由它投影，熄灯仍单独表示暂停，不能从夜晚或关灯推断睡着。书本窗口可发 `companion.sleep { sleeping: boolean }`；睡眠要求没有执行／心流／进行中的番茄／外出，忙时拒绝。默认在凌晨四点后既有的安全翻页点入睡（用户闲置两分钟且没有工作）；聊天／心流中途不翻页。明确唤醒、开始交流或用户工作使她醒来。睡眠保留到重启／私人恢复，期间不生产作品、不出门，不补算离线工作。Claude 可直接沿用现有睡姿素材映射；朴素入口在“她的生活”。
+
 `memory.summaryCounts` 提供有效日／周／月摘要数量；同一周期来源不变不重复调用。`memory.consolidate` 只归并已关闭周期的已有日摘要，不读取原始邮件或附件。晚到的来源追加新版本，旧记录保留；给模型的层级参考不重复覆盖同一来源会话，也不参与新的经历抽取。
 
 第二圈礼物：`gifts` 是真实生成生命周期，和预制羽毛笔 quill 分开。gift.propose 必须绑定已见经历；物件和装饰取共享枚举，发往 Rodin 的描述由代码映射，不发送姓名、邮件或记忆原文。专注开始制作，工具取得并校验本地 GLB 后才 ready，休息才 given；取消停止本地后续处理，不承诺上游撤单或退款。每天最多一次提交，失败也占提交预算。assetUrl 仅本地受限资源，未配置时 configured=false，不能假装开始了。上游凭据、任务订阅 key 与签名下载 URL 永不进快照、日志或调试接口。

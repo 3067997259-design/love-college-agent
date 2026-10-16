@@ -3,10 +3,11 @@ import { join, resolve } from 'node:path'
 import { z } from 'zod'
 import type { AppCommand, ModelSettingsView, PublicErrorCode } from '../../shared'
 import type { ProviderSlot } from './providers'
+import { voiceConfigSchema } from '../voice/port'
 
 export const providerConfigPath = (root: string, fallback: string) => existsSync(join(root, 'connections/providers.json')) ? join(root, 'connections/providers.json') : fallback
 const entry = z.strictObject({ base_url: z.string().max(4096).default(''), api_key: z.string().max(8192).default(''), model: z.string().max(256).default('') })
-const schema = z.strictObject({ providers: z.record(z.string().regex(/^[A-Za-z0-9_-]{1,40}$/), entry).refine((value) => Object.keys(value).length <= 16),
+const schema = z.strictObject({ providers: z.record(z.string().regex(/^[A-Za-z0-9_-]{1,40}$/), z.union([entry, voiceConfigSchema])).refine((value) => Object.keys(value).length <= 16 && Object.entries(value).every(([slot, config]) => (slot === 'tts' ? voiceConfigSchema : entry).safeParse(config).success)),
   mail: z.strictObject({ host: z.string().max(256), port: z.number().int().min(1).max(65535), tls: z.literal(true), user: z.string().max(320), auth_code: z.string().max(8192), folder: z.literal('桃子') }).optional() })
 export function createModelSettings(options: { root: string; developer: boolean; slots: readonly ProviderSlot[]; canConfigure(): boolean; choose(): Promise<string | null>; changed(): void }) {
   let view: ModelSettingsView = { status: 'idle', configuredSlots: [...options.slots], restartRequired: false }; let worker: Promise<void> | undefined; let disposed = false

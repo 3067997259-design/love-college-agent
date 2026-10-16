@@ -22,7 +22,9 @@ import { characterNameInput, initialOnboarding, onboardingView, userNameInput } 
 import { giftSpecSchema } from '../gifts/schema'
 import type { GiftService } from '../gifts/service'
 import type { HeartFlowService } from '../heart-flow/service'
+import type { VoiceService } from '../voice/service'
 import type { LifeService } from '../life/service'
+import type { SleepService } from '../life/sleep'
 import type { LifeWorkService } from '../life/work/service'
 import type { DiaryService } from '../diary/service'
 import type { NotificationsService } from '../notifications/service'
@@ -33,9 +35,24 @@ import type { HistoryRecall } from '../history/recall'
 import { recallAnchorSchema } from '../history/schema'
 import type { OpticalMemoryService } from '../optical/service'
 import { opticalTier } from '../optical/schema'
+import { minecraftScopeSchema, type MinecraftService } from '../minecraft/service'
+import type { MinecraftChat } from '../minecraft/chat'
+import { goalTextSchema, goalStatusSchema } from '../heart-flow/goals'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('companion.sleep'), sleeping: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.fetch.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.computer.open'), path: z.string().min(1).max(180) }),
+  z.strictObject({ ...envelope, type: z.literal('flow.computer.close') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.computer.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('voice.set'), enabled: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('voice.stop'), utteranceId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('voice.playback'), utteranceId: z.string().uuid(), status: z.enum(['playing', 'ended', 'failed']) }),
+  z.strictObject({ ...envelope, type: z.literal('minecraft.check'), serverId: z.string().min(1).max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('minecraft.start'), serverId: z.string().min(1).max(128), expectedPlayerUuid: z.string().uuid(), scope: minecraftScopeSchema }),
+  z.strictObject({ ...envelope, type: z.literal('minecraft.stop') }),
+  z.strictObject({ ...envelope, type: z.literal('developer.minecraft'), scenario: z.enum(['ready', 'chat', 'world-change', 'unsafe', 'unreachable']) }),
   z.strictObject({ ...envelope, type: z.literal('optical.configure') }),
   z.strictObject({ ...envelope, type: z.literal('optical.enable'), enabled: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('optical.encode'), sessionId: z.string().min(1).max(128) }),
@@ -62,6 +79,12 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('life.depart'), outingId: z.string().max(100) }),
   z.strictObject({ ...envelope, type: z.literal('life.return') }),
   z.strictObject({ ...envelope, type: z.literal('flow.enter') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.init') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.review') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.operation.open'), operationId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.goal.set'), text: goalTextSchema, goalId: z.string().uuid().optional() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.goal.select'), goalId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.goal.status'), goalId: z.string().uuid(), status: goalStatusSchema }),
   z.strictObject({ ...envelope, type: z.literal('flow.exit') }),
   z.strictObject({ ...envelope, type: z.literal('flow.mode'), mode: z.enum(['plan', 'execute']) }),
   z.strictObject({ ...envelope, type: z.literal('flow.compact'), focus: z.string().trim().min(1).max(500).optional() }),
@@ -149,7 +172,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let windows: CompanionWindows | undefined
   let gifts: GiftService | undefined
   let heartFlow: HeartFlowService | undefined
+  let voice: VoiceService | undefined
   let life: LifeService | undefined
+  let sleep: SleepService | undefined
   let lifeWork: LifeWorkService | undefined
   let diary: DiaryService | undefined
   let notifications: NotificationsService | undefined
@@ -157,6 +182,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let photos: HistoryPhotos | undefined
   let recall: HistoryRecall | undefined
   let optical: OpticalMemoryService | undefined
+  let minecraft: MinecraftService | undefined
+  let minecraftChat: MinecraftChat | undefined
+  let gameScenario: ((scenario: Extract<AppCommand, { type: 'developer.minecraft' }>['scenario']) => void) | undefined
   let room: { open(): void; rebuild(): void } | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
@@ -177,6 +205,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     snapshot.scope = saved.scope
     snapshot.companion.mode = saved.mode
     snapshot.companion.lightsOut = saved.lightsOut
+    snapshot.companion.sleeping = saved.sleeping
     snapshot.messages = saved.messages
     snapshot.activities = saved.activities
     snapshot.task = saved.task
@@ -184,7 +213,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     for (const request of saved.requests.slice(-1000)) requests.set(request.requestId, { signature: request.commandHash,
       ack: { protocolVersion: PROTOCOL_VERSION, requestId: request.requestId, epoch: snapshot.epoch, status: 'accepted' } })
   }
-  const updatePose = () => { snapshot.companion.pose = { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode] }
+  const updatePose = () => { snapshot.companion.pose = snapshot.companion.sleeping ? 'sleeping' : { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode] }
   updatePose()
   let execution: { source: 'real' | 'fake'; send(text: string, requestId: string, hash: string): void; stop(id: string): boolean; stateChanged(): void } | undefined
   let executionReady = false
@@ -196,7 +225,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (!store) return
     const view = store.projection()
     if (snapshot.scope.sessionId !== view.scope.sessionId) { snapshot.epoch = randomUUID(); snapshot.revision = 0; requests.clear(); snapshot.scope = view.scope }
-    snapshot.companion.mode = view.mode; snapshot.companion.lightsOut = view.lightsOut
+    snapshot.companion.mode = view.mode; snapshot.companion.lightsOut = view.lightsOut; snapshot.companion.sleeping = view.sleeping
     snapshot.onboarding = onboardingView(view.onboarding, !!options.booth)
     snapshot.messages = view.messages; snapshot.activities = view.activities; snapshot.task = view.task
     snapshot.pomodoro = pomodoro?.read() ?? view.pomodoro
@@ -246,6 +275,11 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (character) snapshot.characterPack = character.view()
     if (photos) snapshot.history = { ...photos.view(), recall: recall?.view() ?? { status: 'idle' } }
     if (optical) snapshot.opticalMemory = optical.view()
+    if (voice) snapshot.voice = voice.view()
+    if (minecraft) {
+      snapshot.minecraft = minecraft.view()
+      if (minecraft.active() && minecraftChat) { const game = minecraftChat.view(); snapshot.messages = [...game.messages]; snapshot.activities = [...game.activities]; snapshot.task = game.task }
+    }
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
@@ -264,19 +298,47 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (surface === 'diagnostics' || (command.type === 'window.mini.hover' || command.type === 'window.mini.move' || command.type === 'window.mini.moveBy') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('flow.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('voice.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type === 'companion.sleep' && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('room.') || command.type === 'diary.write') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('character.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('history.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('optical.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if ((command.type.startsWith('minecraft.') || command.type === 'developer.minecraft') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('life.work.') || command.type === 'developer.life.seed') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'onboarding.reset' && options.booth) return reject(command.requestId, 'permission-denied')
     const signature = commandHash(command)
     const prior = requests.get(command.requestId)
     if (prior) return prior.signature === signature ? structuredClone(prior.ack) : reject(command.requestId, 'invalid-command')
     if (backup?.isBusy()) return reject(command.requestId, 'unavailable')
+    if (minecraft?.active() && !['message.send', 'turn.stop', 'lights.set', 'mode.set', 'mcp.disconnect', 'developer.minecraft'].includes(command.type)
+      && !command.type.startsWith('minecraft.') && !command.type.startsWith('window.') && !command.type.startsWith('pomodoro.')) return reject(command.requestId, 'unavailable')
     let ack: CommandAck
-    if (command.type === 'onboarding.profile' || command.type === 'onboarding.complete' || command.type === 'onboarding.reset') {
+    // A deliberate conversation/work request is user presence. Window telemetry and
+    // background ticks do not wake her; lights remain an independent pause switch.
+    if (!snapshot.companion.lightsOut && (['message.send', 'history.recall', 'flow.enter', 'flow.resume', 'pomodoro.start', 'pomodoro.resume', 'life.work.start', 'life.work.resume', 'minecraft.start', 'life.depart'].includes(command.type)
+      || command.type === 'mode.set' && command.mode !== 'rest' || command.type === 'life.schedule' && command.schedule === 'work')) sleep?.wake()
+    if (command.type === 'companion.sleep' && sleep) {
+      const error = sleep.set(command.sleeping, 'user', { requestId: command.requestId, commandHash: signature }); readProjection()
+      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+      publish('mode', command.requestId); execution?.stateChanged()
+    } else if (command.type.startsWith('voice.') && voice) {
+      const error = voice.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId)
+    } else if (command.type.startsWith('minecraft.') && minecraft) {
+      const error = command.type === 'minecraft.start' && !minecraftChat?.ready() ? 'not-configured' : minecraft.dispatch(command)
+      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (command.type === 'developer.minecraft') {
+      if (!gameScenario) return reject(command.requestId, 'permission-denied'); gameScenario(command.scenario); minecraft?.stateChanged()
+      ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (minecraft?.active() && command.type === 'message.send') {
+      if (!minecraftChat || minecraft.view().status !== 'playing' || surface !== 'book') return reject(command.requestId, 'unavailable')
+      try { minecraftChat.send(command.text, command.requestId, signature) } catch { return reject(command.requestId, 'unavailable') }
+      ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+    } else if (minecraft?.active() && command.type === 'turn.stop') {
+      if (!minecraftChat?.stop(command.taskId)) return reject(command.requestId, 'invalid-command'); void minecraft.stop()
+      ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+    } else if (command.type === 'onboarding.profile' || command.type === 'onboarding.complete' || command.type === 'onboarding.reset') {
       const current = snapshot.onboarding ?? initialOnboarding()
       const view = command.type === 'onboarding.profile' ? { ...current,
         ...(command.userName !== undefined ? { userName: command.userName || null } : {}), ...(command.characterName !== undefined ? { characterName: command.characterName || '桃子' } : {}) }
@@ -323,11 +385,12 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       publish('mode', command.requestId)
       execution?.stateChanged()
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
-    } else if (heartFlow?.active() && command.type === 'message.send' && /^(?:\/(?:exit|plan|permissions|status|diff|undo)$|\/compact(?:\s|$))/.test(command.text)) {
+    } else if (heartFlow && command.type === 'message.send' && (heartFlow.active() && /^(?:\/(?:init|review|exit|plan|permissions|status|diff|undo)$|\/compact(?:\s|$))/.test(command.text) || /^\/goal(?:\s|$)/.test(command.text))) {
       const text = command.text; const focus = /^\/compact\s/.test(text) ? text.slice(8).trim() || undefined : undefined
       const section = ({ '/permissions': 'permissions', '/status': 'status', '/diff': 'diff' } as const)[text as '/permissions' | '/status' | '/diff']
-      const action: AppCommand | undefined = text === '/exit' ? { ...command, type: 'flow.exit' } : text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : text.startsWith('/compact') ? { ...command, type: 'flow.compact', ...(focus ? { focus } : {}) } : section ? { ...command, type: 'flow.inspect', section } : text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
-      const error = focus && focus.length > 500 ? 'invalid-command' : action ? heartFlow.dispatch(action) : 'unavailable'; ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+      const goalText = text.startsWith('/goal ') ? text.slice(6).trim() : ''; const flowView = heartFlow.view(); const selectedGoal = flowView.goals?.find((goal) => goal.id === flowView.goalId && goal.status === 'active')
+      const action: AppCommand | undefined = goalText ? { ...command, type: 'flow.goal.set', text: goalText, ...(selectedGoal ? { goalId: selectedGoal.id } : {}) } : text === '/init' ? { ...command, type: 'flow.init' } : text === '/review' ? { ...command, type: 'flow.review' } : text === '/exit' ? { ...command, type: 'flow.exit' } : text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : text.startsWith('/compact') ? { ...command, type: 'flow.compact', ...(focus ? { focus } : {}) } : section ? { ...command, type: 'flow.inspect', section } : text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
+      const error = focus && focus.length > 500 ? 'invalid-command' : action ? heartFlow.dispatch(action, signature) : 'unavailable'; ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (memory && !heartFlow?.active() && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
       try { const error = memory.dispatch(command.type === 'message.send' ? { ...command, type: 'context.compact' } : command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -342,7 +405,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { const error = optical.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (heartFlow && command.type.startsWith('flow.')) {
-      const error = heartFlow.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+      const error = heartFlow.dispatch(command, signature); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (recall && command.type === 'history.recall') {
       const error = recall.request(command.anchor, command.question, command.requestId, signature); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (photos && command.type === 'history.photo.capture') {
@@ -377,7 +440,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { const error = mcp.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (command.type === 'message.send' && execution && executionReady && !snapshot.companion.lightsOut) {
-      try { execution.send(command.text, command.requestId, signature) }
+      try { voice?.interrupt(); heartFlow?.interruptDraft(); execution.send(command.text, command.requestId, signature) }
       catch { return reject(command.requestId, 'internal') }
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else if (command.type === 'turn.stop' && execution) {
@@ -405,6 +468,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else {
       ack = reject(command.requestId, command.type === 'privacy.set' ? 'privacy-unavailable' : command.type === 'message.send' && execution && !snapshot.companion.lightsOut ? 'not-configured' : 'unavailable')
     }
+    minecraft?.stateChanged()
+    voice?.stateChanged()
+    heartFlow?.stateChanged()
     requests.set(command.requestId, { signature, ack })
     if (requests.size > 1000) requests.delete(requests.keys().next().value!)
     return structuredClone(ack)
@@ -419,11 +485,15 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachDocuments: (port: DocumentService) => { documents = port; publish('connection') },
     attachMemory: (port: MemoryService) => { memory = port; publish('connection') },
     attachMcp: (port: McpService) => { mcp = port; publish('connection') },
+    attachMinecraft: (port: MinecraftService, chat: MinecraftChat, scenario?: typeof gameScenario) => { minecraft = port; minecraftChat = chat; gameScenario = scenario; publish('connection') },
     attachBackup: (port: BackupService) => { backup = port; publish('connection') },
     attachQuill: (port: QuillService) => { quill = port; publish('connection') },
     attachGifts: (port: GiftService) => { gifts = port; publish('connection') },
     attachHeartFlow: (port: HeartFlowService) => { heartFlow = port; publish('connection') },
+    attachVoice: (port: VoiceService) => { voice = port; publish('connection') },
+    readVoice: (input: unknown) => { if (!voice || backup?.isBusy()) throw new Error('VOICE_UNAVAILABLE'); return voice.read(input) },
     attachLife: (port: LifeService) => { life = port; publish('mode') },
+    attachSleep: (port: SleepService) => { sleep = port },
     attachLifeWork: (port: LifeWorkService) => { lifeWork = port },
     attachDiary: (port: DiaryService, roomPort: NonNullable<typeof room>) => { diary = port; room = roomPort; publish('connection') },
     attachNotifications: (port: NotificationsService) => { notifications = port; publish('connection') },

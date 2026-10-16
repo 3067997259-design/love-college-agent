@@ -11,6 +11,11 @@ import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const release = join(root, 'release')
 const installer = join(release, 'Love-College-Agent-0.1.0-Setup.exe')
+const buildReceipt = JSON.parse(await readFile(join(release, 'build-receipt.json'), 'utf8'))
+assert.equal(buildReceipt.version, 1); assert.match(buildReceipt.sourceRevision, /^[a-f0-9]{40}$/)
+const digest = (bytes) => createHash('sha256').update(bytes).digest('hex')
+assert.equal(digest(await readFile(installer)), buildReceipt.installerSha256)
+assert.equal(digest(await readFile(join(release, 'win-unpacked/resources/app.asar'))), buildReceipt.asarSha256)
 const builderRequire = createRequire(await realpath(join(root, 'node_modules/electron-builder/package.json')))
 const libRequire = createRequire(builderRequire.resolve('app-builder-lib/package.json'))
 const { listPackage } = libRequire('@electron/asar')
@@ -32,7 +37,7 @@ function run(exe, args, { capture = false } = {}) {
     let output = ''; child.stdout?.on('data', (chunk) => { output = (output + chunk.toString()).slice(-16_384) })
     const deadline = setTimeout(() => { child.kill(); reject(new Error('PACKAGE_CHECK_TIMEOUT')) }, 120_000)
     child.on('error', () => { clearTimeout(deadline); reject(new Error('PACKAGE_CHECK_LAUNCH_FAILED')) })
-    child.on('exit', (code) => { clearTimeout(deadline); if (code === 0) resolve(output); else reject(new Error('PACKAGE_CHECK_FAILED')) })
+    child.on('exit', (code) => { clearTimeout(deadline); if (code === 0) resolve(output); else reject(new Error('PACKAGE_CHECK_FAILED: ' + (args.find((arg) => arg.endsWith('.mjs'))?.split(/[\\/]/).at(-1) ?? 'native-step'))) })
   })
 }
 async function probe(exe, name) {
@@ -71,9 +76,14 @@ try {
   env.LCA_HISTORY_EXECUTABLE = exe
   await run(process.execPath, [join(root, 'scripts/smoke-history.mjs')])
   delete env.LCA_HISTORY_EXECUTABLE
+  const thirdCircleScenarios = ['onboarding', 'life-work', 'sleep', 'flow-drafts', 'desk-shadow', 'delegates', 'optical', 'minecraft', 'voice', 'computer', 'web-fetch', 'booth', 'mini', 'showcase', 'life-port']
+  env.LCA_TEST_EXECUTABLE = exe
+  for (const name of thirdCircleScenarios) { await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs')]); console.log('Installed Electron scenario passed: ' + name) }
+  delete env.LCA_TEST_EXECUTABLE
   const bytes = await readFile(installer)
   const report = { ok: true, atIso: new Date().toISOString(), installer, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
-    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: true, privateSaveProbe: true, installedUiRestart: true, historyQuoteAndPhoto: true, secondCircleProbes: ['memory', 'life', 'heart-flow'] }
+    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: true, privateSaveProbe: true, installedUiRestart: true, historyQuoteAndPhoto: true, secondCircleProbes: ['memory', 'life', 'heart-flow'], buildReceipt, thirdCircleScenarios,
+    syntheticServices: true, realProviderQualityAccepted: false }
   await writeFile(join(root, 'test-results/package-report.json'), JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report))
 } finally {

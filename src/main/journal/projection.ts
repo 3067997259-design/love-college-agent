@@ -8,6 +8,7 @@ export interface SessionProjection {
   lastSeq: number
   mode: InteractionMode
   lightsOut: boolean
+  sleeping: boolean
   onboarding: OnboardingView
   messages: MessageView[]
   activities: ActivityView[]
@@ -28,26 +29,27 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
   const header = records[0]
   if (!header || header.type !== 'session/header') throw new Error('JOURNAL_HEADER_REQUIRED')
   const result: SessionProjection = { scope: { userId: header.userId, characterId: header.characterId, sessionId: header.sessionId },
-    lastSeq: 0, mode: 'rest', lightsOut: false, onboarding: initialOnboarding(), messages: [], activities: [], task: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [], pendingEvents: [] }
+    lastSeq: 0, mode: 'rest', lightsOut: false, sleeping: false, onboarding: initialOnboarding(), messages: [], activities: [], task: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [], pendingEvents: [] }
   const context: { seq: number; order?: number; message: ContextMessage }[] = []
   const compacted = records.filter((record) => record.type === 'context/compact')
   const inbox = new Map<string, ContextMessage>()
   const pendingEvents = new Map<string, SessionProjection['pendingEvents'][number]>()
   const heldMessages: MessageView[] = []
-  const quiet = () => result.mode === 'quiet' || result.pomodoro.phase === 'focus' || result.lightsOut
+  const quiet = () => result.mode === 'quiet' || result.pomodoro.phase === 'focus' || result.lightsOut || result.sleeping
   const release = () => { if (!quiet()) { result.messages.push(...heldMessages.splice(0)); result.messages.sort((a, b) => a.createdAtMs - b.createdAtMs) } }
   for (const record of records) {
     result.lastSeq = record.seq
-    if ('requestId' in record && 'commandHash' in record) result.requests.push({ requestId: record.requestId, commandHash: record.commandHash })
+    if ('requestId' in record && 'commandHash' in record && record.requestId && record.commandHash) result.requests.push({ requestId: record.requestId, commandHash: record.commandHash })
     switch (record.type) {
       case 'session/carry':
         result.onboarding = record.onboarding ?? initialOnboarding()
-        result.mode = record.mode; result.lightsOut = record.lightsOut; result.pomodoro = normalizePomodoro(record.pomodoro)
+        result.mode = record.mode; result.lightsOut = record.lightsOut; result.sleeping = record.sleeping ?? false; result.pomodoro = normalizePomodoro(record.pomodoro)
         result.pomodoroPause = record.pomodoroPause; result.pomodoroEvents = record.pomodoroEvents
         for (const event of record.pendingEvents ?? []) { pendingEvents.set(event.id, event); inbox.set(event.id, { role: 'user', content: JSON.stringify({ source: event.source, facts: event.text }) }) }
         break
       case 'companion/mode': result.mode = record.mode; release(); break
       case 'companion/lights': result.lightsOut = record.lightsOut; release(); break
+      case 'companion/sleep': result.sleeping = record.sleeping; release(); break
       case 'onboarding/state': result.onboarding = structuredClone(record.view); break
       case 'pomodoro/state':
         result.pomodoro = normalizePomodoro(record.view); result.pomodoroPause = record.pauseReason
@@ -91,7 +93,7 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
           activity.fields = record.fields ?? {}
         }
         result.evidenceSeqs.push(record.seq)
-        context.push({ seq: record.seq, message: { role: 'tool', content: JSON.stringify(record.visible), toolCallId: record.callId } }); break
+        context.push({ seq: record.seq, message: { role: 'tool', content: JSON.stringify(record.visible), toolCallId: record.callId, ...(record.ok && record.imageRefs?.length ? { imageRefs: record.imageRefs } : {}) } }); break
       }
       case 'context/inject': context.push({ seq: record.seq, message: { role: 'system', content: record.text } }); break
       case 'context/compact': context.push({ seq: record.seq, order: record.fromSeq - 0.5, message: { role: 'system', content: record.summary } }); break

@@ -97,7 +97,7 @@ export async function exportPrivateSave(options: { root: string; store: SessionS
     const path = regular(root, join(folder, name), 128 * 1024 * 1024); const bytes = readFileSync(path); parseJournalContent(bytes.toString('utf8'), owner); files.set('journals/' + key + '/' + name, bytes)
   }
   const artifacts = allRecords.flatMap((row) => row.type === 'campus/exported' ? row.artifacts : row.type === 'document/completed' ? [row.artifact] : [])
-  for (const row of allRecords) if (row.type === 'asset/stored') {
+  for (const row of allRecords) if (row.type === 'asset/stored' || row.type === 'flow/computer-frame') {
     const path = assetPath(row.asset); const bytes = readFileSync(regular(root, join(root, path), 32 * 1024 * 1024))
     if (bytes.length !== row.asset.byteLength || sha256(bytes) !== row.asset.sha256) throw new BackupFailure('backup-invalid'); files.set(path, bytes)
   }
@@ -154,7 +154,7 @@ export async function validatePrivateSave(bytes: Buffer, owner: SaveManifest['ow
     const artifacts = records.flatMap((row) => row.type === 'campus/exported' ? row.artifacts : row.type === 'document/completed' ? [row.artifact] : [])
     if (manifest.counts.deliveryCount !== new Set(artifacts.map((artifact) => artifact.view.id)).size) throw new BackupFailure('backup-invalid')
     for (const artifact of artifacts) if (sha256(files.get(artifact.relativePath) ?? Buffer.alloc(0)) !== artifact.sha256) throw new BackupFailure('backup-invalid')
-    for (const row of records) if (row.type === 'asset/stored') { const bytes = files.get(assetPath(row.asset)); if (!bytes || bytes.length !== row.asset.byteLength || sha256(bytes) !== row.asset.sha256) throw new BackupFailure('backup-invalid'); if (row.asset.format === 'glb') validateGlb(bytes) }
+    for (const row of records) if (row.type === 'asset/stored' || row.type === 'flow/computer-frame') { const bytes = files.get(assetPath(row.asset)); if (!bytes || bytes.length !== row.asset.byteLength || sha256(bytes) !== row.asset.sha256) throw new BackupFailure('backup-invalid'); if (row.asset.format === 'glb') validateGlb(bytes); if (row.type === 'flow/computer-frame' && (bytes.length < 33 || bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' || bytes.readUInt32BE(16) !== 800 || bytes.readUInt32BE(20) !== 600)) throw new BackupFailure('backup-invalid') }
     for (const [path, data] of files) if (path.startsWith('journals/')) {
       const page = parseJournalContent(data.toString('utf8'), owner); const header = page[0]
       for (const row of page) if (row.type === 'optical/frame') {

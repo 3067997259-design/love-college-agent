@@ -5,6 +5,7 @@ import { ScenarioSwitcher } from '../dev/ScenarioSwitcher'
 import type { FakeBridge } from '../dev/fake-bridge'
 import { connectBridge } from './connect-bridge'
 import { ToolsPanel } from '../tools/ToolsPanel'
+import { VoiceAudio } from '../voice/VoiceAudio'
 
 export function App({ bridge, fake }: { bridge: AppBridge; fake: FakeBridge | null }): React.JSX.Element {
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null)
@@ -17,6 +18,7 @@ export function App({ bridge, fake }: { bridge: AppBridge; fake: FakeBridge | nu
   const tools = !fake && !!snapshot.runtime
   return (
     <>
+      {!fake && <VoiceAudio bridge={bridge} snapshot={snapshot} />}
       <Stage snapshot={snapshot} bridge={bridge} onOpenTools={tools ? () => setToolsOpen(true) : undefined} />
       {!fake && <ToolsPanel bridge={bridge} snapshot={snapshot} open={toolsOpen} onOpenChange={setToolsOpen} />}
       {fake && <ScenarioSwitcher fake={fake} />}

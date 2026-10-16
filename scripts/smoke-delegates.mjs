@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'delegates-' + randomUUID()); const sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19561', LCA_MCP_PORT: '0' }
 let instance; let page; let client
@@ -19,7 +19,7 @@ async function scripted(calls) { await debug('set_fake_model', { script: [{ text
 async function message(text) { assert.equal((await send({ type: 'message.send', text })).status, 'accepted'); await waitFor((s) => s.task?.status === 'completed', 'PARENT_TURN_FAILED') }
 try {
   await mkdir(data, { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
-  instance = await _electron.launch({ executablePath: electronPath, args: [root], env }); page = await instance.firstWindow(); await initializeTestBook(page)
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env }); page = await instance.firstWindow(); await initializeTestBook(page)
   const config = JSON.parse(await readFile(join(data, 'developer', sceneId, 'debug-connection.json'), 'utf8')); client = new Client({ name: 'delegates-smoke', version: '1.0.0' }); await client.connect(new StreamableHTTPClientTransport(new URL(config.url), { requestInit: { headers: { Authorization: 'Bearer ' + config.token } } }))
   await send({ type: 'flow.enter' }); await waitFor((s) => !!s.heartFlow.activeId, 'FLOW_ENTER_FAILED'); await send({ type: 'flow.mode', mode: 'execute' })
   const canary = 'SYNTHETIC_PRIVATE_SUBTASK_SOURCE'

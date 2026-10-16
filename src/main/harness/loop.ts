@@ -50,7 +50,7 @@ export function createHarness(options: {
   let disposed = false
   let resumeGate: (() => void) | undefined
   const record = (input: JournalInput) => { store.append(input); if (input.type !== 'model/attempt') options.changed?.(input.type === 'user/message' || input.type === 'assistant/message' ? 'message' : 'task') }
-  const quiet = () => { const view = store.projection(); return options.backgroundQuiet?.() || view.mode === 'quiet' || view.pomodoro.phase === 'focus' }
+  const quiet = () => { const view = store.projection(); return options.backgroundQuiet?.() || view.sleeping || view.mode === 'quiet' || view.pomodoro.phase === 'focus' }
   const eligible = () => !disposed && (options.enabled?.() ?? true) && !store.projection().lightsOut && inbox.some((entry) => entry.source === 'user' || !quiet())
   const drain = () => {
     const entries = inbox.filter((entry) => entry.source === 'user' || !quiet())
@@ -104,7 +104,7 @@ export function createHarness(options: {
           const seen = { messages: structuredClone([...messages]), eligibleIndexes: prepared ? [...prepared.eligibleIndexes] : messages.flatMap((message, index) => message.role === 'system' ? [] : [index]) }
           const definitions = [...currentTools().values()].map((tool) => tool.definition)
           const outputTokens = options.limits?.outputTokens ?? 2048
-          const reservation = Buffer.byteLength(JSON.stringify({ messages, tools: definitions }), 'utf8') + outputTokens + 1024
+          const reservation = Buffer.byteLength(JSON.stringify({ messages, tools: definitions }), 'utf8') + messages.reduce((n, message) => n + (message.imageRefs?.length ?? 0) * 16384, 0) + outputTokens + 1024
           const reply = await model.complete({ messages, tools: definitions, signal: turn.abort.signal, toolsExecuted, maxOutputTokens: outputTokens }, (attempt) => {
             const bucket = trigger === 'user' ? 'work' : 'autonomous'
             if (attempt.status === 'started') {

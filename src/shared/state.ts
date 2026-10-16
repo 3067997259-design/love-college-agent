@@ -28,6 +28,8 @@ export interface ClockView { nowMs: number; timeZone: string; rate: number; froz
 export interface CompanionView {
   mode: InteractionMode
   lightsOut: boolean
+  /** Main-owned sleep, separate from lights/pause. Older snapshots may omit it (awake). */
+  sleeping?: boolean
   locationId: string
   pose: string
   expression: string
@@ -412,6 +414,7 @@ export interface AppSnapshot {
   history?: HistoryView
   /** Optional optical impressions; default text memory remains authoritative. No OCR prose/page text here. */
   opticalMemory?: OpticalMemoryView
+  voice?: VoiceView
   /** Main-owned optional game context. No MCP launch config, URLs, tokens or raw game transcript. */
   minecraft?: MinecraftView
   mcp?: McpView
@@ -480,6 +483,32 @@ export interface LifeWorkView {
   materials: readonly { id: string; path: string; sha256: string; source: 'fake' }[]
   jobs: readonly LifeWorkItem[]
 }
+export interface FlowGoalView {
+  id: string
+  text: string
+  status: 'active' | 'completed' | 'cancelled'
+  createdAtMs: number
+  updatedAtMs: number
+  closedAtMs: number | null
+  flowIds: readonly string[]
+  /** A user's status decision, never proof that the model performed an external action. */
+  confirmedBy: 'user'
+}
+export interface FlowOperationView {
+  id: string
+  flowId: string
+  kind: 'init' | 'review'
+  /** ready means an actual unreviewed draft file exists, never that code passed review or tests. */
+  status: 'running' | 'ready' | 'failed' | 'cancelled'
+  source: 'real' | 'fake'
+  sourceCount: number
+  omittedSourceCount: number
+  outputPath: string
+  createdAtMs: number
+  updatedAtMs: number
+  artifact?: { changeId: string; sha256: string; byteLength: number }
+  error?: 'no-product' | 'source-changed' | 'interrupted' | 'cancelled' | 'unavailable'
+}
 export interface HeartFlowView {
   activeId: string | null
   mode: 'plan' | 'execute'
@@ -487,11 +516,39 @@ export interface HeartFlowView {
   /** Source and output text are user-only; models obtain approved work through desk tools. */
   pending?: { id: string; code: string }
   files: readonly { path: string; byteLength: number }[]
-  changes: readonly { id: string; path: string; undone: boolean }[]
+  changes: readonly { id: string; path: string; undone: boolean; shadow?: DeskShadowView }[]
   sessions: readonly { id: string; startedAtMs: number; endedAtMs: number | null; summary: string | null }[]
   lastRun?: { ok: boolean; output: string }
   /** Metadata-only subordinate work. Conclusions are unreviewed tool results for the parent flow. */
   delegates?: readonly DelegateView[]
+  /** Scoped across day pages and flow instances. Only explicit user commands may edit or close. */
+  goals?: readonly FlowGoalView[]
+  goalId?: string | null
+  /** User-only draft metadata. Contents stay in the desk/work context and native preview. */
+  operations?: readonly FlowOperationView[]
+  computer?: DeskComputerView
+  webFetch?: FlowFetchView
+}
+export interface FlowFetchView {
+  source: 'real' | 'fake'
+  requestsUsed: number
+  maxRequests: number
+  pending?: { id: string; url: string }
+  status: 'idle' | 'waiting-approval' | 'fetching'
+  last?: { url: string; status: 'fetched' | 'denied' | 'failed' | 'cancelled'; atMs: number; receivedBytes?: number; truncated?: boolean }
+}
+export type DeskComputerAction = { type: 'click'; x: number; y: number } | { type: 'type'; text: string } | { type: 'key'; key: 'TAB' | 'ENTER' | 'ESCAPE' | 'BACKSPACE' }
+/** An isolated static HTML desk preview, never the user's whole computer or an existing application. */
+export interface DeskComputerView {
+  status: 'closed' | 'opening' | 'ready' | 'waiting-approval' | 'acting' | 'failed'
+  target?: { path: string; sha256: string }
+  frame?: { ref: string; sha256: string; width: number; height: number; capturedAtMs: number }
+  pending?: { id: string; frameRef: string; action: DeskComputerAction }
+  actionsUsed: number
+  maxActions: number
+  /** Scripts/network/downloads/filesystem are disabled. Reopening never inherits action approval. */
+  scope: 'static-desk-preview'
+  error?: PublicError
 }
 export interface DelegateView {
   id: string
@@ -516,10 +573,37 @@ export interface HeartFlowInspection {
   outputTokens: number | null
   /** Unknown pricing is null, never a fabricated zero. No private provider/model values. */
   cost: number | null
-  changes: readonly { id: string; path: string; before: string | null; after: string | null; current: boolean; undone: boolean }[]
+  changes: readonly { id: string; path: string; before: string | null; after: string | null; current: boolean; undone: boolean; shadow?: DeskShadowView }[]
   truncated: boolean
 }
-export interface MinecraftScope { radiusBlocks: number; durationMs: number; allowChat: boolean }
+/** Independent private Git copy; never stages or commits into the user's repository. Journal snapshots remain authoritative. */
+export interface DeskShadowView { status: 'committed' | 'not-git' | 'unavailable' | 'failed'; commit?: string }
+export interface MinecraftScope {
+  radiusBlocks: number; durationMs: number; allowChat: boolean
+  /** Explicit round consent; absent means false, independent of MCP connection approval. */
+  allowScreenshots?: boolean
+  allowMining?: boolean
+}
+export const MINECRAFT_FEATURES = ['inventory', 'scene', 'look', 'screenshot', 'mining'] as const
+export type MinecraftFeature = typeof MINECRAFT_FEATURES[number]
+export interface VoiceView {
+  enabled: boolean
+  available: boolean
+  source: 'real' | 'fake' | 'none'
+  /** Output speech only; no microphone or voice cloning. Audio is ephemeral and never replayed after restart. */
+  utterance?: { id: string; messageId: string; status: 'synthesizing' | 'ready' | 'cancelled' | 'failed';
+    playback: 'idle' | 'playing' | 'ended' | 'failed'; chunkCount: number; byteLength: number; createdAtMs: number }
+  error?: PublicError
+}
+export interface VoiceRead {
+  utteranceId: string
+  format: 'pcm_s16le'
+  sampleRate: 24000
+  channels: 1
+  /** At most eight chunks per read, each <= 16 KiB. No provider configuration or source text. */
+  chunks: readonly { index: number; pcmBase64: string }[]
+  done: boolean
+}
 export interface MinecraftView {
   status: 'idle' | 'checking' | 'ready' | 'playing' | 'paused' | 'stopping' | 'failed'
   source: 'real' | 'fake' | 'none'
@@ -534,6 +618,8 @@ export interface MinecraftView {
   /** Only a matching release/ownership observation may set true; RPC cancellation alone is insufficient. */
   stopVerified: boolean
   checks?: { commandsDisabled: boolean; worldWriteDisabled: boolean; worldBound: boolean }
-  lastAction?: { kind: 'navigate' | 'chat'; status: 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'; atMs: number }
+  /** Optional endpoint tools whose schemas were checked. Round scope still controls their use. */
+  features?: readonly MinecraftFeature[]
+  lastAction?: { kind: 'navigate' | 'chat' | 'look' | 'mine'; status: 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'; atMs: number }
   error?: PublicError
 }
