@@ -18,9 +18,9 @@ const server = createServer((request, response) => { void (async () => {
   let tool; const step = index++
   if (scenario !== 'ordinary') {
     if (step === 0) tool = call('desk_computer_observe', {})
-    else if (step === 1) tool = call('desk_computer_action', { frameRef: result.frameRef, action: { type: 'click', x: 100, y: 140 } })
-    else if (step === 2) tool = call('desk_computer_action', { frameRef: result.frameRef, action: { type: 'type', text: 'SYNTHETIC_TYPED_TEXT' } })
-    else if (step === 3) tool = call('desk_write', { path: 'ui-proof.md', text: 'SYNTHETIC_COMPUTER_PRODUCT: check the real preview pixels before accepting this draft.' })
+    else if (step === 1) tool = call('desk_computer_action', { frameRef: result.frameRef, action: scenario === 'selection' ? { type: 'type', text: 'Z' } : scenario === 'scroll' ? { type: 'click', x: 70, y: 80 } : { type: 'click', x: 100, y: 140 } })
+    else if (step === 2 && scenario === 'interact') tool = call('desk_computer_action', { frameRef: result.frameRef, action: { type: 'type', text: 'SYNTHETIC_TYPED_TEXT' } })
+    else if (step === 3 && scenario === 'interact') tool = call('desk_write', { path: 'ui-proof.md', text: 'SYNTHETIC_COMPUTER_PRODUCT: check the real preview pixels before accepting this draft.' })
   }
   const delta = tool ? { tool_calls: [{ index: 0, ...tool }] } : { content: 'Synthetic response; no real provider.' }
   response.writeHead(200, { 'Content-Type': 'text/event-stream' }).end('data: ' + JSON.stringify({ choices: [{ index: 0, delta, finish_reason: tool ? 'tool_calls' : 'stop' }] }) + '\n\ndata: [DONE]\n\n')
@@ -61,6 +61,7 @@ try {
   await waitFor((s) => s.heartFlow.computer.pending?.action.type === 'type' || s.task?.status === 'completed' || s.task?.status === 'failed', 'STALE_ACTION_NOT_SETTLED')
   assert.equal((await snapshot()).heartFlow.computer.actionsUsed, beforeActions); assert.equal(await window.locator('#name').inputValue(), 'USER_EDIT_OUTSIDE_MODEL_ACTION')
   if ((await snapshot()).task?.status === 'running') await send({ type: 'turn.stop', taskId: (await snapshot()).task.id }); await waitFor((s) => s.task?.status !== 'running', 'STALE_TURN_STOP_FAILED')
+  await send({ type: 'flow.computer.close' })
   await send({ type: 'flow.computer.close' }); await send({ type: 'flow.exit' }); await waitFor((s) => !s.heartFlow.activeId, 'FLOW_NOT_CLOSED')
   const archive = join(data, 'computer.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive); await send({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'FRAME_ARCHIVE_FAILED')
   const zip = await JSZip.loadAsync(await readFile(archive)); const manifest = JSON.parse(await zip.file('manifest.json').async('string')); let privateFrames = 0
@@ -72,5 +73,37 @@ try {
   assert.equal(await instance.evaluate(async ({ net }, sha) => (await net.fetch('lca-media://asset/' + sha)).status, firstHash), 404)
   scenario = 'ordinary'; await send({ type: 'message.send', text: 'Return to ordinary synthetic chat.' }); await waitFor((s) => s.task?.status === 'completed', 'ORDINARY_NOT_DONE'); const ordinary = requests.at(-1)
   assert.ok(ordinary.messages.every((message) => typeof message.content === 'string')); assert.ok(!JSON.stringify(ordinary).includes('PRIVATE_SYNTHETIC_DESK_PREVIEW')); assert.ok(!JSON.stringify(ordinary).includes('SYNTHETIC_COMPUTER_PRODUCT'))
-  console.log('Computer Electron: isolated static HTML/no page script or network/disabled file picker/no bridge; actual PNG delivered through compatible multimodal HTTP, two separate native approvals cause real click/type and saved draft; stale-page refusal, stop/restart without preview or approval replay, private frame export/restore and ordinary-context exclusion. Synthetic HTML/model HTTP only; no whole-PC or existing-app control.')
+  async function freshProbe(name) {
+    await instance.close(); env.LCA_DATA_DIR = join(data, name + '-profile'); await launch()
+    await send({ type: 'mode.set', mode: 'quiet' }); await send({ type: 'flow.enter' }); await waitFor((s) => s.heartFlow.activeId, 'STATE_FLOW_MISSING'); await send({ type: 'flow.mode', mode: 'execute' })
+    const owner = (await readdir(join(env.LCA_DATA_DIR, 'rooms')))[0]
+    return join(env.LCA_DATA_DIR, 'rooms', owner, '书桌')
+  }
+  let stateDesk = await freshProbe('scroll')
+  // #26: real nested wheel scroll changes which checkbox occupies the approved pixels.
+  await writeFile(join(stateDesk, 'ui.html'), '<body style="margin:0"><div id="scroll" style="position:absolute;left:40px;top:40px;width:300px;height:100px;overflow:auto"><div style="height:100px;position:relative"><input id="a" type="checkbox" style="position:absolute;left:20px;top:30px;width:20px;height:20px;margin:0">A</div><div style="height:100px;position:relative"><input id="b" type="checkbox" style="position:absolute;left:20px;top:30px;width:20px;height:20px;margin:0">B</div></div></body>')
+  window = await preview(); scenario = 'scroll'; index = 0
+  await send({ type: 'message.send', text: 'Synthetic nested scroll approval probe.' }); await waitFor((s) => !!s.heartFlow.computer.pending, 'SCROLL_APPROVAL_MISSING')
+  const oldScrollFrame = (await snapshot()).heartFlow.computer.frame.ref
+  const stableState = () => window.evaluate(() => JSON.stringify({ html: document.documentElement.outerHTML, checked: [...document.querySelectorAll('input')].map((e) => e.checked), focus: document.activeElement.id, windowScroll: [scrollX, scrollY] }))
+  const beforeScroll = await stableState(); await window.bringToFront(); await window.mouse.move(150, 80); await window.mouse.wheel(0, 100)
+  await window.waitForFunction(() => document.getElementById('scroll').scrollTop === 100)
+  assert.equal(await stableState(), beforeScroll)
+  await page.bringToFront(); await page.getByRole('button', { name: '仅批准这个预览动作', exact: true }).click()
+  await waitFor((s) => s.task?.status === 'completed', 'SCROLL_REFUSAL_NOT_SETTLED')
+  assert.equal((await snapshot()).heartFlow.computer.actionsUsed, 0); assert.equal(await window.locator('#a').isChecked(), false); assert.equal(await window.locator('#b').isChecked(), false)
+  index = 0; await send({ type: 'message.send', text: 'Observe the scrolled state and request a fresh approval.' }); await waitFor((s) => !!s.heartFlow.computer.pending, 'FRESH_SCROLL_APPROVAL_MISSING')
+  assert.notEqual((await snapshot()).heartFlow.computer.frame.ref, oldScrollFrame)
+  await page.getByRole('button', { name: '仅批准这个预览动作', exact: true }).click(); await waitFor((s) => s.task?.status === 'completed', 'FRESH_SCROLL_ACTION_NOT_SETTLED')
+  assert.equal((await snapshot()).heartFlow.computer.actionsUsed, 1); assert.equal(await window.locator('#a').isChecked(), false); assert.equal(await window.locator('#b').isChecked(), true)
+  stateDesk = await freshProbe('selection'); await writeFile(join(stateDesk, 'ui.html'), '<input id="name" value="ABCD" style="position:absolute;left:70px;top:120px;width:300px;height:40px">')
+  window = await preview(); await window.locator('#name').focus(); await window.evaluate(() => document.getElementById('name').setSelectionRange(0, 0))
+  scenario = 'selection'; index = 0; await send({ type: 'message.send', text: 'Synthetic caret approval probe.' }); await waitFor((s) => !!s.heartFlow.computer.pending, 'SELECTION_APPROVAL_MISSING')
+  await window.bringToFront(); await window.keyboard.press('End'); assert.equal(await window.locator('#name').inputValue(), 'ABCD'); assert.equal(await window.evaluate(() => document.getElementById('name').selectionStart), 4)
+  await page.bringToFront(); await page.getByRole('button', { name: '仅批准这个预览动作', exact: true }).click(); await waitFor((s) => s.task?.status === 'completed', 'SELECTION_REFUSAL_NOT_SETTLED')
+  assert.equal((await snapshot()).heartFlow.computer.actionsUsed, 0); assert.equal(await window.locator('#name').inputValue(), 'ABCD')
+  index = 0; await send({ type: 'message.send', text: 'Observe the current caret before typing.' }); await waitFor((s) => !!s.heartFlow.computer.pending, 'FRESH_SELECTION_APPROVAL_MISSING')
+  await page.getByRole('button', { name: '仅批准这个预览动作', exact: true }).click(); await waitFor((s) => s.task?.status === 'completed', 'FRESH_SELECTION_NOT_SETTLED')
+  assert.equal(await window.locator('#name').inputValue(), 'ABCDZ')
+  console.log('Computer Electron: isolated static HTML/no page script or network/disabled file picker/no bridge; actual PNG delivered through compatible multimodal HTTP, separate native approvals cause real click/type and saved draft; stale value/nested wheel scroll/caret refusal and fresh approval verified, stop/restart without replay, private frame export/restore and ordinary-context exclusion. Synthetic HTML/model HTTP only; no whole-PC or existing-app control.')
 } finally { await instance?.close(); await new Promise((done) => { server.close(() => done()); server.closeAllConnections() }) }
