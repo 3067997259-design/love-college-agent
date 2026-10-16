@@ -54,6 +54,31 @@ void main() {
   outColor = vec4(pencil, line, 0.0, 1.0);
 }`
 
+/** 新手流程揭开铅笔层的笔刷：实例化画一个个柔边圆，按通道取最大值累积（R 房间、G 她） */
+export const STAMP_VERTEX = /* glsl */ `#version 300 es
+layout(location = 0) in vec4 aStamp; // x, y（纹理坐标）、半径、强度
+out vec2 vLocal;
+out float vStrength;
+void main() {
+  vec2 corner = vec2(float(gl_VertexID & 1), float((gl_VertexID >> 1) & 1)) * 2.0 - 1.0;
+  vLocal = corner;
+  vStrength = aStamp.w;
+  vec2 p = aStamp.xy + corner * aStamp.z;
+  // 帧缓冲第 0 行在底下，对应纹理坐标 y = 0：和合成时的取样方向一致
+  gl_Position = vec4(p.x * 2.0 - 1.0, p.y * 2.0 - 1.0, 0.0, 1.0);
+}`
+
+export const STAMP_FRAGMENT = /* glsl */ `#version 300 es
+precision highp float;
+uniform vec4 uChannel;
+in vec2 vLocal;
+in float vStrength;
+out vec4 outColor;
+void main() {
+  float a = (1.0 - smoothstep(0.45, 1.0, length(vLocal))) * vStrength;
+  outColor = uChannel * a;
+}`
+
 export const COMPOSITE = /* glsl */ `#version 300 es
 precision highp float;
 uniform sampler2D uColor;
@@ -72,6 +97,11 @@ uniform vec2 uVigCenter;     // 颜色聚拢的椭圆
 uniform vec2 uVigRadius;
 uniform vec3 uGraphite;
 uniform float uPencilOpacity;
+uniform float uRealRadius;   // 之内是真实颜色，之外是彩铅的简单颜色（新手流程）；平时很大
+uniform vec2 uWashShape;     // 晕开的形状：平时是圆，新手流程里竖长，裹住她的手
+uniform float uIntro;        // 1：新手流程，铅笔层按揭开遮罩显示
+uniform sampler2D uReveal;   // R：房间的铅笔画到哪里；G：她的线稿画到哪里
+uniform sampler2D uEmptyPencil;
 in vec2 vUv;
 out vec4 outColor;
 
@@ -91,6 +121,14 @@ float warped(vec2 p) {
   vec2 q = vec2(fbm(p + uSeed), fbm(p + vec2(5.2, 1.3) + uSeed));
   return fbm(p + 1.8 * q) * 2.0 - 1.0;
 }
+// 彩铅的简单颜色：取模糊的大块颜色（不要细节），降饱和、提亮，排线之间露出纸色
+vec3 pencilColor(vec2 uv) {
+  vec3 c = textureLod(uColor, uv, 3.0).rgb;
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  vec3 soft = mix(mix(vec3(l), c, 0.6), vec3(1.0), 0.25);
+  float hatch = smoothstep(0.35, 0.75, abs(fract((uv.x + uv.y * 0.85) * 120.0) - 0.5) * 2.0);
+  return mix(soft, vec3(1.0), 0.32 * hatch);
+}
 
 void main() {
   vec2 uv = vUv;
@@ -104,21 +142,31 @@ void main() {
 
   // 正在长开的颜色：r = rmax(1 - e^(-kt)) 由 CPU 算好传进来
   float wash = 1.0;
+  float real = 1.0;
   float edge = 0.0;
   if (uWashOn > 0.5) {
     float soft = mix(0.0025, 0.036, uWet);
-    float d = length(uv - uOrigin);
-    if (abs(d - uRadius) < uNoiseAmp + soft + 0.02) d += warped(uv * 11.0 + 3.7) * uNoiseAmp;
+    float d0 = length((uv - uOrigin) * uWashShape);
+    float near = min(abs(d0 - uRadius), abs(d0 - uRealRadius));
+    float d = near < uNoiseAmp + soft + 0.02 ? d0 + warped(uv * 11.0 + 3.7) * uNoiseAmp : d0;
     wash = 1.0 - smoothstep(uRadius - soft, uRadius + soft, d);
+    real = 1.0 - smoothstep(uRealRadius - soft, uRealRadius + soft, d + 0.004);
     float band = soft * 2.2 + 0.004;
-    edge = exp(-pow((d - uRadius) / band, 2.0)) * (1.0 - uDry) * wash;
+    edge = max(exp(-pow((d - uRadius) / band, 2.0)) * wash, 0.7 * exp(-pow((d - uRealRadius) / band, 2.0)) * real) * (1.0 - uDry);
   }
 
   vec4 color = texture(uColor, uv);
+  color.rgb = mix(pencilColor(uv), color.rgb, real);
   color.rgb = mix(color.rgb, color.rgb * color.rgb, 0.55 * uWet * edge);
-  float a = vig * wash;
+  float a = vig * wash * mix(0.88, 1.0, real);
 
-  float pencil = texture(uPencil, uv).r * uPencilOpacity * fadeX * fadeY;
+  float lines = texture(uPencil, uv).r;
+  if (uIntro > 0.5) {
+    // 先画空房间，再勾出她：她那块从空房间的线换成有她的线
+    vec2 reveal = texture(uReveal, uv).rg;
+    lines = mix(texture(uEmptyPencil, uv).r * reveal.r, lines, reveal.g);
+  }
+  float pencil = lines * uPencilOpacity * fadeX * fadeY;
   vec4 outp = vec4(uGraphite * pencil, pencil);
   if (uHasPrev > 0.5) {
     float pa = vig * uPrevAlpha;

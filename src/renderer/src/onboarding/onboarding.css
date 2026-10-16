@@ -1,0 +1,34 @@
+/* 新手流程的右页：一页只做一件事，字大一点，留白多一点 */
+.onboarding {
+  display: block;
+  padding: 120px 84px 60px 96px;
+}
+.onboarding-progress { margin: 0 0 18px; font: 15px var(--font-hand); color: var(--graphite); }
+.onboarding-body { animation: onboarding-in 520ms var(--ease-out) both; }
+@keyframes onboarding-in { from { opacity: 0; translate: 0 10px; } to { opacity: 1; translate: 0 0; } }
+.onboarding-title { margin: 0 0 14px; font: normal 34px var(--font-hand); color: var(--ink-her); }
+.onboarding-lead { margin: 0 0 26px; font-size: var(--fs-md); line-height: var(--lh-body); color: var(--graphite); }
+.onboarding-note { margin: 0 0 14px; font-size: 15px; color: var(--ink-her); }
+.onboarding-hint { margin: 18px 0 0; font-size: 14px; color: var(--graphite); }
+.onboarding-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 6px 0 14px; }
+.onboarding .btn { font-size: 17px; padding: 6px 22px; }
+.onboarding .link-button { font-size: 15px; }
+/* 写名字：只有一条铅笔下划线 */
+.onboarding-input {
+  display: block;
+  width: 100%;
+  margin: 0 0 22px;
+  padding: 6px 2px;
+  font: 26px var(--font-hand);
+  color: var(--graphite);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--pencil);
+  outline: none;
+  box-sizing: border-box;
+}
+.onboarding-input:focus { border-bottom-color: var(--peach-mid); }
+.onboarding-input::placeholder { color: var(--pencil); }
+.onboarding-persona { margin: 0 0 26px; padding: 0 0 0 1.1em; display: grid; gap: 10px; font-size: var(--fs-md); line-height: 1.6; color: var(--ink-her); }
+.onboarding-her { margin: 0 0 26px; font-size: var(--fs-lg); line-height: 1.7; color: var(--ink-her); }
+@media (prefers-reduced-motion: reduce) { .onboarding-body { animation: none; } }

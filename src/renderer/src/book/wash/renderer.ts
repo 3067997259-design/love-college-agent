@@ -1,4 +1,4 @@
-import { COMPOSITE, EXTRACT, VERTEX } from './shaders'
+import { COMPOSITE, EXTRACT, STAMP_FRAGMENT, STAMP_VERTEX, VERTEX } from './shaders'
 
 /** 一张整景图在 GPU 上的两层：原彩色和提取出的铅笔层 */
 export interface Layer { src: string; color: WebGLTexture; pencil: WebGLTexture }
@@ -7,8 +7,11 @@ export interface Frame {
   current: Layer
   previous?: Layer
   previousAlpha: number
-  wash?: { origin: readonly [number, number]; radius: number; noiseAmp: number; dry: number; seed: number }
+  wash?: { origin: readonly [number, number]; radius: number; noiseAmp: number; dry: number; seed: number; realRadius?: number; shape?: readonly [number, number] }
+  /** 新手流程：铅笔层按揭开遮罩显示，先是空房间的线 */
+  intro?: { empty: Layer }
 }
+const REVEAL_SIZE = 512
 
 // 铅笔线的颜色跟着设计 token 的 --graphite／--pencil 之间取（tokens.css）
 const GRAPHITE: readonly [number, number, number] = [0x6b / 255, 0x6e / 255, 0x74 / 255]
@@ -28,12 +31,21 @@ export class WashRenderer {
   private readonly composite: Program
   private readonly framebuffer: WebGLFramebuffer
   private readonly vao: WebGLVertexArrayObject
+  private readonly stampProgram: Program
+  private readonly stampVao: WebGLVertexArrayObject
+  private readonly stampBuffer: WebGLBuffer
+  private readonly revealFramebuffer: WebGLFramebuffer
+  private readonly reveal: WebGLTexture
   private disposed = false
 
   static create(canvas: HTMLCanvasElement): WashRenderer | null {
     const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: false })
     if (!gl) return null
-    try { return new WashRenderer(gl) } catch { return null }
+    try { return new WashRenderer(gl) } catch (error) {
+      // 退回 CSS 版不影响使用，但要留下原因（着色器编译失败、驱动限制等）
+      console.warn('左页改用 CSS 绘制：', error instanceof Error ? error.message : error)
+      return null
+    }
   }
 
   private constructor(private readonly gl: WebGL2RenderingContext) {
@@ -41,6 +53,59 @@ export class WashRenderer {
     this.composite = program(gl, VERTEX, COMPOSITE)
     this.framebuffer = gl.createFramebuffer()!
     this.vao = gl.createVertexArray()!
+
+    // 新手流程的揭开遮罩：512² 足够，笔刷是柔边的
+    this.stampProgram = program(gl, STAMP_VERTEX, STAMP_FRAGMENT)
+    this.reveal = gl.createTexture()!
+    gl.bindTexture(gl.TEXTURE_2D, this.reveal)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, REVEAL_SIZE, REVEAL_SIZE, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    this.revealFramebuffer = gl.createFramebuffer()!
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.revealFramebuffer)
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.reveal, 0)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    this.stampBuffer = gl.createBuffer()!
+    this.stampVao = gl.createVertexArray()!
+    gl.bindVertexArray(this.stampVao)
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.stampBuffer)
+    gl.enableVertexAttribArray(0)
+    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0)
+    gl.vertexAttribDivisor(0, 1)
+    gl.bindVertexArray(null)
+    this.resetReveal(0, 0)
+  }
+
+  /** 揭开遮罩整体设成某个值：0 是什么都没画，1 是已经画完 */
+  resetReveal(room: number, her: number) {
+    const gl = this.gl
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.revealFramebuffer)
+    gl.viewport(0, 0, REVEAL_SIZE, REVEAL_SIZE)
+    gl.clearColor(room, her, 0, 0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+  }
+
+  /** 沿路径印笔刷：data 是 [x, y, 半径, 强度] 平铺；按通道取最大值，重复走过不会变“更多” */
+  stamp(data: readonly number[], channel: 'room' | 'her') {
+    if (data.length === 0) return
+    const gl = this.gl
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.revealFramebuffer)
+    gl.viewport(0, 0, REVEAL_SIZE, REVEAL_SIZE)
+    gl.useProgram(this.stampProgram.handle)
+    gl.uniform4f(this.stampProgram.uniform('uChannel'), channel === 'room' ? 1 : 0, channel === 'her' ? 1 : 0, 0, 0)
+    gl.bindVertexArray(this.stampVao)
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.stampBuffer)
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STREAM_DRAW)
+    gl.enable(gl.BLEND)
+    gl.blendEquation(gl.MAX)
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, data.length / 4)
+    gl.disable(gl.BLEND)
+    gl.blendEquation(gl.FUNC_ADD)
+    gl.bindVertexArray(null)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
   }
 
   get lost() { return this.gl.isContextLost() }
@@ -113,6 +178,11 @@ export class WashRenderer {
     gl.uniform1f(p.uniform('uNoiseAmp'), wash?.noiseAmp ?? 0)
     gl.uniform1f(p.uniform('uDry'), wash?.dry ?? 1)
     gl.uniform1f(p.uniform('uSeed'), wash?.seed ?? 0)
+    gl.uniform1f(p.uniform('uRealRadius'), wash?.realRadius ?? 10)
+    gl.uniform2f(p.uniform('uWashShape'), wash?.shape?.[0] ?? 1, wash?.shape?.[1] ?? 1)
+    gl.uniform1f(p.uniform('uIntro'), frame.intro ? 1 : 0)
+    bind(gl, 3, this.reveal); gl.uniform1i(p.uniform('uReveal'), 3)
+    bind(gl, 4, (frame.intro?.empty ?? frame.current).pencil); gl.uniform1i(p.uniform('uEmptyPencil'), 4)
     gl.uniform1f(p.uniform('uWet'), WET)
     gl.uniform2f(p.uniform('uVigCenter'), VIGNETTE.center[0], VIGNETTE.center[1])
     gl.uniform2f(p.uniform('uVigRadius'), VIGNETTE.radius[0], VIGNETTE.radius[1])
@@ -130,6 +200,11 @@ export class WashRenderer {
     this.layers.clear()
     gl.deleteFramebuffer(this.framebuffer)
     gl.deleteVertexArray(this.vao)
+    gl.deleteFramebuffer(this.revealFramebuffer)
+    gl.deleteTexture(this.reveal)
+    gl.deleteBuffer(this.stampBuffer)
+    gl.deleteVertexArray(this.stampVao)
+    gl.deleteProgram(this.stampProgram.handle)
     gl.deleteProgram(this.extract.handle)
     gl.deleteProgram(this.composite.handle)
   }
