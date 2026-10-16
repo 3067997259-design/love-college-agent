@@ -48,7 +48,7 @@ export function createOpticalMemory(options: {
     assets.read(frame.asset); opticalRecords(store)
     return { frameId: id, imageUrl: assetUrl(frame.asset), uncertainty: 'unreviewed-impression', impressions: impressions().filter((entry) => entry.frameId === id).map((entry) => ({ tier: entry.tier, status: entry.fragments.length ? 'guarded' : 'rejected', fragments: entry.fragments.map((fragment) => fragment.text), rejectedLineCount: entry.rejectedLineCount })) }
   }
-  const toolInput = z.strictObject({ frameId: opticalDigest, tier: opticalTier.optional() })
+  const toolInput = z.strictObject({ frameId: opticalDigest.optional(), sessionId: z.string().min(1).max(128).optional(), tier: opticalTier.optional() })
   return {
     view: (): OpticalMemoryView => ({ enabled: allowed(), source: port?.source ?? 'none', status: broken || failed ? 'failed' : worker ? 'processing' : port ? 'idle' : 'unconfigured',
       frames: frames().map(({ id, sessionId, createdAtMs, sources, pageIndex, pageCount }) => ({ id, sessionId, createdAtMs, sourceCount: new Set(sources.map((source) => source.messageId)).size, pageIndex, pageCount })),
@@ -102,12 +102,18 @@ export function createOpticalMemory(options: {
     tool: (): HarnessTool => ({ definition: { name: 'recall_optical', description: policy.tool, parameters: z.toJSONSchema(toolInput) }, templateId: 'memory.optical', validate: (input) => toolInput.safeParse(input).success,
       run: async (input, context) => {
         context.signal.throwIfAborted(); if (!allowed() || store.projection().lightsOut) throw new Error('OPTICAL_UNAVAILABLE')
-        const parsed = toolInput.parse(input); const frame = frames().find((frame) => frame.id === parsed.frameId); if (!frame) throw new Error('OPTICAL_UNAVAILABLE')
+        const parsed = toolInput.parse(input)
+        opticalRecords(store)
+        if (!parsed.frameId) {
+          const available = frames().filter((frame) => !parsed.sessionId || frame.sessionId === parsed.sessionId).slice(-20).map((frame) => ({ frameId: frame.id, sessionId: frame.sessionId, dayKey: store.pages?.().find((page) => page.sessionId === frame.sessionId)?.dayKey ?? null, pageIndex: frame.pageIndex, pageCount: frame.pageCount, tiers: impressions().filter((entry) => entry.frameId === frame.id).map((entry) => entry.tier) }))
+          const value = { frames: available, historical: true, memoryAuthority: 'none', uncertainty: policy.uncertainty }; return { ok: true, raw: value, visible: value }
+        }
+        const frame = frames().find((frame) => frame.id === parsed.frameId && (!parsed.sessionId || parsed.sessionId === frame.sessionId)); if (!frame) throw new Error('OPTICAL_UNAVAILABLE')
         const candidates = impressions().filter((entry) => entry.frameId === parsed.frameId && (!parsed.tier || entry.tier === parsed.tier))
         const selected = candidates.at(-1); if (!selected) throw new Error('OPTICAL_UNAVAILABLE')
         // Re-prove on every read, including after archive restore; OCR never becomes a canonical memory.
         opticalRecords(store)
-        const value: Record<string, ToolResult['raw']> = { frameId: frame.id, sessionId: frame.sessionId, tier: selected.tier, status: selected.fragments.length ? 'guarded' : 'unknown', fragments: selected.fragments, uncertainty: policy.uncertainty, memoryAuthority: 'none', source: selected.source }
+        const value: Record<string, ToolResult['raw']> = { frameId: frame.id, sessionId: frame.sessionId, dayKey: store.pages?.().find((page) => page.sessionId === frame.sessionId)?.dayKey ?? null, historical: true, tier: selected.tier, status: selected.fragments.length ? 'guarded' : 'unknown', fragments: selected.fragments, uncertainty: policy.uncertainty, memoryAuthority: 'none', source: selected.source }
         return { ok: true, raw: value, visible: value }
       } }),
     setPluginEnabled: (value: boolean) => { pluginEnabled = value; if (!value) active?.abort(); options.changed() },

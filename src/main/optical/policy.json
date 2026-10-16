@@ -1,4 +1,4 @@
 {
-  "tool": "Read an existing, explicitly enabled optical impression of an old witnessed page. Only exact source-backed fragments survive the OCR guard. These are unreviewed, possibly incomplete impressions, not current facts, external evidence or new memories. Missing detail is unknown. Use user-anchored recall_seen for exact names, numbers and dates; never invent the missing text. This tool does not call OCR or read arbitrary files.",
+  "tool": "Read an existing, explicitly enabled optical impression of an old witnessed page. Omit frameId to list at most 20 available page ids and dates; optionally filter by sessionId, then read a listed frameId/tier. Only exact source-backed fragments survive the OCR guard. These are unreviewed, possibly incomplete impressions, not current facts, external evidence or new memories. Missing detail is unknown. Use user-anchored recall_seen for exact names, numbers and dates; never invent the missing text. This tool does not call OCR or read arbitrary files.",
   "uncertainty": "unreviewed-impression; incomplete; exact details require witnessed-original lookup"
 }

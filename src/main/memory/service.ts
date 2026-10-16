@@ -183,7 +183,9 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       signal.throwIfAborted()
       const base = normalEntries()
       const rows = store.records(); const policies = base.filter((entry) => rows.some((row) => row.seq === entry.seq && row.type === 'context/inject' && row.source === 'policy'))
-      const memoryCalls = new Set(rows.flatMap((row) => row.type === 'tool/call' && (row.name === 'search_memory' || row.name === 'recall_seen') ? [row.callId] : []))
+      const memoryCalls = new Set(rows.flatMap((row) => row.type === 'tool/call' && (row.name === 'search_memory' || row.name === 'recall_seen' || row.name === 'recall_optical') ? [row.callId] : []))
+      const opticalTurns = new Set(rows.flatMap((row) => row.type === 'tool/call' && row.name === 'recall_optical' ? [row.turnId] : []))
+      const opticalReplies = new Set(rows.flatMap((row) => row.type === 'assistant/message' && opticalTurns.has(row.turnId) ? [row.seq] : []))
       const today = base.filter((entry) => !policies.includes(entry))
       const recall = allowed() ? search(today.filter((entry) => entry.message.role === 'user').slice(-3).map((entry) => entry.message.content).join('\n'), turnId) : []
       const summaries = summaryReferences(allowed() ? validSummaries(repository.view().summaries) : [], store.scope.sessionId, sessionDayKey(clock), clock).map((summary) => ({ level: summary.level, dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
@@ -194,7 +196,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       const lastUser = today.findLastIndex((entry) => entry.message.role === 'user')
       today.forEach((entry, index) => {
         if (index === lastUser && recall.length) messages.push({ role: 'user', content: JSON.stringify({ memoryReference: recall, trust: 'unreviewed-reference' }) })
-        if (entry.message.role !== 'system' && !(entry.message.role === 'tool' && memoryCalls.has(entry.message.toolCallId ?? ''))) eligibleIndexes.push(messages.length)
+        if (entry.message.role !== 'system' && !(entry.message.role === 'tool' && memoryCalls.has(entry.message.toolCallId ?? '')) && !(entry.message.role === 'assistant' && opticalReplies.has(entry.seq))) eligibleIndexes.push(messages.length)
         messages.push(entry.message)
       })
       if (JSON.stringify(messages).length > (options.limits?.hardChars ?? 96_000)) throw new MemoryFailure('context-too-large')
