@@ -20,7 +20,7 @@ export async function probeHeartFlow(root: string) {
     let timedOut = false
     try { await runIsolatedJavaScript('while(true) {}', systemClock, new AbortController().signal) } catch { timedOut = true }
     if (!timedOut) throw new Error('TIMEOUT_FAILED')
-    const user = (id: string) => { store.append({ type: 'user/message', id, text: id, requestId: id, commandHash: 'probe' }); store.append({ type: 'inbox/drain', ids: [id] }) }
+    const user = (id: string, text = id) => { store.append({ type: 'user/message', id, text, requestId: id, commandHash: 'probe' }); store.append({ type: 'inbox/drain', ids: [id] }) }
     for (let index = 0; index < 30; index++) user('old-work-' + index)
     send({ type: 'flow.compact' }); user('YESTERDAY_AFTER_COMPACT')
     const crossDayRun = { id: 'cross-day-run', flowId: flow.view().activeId!, codeHash: 'a'.repeat(64) }
@@ -43,6 +43,29 @@ export async function probeHeartFlow(root: string) {
     user('TODAY_WORK')
     const normalSeq = store.records().findLast((row) => row.type === 'user/message')!.seq; const allowed = flow.normalEntriesAllowed([workSeq, normalSeq])
     if (allowed.has(workSeq) || !allowed.has(normalSeq)) throw new Error('FLOW_NORMAL_REPLAY_FAILED')
-    return { ok: true, probe: 'heart-flow', actualSqlite: true, deskUndo: true, noNodeOrBridge: true, networkBlocked: true, infiniteLoopTerminated: true, compactedCrossDayRestart: true, crossDayCompletedRunNotInterrupted: true, normalReplayExcludesWorkByPosition: true, longPathExitAfterRestart: true }
+    // Reopened #2: compact only AFTER reopening a new day with low local seq. Test both with and
+    // without old-day writes, then cross a third page and trigger the actual automatic 80k branch.
+    for (const withOldWrite of [false, true]) {
+      send({ type: 'flow.enter' }); await Promise.resolve(); await Promise.resolve(); send({ type: 'flow.mode', mode: 'execute' })
+      if (withOldWrite) flow.write('old-day.txt', 'PRIVATE_OLD_DAY')
+      const openingSeq = store.history!().findLast((row) => row.type === 'flow/open')!.seq
+      flow.close(); store.close(); clock.advanceBy(86400000); store = openSessionStore(root, owner, clock); flow = open()
+      const newWrite = flow.write('new-day.txt', 'PRIVATE_NEW_DAY'); user('NEW_DAY_WORK_REQUEST')
+      const newSeq = store.records().find((row) => row.type === 'desk/change' && row.id === newWrite)!.seq
+      if (newSeq >= openingSeq) throw new Error('LOW_SEQ_FIXTURE_FAILED')
+      send({ type: 'flow.compact' })
+      let prepared = await flow.prepareContext('manual-new-day', new AbortController().signal)
+      const includes = (messages: unknown, id: string, path: string) => JSON.stringify(messages).includes(id) && JSON.stringify(messages).includes(path)
+      if (!includes(prepared.messages, newWrite, 'new-day.txt')) throw new Error('FLOW_NEW_DAY_COMPACT_FAILED')
+      const checkpoint = store.records().findLast((row) => row.type === 'flow/compact')
+      if (checkpoint?.type !== 'flow/compact' || !includes(checkpoint.summary, newWrite, 'new-day.txt')) throw new Error('FLOW_NEW_DAY_EVIDENCE_FAILED')
+      flow.close(); store.close(); clock.advanceBy(86400000); store = openSessionStore(root, owner, clock); flow = open()
+      const thirdWrite = flow.write('third-day.txt', 'PRIVATE_THIRD_DAY')
+      for (let index = 0; index < 5; index++) user('auto-' + withOldWrite + '-' + index, 'AUTOMATIC_REQUEST_' + index + 'x'.repeat(18000))
+      prepared = await flow.prepareContext('auto-third-day', new AbortController().signal)
+      if (!includes(prepared.messages, newWrite, 'new-day.txt') || !includes(prepared.messages, thirdWrite, 'third-day.txt') || !JSON.stringify(prepared.messages).includes('AUTOMATIC_REQUEST_4') || JSON.stringify(prepared.messages).includes('PRIVATE_THIRD_DAY') || prepared.eligibleIndexes.length) throw new Error('FLOW_AUTO_COMPACT_EVIDENCE_FAILED')
+      send({ type: 'flow.exit' })
+    }
+    return { ok: true, probe: 'heart-flow', actualSqlite: true, deskUndo: true, noNodeOrBridge: true, networkBlocked: true, infiniteLoopTerminated: true, compactedCrossDayRestart: true, crossDayCompletedRunNotInterrupted: true, compactAfterReopeningLowSeqDay: true, multipleDayAutomaticCompactHasEvidenceAndRequest: true, normalReplayExcludesWorkByPosition: true, longPathExitAfterRestart: true }
   } finally { flow.close(); scheduler.dispose(); store.close() }
 }

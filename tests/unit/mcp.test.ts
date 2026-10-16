@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { createManualClock, systemClock } from '../../src/main/clock'
 import { startMcpFixture } from '../../src/main/mcp/fixture'
 import { createMcpConnection } from '../../src/main/mcp/connection'
@@ -75,5 +76,22 @@ describe('MCP configuration, transport and private result boundaries', () => {
     const timeout = boundedMcp(clock, parent.signal, () => new Promise(() => {}), 1000)
     const rejected = expect(timeout).rejects.toMatchObject({ code: 'connection-failed' }); clock.advanceBy(1000); await rejected
     const pending = boundedMcp(clock, parent.signal, () => new Promise(() => {})); const cancelled = expect(pending).rejects.toMatchObject({ code: 'operation-cancelled' }); parent.abort(); await cancelled
+  })
+  it('keeps structured protocol IDs main-only while preserving tool allowlists, schema checks and private-mode refusal', async () => {
+    const fixture = await startMcpFixture(systemClock); cleanups.push(fixture.close)
+    const config = { ...fixture.config.mcpServers['synthetic-private'], privacy: 'none' as const }
+    const connection = createMcpConnection({ id: 'protocol', config, clock: systemClock, source: 'fake', privacyModel: null, changed: () => {} }); cleanups.push(connection.disconnect); await connection.connect()
+    expect(connection.protocol.allows('synthetic_read', ['title'])).toBe(true)
+    expect(connection.protocol.allows('synthetic_read', ['expectedWorldSessionId'])).toBe(false)
+    expect(connection.protocol.allows('synthetic_public')).toBe(false)
+    const before = fixture.calls(); await expect(connection.protocol.call('synthetic_public', {}, new AbortController().signal)).rejects.toMatchObject({ code: 'permission-denied' }); expect(fixture.calls()).toBe(before)
+    await expect(connection.protocol.call('synthetic_read', { title: 123 }, new AbortController().signal)).rejects.toMatchObject({ code: 'permission-denied' })
+    expect(await connection.protocol.call('synthetic_read', {}, new AbortController().signal)).toMatchObject({ marker: 'SYNTHETIC_MCP_OK', value: 7 })
+    const token = 'headers' in config ? config.headers.Authorization.slice(7) : ''; expect(connection.protocol.identifierAllowed(token)).toBe(false); expect(connection.protocol.identifierAllowed(randomUUID())).toBe(true)
+    const visible = await connection.tools()[0].run({}, { signal: new AbortController().signal } as ToolContext); expect(JSON.stringify(visible)).not.toContain('sk-syntheticmcpcredential')
+    const privateConnection = createMcpConnection({ id: 'private', config: fixture.config.mcpServers['synthetic-private'], clock: systemClock, source: 'fake', privacyModel: createFakePrivacyModel(), changed: () => {} }); cleanups.push(privateConnection.disconnect); await privateConnection.connect()
+    expect(privateConnection.protocol.allows('synthetic_read')).toBe(false); await expect(privateConnection.protocol.call('synthetic_read', {}, new AbortController().signal)).rejects.toMatchObject({ code: 'permission-denied' })
+    await connection.disconnect(); expect(connection.protocol.allows('synthetic_read')).toBe(false)
+    await expect(connection.protocol.call('synthetic_read', {}, new AbortController().signal)).rejects.toMatchObject({ code: 'permission-denied' })
   })
 })

@@ -12,7 +12,7 @@ export type { Quote }
  * 往回翻的一页（体验设计 §2“一天一页”）：她的墨色褪成铅笔灰，字始终能读；左页同时换成那天的照片。
  * 只有主进程核对过“她当时确实看见”的句子才能引用（recallableMessageIds），正文由主进程按锚点取，这里只交位置。
  */
-export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQuote, optical = null }: {
+export function OldPage({ info, page: loadedPage, failed, older, newer, onTurn, onToday, onQuote, optical = null }: {
   info: SessionPageInfo
   page: SessionPage | null
   failed: boolean
@@ -26,9 +26,10 @@ export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQ
 }) {
   const [impression, setImpression] = useState(false)
   const [selection, setPending] = useState<Quote | null>(null)
-  // 选段只属于选它的那一页：翻页时组件按 sessionId 重建，这里再兜一层，读取中／失败时也不交别页的锚点（GitHub #19）
-  const pending = quoteOnPage(selection, page)
+  // 只认这一页、已经读到、没有失败的内容；选段还要可引用、原文仍对得上（GitHub #19，两条线的修复合在一起）
+  const page = !failed && loadedPage?.sessionId === info.sessionId ? loadedPage : null
   const recallable = new Set(page?.recallableMessageIds ?? [])
+  const selected = quoteOnPage(selection, page)
 
   function select(message: MessageView, span: HTMLElement) {
     if (!page || !recallable.has(message.id)) return
@@ -87,10 +88,10 @@ export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQ
           </>}
       </div>
       <footer className="old-foot">
-        {impression ? null : pending
+        {impression ? null : selected
           ? <>
-            <blockquote className="quote-preview">{pending.text}</blockquote>
-            <button type="button" className="btn btn-primary btn-small" onClick={() => onQuote(pending)}>{copy.history.quoteSelection}</button>
+            <blockquote className="quote-preview">{selected.text}</blockquote>
+            <button type="button" className="btn btn-primary btn-small" onClick={() => onQuote(selected)}>{copy.history.quoteSelection}</button>
           </>
           : recallable.size > 0 && <p className="old-hint">{copy.history.quoteHint}</p>}
       </footer>

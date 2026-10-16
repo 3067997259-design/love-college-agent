@@ -33,11 +33,13 @@ export function createDesk(root: string) {
     const temporary = join(dirname(target), '.lca-' + randomUUID() + '.tmp')
     writeFileSync(temporary, text, { flag: 'wx', mode: 0o600 }); renameSync(temporary, target)
   }
+  /** One-time upgrade copies must never replace a user file, including a file created after checking. */
+  const writeNew = (file: string, text: string) => { validateDeskText(text); writeFileSync(path(file, true), text, { flag: 'wx', mode: 0o600 }) }
   const list = () => {
     check()
     const result: { path: string; byteLength: number }[] = []
     const visit = (dir: string, depth: number) => { if (depth > 8) return; for (const entry of readdirSync(dir, { withFileTypes: true })) { if (result.length >= 300) return; if (entry.isSymbolicLink()) continue; const full = join(dir, entry.name); if (entry.isDirectory()) visit(full, depth + 1); else if (entry.isFile() && lstatSync(full).nlink === 1) { const file = relative(base, full).replaceAll('\\', '/'); if (deskPathSchema.safeParse(file).success) result.push({ path: file, byteLength: lstatSync(full).size }) } } }
     visit(base, 0); return result
   }
-  return { read, write, list }
+  return { read, write, writeNew, list }
 }

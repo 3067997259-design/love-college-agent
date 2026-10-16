@@ -7,6 +7,12 @@ import type { JournalRecord } from '../../src/main/journal/schema'
 import { projectJournal } from '../../src/main/journal/projection'
 import { createPrivacyFilter } from '../../src/main/privacy/filter'
 import type { SeenFragment } from '../../src/main/memory/seen'
+import { seenFragments, memoryInputBytes } from '../../src/main/memory/seen'
+import { createMemoryService } from '../../src/main/memory/service'
+import { projectMemory } from '../../src/main/memory/projection'
+import { validateMemories } from '../../src/main/memory/model'
+import { createScheduler } from '../../src/main/scheduler'
+import type { AppCommand } from '../../src/shared'
 
 const configs = new Map<ProviderSlot, ProviderConfig>(['chat', 'background', 'privacy'].map((slot) => [slot as ProviderSlot, { base_url: 'http://synthetic.invalid/v1', api_key: 'synthetic-' + slot + '-credential', model: 'synthetic-' + slot + '-model' }]))
 function fixture() {
@@ -19,6 +25,33 @@ function response(value: unknown) {
   return new Response('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: JSON.stringify(value) }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 3 } }) + '\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
 }
 describe('production task model ports without runtime model calls', () => {
+  it('extracts a legal long CJK message then its short successor without duplicating local grounding sources', async () => {
+    const f = fixture(); const requests: unknown[][] = []; const scheduler = createScheduler(f.clock)
+    const text = '可见材料'.repeat(2500)
+    f.store.append({ type: 'model/seen', turnId: 'long', source: 'fake', messages: [{ role: 'user', content: text }, { role: 'user', content: '后续短经历' }], eligibleIndexes: [0, 1] })
+    const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => {
+      const body = JSON.parse(String(init.body)); const input = JSON.parse(body.messages[1].content); requests.push(input)
+      expect(Buffer.byteLength(body.messages[1].content)).toBeLessThanOrEqual(28000)
+      for (const fragment of input) { expect(fragment).not.toHaveProperty('source'); expect(fragment.text.length).toBeLessThanOrEqual(2000); expect(fragment.context?.before.length ?? 0).toBeLessThanOrEqual(256) }
+      const last = input.find((fragment: { text: string }) => fragment.text === '后续短经历')
+      return response({ items: last ? [{ sourceId: last.id, quote: last.text, kind: 'experience', topic: '短经历', replaceTopic: false }] : [] })
+    })
+    const repository = { view: () => projectMemory(f.rows), append: f.store.append, refresh: () => {}, close: () => {} }
+    const memory = createMemoryService({ clock: f.clock, store: f.store, scheduler, repository, model: ports.memory, isBusy: () => false, rolled: () => {}, changed: () => {} })
+    scheduler.cancel('memory.maintenance')
+    try {
+      for (let index = 0; index < 3; index++) { memory.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'long-' + index, type: 'memory.extract' } as AppCommand); await memory.idle() }
+      expect(requests).toHaveLength(2); expect(repository.view().keys).toHaveLength(6); expect(repository.view().items).toMatchObject([{ text: '后续短经历' }])
+      const starts = f.rows.filter((row) => row.type === 'memory/operation' && row.status === 'started')
+      expect(starts).toHaveLength(2)
+      starts.forEach((row, index) => { if (row.type === 'memory/operation') expect(row.reservedChars).toBe(Buffer.byteLength(JSON.stringify(requests[index]))) })
+      expect(f.rows.filter((row) => row.type === 'model/attempt' && row.status === 'started')).toHaveLength(2)
+      // The grounding context remains complete locally, so cutting a split-boundary negator still fails.
+      const split = { ...seenFragments(f.rows)[0], source: '甲'.repeat(1999) + '不交作业', offset: 2000, text: '交作业' }
+      expect(memoryInputBytes([split])).toBeLessThan(1000)
+      expect(() => validateMemories({ items: [{ sourceId: split.id, quote: '交作业', kind: 'fact', topic: '作业', replaceTopic: false }] }, [split], f.store.scope, [])).toThrow()
+    } finally { await memory.close(); scheduler.dispose() }
+  })
   it('routes fresh read-only children only to background, preserves source fingerprints, and records no child text', async () => {
     const f = fixture(); let calls = 0
     const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => {

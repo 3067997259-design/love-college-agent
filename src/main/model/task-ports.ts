@@ -3,6 +3,7 @@ import type { ProviderConfig, ProviderSlot } from '../config/providers'
 import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import type { MemoryModel } from '../memory/model'
+import { memoryModelInput } from '../memory/seen'
 import { MemoryFailure } from '../memory/model'
 import type { EmailPrivacyModel } from '../mail/privacy'
 import type { DocumentPrivacyModel } from '../documents/privacy'
@@ -43,7 +44,7 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
       return JSON.parse(result.text)
     } finally { stop(); remove(); abort.abort() }
   }
-  const memory: MemoryModel | null = providers.has('background') ? { source: 'real', extract: (input, signal) => json('background', prompts.memoryExtract, input, signal, 4096, true), summarize: (input, signal) => json('background', prompts.memorySummary, input, signal, 4096, true) } : null
+  const memory: MemoryModel | null = providers.has('background') ? { source: 'real', extract: (input, signal) => json('background', prompts.memoryExtract, memoryModelInput(input), signal, 4096, true), summarize: (input, signal) => json('background', prompts.memorySummary, memoryModelInput(input), signal, 4096, true) } : null
   const mail: EmailPrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (input, signal) => json('privacy', prompts.mail + '\n' + notificationPrompts.mailAddition, input, signal, 2048) } : null
   const document: DocumentPrivacyModel | null = providers.has('privacy') ? { source: 'real', ready: true, organize: (input, signal) => json('privacy', prompts.document, input, signal, 8192) } : null
   const narrow: PrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (text, signal) => json('privacy', prompts.narrowPrivacy, { text }, signal ?? new AbortController().signal, 512) } : null
