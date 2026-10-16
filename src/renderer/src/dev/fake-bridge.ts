@@ -46,8 +46,14 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
     return error ? { ...head, status: 'rejected', error: { code: error, retryable: false } } : { ...head, status: 'accepted' }
   }
   function commit(patch: Partial<AppSnapshot>, reason: AppEvent['reason']) {
+    const previous = current.pomodoro
     current = { ...current, ...patch, revision: current.revision + 1 }
-    if (patch.pomodoro) anchor = { at: performance.now(), remaining: current.pomodoro.remainingMs }
+    if (patch.pomodoro) {
+      const view = current.pomodoro
+      current.pomodoro = { ...view, completedCount: Math.max(0, view.focusIndex - (view.phase === 'focus' ? 1 : 0)) }
+      // A draft or confirmation with the same deadline must not restart the preview countdown.
+      if (view.phase !== previous.phase || view.status !== previous.status || view.endsAtMs !== previous.endsAtMs) anchor = { at: performance.now(), remaining: view.remainingMs }
+    }
     emit(reason)
     watch()
   }
@@ -92,6 +98,7 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
     switch (command.type) {
       case 'pomodoro.plan': {
         // 草案只写 proposal：不动生效计划、进度和正在走的计时；已有草案就替换草案
+        if (command.plan.plannedCount < view.focusIndex) return 'invalid-command'
         const next = { ...command.plan, id: `fake-plan-${++planCount}`, createdAtMs: current.clock.nowMs, status: 'proposed' as const, source: 'user' as const }
         commit({ pomodoro: { ...view, proposal: next } }, 'timer')
         return
@@ -103,7 +110,7 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
         // 任何阶段都能确认：当前阶段照走，已完成的保留，总数换成新的
         const { proposal: _dropped, ...rest } = view
         void _dropped
-        commit({ pomodoro: { ...rest, plan: { ...proposal, status: 'confirmed' }, plannedCount: proposal.plannedCount } }, 'timer')
+        commit({ pomodoro: { ...rest, plan: { ...proposal, status: view.status === 'idle' && view.focusIndex === proposal.plannedCount ? 'finished' : 'confirmed' }, plannedCount: proposal.plannedCount } }, 'timer')
         return
       }
       case 'pomodoro.discard': {
@@ -131,9 +138,9 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
         commit({ pomodoro: run(view, view.remainingMs) }, 'timer')
         return
       case 'pomodoro.stop':
-        if (view.status === 'idle' && !plan) return 'unavailable'
+        if (!plan || plan.status === 'finished') return 'unavailable'
         commit({
-          pomodoro: { ...idleTimer(), ...(plan ? { plan: { ...plan, status: 'finished' as const }, plannedCount: view.plannedCount, focusIndex: view.focusIndex } : {}),
+          pomodoro: { ...idleTimer(), plan: { ...plan, status: 'finished' }, plannedCount: view.plannedCount, focusIndex: Math.max(0, view.focusIndex - (view.phase === 'focus' ? 1 : 0)),
             ...(view.proposal ? { proposal: view.proposal } : {}) },
           companion: { ...current.companion, mode: 'rest' },
         }, 'timer')
