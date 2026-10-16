@@ -79,7 +79,7 @@ export async function attachRuntime(options: {
       try {
         server = await startDevelopmentServer(p.profile.path, options.mcpPort, {
           enabled: () => mounted && !disposed,
-          state: controller.getSnapshot, context: () => store.projection().lastModelContext ?? store.projection().context, queue: scheduler.queue,
+          state: controller.getSnapshot, context: () => store.projection().lastModelContext ?? store.projection().context, diagnostics: controller.readDiagnostics, queue: scheduler.queue,
           clock: setClock, inject: (input) => { if (options.locked?.()) throw new Error('LOCAL_OPERATION_BUSY'); harness.postEvent(input.source, input.text); return { accepted: true, source: 'fake' } },
           model: (script) => { p.scripted!.set(script); return { source: 'fake' } },
           exportScene: () => ({ formatVersion: 1, kind: 'development-fixture', clock: { nowMs: Math.round(p.clock.nowMs()), ...p.adjusted!.view() },

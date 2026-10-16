@@ -16,11 +16,12 @@ export function registerAppBridge(controller: ReturnType<typeof createAppControl
   ipcMain.handle(IPC_CHANNELS.evidence, (event, reference: unknown) => { assertTrusted(event); return readEvidence(reference, controller.getSnapshot().scope) })
   ipcMain.handle(IPC_CHANNELS.files, (event, input: unknown) => { assertTrusted(event); return controller.importUserFiles(input) })
   ipcMain.handle(IPC_CHANNELS.session, (event, id: unknown) => { assertTrusted(event); return controller.readSession(id) })
+  ipcMain.handle(IPC_CHANNELS.diagnostics, (event) => { assertTrusted(event); return controller.readDiagnostics() })
   const unsubscribe = controller.subscribe((event) => {
     for (const window of windows) if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.event, event)
   })
   return {
     attach: (window: BrowserWindow) => { windows.add(window); window.once('closed', () => windows.delete(window)) },
-    dispose: () => { unsubscribe(); for (const channel of [IPC_CHANNELS.snapshot, IPC_CHANNELS.command, IPC_CHANNELS.evidence, IPC_CHANNELS.files, IPC_CHANNELS.session]) ipcMain.removeHandler(channel); windows.clear() },
+    dispose: () => { unsubscribe(); for (const channel of [IPC_CHANNELS.snapshot, IPC_CHANNELS.command, IPC_CHANNELS.evidence, IPC_CHANNELS.files, IPC_CHANNELS.session, IPC_CHANNELS.diagnostics]) ipcMain.removeHandler(channel); windows.clear() },
   }
 }
