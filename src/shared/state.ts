@@ -578,7 +578,14 @@ export interface HeartFlowInspection {
 }
 /** Independent private Git copy; never stages or commits into the user's repository. Journal snapshots remain authoritative. */
 export interface DeskShadowView { status: 'committed' | 'not-git' | 'unavailable' | 'failed'; commit?: string }
-export interface MinecraftScope { radiusBlocks: number; durationMs: number; allowChat: boolean }
+export interface MinecraftScope {
+  radiusBlocks: number; durationMs: number; allowChat: boolean
+  /** Explicit round consent; absent means false, independent of MCP connection approval. */
+  allowScreenshots?: boolean
+  allowMining?: boolean
+}
+export const MINECRAFT_FEATURES = ['inventory', 'scene', 'look', 'screenshot', 'mining'] as const
+export type MinecraftFeature = typeof MINECRAFT_FEATURES[number]
 export interface VoiceView {
   enabled: boolean
   available: boolean
@@ -611,6 +618,8 @@ export interface MinecraftView {
   /** Only a matching release/ownership observation may set true; RPC cancellation alone is insufficient. */
   stopVerified: boolean
   checks?: { commandsDisabled: boolean; worldWriteDisabled: boolean; worldBound: boolean }
-  lastAction?: { kind: 'navigate' | 'chat'; status: 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'; atMs: number }
+  /** Optional endpoint tools whose schemas were checked. Round scope still controls their use. */
+  features?: readonly MinecraftFeature[]
+  lastAction?: { kind: 'navigate' | 'chat' | 'look' | 'mine'; status: 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'; atMs: number }
   error?: PublicError
 }
