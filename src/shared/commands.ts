@@ -34,6 +34,11 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'mcp.disconnect'; serverId: string }
   /** Native file chooser. Model URLs, names and credentials stay in main. Restart applies the imported configuration. */
   | { type: 'models.configure' }
+  | { type: 'window.mini' }
+  | { type: 'window.book' }
+  /** Mini renderer only; main clamps motion to the connected work areas. */
+  | { type: 'window.mini.hover'; over: boolean }
+  | { type: 'window.mini.move'; dx: number; dy: number }
   | { type: 'privacy.set'; enabled: boolean }
   | { type: 'document.attachment'; attachmentId: string }
   | { type: 'document.retry'; documentId: string }
