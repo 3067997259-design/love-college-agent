@@ -69,8 +69,8 @@ export function createHarness(options: {
   const consumed = new Set(store.records().flatMap((row) => row.type === 'inbox/drain' || row.type === 'inbox/drop' ? row.ids : []))
   const pending = store.records().filter((row) => (row.type === 'user/message' || row.type === 'inbox/event') && !consumed.has(row.id))
   // Deterministic phase facts survive restart; interrupted user work still requires resubmission.
-  for (const row of pending) if (row.type === 'inbox/event' && row.source === 'pomodoro') inbox.push({ id: row.id, source: row.source })
-  const undelivered = pending.filter((row) => row.type !== 'inbox/event' || row.source !== 'pomodoro').map((row) => 'id' in row ? row.id : '')
+  for (const row of pending) if (row.type === 'inbox/event' && (row.source === 'pomodoro' || row.source === 'mail')) inbox.push({ id: row.id, source: row.source })
+  const undelivered = pending.filter((row) => row.type !== 'inbox/event' || (row.source !== 'pomodoro' && row.source !== 'mail')).map((row) => 'id' in row ? row.id : '')
   for (let index = 0; index < undelivered.length; index += 32) record({ type: 'inbox/drop', ids: undelivered.slice(index, index + 32) })
 
   const run = async (trigger: 'user' | 'pomodoro' | 'mail' | 'autonomous') => {

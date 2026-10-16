@@ -21,6 +21,11 @@ import { createFakePrivacyModel } from './privacy/filter'
 import { createPomodoro, type PomodoroService } from './pomodoro/service'
 import { pomodoroTools } from './pomodoro/tools'
 import { probePomodoro } from './validation/pomodoro'
+import { createFakeMailbox, createBlockedImapSource } from './mail/fake'
+import { openEvidenceVault, type EvidenceVault } from './mail/evidence-vault'
+import { createCampusService, type CampusService } from './campus/service'
+import { mailTools } from './mail/tools'
+import { probeCampus } from './validation/campus'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -44,6 +49,8 @@ let harness: ReturnType<typeof createHarness> | undefined
 let scheduler: Scheduler | undefined
 let runtime: Awaited<ReturnType<typeof attachRuntime>> | undefined
 let pomodoro: PomodoroService | undefined
+let campus: CampusService | undefined
+let vault: EvidenceVault | undefined
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -67,6 +74,11 @@ function createWindow(): void {
 void app.whenReady().then(async () => {
   if (!ownsData) return
   if (prepared.developer && process.argv.some((arg) => arg.startsWith('--lca-probe='))) { console.log('LCA_PROBE:{"ok":false,"error":"DEVELOPER_PROFILE_REFUSED"}'); app.exit(1); return }
+  if (process.argv.includes('--lca-probe=campus')) {
+    try { const report = await probeCampus(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(0) }
+    catch { console.log('LCA_PROBE:{"ok":false,"probe":"campus","error":"CAMPUS_PROBE_FAILED"}'); app.exit(1) }
+    return
+  }
   if (process.argv.includes('--lca-probe=harness')) {
     const report = await probeHarness(dataDir, process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'), systemClock)
     console.log('LCA_PROBE:' + JSON.stringify(report))
@@ -114,13 +126,20 @@ void app.whenReady().then(async () => {
     store = openSessionStore(dataDir, { userId: 'local-user', characterId: 'default-character' }, clock)
     if (prepared.scene && store.records().length === 1) store.append({ type: 'companion/mode', mode: prepared.scene.mode, requestId: 'development-scene', commandHash: 'development-scene' })
     controller = createAppController(clock, undefined, store)
-    bridge = registerAppBridge(controller)
     scheduler = createScheduler(clock, () => { console.error('Scheduler stopped: local operation failed.'); app.quit() })
+    vault = openEvidenceVault(dataDir, store.scope)
+    const fakeMailbox = prepared.developer ? createFakeMailbox(clock) : undefined
+    campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? createBlockedImapSource(), privacy: fakeMailbox?.privacy ?? null,
+      development: fakeMailbox, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('mail', text, id) },
+      failed: () => { console.error('Campus processing stopped: local storage unavailable.'); app.quit() } })
+    controller.attachCampus(campus)
+    bridge = registerAppBridge(controller, async (ref, scope) => vault!.read(ref, scope))
     pomodoro = createPomodoro({ clock, store, scheduler, changed: () => controller?.refresh('timer'), stateChanged: () => harness?.stateChanged(),
       emit: (id, text) => { harness?.postEvent('pomodoro', text, id) } })
     const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, privacyModel: prepared.developer ? createFakePrivacyModel() : null })
     plugins.registerBuiltin('core', '时钟与任务计划', builtinTools())
     plugins.registerBuiltin('pomodoro', '番茄钟', pomodoroTools(pomodoro))
+    plugins.registerBuiltin('mail', '邮箱与校园候选', mailTools(campus), { handlesPrivacy: true, permissions: ['network'] })
     if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])
     plugins.discover()
     const providers = prepared.developer ? new Map() : await readModelProviders(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
@@ -130,6 +149,7 @@ void app.whenReady().then(async () => {
     controller.attachExecution(harness, modelReady)
     controller.attachPomodoro(pomodoro, () => plugins.views().some((item) => item.id === 'pomodoro' && item.status === 'enabled'))
     plugins.mountService('pomodoro', (enabled) => { if (enabled) pomodoro?.reconcile(); else pomodoro?.pause() })
+    plugins.mountService('mail', (enabled) => campus?.setEnabled(enabled))
     if (prepared.scene?.preset === 'pomodoro-demo' && store.records().length <= 2) pomodoro.propose({ label: '开发演示', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }, 'user')
     harness.stateChanged()
     scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => controller?.refresh('timer'), { everyMs: 1000, background: false })
@@ -154,7 +174,8 @@ app.on('before-quit', (event) => {
     if (closing) return
     closing = true
     pomodoro?.dispose()
+    const closeCampus = campus?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close()]).finally(() => { controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close(), closeCampus]).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })

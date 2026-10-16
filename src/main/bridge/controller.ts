@@ -8,6 +8,8 @@ import type { SessionStore } from '../store/session'
 import { commandHash } from '../journal/file'
 import { planSchema } from '../pomodoro/schema'
 import type { PomodoroService } from '../pomodoro/service'
+import type { CampusService } from '../campus/service'
+import { MAIL_SCENARIO_IDS } from '../../shared'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
@@ -21,8 +23,10 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('pomodoro.resume') }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.pause') }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.stop') }),
-  z.strictObject({ ...envelope, type: z.literal('candidate.confirm'), candidateId: z.string().min(1).max(128) }),
-  z.strictObject({ ...envelope, type: z.literal('candidate.ignore'), candidateId: z.string().min(1).max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('mail.scan') }),
+  z.strictObject({ ...envelope, type: z.literal('candidate.confirm'), candidateId: z.string().min(1).max(128), expectedRevision: z.number().int().positive().optional(), plannedCompletionIso: z.iso.datetime({ offset: true }).nullable().optional() }),
+  z.strictObject({ ...envelope, type: z.literal('candidate.ignore'), candidateId: z.string().min(1).max(128), expectedRevision: z.number().int().positive().optional() }),
+  z.strictObject({ ...envelope, type: z.literal('campus.export') }),
   z.strictObject({ ...envelope, type: z.literal('artifact.open'), artifactId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('backup.export') }),
   z.strictObject({ ...envelope, type: z.literal('backup.import') }),
@@ -33,6 +37,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('developer.set'), enabled: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('developer.clock'), nowMs: z.number().int().min(0).max(8_640_000_000_000_000).optional(), rate: z.number().min(0.01).max(3600).optional(), frozen: z.boolean().optional() }),
   z.strictObject({ ...envelope, type: z.literal('developer.scenario'), scenarioId: z.enum(['empty', 'clock-tool', 'pomodoro-demo']) }),
+  z.strictObject({ ...envelope, type: z.literal('developer.mailbox'), scenarioId: z.enum(MAIL_SCENARIO_IDS) }),
   z.strictObject({ ...envelope, type: z.literal('app.restart') }),
 ])
 
@@ -78,6 +83,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let runtime: RuntimePort | undefined
   let pomodoro: PomodoroService | undefined
   let timerReady: (() => boolean) | undefined
+  let campus: CampusService | undefined
   const readProjection = () => {
     if (!store) return
     const view = store.projection()
@@ -90,6 +96,15 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     snapshot.revision++
     snapshot.clock.nowMs = clock.nowMs()
     if (runtime) { snapshot.runtime = runtime.view(); Object.assign(snapshot.clock, runtime.clockView?.()) }
+    if (campus) {
+      snapshot.mailbox = campus.view(); snapshot.candidates = campus.candidates(); snapshot.deliveries = campus.deliveries()
+      const status = snapshot.mailbox.status
+      snapshot.companion.mailboxUnseen = snapshot.mailbox.pendingReviewCount
+      snapshot.privacy.mode = 'isolated'
+      snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'mail' ? { id: 'mail', source: snapshot.mailbox!.source,
+        status: status === 'blocked' || status === 'failed' ? 'failed' : status === 'disabled' ? 'unavailable' : 'ready', ...(snapshot.mailbox!.error ? { error: snapshot.mailbox!.error } : {}) }
+        : item.id === 'privacy' ? { id: 'privacy', source: campus!.privacyStatus() === 'unconfigured' ? 'none' : snapshot.mailbox!.source, status: campus!.privacyStatus() } : item)
+    }
     if (pomodoro) {
       snapshot.pomodoro = pomodoro.read()
       snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'pomodoro' ? { ...item, status: timerReady?.() ? 'ready' : 'unavailable' } : item)
@@ -116,6 +131,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.mode = command.mode
       pomodoro?.stateChanged(command)
+      campus?.stateChanged()
       runtime?.stateChanged?.(command)
       readProjection()
       updatePose()
@@ -127,6 +143,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.lightsOut = command.lightsOut
       pomodoro?.stateChanged(command)
+      campus?.stateChanged()
       runtime?.stateChanged?.(command)
       readProjection()
       updatePose()
@@ -140,6 +157,12 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (command.type === 'turn.stop' && execution) {
       if (!execution.stop(command.taskId)) return reject(command.requestId, 'invalid-command')
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+    } else if (campus && (command.type.startsWith('candidate.') || command.type === 'mail.scan' || command.type === 'campus.export' || command.type === 'artifact.open' || command.type === 'developer.mailbox')) {
+      try {
+        const error = campus.dispatch(command)
+        ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+        publish('task', command.requestId)
+      } catch { ack = reject(command.requestId, 'internal') }
     } else if (pomodoro && command.type.startsWith('pomodoro.')) {
       try {
         const error = timerReady?.() ? pomodoro.dispatch(command) : 'unavailable'
@@ -165,6 +188,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   return {
     getSnapshot: () => structuredClone(snapshot), dispatch,
     attachRuntime: (port: RuntimePort) => { runtime = port; publish('connection') },
+    attachCampus: (port: CampusService) => { campus = port; publish('connection') },
     attachPomodoro: (port: PomodoroService, ready: () => boolean) => {
       pomodoro = port; timerReady = ready
       snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'pomodoro' ? { id: 'pomodoro', status: 'ready', source: 'real' } : item)

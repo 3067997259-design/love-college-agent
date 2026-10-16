@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot } from '../../../shared'
 import './tools.css'
+import { MailboxControls } from './MailboxControls'
 
 type Action = AppCommand extends infer Command ? Command extends AppCommand ? Omit<Command, 'epoch' | 'protocolVersion' | 'requestId'> : never : never
 
@@ -21,6 +22,7 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
     <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}>工具与设置</button>
     {open && <section aria-label="工具与设置">
       <button type="button" onClick={() => setOpen(false)}>关闭</button>
+      <MailboxControls bridge={bridge} snapshot={snapshot} />
       <h2>番茄钟</h2>
       <div aria-label="番茄钟控制" data-phase={snapshot.pomodoro.phase} data-status={snapshot.pomodoro.status}>
         <p>{({ idle: '等待开始', focus: '专注', 'short-break': '短休息', 'long-break': '长休息' })[snapshot.pomodoro.phase]} · {Math.ceil(snapshot.pomodoro.remainingMs / 1000)} 秒 · {snapshot.pomodoro.focusIndex}/{snapshot.pomodoro.plannedCount}</p>
@@ -44,7 +46,7 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
         <p>{plugin.tools.join('、') || '仅素材'}</p>
         {plugin.status === 'enabled' ? <button type="button" onClick={() => void send({ type: 'plugin.disable', pluginId: plugin.id })}>停用</button>
           : <button type="button" disabled={['incompatible', 'failed'].includes(plugin.status)} onClick={() => plugin.source === 'folder' ? setApproving(plugin.id) : void send({ type: 'plugin.enable', pluginId: plugin.id, fingerprint: plugin.fingerprint })}>启用</button>}
-        <label>隐私过滤 <select value={plugin.privacy} onChange={(event) => void send({ type: 'plugin.privacy.set', pluginId: plugin.id, privacy: event.target.value as 'none' | 'optional' | 'always' })}>
+        <label>隐私过滤 <select value={plugin.privacy} disabled={plugin.privacyLocked} onChange={(event) => void send({ type: 'plugin.privacy.set', pluginId: plugin.id, privacy: event.target.value as 'none' | 'optional' | 'always' })}>
           <option value="none">关闭</option><option value="optional">跟随文件过滤</option><option value="always">总是过滤</option>
         </select></label>
         {approving === plugin.id && <div role="alertdialog" aria-label="插件代码授权">
