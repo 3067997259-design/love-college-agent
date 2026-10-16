@@ -1,11 +1,20 @@
-import { app, BrowserWindow, dialog, powerMonitor } from 'electron'
+import { app, BrowserWindow, dialog, powerMonitor, protocol, shell } from 'electron'
 import { join, resolve } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { systemClock } from './clock'
 import { initialOnboarding } from './onboarding/schema'
+import { createBinaryAssets, assetPath } from './storage/assets'
+import { createRodinApi, readRodinConfig } from './gifts/rodin-api'
+import { createRodinMcp } from './gifts/mcp'
+import { createGiftService, giftTools, type GiftService } from './gifts/service'
+import { syntheticGlb } from './gifts/fixture'
+import { randomUUID } from 'node:crypto'
+
+protocol.registerSchemesAsPrivileged([{ scheme: 'lca-media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 import { createAppController } from './bridge/controller'
 import { registerAppBridge } from './bridge/ipc'
 import { probeSqlite } from './validation/sqlite'
+import { probeRodin } from './validation/rodin'
 import { probeImap } from './mail/probe'
 import { openSessionStore, resumeSavedSession, type SessionStore } from './store/session'
 import { probeJournal } from './validation/journal'
@@ -85,6 +94,7 @@ let mcp: McpService | undefined
 let mcpFixture: Awaited<ReturnType<typeof startMcpFixture>> | undefined
 let backup: BackupService | undefined
 let quill: QuillService | undefined
+let gifts: GiftService | undefined
 let modelSettings: ModelSettingsService | undefined
 let companionWindows: CompanionWindows | undefined
 let miniFallbackReason: MiniFallbackReason | null = process.env.LCA_MINI_OPAQUE === '1' ? 'forced' : null
@@ -139,6 +149,11 @@ function createWindow(): void {
 void app.whenReady().then(async () => {
   if (!ownsData) return
   if (prepared.developer && process.argv.some((arg) => arg.startsWith('--lca-probe='))) { console.log('LCA_PROBE:{"ok":false,"error":"DEVELOPER_PROFILE_REFUSED"}'); app.exit(1); return }
+  if (process.argv.includes('--lca-probe=rodin')) {
+    try { const report = await probeRodin(dataDir, providersFile, join(app.getAppPath(), '.local-data', 'rodin-live-budget-20261017.json'), systemClock); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(report.ok ? 0 : 1) }
+    catch { console.log('LCA_PROBE:{"ok":false,"probe":"rodin","error":"RODIN_LIVE_PROBE_FAILED"}'); app.exit(1) }
+    return
+  }
   if (process.argv.includes('--lca-probe=mcp-student-hub')) {
     try { const report = await probeStudentHubMcp(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(report.ok ? 0 : 1) }
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"mcp-student-hub","error":"MCP_STUDENT_HUB_PROBE_FAILED"}'); app.exit(1) }
@@ -214,6 +229,14 @@ void app.whenReady().then(async () => {
       resumeSavedSession(dataDir, restoreReceipt.manifest.owner, restoreReceipt.manifest.activeDayKey, restoreReceipt.manifest.activeSessionId)
     }
     store = openSessionStore(dataDir, { userId: 'local-user', characterId: 'default-character' }, clock)
+    const binaryAssets = createBinaryAssets(dataDir, store)
+    protocol.handle('lca-media', (request) => {
+      try { const url = new URL(request.url); if (request.method !== 'GET' || url.host !== 'asset' || !/^\/[a-f0-9]{64}$/.test(url.pathname) || url.search || url.hash) return new Response(null, { status: 404 })
+        const asset = binaryAssets.owned(url.pathname.slice(1)); if (!asset) return new Response(null, { status: 404 })
+        const mime = { glb: 'model/gltf-binary', png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', zip: 'application/zip' }[asset.format]
+        return new Response(Uint8Array.from(binaryAssets.read(asset)), { headers: { 'Content-Type': mime, 'X-Content-Type-Options': 'nosniff', 'Access-Control-Allow-Origin': 'null' } })
+      } catch { return new Response(null, { status: 404 }) }
+    })
     if (restoreReceipt?.status === 'restored') {
       const timer = structuredClone(restoreReceipt.manifest.pomodoro)
       if (timer.status === 'running') timer.endsAtMs = clock.nowMs() + timer.remainingMs
@@ -291,7 +314,13 @@ void app.whenReady().then(async () => {
     controller.attachBackup(backup)
     quill = createQuillService({ clock, store, scheduler, artifacts, memory: memoryRepository, isBusy: () => harness?.isBusy() ?? false, emit: (source, text, id) => harness?.postEvent(source, text, id), changed: () => controller?.refresh('task') })
     controller.attachQuill(quill)
-    plugins.registerBuiltin('gifts', '第一件礼物', quillTools(quill))
+    const rodinConfig = prepared.developer ? null : await readRodinConfig(providersFile)
+    const rodinApi = prepared.developer ? { submit: async () => ({ uuid: randomUUID(), subscription_key: 'synthetic-private-handle' }), poll: async () => 'ready' as const, download: async () => syntheticGlb() } : rodinConfig ? createRodinApi(rodinConfig, clock) : null
+    const rodinPort = rodinApi ? await createRodinMcp(rodinApi, binaryAssets, dataDir, clock) : null
+    gifts = createGiftService({ clock, store, scheduler, memory: memoryRepository, port: rodinPort, source: prepared.developer ? 'fake' : 'real', changed: () => controller?.refresh('task'),
+      open: (ref) => { const asset = binaryAssets.owned(ref.slice(6)); if (!asset) throw new Error('ASSET_UNAVAILABLE'); void shell.openPath(join(dataDir, assetPath(asset))) } })
+    controller.attachGifts(gifts)
+    plugins.registerBuiltin('gifts', '礼物与生成', [...quillTools(quill), ...giftTools(gifts)])
     controller.attachDiagnostics(() => buildDiagnostics({ clock, store: store!, scheduler: scheduler!, memory: memoryRepository!, fileFilteringEnabled: prepared.pluginSettings.read().fileFilteringEnabled, mailStatus: campus!.view().status,
       pendingFiles: documents!.view().jobs.filter((job) => ['staged', 'queued', 'processing'].includes(job.status)).length }))
     controller.attachPomodoro(pomodoro, () => plugins.views().some((item) => item.id === 'pomodoro' && item.status === 'enabled'))
@@ -300,6 +329,7 @@ void app.whenReady().then(async () => {
     plugins.mountService('documents', (enabled) => documents?.setEnabled(enabled))
     plugins.mountService('memory', (enabled) => memory?.setEnabled(enabled))
     plugins.mountService('mcp', (enabled) => mcp?.setEnabled(enabled))
+    plugins.mountService('gifts', (enabled) => gifts?.setEnabled(enabled))
     if (prepared.scene?.preset === 'pomodoro-demo' && store.records().length <= 2) pomodoro.propose({ label: '开发演示', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }, 'user')
     harness.stateChanged()
     scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => controller?.refresh('timer'), { everyMs: 1000, background: false })
@@ -331,6 +361,6 @@ app.on('before-quit', (event) => {
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), backup?.close(), modelSettings?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), gifts?.close(), backup?.close(), modelSettings?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })

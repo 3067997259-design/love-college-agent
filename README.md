@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+**第二圈推进（2026-10-17）：** 进度与边界见 [审计台账](docs/engineering/progress-audit-20261017.md)。新手向导已接快照和逐步保存，完整 Electron 输入／重启／恢复跳过通过；实时礼物已接正式 MCP／REST、有界生成、本地 GLB 与 3D 预览、私人存档恢复。合成链路通过；真实 Rodin 1 次约 32.3 秒、1.21 MB 成功，见 [礼物记录](docs/engineering/rodin-second-circle.md)。其余第二圈项目继续按台账推进。
+
 **新手流程主进程（2026-10-16 晚）：** 接口 `c5c8b42` 已先合 main；名字、称呼、完成状态按日志／SQLite 投影持久化并进入私人存档，跨日与空 profile 恢复通过。角色系统称呼和用户“关于你”分层，不记作共同经历；设置可重新初始化，展位始终跳过。类型／lint／150 项单测及后端 Electron、harness、存档回归通过；完整向导按钮联调待 Claude 接快照开关，见 [接口交接与验收](docs/engineering/onboarding-main.md)。
 
 **迷你窗更新（2026-10-16 23:38）：** 主进程改为 280×350 逻辑像素、主屏右下角 24 逻辑像素边距；`window.mini.moveBy` 按物理像素移动，支持高 DPI 换算、当前屏限位和含显示器 ID 的位置恢复。开发诊断新增“独立窗口”，专注时可继续查看安全执行动态，正常／展位模式拒绝；独立窗只读。接口 `130e857` 和实现均已合 main，Claude 可接 expand／hover／moveBy，旧画面命令兼容。类型／lint、140 项单测及实际迷你窗／番茄 Electron 场景通过，见 [接口交接与验收](docs/engineering/mini-window-contract.md)。停止／熄灯保留当前窗口，重启只开书本；已有安装包未重打。
@@ -385,6 +387,7 @@ pnpm dev
 | `pnpm test:model-slots` | 正常模式原生配置／重启＋本机合成 HTTP：background／privacy 专用路由和失败不回退通过 |
 | `pnpm test:mini` | 实际 280×350 内容区／点穿调用／物理像素拖动限位、位置持久化与失效归位、纸片返回、无重启残留，以及独立诊断入口／安全刷新／只读权限通过；真人 OS 穿透待验收 |
 | `pnpm test:onboarding:backend` / `pnpm test:onboarding` | 前者验证主进程档案／重启／提示词分层／真实存档恢复；后者已通过真实向导输入／重启预填／完成退出／恢复跳过，以及展位跳过 |
+| `pnpm test:gifts` / `pnpm probe:rodin` | 前者合成生成服务＋真实 MCP／GLB／3D／存档恢复；后者真实生成探针，会消耗额度，当前夜间上限 3 次，已用 1 次 |
 | `pnpm preview:ui` / `pnpm shot:ui` | 只起渲染层，用假数据场景在浏览器预览、截图书本界面；不启动 Electron，不读密钥。数字键切场景，“跳过本段”让番茄钟当前阶段到点 |
 
 GPT 开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER_PORT` 指定不同端口；数据默认放 `<worktree>/.local-data`，用 `LCA_DATA_DIR` 可覆盖。开发实例的端口和数据目录必须各自独立，远程调试默认关闭。共享接口说明见 [src/shared/README.md](src/shared/README.md)。

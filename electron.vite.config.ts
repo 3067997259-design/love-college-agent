@@ -12,7 +12,7 @@ export default defineConfig({
     build: { rollupOptions: { output: { format: 'cjs', entryFileNames: 'index.cjs' } } },
   },
   renderer: {
-    resolve: { alias: { '@renderer': resolve('src/renderer/src') } },
+    resolve: { alias: { '@renderer': resolve('src/renderer/src'), 'three/examples/jsm/libs/meshopt_decoder.module.js': resolve('src/renderer/src/tools/meshopt-disabled.ts') } },
     plugins: [react()],
     // Keep small font subsets as files; renderer CSP intentionally does not allow data: fonts.
     build: { assetsInlineLimit: 0 },
