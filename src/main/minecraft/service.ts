@@ -17,6 +17,7 @@ export interface GameReceipt { roundId: string; serverId: string; controlSession
  */
 export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; protocol(serverId: string): GameProtocol | undefined;
   source(serverId: string): 'real' | 'fake' | 'none'; blocked(): boolean; changed(): void;
+  available?(): boolean; stopping?(): void;
   record?(receipt: GameReceipt): void; interrupted?: GameReceipt; events?(messages: readonly { id: number; text: string; sender: string }[]): void }) {
   const { clock, scheduler } = options
   const state: MinecraftView = { status: options.interrupted && !options.interrupted.stopVerified ? 'paused' : 'idle', source: 'none', serverId: options.interrupted?.serverId ?? null, roundId: options.interrupted?.roundId ?? null, endsAtMs: null, actionsUsed: 0, maxActions: 24, chatSeen: 0, stopVerified: !options.interrupted || options.interrupted.stopVerified }
@@ -41,6 +42,10 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
     if (!anchor || distance(current, anchor) > state.scope!.radiusBlocks) throw new Error('GAME_OUT_OF_SCOPE')
     player = current; state.pilot = pilot(); return current
   }
+  const permissions = async (signal: AbortSignal, ticket: number) => {
+    live(ticket); if ((reads += 2) > 360) throw new Error('GAME_READ_BUDGET')
+    await checkedPermissions(port(), signal); live(ticket); signal.throwIfAborted()
+  }
   const release = async () => {
     if (!lease) return true
     const cleanup = new AbortController(); const cancel = clock.after(10_000, () => cleanup.abort())
@@ -56,8 +61,8 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
   }
   const stop = () => {
     if (stopJob) return stopJob
-    generation++; active?.abort(); scheduler.cancel('minecraft.poll'); scheduler.cancel('minecraft.expire')
     if (!lease && state.status !== 'playing' && state.status !== 'checking') return Promise.resolve()
+    generation++; active?.abort(); options.stopping?.(); scheduler.cancel('minecraft.poll'); scheduler.cancel('minecraft.expire')
     const id = state.roundId; const oldLease = lease; state.status = 'stopping'; publish()
     stopJob = (async () => {
       state.stopVerified = await release(); state.status = state.stopVerified ? 'idle' : 'failed'; state.endsAtMs = null
@@ -82,6 +87,7 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
     try {
       if (++polls > 120) throw new Error('GAME_POLL_BUDGET')
       await verifyPlayer(signal, ticket)
+      await permissions(signal, ticket)
       const result = await rpc('poll_event_page', { ...(cursor === undefined ? {} : { sinceId: cursor }), tail: tail || cursor === undefined, limit: 16, types: ['chat'] }, signal, ticket)
       const page = z.object({ streamId: z.string().min(1).max(128), cursor: z.number().int().nonnegative(), gap: z.boolean(), events: z.array(z.object({ id: z.number().int().nonnegative(), type: z.string(), data: z.unknown() })).max(16) }).parse(result)
       if (!port().identifierAllowed(page.streamId) || cursor !== undefined && stream === page.streamId && page.cursor < cursor) throw new Error('GAME_INVALID')
@@ -98,7 +104,7 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
     } catch { if (generation === ticket) { await stop(); fail() } } finally { polling = false }
   }
   const begin = (command: Extract<AppCommand, { type: 'minecraft.check' | 'minecraft.start' }>) => {
-    if (closed || worker || stopJob || state.status === 'playing' || options.blocked()) return 'unavailable' as const
+    if (closed || worker || stopJob || state.status === 'playing' || options.blocked() || options.available?.() === false) return 'unavailable' as const
     if (lease && lease.serverId !== command.serverId) return 'unavailable' as const
     const ticket = ++generation; const abort = new AbortController(); active = abort; state.status = 'checking'; state.serverId = command.serverId; delete state.error; publish()
     worker = (async () => {
@@ -144,7 +150,7 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
       const destination = name === 'minecraft_navigate' ? targetSchema.parse(input) : undefined
       const chat = name === 'minecraft_chat' ? chatSchema.parse(input) : undefined
       if (destination && (!anchor || distance(destination, anchor) > state.scope!.radiusBlocks || Math.abs(destination.y - anchor.y) > 4) || chat && (!state.scope!.allowChat || port().text(chat.message) !== chat.message)) throw new Error('GAME_OUT_OF_SCOPE')
-      await verifyPlayer(combined, ticket); await checkedPermissions(port(), combined); live(ticket)
+      await verifyPlayer(combined, ticket); await permissions(combined, ticket)
       state.actionsUsed++; const kind = destination ? 'navigate' : 'chat'; state.lastAction = { kind, status: 'running', atMs: clock.nowMs() }; publish()
       if (destination) {
         target = destination
@@ -157,7 +163,7 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
     finally { toolRunning = false; cancel() }
   }
   return { view: () => structuredClone(state), active: () => state.status === 'playing' || state.status === 'checking' || state.status === 'stopping', tool,
-    poll, stop, stateChanged: () => { if (options.blocked()) void stop() },
+    poll, stop, stateChanged: () => { if ((state.status === 'playing' || state.status === 'checking') && options.blocked()) void stop() },
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       if (command.type === 'minecraft.stop') { void stop(); return }
       if (command.type === 'minecraft.check' || command.type === 'minecraft.start') return begin(command)
