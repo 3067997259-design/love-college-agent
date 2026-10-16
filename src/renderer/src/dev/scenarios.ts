@@ -236,7 +236,65 @@ export const SCENARIOS = {
     ],
     messages: [msg('m1', 'assistant', '邮箱登不上了，所以我不知道有没有新邮件。不是没有，是我看不到。', T.sat1445 - MIN, { emotion: 'worried' })],
   })),
+
+  /**
+   * 傍晚，她从海边回来：窗台上两件带回来的东西，休息时送了你一只杯子，纸桥还在做；
+   * 前天的日记解锁了，钥匙夹在丝带上（书签页：?scenario=evening-home&tab=gifts）
+   */
+  'evening-home': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1910 },
+    companion: { ...s.companion, mode: 'rest', daypart: 'evening', pose: 'facing-user', expression: 'smile' },
+    pomodoro: { ...s.pomodoro, focusIndex: 4, plannedCount: 4, completedCount: 4, plan: afternoonPlan('finished') },
+    candidates: candidates.map((c) => ({ ...c, status: 'confirmed' as const })),
+    messages: [
+      msg('m1', 'assistant', '回来了。海边风很大，捡了一个贝壳，放在窗台上了。', T.sat1910 - 40 * MIN, { emotion: 'smile' }),
+      msg('m2', 'user', '杯子很好看。', T.sat1910 - 6 * MIN),
+      msg('m3', 'assistant', '嗯。你说过想喝点热的。', T.sat1910 - 5 * MIN, { emotion: 'calm' }),
+    ],
+    quill: { id: 'quill:fake', kind: 'quill', state: 'given', createdAtMs: T.fri2105 - 8_000, givenAtMs: T.fri2105, sourceMemoryId: 'mem:fake-first-work', sourceEventId: 'first-work:fake' },
+    memory: {
+      status: 'idle', source: 'fake', shortTermCount: 2, longTermCount: 0, contextChars: 0, lastExtractedAtMs: null, lastCompactedAtMs: null,
+      items: [
+        { id: 'mem-tea', text: '周五晚上写完作业，你说想喝一杯热的。', kind: 'experience', tier: 'short_term', reviewStatus: 'unreviewed', createdAtMs: T.fri2105, accessCount: 1, sourceSessionCount: 1 },
+        { id: 'mem-bridge', text: '你把纸桥放在书桌上，给它取名叫周五桥。', kind: 'experience', tier: 'short_term', reviewStatus: 'unreviewed', createdAtMs: T.sat1445, accessCount: 0, sourceSessionCount: 1 },
+      ],
+    },
+    gifts: {
+      configured: true, dailyLimit: 1,
+      items: [
+        { id: 'gift-cup', sourceMemoryId: 'mem-tea', objectId: 'cup', motif: 'sakura', status: 'given', source: 'fake', createdAtMs: T.sat1420, readyAtMs: T.sat1445, givenAtMs: T.sat1910 - 8 * MIN },
+        { id: 'gift-bridge', sourceMemoryId: 'mem-bridge', objectId: 'paper-bridge', motif: 'plain', status: 'proposed', source: 'fake', createdAtMs: T.sat1910 - 2 * MIN, readyAtMs: null, givenAtMs: null },
+      ],
+    },
+    life: {
+      dayKey: '2026-10-17', userSchedule: 'rest', locationId: 'room', settledUntilMs: T.sat1910,
+      agenda: [
+        { kind: 'read', atMs: T.sat0810 + 60 * MIN, state: 'settled' },
+        { kind: 'walk', atMs: T.sat1420 + 30 * MIN, state: 'settled' },
+        { kind: 'write', atMs: T.sat2240, state: 'planned' },
+      ],
+      outings: [
+        { id: 'out-coast', place: 'coast', startsAtMs: T.sat1445 + 15 * MIN, returnsAtMs: T.sat1910 - 45 * MIN, acquiredAtMs: T.sat1910 - 90 * MIN, item: 'shell', status: 'returned', settledAtMs: T.sat1910 - 45 * MIN, offline: false },
+      ],
+      items: [
+        { id: 'item-leaf', outingId: 'out-swing', dayKey: '2026-10-16', place: 'swing', kind: 'leaf', acquiredAtMs: T.fri2105 - 4 * 60 * MIN, display: 'desk' },
+        { id: 'item-shell', outingId: 'out-coast', dayKey: '2026-10-17', place: 'coast', kind: 'shell', acquiredAtMs: T.sat1910 - 90 * MIN, display: 'desk' },
+      ],
+    },
+    diary: {
+      status: 'idle', source: 'fake',
+      entries: [
+        { id: 'diary-1015', dayKey: '2026-10-15', createdAtMs: T.fri2105 - 12 * 60 * MIN, unlocked: true, clue: 'next-bookmark', source: 'fake' },
+        { id: 'diary-1016', dayKey: '2026-10-16', createdAtMs: T.sat0810, unlocked: false, clue: 'next-bookmark', source: 'fake' },
+      ],
+    },
+  })),
 } satisfies Record<string, AppSnapshot>
 
 export type ScenarioId = keyof typeof SCENARIOS
 export const DEFAULT_SCENARIO: ScenarioId = 'break-delivery'
+
+/** 预览用的日记正文：假数据，不是她最终的声音；只有解锁的才读得到（fake-bridge.readDiary） */
+export const fakeDiary: Record<string, string> = {
+  'diary-1015': '主观日记（预览用的假数据）\n今天书里来了一个人。名字写得很用力，铅笔差点把纸划破。\n房间是那个人画的，颜色是我涂的。窗台上还空着。\n明天想去海边看看。不知道会不会有人问我去了哪里。',
+}

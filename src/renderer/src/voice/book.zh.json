@@ -1,0 +1,119 @@
+{
+  "_说明": "书签页（日程、礼物、日记）、对话里的礼物卡和窗台小物的文案（体验设计 §2 书签）。代码引用，不调用模型。草稿，待用户把关。",
+  "tabs": {
+    "chat": "对话",
+    "schedule": "日程",
+    "gifts": "礼物",
+    "diary": "日记",
+    "settings": "设置"
+  },
+  "chatUnread": "对话里有新的东西",
+  "objects": {
+    "cup": "杯子",
+    "paper-bridge": "纸桥",
+    "leaf": "叶子",
+    "shell": "贝壳",
+    "quill": "羽毛笔"
+  },
+  "measures": {
+    "cup": "只",
+    "paper-bridge": "座",
+    "leaf": "片",
+    "shell": "枚",
+    "quill": "支"
+  },
+  "motifs": {
+    "plain": "",
+    "sakura": "印着樱花的",
+    "stars": "印着星星的"
+  },
+  "places": {
+    "coast": "海岸",
+    "swing": "秋千"
+  },
+  "shelf": {
+    "title": "礼物架",
+    "lead": "她送你的，和她出门带回来的。",
+    "given": "她送你的",
+    "brought": "她带回来的",
+    "empty": "架子还空着。",
+    "broughtEmpty": "她还没出过门。",
+    "quillNote": "第一件礼物。以后的私人存档，都从这支笔导出。",
+    "givenOn": "{date}送你的",
+    "from": "来自：{text}",
+    "fromUnknown": "来自你们一起经历过的一件事",
+    "proposed": "她想做一{measure}{object}送给你。",
+    "making": "她在书桌上做这{measure}{object}……",
+    "ready": "做好了，等休息的时候给你。",
+    "failed": "这一件没做成。",
+    "cancelled": "这一件不做了。",
+    "start": "好",
+    "startHint": "专注的时候她才动手做",
+    "decline": "先不用",
+    "stop": "停下",
+    "fake": "合成",
+    "onSill": "在窗台上",
+    "inDrawer": "收在抽屉里",
+    "broughtOn": "{date}，从{place}带回来",
+    "card": "她送你的",
+    "toShelf": "放在礼物架上了"
+  },
+  "diary": {
+    "title": "日记",
+    "lead": "她写给自己的。是感受，不是事实记录。",
+    "writing": "她在写……",
+    "unconfigured": "还没接上她写字用的模型，日记空着。",
+    "failed": "上一篇没写成。",
+    "empty": "还没有日记。",
+    "locked": "锁着。钥匙会夹在下一页的书签里。",
+    "open": "翻开",
+    "close": "合上",
+    "subjective": "主观日记",
+    "key": "钥匙",
+    "keyNote": "她文件夹里那一页的密码。",
+    "folder": "打开她的文件夹",
+    "readFailed": "这一页现在打不开。",
+    "ribbonKey": "书签里夹着一把钥匙：{date}的日记"
+  },
+  "schedule": {
+    "title": "日程",
+    "today": "今天",
+    "noPlan": "今天还没排番茄。",
+    "done": "做完 {done} 个，共 {total} 个",
+    "her": "她今天",
+    "routine": {
+      "auto": "按日历过",
+      "work": "你今天要工作",
+      "rest": "你今天休息"
+    },
+    "agenda": {
+      "read": "看书",
+      "write": "写东西",
+      "walk": "散步"
+    },
+    "agendaState": {
+      "planned": "打算",
+      "settled": "做过了",
+      "skipped": "没做成"
+    },
+    "outing": {
+      "proposed": "想去{place}",
+      "away": "在{place}，{time}回来",
+      "returned": "去过{place}",
+      "cut_short": "去了{place}，提前回来",
+      "cancelled": "没去成{place}"
+    },
+    "herEmpty": "她今天还没有安排。",
+    "next": "接下来",
+    "nextEmpty": "还没有确认过的事项。",
+    "kinds": {
+      "deadline": "截止",
+      "event": "活动"
+    }
+  },
+  "sill": {
+    "diary": "读那天的日记",
+    "diaryLocked": "那天的日记还锁着",
+    "close": "收起"
+  }
+}

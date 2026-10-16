@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppBridge, BackupView, CandidateView, DeliveryView, EvidenceView, PlanStep, PomodoroPlanItem, PomodoroPlanView, PomodoroView, TaskView, ActivityView } from '../../../shared'
+import type { AppBridge, BackupView, CandidateView, DeliveryView, EvidenceView, GeneratedGiftView, PlanStep, PomodoroPlanItem, PomodoroPlanView, PomodoroView, TaskView, ActivityView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
+import book from '../voice/book.zh.json'
 import { formatDateTime, formatIso } from './format'
+import { GiftModel } from './life/GiftModel'
+import { ObjectSketch } from './life/objects'
+import { fill, giftName } from './life/text'
 import { QuillArt } from './quill/QuillArt'
 import { formatSpan, planSpanMs, rhythmText, tomatoStates, type TomatoState } from './plan'
 
@@ -188,6 +192,22 @@ export function GiftCard({ entering }: { entering: boolean }) {
         <span className="card-source">她送你的</span>
         <h3 className="card-title">一支羽毛笔</h3>
         <p className="gift-text">做完第一件事以后，她把这支笔递给你。以后的私人存档，都从书缝里这支笔导出。</p>
+      </div>
+    </article>
+  )
+}
+
+/* —— 她做的礼物：休息时送出（主进程判定 given 才出现），带着它来自的那段经历；点一下去礼物架 —— */
+export function MadeGiftCard({ gift, from, entering, onShelf }: { gift: GeneratedGiftView; from: string | null; entering: boolean; onShelf?: () => void }) {
+  const name = giftName(gift)
+  return (
+    <article className="card card-gift card-gift-made" data-entering={entering}>
+      {gift.assetUrl ? <GiftModel gift={gift} label={name} className="gift-model" /> : <ObjectSketch kind={gift.objectId} className="gift-sketch" motif={gift.motif} />}
+      <div className="gift-body">
+        <span className="card-source">{book.shelf.card}</span>
+        <h3 className="card-title">{name}</h3>
+        {from && <p className="gift-text">{fill(book.shelf.from, { text: from })}</p>}
+        {onShelf && <button type="button" className="link-button" onClick={onShelf}>{book.shelf.toShelf}</button>}
       </div>
     </article>
   )

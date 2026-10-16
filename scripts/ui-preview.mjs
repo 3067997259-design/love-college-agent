@@ -40,7 +40,8 @@ const server = await createServer({
   root: join(root, 'src/renderer'),
   configFile: false,
   plugins: [react(), saveTrace],
-  resolve: { alias: { '@renderer': join(root, 'src/renderer/src') } },
+  // 和 electron.vite.config.ts 一样换掉 meshopt 解码器：它会在 script-src 'self' 下编译 WASM，触发 CSP 报错
+  resolve: { alias: { '@renderer': join(root, 'src/renderer/src'), 'three/examples/jsm/libs/meshopt_decoder.module.js': join(root, 'src/renderer/src/tools/meshopt-disabled.ts') } },
   server: { host: '127.0.0.1', port, strictPort: true },
 })
 await server.listen()

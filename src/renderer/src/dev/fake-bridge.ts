@@ -5,7 +5,7 @@
  * 真正的计时、落盘和阶段事件都在主进程，这里点通不代表真实运行通过。
  */
 import type { AppBridge, AppCommand, AppEvent, AppSnapshot, CommandAck, PomodoroView, PublicErrorCode } from '../../../shared'
-import { DEFAULT_SCENARIO, evidence, SCENARIOS, type ScenarioId } from './scenarios'
+import { DEFAULT_SCENARIO, evidence, fakeDiary, SCENARIOS, type ScenarioId } from './scenarios'
 
 export interface FakeBridge extends AppBridge {
   setScenario(id: ScenarioId): void
@@ -220,6 +220,15 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
         commit({ backup: { status: 'idle' } }, 'task')
         return ack(command)
       }
+      // 礼物架上点得通：提议的可以开始（只在专注里）或不要，做着的可以停下；做没做好仍是假数据
+      if ((command.type === 'gift.start' || command.type === 'gift.cancel') && current.gifts) {
+        const gift = current.gifts.items.find((item) => item.id === command.giftId)
+        const focusing = view.phase === 'focus' && view.status === 'running'
+        const next = command.type === 'gift.start' ? (gift?.status === 'proposed' && focusing ? 'making' : null) : (gift && ['proposed', 'making'].includes(gift.status) ? 'cancelled' : null)
+        if (!gift || !next) return ack(command, 'unavailable')
+        commit({ gifts: { ...current.gifts, items: current.gifts.items.map((item) => item.id === gift.id ? { ...item, status: next } : item) } }, 'task')
+        return ack(command)
+      }
       // 其余命令明确拒绝，不假装执行过
       return ack(command, command.type.startsWith('pomodoro.') ? pomodoroCommand(command) : 'unavailable')
     },
@@ -227,6 +236,13 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
       const view = evidence[ref]
       if (!view) throw new Error('evidence not found')
       return view
+    },
+    // 和主进程一样：没解锁就打不开
+    async readDiary(id) {
+      const entry = current.diary?.entries.find((item) => item.id === id)
+      const text = fakeDiary[id]
+      if (!entry?.unlocked || !text) throw new Error('DIARY_LOCKED')
+      return { id, dayKey: entry.dayKey, text, key: 'A1B2C3D4E5F60718', subjective: true }
     },
   }
 }

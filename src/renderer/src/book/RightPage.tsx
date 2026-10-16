@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, MessageView, PomodoroPlanView, QuillView } from '../../../shared'
+import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, PomodoroPlanView, QuillView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
-import { CandidateCard, DeliveryCard, GiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
+import { CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
+import { sourceText } from './life/text'
 import { sendCommand, type CommandBody } from './command'
 import { civilFromDays, formatClock } from './format'
 import { rhythmText, tomatoStates } from './plan'
@@ -15,7 +16,11 @@ type Item =
   | { kind: 'delivery'; at: number; id: string; view: DeliveryView }
   | { kind: 'plan'; at: number; id: string; view: PomodoroPlanView }
   | { kind: 'gift'; at: number; id: string; view: QuillView }
+  | { kind: 'made'; at: number; id: string; view: GeneratedGiftView }
   | { kind: 'task'; at: number; id: string }
+
+/** 送出了的礼物（主进程判定 given 才算）：在送出的那一刻进对话 */
+const givenGifts = (snapshot: AppSnapshot) => (snapshot.gifts?.items ?? []).filter((gift) => gift.status === 'given' && gift.givenAtMs !== null)
 
 /**
  * 入场动画只给“这次运行里新出现的”卡片：首个快照、重启、恢复只挂载不重播（src/shared/README.md）。
@@ -25,7 +30,7 @@ function useEnteringIds(snapshot: AppSnapshot): Set<string> {
   const seen = useRef<{ epoch: string; ids: Set<string> } | null>(null)
   const ids = [...snapshot.candidates.map((c) => c.id), ...snapshot.deliveries.map((d) => d.id), ...(snapshot.pomodoro.plan ? [snapshot.pomodoro.plan.id] : []),
     ...(snapshot.pomodoro.proposal ? [snapshot.pomodoro.proposal.id] : []),
-    ...(snapshot.quill?.state === 'given' ? [snapshot.quill.id] : [])]
+    ...(snapshot.quill?.state === 'given' ? [snapshot.quill.id] : []), ...givenGifts(snapshot).map((gift) => gift.id)]
   if (!seen.current || seen.current.epoch !== snapshot.epoch) {
     seen.current = { epoch: snapshot.epoch, ids: new Set(ids) }
     return new Set()
@@ -35,7 +40,13 @@ function useEnteringIds(snapshot: AppSnapshot): Set<string> {
   return fresh
 }
 
-export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: AppBridge }) {
+export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf }: {
+  snapshot: AppSnapshot
+  bridge: AppBridge
+  /** 翻到别的书签时这一页留着（草稿和滚动位置都在），只是不显示 */
+  hidden?: boolean
+  onOpenShelf?: () => void
+}) {
   const { messages, candidates, deliveries, task, activities, pomodoro, privacy, quill, backup } = snapshot
   // 恢复完成（或恢复失败）的回执一直留着，直到你点“好”收起（backup.cancel 清掉回执）
   const restoreReceipt = backup && (backup.status === 'restored' || (backup.status === 'failed' && backup.error?.code === 'restore-failed')) ? backup : null
@@ -57,6 +68,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
     // 草案单独一张卡：确认前不动生效的计划和已经做完的番茄（src/shared/README.md）
     ...(pomodoro.proposal ? [{ kind: 'plan' as const, at: pomodoro.proposal.createdAtMs, id: pomodoro.proposal.id, view: pomodoro.proposal }] : []),
     ...(quill?.state === 'given' && quill.givenAtMs !== null ? [{ kind: 'gift' as const, at: quill.givenAtMs, id: quill.id, view: quill }] : []),
+    ...givenGifts(snapshot).map((view) => ({ kind: 'made' as const, at: view.givenAtMs!, id: view.id, view })),
     ...(task ? [{ kind: 'task' as const, at: lastUserAt + 0.5, id: task.id }] : []),
   ].sort((a, b) => a.at - b.at)
   const orphanActivities = activities.filter((a) => a.taskId !== task?.id)
@@ -83,7 +95,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
   }
 
   return (
-    <section className="page page-right" aria-label="你的页面">
+    <section className="page page-right" aria-label="你的页面" hidden={hidden}>
       <header className="page-head">
         <span className="page-date">{dayTitle(snapshot.clock.nowMs)}</span>
         <PlanHead snapshot={snapshot} onCommand={(body) => { void dispatch(body) }} />
@@ -104,6 +116,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
                 onOpen={(artifactId) => { void dispatch({ type: 'artifact.open', artifactId }) }} />
             )
             case 'gift': return <GiftCard key={item.id} entering={entering.has(item.id)} />
+            case 'made': return <MadeGiftCard key={item.id} gift={item.view} from={sourceText(snapshot, item.view.sourceMemoryId)} entering={entering.has(item.id)} onShelf={onOpenShelf} />
             case 'plan': return (
               <PlanCard key={item.id} plan={item.view} pomodoro={pomodoro} entering={entering.has(item.id)}
                 onConfirm={() => { void dispatch({ type: 'pomodoro.confirm', planId: item.id }) }}

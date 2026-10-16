@@ -17,8 +17,11 @@ import { CharacterControls } from './CharacterControls'
 
 type Action = AppCommand extends infer Command ? Command extends AppCommand ? Omit<Command, 'epoch' | 'protocolVersion' | 'requestId'> : never : never
 
-export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
-  const [open, setOpen] = useState(false)
+export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: { bridge: AppBridge; snapshot: AppSnapshot; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  // 书本的“设置”书签也能打开这里：开关由 App 持有时听 App 的
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = openProp ?? ownOpen
+  const setOpen = (value: boolean) => { if (onOpenChange) onOpenChange(value); else setOwnOpen(value) }
   const [error, setError] = useState('')
   const [approving, setApproving] = useState<string | null>(null)
   const [plannedCount, setPlannedCount] = useState(2)
