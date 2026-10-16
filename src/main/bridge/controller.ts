@@ -17,6 +17,7 @@ import type { McpService } from '../mcp/service'
 import type { BackupService } from '../backup/service'
 import type { QuillService } from '../gifts/quill'
 import type { ModelSettingsService } from '../config/model-settings'
+import type { CompanionWindows, WindowSurface } from '../windows/companion'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
@@ -43,6 +44,10 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('mcp.connect'), serverId: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ ...envelope, type: z.literal('mcp.disconnect'), serverId: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/) }),
   z.strictObject({ ...envelope, type: z.literal('models.configure') }),
+  z.strictObject({ ...envelope, type: z.literal('window.mini') }),
+  z.strictObject({ ...envelope, type: z.literal('window.book') }),
+  z.strictObject({ ...envelope, type: z.literal('window.mini.hover'), over: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('window.mini.move'), dx: z.number().int().min(-10000).max(10000), dy: z.number().int().min(-10000).max(10000) }),
   z.strictObject({ ...envelope, type: z.literal('privacy.set'), enabled: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('document.attachment'), attachmentId: z.string().max(128) }),
   z.strictObject({ ...envelope, type: z.literal('document.retry'), documentId: z.string().max(128) }),
@@ -79,6 +84,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let quill: QuillService | undefined
   let diagnostics: (() => DiagnosticsView) | undefined
   let modelSettings: ModelSettingsService | undefined
+  let windows: CompanionWindows | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
     protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0,
@@ -105,7 +111,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     for (const request of saved.requests.slice(-1000)) requests.set(request.requestId, { signature: request.commandHash,
       ack: { protocolVersion: PROTOCOL_VERSION, requestId: request.requestId, epoch: snapshot.epoch, status: 'accepted' } })
   }
-  const updatePose = () => { snapshot.companion.pose = snapshot.companion.lightsOut ? 'sleeping' : { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode] }
+  const updatePose = () => { snapshot.companion.pose = { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode] }
   updatePose()
   let execution: { source: 'real' | 'fake'; send(text: string, requestId: string, hash: string): void; stop(id: string): boolean; stateChanged(): void } | undefined
   let executionReady = false
@@ -159,6 +165,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     }
     if (quill) snapshot.quill = quill.read()
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
+    if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
     const event: AppEvent = { protocolVersion: PROTOCOL_VERSION, epoch: snapshot.epoch, revision: snapshot.revision,
       occurredAtMs: snapshot.clock.nowMs, type: 'state.snapshot', reason, snapshot: structuredClone(snapshot), ...(requestId ? { requestId } : {}) }
@@ -167,11 +174,12 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   const reject = (requestId: string, code: PublicErrorCode): CommandAck => ({
     protocolVersion: PROTOCOL_VERSION, requestId, epoch: snapshot.epoch, status: 'rejected', error: { code, retryable: false },
   })
-  const dispatch = (input: unknown): CommandAck => {
+  const dispatch = (input: unknown, surface: WindowSurface = 'book'): CommandAck => {
     const parsed = schema.safeParse(input)
     if (!parsed.success) return reject('invalid', 'invalid-command')
     const command: AppCommand = parsed.data
     if (command.epoch !== snapshot.epoch) return reject(command.requestId, 'stale-epoch')
+    if ((command.type === 'window.mini.hover' || command.type === 'window.mini.move') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
     const signature = commandHash(command)
     const prior = requests.get(command.requestId)
     if (prior) return prior.signature === signature ? structuredClone(prior.ack) : reject(command.requestId, 'invalid-command')
@@ -214,6 +222,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       catch { ack = reject(command.requestId, 'internal') }
     } else if (documents && (command.type === 'privacy.set' || command.type.startsWith('document.') || command.type === 'developer.documents' || command.type === 'developer.document.import' || (command.type === 'artifact.open' && documents.ownsArtifact(command.artifactId)))) {
       try { const error = command.type === 'artifact.open' ? documents.openArtifact(command.artifactId) : documents.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
+    } else if (windows && command.type.startsWith('window.')) {
+      try { const error = windows.dispatch(command, surface); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('mode', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (modelSettings && command.type === 'models.configure') {
       try { const error = modelSettings.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
@@ -269,6 +280,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachBackup: (port: BackupService) => { backup = port; publish('connection') },
     attachQuill: (port: QuillService) => { quill = port; publish('connection') },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
+    attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },
     readDiagnostics: () => { if (runtime?.view().developer.mode !== 'developer' || !diagnostics) throw new Error('DIAGNOSTICS_UNAVAILABLE'); return diagnostics() },
     readSession: (id: unknown) => {

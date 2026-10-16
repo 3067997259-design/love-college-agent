@@ -7,17 +7,23 @@ import { MiniCompanion } from './MiniCompanion'
 
 /**
  * 迷你窗的根：主进程用 ?view=mini 载入同一套渲染代码，走同一个 bridge。
- * “回到书本”“鼠标在纸上”“挪窗口”三条命令等 GPT 的窗口接口落地后再接；
- * 在那之前，只有浏览器预览里点纸会换回书本页面，拖动在预览里挪的是假桌面上的框。
+ * 原生窗口命令走同一条受限 bridge，主进程辨别实际发送窗口；预览保留假桌面的交互。
  */
 export function MiniApp({ bridge, fake }: { bridge: AppBridge; fake: FakeBridge | null }) {
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null)
   useEffect(() => connectBridge(bridge, setSnapshot, () => setSnapshot(null)), [bridge])
+  const send = (body: Record<string, unknown>) => { void bridge.getSnapshot().then((snapshot) => bridge.dispatch({ ...body, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() } as import('../../../shared').AppCommand)).catch(() => {}) }
+  useEffect(() => {
+    if (fake) return
+    const released = (event: PointerEvent) => send({ type: 'window.mini.hover', over: !!document.elementFromPoint(event.clientX, event.clientY)?.closest('.mini-paper') })
+    window.addEventListener('pointerup', released); window.addEventListener('pointercancel', released)
+    return () => { window.removeEventListener('pointerup', released); window.removeEventListener('pointercancel', released) }
+  }, [bridge, fake])
   if (!snapshot) return null
 
   const mini = (
-    <MiniCompanion snapshot={snapshot} onExpand={() => { if (fake) openBookPreview() }} onHover={() => {}}
-      onMove={(dx, dy) => { if (fake) movePreviewFrame(dx, dy) }} />
+    <MiniCompanion snapshot={snapshot} onExpand={() => { if (fake) openBookPreview(); else send({ type: 'window.book' }) }} onHover={(over) => { if (!fake) send({ type: 'window.mini.hover', over }) }}
+      onMove={(dx, dy) => { if (fake) movePreviewFrame(dx, dy); else send({ type: 'window.mini.move', dx: Math.round(dx), dy: Math.round(dy) }) }} />
   )
   if (!fake) return mini
   return (

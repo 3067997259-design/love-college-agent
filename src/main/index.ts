@@ -48,6 +48,7 @@ import { createQuillService, quillTools, type QuillService } from './gifts/quill
 import { buildDiagnostics } from './developer/diagnostics'
 import { createTaskModelPorts } from './model/task-ports'
 import { createModelSettings, providerConfigPath, type ModelSettingsService } from './config/model-settings'
+import { createCompanionWindows, type CompanionWindows } from './windows/companion'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -83,6 +84,7 @@ let mcpFixture: Awaited<ReturnType<typeof startMcpFixture>> | undefined
 let backup: BackupService | undefined
 let quill: QuillService | undefined
 let modelSettings: ModelSettingsService | undefined
+let companionWindows: CompanionWindows | undefined
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -93,6 +95,16 @@ function createWindow(): void {
     },
   })
   bridge!.attach(window)
+  companionWindows = createCompanionWindows({ book: window, clock, uiClock: systemClock, scheduler: scheduler!, settings: prepared.pluginSettings, snapshot: controller!.getSnapshot, subscribe: controller!.subscribe, changed: () => controller?.refresh('mode'),
+    createMini: (bounds) => {
+      const mini = new BrowserWindow({ ...bounds, title: 'Love College Agent · Mini', show: false, frame: false, thickFrame: false, transparent: true, backgroundColor: '#00000000', alwaysOnTop: true, skipTaskbar: true, resizable: false, maximizable: false, minimizable: false, hasShadow: false,
+        webPreferences: { preload: join(__dirname, '../preload/index.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false } })
+      bridge!.attach(mini, 'mini'); mini.webContents.setWindowOpenHandler(() => ({ action: 'deny' })); mini.webContents.on('will-navigate', (event) => event.preventDefault())
+      if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) { const url = new URL(process.env.ELECTRON_RENDERER_URL); url.searchParams.set('view', 'mini'); void mini.loadURL(url.toString()) }
+      else void mini.loadFile(join(__dirname, '../renderer/index.html'), { query: { view: 'mini' } })
+      return mini
+    } })
+  controller!.attachWindows(companionWindows)
   window.once('ready-to-show', () => window.show())
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   window.webContents.on('will-navigate', (event) => event.preventDefault())
@@ -285,6 +297,7 @@ app.on('before-quit', (event) => {
     closing = true
     pomodoro?.dispose()
     quill?.dispose()
+    companionWindows?.dispose()
     const closeCampus = campus?.close()
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()
