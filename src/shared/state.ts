@@ -312,6 +312,13 @@ export interface WindowsView {
   miniAlwaysOnTop: boolean
   miniClickThrough: boolean
 }
+export interface OnboardingView {
+  status: 'needed' | 'completed'
+  userName: string | null
+  characterName: string
+  completedAtMs: number | null
+}
+
 export interface AppSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
@@ -340,4 +347,6 @@ export interface AppSnapshot {
   quill?: QuillView
   modelSettings?: ModelSettingsView
   windows?: WindowsView
+  /** Main-owned, persisted per private profile/owner. Booth always projects completed. */
+  onboarding?: OnboardingView
 }

@@ -2,6 +2,12 @@
 
 此目录是两条编码线唯一共用的契约入口，不依赖 Electron、Node 或主进程模块。
 
+新手流程：真实快照提供 `onboarding`（旧 fixture 可省略）。新 profile 为 needed，userName=null、characterName="桃子"、completedAtMs=null；booth 始终投影 completed。正式界面据 status 决定是否显示向导，不从查询参数或本地存储决定入口。
+
+`onboarding.profile` 只修改提供的名字字段：userName 最多 20 个 Unicode code points，characterName 最多 12 个；拒绝换行／控制字符，trim 后空白分别设为 null／桃子；至少提供一项。不改变完成状态，写后重启仍在。`onboarding.complete` 标为 completed，用统一时钟记录 completedAtMs，重复完成保留原时间。`onboarding.reset` 清完成标记并重新进入向导，保留名字、聊天和业务数据；展位拒绝 reset。三条命令只能由书本主窗口发送。
+
+characterName 进入角色的系统称呼，userName 进入用户档案的“关于你”；二者都是用户配置，不是共同经历，不从配置事件生成聊天或记忆。私人存档携带以上字段，恢复已完成存档直接回书本。开头的“我已经有一本书了”复用 backup.import → awaiting-confirmation → backup.restore，不把选中文件当恢复成功。
+
 - `state.ts`：安全快照、时钟、角色状态、任务、消息、活动、候选与交付卡。
 - `commands.ts`：白名单命令与回执。accepted 只表示接收；完成必须看后续快照里的任务终态。
 - `events.ts`：先用完整快照事件，状态归主进程所有，避免前端再维护业务 reducer。水位与原始 journal seq 分开。

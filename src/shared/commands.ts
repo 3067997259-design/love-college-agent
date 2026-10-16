@@ -11,6 +11,11 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'turn.stop'; taskId: string }
   | { type: 'mode.set'; mode: 'work' | 'quiet' | 'rest' }
   | { type: 'lights.set'; lightsOut: boolean }
+  /** Trimmed single-line text: userName <= 20 code points, characterName <= 12. Empty resets to null / 桃子. */
+  | { type: 'onboarding.profile'; userName?: string; characterName?: string }
+  | { type: 'onboarding.complete' }
+  /** Reopen initialization; retain names and all private business/history data. Refused in booth mode. */
+  | { type: 'onboarding.reset' }
   | { type: 'pomodoro.start'; planId: string }
   | { type: 'pomodoro.plan'; plan: PomodoroPlanInput }
   | { type: 'pomodoro.confirm'; planId: string }
