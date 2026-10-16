@@ -9,7 +9,7 @@ import type { SettingsStore } from '../config/settings'
 import { createPrivacyFilter, type PrivacyModel } from '../privacy/filter'
 import { manifestSchema, type PluginManifest } from './manifest'
 
-interface Entry { view: PluginView; manifest?: PluginManifest; folder?: string; code?: string; tools: HarnessTool[] }
+interface Entry { view: PluginView; manifest?: PluginManifest; folder?: string; code?: string; tools: HarnessTool[]; handlesPrivacy?: boolean }
 const resultSchema = z.strictObject({ ok: z.boolean(), raw: z.json(), visible: z.json(),
   fields: z.record(z.string().max(40), z.union([z.string().max(100), z.number().finite(), z.boolean()])).optional() })
 const hash = (text: string) => createHash('sha256').update(text).digest('hex')
@@ -37,22 +37,22 @@ export function createPluginRegistry(options: { root: string; settings: Settings
     if (entry.view.status !== 'enabled') return { ok: false, raw: { error: 'plugin-disabled' }, visible: { error: 'plugin-disabled' } }
     // Fail before invoking even a read operation if its mandatory privacy dependency is absent.
     const filtering = entry.view.privacy === 'always' || (entry.view.privacy === 'optional' && options.fileFiltering?.())
-    if (filtering && !options.privacyModel) return { ok: false, raw: { error: 'privacy-unavailable' }, visible: { error: 'privacy-unavailable' } }
+    if (filtering && !entry.handlesPrivacy && !options.privacyModel) return { ok: false, raw: { error: 'privacy-unavailable' }, visible: { error: 'privacy-unavailable' } }
     const result = resultSchema.parse(await tool.run(input, context))
     if (JSON.stringify(result).length > 1_000_000) throw new Error('PLUGIN_RESULT_TOO_LARGE')
-    if (!filtering) return result
+    if (!filtering || entry.handlesPrivacy) return result
     const filtered = await filter(JSON.stringify(result.raw))
     return filtered.ok ? { ok: result.ok, raw: result.raw, visible: { ...filtered.fields, trust: filtered.trust }, fields: {} }
       : { ok: false, raw: result.raw, visible: { error: filtered.error }, fields: {} }
   } })
-  const registerBuiltin = (id: string, name: string, tools: HarnessTool[]) => {
+  const registerBuiltin = (id: string, name: string, tools: HarnessTool[], policy?: { handlesPrivacy: true; permissions: PluginView['permissions'] }) => {
     if (entries.has(id)) throw new Error('DUPLICATE_PLUGIN')
     const names = new Set([...entries.values()].flatMap((entry) => entry.view.tools))
     if (tools.some((tool) => names.has(tool.definition.name))) throw new Error('DUPLICATE_TOOL')
     const fingerprint = hash(JSON.stringify(tools.map((tool) => tool.definition)))
     const saved = options.settings.read().plugins[id]
     const entry: Entry = { view: { id, name, version: '1.0.0', source: 'builtin', status: saved?.enabled === false ? 'disabled' : 'enabled',
-      privacy: saved?.privacy ?? 'none', permissions: [], tools: tools.map((tool) => tool.definition.name), fingerprint }, tools: [] }
+      privacy: policy ? 'always' : saved?.privacy ?? 'none', permissions: policy?.permissions ?? [], ...(policy ? { privacyLocked: true } : {}), tools: tools.map((tool) => tool.definition.name), fingerprint }, tools: [], handlesPrivacy: policy?.handlesPrivacy }
     entry.tools = tools.map((tool) => wrap(entry, tool)); entries.set(id, entry)
   }
   const discover = () => {
@@ -127,6 +127,7 @@ export function createPluginRegistry(options: { root: string; settings: Settings
     },
     setPrivacy: (id: string, privacy: PluginView['privacy']): PublicErrorCode | undefined => {
       const entry = entries.get(id); if (!entry) return 'invalid-command'
+      if (entry.view.privacyLocked && privacy !== 'always') return 'permission-denied'
       options.settings.update((draft) => { draft.plugins[id] = { enabled: entry.view.status === 'enabled', fingerprint: entry.view.fingerprint, privacy } })
       entry.view.privacy = privacy
     },

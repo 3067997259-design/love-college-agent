@@ -1,0 +1,28 @@
+import { useState } from 'react'
+import type { AppBridge, AppCommand, AppSnapshot, MailScenarioId } from '../../../shared'
+
+export function MailboxControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
+  const [error, setError] = useState('')
+  const mailbox = snapshot.mailbox
+  if (!mailbox) return null
+  const send = async (body: { type: 'mail.scan' | 'campus.export' } | { type: 'developer.mailbox'; scenarioId: MailScenarioId }) => {
+    try {
+      const ack = await bridge.dispatch({ ...body, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() } as AppCommand)
+      setError(ack.status === 'rejected' ? ack.error.code : '')
+    } catch { setError('connection-failed') }
+  }
+  const labels = { blocked: '来源阻塞', idle: '等待扫描', scanning: '正在扫描', ready: '扫描完成', failed: '部分内容未能处理', disabled: '插件已停用' }
+  return <div aria-label="邮箱控制" data-source={mailbox.source} data-status={mailbox.status}>
+    <h2>邮箱 · {mailbox.source === 'fake' ? '合成数据' : '真实来源'}</h2>
+    <p>{mailbox.folderLabel} · {labels[mailbox.status]}</p>
+    {mailbox.source === 'real' && <p>IMAP 仍被连接重置阻塞，本轮没有连接或读取真实邮箱。</p>}
+    <p>服务器未读：{mailbox.unseenCount ?? '未能观察'} · 已处理：{mailbox.processedCount} · 待确认：{mailbox.pendingReviewCount}</p>
+    {snapshot.runtime?.developer.mode === 'developer' && <label>合成邮件场景 <select value={mailbox.scenarioId ?? 'initial'} disabled={mailbox.status === 'scanning'} onChange={(event) => void send({ type: 'developer.mailbox', scenarioId: event.target.value as MailScenarioId })}>
+      <option value="initial">初始：作业、活动与无待办馆讯</option><option value="deadline-change">新增截止时间变更</option><option value="malicious">恶意输出拒绝</option><option value="privacy-failure">隐私模型不可用</option><option value="empty">空邮箱</option>
+    </select></label>}
+    <button type="button" disabled={snapshot.companion.lightsOut || ['blocked', 'disabled', 'scanning'].includes(mailbox.status)} onClick={() => void send({ type: 'mail.scan' })}>{mailbox.source === 'fake' ? '扫描合成邮件' : '扫描邮箱'}</button>
+    <button type="button" disabled={!snapshot.candidates.some((item) => item.status === 'confirmed')} onClick={() => void send({ type: 'campus.export' })}>导出新确认事项</button>
+    {(mailbox.error || error) && <p role="alert">本次未完成：{mailbox.error?.code ?? error}。失败不表示没有新邮件。</p>}
+    <p>原文只供用户核对；她只收到校验过的字段。扫描不会确认事项，也不会改邮箱已读标记。</p>
+  </div>
+}

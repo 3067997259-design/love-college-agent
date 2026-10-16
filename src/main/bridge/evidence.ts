@@ -4,7 +4,7 @@ import type { EvidenceView, Scope } from '../../shared'
 const reference = z.string().min(1).max(128).regex(/^[A-Za-z0-9_.:-]+$/)
 const evidence = z.strictObject({
   subject: z.string().max(256), senderName: z.string().max(80), receivedAtMs: z.number().int().nonnegative(), excerpt: z.string().max(8000),
-  highlights: z.array(z.strictObject({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative(), field: z.enum(['deadlineIso', 'eventStartIso', 'locationText', 'title']) })).max(32),
+  highlights: z.array(z.strictObject({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative(), field: z.enum(['deadlineIso', 'eventStartIso', 'eventEndIso', 'locationText', 'title']) })).max(32),
 }).refine((value) => value.highlights.every((highlight) => highlight.start <= highlight.end && highlight.end <= value.excerpt.length))
 
 /** Implementations must resolve an opaque ref in this user/character scope, never as a path/URL. */
