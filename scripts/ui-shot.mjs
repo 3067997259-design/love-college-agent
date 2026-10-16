@@ -22,7 +22,7 @@ const server = await createServer({
   logLevel: 'error',
   plugins: [react()],
   resolve: { alias: { '@renderer': join(root, 'src/renderer/src') } },
-  server: { host: '127.0.0.1', port: Number(process.env.LCA_SHOT_PORT ?? 5174), strictPort: true },
+  server: { host: '127.0.0.1', port: Number(process.env.LCA_SHOT_PORT ?? 5175), strictPort: true },
 })
 await server.listen()
 const base = `http://127.0.0.1:${server.config.server.port}/`
