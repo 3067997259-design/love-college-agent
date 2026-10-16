@@ -14,7 +14,8 @@ export function CandidateCard({ view, bridge, onCommand, entering }: {
   const [previousEvidence, setPreviousEvidence] = useState<EvidenceView | 'loading' | 'failed' | null>(null)
   const [planned, setPlanned] = useState('')
   const request = useRef(0)
-  useEffect(() => () => { request.current++ }, [])
+  const previousRequest = useRef(0)
+  useEffect(() => () => { request.current++; previousRequest.current++ }, [])
   const open = evidence !== null
 
   async function toggleEvidence() {
@@ -40,8 +41,9 @@ export function CandidateCard({ view, bridge, onCommand, entering }: {
       </dl>
       {view.status === 'changed' && <div className="card-note"><p>变更待确认；已接受的截止仍为 {formatIso(view.change?.previousDeadlineIso ?? null)}。</p>
         {view.change && <button type="button" className="link-button" onClick={() => {
+          const id = ++previousRequest.current
           if (previousEvidence) { setPreviousEvidence(null); return }
-          setPreviousEvidence('loading'); void bridge.readEvidence(view.change!.previousEvidenceRef).then(setPreviousEvidence, () => setPreviousEvidence('failed'))
+          setPreviousEvidence('loading'); void bridge.readEvidence(view.change!.previousEvidenceRef).then((value) => { if (previousRequest.current === id) setPreviousEvidence(value) }, () => { if (previousRequest.current === id) setPreviousEvidence('failed') })
         }}>{previousEvidence ? '收起原确认邮件' : '看原确认邮件'}</button>}
         {previousEvidence && <Evidence state={previousEvidence} />}
       </div>}

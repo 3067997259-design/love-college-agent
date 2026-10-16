@@ -36,4 +36,9 @@ describe('mail isolation and evidence-bound extraction', () => {
     const pending = extractMail(mail, { source: 'fake', extract }, local, signal()); local.advanceBy(30_000)
     expect(await pending).toEqual({ ok: false, error: 'privacy-unavailable' }); expect(extract).toHaveBeenCalledTimes(1)
   })
+  it('rejects mixed date quotes and explicit zones rather than silently treating them as Shanghai time', () => {
+    for (const quote of ['2026-10-24T23:59:00Z', '2026-10-24 23:59+01:00', 'UTC 2026-10-24 23:59', '2026-10-24 23:59 至 2026-10-26 23:59']) {
+      expect(() => dateFromQuote(quote, mail.sentAtMs, clock)).toThrow()
+    }
+  })
 })

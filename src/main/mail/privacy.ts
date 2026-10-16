@@ -33,7 +33,11 @@ export function dateFromQuote(text: string, sentAtMs: number, clock: Clock, end 
   const explicit = text.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日(?:\s*[（(][^）)]*[）)])?\s*(\d{1,2}):(\d{2})/)
     ?? text.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})/)
   if (explicit) {
-    if ((text.match(/\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日/g)?.length ?? 0) > 1) throw new Error('MAIL_DATE_AMBIGUOUS')
+    const dates = text.match(/\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日|\d{4}-\d{2}-\d{2}/g) ?? []
+    if (dates.length !== 1) throw new Error('MAIL_DATE_AMBIGUOUS')
+    // This parser accepts Shanghai-local expressions only. Never silently discard an explicit zone.
+    const suffix = text.slice((explicit.index ?? 0) + explicit[0].length)
+    if (/^\s*(?::\d{2})?\s*(?:Z\b|[+-]\d{2}:?\d{2})|\b(?:UTC|GMT)\b/i.test(suffix) || /\b(?:UTC|GMT)\b/i.test(text)) throw new Error('MAIL_ZONE_UNSUPPORTED')
     let hour = Number(explicit[4]); let minute = Number(explicit[5])
     if (end) {
       const tail = text.slice((explicit.index ?? 0) + explicit[0].length).match(/^\s*[–—-]\s*(\d{1,2}):(\d{2})/)

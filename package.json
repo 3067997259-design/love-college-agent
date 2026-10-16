@@ -35,7 +35,8 @@
     "test:pomodoro": "pnpm build && node scripts/smoke-pomodoro.mjs",
     "test:pomodoro:realtime": "pnpm build && node scripts/smoke-pomodoro.mjs --real-time",
     "probe:pomodoro": "pnpm build && node scripts/probe-electron.mjs pomodoro",
-    "probe:campus": "pnpm build && node scripts/probe-electron.mjs campus"
+    "probe:campus": "pnpm build && node scripts/probe-electron.mjs campus",
+    "test:campus": "pnpm build && node scripts/smoke-campus.mjs"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",
