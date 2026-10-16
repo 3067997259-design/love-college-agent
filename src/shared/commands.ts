@@ -101,6 +101,8 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'flow.inspect'; section: 'status' | 'permissions' | 'diff'; flowId?: string }
   /** Start a new plan-only flow from a closed flow's frozen reference and evidence index. Fresh run approvals required. */
   | { type: 'flow.resume'; flowId: string }
+  /** Cancels only a subordinate read task of the current flow. Never restarts it automatically. */
+  | { type: 'flow.delegate.cancel'; delegateId: string }
   | { type: 'flow.undo'; changeId: string }
   /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
   | { type: 'flow.run'; code: string }
