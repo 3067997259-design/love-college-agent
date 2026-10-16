@@ -12,7 +12,7 @@ export type TaskStatus = 'queued' | 'running' | 'waiting-user' | 'cancelling' | 
 export const PUBLIC_ERROR_CODES = ['invalid-command', 'stale-epoch', 'unavailable', 'not-configured', 'permission-denied', 'connection-failed', 'privacy-unavailable', 'internal',
   'configuration-failed', 'upstream-busy', 'quota-exhausted', 'stream-interrupted', 'invalid-model-output', 'step-limit', 'repeat-limit', 'budget-exceeded',
   'privacy-invalid-output', 'evidence-unavailable', 'stale-candidate', 'export-failed', 'source-blocked',
-  'unsupported-file', 'file-too-large', 'file-unreadable', 'document-parse-failed', 'document-interrupted'] as const
+  'unsupported-file', 'file-too-large', 'file-unreadable', 'document-parse-failed', 'document-interrupted', 'memory-invalid-output', 'context-too-large'] as const
 export type PublicErrorCode = typeof PUBLIC_ERROR_CODES[number]
 
 export interface PublicError {
@@ -208,6 +208,38 @@ export interface FileImportAck {
   rejectedCount: number
   error?: PublicError
 }
+export interface MemoryItemView {
+  id: string
+  text: string
+  kind: 'fact' | 'experience'
+  tier: 'short_term' | 'long_term'
+  reviewStatus: 'unreviewed'
+  createdAtMs: number
+  accessCount: number
+  sourceSessionCount: number
+  supersededBy?: string
+}
+export interface MemoryView {
+  status: 'unconfigured' | 'idle' | 'extracting' | 'compacting' | 'failed'
+  source: 'real' | 'fake' | 'none'
+  shortTermCount: number
+  longTermCount: number
+  contextChars: number
+  lastExtractedAtMs: number | null
+  lastCompactedAtMs: number | null
+  /** Bounded display of safe, unreviewed memories; never original private source material. */
+  items: readonly MemoryItemView[]
+  scenarioId?: 'ready' | 'failure' | 'invalid'
+  error?: PublicError
+}
+export interface SessionPageInfo { sessionId: string; dayKey: string; messageCount: number; summarized: boolean }
+export interface SessionView {
+  dayKey: string
+  rolloverPending: boolean
+  /** Metadata only; user-only page reads are separate from the model context. */
+  pages: readonly SessionPageInfo[]
+}
+export interface SessionPage { sessionId: string; dayKey: string; messages: readonly MessageView[]; truncated: boolean }
 export interface AppSnapshot {
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
@@ -229,4 +261,6 @@ export interface AppSnapshot {
   mailbox?: MailboxView
   /** Metadata only. Neither extracted text nor generated document contents belong here. */
   documents?: DocumentsView
+  memory?: MemoryView
+  session?: SessionView
 }
