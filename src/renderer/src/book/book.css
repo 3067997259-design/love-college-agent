@@ -171,8 +171,8 @@
   opacity: calc(var(--lamp) * var(--lamp-on));
   mix-blend-mode: screen;
 }
-/* 近景：台灯在书桌左端，开着 */
-.room[data-shot='close'] { --lamp-x: 22%; --lamp-y: 60%; --lamp-on: 1; }
+/* 近景：台灯在书桌左端（画面左缘露出灯罩），开着 */
+.room[data-shot='close'] { --lamp-x: 3%; --lamp-y: 38%; --lamp-on: 1; }
 /* 远景：她出门或睡着，台灯是关着的 */
 .room[data-shot='wide'] { --lamp-x: 50%; --lamp-y: 50%; --lamp-on: 0; }
 
@@ -181,9 +181,8 @@
   transform-origin: 50% 85%;
   animation: breathe var(--breath-period) ease-in-out infinite;
 }
-/* 近景：她坐在书桌后面，胸部以上入画；桌子（前层）挡住胸口以下 */
-.room[data-shot='close'] .character { left: 193px; top: 35px; width: 410px; }
-.room-front { position: absolute; left: 0; top: 73px; width: 100%; user-select: none; }
+/* 近景：整张场景图铺满房间框；她和房间画在一起，不能单独呼吸 */
+.room[data-shot='close'] .character { inset: 0; animation: none; }
 /* 远景：书桌挪到窗下靠墙 */
 .room[data-shot='wide'] .character { left: 230px; top: 226px; width: 327px; animation: none; }
 .character-art { display: block; width: 100%; user-select: none; }
@@ -280,11 +279,12 @@
 }
 @keyframes letter-peek { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
-/* 近景：钟挂在右上方的墙上；门牌立在书桌左端；新邮件是桌上的一封信 */
-.room[data-shot='close'] .wall-clock { left: auto; right: 4%; top: 4%; width: 70px; height: 70px; }
-.room[data-shot='close'] .door-sign { left: 3%; top: 72%; transform: rotate(-2deg); font-size: 15px; }
+/* 近景：钟立在她身后的窗台上；门牌立在书桌左前角；新邮件是她面前桌上的一封信 */
+.room[data-shot='close'] .wall-clock { left: 24%; top: 43.5%; width: 62px; height: 62px; }
+.room[data-shot='close'] .wall-clock-time { font-size: 16px; }
+.room[data-shot='close'] .door-sign { left: 4%; top: 84%; transform: rotate(-3deg); font-size: 15px; }
 .room[data-shot='close'] .door-sign::before { display: none; }
-.room[data-shot='close'] .mail-slot { left: 40%; top: 77%; width: auto; height: auto; background: none; }
+.room[data-shot='close'] .mail-slot { left: 60%; top: 86%; width: auto; height: auto; background: none; }
 .room[data-shot='close'] .mail-letter { position: relative; display: block; left: 0; bottom: 0; transform: rotate(-7deg); animation: none; box-shadow: var(--shadow-card); }
 
 /* 她出门了：房间里是空椅子，墙边一张便签 */

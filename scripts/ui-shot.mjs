@@ -33,6 +33,7 @@ try {
     const errors = []
     page.on('pageerror', (e) => errors.push(String(e)))
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
+    page.on('response', (r) => { if (r.status() >= 400) errors.push(`${r.status()} ${r.url()}`) })
     for (const id of scenarios) {
       await page.goto(`${base}?scenario=${id}`)
       await page.locator('.stage').waitFor()

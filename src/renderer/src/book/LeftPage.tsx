@@ -1,8 +1,4 @@
 import type { AppSnapshot } from '../../../shared'
-import closeBack from '../assets/room/close_back.webp'
-import closeBackLine from '../assets/room/close_back_line.webp'
-import closeFront from '../assets/room/close_front.webp'
-import closeFrontLine from '../assets/room/close_front_line.webp'
 import wideRoom from '../assets/room/wide_room.webp'
 import wideRoomLine from '../assets/room/wide_room_line.webp'
 import { Character, type Shot } from './Character'
@@ -14,7 +10,7 @@ const LOCATION_LABEL: Record<string, string> = { shore: '海岸', swing: '秋千
 
 /**
  * 左页：她在的地方（体验设计 §2）。画面是她的状态的投影，不是随机动画。
- * 她在：固定近景，像坐在她书桌斜对面，状态变了她转身，镜头不动。
+ * 她在：固定近景，像坐在她书桌旁边，状态变了她转头，镜头不动。近景每个姿势是一整张图（她、书桌、窗一起画，透视才对）。
  * 她不在（出门）或睡着：远景房间。她在，你就离她很近；她不在，你看到的是空房间。
  */
 export function LeftPage({ snapshot }: { snapshot: AppSnapshot }) {
@@ -27,23 +23,20 @@ export function LeftPage({ snapshot }: { snapshot: AppSnapshot }) {
   const newMail = mailReady && companion.mailboxUnseen > 0
   const lastLine = [...messages].reverse().find((m) => m.role === 'assistant')
   const timerOn = pomodoro.phase !== 'idle'
-  const layers = shot === 'close'
-    ? { back: [closeBack, closeBackLine], front: [closeFront, closeFrontLine] }
-    : { back: [wideRoom, wideRoomLine], front: null }
+  // 远景是空房间加书桌组；近景的整张图就在 Character 里，没有单独的背景
+  const back = shot === 'wide' ? [wideRoom, wideRoomLine] : null
 
   return (
     <section className="page page-left" aria-label="她在的地方">
       <div className="room" data-shot={shot} data-location={companion.locationId} data-pose={pose}>
         {/* 下层是铅笔线稿，上层是彩色；彩色只留中间，外圈露出铅笔：铅笔是你的，颜色是她的 */}
         <div className="room-pencil">
-          <img className="room-bg" src={layers.back[1]} alt="" draggable={false} />
+          {back && <img className="room-bg" src={back[1]} alt="" draggable={false} />}
           <Character shot={shot} pose={pose} expression={companion.expression} variant="line" />
-          {layers.front && <img className="room-front" src={layers.front[1]} alt="" draggable={false} />}
         </div>
         <div className="room-color">
-          <img className="room-bg" src={layers.back[0]} alt="" draggable={false} />
+          {back && <img className="room-bg" src={back[0]} alt="" draggable={false} />}
           <Character shot={shot} pose={pose} expression={companion.expression} />
-          {layers.front && <img className="room-front" src={layers.front[0]} alt="" draggable={false} />}
         </div>
 
         {/* 墙上的钟就是番茄钟；不计时的时候显示现在几点 */}
