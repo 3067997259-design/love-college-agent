@@ -5,7 +5,12 @@ import type { SessionStore } from '../store/session'
 import type { BinaryAssets } from '../storage/assets'
 import type { Clock } from '../clock'
 import { calendarDay } from '../life/service'
-export function createRoomProjection(root: string, store: SessionStore, assets: BinaryAssets, clock: Clock) {
+/**
+ * `ownerKey` scopes deletion to the profile that actually wrote the files: if a room folder is ever reused
+ * by another owner (a different active character landing on the same path, or a copied room), the foreign
+ * files are kept and the ledger is started fresh instead of deleting someone else's projections.
+ */
+export function createRoomProjection(root: string, store: SessionStore, assets: BinaryAssets, clock: Clock, ownerKey: string) {
   const absolute = resolve(root)
   const checkedDirectory = (path: string) => {
     const rel = relative(absolute, path); if (isAbsolute(rel) || rel.startsWith('..')) throw new Error('ROOM_INVALID')
@@ -28,11 +33,14 @@ export function createRoomProjection(root: string, store: SessionStore, assets: 
   const managed = ['日记', '礼物', '运行记录', '带回来的东西'] as const
   const ledgerFile = join(absolute, '.managed.json')
   const readLedger = () => {
-    try { const value: unknown = JSON.parse(readFileSync(ledgerFile, 'utf8')); if (Array.isArray(value) && value.every((item) => typeof item === 'string')) return new Set(value) } catch { /* A missing or unreadable ledger means we cannot prove ownership, so nothing is deleted. */ }
+    try { const value: unknown = JSON.parse(readFileSync(ledgerFile, 'utf8'))
+      if (value && typeof value === 'object' && (value as { owner?: unknown }).owner === ownerKey && Array.isArray((value as { paths?: unknown }).paths)) {
+        const paths = (value as { paths: unknown[] }).paths; if (paths.every((item) => typeof item === 'string')) return new Set(paths as string[])
+      } } catch { /* A missing or unreadable ledger means we cannot prove ownership, so nothing is deleted. */ }
     return new Set<string>()
   }
   const writeLedger = (paths: readonly string[]) => {
-    const temporary = ledgerFile + '.' + randomUUID() + '.tmp'; writeFileSync(temporary, JSON.stringify([...paths].sort()), { flag: 'wx', mode: 0o600 }); renameSync(temporary, ledgerFile)
+    const temporary = ledgerFile + '.' + randomUUID() + '.tmp'; writeFileSync(temporary, JSON.stringify({ owner: ownerKey, paths: [...paths].sort() }), { flag: 'wx', mode: 0o600 }); renameSync(temporary, ledgerFile)
   }
   const write = (folder: string, name: string, bytes: Buffer | string) => {
     if (!/^[a-zA-Z0-9_.-]+$/.test(name)) throw new Error('ROOM_INVALID'); const directory = checkedDirectory(join(absolute, folder)); const file = join(directory, name)

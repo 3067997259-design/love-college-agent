@@ -347,7 +347,7 @@ void app.whenReady().then(async () => {
       persist: (layout) => prepared.pluginSettings.update((draft) => { draft.roomLayout = { pathVersion: 2, root: layout.root, ...(layout.folder ? { folder: layout.folder } : {}) } }),
     })
     const roomRoot = roomLayout.root
-    const roomProjection = createRoomProjection(roomRoot, store, binaryAssets, clock)
+    const roomProjection = createRoomProjection(roomRoot, store, binaryAssets, clock, ownerRoom)
     scheduler.schedule('room.projection', clock.nowMs() + 30000, () => roomProjection.rebuild(), { everyMs: 60000 })
     const desk = createDesk(join(roomRoot, '书桌'))
     if (restoreReceipt?.status === 'restored') {
