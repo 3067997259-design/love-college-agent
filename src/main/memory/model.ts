@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { Clock } from '../clock'
 import { redactFixed } from '../privacy/redact'
 import type { SeenFragment } from './seen'
-import { memoryDigest } from './seen'
+import { memoryDigest, userOrigins } from './seen'
 import type { MemoryEntry, MemorySource } from './schema'
 import fixtures from './fixtures.json'
 
@@ -30,7 +30,7 @@ export function validateMemories(output: unknown, input: readonly SeenFragment[]
       const id = 'mem:' + memoryDigest(JSON.stringify([owner.userId, owner.characterId, item.kind, item.quote]))
       const supersedes = item.replaceTopic ? [...existing, ...result].filter((old) => old.id !== id && !('supersededBy' in old && old.supersededBy) && !result.some((entry) => entry.supersedes.includes(old.id)) && old.kind === 'fact' && old.topic === item.topic && old.text.includes(item.topic)
         && old.sources.every((source) => source.atMs < fragment.atMs || source.atMs === fragment.atMs && (source.sessionId !== fragment.sessionId || source.frameSeq < fragment.frameSeq || source.frameSeq === fragment.frameSeq && source.index <= fragment.index))).map((old) => old.id) : []
-      if (item.replaceTopic && (fragment.role !== 'user' || item.kind !== 'fact' || !/改为|改成|更正|不再/.test(item.quote))) throw new Error('MEMORY_CORRECTION_UNGROUNDED')
+      if (item.replaceTopic && (fragment.role !== 'user' || !userOrigins(fragment.origin) || item.kind !== 'fact' || !/改为|改成|更正|不再/.test(item.quote))) throw new Error('MEMORY_CORRECTION_UNGROUNDED')
       const duplicate = result.find((entry) => entry.id === id)
       if (duplicate) duplicate.sources.push(sourceRef(fragment))
       else result.push({ id, text: item.quote, kind: item.kind, topic: item.topic, sources: [sourceRef(fragment)], supersedes })
