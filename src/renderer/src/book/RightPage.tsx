@@ -105,10 +105,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
             case 'plan': return (
               <PlanCard key={item.id} plan={item.view} pomodoro={pomodoro} entering={entering.has(item.id)}
                 onConfirm={() => { void dispatch({ type: 'pomodoro.confirm', planId: item.id }) }}
-                onDismiss={() => {
-                  // 独立草案用 discard；主进程的草案实现落地前，草案还放在 plan 里（status=proposed），只能用 stop 收起
-                  void dispatch(pomodoro.proposal?.id === item.id ? { type: 'pomodoro.discard', planId: item.id } : { type: 'pomodoro.stop' })
-                }} />
+                onDismiss={() => { void dispatch({ type: 'pomodoro.discard', planId: item.id }) }} />
             )
           }
         })}
