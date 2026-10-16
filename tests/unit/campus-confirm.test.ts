@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AppCommand } from '../../src/shared'
 import { createManualClock } from '../../src/main/clock'
 import { openJournal } from '../../src/main/journal/file'
@@ -13,6 +13,7 @@ import { createFakeMailbox } from '../../src/main/mail/fake'
 import { digest, evidenceView, type EvidenceVault } from '../../src/main/mail/evidence-vault'
 import type { SourceMail } from '../../src/main/mail/types'
 import type { CheckedMail } from '../../src/main/mail/privacy'
+import { createArtifactStore } from '../../src/main/artifacts/store'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
@@ -26,12 +27,13 @@ async function fixture() {
   const vault: EvidenceVault = { put: (key, mail, quotes) => { const ref = 'e:' + digest(key + JSON.stringify(quotes)); raw.set(ref, { mail, quotes }); return ref },
     read: (ref, scope) => { const data = raw.get(ref); if (!data || scope.userId !== 'u' || scope.characterId !== 'c') throw new Error('EVIDENCE_UNAVAILABLE'); return evidenceView(data.mail, data.quotes) }, cache: () => {}, close: () => {} }
   const scheduler = createScheduler(clock); const fake = createFakeMailbox(clock); const emitted: string[] = []
-  const campus = createCampusService({ clock, store, scheduler, vault, source: fake.source, privacy: fake.privacy, development: fake, changed: () => {}, emit: (_id, text) => emitted.push(text) })
+  const artifacts = createArtifactStore(root, store.scope)
+  const campus = createCampusService({ clock, store, scheduler, vault, artifacts, source: fake.source, privacy: fake.privacy, development: fake, changed: () => {}, emit: (_id, text) => emitted.push(text) })
   cleanups.push(async () => { await campus.close(); scheduler.dispose(); store.close() })
   await campus.scanNow()
   const id = campus.candidates().find((item) => item.kind === 'deadline')!.id
   const command = (body: { type: 'candidate.confirm' | 'candidate.ignore'; expectedRevision?: number; plannedCompletionIso?: string | null }) => ({ ...body, candidateId: id, protocolVersion: 1, epoch: 'test', requestId: String(store.records().length) } as AppCommand)
-  return { campus, fake, vault, raw, id, store, clock, emitted, command }
+  return { campus, fake, vault, raw, id, store, clock, emitted, command, artifacts }
 }
 describe('user-only versioned campus confirmation', () => {
   it('rejects stale/missing versions and confirms idempotently while preserving the original deadline', async () => {
@@ -69,5 +71,30 @@ describe('user-only versioned campus confirmation', () => {
     const f = await fixture(); f.raw.clear()
     expect(f.campus.dispatch(f.command({ type: 'candidate.confirm', expectedRevision: 1 }))).toBe('evidence-unavailable')
     expect(f.campus.candidates().find((item) => item.id === f.id)?.status).toBe('candidate')
+  })
+  it('exports only confirmed revisions and updates the same calendar UID exactly once after change confirmation', async () => {
+    const f = await fixture(); f.campus.exportPending(); expect(f.campus.deliveries()).toHaveLength(0)
+    f.campus.dispatch(f.command({ type: 'candidate.confirm', expectedRevision: 1 })); f.campus.exportPending(); f.campus.exportPending()
+    expect(f.campus.deliveries()).toHaveLength(2)
+    const old = f.campus.repository.view().artifacts.find((entry) => entry.view.kind === 'calendar')!
+    const oldUid = f.artifacts.read(old).match(/^UID:(.+)$/m)![1].trim()
+    f.fake.select('deadline-change'); await f.campus.scanNow(); f.campus.exportPending()
+    expect(f.campus.deliveries()).toHaveLength(2)
+    f.campus.dispatch(f.command({ type: 'candidate.confirm', expectedRevision: 2 })); f.campus.exportPending(); f.campus.exportPending()
+    const calendars = f.campus.repository.view().artifacts.filter((entry) => entry.view.kind === 'calendar')
+    expect(calendars).toHaveLength(2); expect(f.campus.deliveries()).toHaveLength(4)
+    expect(f.artifacts.read(calendars[1])).toContain('UID:' + oldUid + '\r\nSEQUENCE:1')
+    expect(f.artifacts.read(old)).toContain('SEQUENCE:0')
+    expect(f.store.records().filter((entry) => entry.type === 'campus/exported')).toHaveLength(2)
+  })
+  it('records failed deliveries without marking the revision exported and replaces them on a successful retry', async () => {
+    const f = await fixture(); f.campus.dispatch(f.command({ type: 'candidate.confirm', expectedRevision: 1 }))
+    const write = vi.spyOn(f.artifacts, 'write').mockImplementation(() => { throw new Error('PRIVATE_OS_ERROR') })
+    f.campus.exportPending()
+    expect(f.campus.deliveries().map((view) => view.status)).toEqual(['failed', 'failed'])
+    expect(f.campus.repository.view().items.find((entry) => entry.current.id === f.id)?.exportedRevision).toBeUndefined()
+    expect(JSON.stringify(f.store.records())).not.toContain('PRIVATE_OS_ERROR')
+    write.mockRestore(); f.campus.exportPending()
+    expect(f.campus.deliveries().map((view) => view.status)).toEqual(['ready', 'ready'])
   })
 })
