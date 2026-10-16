@@ -188,7 +188,7 @@ export const SCENARIOS = {
     companion: { ...s.companion, mode: 'quiet', daypart: 'night', lightsOut: true, pose: 'desk-writing' },
   })),
 
-  /** 外出：左页翻到她在的地方；房间页伞架空着 */
+  /** 外出：保留空房间，去向写在桌上纸条（2026-10-16 用户定） */
   'out-shore': scenario((s) => ({
     clock: { ...s.clock, nowMs: T.sat1910 - 2 * 60 * MIN },
     companion: { ...s.companion, locationId: 'shore', pose: 'facing-user', expression: 'smile' },
