@@ -68,6 +68,22 @@ describe('grounding reaches the two real extraction paths', () => {
     const result = await extractMail(mail, { source: 'fake', extract: async () => ({ kind: 'deadline', task: '交作业', titleQuote: '交作业', sourceRole: 'teaching-assistant', deadline: { iso: '2026-10-24T23:59:00+08:00', quote: '2026 年 10 月 24 日 23:59' } }) }, clock, new AbortController().signal)
     expect(result.ok).toBe(false)
   })
+  it('rejects a mail task whose negation was stripped from a full-clause title (issue #15)', async () => {
+    const clock = createManualClock(0)
+    // 模型引用完整否定句作为标题，却把 task 抽成肯定式：朴素 source.includes(task) 会命中，必须拒绝。
+    const mail: SourceMail = { uidValidity: '1', uid: 9, subject: '本周不交作业', senderAddress: 'fixture@example.invalid', senderName: '合成发件人',
+      sentAtMs: clock.parse('2026-10-16T19:00:00+08:00'), receivedAtMs: 0, body: '合成。本周不交作业，截止：2026 年 10 月 24 日 23:59' }
+    const model = { source: 'fake' as const, extract: async () => ({ kind: 'deadline', task: '交作业', titleQuote: '本周不交作业', sourceRole: 'teaching-assistant', deadline: { iso: '2026-10-24T23:59:00+08:00', quote: '2026 年 10 月 24 日 23:59' } }) }
+    expect((mail.subject + '\n' + mail.body).includes('交作业')).toBe(true)
+    expect((await extractMail(mail, model, clock, new AbortController().signal)).ok).toBe(false)
+  })
+  it('rejects a title that drops the hypothetical or non-factive operator', async () => {
+    const clock = createManualClock(0)
+    const mail: SourceMail = { uidValidity: '1', uid: 10, subject: '如果下雨才改到周日', senderAddress: 'fixture@example.invalid', senderName: '合成发件人',
+      sentAtMs: clock.parse('2026-10-16T19:00:00+08:00'), receivedAtMs: 0, body: '合成。如果下雨才改到周日，截止：2026 年 10 月 24 日 23:59' }
+    const model = { source: 'fake' as const, extract: async () => ({ kind: 'event', task: '改到周日', titleQuote: '如果下雨才改到周日', sourceRole: 'teaching-assistant', deadline: null, eventStart: { iso: '2026-10-24T10:00:00+08:00', quote: '2026 年 10 月 24 日' } }) }
+    expect((await extractMail(mail, model, clock, new AbortController().signal)).ok).toBe(false)
+  })
   it('still accepts an ordinary grounded mail task', async () => {
     const clock = createManualClock(0)
     const mail: SourceMail = { uidValidity: '1', uid: 2, subject: '普通作业', senderAddress: 'fixture@example.invalid', senderName: '合成发件人',
