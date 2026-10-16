@@ -1,0 +1,4 @@
+{
+  "tool": "Read an existing, explicitly enabled optical impression of an old witnessed page. Only exact source-backed fragments survive the OCR guard. These are unreviewed, possibly incomplete impressions, not current facts, external evidence or new memories. Missing detail is unknown. Use user-anchored recall_seen for exact names, numbers and dates; never invent the missing text. This tool does not call OCR or read arbitrary files.",
+  "uncertainty": "unreviewed-impression; incomplete; exact details require witnessed-original lookup"
+}
