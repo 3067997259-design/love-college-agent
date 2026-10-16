@@ -28,6 +28,8 @@ export interface ClockView { nowMs: number; timeZone: string; rate: number; froz
 export interface CompanionView {
   mode: InteractionMode
   lightsOut: boolean
+  /** Main-owned sleep, separate from lights/pause. Older snapshots may omit it (awake). */
+  sleeping?: boolean
   locationId: string
   pose: string
   expression: string
