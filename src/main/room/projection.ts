@@ -1,5 +1,5 @@
-import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { basename, join, relative, resolve, isAbsolute } from 'node:path'
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { join, relative, resolve, isAbsolute } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { SessionStore } from '../store/session'
 import type { BinaryAssets } from '../storage/assets'
@@ -19,18 +19,20 @@ export function createRoomProjection(root: string, store: SessionStore, assets: 
    * leaves files that are no longer in the log (issue #9), and the folder is documented as a projection
    * that can always be regenerated. `书桌` is listed but deliberately not reconciled — it is the one part
    * of the room the user edits, and her tools write there too.
+   *
+   * Ownership is recorded, never inferred from the file name: a file the user saves into a projection
+   * folder (for example an ASCII `my-backup.zip`) is not ours to delete just because it looks like one of
+   * ours (issue #10). The ledger therefore stores exactly the relative paths this program wrote, and a
+   * file is removed only while it is both in the ledger and no longer expected by the current log.
    */
   const managed = ['日记', '礼物', '运行记录', '带回来的东西'] as const
-  const ownedFiles = (folder: string) => {
-    const names: string[] = []
-    for (const entry of readdirSync(checkedDirectory(join(absolute, folder)), { withFileTypes: true })) {
-      // An unexpected name, subdirectory or link is the user's, not ours: skip it instead of deleting it.
-      if (!entry.isFile() || !/^[a-zA-Z0-9_.-]+$/.test(entry.name)) continue
-      const file = join(absolute, folder, entry.name); const stats = lstatSync(file)
-      if (stats.isSymbolicLink() || !stats.isFile() || stats.nlink !== 1) continue
-      names.push(entry.name)
-    }
-    return names
+  const ledgerFile = join(absolute, '.managed.json')
+  const readLedger = () => {
+    try { const value: unknown = JSON.parse(readFileSync(ledgerFile, 'utf8')); if (Array.isArray(value) && value.every((item) => typeof item === 'string')) return new Set(value) } catch { /* A missing or unreadable ledger means we cannot prove ownership, so nothing is deleted. */ }
+    return new Set<string>()
+  }
+  const writeLedger = (paths: readonly string[]) => {
+    const temporary = ledgerFile + '.' + randomUUID() + '.tmp'; writeFileSync(temporary, JSON.stringify([...paths].sort()), { flag: 'wx', mode: 0o600 }); renameSync(temporary, ledgerFile)
   }
   const write = (folder: string, name: string, bytes: Buffer | string) => {
     if (!/^[a-zA-Z0-9_.-]+$/.test(name)) throw new Error('ROOM_INVALID'); const directory = checkedDirectory(join(absolute, folder)); const file = join(directory, name)
@@ -54,7 +56,17 @@ export function createRoomProjection(root: string, store: SessionStore, assets: 
     const life = rows.findLast((row) => row.type === 'life/state'); if (life?.type === 'life/state') plan('带回来的东西', 'catalog.json', JSON.stringify(life.view.items, null, 2))
     // Writes are atomic, so removing the leftovers only after every write succeeds cannot strand a half-built room.
     for (const [folder, files] of expected) for (const [name, bytes] of files) write(folder, name, bytes)
-    for (const folder of managed) for (const name of ownedFiles(folder)) if (!expected.get(folder)!.has(name)) rmSync(join(absolute, folder, basename(name)), { force: true })
+    const records = new Set<string>()
+    for (const [folder, files] of expected) for (const name of files.keys()) records.add(folder + '/' + name)
+    const ledger = readLedger()
+    // The previous ledger is the only proof of ownership. A first run (or an unreadable ledger) proves
+    // nothing, so it reconciles nothing and just starts recording what we wrote.
+    for (const entry of ledger) { if (records.has(entry)) continue; const [folder, ...rest] = entry.split('/'); if (!(managed as readonly string[]).includes(folder) || !/^[a-zA-Z0-9_.-]+$/.test(rest.join('/'))) continue
+      const file = join(absolute, folder, rest.join('/')); if (!existsSync(file)) continue; const stats = lstatSync(file)
+      // Anything that is not the plain file we wrote is left alone.
+      if (stats.isSymbolicLink() || !stats.isFile() || stats.nlink !== 1) continue
+      rmSync(file, { force: true }) }
+    writeLedger([...records])
   }
   rebuild(); return { root: absolute, rebuild }
 }
