@@ -1,0 +1,4 @@
+:root { font-family: system-ui, sans-serif; color: #292524; background: #fafaf9; }
+body { margin: 0; }
+main { max-width: 960px; margin: 48px auto; padding: 24px; }
+button, input, textarea { font: inherit; }

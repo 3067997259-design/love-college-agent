@@ -1,0 +1,55 @@
+{
+  "name": "love-college-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Love, College & Agent — Windows desktop agent",
+  "type": "module",
+  "main": "out/main/index.cjs",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=24.14.0",
+    "pnpm": ">=11 <12"
+  },
+  "scripts": {
+    "dev": "node scripts/run.mjs dev",
+    "start": "node scripts/run.mjs preview",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "rebuild:native": "node scripts/run.mjs rebuild",
+    "test:electron": "pnpm build && node scripts/smoke-electron.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "better-sqlite3": "13.0.3",
+    "imapflow": "2.4.3",
+    "jszip": "3.10.2",
+    "mailparser": "3.9.39",
+    "pdf-parse": "2.4.5",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "4.2.1",
+    "@eslint/js": "10.0.1",
+    "@types/better-sqlite3": "9.6.0",
+    "@types/mailparser": "3.9.0",
+    "@types/node": "^24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "44.7.2",
+    "electron-vite": "6.0.0",
+    "eslint": "10.12.0",
+    "globals": "17.13.0",
+    "playwright": "1.64.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.4"
+  }
+}

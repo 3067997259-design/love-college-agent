@@ -22,3 +22,10 @@ release/
 *.lca-save
 *.sqlite
 *.db
+
+# 本机开发数据与验收产物
+.local-data/
+.cache/
+test-results/
+playwright-report/
+*.tsbuildinfo

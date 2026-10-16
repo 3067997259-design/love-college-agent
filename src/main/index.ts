@@ -1,0 +1,33 @@
+import { app, BrowserWindow } from 'electron'
+import { join, resolve } from 'node:path'
+import { mkdirSync } from 'node:fs'
+
+const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(process.cwd(), '.local-data'))
+mkdirSync(dataDir, { recursive: true })
+mkdirSync(join(dataDir, 'chromium'), { recursive: true })
+app.setPath('userData', dataDir)
+app.setPath('sessionData', join(dataDir, 'chromium'))
+
+function createWindow(): void {
+  const window = new BrowserWindow({
+    width: 1200, height: 800, show: false,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.cjs'),
+      sandbox: true, contextIsolation: true, nodeIntegration: false,
+    },
+  })
+  window.once('ready-to-show', () => window.show())
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  window.webContents.on('will-navigate', (event) => event.preventDefault())
+  if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
+    void window.loadURL(process.env.ELECTRON_RENDERER_URL)
+  } else {
+    void window.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+}
+
+void app.whenReady().then(() => {
+  createWindow()
+  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
+})
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })

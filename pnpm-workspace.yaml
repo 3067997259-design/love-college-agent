@@ -1,0 +1,6 @@
+packages:
+  - .
+allowBuilds:
+  electron: true
+  esbuild: true
+  better-sqlite3: false

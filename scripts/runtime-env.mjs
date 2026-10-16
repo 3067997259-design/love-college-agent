@@ -1,0 +1,13 @@
+import { mkdirSync } from 'node:fs'
+import { basename, join } from 'node:path'
+
+export function runtimeEnv(root) {
+  const cacheRoot = process.platform === 'win32' ? join(root.slice(0, 3), '.lca-cache') : join(root, '.cache')
+  for (const part of ['tmp', 'electron', 'electron-builder', 'electron-gyp']) mkdirSync(join(cacheRoot, part), { recursive: true })
+  const env = { ...process.env, TEMP: join(cacheRoot, 'tmp'), TMP: join(cacheRoot, 'tmp'),
+    ELECTRON_CACHE: join(cacheRoot, 'electron'), ELECTRON_BUILDER_CACHE: join(cacheRoot, 'electron-builder'),
+    npm_config_devdir: join(cacheRoot, 'electron-gyp'), LCA_DATA_DIR: process.env.LCA_DATA_DIR ?? join(root, '.local-data'),
+    LCA_RENDERER_PORT: process.env.LCA_RENDERER_PORT ?? (basename(root).includes('gpt') ? '5273' : '5173') }
+  delete env.ELECTRON_RUN_AS_NODE
+  return env
+}
