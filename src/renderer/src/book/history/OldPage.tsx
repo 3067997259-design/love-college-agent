@@ -1,13 +1,11 @@
 import { useState } from 'react'
-import type { MessageView, RecallAnchor, SessionPage, SessionPageInfo } from '../../../../shared'
+import type { MessageView, SessionPage, SessionPageInfo } from '../../../../shared'
+import { MAX_QUOTE, quoteOnPage, type Quote } from './quote'
 import copy from '../../voice/book.zh.json'
 import { formatClock } from '../format'
 import { dayKeyLabel } from '../life/text'
 
-export interface Quote { anchor: RecallAnchor; text: string; dayKey: string }
-
-/** 主进程最多接受 1000 个 UTF-16 单元的引用；不把一个代理对切成两半 */
-const MAX_QUOTE = 1000
+export type { Quote }
 
 /**
  * 往回翻的一页（体验设计 §2“一天一页”）：她的墨色褪成铅笔灰，字始终能读；左页同时换成那天的照片。
@@ -23,7 +21,9 @@ export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQ
   onToday: () => void
   onQuote: (quote: Quote) => void
 }) {
-  const [pending, setPending] = useState<Quote | null>(null)
+  const [selection, setPending] = useState<Quote | null>(null)
+  // 选段只属于选它的那一页：翻页时组件按 sessionId 重建，这里再兜一层，读取中／失败时也不交别页的锚点（GitHub #19）
+  const pending = quoteOnPage(selection, page)
   const recallable = new Set(page?.recallableMessageIds ?? [])
 
   function select(message: MessageView, span: HTMLElement) {

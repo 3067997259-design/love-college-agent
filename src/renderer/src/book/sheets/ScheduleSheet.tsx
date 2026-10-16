@@ -4,6 +4,7 @@ import copy from '../../voice/book.zh.json'
 import { sendCommand, type CommandBody } from '../command'
 import { formatClock, formatIso } from '../format'
 import { fill } from '../life/text'
+import { visibleWorks } from './schedule'
 
 /**
  * 日程：今天的番茄、她今天的安排和书桌作品、接下来你确认过的事。
@@ -23,7 +24,7 @@ export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bri
       .map((outing) => ({ key: outing.id, at: outing.startsAtMs, state: outing.status as string, text: fill(copy.schedule.outing[outing.status], { place: copy.places[outing.place], time: formatClock(outing.returnsAtMs) }), note: '' })),
   ].sort((a, b) => a.at - b.at)
   const work = life?.work
-  const jobs = (work?.jobs ?? []).filter((job) => job.dayKey === life?.dayKey || job.status === 'running' || job.status === 'paused')
+  const jobs = visibleWorks(life)
   const next = snapshot.candidates.filter((candidate) => candidate.status === 'confirmed').map((candidate) => ({ candidate, iso: whenOf(candidate) }))
     .sort((a, b) => (a.iso ?? '9').localeCompare(b.iso ?? '9'))
 
