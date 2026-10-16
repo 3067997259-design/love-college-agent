@@ -7,6 +7,10 @@ import { clampMiniBounds } from './bounds'
 import { hasBlackMiniCorners, type MiniFallbackReason } from './presentation'
 
 export type WindowSurface = 'book' | 'mini'
+const safeWorkArea = (area: { x: number; y: number; width: number; height: number }) => {
+  const inset = Math.min(2, Math.floor(Math.min(area.width, area.height) / 4))
+  return { x: area.x + inset, y: area.y + inset, width: area.width - inset * 2, height: area.height - inset * 2 }
+}
 export function createCompanionWindows(options: { book: BrowserWindow; clock: Clock; uiClock: Clock; scheduler: Scheduler; settings: SettingsStore;
   initialFallbackReason?: MiniFallbackReason | null;
   createMini(bounds: { x: number; y: number; width: number; height: number }, opaque: boolean): BrowserWindow; snapshot(): AppSnapshot; subscribe(listener: (event: AppEvent) => void): () => void; changed(): void }) {
@@ -50,10 +54,10 @@ export function createCompanionWindows(options: { book: BrowserWindow; clock: Cl
     wantMini = true
     if (!mini || mini.isDestroyed()) {
       const saved = options.settings.read().miniPosition; const area = saved ? screen.getDisplayNearestPoint(saved).workArea : screen.getPrimaryDisplay().workArea
-      const bounds = clampMiniBounds({ x: saved?.x ?? area.x + area.width - 344, y: saved?.y ?? area.y + area.height - 424, width: 320, height: 400 }, area)
+      const bounds = clampMiniBounds({ x: saved?.x ?? area.x + area.width - 344, y: saved?.y ?? area.y + area.height - 424, width: 320, height: 400 }, safeWorkArea(area))
       mini = options.createMini(bounds, !!fallbackReason); ready = false
       const window = mini; ignore(true)
-      mini.once('ready-to-show', () => { if (disposed || mini !== window) return; ready = true; present(); if (!fallbackReason) inspectTransparency(window) })
+      mini.once('ready-to-show', () => { if (disposed || mini !== window) return; ready = true; relocate(); present(); if (!fallbackReason) inspectTransparency(window) })
       mini.on('close', (event) => { if (!disposed) { event.preventDefault(); expand() } })
       return
     }
@@ -68,7 +72,7 @@ export function createCompanionWindows(options: { book: BrowserWindow; clock: Cl
   const relocate = () => {
     if (!mini || mini.isDestroyed()) return
     const bounds = mini.getBounds(); const area = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y }).workArea
-    const next = clampMiniBounds(bounds, area)
+    const next = clampMiniBounds(bounds, safeWorkArea(area))
     if (next.width !== bounds.width || next.height !== bounds.height) mini.setSize(next.width, next.height, false)
     mini.setPosition(next.x, next.y, false); persist(); options.changed()
   }
@@ -89,8 +93,7 @@ export function createCompanionWindows(options: { book: BrowserWindow; clock: Cl
         const current = mini.getBounds(); const x = current.x + command.dx; const y = current.y + command.dy
         const area = screen.getDisplayNearestPoint({ x: Math.round(x + current.width / 2), y: Math.round(y + current.height / 2) }).workArea
         // Leave two DIP for native high-DPI rounding; movement must not repeatedly resize the paper.
-        const inset = Math.min(2, Math.floor(Math.min(area.width, area.height) / 4))
-        const next = clampMiniBounds({ ...current, x, y }, { x: area.x + inset, y: area.y + inset, width: area.width - inset * 2, height: area.height - inset * 2 })
+        const next = clampMiniBounds({ ...current, x, y }, safeWorkArea(area))
         if (next.width !== current.width || next.height !== current.height) mini.setSize(next.width, next.height, false)
         mini.setPosition(next.x, next.y, false); savePosition?.(); savePosition = options.uiClock.after(500, persist); options.changed(); return
       }
