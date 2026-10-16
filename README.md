@@ -428,5 +428,6 @@ GPT 开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER
 `pnpm test:room`：加密日记、用户查阅、脱敏房间投影、私人存档恢复（fake 模型；正式日记走 chat）。
 `pnpm test:room:upgrade`：普通模式不设数据目录环境变量，验证旧书桌升级、文件不覆盖、撤销与重启不复活删除项；只用隔离合成资料。
 `pnpm test:minecraft`：开发专用合成 MCP 世界、独立游戏上下文、玩家／范围确认、导航核验、专注停玩、存档隔离与关机释放；不是实机 Minecraft 验收。入口与接口见 [展位游戏记录](docs/engineering/minecraft-third-circle.md)。
+`pnpm test:booth`：同一数据根切换个人／展位并重启的隔离验收。`LCA_BOOTH=1` 自动把展位资料放进 `<数据根>/booth`，不会自动复制个人书本或旧版混放的展位数据。
 `pnpm test:notifications`：急件合并、规则操作、重启去重（开发模式合成投递，不弹系统通知）。
 `pnpm test:characters`：静态角色包原生导入／导出、素材回退、角色隔离与切回原关系。
