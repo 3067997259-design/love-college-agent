@@ -72,6 +72,8 @@
 
 ### 已有命令与实例隔离
 
+2026-10-16 23:17：番茄接口 `e49813c` 已先合 main，plan 只放生效计划，proposal 单独待确认；任何阶段确认保留当前计时、暂停原因和进度，discard 只丢草案，stop 只结束生效计划。plannedCount 是当天总数，不能小于 focusIndex；get_timer 提供 completedCount。Claude `12bd11f` 已消费，合并后类型／lint、31 个文件／135 项单测和相关 Electron 回归通过。见 [草案记录](docs/engineering/pomodoro-proposals.md)。
+
 Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装依赖，不能共用同一个 `node_modules`。
 
 | 命令 | 用途 |
