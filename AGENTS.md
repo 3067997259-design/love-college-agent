@@ -87,7 +87,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm dev` | 开发服务器及 Electron |
 | `pnpm build` / `pnpm start` | 构建／构建后预览 Electron |
 | `pnpm typecheck` / `pnpm lint` / `pnpm test` | 类型、时钟与边界 lint、Vitest |
-| `pnpm test:electron` | Playwright 驱动 Electron，检查窗口、隔离及 IPC |
+| `pnpm test:electron` | Playwright 驱动 Electron，检查字体文件加载／CSP／控制台、窗口、隔离及 IPC；保持 CSP，renderer 禁止资源内联 |
 | `pnpm probe:sqlite` | Electron 内加载原生模块、事务写入、关闭后重开 |
 | `pnpm probe:journal` | Electron 内验证日志重放、缓存重建、作用域和原文隔离 |
 | `pnpm probe:model` | 主进程 chat 槽位的有界极小流式请求，结果不含配置或回复正文 |

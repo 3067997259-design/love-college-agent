@@ -359,7 +359,7 @@ pnpm dev
 | `pnpm typecheck` | main／preload／shared／renderer／单测类型检查通过 |
 | `pnpm lint` | 通过，业务时间调用及 renderer 特权 import 受限制 |
 | `pnpm test` | 独立草案与进度修正、合并界面后 31 个文件、135 项通过；历史结果另见各记录 |
-| `pnpm test:electron` | 真实 Electron 窗口、隔离、IPC 及退订检查通过 |
+| `pnpm test:electron` | 真实 Electron 窗口、隔离、IPC 及退订检查通过；首次／重启检查字体文件加载、无 CSP 违规与字体加载阶段控制台错误。renderer 关闭资源内联，CSP 不放宽 |
 | `pnpm probe:sqlite` | 原生加载与落盘重开通过，无需退回 sql.js |
 | `pnpm probe:journal` | 日志重放、过期／缺失缓存重建、作用域与原文隔离通过 |
 | `pnpm probe:model` | 主进程 chat 槽位真实流式小请求通过，不打印回复或配置 |
