@@ -53,7 +53,7 @@ try {
   const evidenceBefore = await page.evaluate((ref) => window.lca.readEvidence(ref), candidate.evidenceRef)
   assert.ok(evidenceBefore.excerpt.length > 0)
   await send({ type: 'pomodoro.plan', plan: { label: '存档验收', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' } })
-  let s = await snapshot(); await send({ type: 'pomodoro.confirm', planId: s.pomodoro.plan.id }); await send({ type: 'pomodoro.start', planId: s.pomodoro.plan.id })
+  let s = await snapshot(); const planId = s.pomodoro.proposal.id; await send({ type: 'pomodoro.confirm', planId }); await send({ type: 'pomodoro.start', planId })
   s = await snapshot(); await mcp('set_clock', { nowMs: s.clock.nowMs + 10_000 })
   const before = await snapshot(); assert.equal(before.pomodoro.remainingMs, 50_000)
   await mkdir(join(profile, 'secrets'), { recursive: true }); await writeFile(join(profile, 'secrets/providers.json'), 'APPLICATION_CREDENTIAL_CANARY')

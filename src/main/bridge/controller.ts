@@ -28,6 +28,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('pomodoro.start'), planId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.plan'), plan: planSchema }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.confirm'), planId: z.string().min(1).max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('pomodoro.discard'), planId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.resume') }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.pause') }),
   z.strictObject({ ...envelope, type: z.literal('pomodoro.stop') }),

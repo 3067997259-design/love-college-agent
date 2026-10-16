@@ -42,12 +42,16 @@ export function ToolsPanel({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
         {snapshot.pomodoro.phaseDurationMs > 0 && <progress aria-label="阶段进度" max={snapshot.pomodoro.phaseDurationMs} value={Math.max(0, snapshot.pomodoro.phaseDurationMs - snapshot.pomodoro.remainingMs)} />}
         <label>计划个数 <select value={plannedCount} onChange={(event) => setPlannedCount(Number(event.target.value))}>{[1, 2, 4, 6].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
         <label><input type="checkbox" checked={demo} onChange={(event) => setDemo(event.target.checked)} />演示节奏：专注 1 分钟，休息 20 秒</label>
-        <button type="button" disabled={snapshot.pomodoro.status !== 'idle'} onClick={() => void send({ type: 'pomodoro.plan', plan: {
+        <button type="button" onClick={() => void send({ type: 'pomodoro.plan', plan: {
           label: demo ? '演示计划' : '专注计划', plannedCount, focusDurationMs: demo ? 60_000 : 25 * 60_000,
           shortBreakDurationMs: demo ? 20_000 : 5 * 60_000, longBreakDurationMs: demo ? 20_000 : 15 * 60_000, longBreakEvery: 4, timing: demo ? 'demo' : 'standard',
         } })}>生成待确认计划</button>
         {snapshot.pomodoro.plan && <p>{snapshot.pomodoro.plan.label} · {snapshot.pomodoro.plan.status} · {snapshot.pomodoro.plan.timing === 'demo' ? '演示时长' : '实际时长'}</p>}
-        {snapshot.pomodoro.plan?.status === 'proposed' && <button type="button" onClick={() => void send({ type: 'pomodoro.confirm', planId: snapshot.pomodoro.plan!.id })}>确认计划</button>}
+        {snapshot.pomodoro.proposal && <>
+          <p>{snapshot.pomodoro.proposal.label} · 待确认 · 今日共 {snapshot.pomodoro.proposal.plannedCount} 个</p>
+          <button type="button" onClick={() => void send({ type: 'pomodoro.confirm', planId: snapshot.pomodoro.proposal!.id })}>确认计划</button>
+          <button type="button" onClick={() => void send({ type: 'pomodoro.discard', planId: snapshot.pomodoro.proposal!.id })}>丢弃草案</button>
+        </>}
         {snapshot.pomodoro.plan?.status === 'confirmed' && snapshot.pomodoro.status === 'idle' && <button type="button" disabled={snapshot.companion.lightsOut} onClick={() => void send({ type: 'pomodoro.start', planId: snapshot.pomodoro.plan!.id })}>开始下一段专注</button>}
         {snapshot.pomodoro.status === 'running' && <button type="button" onClick={() => void send({ type: 'pomodoro.pause' })}>暂停计时</button>}
         {snapshot.pomodoro.status === 'paused' && <button type="button" disabled={snapshot.companion.lightsOut} onClick={() => void send({ type: 'pomodoro.resume' })}>继续计时</button>}

@@ -16,7 +16,8 @@ export function createCompanionWindows(options: { book: BrowserWindow; clock: Cl
   createMini(bounds: { x: number; y: number; width: number; height: number }, opaque: boolean): BrowserWindow; snapshot(): AppSnapshot; subscribe(listener: (event: AppEvent) => void): () => void; changed(): void }) {
   let mini: BrowserWindow | undefined; let ready = false; let wantMini = false; let mode: WindowSurface = 'book'; let clickThrough = true; let disposed = false; let savePosition: (() => void) | undefined
   let fallbackReason = options.initialFallbackReason ?? null; let checkTransparency: (() => void) | undefined
-  const focusKey = (snapshot: AppSnapshot) => snapshot.pomodoro.phase === 'focus' && snapshot.pomodoro.plan ? snapshot.pomodoro.plan.id + ':' + snapshot.pomodoro.focusIndex : null
+  // Confirming a replacement plan during a focus must not collapse an already expanded book again.
+  const focusKey = (snapshot: AppSnapshot) => snapshot.pomodoro.phase === 'focus' && snapshot.pomodoro.plan ? String(snapshot.pomodoro.focusIndex) : null
   let lastFocus = focusKey(options.snapshot())
   let transition: (() => void) | undefined
   // Let the originating pointer/IPC finish before hiding its window. This is UI time, not simulation time.
