@@ -6,6 +6,7 @@ import { formatClock, formatRemaining } from './format'
 import { locationLabel, MODE_LABEL } from './labels'
 import { useCountdown } from './useCountdown'
 import type { IntroStep } from './wash/intro'
+import { FURNITURE } from './wash/furniture'
 import { WashRoom } from './wash/WashRoom'
 
 const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
@@ -19,7 +20,13 @@ const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
 const INTRO_ART = { key: 'desk-writing_calm', lighting: 'ambient' } as const
 const GREET_ART = { key: 'facing-user_smile', lighting: 'ambient' } as const
 
-export function LeftPage({ snapshot, bridge, intro = null }: { snapshot: AppSnapshot; bridge: AppBridge; intro?: IntroStep | null }) {
+export function LeftPage({ snapshot, bridge, intro = null, furniture }: {
+  snapshot: AppSnapshot
+  bridge: AppBridge
+  intro?: IntroStep | null
+  /** 新手流程“她醒了”：点哪件家具，她就给哪件上色 */
+  furniture?: { painted: readonly string[]; onPaint: (id: string) => void }
+}) {
   const { companion, pomodoro, messages, capabilities } = snapshot
   const [commandFailed, setCommandFailed] = useState(false)
   const command = async (body: CommandBody) => {
@@ -42,7 +49,22 @@ export function LeftPage({ snapshot, bridge, intro = null }: { snapshot: AppSnap
     <section className="page page-left" aria-label="她在的地方" data-intro={intro ?? undefined}>
       {intro ? (
         <div className="room" data-shot="close" data-location="room" data-pose={art.key.split('_')[0]} data-lighting="ambient">
-          <WashRoom art={art} restoreId={null} intro={intro === 'done' ? null : intro} />
+          <WashRoom art={art} restoreId={null} intro={intro === 'done' ? null : intro} paintFurniture={furniture?.painted} />
+          {furniture && (
+            <svg className="furniture-hits" viewBox="0 0 1 1" preserveAspectRatio="none" aria-label="房间里的家具">
+              {FURNITURE.map((item) => {
+                const done = furniture.painted.includes(item.id)
+                return (
+                  <polygon key={item.id} className="furniture-hit" data-done={done} points={item.points.map((p) => p.join(',')).join(' ')}
+                    role="button" aria-label={done ? `${item.name}（已上色）` : `给${item.name}上色`} tabIndex={done ? -1 : 0}
+                    onClick={() => { if (!done) furniture.onPaint(item.id) }}
+                    onKeyDown={(event) => { if (!done && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); furniture.onPaint(item.id) } }}>
+                    <title>{item.name}</title>
+                  </polygon>
+                )
+              })}
+            </svg>
+          )}
         </div>
       ) : <>
       {/* 熄灯开关是页边垂下的一根拉线：她睡着、出门、门牌收起来的时候也拉得到 */}

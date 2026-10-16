@@ -20,10 +20,12 @@ const VISUAL: Record<OnboardingStep, IntroStep> = {
 }
 export const introStepOf = (step: OnboardingStep) => VISUAL[step]
 
-export function OnboardingPage({ snapshot, bridge, step, onStep, onDone }: {
+export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone }: {
   snapshot: AppSnapshot
   bridge: AppBridge
   step: OnboardingStep
+  /** 已经点过、正在或已经上色的家具名 */
+  painted: readonly string[]
   onStep: (step: OnboardingStep) => void
   onDone: (names: { userName: string; characterName: string }) => void
 }) {
@@ -104,6 +106,7 @@ export function OnboardingPage({ snapshot, bridge, step, onStep, onDone }: {
           <>
             <h2 className="onboarding-title">{copy.alive.title}</h2>
             <p className="onboarding-lead">{copy.alive.lead}</p>
+            {painted.length > 0 && <p className="onboarding-note">{copy.alive.painted.replace('{names}', painted.join('、'))}</p>}
             <div className="onboarding-actions"><button type="button" className="btn btn-primary" onClick={() => onStep('coloring')}>{copy.alive.next}</button></div>
           </>
         )}

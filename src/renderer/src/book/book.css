@@ -159,6 +159,11 @@
   mask-composite: intersect;
 }
 .room-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; }
+/* 新手流程“她醒了”：家具可以点，指上去描出它的轮廓 */
+.furniture-hits { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; overflow: visible; }
+.furniture-hit { fill: transparent; stroke: transparent; stroke-width: 0.006; vector-effect: non-scaling-stroke; cursor: pointer; outline: none; transition: fill var(--dur), stroke var(--dur); }
+.furniture-hit:hover, .furniture-hit:focus-visible { fill: color-mix(in oklab, var(--peach) 22%, transparent); stroke: var(--peach-mid); stroke-width: 2px; stroke-dasharray: 6 4; }
+.furniture-hit[data-done='true'] { cursor: default; pointer-events: none; }
 /* 新手流程里画房间的铅笔：笔尖对准位置，按下时贴着纸，抬起时离开一点 */
 .intro-pencil {
   position: absolute;

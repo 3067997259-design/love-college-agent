@@ -5,6 +5,7 @@ import { sendCommand } from './command'
 import { LeftPage } from './LeftPage'
 import { QuillDock } from './quill/QuillDock'
 import { introStepOf, OnboardingPage, type OnboardingStep } from '../onboarding/OnboardingPage'
+import { FURNITURE } from './wash/furniture'
 import { RightPage } from './RightPage'
 import './book.css'
 
@@ -34,6 +35,8 @@ export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: App
   const { companion } = snapshot
   useRootAmbience(companion)
   const [onboarding, setOnboarding] = useState<OnboardingStep | null>(previewOnboarding)
+  // 新手流程里点过的家具（按先后）：左页据此一件件上色，右页列出来
+  const [painted, setPainted] = useState<string[]>([])
 
   return (
     <div className="stage" ref={ref} data-mode={companion.mode} data-phase={snapshot.pomodoro.phase}
@@ -45,10 +48,12 @@ export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: App
           {(['tl', 'tr', 'bl', 'br'] as const).map((c) => <span key={c} className={`corner corner-${c}`} aria-hidden />)}
           {/* 中缝垂下的丝带书签：就是她头发上那条 */}
           <span className="ribbon" aria-hidden />
-          <LeftPage snapshot={snapshot} bridge={bridge} intro={onboarding ? introStepOf(onboarding) : null} />
+          <LeftPage snapshot={snapshot} bridge={bridge} intro={onboarding ? introStepOf(onboarding) : null}
+            furniture={onboarding === 'alive' ? { painted, onPaint: (id) => setPainted((list) => list.includes(id) ? list : [...list, id]) } : undefined} />
           <div className="gutter" aria-hidden />
           {onboarding
-            ? <OnboardingPage snapshot={snapshot} bridge={bridge} step={onboarding} onStep={setOnboarding} onDone={() => setOnboarding(null)} />
+            ? <OnboardingPage snapshot={snapshot} bridge={bridge} step={onboarding} painted={painted.map((id) => FURNITURE.find((f) => f.id === id)?.name ?? id)}
+              onStep={setOnboarding} onDone={() => setOnboarding(null)} />
             : <RightPage snapshot={snapshot} bridge={bridge} />}
           {!onboarding && <QuillDock snapshot={snapshot} onExport={() => { void sendCommand(bridge, snapshot.epoch, { type: 'backup.export' }) }} />}
           <nav className="bookmarks" aria-label="书签">

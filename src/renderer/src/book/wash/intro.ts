@@ -1,149 +1,95 @@
 /**
- * 新手流程左页的时间线（体验设计 §7.1）：铅笔先画空房间，再勾出她；彩铅给她上简单的颜色；
- * 排线晕染成真实的颜色；最后颜色从她身上铺满整个房间。纯函数，不碰 DOM 和 WebGL，单测直接引用。
+ * 左页上色的“活”：新手流程每一步要画什么、点一件家具画什么、恢复存档和换姿势时怎么重画。
+ * 都是一笔一笔画（painter.ts）：铅笔揭开线稿，羽毛笔顺着笔触上色，最后收干补满。纯函数，单测直接引用。
  *
- * 揭开铅笔层用笔刷沿路径印上去。自动路径是来回的排线（练习记录里的“涂抹”做法，全自动）；
- * 用户以后可以在调试模式里手描一条，替换这里的自动路径。
+ * 2026-10-16 用户看过“从中间一点往外扩”的晕染，觉得不美观、不像绘画；这里不再用单点扩散。
  */
-import { washProgress, washRadius } from './wash-math'
+import type { Furniture } from './furniture'
+import type { Job } from './painter'
+import { brushStrokes, scribble, tracedStroke, type PathPoint, type Region, type StampStyle } from './strokes'
 
 export type IntroStep = 'paper' | 'drawing' | 'flat' | 'real' | 'room' | 'done'
 export const INTRO_ORDER: readonly IntroStep[] = ['paper', 'drawing', 'flat', 'real', 'room', 'done']
 
-export interface PathPoint { x: number; y: number; t: number; down: boolean }
-export interface Stroke { points: readonly PathPoint[]; durationMs: number; radius: number }
-
 export const ROOM_DRAW_MS = 6500
 export const HER_DRAW_MS = 2800
-export const FLAT_MS = 1600
-export const REAL_MS = 2200
-export const ROOM_COLOR_MS = 6000
-/** 她周围那一圈：先在这里上色，最后才铺到整个房间（纹理坐标半径） */
-export const HER_RADIUS = 0.3
-export const ROOM_RADIUS = 0.82
+const PENCIL_FILL_MS = 600
+const FLAT_MS = 1700
+const REAL_MS = 1900
+const PAINT_FILL_MS = 400
+const FURNITURE_MS = 1300
+const ROOM_PAINT_MS = 4800
+const ROOM_FILL_MS = 800
+const POSE_MS = 900
+/** 整屋上色从开始到收干的时间（新手流程据此转到“她注意到你”） */
+export const ROOM_COLOR_MS = ROOM_PAINT_MS + ROOM_FILL_MS + 900
 
-/** 抬笔移动按下笔速度的 3 倍（练习记录） */
-const PEN_UP_SPEED = 3
+const PENCIL_AUTO: StampStyle = { radius: 0.075, strength: 1, aspect: 1, ragged: 0 }
+const PENCIL_TRACED: StampStyle = { radius: 0.011, strength: 1, aspect: 1, ragged: 0, pressure: true }
+/** 颜料笔刷：沿笔画方向拉长、毛边、每个印章只有一层薄色，叠几遍才饱和 */
+const brush = (radius: number): StampStyle => ({ radius, strength: 0.16, aspect: 1.7, ragged: 0.4 })
 
-/**
- * 来回排线：在矩形里一行一行地画，每行带一点起伏和斜度，行与行之间抬笔。
- * 时间按长度分配：下笔匀速，抬笔快三倍。seed 决定起伏，同一个 seed 结果相同。
- */
-export function scribble(bounds: { x0: number; y0: number; x1: number; y1: number }, rows: number, durationMs: number, radius: number, seed = 1): Stroke {
-  const raw: { x: number; y: number; down: boolean }[] = []
-  const rand = mulberry32(seed)
-  const height = bounds.y1 - bounds.y0
-  for (let row = 0; row < rows; row++) {
-    const y = bounds.y0 + (row + 0.5) * height / rows
-    const leftToRight = row % 2 === 0
-    const slope = (rand() - 0.5) * 0.06
-    const phase = rand() * Math.PI * 2
-    const steps = 24
-    for (let i = 0; i <= steps; i++) {
-      const f = i / steps
-      const x = leftToRight ? bounds.x0 + f * (bounds.x1 - bounds.x0) : bounds.x1 - f * (bounds.x1 - bounds.x0)
-      const wobble = Math.sin(phase + f * 9) * 0.012 + (rand() - 0.5) * 0.006
-      raw.push({ x, y: y + wobble + slope * (f - 0.5), down: i > 0 })
+/** 整个房间：斜着来回刷，从中间那一笔往两边铺 */
+export const ROOM_REGION: Region = { cx: 0.5, cy: 0.5, angle: -0.35, halfLength: 0.64, halfWidth: 0.52 }
+/** 她坐在画面右半：没有剪影时（素材缺失等）用这个范围 */
+export const HER_FALLBACK: Region = { cx: 0.68, cy: 0.53, angle: 1.45, halfLength: 0.4, halfWidth: 0.24 }
+
+interface TraceFile { version: 1; room: PathPoint[]; her: PathPoint[] }
+const traces = import.meta.glob<TraceFile>('./paths/trace.json', { eager: true, import: 'default' })
+/** 用户在描图工具里手描的路径（?trace 保存）；没有就用自动排线 */
+export const TRACE: TraceFile | undefined = traces['./paths/trace.json']
+
+/** 进入新手流程的某一步时要排上的活；之前的步骤由调用方保证已经排过 */
+export function introJobs(step: IntroStep, her: Region | null, trace: TraceFile | undefined = TRACE): Job[] {
+  const region = her ?? HER_FALLBACK
+  switch (step) {
+    case 'drawing': {
+      const room = trace?.room.length ? tracedStroke(trace.room, ROOM_DRAW_MS) : scribble({ x0: 0.04, y0: 0.06, x1: 0.96, y1: 0.94 }, 9, ROOM_DRAW_MS, 3)
+      const herLines = trace?.her.length ? tracedStroke(trace.her, HER_DRAW_MS) : scribble({ x0: 0.42, y0: 0.13, x1: 0.94, y1: 0.93 }, 6, HER_DRAW_MS, 7)
+      const style = trace ? PENCIL_TRACED : PENCIL_AUTO
+      return [
+        { id: 'intro:room', stroke: room, style, channel: 'room', blend: 'max', mask: { kind: 'none' }, cursor: 'pencil', fillMs: PENCIL_FILL_MS },
+        { id: 'intro:her', stroke: herLines, style, channel: 'her', blend: 'max', mask: { kind: 'none' }, cursor: 'pencil', fillMs: PENCIL_FILL_MS },
+      ]
     }
-  }
-  // 按长度分时间
-  let weighted = 0
-  const lengths = raw.map((p, i) => {
-    if (i === 0) return 0
-    const d = Math.hypot(p.x - raw[i - 1].x, p.y - raw[i - 1].y)
-    const w = p.down ? d : d / PEN_UP_SPEED
-    weighted += w
-    return w
-  })
-  let acc = 0
-  const points = raw.map((p, i) => { acc += lengths[i]; return { ...p, t: weighted > 0 ? acc / weighted * durationMs : 0 } })
-  return { points, durationMs, radius }
-}
-
-/** 时间 t 时笔尖在哪、是否按着；超出时长停在终点并抬笔 */
-export function penAt(stroke: Stroke, t: number): { x: number; y: number; down: boolean } {
-  const pts = stroke.points
-  if (t <= 0) return { x: pts[0].x, y: pts[0].y, down: false }
-  if (t >= stroke.durationMs) { const last = pts[pts.length - 1]; return { x: last.x, y: last.y, down: false } }
-  let i = 1
-  while (i < pts.length && pts[i].t < t) i++
-  const a = pts[i - 1]
-  const b = pts[i]
-  const f = b.t > a.t ? (t - a.t) / (b.t - a.t) : 1
-  return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, down: b.down }
-}
-
-/**
- * 两个时刻之间要印的笔刷：只取按笔的段，间距为半径的 0.3（练习记录）。返回 [x, y, 半径, 强度] 的平铺数组。
- */
-export function stampsBetween(stroke: Stroke, from: number, to: number): number[] {
-  const out: number[] = []
-  if (to <= from) return out
-  const spacing = stroke.radius * 0.3
-  const pts = stroke.points
-  for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1]
-    const b = pts[i]
-    if (!b.down || b.t <= from || a.t >= to) continue
-    const t0 = Math.max(a.t, from)
-    const t1 = Math.min(b.t, to)
-    const len = Math.hypot(b.x - a.x, b.y - a.y)
-    const span = b.t - a.t
-    const n = Math.max(1, Math.ceil(len * (t1 - t0) / Math.max(span, 1e-6) / spacing))
-    for (let k = 1; k <= n; k++) {
-      const t = t0 + (t1 - t0) * k / n
-      const f = span > 0 ? (t - a.t) / span : 1
-      out.push(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, stroke.radius, 1)
+    case 'flat': {
+      const { stroke, radius } = brushStrokes(region, 7, FLAT_MS, 11, 'outward')
+      return [{ id: 'intro:flat', stroke, style: brush(radius), channel: 'paint', blend: 'add', mask: { kind: 'her' }, cursor: 'quill', fillMs: PAINT_FILL_MS }]
     }
+    case 'real': {
+      const { stroke, radius } = brushStrokes(region, 6, REAL_MS, 13, 'outward')
+      return [{ id: 'intro:real', stroke, style: brush(radius), channel: 'real', blend: 'add', mask: { kind: 'her' }, cursor: 'quill', fillMs: PAINT_FILL_MS }]
+    }
+    case 'room': return [roomJob('intro:room-color', 'paint+real')]
+    default: return []
   }
-  return out
 }
 
-export interface IntroFrame {
-  /** 房间铅笔已经画了多久（毫秒，按房间那条路径的时间） */
-  roomT: number
-  /** 她的线稿画了多久 */
-  herT: number
-  /** 颜色覆盖到的半径 */
-  coverRadius: number
-  /** 真实颜色覆盖到的半径（之内是真实颜色，之外是彩铅的简单颜色） */
-  realRadius: number
-  /** 晕染前沿的湿边干到什么程度 */
-  dry: number
+/** 点一件家具：在它的形状里顺着长边刷几笔，再补满 */
+export function furnitureJob(item: Furniture, region: Region): Job {
+  const count = Math.max(2, Math.min(6, Math.round(region.halfWidth / 0.03)))
+  const { stroke, radius } = brushStrokes(region, count, FURNITURE_MS, hash(item.id))
+  return { id: `furniture:${item.id}`, stroke, style: brush(radius), channel: 'paint+real', blend: 'add', mask: { kind: 'polygon', id: item.id, points: item.points }, cursor: 'quill', fillMs: PAINT_FILL_MS }
 }
 
-/** 某一步开始后 elapsed 毫秒时左页的状态；之前的步骤都算做完 */
-export function introFrame(step: IntroStep, elapsed: number): IntroFrame {
-  const index = INTRO_ORDER.indexOf(step)
-  const at = (s: IntroStep) => INTRO_ORDER.indexOf(s)
-  const frame: IntroFrame = { roomT: 0, herT: 0, coverRadius: 0, realRadius: 0, dry: 1 }
-  if (index > at('drawing')) { frame.roomT = ROOM_DRAW_MS; frame.herT = HER_DRAW_MS }
-  else if (index === at('drawing')) { frame.roomT = Math.min(elapsed, ROOM_DRAW_MS); frame.herT = Math.max(0, Math.min(elapsed - ROOM_DRAW_MS, HER_DRAW_MS)) }
-  if (index > at('flat')) frame.coverRadius = HER_RADIUS
-  else if (index === at('flat')) { frame.coverRadius = washRadius(elapsed, FLAT_MS, HER_RADIUS); frame.dry = washProgress(elapsed, FLAT_MS) }
-  if (index > at('real')) frame.realRadius = HER_RADIUS
-  else if (index === at('real')) { frame.realRadius = washRadius(elapsed, REAL_MS, HER_RADIUS); frame.dry = washProgress(elapsed, REAL_MS) }
-  if (index === at('room')) {
-    const r = HER_RADIUS + washRadius(elapsed, ROOM_COLOR_MS, ROOM_RADIUS - HER_RADIUS)
-    frame.coverRadius = r
-    frame.realRadius = r
-    frame.dry = washProgress(elapsed, ROOM_COLOR_MS)
-  } else if (index > at('room')) { frame.coverRadius = ROOM_RADIUS; frame.realRadius = ROOM_RADIUS }
-  return frame
+/** 存档恢复：羽毛笔把整个房间重新画一遍 */
+export function restoreJob(): Job {
+  return roomJob('restore', 'paint')
 }
 
-/** 这一步的动画总时长：到点后左页不再变化 */
-export function introDuration(step: IntroStep): number {
-  return ({ paper: 0, drawing: ROOM_DRAW_MS + HER_DRAW_MS, flat: FLAT_MS, real: REAL_MS, room: ROOM_COLOR_MS, done: 0 })[step]
+/** 换姿势：房间不动，只把她重画一遍，不出现笔 */
+export function poseJob(her: Region): Job {
+  const { stroke, radius } = brushStrokes(her, 4, POSE_MS, 17)
+  return { id: 'pose', stroke, style: brush(radius), channel: 'paint', blend: 'add', mask: { kind: 'her' }, cursor: null, fillMs: 300 }
 }
 
-function mulberry32(seed: number) {
-  let a = seed >>> 0
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0
-    let t = a
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
+function roomJob(id: string, channel: 'paint' | 'paint+real'): Job {
+  const { stroke, radius } = brushStrokes(ROOM_REGION, 8, ROOM_PAINT_MS, 5, 'outward')
+  return { id, stroke, style: brush(radius), channel, blend: 'add', mask: { kind: 'none' }, cursor: 'quill', fillMs: ROOM_FILL_MS }
+}
+
+function hash(text: string): number {
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619)
+  return h >>> 0
 }
