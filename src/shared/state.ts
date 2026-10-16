@@ -514,7 +514,7 @@ export interface HeartFlowView {
   /** Source and output text are user-only; models obtain approved work through desk tools. */
   pending?: { id: string; code: string }
   files: readonly { path: string; byteLength: number }[]
-  changes: readonly { id: string; path: string; undone: boolean }[]
+  changes: readonly { id: string; path: string; undone: boolean; shadow?: DeskShadowView }[]
   sessions: readonly { id: string; startedAtMs: number; endedAtMs: number | null; summary: string | null }[]
   lastRun?: { ok: boolean; output: string }
   /** Metadata-only subordinate work. Conclusions are unreviewed tool results for the parent flow. */
@@ -548,9 +548,11 @@ export interface HeartFlowInspection {
   outputTokens: number | null
   /** Unknown pricing is null, never a fabricated zero. No private provider/model values. */
   cost: number | null
-  changes: readonly { id: string; path: string; before: string | null; after: string | null; current: boolean; undone: boolean }[]
+  changes: readonly { id: string; path: string; before: string | null; after: string | null; current: boolean; undone: boolean; shadow?: DeskShadowView }[]
   truncated: boolean
 }
+/** Independent private Git copy; never stages or commits into the user's repository. Journal snapshots remain authoritative. */
+export interface DeskShadowView { status: 'committed' | 'not-git' | 'unavailable' | 'failed'; commit?: string }
 export interface MinecraftScope { radiusBlocks: number; durationMs: number; allowChat: boolean }
 export interface VoiceView {
   enabled: boolean

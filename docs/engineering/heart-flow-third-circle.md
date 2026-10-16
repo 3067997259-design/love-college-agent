@@ -42,3 +42,5 @@ ready 要求回合 completed、来源没变、有相应读取／成功模型输�
 停止、熄灯、用户换目标或新插话会取消草稿和其模型调用；忽略取消的迟到返回不能写文件。重启将 running 记 interrupted，不重放；产物被外部改动转 failed 并保留用户修改。已保存草稿随 desk 日志快照恢复。朴素入口在心流工具区，Claude 可根据 operations 绘制活动状态并用 operation.open 查阅。
 
 实际验收：类型／lint、51 文件 286 项单测通过（新增 9 项草稿边界）；`node scripts/smoke-flow-drafts.mjs` 使用真实 Electron／SQLite／文件／原生预览，覆盖计划拒绝、实际说明／审查、只声称完成失败、取消、重启、私人存档恢复、普通上下文隔离和外部修改保留。模型和材料均为 fake／合成，没有真实模型调用。原有心流与基础 Electron 回归另跑；当前安装包仍未包含本批。命令 `pnpm test:flow-drafts`。
+
+后续接口先行：书桌变更可有 shadow 元数据，committed 仅在独立私人 Git 副本实际创建提交后给出 SHA；not-git／unavailable／failed 继续使用日志快照。不会把用户原仓库的分支、索引或提交历史改成影子分支。实现及验收待后续功能提交。
