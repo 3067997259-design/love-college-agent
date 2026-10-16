@@ -35,6 +35,7 @@ export async function attachRuntime(options: {
   prepared: PreparedRuntime; controller: ReturnType<typeof createAppController>; plugins: ReturnType<typeof createPluginRegistry>
   harness: ReturnType<typeof createHarness>; scheduler: Scheduler; store: SessionStore; mcpPort: number; cdpPort: number
   restart(): void
+  locked?(): boolean
 }) {
   const { prepared: p, controller, plugins, harness, scheduler, store } = options
   let server: Awaited<ReturnType<typeof startDevelopmentServer>> | undefined
@@ -47,6 +48,7 @@ export async function attachRuntime(options: {
     ...(server ? { mcpPort: server.port } : {}), ...(p.developer ? { cdpPort: options.cdpPort, sceneId: p.profile.id } : {}), ...(error ? { error } : {}),
   } })
   const setClock = (input: { nowMs?: number; rate?: number; frozen?: boolean }) => {
+    if (options.locked?.()) throw new Error('LOCAL_OPERATION_BUSY')
     if (!p.adjusted) throw new Error('DEVELOPER_REQUIRED')
     p.adjusted.set(input); scheduler.reconcile(); saveClock(); controller.refresh('timer')
     return controller.getSnapshot().clock
@@ -78,11 +80,11 @@ export async function attachRuntime(options: {
         server = await startDevelopmentServer(p.profile.path, options.mcpPort, {
           enabled: () => mounted && !disposed,
           state: controller.getSnapshot, context: () => store.projection().lastModelContext ?? store.projection().context, queue: scheduler.queue,
-          clock: setClock, inject: (input) => { harness.postEvent(input.source, input.text); return { accepted: true, source: 'fake' } },
+          clock: setClock, inject: (input) => { if (options.locked?.()) throw new Error('LOCAL_OPERATION_BUSY'); harness.postEvent(input.source, input.text); return { accepted: true, source: 'fake' } },
           model: (script) => { p.scripted!.set(script); return { source: 'fake' } },
           exportScene: () => ({ formatVersion: 1, kind: 'development-fixture', clock: { nowMs: Math.round(p.clock.nowMs()), ...p.adjusted!.view() },
             mode: store.projection().mode, modelScript: p.scripted!.read(), preset: p.scene?.preset ?? 'empty' }),
-          loadScene: (scene) => { const sceneId = stageScene(p.root, p.settings, scene); controller.refresh('restore'); return { sceneId, restartRequired: true } },
+          loadScene: (scene) => { if (options.locked?.()) throw new Error('LOCAL_OPERATION_BUSY'); const sceneId = stageScene(p.root, p.settings, scene); controller.refresh('restore'); return { sceneId, restartRequired: true } },
         })
       } catch { error = { code: 'connection-failed', retryable: false } }
       controller.refresh('connection')
