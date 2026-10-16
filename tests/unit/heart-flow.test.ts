@@ -57,3 +57,18 @@ it('does not project a failed write as an applied change', async () => {
   expect(() => f.flow.write('failed.txt', 'NEVER_WRITTEN')).toThrow(); expect(f.flow.view().changes).toHaveLength(0)
   expect(f.store.records().filter((row) => row.type === 'desk/settled')).toMatchObject([{ status: 'failed' }])
 })
+it('can exit after many long-path writes and runs, including after restart', async () => {
+  const f = fixture(); f.dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(f.flow.active()).toBe(true)); f.dispatch({ type: 'flow.mode', mode: 'execute' })
+  const flowId = f.flow.view().activeId!
+  for (let index = 0; index < 12; index++) {
+    f.flow.write('d'.repeat(60) + '/' + 'f'.repeat(60) + index + '.txt', 'WORK_SOURCE_MUST_NOT_ESCAPE')
+    f.store.append({ type: 'flow/run', id: 'run-'.padEnd(34, 'x') + index, flowId, status: 'completed', codeHash: 'a'.repeat(64) })
+  }
+  const restarted = createHeartFlow(f.opts)
+  expect(restarted.dispatch({ type: 'flow.exit' } as AppCommand)).toBeUndefined()
+  expect(restarted.active()).toBe(false)
+  const summary = f.emit.mock.calls[0][1]; expect(summary.length).toBeLessThanOrEqual(2000)
+  expect(summary).not.toContain('WORK_SOURCE_MUST_NOT_ESCAPE')
+  expect(JSON.parse(summary)).toMatchObject({ fileCount: 12, runCount: 12 })
+  expect(JSON.parse(summary).fileEvidence.length).toBeGreaterThan(0); expect(JSON.parse(summary).runs.length).toBeGreaterThan(0)
+})
