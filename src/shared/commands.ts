@@ -74,6 +74,15 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'life.propose'; place?: 'coast' | 'swing' }
   | { type: 'life.depart'; outingId: string }
   | { type: 'life.return' }
+  /** One work of each kind per calendar day; only registered desk materials, online execution only. */
+  | { type: 'life.work.start'; kind: 'read' | 'write' }
+  | { type: 'life.work.pause'; workId: string }
+  /** Continues from the last verified checkpoint; never resets completed steps or backfills offline work. */
+  | { type: 'life.work.resume'; workId: string }
+  /** Book-only, user-only native preview of the latest verified product. No text in snapshots/contexts. */
+  | { type: 'life.work.open'; workId: string }
+  /** Developer profile only: registers and writes fixed synthetic desk materials, without overwriting user files. */
+  | { type: 'developer.life.seed' }
   | { type: 'diary.write' }
   | { type: 'room.open' }
   | { type: 'room.rebuild' }
