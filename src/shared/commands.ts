@@ -70,6 +70,9 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'life.propose'; place?: 'coast' | 'swing' }
   | { type: 'life.depart'; outingId: string }
   | { type: 'life.return' }
+  | { type: 'diary.write' }
+  | { type: 'room.open' }
+  | { type: 'room.rebuild' }
   | { type: 'flow.exit' }
   | { type: 'flow.mode'; mode: 'plan' | 'execute' }
   | { type: 'flow.compact' }
