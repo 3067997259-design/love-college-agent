@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@chinese-fonts/xiaolai':
+        specifier: 3.0.0
+        version: 3.0.0
+      '@fontsource/long-cang':
+        specifier: 5.3.0
+        version: 5.3.0
       '@modelcontextprotocol/sdk':
         specifier: 1.32.1
         version: 1.32.1(zod@4.6.7)
@@ -20,6 +26,9 @@ importers:
       jszip:
         specifier: 3.10.2
         version: 3.10.2
+      lxgw-wenkai-screen-web:
+        specifier: 1.522.0
+        version: 1.522.0
       mailparser:
         specifier: 3.9.39
         version: 3.9.39
@@ -176,6 +185,9 @@ packages:
   '@cacheable/utils@2.5.0':
     resolution: {integrity: sha512-buipgOVDkkPXNR5+xBpDw7Zk2n1EvU7qBJCNUcL7rhQ//kfpOXPAvQ511Os0vpLYJ1pZnvudNytkQt2hst3wqA==}
 
+  '@chinese-fonts/xiaolai@3.0.0':
+    resolution: {integrity: sha512-22d5xFPzxPQZuvx8doHn6sHrzvrdG/0QuQWBXQoX9TlKVVAyTvEADWHQv9FBGHIYTINaCZTCnQ6O4rfic/bWdg==}
+
   '@electron-internal/extract-zip@1.0.5':
     resolution: {integrity: sha512-+bqFCP98pLI0Tt0XQo1TmlXtwjWchISndDOxCkEcIuUgXWpBnLyRI+2DU+mesvnMMX6L1XDqYNA0lXNDHd/yiA==}
     engines: {node: '>=22.12.0'}
@@ -227,6 +239,9 @@ packages:
   '@eslint/plugin-kit@0.7.3':
     resolution: {integrity: sha512-IkO+/KEUvwbVpiURZg+P7zF74z5Jxe0UgJxVni+RtoHQ6IZieXaO02kmadomap/q+l6bc/jdPGGqTjhuZnuz1Q==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
+
+  '@fontsource/long-cang@5.3.0':
+    resolution: {integrity: sha512-lCcBJb+LWZpYCVtGvQRiZPy5/EaGPuYLycpJXUIOz28EYGGqhTVWBRqY6ucaW8l1F8gvfjutY1PoAPUrFiP0wg==}
 
   '@hono/node-server@2.1.5':
     resolution: {integrity: sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q==}
@@ -1234,6 +1249,9 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  lxgw-wenkai-screen-web@1.522.0:
+    resolution: {integrity: sha512-LH1nDJz9prHgMYNKErg8XpDEIhs9+1bf6hPVKviy29be1r6Z4AXXbo9uuwmOH2hAzKMbe3kZ5+rzJ9zb/58+jw==}
+
   magic-string@1.4.3:
     resolution: {integrity: sha512-z12OxmaPGE0F4xlpGdjuAUckipLpQlTAuAmyGhNoD7ODpYUzvDfvtxUbjM/jwznyP178oju/KDdyi220wNJ0RQ==}
 
@@ -1953,6 +1971,8 @@ snapshots:
       hashery: 1.5.1
       keyv: 5.6.0
 
+  '@chinese-fonts/xiaolai@3.0.0': {}
+
   '@electron-internal/extract-zip@1.0.5': {}
 
   '@electron/get@5.1.0':
@@ -2012,6 +2032,8 @@ snapshots:
     dependencies:
       '@eslint/core': 1.2.1
       levn: 0.4.1
+
+  '@fontsource/long-cang@5.3.0': {}
 
   '@hono/node-server@2.1.5(hono@4.13.13)':
     dependencies:
@@ -2946,6 +2968,8 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  lxgw-wenkai-screen-web@1.522.0: {}
 
   magic-string@1.4.3:
     dependencies:
