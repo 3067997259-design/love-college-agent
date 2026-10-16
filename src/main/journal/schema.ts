@@ -14,6 +14,7 @@ import { notificationRule } from '../notifications/schema'
 import { definitionSchema } from '../characters/package'
 import { historyPhotoSchema, recallAnchorSchema } from '../history/schema'
 import { delegateState, delegateOutput } from '../delegates/schema'
+import { opticalFrame, opticalImpression, opticalTier } from '../optical/schema'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -33,6 +34,10 @@ export type ContextMessage = {
 }
 
 export const inputSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('optical/enabled'), enabled: z.boolean() }),
+  z.strictObject({ type: z.literal('optical/frame'), frame: opticalFrame }),
+  z.strictObject({ type: z.literal('optical/impression'), impression: opticalImpression }),
+  z.strictObject({ type: z.literal('optical/attempt'), operation: z.enum(['encode', 'decode']), targetId: z.string().min(1).max(128), tier: opticalTier.optional() }),
   z.strictObject({ type: z.literal('delegate/state'), view: delegateState }),
   z.strictObject({ type: z.literal('delegate/result'), id: z.string().uuid(), flowId: z.string().min(1).max(128), output: delegateOutput }),
   z.strictObject({ type: z.literal('life/material'), material: materialSchema }),
