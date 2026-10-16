@@ -73,6 +73,6 @@ pnpm test:package
 CDP 仅开发模式：GPT 9527／其他 9427；鉴权 MCP：5275／5175。多实例用 `LCA_CDP_PORT`、`LCA_MCP_PORT` 分开。令牌留在开发 profile `debug-connection.json`，不打印或发给模型。安全诊断显示已采集的值，未采集的费用和缓存等显示未提供。
 ## 第二圈安装验收（2026-10-17）
 
-最新源码基线见 [审计收口](engineering/progress-audit-20261017.md)。01:33 的新 NSIS 位于 `D:\lca-gpt\release\Love-College-Agent-0.1.0-Setup.exe`；238047503 字节，SHA-256 `e28b7c1477acf1517365f23c5178de913b835ded0b4efb8b54a4371de6679dab`，实际签名状态 NotSigned。解包和实际安装后都通过 SQLite／日志／番茄／存档／记忆／外出／心流七类探针及 UI 重启，安装测试目录在 D 盘，测试后卸载。报告在该 worktree 的 `test-results/package-report.json`。
+第二圈功能范围见 [审计收口](engineering/progress-audit-20261017.md)，后续 #1–#5 修复见 [自动审计记录](engineering/audit-issues-20261017.md)。最新 NSIS 于 01:52 基于功能源码 `4139af6` 验收，位于 `D:\lca-gpt\release\Love-College-Agent-0.1.0-Setup.exe`；238048576 字节，SHA-256 `20d95261089b5b3ba2c3dae168ec59d8cd920c9656e4a4378408229d735dc485`，实际签名状态 NotSigned。解包和实际安装后都通过 SQLite／日志／番茄／存档／记忆／外出／心流七类探针（含本批新增边界）及 UI 重启，安装测试目录在 D 盘，测试后卸载。报告在该 worktree 的 `test-results/package-report.json`。此包替代 01:33 的产物，main checkout 的 release 不自动更新。
 
 `pnpm package:win` 重建当前 worktree 的包；`pnpm test:package` 验证该包。不要从 main 目录拿旧 release 代替这次产物。显式 `LCA_DATA_DIR` 的实例把房间投影放进各自数据目录；正常安装、不设该变量时才放“文档/桃子的房间”。Python 只用于源码／CI 的 ZIP 独立验证，安装后的应用不需要 Python；没有下载 Playwright 浏览器。

@@ -9,6 +9,7 @@
 | `06db36c` | 周月摘要计数／归并 | snapshot.memory.summaryCounts、memory.consolidate；最近七天仍留日摘要 |
 | `de59527` | 心流 | snapshot.heartFlow、flow.enter/exit/mode/compact/undo/run/approve；进入后右页直接出现工作列表与审批 |
 | `c1aa31d` | 外出与物品 | snapshot.life；locationId=room/coast/swing，生活面板有作息、出发、提前返回和物品／抽屉文字回退 |
+| `6040797` | 外出取消状态增补 | OutingView.status 新增 cancelled：跨日未出发提议失效，不生成物品或返回经历；只给 proposed 显示出发按钮 |
 | `4721803` | 日记和房间 | snapshot.diary 元数据；bridge.readDiary 仅书本窗口用户可读解锁正文／钥匙，禁止转发模型 |
 | `b609082` | 急件和提醒规则 | snapshot.notifications；模型仅提规则草案，设置页确认；普通系统通知只有两类 |
 | `9d860b6` | 角色包 | snapshot.characterPack；静态 PNG 槽，缺图回退，重启切换独立关系作用域 |
