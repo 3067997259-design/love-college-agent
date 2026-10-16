@@ -44,6 +44,19 @@ try {
   await script([step([call('desk_write', { path: reviewPath, text: '# Draft findings\nScope: applied desk changes only. Tests were not run. PRIVATE_REVIEW_PRODUCT' }, 'review')]), step([], 'review draft saved')])
   assert.equal((await send({ type: 'message.send', text: '/review' }, reviewId)).status, 'accepted'); await waitFor((s) => op(s, reviewId)?.status === 'ready', 'REVIEW_NOT_READY')
   assert.equal(op(await snapshot(), reviewId).sourceCount, 2)
+  // Reopened review coverage: two edits on the same file must retain the original deletion even
+  // after ordinary tool context is compacted. Observe the actual successful native model inputs.
+  const guard = 'if (!user.allowed) throw new Error("deny");\nreturn transfer();'; await writeFile(join(desk, 'transfer.js'), guard)
+  for (const text of ['return transfer();', '// comment only in the second edit\nreturn transfer();']) {
+    await script([step([call('desk_write', { path: 'transfer.js', text }, 'edit-transfer')]), step([], 'synthetic edit saved')]); await send({ type: 'message.send', text: 'Apply the next synthetic desk edit.' }); await waitFor((s) => s.task?.status === 'completed', 'ITERATED_WRITE_FAILED')
+  }
+  await send({ type: 'flow.compact' }); const netId = randomUUID(); const netPath = `工作草稿/${netId}.md`
+  await script([step([call('desk_write', { path: netPath, text: 'Unreviewed finding: inspect the removed permission check in transfer.js; tests not run.' }, 'net-review')]), step([], 'net-diff draft saved')])
+  await send({ type: 'flow.review' }, netId); await waitFor((s) => op(s, netId)?.status === 'ready', 'NET_REVIEW_NOT_READY')
+  const records = []; const journals = join(profile, 'journals'); for (const owner of await readdir(journals)) for (const file of await readdir(join(journals, owner))) if (file.endsWith('.jsonl')) for (const line of (await readFile(join(journals, owner, file), 'utf8')).trim().split('\n')) records.push(JSON.parse(line))
+  const turnId = records.findLast((row) => row.type === 'flow/operation' && row.operation.id === netId).operation.turnId
+  const inputs = records.filter((row) => row.type === 'model/seen' && row.turnId === turnId); assert.equal(inputs.length, 2)
+  for (const input of inputs) { const data = input.messages.flatMap((message) => { try { return JSON.parse(message.content).userRequestedFlowDraft ?? [] } catch { return [] } })[0]; const diff = data.reviewDiffs.find((row) => row.path === 'transfer.js').diff; assert.equal(diff.before, guard); assert.equal(diff.after, '// comment only in the second edit\nreturn transfer();'); assert.equal(diff.steps, 2); assert.equal(diff.externalEditsObserved, false); assert.deepEqual(input.eligibleIndexes, []) }
   const claimId = randomUUID(); await script([step([], 'I completed it.')]); await send({ type: 'flow.init' }, claimId); await waitFor((s) => op(s, claimId)?.status === 'failed', 'FALSE_COMPLETION_ACCEPTED')
   assert.equal(op(await snapshot(), claimId).error, 'source-changed') // no source reads and no artifact
   const cancelId = randomUUID(); const cancelPath = `工作草稿/${cancelId}.md`

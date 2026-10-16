@@ -25,11 +25,20 @@ export function createFlowOperations(options: { store: SessionStore; clock: Cloc
   const active = () => [...all().values()].findLast((op) => op.status === 'running' && op.flowId === options.flowId())
   const save = (op: Operation) => { store.append({ type: 'flow/operation', operation: operationSchema.parse({ ...op, updatedAtMs: clock.nowMs() }) }); options.changed() }
   const view = (op: Operation): FlowOperationView => ({ id: op.id, flowId: op.flowId, kind: op.kind, status: op.status, source: op.source, sourceCount: op.sourceCount, omittedSourceCount: op.omittedSourceCount, outputPath: op.outputPath, createdAtMs: op.createdAtMs, updatedAtMs: op.updatedAtMs, ...(op.artifact ? { artifact: op.artifact } : {}), ...(op.error ? { error: op.error } : {}) })
+  const reviewSources = (flowId: string) => {
+    const result = new Map<string, ReturnType<typeof appliedDeskChanges>[number] & { steps: number; externalEditsObserved: boolean }>()
+    for (const row of appliedDeskChanges(rows()).filter((row) => row.flowId === flowId)) {
+      const first = result.get(row.path)
+      result.set(row.path, { ...row, before: first ? first.before : row.before, steps: (first?.steps ?? 0) + 1, externalEditsObserved: !!first && (first.externalEditsObserved || first.after !== row.before) })
+    }
+    return new Map([...result].filter(([, row]) => row.before !== row.after))
+  }
+  const reviewText = (row: { before: string | null; after: string | null; steps: number; externalEditsObserved: boolean }) => JSON.stringify({ before: row.before, after: row.after, steps: row.steps, externalEditsObserved: row.externalEditsObserved })
   const sourceValue = (op: Operation, source: z.infer<typeof sourceRef>) => {
     if (!source.changeId) { const text = desk.read(source.path); if (text === null || sha(text) !== source.sha256) throw new Error('FLOW_SOURCE_CHANGED'); return text }
-    const change = appliedDeskChanges(rows()).find((row) => row.id === source.changeId && row.flowId === op.flowId && row.path === source.path)
-    if (!change || desk.read(change.path) !== change.after) throw new Error('FLOW_SOURCE_CHANGED')
-    const text = JSON.stringify({ before: change.before, after: change.after }); if (sha(text) !== source.sha256) throw new Error('FLOW_SOURCE_CHANGED'); return text
+    const change = reviewSources(op.flowId).get(source.path)
+    if (!change || change.id !== source.changeId || desk.read(change.path) !== change.after) throw new Error('FLOW_SOURCE_CHANGED')
+    const text = reviewText(change); if (sha(text) !== source.sha256) throw new Error('FLOW_SOURCE_CHANGED'); return text
   }
   const artifact = (op: Operation) => {
     try {
@@ -50,7 +59,7 @@ export function createFlowOperations(options: { store: SessionStore; clock: Cloc
     context: () => {
       const op = active(); if (!op) return []
       const data = { id: op.id, kind: op.kind, outputPath: op.outputPath, sourceIndex: op.sources, omittedSourceCount: op.omittedSourceCount,
-        ...(op.kind === 'review' ? { reviewDiffs: op.sources.map((source) => ({ path: source.path, diff: JSON.parse(sourceValue(op, source)) })) } : {}) }
+        ...(op.kind === 'review' ? { reviewBasis: 'flow-initial-before-to-current-after', reviewDiffs: op.sources.map((source) => ({ path: source.path, diff: JSON.parse(sourceValue(op, source)) })) } : {}) }
       return [{ role: 'user' as const, content: JSON.stringify({ userRequestedFlowDraft: data, instruction: policy[op.kind], authority: 'work-task-only-never-tool-permission', reviewStatus: 'unreviewed-draft' }) }]
     },
     read: (path: string, text: string | null) => {
@@ -73,7 +82,7 @@ export function createFlowOperations(options: { store: SessionStore; clock: Cloc
       const id = z.string().uuid().safeParse(command.requestId).success ? command.requestId : randomUUID()
       if (all().has(id)) return 'invalid-command'
       try { if (desk.read(`工作草稿/${id}.md`) !== null) return 'unavailable' } catch { return 'unavailable' }
-      const latest = new Map(appliedDeskChanges(rows()).filter((row) => row.flowId === flowId).map((row) => [row.path, row]))
+      const latest = reviewSources(flowId)
       const paths = kind === 'init' ? desk.list().map((file) => file.path).filter((path) => !path.startsWith('工作草稿/')) : [...latest.keys()]
       if (kind === 'review' && !paths.length) return 'unavailable'
       const sources: Operation['sources'] = []; let bytes = 0
@@ -82,7 +91,7 @@ export function createFlowOperations(options: { store: SessionStore; clock: Cloc
         try {
           const current = desk.read(path); const change = latest.get(path)
           if (kind === 'review' && current !== change!.after || kind === 'init' && current === null) continue
-          const text = kind === 'review' ? JSON.stringify({ before: change!.before, after: change!.after }) : current!
+          const text = kind === 'review' ? reviewText(change!) : current!
           if (bytes + Buffer.byteLength(text) > 24000) continue
           sources.push({ path, sha256: sha(text), ...(kind === 'review' ? { changeId: change!.id } : {}) }); bytes += Buffer.byteLength(text)
         } catch { /* Unreadable sources are counted as omitted, never guessed or overwritten. */ }
