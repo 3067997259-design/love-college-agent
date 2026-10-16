@@ -14,6 +14,7 @@ export type AppCommand = CommandEnvelope & (
   /** Book playback reports only; this is renderer telemetry, not synthesis or external-action evidence. */
   | { type: 'voice.playback'; utteranceId: string; status: 'playing' | 'ended' | 'failed' }
   | { type: 'mode.set'; mode: 'work' | 'quiet' | 'rest' }
+  | { type: 'companion.sleep'; sleeping: boolean }
   | { type: 'lights.set'; lightsOut: boolean }
   /** Trimmed single-line text: userName <= 20 code points, characterName <= 12. Empty resets to null / 桃子. */
   | { type: 'onboarding.profile'; userName?: string; characterName?: string }
