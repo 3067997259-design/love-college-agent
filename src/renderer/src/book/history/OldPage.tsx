@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { MessageView, RecallAnchor, SessionPage, SessionPageInfo } from '../../../../shared'
 import copy from '../../voice/book.zh.json'
 import { formatClock } from '../format'
@@ -25,6 +25,11 @@ export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQ
 }) {
   const [pending, setPending] = useState<Quote | null>(null)
   const recallable = new Set(page?.recallableMessageIds ?? [])
+  // 翻到另一页时必须丢掉上一页的选段：它锚定的是上一页的 sessionId，留着会让「引用这句」把别的
+  // 那一页的内容当成本页的引用提交（#19）。加载中／失败时 page 可能为 null，同样清空。
+  const pageSessionId = page?.sessionId ?? null
+  useEffect(() => { setPending((current) => (current && current.anchor.sessionId !== pageSessionId ? null : current)) }, [pageSessionId])
+  const active = pending && page && pending.anchor.sessionId === page.sessionId ? pending : null
 
   function select(message: MessageView, span: HTMLElement) {
     if (!page || !recallable.has(message.id)) return
@@ -77,10 +82,10 @@ export function OldPage({ info, page, failed, older, newer, onTurn, onToday, onQ
           </>}
       </div>
       <footer className="old-foot">
-        {pending
+        {active
           ? <>
-            <blockquote className="quote-preview">{pending.text}</blockquote>
-            <button type="button" className="btn btn-primary btn-small" onClick={() => onQuote(pending)}>{copy.history.quoteSelection}</button>
+            <blockquote className="quote-preview">{active.text}</blockquote>
+            <button type="button" className="btn btn-primary btn-small" onClick={() => onQuote(active)}>{copy.history.quoteSelection}</button>
           </>
           : recallable.size > 0 && <p className="old-hint">{copy.history.quoteHint}</p>}
       </footer>

@@ -112,6 +112,10 @@ export async function extractMail(mail: SourceMail, model: EmailPrivacyModel | n
     if (eventEndIso && (!eventStartIso || clock.parse(eventEndIso) <= clock.parse(eventStartIso))) throw new Error('MAIL_EVENT_RANGE_INVALID')
     if (parsed.location) {
       if (!source.includes(parsed.location.quote) || !parsed.location.quote.includes(parsed.location.text)) throw new Error('MAIL_LOCATION_UNGROUNDED')
+      const locationAt = source.indexOf(parsed.location.quote)
+      const locationTextAt = locationAt + parsed.location.quote.indexOf(parsed.location.text)
+      // Same shape as the task: the location text is the quote's shortened claim, so check it where it sits.
+      if (!groundingVerdict(source, parsed.location.text, locationTextAt, locationTextAt + parsed.location.text.length).entailed) throw new Error('MAIL_LOCATION_UNGROUNDED')
       quotes.push({ field: 'locationText', text: parsed.location.text })
     }
     if (parsed.urgency && (!source.includes(parsed.urgency.quote) || /无需|取消|不再|不要|不用|不必|不需/.test(parsed.urgency.quote) || !(parsed.urgency.level === 'reply-today' ? /(?:今天|今日)(?:内)?(?:务必|需要|请)?(?:上午|下午|晚上|中午)?(?:前)?回复/ : /(?:考场|教室|地点)(?:已|将|现)?(?:变更|更改|调整)/).test(parsed.urgency.quote))) throw new Error('MAIL_URGENCY_UNGROUNDED')
