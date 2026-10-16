@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { goalSchema } from '../heart-flow/goals'
+import { operationSchema } from '../heart-flow/operations'
 import { PUBLIC_ERROR_CODES } from '../../shared'
 import { viewSchema } from '../pomodoro/schema'
 import { artifactSchema, candidateSchema, deliverySchema, mailboxSchema, mailFactsSchema, opaqueId } from '../campus/schema'
@@ -60,6 +61,8 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('life/state'), view: lifeSchema }),
   z.strictObject({ type: z.literal('minecraft/round'), roundId: z.string().uuid(), serverId: id, controlSessionId: z.string().uuid(), status: z.enum(['started', 'stopped']), stopVerified: z.boolean() }),
   z.strictObject({ type: z.literal('flow/goal'), goal: goalSchema }),
+  z.strictObject({ type: z.literal('flow/operation'), operation: operationSchema }),
+  z.strictObject({ type: z.literal('flow/operation-read'), operationId: z.string().uuid(), path: z.string().min(1).max(180), sha256: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ type: z.literal('flow/goal-selected'), goalId: z.string().uuid() }),
   z.strictObject({ type: z.literal('flow/goal-linked'), goalId: z.string().uuid(), flowId: id }),
   z.strictObject({ type: z.literal('flow/open'), id, prefix: z.array(contextMessageSchema).max(200), mode: z.enum(['plan', 'execute']), resumedFrom: id.optional() }),

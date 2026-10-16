@@ -69,6 +69,9 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('life.depart'), outingId: z.string().max(100) }),
   z.strictObject({ ...envelope, type: z.literal('life.return') }),
   z.strictObject({ ...envelope, type: z.literal('flow.enter') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.init') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.review') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.operation.open'), operationId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('flow.goal.set'), text: goalTextSchema, goalId: z.string().uuid().optional() }),
   z.strictObject({ ...envelope, type: z.literal('flow.goal.select'), goalId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('flow.goal.status'), goalId: z.string().uuid(), status: goalStatusSchema }),
@@ -356,12 +359,12 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       publish('mode', command.requestId)
       execution?.stateChanged()
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
-    } else if (heartFlow && command.type === 'message.send' && (heartFlow.active() && /^(?:\/(?:exit|plan|permissions|status|diff|undo)$|\/compact(?:\s|$))/.test(command.text) || /^\/goal(?:\s|$)/.test(command.text))) {
+    } else if (heartFlow && command.type === 'message.send' && (heartFlow.active() && /^(?:\/(?:init|review|exit|plan|permissions|status|diff|undo)$|\/compact(?:\s|$))/.test(command.text) || /^\/goal(?:\s|$)/.test(command.text))) {
       const text = command.text; const focus = /^\/compact\s/.test(text) ? text.slice(8).trim() || undefined : undefined
       const section = ({ '/permissions': 'permissions', '/status': 'status', '/diff': 'diff' } as const)[text as '/permissions' | '/status' | '/diff']
       const goalText = text.startsWith('/goal ') ? text.slice(6).trim() : ''; const flowView = heartFlow.view(); const selectedGoal = flowView.goals?.find((goal) => goal.id === flowView.goalId && goal.status === 'active')
-      const action: AppCommand | undefined = goalText ? { ...command, type: 'flow.goal.set', text: goalText, ...(selectedGoal ? { goalId: selectedGoal.id } : {}) } : text === '/exit' ? { ...command, type: 'flow.exit' } : text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : text.startsWith('/compact') ? { ...command, type: 'flow.compact', ...(focus ? { focus } : {}) } : section ? { ...command, type: 'flow.inspect', section } : text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
-      const error = focus && focus.length > 500 ? 'invalid-command' : action ? heartFlow.dispatch(action) : 'unavailable'; ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+      const action: AppCommand | undefined = goalText ? { ...command, type: 'flow.goal.set', text: goalText, ...(selectedGoal ? { goalId: selectedGoal.id } : {}) } : text === '/init' ? { ...command, type: 'flow.init' } : text === '/review' ? { ...command, type: 'flow.review' } : text === '/exit' ? { ...command, type: 'flow.exit' } : text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : text.startsWith('/compact') ? { ...command, type: 'flow.compact', ...(focus ? { focus } : {}) } : section ? { ...command, type: 'flow.inspect', section } : text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
+      const error = focus && focus.length > 500 ? 'invalid-command' : action ? heartFlow.dispatch(action, signature) : 'unavailable'; ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (memory && !heartFlow?.active() && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
       try { const error = memory.dispatch(command.type === 'message.send' ? { ...command, type: 'context.compact' } : command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -376,7 +379,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { const error = optical.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (heartFlow && command.type.startsWith('flow.')) {
-      const error = heartFlow.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+      const error = heartFlow.dispatch(command, signature); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (recall && command.type === 'history.recall') {
       const error = recall.request(command.anchor, command.question, command.requestId, signature); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (photos && command.type === 'history.photo.capture') {
@@ -411,7 +414,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { const error = mcp.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (command.type === 'message.send' && execution && executionReady && !snapshot.companion.lightsOut) {
-      try { execution.send(command.text, command.requestId, signature) }
+      try { heartFlow?.interruptDraft(); execution.send(command.text, command.requestId, signature) }
       catch { return reject(command.requestId, 'internal') }
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else if (command.type === 'turn.stop' && execution) {

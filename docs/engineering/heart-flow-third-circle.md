@@ -33,4 +33,12 @@
 
 本轮类型／lint、50 文件／271 项单测通过；原生 Electron／SQLite 探针实际跨日关闭重开并跨两次心流保留目标、只读目标工具、用户状态、角色隔离。`smoke-heart-flow.mjs` 实际通过界面创建、两次关联、重启保留和用户点完成后重启；`smoke-backup.mjs` 验证同 profile 和空白 profile 私人恢复保留目标及 user 确认归属。模型与数据均为合成；没有真实模型请求。
 
-后续接口先行：flow.init／flow.review 和 flow.operation.open、heartFlow.operations 元数据。任务限已批准的 execute 心流，目标为实际书桌草稿；ready 只指文件已产出，不指“审查通过”或“测试通过”。正文只在书桌／心流上下文和原生用户预览，不进入普通记忆。后端和验收待接，不能仅凭接口宣称已实现。
+## 项目说明与改动审查草稿（7634e52 接口）
+
+flow.init／flow.review（或 `/init`、`/review`）复用真正的主 harness，仅在已批准 execute 的心流发起。代码冻结最多 8 个来源、UTF-8 总 24 KB 的索引；`/init` 读取书桌文字，排除既有工作草稿，实际 desk_read 留下元数据证据。`/review` 只取本次 flow 已实际应用、当前版本仍匹配的 before/after，包含删除；遗漏数量随操作显示。两者均只能写独立的 `工作草稿/<UUID>.md`，禁止修改源文件或申请脚本运行，不把 cwd 当系统沙箱。
+
+ready 要求回合 completed、来源没变、有相应读取／成功模型输入证明、desk/change 已 applied、当前真实文件与输出字节匹配。只说“完成”、未读取输入、外部修改、迟到工具调用均不会记 ready。ready 只指实际未审核草稿，不指审查／测试通过；最终判断仍由用户核对。正文只在书桌／工作上下文和无 bridge 的原生用户预览，不进快照、普通上下文或经历抽取。元数据有来源／遗漏数、时间、相对路径、哈希／字节数和明确错误。
+
+停止、熄灯、用户换目标或新插话会取消草稿和其模型调用；忽略取消的迟到返回不能写文件。重启将 running 记 interrupted，不重放；产物被外部改动转 failed 并保留用户修改。已保存草稿随 desk 日志快照恢复。朴素入口在心流工具区，Claude 可根据 operations 绘制活动状态并用 operation.open 查阅。
+
+实际验收：类型／lint、51 文件 286 项单测通过（新增 9 项草稿边界）；`node scripts/smoke-flow-drafts.mjs` 使用真实 Electron／SQLite／文件／原生预览，覆盖计划拒绝、实际说明／审查、只声称完成失败、取消、重启、私人存档恢复、普通上下文隔离和外部修改保留。模型和材料均为 fake／合成，没有真实模型调用。原有心流与基础 Electron 回归另跑；当前安装包仍未包含本批。命令 `pnpm test:flow-drafts`。
