@@ -35,18 +35,26 @@ export function createLifeWork(options: {
     job.completedAtMs = job.status === 'completed' ? clock.nowMs() : null; save(job); options.projected()
   }
   // A committed checkpoint is a private-journal projection. Recreate missing files, preserve edits.
+  // One unreadable or oversized file must never take the whole service — and the app — down with it:
+  // a user editing her own work outside the app can exceed the desk read limit (issue #17).
   const rebuild = () => {
+    const conflicted = new Set<string>()
     const replay = workRecords(rows())
     for (const material of replay.materials.values()) {
-      const present = desk.read(material.path); if (present === null) desk.write(material.path, material.text)
+      try { const present = desk.read(material.path); if (present === null) desk.write(material.path, material.text) } catch { /* The material stays missing; checkpoint conflicts below still decide the job. */ }
     }
     for (const [id, checkpoints] of replay.committed) for (const draft of checkpoints) {
-      const present = desk.read(draft.path)
-      if (present === null) desk.write(draft.path, draft.text)
-      else if (present !== draft.text) { const job = jobs.get(id); if (job && job.reason !== 'conflict') fail(job, 'conflict') }
+      try {
+        const present = desk.read(draft.path)
+        if (present === null) desk.write(draft.path, draft.text)
+        else if (present !== draft.text) { const job = jobs.get(id); if (job && job.reason !== 'conflict') fail(job, 'conflict'); conflicted.add(id) }
+      } catch { const job = jobs.get(id); if (job && job.reason !== 'conflict') fail(job, 'conflict'); conflicted.add(id) }
     }
+    return conflicted
   }
-  rebuild()
+  // A conflict found here is the state the user has to resolve, so the startup reconcile below must not
+  // overwrite it with "all steps committed" — that would both hide the conflict and re-open the resume path.
+  const conflictedAtStartup = rebuild()
   // No model calls at startup. Only reconcile a write that already exists on disk with its durable intent.
   const replay = workRecords(rows())
   for (const job of jobs.values()) {
@@ -56,9 +64,14 @@ export function createLifeWork(options: {
     if (last) job.output = { path: last.path, sha256: last.sha256, byteLength: Buffer.byteLength(last.text) }
     const pending = [...replay.drafts.values()].findLast((draft) => draft.workId === job.id && draft.step === commits.length + 1)
     if (job.reason !== 'conflict' && pending && desk.read(pending.path) === pending.text) checkpoint(job, pending)
+    // A conflict found by this startup pass stays a conflict, even when every step was committed: the user
+    // has to resolve it, and settling it silently would also re-open the resume path (issue #16).
+    if (conflictedAtStartup.has(job.id)) continue
     if (job.reason === 'conflict') continue
-    if (job.completedSteps === 3) { if (job.status !== 'completed') { job.status = 'completed'; job.completedAtMs = clock.nowMs(); delete job.reason; save(job) } }
-    else if (job.status === 'running' || job.status === 'queued' || job.status === 'paused' && job.reason !== 'user') { job.status = 'interrupted'; job.reason = 'interrupted'; save(job) }
+    // A conflict recorded earlier that already committed every step is finished work, not a permanent
+    // failure: settle it here so the resume path can never queue a fourth step (issue #16).
+    if (job.completedSteps >= job.totalSteps) { if (job.status !== 'completed') { job.status = 'completed'; job.completedAtMs = clock.nowMs(); delete job.reason; save(job) }; continue }
+    if (job.status === 'running' || job.status === 'queued' || job.status === 'paused' && job.reason !== 'user') { job.status = 'interrupted'; job.reason = 'interrupted'; save(job) }
   }
   const ensure = (kind: LifeWorkKind, day = calendarDay(clock)): LifeWorkItem | undefined => {
     const prior = [...jobs.values()].find((job) => job.dayKey === day && job.kind === kind); if (prior) return prior
@@ -73,9 +86,15 @@ export function createLifeWork(options: {
     if (blocked()) return Promise.resolve()
     const job = [...jobs.values()].find((job) => job.status === 'queued' || job.status === 'paused' && (job.reason === 'busy' || job.reason === 'lights'))
     if (!job) return Promise.resolve()
+    // Never attempt a step that does not exist: `life/work-attempt.step` is capped at the last step, so a
+    // job whose steps are all committed must settle as completed instead of leaving a phantom "running".
+    if (job.completedSteps >= job.totalSteps) { job.status = 'completed'; job.completedAtMs = clock.nowMs(); delete job.reason; save(job); return Promise.resolve() }
     if (attempts() >= DAILY_ATTEMPTS) { pause(job, 'budget'); return Promise.resolve() }
-    const abort = new AbortController(); active = abort; job.status = 'running'; delete job.reason; save(job)
+    const abort = new AbortController(); active = abort
+    // The attempt row is written before the state change: if the journal rejects it, the job keeps its
+    // previous state and no worker is reserved, so no dead "running" state can survive the failure.
     store.append({ type: 'life/work-attempt', workId: job.id, step: job.completedSteps + 1, dayKey: calendarDay(clock) })
+    job.status = 'running'; delete job.reason; save(job)
     // Reserve the worker synchronously, even when a fake model fails synchronously.
     worker = Promise.resolve().then(async () => {
       const stop = clock.after(30000, () => abort.abort()); let remove = () => {}; let conflict = false
@@ -133,6 +152,7 @@ export function createLifeWork(options: {
       }
       if (job.status === 'completed') return 'unavailable'
       if (command.type === 'life.work.pause') { if (active && job.status === 'running') active.abort(); pause(job, 'user'); return }
+      if (job.completedSteps >= job.totalSteps) { job.status = 'completed'; job.completedAtMs = clock.nowMs(); delete job.reason; save(job); return }
       if (!enabled || !options.model || worker) return 'unavailable'
       job.status = 'queued'; delete job.reason; save(job); void tick()
     },
