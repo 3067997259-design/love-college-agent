@@ -18,5 +18,5 @@ export function carryPreviousState(journal: Journal, root: string, owner: Pick<S
   const pomodoro = state.pomodoro.plan?.status === 'finished' ? idleTimer() : state.pomodoro
   journal.append({ type: 'session/carry', sourceSessionId: state.scope.sessionId, sourceSeq: state.lastSeq,
     mode: state.mode, lightsOut: state.lightsOut, pomodoro, pomodoroPause: state.pomodoroPause,
-    pomodoroEvents: state.pomodoroEvents.filter((event) => !consumed.has(event.id)) })
+    pomodoroEvents: state.pomodoroEvents.filter((event) => !consumed.has(event.id)), pendingEvents: state.pendingEvents.slice(0, 32) })
 }

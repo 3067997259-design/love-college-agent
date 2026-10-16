@@ -33,6 +33,11 @@ import { createDocumentService, type DocumentService } from './documents/service
 import { createFakeDocumentModel } from './documents/privacy'
 import { documentTools } from './documents/tools'
 import { probeDocuments } from './validation/documents'
+import { openMemoryRepository, type MemoryRepository } from './memory/repository'
+import { createMemoryService, type MemoryService } from './memory/service'
+import { createFakeMemoryModel } from './memory/model'
+import { memoryTools } from './memory/tools'
+import { probeMemory } from './validation/memory'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -60,6 +65,8 @@ let campus: CampusService | undefined
 let vault: EvidenceVault | undefined
 let documentVault: DocumentVault | undefined
 let documents: DocumentService | undefined
+let memoryRepository: MemoryRepository | undefined
+let memory: MemoryService | undefined
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -83,6 +90,11 @@ function createWindow(): void {
 void app.whenReady().then(async () => {
   if (!ownsData) return
   if (prepared.developer && process.argv.some((arg) => arg.startsWith('--lca-probe='))) { console.log('LCA_PROBE:{"ok":false,"error":"DEVELOPER_PROFILE_REFUSED"}'); app.exit(1); return }
+  if (process.argv.includes('--lca-probe=memory')) {
+    try { const report = await probeMemory(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(report.ok ? 0 : 1) }
+    catch { console.log('LCA_PROBE:{"ok":false,"probe":"memory","error":"MEMORY_PROBE_FAILED"}'); app.exit(1) }
+    return
+  }
   if (process.argv.includes('--lca-probe=documents')) {
     try { const report = await probeDocuments(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(0) }
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"documents","error":"DOCUMENT_PROBE_FAILED"}'); app.exit(1) }
@@ -151,6 +163,13 @@ void app.whenReady().then(async () => {
       openArtifact: previewArtifact, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('document', text, id) },
       failed: () => { console.error('Document processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachDocuments(documents)
+    memoryRepository = openMemoryRepository(dataDir, store)
+    const fakeMemory = prepared.developer ? createFakeMemoryModel() : undefined
+    memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, model: fakeMemory?.model ?? null, development: fakeMemory,
+      isBusy: () => harness?.isBusy() ?? false, changed: () => controller?.refresh('connection'),
+      rolled: () => { controller?.refresh('connection'); harness?.sessionChanged(); pomodoro?.reconcile(); campus?.stateChanged(); documents?.stateChanged() },
+      failed: () => { console.error('Memory processing stopped: local storage unavailable.'); app.quit() } })
+    controller.attachMemory(memory)
     campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? createBlockedImapSource(), privacy: fakeMailbox?.privacy ?? null,
       artifacts, openArtifact: previewArtifact, attachment: (record) => documents!.registerAttachment(record),
       development: fakeMailbox, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('mail', text, id) },
@@ -164,17 +183,20 @@ void app.whenReady().then(async () => {
     plugins.registerBuiltin('pomodoro', '番茄钟', pomodoroTools(pomodoro))
     plugins.registerBuiltin('mail', '邮箱与校园候选', mailTools(campus), { handlesPrivacy: true, permissions: ['network'] })
     plugins.registerBuiltin('documents', '附件与资料整理', documentTools(documents), { handlesPrivacy: true, permissions: ['filesystem'] })
+    plugins.registerBuiltin('memory', '经历记忆与日会话', memoryTools(memory))
     if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])
     plugins.discover()
     const providers = prepared.developer ? new Map() : await readModelProviders(process.env.LCA_PROVIDERS_FILE ?? join(app.getAppPath(), 'secrets/providers.json'))
     const modelReady = prepared.developer || providers.has('chat')
     harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: plugins.tools, enabled: () => modelReady, changed: (reason) => controller?.refresh(reason),
+      prepareContext: (id, signal) => memory!.prepareContext(id, signal), foreground: () => memory?.foreground(),
       failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     controller.attachExecution(harness, modelReady)
     controller.attachPomodoro(pomodoro, () => plugins.views().some((item) => item.id === 'pomodoro' && item.status === 'enabled'))
     plugins.mountService('pomodoro', (enabled) => { if (enabled) pomodoro?.reconcile(); else pomodoro?.pause() })
     plugins.mountService('mail', (enabled) => campus?.setEnabled(enabled))
     plugins.mountService('documents', (enabled) => documents?.setEnabled(enabled))
+    plugins.mountService('memory', (enabled) => memory?.setEnabled(enabled))
     if (prepared.scene?.preset === 'pomodoro-demo' && store.records().length <= 2) pomodoro.propose({ label: '开发演示', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }, 'user')
     harness.stateChanged()
     scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => controller?.refresh('timer'), { everyMs: 1000, background: false })
@@ -201,7 +223,8 @@ app.on('before-quit', (event) => {
     pomodoro?.dispose()
     const closeCampus = campus?.close()
     const closeDocuments = documents?.close()
+    const closeMemory = memory?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments]).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory]).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })
