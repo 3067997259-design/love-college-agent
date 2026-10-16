@@ -1,6 +1,6 @@
 import type { AppCommand, CommandAck } from './commands'
 import type { AppEvent } from './events'
-import type { AppSnapshot, EvidenceView, FileImportAck } from './state'
+import type { AppSnapshot, EvidenceView, FileImportAck, SessionPage } from './state'
 
 export interface AppBridge {
   getSnapshot(): Promise<AppSnapshot>
@@ -11,6 +11,8 @@ export interface AppBridge {
   /** User drop/chooser only. Preload resolves native File handles; paths never return to renderer.
    * Optional solely for older UI fixtures. Real preload supplies this method. */
   importFiles?(files: readonly File[], epoch: string): Promise<FileImportAck>
+  /** User-only chat archive. Not a raw journal, tool evidence or model read API. */
+  readSession?(sessionId: string): Promise<SessionPage>
 }
 
 export const IPC_CHANNELS = {
@@ -19,4 +21,5 @@ export const IPC_CHANNELS = {
   command: 'lca:command',
   evidence: 'lca:user-evidence',
   files: 'lca:user-files',
+  session: 'lca:user-session',
 } as const

@@ -31,6 +31,10 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'document.cancel'; documentId: string }
   | { type: 'developer.documents'; scenarioId: DocumentScenarioId }
   | { type: 'developer.document.import'; fixtureId: 'assignment-pdf' | 'notes-text' | 'malformed-pdf' | 'scanned-pdf' }
+  | { type: 'memory.extract' }
+  | { type: 'context.compact' }
+  | { type: 'session.rollover' }
+  | { type: 'developer.memory'; scenarioId: 'ready' | 'failure' | 'invalid' }
   | { type: 'plugin.enable'; pluginId: string; fingerprint: string }
   | { type: 'plugin.disable'; pluginId: string }
   | { type: 'plugin.privacy.set'; pluginId: string; privacy: 'none' | 'optional' | 'always' }

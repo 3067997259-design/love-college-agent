@@ -43,3 +43,11 @@
 `/privacy` 是本地控制指令，等同 `privacy.set`，不发给模型；开关在设置中持久化。当前仅实现隔离整理：关闭时暂存，开启且隔离依赖可用时处理；关闭、熄灯或取消停止在途处理，失败不回退主模型。完成后只给用户交付卡，模型最多收到通用文件名、类型、页数和校验过的截止时间。
 
 `document.retry/cancel` 控制资料任务。`developer.documents` 和 `developer.document.import` 仅在独立开发 profile 提供合成 fixture／故障场景，不代表真实模型、真实附件或 IMAP 已接通。旧 UI fixture 可以省略新视图和导入方法；真实 preload 提供它们。
+
+## 记忆、日会话与压缩
+
+`memory` 提供当前后台状态、计数和最多一小页未审核记忆；记忆只能来自实际模型输入记录，不能扫描证据库、文件库或交付成品。`session` 提供当前上海时间 04:00 起算的日键、待翻页状态和已有页元数据。`readSession(sessionId)` 只给用户看历史聊天，不返回工具原文或执行日志，也不注入模型。
+
+`memory.extract`、`context.compact` 分别请求批量抽取和完整旧回合压缩；压缩只改模型投影，用户聊天原文保留。`/compact` 是同一项本地控制，不发送给聊天模型。`session.rollover` 也必须通过时间、回合空闲和熄灯检查，不能强行切掉执行中的回合。自动翻页与抽取遵守相同边界。
+
+`developer.memory` 只切换独立开发 profile 的 fake 后台模型。normal 未接后台模型时显示 unconfigured，不暗中调用聊天模型。来源、作用域、纠正链和晋升由主进程维护；界面不自己推导它们。
