@@ -21,3 +21,5 @@
 - `sourceLabel` 必须由采集层校验成短字段，不能直接塞原始邮件主题。`mailboxUnseen` 只有 mail capability 为 ready 时才有效，连接失败不能显示成“0 封新邮件”。
 - `readEvidence` 是用户查阅通道，按主进程的用户／角色作用域查 opaque ref；不存在或未接入时明确拒绝。返回值不可进入快照、展示事件或模型上下文。高亮是 excerpt 的 UTF-16 半开区间，对应字段名 `deadlineIso / eventStartIso / locationText / title`。
 - 番茄钟空闲时 `phaseDurationMs`、`plannedCount` 均为 0；运行时由主进程提供本段总时长与这一轮计划数量。
+
+执行底座补充：`PUBLIC_ERROR_CODES` 导出统一枚举，新增模型配置、上游繁忙、额度、断流、非法输出，以及步数／重复调用／预算上限。任务失败看 `task.error.code`，不要把这些失败展示成工作完成；错误里仍只有固定分类与 opaque detailsId，不含供应商报错或配置值。
