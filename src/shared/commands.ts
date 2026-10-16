@@ -96,7 +96,11 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'notification.rule.discard'; ruleId: string }
   | { type: 'flow.exit' }
   | { type: 'flow.mode'; mode: 'plan' | 'execute' }
-  | { type: 'flow.compact' }
+  | { type: 'flow.compact'; focus?: string }
+  /** User-only inspection. Native preview contains desk diffs; never a model/debug read channel. */
+  | { type: 'flow.inspect'; section: 'status' | 'permissions' | 'diff'; flowId?: string }
+  /** Start a new plan-only flow from a closed flow's frozen reference and evidence index. Fresh run approvals required. */
+  | { type: 'flow.resume'; flowId: string }
   | { type: 'flow.undo'; changeId: string }
   /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
   | { type: 'flow.run'; code: string }

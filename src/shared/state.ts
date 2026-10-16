@@ -471,3 +471,19 @@ export interface HeartFlowView {
   sessions: readonly { id: string; startedAtMs: number; endedAtMs: number | null; summary: string | null }[]
   lastRun?: { ok: boolean; output: string }
 }
+/** Explicit user lookup only. Raw desk diffs never enter snapshots, debug MCP or ordinary memory. */
+export interface HeartFlowInspection {
+  flowId: string
+  section: 'status' | 'permissions' | 'diff'
+  mode: 'plan' | 'execute'
+  scope: 'desk-only'
+  approval: 'each-run'
+  execution: 'javascript-sandbox' | 'disabled'
+  contextChars: number
+  inputTokens: number | null
+  outputTokens: number | null
+  /** Unknown pricing is null, never a fabricated zero. No private provider/model values. */
+  cost: number | null
+  changes: readonly { id: string; path: string; before: string | null; after: string | null; current: boolean; undone: boolean }[]
+  truncated: boolean
+}
