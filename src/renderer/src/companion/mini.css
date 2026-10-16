@@ -1,0 +1,135 @@
+/* 迷你陪伴窗（体验设计 §6）。窗口透明：纸以外什么都不画，桌面从这里透出来。 */
+
+html[data-view='mini'],
+html[data-view='mini'] body { background: transparent; overflow: hidden; }
+
+.mini {
+  position: fixed;
+  inset: 0;
+  container-type: size;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  row-gap: 6px;
+  justify-items: center;
+  align-items: center;
+  padding: 10px 8px 8px;
+  box-sizing: border-box;
+  font-family: var(--font-body);
+  user-select: none;
+}
+
+/* 纸本身就是“回到书本”的按钮；阴影用薰衣草紫，不用黑 */
+.mini-paper {
+  width: min(100cqw - 16px, 100cqh - 104px);
+  aspect-ratio: 1;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 46%;
+  cursor: pointer;
+  touch-action: none;
+  /* 桌面可能是深色也可能是浅色：用偏紫的深色投影，不在深色桌面上发光 */
+  filter: drop-shadow(0 8px 12px rgb(38 32 64 / 0.36)) drop-shadow(0 1px 1px rgb(38 32 64 / 0.25));
+  animation: mini-unfold 520ms var(--ease-out) both;
+  transition: translate var(--dur) var(--ease-out);
+}
+.mini-paper:hover { translate: 0 -2px; }
+.mini-paper:active { cursor: grabbing; }
+.mini-paper:focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 4px; }
+.mini-paper svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.mini-sheet { fill: var(--paper); }
+.mini-outline { fill: none; stroke: var(--pencil); stroke-width: 1.4; opacity: 0.85; }
+.mini-tint { fill: var(--room-tint); mix-blend-mode: var(--room-tint-blend); pointer-events: none; }
+.mini-missing { position: absolute; inset: 0; display: grid; place-items: center; font: 16px var(--font-hand); color: var(--pencil); }
+@keyframes mini-unfold { from { opacity: 0; transform: scale(0.86) rotate(-3deg); } to { opacity: 1; transform: none; } }
+
+/* 她手边多出来的一张卡片：不急的新邮件 */
+.mini-letter rect { fill: color-mix(in oklab, var(--paper) 75%, white); stroke: var(--pencil); stroke-width: 1.3; }
+.mini-letter path { fill: none; stroke: var(--pencil); stroke-width: 1.3; }
+
+/* 底下贴一张小纸条：专注／休息还剩多久 */
+.mini-tag {
+  margin: 0;
+  padding: 2px 12px 1px;
+  font: 16px var(--font-hand);
+  white-space: nowrap;
+  color: var(--graphite);
+  background: var(--paper);
+  border: 1.5px solid var(--pencil);
+  border-radius: 8px 6px 9px 6px;
+  box-shadow: var(--shadow-card);
+  transform: rotate(-2deg);
+}
+.mini-time { font: 15px var(--font-num); font-variant-numeric: tabular-nums; color: var(--ink-her); }
+/* 休息：纸条换成她的颜色，明度也拉开 */
+.mini[data-break='true'] .mini-tag { color: var(--ink-her); background: var(--peach); border-color: var(--peach-mid); }
+
+/* 她手上的活：一行手写体，最多两行；底下垫一层纸，什么桌面上都看得清 */
+.mini-note {
+  max-width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0 10px;
+  font: 14px / 1.45 var(--font-hand);
+  text-align: center;
+  color: var(--ink-her);
+  background: var(--paper);
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgb(38 32 64 / 0.22);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mini-note:empty { visibility: hidden; }
+.mini-note[data-status='running']::after { content: '…'; }
+
+/* 铃：休息开始时摇三下 */
+.mini-bell {
+  position: absolute;
+  right: 9%;
+  top: 7%;
+  width: 34px;
+  height: 34px;
+  fill: var(--peach);
+  stroke: var(--ink-her);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  transform-origin: 50% 12%;
+  animation: bell-ring 0.9s var(--ease-in-out) 3;
+  pointer-events: none;
+}
+@keyframes bell-ring { 0%, 100% { rotate: 0deg; } 20% { rotate: 16deg; } 40% { rotate: -14deg; } 60% { rotate: 9deg; } 80% { rotate: -5deg; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mini-paper, .mini-bell { animation: none; }
+}
+
+/* —— 只在浏览器预览里出现：一块假桌面，看纸在别的窗口上面是什么样 —— */
+.mini-desktop {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 30% 30%, #6d86a8, transparent 70%),
+    radial-gradient(ellipse 70% 60% at 80% 80%, #2f3f5c, transparent 70%),
+    #44597a;
+}
+.mini-desktop-app {
+  position: absolute;
+  left: 6%;
+  top: 8%;
+  width: 62%;
+  height: 74%;
+  border-radius: 8px;
+  background: linear-gradient(#2b2d33 0 30px, #1e1f24 30px);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 0.4);
+}
+.mini-frame {
+  position: absolute;
+  right: 28px;
+  bottom: 28px;
+  width: 280px;
+  height: 350px;
+  transform: translateZ(0); /* 让 .mini 的 fixed 定位落在这个框里 */
+  outline: 1px dashed rgb(255 255 255 / 0.25);
+}

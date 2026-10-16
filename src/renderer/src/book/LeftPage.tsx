@@ -4,11 +4,10 @@ import { Character } from './Character'
 import { resolveCharacterArt } from './characterArt'
 import { sendCommand, type CommandBody } from './command'
 import { formatClock, formatRemaining } from './format'
+import { locationLabel, MODE_LABEL } from './labels'
 import { useCountdown } from './useCountdown'
 
-const MODE_LABEL = { work: '工作中', quiet: '安静', rest: '休息' } as const
 const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
-const LOCATION_LABEL: Record<string, string> = { shore: '海岸', swing: '秋千' }
 
 /**
  * 左页：她在的地方（体验设计 §2）。画面是她的状态的投影，不是随机动画。
@@ -58,7 +57,7 @@ export function LeftPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: 
           <div className="mail-slot" title={`${companion.mailboxUnseen} 封新邮件`}><span className="mail-letter" /></div>
         )}
 
-        {away && <p className="away-note" title={`她去${LOCATION_LABEL[companion.locationId] ?? companion.locationId}了`}>她去{LOCATION_LABEL[companion.locationId] ?? companion.locationId}了</p>}
+        {away && <p className="away-note" title={`她去${locationLabel(companion.locationId)}了`}>她去{locationLabel(companion.locationId)}了</p>}
 
         {/* 光线层在最上面：钟、门牌、信都是房间里的东西，跟着房间一起暗 */}
         {art.lighting === 'ambient' && <><div className="room-tint" /><div className="room-lamp" /></>}
