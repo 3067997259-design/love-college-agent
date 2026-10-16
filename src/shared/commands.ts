@@ -1,4 +1,4 @@
-import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, PomodoroPlanInput, PublicError, RecallAnchor } from './state'
+import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, OpticalTier, PomodoroPlanInput, PublicError, RecallAnchor } from './state'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -69,6 +69,14 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'history.photo.capture' }
   /** Book only, idle normal conversation. No mail/evidence/document reference or raw excerpt is accepted. */
   | { type: 'history.recall'; anchor: RecallAnchor; question: string }
+  /** Native configuration chooser, main-only endpoint/credential; absent service stays unconfigured. */
+  | { type: 'optical.configure' }
+  /** Optional experiment. Disabling never removes canonical text memory or source records. */
+  | { type: 'optical.enable'; enabled: boolean }
+  /** Encode only witnessed ordinary conversation of a closed session, never arbitrary files/tool results. */
+  | { type: 'optical.encode'; sessionId: string }
+  /** Tier is an experimental decoder setting, never an automatic age/quality guarantee. */
+  | { type: 'optical.decode'; frameId: string; tier: OpticalTier }
   | { type: 'flow.enter' }
   | { type: 'life.schedule'; schedule: 'auto' | 'work' | 'rest' }
   | { type: 'life.propose'; place?: 'coast' | 'swing' }
