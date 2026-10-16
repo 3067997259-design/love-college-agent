@@ -3,7 +3,7 @@ import { PUBLIC_ERROR_CODES } from '../../shared'
 import { viewSchema } from '../pomodoro/schema'
 import { artifactSchema, candidateSchema, deliverySchema, mailboxSchema, mailFactsSchema, opaqueId } from '../campus/schema'
 import { attachmentRecordSchema, documentCompletedSchema, documentJobSchema } from '../documents/schema'
-import { memoryBatchSchema, memorySummarySchema } from '../memory/schema'
+import { memoryBatchSchema, memorySourceSchema, memorySummarySchema } from '../memory/schema'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -26,7 +26,8 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('session/header'), userId: id, characterId: id, sessionId: id }),
   z.strictObject({ type: z.literal('session/carry'), sourceSessionId: id, sourceSeq: z.number().int().positive(),
     mode: z.enum(['work', 'quiet', 'rest']), lightsOut: z.boolean(), pomodoro: viewSchema, pomodoroPause: z.enum(['manual', 'lights']).nullable(),
-    pomodoroEvents: z.array(z.strictObject({ id, text: z.string().max(2000) })).max(1000) }),
+    pomodoroEvents: z.array(z.strictObject({ id, text: z.string().max(2000) })).max(1000),
+    pendingEvents: z.array(z.strictObject({ id, source: z.enum(['pomodoro', 'mail', 'document']), text: z.string().max(2000) })).max(32).optional() }),
   z.strictObject({ type: z.literal('companion/mode'), mode: z.enum(['work', 'quiet', 'rest']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/lights'), lightsOut: z.boolean(), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('mail/state'), view: mailboxSchema }),
@@ -57,7 +58,7 @@ export const inputSchema = z.discriminatedUnion('type', [
     fields: z.record(z.string().max(40), z.union([z.string().max(100), z.number().finite(), z.boolean()])).optional() }),
   z.strictObject({ type: z.literal('plan/update'), turnId: id, steps: z.array(step).max(30) }),
   z.strictObject({ type: z.literal('context/inject'), source: z.enum(['policy', 'memory', 'scheduler']), text }),
-  z.strictObject({ type: z.literal('context/compact'), fromSeq: z.number().int().positive(), toSeq: z.number().int().positive(), summary: text }),
+  z.strictObject({ type: z.literal('context/compact'), fromSeq: z.number().int().positive(), toSeq: z.number().int().positive(), summary: text, sources: z.array(memorySourceSchema).max(128).optional() }),
   z.strictObject({ type: z.literal('model/seen'), turnId: id, source: z.enum(['real', 'fake']), messages: z.array(contextMessageSchema).max(1024),
     eligibleIndexes: z.array(z.number().int().nonnegative()).max(1024) }).refine((value) => new Set(value.eligibleIndexes).size === value.eligibleIndexes.length && value.eligibleIndexes.every((index) => index < value.messages.length && value.messages[index].role !== 'system')),
   z.strictObject({ type: z.literal('memory/batch'), ...memoryBatchSchema.shape }),

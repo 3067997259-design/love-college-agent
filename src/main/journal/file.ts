@@ -12,9 +12,10 @@ export interface Journal {
   close(): void
 }
 
+export function sessionDayKey(clock: Clock, atMs = clock.nowMs()) { return clock.iso(atMs + 4 * 60 * 60 * 1000).slice(0, 10) }
 export function journalLocation(dataDir: string, owner: Pick<Scope, 'userId' | 'characterId'>, clock: Clock) {
   const ownerKey = createHash('sha256').update(JSON.stringify([owner.userId, owner.characterId])).digest('hex')
-  return { folder: join(dataDir, 'journals', ownerKey), dayKey: clock.iso(clock.nowMs() + 4 * 60 * 60 * 1000).slice(0, 10) }
+  return { folder: join(dataDir, 'journals', ownerKey), dayKey: sessionDayKey(clock) }
 }
 
 export function parseJournalContent(content: string, owner: Pick<Scope, 'userId' | 'characterId'>): JournalRecord[] {
@@ -32,7 +33,7 @@ export function parseJournalContent(content: string, owner: Pick<Scope, 'userId'
 export function openJournal(dataDir: string, owner: Pick<Scope, 'userId' | 'characterId'>, clock: Clock): Journal {
   const { folder, dayKey } = journalLocation(dataDir, owner, clock)
   mkdirSync(folder, { recursive: true })
-  // Shanghai local day starting at 04:00. Runtime dream/rollover scheduling comes later.
+  // Shanghai local day starting at 04:00; runtime owner decides when it is safe to rotate.
   const fd = openSync(join(folder, `${dayKey}.jsonl`), 'a+')
   let closed = false
   let poisoned = false

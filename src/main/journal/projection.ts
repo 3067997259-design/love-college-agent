@@ -18,6 +18,7 @@ export interface SessionProjection {
   pomodoro: PomodoroView
   pomodoroPause: 'manual' | 'lights' | null
   pomodoroEvents: { id: string; text: string }[]
+  pendingEvents: { id: string; source: 'pomodoro' | 'mail' | 'document'; text: string }[]
 }
 
 /** Raw tool data is deliberately absent from both UI and model projections. */
@@ -25,10 +26,11 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
   const header = records[0]
   if (!header || header.type !== 'session/header') throw new Error('JOURNAL_HEADER_REQUIRED')
   const result: SessionProjection = { scope: { userId: header.userId, characterId: header.characterId, sessionId: header.sessionId },
-    lastSeq: 0, mode: 'rest', lightsOut: false, messages: [], activities: [], task: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [] }
+    lastSeq: 0, mode: 'rest', lightsOut: false, messages: [], activities: [], task: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [], pendingEvents: [] }
   const context: { seq: number; order?: number; message: ContextMessage }[] = []
   const compacted = records.filter((record) => record.type === 'context/compact')
   const inbox = new Map<string, ContextMessage>()
+  const pendingEvents = new Map<string, SessionProjection['pendingEvents'][number]>()
   const heldMessages: MessageView[] = []
   const quiet = () => result.mode === 'quiet' || result.pomodoro.phase === 'focus' || result.lightsOut
   const release = () => { if (!quiet()) { result.messages.push(...heldMessages.splice(0)); result.messages.sort((a, b) => a.createdAtMs - b.createdAtMs) } }
@@ -39,6 +41,7 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
       case 'session/carry':
         result.mode = record.mode; result.lightsOut = record.lightsOut; result.pomodoro = record.pomodoro
         result.pomodoroPause = record.pomodoroPause; result.pomodoroEvents = record.pomodoroEvents
+        for (const event of record.pendingEvents ?? []) { pendingEvents.set(event.id, event); inbox.set(event.id, { role: 'user', content: JSON.stringify({ source: event.source, facts: event.text }) }) }
         break
       case 'companion/mode': result.mode = record.mode; release(); break
       case 'companion/lights': result.lightsOut = record.lightsOut; release(); break
@@ -52,12 +55,15 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
         result.messages.push({ id: record.id, role: 'user', text: record.text, createdAtMs: record.atMs, status: 'complete' })
         inbox.set(record.id, { role: 'user', content: record.text })
         break
-      case 'inbox/event': inbox.set(record.id, { role: 'user', content: JSON.stringify({ source: record.source, facts: record.text }) }); break
+      case 'inbox/event':
+        inbox.set(record.id, { role: 'user', content: JSON.stringify({ source: record.source, facts: record.text }) })
+        if (record.source !== 'autonomous') pendingEvents.set(record.id, { id: record.id, source: record.source, text: record.text })
+        break
       case 'inbox/drain':
-        for (const id of record.ids) { const message = inbox.get(id); if (message) { context.push({ seq: record.seq, message }); inbox.delete(id) } }
+        for (const id of record.ids) { const message = inbox.get(id); if (message) { context.push({ seq: record.seq, message }); inbox.delete(id) }; pendingEvents.delete(id) }
         break
       case 'inbox/drop':
-        for (const id of record.ids) { inbox.delete(id); const message = result.messages.find((item) => item.id === id); if (message) message.status = 'undelivered' }
+        for (const id of record.ids) { inbox.delete(id); pendingEvents.delete(id); const message = result.messages.find((item) => item.id === id); if (message) message.status = 'undelivered' }
         break
       case 'assistant/message':
         if (record.text) (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'assistant', text: record.text, createdAtMs: record.atMs, status: record.status })
@@ -91,5 +97,6 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
   // Compact changes only model context. Chat history and all source events remain intact.
   result.contextEntries = context.filter((entry) => !compacted.some((range) => entry.seq >= range.fromSeq && entry.seq <= range.toSeq)).sort((a, b) => (a.order ?? a.seq) - (b.order ?? b.seq)).map(({ seq, message }) => ({ seq, message }))
   result.context = result.contextEntries.map((entry) => entry.message)
+  result.pendingEvents = [...pendingEvents.values()]
   return result
 }

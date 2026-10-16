@@ -7,7 +7,7 @@ import type { MemoryEntry, MemorySource } from './schema'
 import fixtures from './fixtures.json'
 
 export interface MemoryModel { source: 'real' | 'fake'; extract(input: readonly SeenFragment[], signal: AbortSignal): Promise<unknown>; summarize(input: readonly SeenFragment[], signal: AbortSignal): Promise<unknown> }
-export class MemoryFailure extends Error { constructor(readonly code: 'memory-invalid-output' | 'not-configured' | 'connection-failed' | 'budget-exceeded' | 'unavailable') { super('MEMORY_OPERATION_FAILED') } }
+export class MemoryFailure extends Error { constructor(readonly code: 'memory-invalid-output' | 'not-configured' | 'connection-failed' | 'budget-exceeded' | 'unavailable' | 'context-too-large') { super('MEMORY_OPERATION_FAILED') } }
 export async function boundedMemoryCall(model: MemoryModel | null, kind: 'extract' | 'summarize', input: readonly SeenFragment[], clock: Clock, signal: AbortSignal) {
   if (!model) throw new MemoryFailure('not-configured')
   const abort = new AbortController(); const combined = AbortSignal.any([abort.signal, signal]); const cancel = clock.after(30_000, () => abort.abort()); let remove = () => {}

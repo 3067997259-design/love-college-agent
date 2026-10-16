@@ -6,6 +6,7 @@ import type { JournalInput } from '../journal/schema'
 import type { ContextMessage } from '../journal/schema'
 import { ModelFailure, type ModelClient } from '../model/types'
 import type { HarnessTool } from './tools'
+import { MemoryFailure } from '../memory/model'
 
 class GuardFailure extends Error {
   constructor(readonly reason: 'max-steps' | 'loop' | 'budget', readonly code: PublicErrorCode) { super('EXECUTION_GUARD') }
@@ -17,6 +18,7 @@ function canonical(value: unknown): unknown {
 }
 function errorCode(error: unknown): PublicErrorCode {
   if (error instanceof GuardFailure) return error.code
+  if (error instanceof MemoryFailure) return error.code
   if (!(error instanceof ModelFailure)) return 'internal'
   return ({ configuration: 'configuration-failed', network: 'connection-failed', timeout: 'connection-failed', upstream: 'upstream-busy', quota: 'quota-exhausted',
     cancelled: 'internal', 'invalid-output': 'invalid-model-output', interrupted: 'stream-interrupted' } as const)[error.kind]
@@ -74,6 +76,7 @@ export function createHarness(options: {
   const pending = store.records().filter((row) => (row.type === 'user/message' || row.type === 'inbox/event') && !consumed.has(row.id))
   // Deterministic phase facts survive restart; interrupted user work still requires resubmission.
   for (const row of pending) if (row.type === 'inbox/event' && (row.source === 'pomodoro' || row.source === 'mail' || row.source === 'document')) inbox.push({ id: row.id, source: row.source })
+  for (const event of store.projection().pendingEvents) if (!inbox.some((entry) => entry.id === event.id)) inbox.push({ id: event.id, source: event.source })
   const undelivered = pending.filter((row) => row.type !== 'inbox/event' || (row.source !== 'pomodoro' && row.source !== 'mail' && row.source !== 'document')).map((row) => 'id' in row ? row.id : '')
   for (let index = 0; index < undelivered.length; index += 32) record({ type: 'inbox/drop', ids: undelivered.slice(index, index + 32) })
 
@@ -186,7 +189,7 @@ export function createHarness(options: {
       inbox.push({ id, source: 'user' }); kick()
     },
     postEvent: (source: 'pomodoro' | 'mail' | 'document' | 'autonomous', text: string, eventId: string = randomUUID()) => {
-      if (store.records().some((row) => row.type === 'inbox/event' && row.id === eventId)) return false
+      if (store.records().some((row) => row.type === 'inbox/event' && row.id === eventId || row.type === 'session/carry' && row.pendingEvents?.some((event) => event.id === eventId))) return false
       if (disposed || inbox.length >= 32) return false
       record({ type: 'inbox/event', id: eventId, source, text }); inbox.push({ id: eventId, source }); kick(); return true
     },
@@ -204,6 +207,7 @@ export function createHarness(options: {
     stateChanged: () => { if (store.projection().lightsOut && active) { active.pauseRequested = true; active.abort.abort() } else { resumeGate?.(); kick() } },
     idle: async () => { await worker },
     isBusy: () => !!worker || !!active || inbox.some((item) => item.source === 'user'),
+    sessionChanged: () => { if (worker || active) throw new Error('SESSION_BUSY'); inbox.splice(0); inbox.push(...store.projection().pendingEvents.map(({ id, source }) => ({ id, source }))); kick() },
     dispose: async () => { disposed = true; active?.abort.abort(); resumeGate?.(); await worker },
   }
 }

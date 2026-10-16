@@ -15,11 +15,12 @@ export function registerAppBridge(controller: ReturnType<typeof createAppControl
   const readEvidence = createUserEvidenceReader(evidenceLookup)
   ipcMain.handle(IPC_CHANNELS.evidence, (event, reference: unknown) => { assertTrusted(event); return readEvidence(reference, controller.getSnapshot().scope) })
   ipcMain.handle(IPC_CHANNELS.files, (event, input: unknown) => { assertTrusted(event); return controller.importUserFiles(input) })
+  ipcMain.handle(IPC_CHANNELS.session, (event, id: unknown) => { assertTrusted(event); return controller.readSession(id) })
   const unsubscribe = controller.subscribe((event) => {
     for (const window of windows) if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.event, event)
   })
   return {
     attach: (window: BrowserWindow) => { windows.add(window); window.once('closed', () => windows.delete(window)) },
-    dispose: () => { unsubscribe(); for (const channel of [IPC_CHANNELS.snapshot, IPC_CHANNELS.command, IPC_CHANNELS.evidence, IPC_CHANNELS.files]) ipcMain.removeHandler(channel); windows.clear() },
+    dispose: () => { unsubscribe(); for (const channel of [IPC_CHANNELS.snapshot, IPC_CHANNELS.command, IPC_CHANNELS.evidence, IPC_CHANNELS.files, IPC_CHANNELS.session]) ipcMain.removeHandler(channel); windows.clear() },
   }
 }
