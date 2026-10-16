@@ -223,7 +223,7 @@
 .wall-clock[data-phase='focus'] { border-color: var(--peach-mid); }
 .wall-clock[data-phase='focus'] .wall-clock-time { color: var(--ink-her); }
 
-/* 门牌挂在门上：工作中／安静／休息，番茄钟的阶段自动翻它 */
+/* 门牌挂在门上：工作中／安静／休息，番茄钟的阶段自动翻它；点一下翻面 */
 .door-sign {
   position: absolute;
   left: 1.2%;
@@ -236,7 +236,11 @@
   border-radius: 6px;
   transform: rotate(-4deg);
   box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: translate var(--dur-fast) var(--ease-out);
 }
+.door-sign:hover, .door-sign[aria-expanded='true'] { translate: 0 -2px; }
+.door-sign:focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 2px; }
 .door-sign::before {
   content: '';
   position: absolute;
@@ -288,6 +292,79 @@
 .room[data-shot='close'] .wall-clock-time { font-size: 16px; }
 .room[data-shot='close'] .door-sign { left: 4%; top: 84%; transform: rotate(-3deg); font-size: 15px; }
 .room[data-shot='close'] .door-sign::before { display: none; }
+
+/* 门牌翻面的小菜单：从牌子往上展开，是界面不是房间里的东西，所以压在光线层上面、不跟着变暗 */
+.door-menu {
+  position: absolute;
+  left: 3%;
+  bottom: calc(16% + 8px);
+  z-index: 3;
+  display: grid;
+  min-width: 168px;
+  padding: 6px;
+  background: color-mix(in oklab, var(--paper) 70%, white 30%);
+  border: 1.5px solid color-mix(in oklab, var(--pencil) 75%, transparent);
+  border-radius: 12px 9px 13px 8px;
+  box-shadow: var(--shadow-card);
+}
+.door-menu button {
+  display: grid;
+  justify-items: start;
+  padding: 4px 10px 4px 26px;
+  font: 17px var(--font-hand);
+  text-align: left;
+  color: var(--graphite);
+  background: none;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  position: relative;
+}
+.door-menu button:hover, .door-menu button:focus-visible { background: color-mix(in oklab, var(--peach) 50%, transparent); outline: none; }
+/* 选中的不只靠颜色：前面打一个勾 */
+.door-menu button[aria-checked='true'] { color: var(--ink-her); }
+.door-menu button[aria-checked='true']::before { content: '✓'; position: absolute; left: 9px; top: 5px; font: 15px var(--font-body); }
+.door-menu small { font: 13px var(--font-body); color: var(--graphite); }
+.door-menu hr { margin: 4px 8px; border: none; border-top: 1.5px dashed color-mix(in oklab, var(--pencil) 70%, transparent); }
+.door-notice { position: absolute; left: 17%; top: 84%; }
+
+/* 熄灯的拉线：从页顶垂下一根铅笔线，末端一颗她颜色的珠子；熄灯时珠子换成深色，明度也拉开。
+   按钮本身不动，只让里面的线轻轻晃，点击区域始终稳定 */
+.pull-cord {
+  position: absolute;
+  left: 26px;
+  top: 0;
+  z-index: 2;
+  width: 22px;
+  height: 92px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.pull-cord-string {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, transparent 10px, var(--pencil) 10px 11.5px, transparent 11.5px) no-repeat 0 0 / 100% 76px;
+  transform-origin: 50% 0;
+  animation: cord-sway 6s var(--ease-in-out) infinite;
+}
+.pull-cord-bead {
+  position: absolute;
+  left: 4px;
+  top: 72px;
+  width: 14px;
+  height: 18px;
+  border-radius: 50% 50% 45% 45%;
+  background: var(--peach);
+  border: 1.5px solid var(--peach-mid);
+  transition: transform var(--dur) var(--ease-out);
+}
+.pull-cord[data-on='false'] .pull-cord-bead { background: var(--navy); border-color: color-mix(in oklab, var(--navy) 70%, white); }
+.pull-cord:hover .pull-cord-bead { transform: translateY(4px); }
+.pull-cord:active .pull-cord-bead { transform: translateY(9px); }
+.pull-cord:focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 2px; }
+@keyframes cord-sway { 0%, 100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
 .room[data-shot='close'] .mail-slot { left: 60%; top: 86%; width: auto; height: auto; background: none; }
 .room[data-shot='close'] .mail-letter { position: relative; display: block; left: 0; bottom: 0; transform: rotate(-7deg); animation: none; box-shadow: var(--shadow-card); }
 
@@ -364,10 +441,20 @@
   padding-bottom: 14px;
   border-bottom: 1.5px dashed color-mix(in oklab, var(--pencil) 70%, transparent);
 }
-.page-date { font: 24px var(--font-hand); color: var(--graphite); }
+.page-date { flex: none; font: 24px var(--font-hand); color: var(--graphite); white-space: nowrap; }
 
-.tomatoes { display: flex; gap: 8px; }
-.tomatoes-empty { font: 15px var(--font-hand); color: var(--graphite); }
+/* 顶部：今天的计划和番茄格（技术方案 §3.5） */
+.plan-head { display: flex; flex: 1; justify-content: flex-end; align-items: center; gap: 10px; min-width: 0; padding-left: 16px; }
+.plan-head-empty { font: 15px var(--font-hand); color: var(--graphite); }
+.plan-label { flex: 0 1 auto; min-width: 0; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 17px var(--font-hand); color: var(--ink-her); }
+.plan-state { font: 15px var(--font-hand); color: var(--graphite); white-space: nowrap; }
+/* 演示节奏要明说：和滤芯标记同一种小框 */
+.demo-tag { padding: 0 6px; font-size: var(--fs-xs); white-space: nowrap; color: var(--navy); border: 1.5px solid var(--navy); border-radius: 5px; }
+
+.tomatoes { display: flex; flex: none; gap: 8px; }
+.tomatoes[data-dense='true'] { gap: 4px; }
+.tomatoes[data-dense='true'] .tomato { width: 14px; height: 18px; border-radius: 5px 4px 6px 4px; }
+.tomatoes[data-dense='true'] .tomato[data-state='done']::after { font-size: 11px; }
 .tomato {
   position: relative;
   width: 24px;
@@ -515,6 +602,12 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 }
 .evidence-loading { color: var(--graphite); }
 
+/* 番茄计划卡：和顶部同一种番茄格，确认前全是铅笔框 */
+.plan-tomatoes { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+.plan-rhythm { margin: 0; font-size: 15px; color: var(--graphite); }
+.plan-span { white-space: nowrap; }
+.card-plan[data-status='finished'] .plan-tomatoes { opacity: 0.8; }
+
 /* 交付卡 */
 .card-delivery { display: flex; align-items: center; gap: 14px; }
 .delivery-icon {
@@ -555,6 +648,7 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 .btn-primary:hover { background: color-mix(in oklab, var(--peach) 80%, var(--peach-mid)); }
 .btn-primary:disabled { opacity: 0.45; cursor: default; }
 .btn-ghost { color: var(--graphite); background: transparent; border: 1.5px solid var(--pencil); }
+.btn-small { padding: 2px 12px; font-size: 15px; white-space: nowrap; }
 .link-button {
   margin-top: 8px;
   padding: 0;

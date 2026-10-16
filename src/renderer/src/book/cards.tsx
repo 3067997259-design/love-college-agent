@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppBridge, CandidateView, DeliveryView, EvidenceView, PlanStep, TaskView, ActivityView } from '../../../shared'
+import type { AppBridge, CandidateView, DeliveryView, EvidenceView, PlanStep, PomodoroPlanView, PomodoroView, TaskView, ActivityView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
 import { formatIso } from './format'
+import { formatSpan, planSpanMs, rhythmText, tomatoStates } from './plan'
 
 /* —— 候选卡：证据 → 候选 → 确认，要让评委亲眼看到（体验设计 §2） —— */
 export function CandidateCard({ view, bridge, onCommand, entering }: {
@@ -103,6 +104,40 @@ export function DeliveryCard({ view, onOpen, entering }: { view: DeliveryView; o
       {view.status === 'ready'
         ? <button className="btn btn-primary" onClick={() => onOpen(view.artifactId)}>打开</button>
         : <span className="notice-mark" title="没有生成出来">！</span>}
+    </article>
+  )
+}
+
+/* —— 番茄计划卡：她（或你）排的草案，你确认才生效；确认后顶部出现今天的番茄格（技术方案 §3.5） —— */
+export function PlanCard({ plan, pomodoro, entering, onConfirm, onDismiss }: {
+  plan: PomodoroPlanView
+  pomodoro: PomodoroView
+  entering: boolean
+  onConfirm: () => void
+  onDismiss: () => void
+}) {
+  const allDone = pomodoro.focusIndex >= plan.plannedCount
+  return (
+    <article className="card card-plan" data-status={plan.status} data-entering={entering}>
+      <header className="card-head">
+        <span className="card-source">{plan.source === 'assistant' ? '她排的' : '你排的'}</span>
+        <span className="card-tag">{plan.timing === 'demo' ? '演示节奏' : `${plan.plannedCount} 个番茄`}</span>
+      </header>
+      <h3 className="card-title">{plan.label}</h3>
+      <div className="plan-tomatoes" role="img" aria-label={`${plan.plannedCount} 个番茄`}>
+        {tomatoStates(pomodoro).map((state, i) => <span key={i} className="tomato" data-state={state} />)}
+      </div>
+      <p className="plan-rhythm">{rhythmText(plan)}<span className="plan-span">，一共约 {formatSpan(planSpanMs(plan))}</span></p>
+      {plan.status === 'proposed'
+        ? (
+          <footer className="card-actions">
+            <button className="btn btn-primary" onClick={onConfirm}>就这么排</button>
+            <button className="btn btn-ghost" onClick={onDismiss}>不用了</button>
+          </footer>
+        )
+        : plan.status === 'confirmed'
+          ? <p className="card-stamp">排进今天了</p>
+          : <p className={allDone ? 'card-stamp' : 'card-stamp card-stamp-muted'}>{allDone ? '做完了' : '收起了'}</p>}
     </article>
   )
 }

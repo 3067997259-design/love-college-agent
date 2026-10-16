@@ -54,7 +54,7 @@ export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: App
           {(['tl', 'tr', 'bl', 'br'] as const).map((c) => <span key={c} className={`corner corner-${c}`} aria-hidden />)}
           {/* 中缝垂下的丝带书签：就是她头发上那条 */}
           <span className="ribbon" aria-hidden />
-          <LeftPage snapshot={snapshot} />
+          <LeftPage snapshot={snapshot} bridge={bridge} />
           <div className="gutter" aria-hidden />
           <RightPage snapshot={snapshot} bridge={bridge} />
           <nav className="bookmarks" aria-label="书签">

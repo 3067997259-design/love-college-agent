@@ -4,7 +4,7 @@
  * 这些数据是演示数据，capabilities 一律标 source: 'fake'，不代表任何真实调用通过。
  */
 import type {
-  ActivityView, AppSnapshot, CandidateView, CapabilityView, DeliveryView, EvidenceView, MessageView,
+  ActivityView, AppSnapshot, CandidateView, CapabilityView, DeliveryView, EvidenceView, MessageView, PomodoroPlanView,
 } from '../../../shared'
 
 // 2026-10-17（周六）各时刻，UTC+8
@@ -30,6 +30,13 @@ const act = (id: string, templateId: string, status: ActivityView['status'], fie
 const msg = (id: string, role: MessageView['role'], text: string, createdAtMs: number, extra: Partial<MessageView> = {}): MessageView =>
   ({ id, role, text, createdAtMs, status: 'complete', ...extra })
 
+/** 下午的计划：路演用演示节奏（专注 1 分钟、休息 20 秒），界面上写明“演示节奏” */
+const afternoonPlan = (status: PomodoroPlanView['status']): PomodoroPlanView => ({
+  id: 'plan-sat-pm', createdAtMs: T.sat1420 - 3 * MIN, status, source: 'assistant',
+  label: '下午：作业和邮件', plannedCount: 4, timing: 'demo',
+  focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4,
+})
+
 /* —— 休息段她带来的东西：三封邮件 → 两张候选卡、一张已确认，加两份交付 —— */
 const candidates: CandidateView[] = [
   {
@@ -37,6 +44,7 @@ const candidates: CandidateView[] = [
     title: '数据结构与算法基础 · 第三次作业',
     deadlineIso: '2026-10-26T23:59:00+08:00', plannedCompletionIso: '2026-10-24T21:00:00+08:00',
     status: 'changed', sourceLabel: '课程助教 · 截止时间更正', evidenceRef: 'ev-hw3-change',
+    change: { previousDeadlineIso: '2026-10-24T23:59:00+08:00', previousEvidenceRef: 'ev-hw3' },
   },
   {
     id: 'cand-talk', createdAtMs: T.sat1445 - 30_000, kind: 'event',
@@ -69,6 +77,11 @@ const ev = (subject: string, senderName: string, receivedAtMs: number, excerpt: 
 })
 
 export const evidence: Record<string, EvidenceView> = {
+  'ev-hw3': ev(
+    '【作业通知】《数据结构与算法基础》第三次作业（10 月 24 日 23:59 截止）', '宋亦舟（课程助教）', T.fri2105 - 26 * 60 * MIN,
+    '提交截止时间：2026 年 10 月 24 日（周六）23:59，以课程平台服务器时间为准。逾期提交按课程规定不计分。',
+    [['2026 年 10 月 24 日（周六）23:59', 'deadlineIso']],
+  ),
   'ev-hw3-change': ev(
     '【更正】《数据结构与算法基础》第三次作业截止时间延至 10 月 26 日 23:59', '宋亦舟（课程助教）', T.fri2105 + 12 * MIN,
     '因课程平台将于 10 月 24 日至 25 日进行例行维护，现将截止时间调整为 2026 年 10 月 26 日（周一）23:59。',
@@ -111,13 +124,24 @@ export const SCENARIOS = {
     messages: [msg('m1', 'assistant', '早。昨晚的三封邮件我还没拆，等你开始专注再看。', T.sat0810 - 2 * MIN, { emotion: 'calm' })],
   })),
 
+  /** 排计划：你说了下午要做的事，她排成四个番茄，等你确认才生效（技术方案 §3.5） */
+  'plan-proposed': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1420 - 2 * MIN },
+    companion: { ...s.companion, mode: 'rest', pose: 'facing-user', expression: 'smile', mailboxUnseen: 3 },
+    pomodoro: { ...s.pomodoro, plannedCount: 4, plan: afternoonPlan('proposed') },
+    messages: [
+      msg('m1', 'user', '下午要写数据结构第三次作业，那几封邮件也还没看。', T.sat1420 - 5 * MIN),
+      msg('m2', 'assistant', '排了四个：前三个你写作业，最后一个我们一起过邮件。你写的时候，邮件我先读着。', T.sat1420 - 3 * MIN - 20_000, { emotion: 'smile' }),
+    ],
+  })),
+
   /** 专注段：她坐在电脑前干活，不开口；右页只有手写体的活动小字和任务卡 */
   'focus-working': scenario((s) => ({
     clock: { ...s.clock, nowMs: T.sat1420 + 35_000 },
     companion: { ...s.companion, mode: 'quiet', pose: 'desk-computer', expression: 'think', mailboxUnseen: 3 },
     pomodoro: {
       phase: 'focus', status: 'running', remainingMs: 25_000, endsAtMs: T.sat1420 + 60_000,
-      focusIndex: 1, phaseDurationMs: 60_000, plannedCount: 4,
+      focusIndex: 1, phaseDurationMs: 60_000, plannedCount: 4, plan: afternoonPlan('confirmed'),
     },
     task: {
       id: 'task-mail', status: 'running', steps: [
@@ -142,7 +166,7 @@ export const SCENARIOS = {
     companion: { ...s.companion, mode: 'rest', pose: 'facing-user', expression: 'smile' },
     pomodoro: {
       phase: 'short-break', status: 'running', remainingMs: 14_000, endsAtMs: T.sat1445 + 14_000,
-      focusIndex: 1, phaseDurationMs: 20_000, plannedCount: 4,
+      focusIndex: 1, phaseDurationMs: 20_000, plannedCount: 4, plan: afternoonPlan('confirmed'),
     },
     task: {
       id: 'task-mail', status: 'completed', steps: [
