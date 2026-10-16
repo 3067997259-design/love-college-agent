@@ -305,6 +305,7 @@ export interface ModelSettingsView {
 }
 export interface WindowsView {
   mode: 'book' | 'mini'
+  diagnosticsOpen?: boolean
   miniPresentation?: 'transparent' | 'opaque'
   miniFallbackReason?: 'forced' | 'gpu-unavailable' | 'black-background' | 'gpu-crash' | null
   miniBounds: { x: number; y: number; width: number; height: number } | null
