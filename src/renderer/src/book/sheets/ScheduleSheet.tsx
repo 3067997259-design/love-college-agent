@@ -23,7 +23,8 @@ export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bri
       .map((outing) => ({ key: outing.id, at: outing.startsAtMs, state: outing.status as string, text: fill(copy.schedule.outing[outing.status], { place: copy.places[outing.place], time: formatClock(outing.returnsAtMs) }), note: '' })),
   ].sort((a, b) => a.at - b.at)
   const work = life?.work
-  const jobs = (work?.jobs ?? []).filter((job) => job.dayKey === life?.dayKey || job.status === 'running' || job.status === 'paused')
+  // An unfinished old work remains reachable after a day change/restart, especially interrupted jobs.
+  const jobs = (work?.jobs ?? []).filter((job) => job.dayKey === life?.dayKey || job.status !== 'completed')
   const next = snapshot.candidates.filter((candidate) => candidate.status === 'confirmed').map((candidate) => ({ candidate, iso: whenOf(candidate) }))
     .sort((a, b) => (a.iso ?? '9').localeCompare(b.iso ?? '9'))
 
@@ -91,7 +92,7 @@ function WorkRow({ job, work, onCommand }: { job: LifeWorkItem; work: LifeWorkVi
   const text = fill(copy.schedule.works[job.kind], { name })
   const reason = job.reason && job.status !== 'completed' && job.status !== 'running' ? copy.schedule.works.reason[job.reason] : ''
   return (
-    <li className="work-row" data-status={job.status}>
+    <li className="work-row" data-status={job.status} data-work-id={job.id}>
       <span className="work-kind" aria-hidden>{job.kind === 'read' ? '读' : '写'}</span>
       <span className="work-text">{text}{job.source === 'fake' && <small className="demo-tag">{copy.shelf.fake}</small>}</span>
       <span className="work-progress" role="img" aria-label={fill(copy.schedule.works.progress, { done: job.completedSteps, total: job.totalSteps })}>
