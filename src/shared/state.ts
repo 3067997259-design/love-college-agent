@@ -470,6 +470,18 @@ export interface HeartFlowView {
   changes: readonly { id: string; path: string; undone: boolean }[]
   sessions: readonly { id: string; startedAtMs: number; endedAtMs: number | null; summary: string | null }[]
   lastRun?: { ok: boolean; output: string }
+  /** Metadata-only subordinate work. Conclusions are unreviewed tool results for the parent flow. */
+  delegates?: readonly DelegateView[]
+}
+export interface DelegateView {
+  id: string
+  flowId: string
+  status: 'running' | 'completed' | 'failed' | 'cancelled'
+  source: 'real' | 'fake'
+  sourceCount: number
+  createdAtMs: number
+  updatedAtMs: number
+  error?: 'unavailable' | 'cancelled' | 'timeout' | 'invalid-output' | 'interrupted'
 }
 /** Explicit user lookup only. Raw desk diffs never enter snapshots, debug MCP or ordinary memory. */
 export interface HeartFlowInspection {
