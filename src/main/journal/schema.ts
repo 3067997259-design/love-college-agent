@@ -8,6 +8,7 @@ import { onboardingSchema } from '../onboarding/schema'
 import { binaryAssetSchema } from '../storage/assets'
 import { giftSchema } from '../gifts/schema'
 import { lifeSchema } from '../life/schema'
+import { diarySchema } from '../diary/schema'
 
 const id = z.string().min(1).max(128)
 const text = z.string().max(200_000)
@@ -27,6 +28,8 @@ export type ContextMessage = {
 }
 
 export const inputSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('diary/attempt'), dayKey: z.iso.date() }),
+  z.strictObject({ type: z.literal('diary/written'), diary: diarySchema }),
   z.strictObject({ type: z.literal('life/state'), view: lifeSchema }),
   z.strictObject({ type: z.literal('flow/open'), id, prefix: z.array(contextMessageSchema).max(200), mode: z.enum(['plan', 'execute']) }),
   z.strictObject({ type: z.literal('flow/mode'), id, mode: z.enum(['plan', 'execute']) }),

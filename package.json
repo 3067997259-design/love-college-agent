@@ -53,6 +53,7 @@
     "test:gifts": "pnpm build && node scripts/smoke-gifts.mjs",
     "probe:heart-flow": "pnpm build && node scripts/probe-electron.mjs heart-flow",
     "probe:life": "pnpm build && node scripts/probe-electron.mjs life",
+    "test:room": "pnpm build && node scripts/smoke-room.mjs",
     "test:heart-flow": "pnpm build && node scripts/smoke-heart-flow.mjs"
   },
   "dependencies": {

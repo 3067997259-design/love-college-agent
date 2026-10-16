@@ -15,6 +15,9 @@ import { runIsolatedJavaScript } from './heart-flow/runner'
 import { probeHeartFlow } from './validation/heart-flow'
 import { createLife, type LifeService } from './life/service'
 import { probeLife } from './validation/life'
+import { createDiary, type DiaryService } from './diary/service'
+import diaryPrompts from './diary/prompts.json'
+import { createRoomProjection } from './room/projection'
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'lca-media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 import { createAppController } from './bridge/controller'
@@ -103,6 +106,7 @@ let quill: QuillService | undefined
 let gifts: GiftService | undefined
 let heartFlow: HeartFlowService | undefined
 let life: LifeService | undefined
+let diary: DiaryService | undefined
 let modelSettings: ModelSettingsService | undefined
 let companionWindows: CompanionWindows | undefined
 let miniFallbackReason: MiniFallbackReason | null = process.env.LCA_MINI_OPAQUE === '1' ? 'forced' : null
@@ -299,7 +303,11 @@ void app.whenReady().then(async () => {
     plugins.registerBuiltin('mail', '邮箱与校园候选', mailTools(campus), { handlesPrivacy: true, permissions: ['network'] })
     plugins.registerBuiltin('documents', '附件与资料整理', documentTools(documents), { handlesPrivacy: true, permissions: ['filesystem'] })
     plugins.registerBuiltin('memory', '经历记忆与日会话', memoryTools(memory))
-    const desk = createDesk(join(dataDir, 'rooms', contentHash(JSON.stringify([store.scope.userId, store.scope.characterId])), '书桌'))
+    const ownerRoom = contentHash(JSON.stringify([store.scope.userId, store.scope.characterId]))
+    const roomRoot = prepared.developer || prepared.booth ? join(dataDir, 'rooms', ownerRoom) : join(app.getPath('documents'), '桃子的房间', ownerRoom.slice(0, 12))
+    const roomProjection = createRoomProjection(roomRoot, store, binaryAssets, clock)
+    scheduler.schedule('room.projection', clock.nowMs() + 30000, () => roomProjection.rebuild(), { everyMs: 60000 })
+    const desk = createDesk(join(roomRoot, '书桌'))
     if (restoreReceipt?.status === 'restored') {
       const restoredFiles = new Map(store.history!().flatMap((row) => row.type === 'desk/change' ? [[row.path, row.after] as const] : []))
       for (const [path, text] of restoredFiles) desk.write(path, text)
@@ -312,6 +320,8 @@ void app.whenReady().then(async () => {
     controller.attachHeartFlow(heartFlow)
     life = createLife({ store, clock, scheduler, restored: restoreReceipt?.status === 'restored', working: () => !!harness?.isBusy() || !!heartFlow?.active(), changed: () => controller?.refresh('mode'), emit: (id, facts) => { harness?.postEvent('autonomous', facts, id) } })
     controller.attachLife(life)
+    diary = createDiary({ clock, scheduler, store, assets: binaryAssets, model: prepared.developer ? { source: 'fake', write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary, busy: () => !!harness?.isBusy() || !!heartFlow?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
+    controller.attachDiary(diary, { rebuild: roomProjection.rebuild, open: () => { void shell.openPath(roomProjection.root) } })
     plugins.registerBuiltin('coding', '书桌编码', deskTools(heartFlow))
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
     if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])
@@ -330,7 +340,7 @@ void app.whenReady().then(async () => {
       canConfigure: () => !harness?.isBusy(), changed: () => controller?.refresh('connection') })
     controller.attachMcp(mcp)
     harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk')), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => heartFlow?.active() ?? false,
-      prepareContext: (id, signal) => heartFlow!.prepareContext(id, signal), foreground: () => memory?.foreground(), userWork: () => life?.foreground(),
+      prepareContext: (id, signal) => heartFlow!.prepareContext(id, signal), foreground: () => { memory?.foreground(); diary?.foreground() }, userWork: () => life?.foreground(),
       failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     controller.attachExecution(harness, modelReady)
     const privateCredentials = prepared.developer ? [] : await readPrivateCredentialValues(providersFile)
@@ -339,7 +349,7 @@ void app.whenReady().then(async () => {
     controller.attachModelSettings(modelSettings)
     backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials, onboarding: () => controller!.getSnapshot().onboarding!,
       canStart: () => !harness!.isBusy() && !heartFlow?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
-      freeze: async () => { scheduler!.pauseBackground(true); memory!.foreground(); await memory!.idle(); if (harness!.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
+      freeze: async () => { scheduler!.pauseBackground(true); memory!.foreground(); diary?.foreground(); await Promise.all([memory!.idle(), diary?.idle()]); if (harness!.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
       chooseExport: async (name) => { const selected = await dialog.showSaveDialog({ title: '导出私人存档', defaultPath: name, filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePath ?? null },
       chooseImport: async () => { const selected = await dialog.showOpenDialog({ title: '选择私人存档', properties: ['openFile'], filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
       restart: () => { systemClock.after(100, () => { app.relaunch(); app.quit() }) }, changed: () => controller?.refresh('restore') })
@@ -396,6 +406,6 @@ app.on('before-quit', (event) => {
     const closeDocuments = documents?.close()
     const closeMemory = memory?.close()
     scheduler?.dispose()
-    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), gifts?.close(), backup?.close(), modelSettings?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), runtime?.close(), closeCampus, closeDocuments, closeMemory, mcp?.close(), gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close()]).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
 })
