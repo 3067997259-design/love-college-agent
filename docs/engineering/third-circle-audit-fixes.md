@@ -1,5 +1,9 @@
 # 第三圈审计修复
 
+## #23 原生 TTS 配置往返
+
+按槽位选择严格配置 schema，导入器和 readVoiceConfig 共用语音校验；完整保留 protocol/voice，普通模型槽位仍拒绝它们。配置入口 6 项单测通过，相关配置／语音共 16 项及类型／相关 lint 通过。更新后的 `smoke-model-slots.mjs` 真正走正常模式原生选择混合 chat/background/privacy/tts 文件、保存、拒绝缺少 voice 的配置且原文件不变，再关闭重启，语音 available=true、enabled=false；未发出 TTS 请求。配置值仅主进程读取，公开状态／日志无配置回声。
+
 ## Windows CI 的独立 ZIP 读者超时
 
 46be75d 的 CI 38967382426：其余 276 项通过，Python zipfile 独立读者断言因冷启动用时 8.1 秒超过默认 5 秒失败。仅这项跨进程验证增加 30 秒测试预算，并给 Python 子进程本身 20 秒终止上限；保留错误密码、加密字节和独立读者内容完全一致的断言，不改全局超时或业务代码。定向日记两项本机通过；CI 结果另核对，不把本机通过当 CI 通过。

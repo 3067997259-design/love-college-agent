@@ -23,3 +23,5 @@
 10 项单测通过：配置缺失／默认静音、成功公开消息、凭据遮盖、失败文字保留、四种取消／迟到、预算／数据上限、协议配置、分片错误及真实 loopback HTTP reader 取消。`node scripts/smoke-voice.mjs` 通过真实 Electron preload、PCM 数据、AudioContext 排程／结束、安静取消、书本白名单、重启偏好和不重播；测试用 webContents 静音，未在用户机器发声。合成数据／fake 模型／测试音，不是中文声音质量或真实 TTS 成本／延迟验收。
 
 全量类型／lint、52 文件／296 项单测通过；基础 Electron、展位 profile 隔离和私人存档场景回归通过。本批未打新的安装包；安装态验收仍待全圈收口。
+
+后续 #23：原生配置导入按槽位区分严格 schema，与 readVoiceConfig 复用相同语音校验，普通模型槽位仍拒绝 protocol/voice。6 项配置单测和更新后的 `smoke-model-slots.mjs` 实际经过原生选择／保存／非法配置不覆盖／关闭重启，确认混合 chat/background/privacy/tts 字段保留、端口 available=true 且保持静音；未向合成 HTTPS 目标发送语音请求。
