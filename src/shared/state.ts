@@ -412,6 +412,8 @@ export interface AppSnapshot {
   history?: HistoryView
   /** Optional optical impressions; default text memory remains authoritative. No OCR prose/page text here. */
   opticalMemory?: OpticalMemoryView
+  /** Main-owned optional game context. No MCP launch config, URLs, tokens or raw game transcript. */
+  minecraft?: MinecraftView
   mcp?: McpView
   backup?: BackupView
   quill?: QuillView
@@ -516,4 +518,22 @@ export interface HeartFlowInspection {
   cost: number | null
   changes: readonly { id: string; path: string; before: string | null; after: string | null; current: boolean; undone: boolean }[]
   truncated: boolean
+}
+export interface MinecraftScope { radiusBlocks: number; durationMs: number; allowChat: boolean }
+export interface MinecraftView {
+  status: 'idle' | 'checking' | 'ready' | 'playing' | 'paused' | 'stopping' | 'failed'
+  source: 'real' | 'fake' | 'none'
+  serverId: string | null
+  pilot?: { uuid: string; name: string; dimension: string; position: { x: number; y: number; z: number } }
+  scope?: MinecraftScope
+  roundId: string | null
+  endsAtMs: number | null
+  actionsUsed: number
+  maxActions: number
+  chatSeen: number
+  /** Only a matching release/ownership observation may set true; RPC cancellation alone is insufficient. */
+  stopVerified: boolean
+  checks?: { commandsDisabled: boolean; worldWriteDisabled: boolean; worldBound: boolean }
+  lastAction?: { kind: 'navigate' | 'chat'; status: 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'; atMs: number }
+  error?: PublicError
 }

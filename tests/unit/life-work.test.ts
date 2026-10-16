@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -96,4 +96,49 @@ it('settles an agenda only after the producer has three actual products and keep
   f.work.ensure('read'); await f.work.tick(); life.reconcile(); expect(life.view().agenda.find((item) => item.kind === 'read')?.state).not.toBe('settled')
   await f.work.tick(); await f.work.tick(); life.reconcile(); expect(life.view().agenda.find((item) => item.kind === 'read')?.state).toBe('settled')
   controller.dispose()
+})
+/** Commit all three steps of one job, then edit the third product so the next rebuild sees a conflict. */
+async function completedThenConflict(f: ReturnType<typeof setup>) {
+  const job = f.work.ensure('write')!
+  for (let step = 1; step <= 3; step++) await f.work.tick()
+  expect(f.work.view().jobs.find((entry) => entry.id === job.id)!.status).toBe('completed')
+  const output = f.work.view().jobs.find((entry) => entry.id === job.id)!.output!
+  writeFileSync(join(f.root, '书桌', output.path), 'USER_EDITED_OUTSIDE_THE_APP')
+  return job
+}
+it('never queues a fourth step when a completed work conflicts, and does not strand a running state (issue #16)', async () => {
+  const f = setup(); const job = await completedThenConflict(f)
+  const before = f.store.records().filter((row) => row.type === 'life/work-attempt').length
+  // 恢复原文之后重启：这一项其实已经完成，启动对账就应当把它结算掉，而不是留下永久 conflict。
+  const committed = workRecords(f.store.records()).committed.get(job.id)!.at(-1)!
+  f.desk.write(committed.path, committed.text)
+  const restarted = createLifeWork(f.options)
+  expect(restarted.view().jobs.find((entry) => entry.id === job.id)!.status).toBe('completed')
+  const settled = f.work.view().jobs.find((entry) => entry.id === job.id)!
+  expect(settled.completedSteps).toBe(3)
+  // 旧实现：续做会写 step=4 的 attempt，被 journal 拒绝后留下一个没有 worker 的 running 状态。
+  // 现在这一项已被结算为完成，续做请求会被正常拒绝，而不是排进一个不存在的第 4 步。
+  expect(f.send({ type: 'life.work.resume', workId: job.id })).toBe('unavailable')
+  await f.work.idle(); await f.work.tick()
+  const after = f.work.view().jobs.find((entry) => entry.id === job.id)!
+  expect(after.status).toBe('completed'); expect(after.completedSteps).toBe(3)
+  expect(f.store.records().filter((row) => row.type === 'life/work-attempt' && row.step > 3)).toHaveLength(0)
+  expect(f.store.records().filter((row) => row.type === 'life/work-attempt').length).toBe(before)
+  expect(f.work.active()).toBe(false)
+})
+it('survives an oversized or unreadable checkpoint instead of failing app startup (issue #17)', async () => {
+  const f = setup(); const job = f.work.ensure('write')!
+  for (let step = 1; step <= 3; step++) await f.work.tick()
+  const output = f.work.view().jobs.find((entry) => entry.id === job.id)!.output!
+  const file = join(f.root, '书桌', output.path)
+  writeFileSync(file, 'x'.repeat(64_001))
+  // 构造服务不再抛出：否则 index.ts 的 catch 会直接 app.exit(1)，用户再也打不开应用。
+  let restarted!: ReturnType<typeof createLifeWork> | undefined
+  expect(() => { restarted = createLifeWork(f.options) }).not.toThrow()
+  const conflicted = restarted!.view().jobs.find((entry) => entry.id === job.id)!
+  expect(conflicted.reason).toBe('conflict')
+  expect(readFileSync(file, 'utf8')).toHaveLength(64_001)
+  // 路径被换成目录同样只影响这一项。
+  unlinkSync(file); mkdirSync(file)
+  expect(() => createLifeWork(f.options)).not.toThrow()
 })
