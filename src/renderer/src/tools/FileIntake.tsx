@@ -1,0 +1,31 @@
+import { useEffect, useRef, useState } from 'react'
+import type { AppBridge, AppSnapshot } from '../../../shared'
+import './documents.css'
+
+export function FileIntake({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
+  const input = useRef<HTMLInputElement>(null)
+  const [notice, setNotice] = useState('')
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    if (!bridge.importFiles) return
+    const dragover = (event: DragEvent) => { if (event.dataTransfer?.types.includes('Files')) event.preventDefault() }
+    const drop = (event: DragEvent) => {
+      const files = Array.from(event.dataTransfer?.files ?? [])
+      if (!files.length) return
+      event.preventDefault(); event.stopPropagation()
+      void bridge.importFiles!(files, snapshot.epoch).then((ack) => { setError(!!ack.error); setNotice(ack.error ? `文件未全部接收：${ack.error.code}` : `已接收 ${ack.acceptedIds.length} 份资料`) }, () => { setError(true); setNotice('文件接收失败') })
+    }
+    window.addEventListener('dragover', dragover); window.addEventListener('drop', drop)
+    return () => { window.removeEventListener('dragover', dragover); window.removeEventListener('drop', drop) }
+  }, [bridge, snapshot.epoch])
+  if (!bridge.importFiles || !snapshot.documents) return null
+  return <div className="file-intake">
+    <button type="button" className="btn btn-ghost" onClick={() => input.current?.click()}>选择资料</button>
+    <input ref={input} className="visually-hidden" type="file" multiple accept=".pdf,.txt,.md" aria-label="选择资料文件" onChange={(event) => {
+      const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ''
+      if (files.length) void bridge.importFiles!(files, snapshot.epoch).then((ack) => { setError(!!ack.error); setNotice(ack.error ? `文件未全部接收：${ack.error.code}` : `已接收 ${ack.acceptedIds.length} 份资料`) }, () => { setError(true); setNotice('文件接收失败') })
+    }} />
+    <span className="file-hint">可拖入 PDF／文本 · {snapshot.privacy.fileFilteringEnabled ? '滤芯整理' : '暂存，等待开启 /privacy'}</span>
+    {notice && <span role={error ? 'alert' : 'status'} className="file-notice">{notice}</span>}
+  </div>
+}

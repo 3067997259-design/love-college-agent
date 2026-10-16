@@ -1,0 +1,6 @@
+.file-intake { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 7px 0; font-size: 12px; }
+.file-hint { color: var(--pencil); }
+.file-notice { width: 100%; color: var(--graphite); }
+.document-list { padding-left: 18px; }
+.document-job, .document-attachment { margin-block: 7px; overflow-wrap: anywhere; }
+.document-job span[role="alert"] { display: block; }
