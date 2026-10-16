@@ -27,9 +27,17 @@ export async function probeHeartFlow(root: string) {
     const prepared = await flow.prepareContext('today', new AbortController().signal)
     if (!JSON.stringify(prepared.messages).includes('YESTERDAY_AFTER_COMPACT') || !JSON.stringify(prepared.messages).includes('TODAY_WORK') || prepared.eligibleIndexes.length) throw new Error('FLOW_CROSS_DAY_FAILED')
     const workSeq = store.records().find((row) => row.type === 'user/message' && row.id === 'TODAY_WORK')!.seq
-    send({ type: 'flow.exit' }); user('TODAY_WORK')
+    for (let index = 0; index < 12; index++) {
+      flow.write('d'.repeat(60) + '/' + 'f'.repeat(60) + index + '.txt', 'PRIVATE_WORK_SOURCE')
+      store.append({ type: 'flow/run', id: 'run-'.padEnd(34, 'x') + index, flowId: flow.view().activeId!, status: 'completed', codeHash: 'a'.repeat(64) })
+    }
+    flow.close(); store.close(); store = openSessionStore(root, owner, clock); flow = open()
+    if (send({ type: 'flow.exit' }) || flow.active()) throw new Error('FLOW_BOUNDED_EXIT_FAILED')
+    const closed = store.records().findLast((row) => row.type === 'flow/close')
+    if (closed?.type !== 'flow/close' || closed.summary.length > 2000 || JSON.parse(closed.summary).fileCount !== 14 || closed.summary.includes('PRIVATE_WORK_SOURCE')) throw new Error('FLOW_EXIT_EVIDENCE_FAILED')
+    user('TODAY_WORK')
     const normalSeq = store.records().findLast((row) => row.type === 'user/message')!.seq; const allowed = flow.normalEntriesAllowed([workSeq, normalSeq])
     if (allowed.has(workSeq) || !allowed.has(normalSeq)) throw new Error('FLOW_NORMAL_REPLAY_FAILED')
-    return { ok: true, probe: 'heart-flow', actualSqlite: true, deskUndo: true, noNodeOrBridge: true, networkBlocked: true, infiniteLoopTerminated: true, compactedCrossDayRestart: true, normalReplayExcludesWorkByPosition: true }
+    return { ok: true, probe: 'heart-flow', actualSqlite: true, deskUndo: true, noNodeOrBridge: true, networkBlocked: true, infiniteLoopTerminated: true, compactedCrossDayRestart: true, normalReplayExcludesWorkByPosition: true, longPathExitAfterRestart: true }
   } finally { flow.close(); scheduler.dispose(); store.close() }
 }

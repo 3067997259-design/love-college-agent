@@ -10,6 +10,7 @@ import instructions from './instructions.json'
 import { flowContexts, normalContextAllowedSeqs } from './context'
 import { appliedDeskChanges } from './changes'
 import codingSkill from './coding-skill.json'
+import { flowExitSummary } from './summary'
 
 type Prepared = { messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }
 export function createHeartFlow(options: { store: SessionStore; clock: Clock; desk: ReturnType<typeof createDesk>; booth: boolean; busy(): boolean; changed(): void;
@@ -44,7 +45,8 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   const exit = () => {
     safe(); if (options.busy()) throw new Error('FLOW_UNAVAILABLE'); cancel(); const flow = open()!
     const evidence = changes().filter((row) => row.flowId === flow.id).map((row) => ({ changeId: row.id, path: row.path, current: contentHash(desk.read(row.path)) === contentHash(row.after), undo: !!row.undoes }))
-    const summary = JSON.stringify({ heartFlowFinished: flow.id, fileEvidence: evidence.slice(-12), runs: rows().filter((row) => row.type === 'flow/run' && row.flowId === flow.id && (row.status === 'completed' || row.status === 'failed')).map((row) => row.type === 'flow/run' ? { id: row.id, status: row.status } : null).slice(-12) })
+    const completedRuns = rows().flatMap((row) => row.type === 'flow/run' && row.flowId === flow.id && (row.status === 'completed' || row.status === 'failed') ? [{ id: row.id, status: row.status }] : [])
+    const summary = flowExitSummary(flow.id, evidence, completedRuns)
     store.append({ type: 'flow/close', id: flow.id, summary }); options.emit('flow:' + flow.id, summary); options.changed()
   }
   return {
