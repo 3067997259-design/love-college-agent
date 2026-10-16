@@ -21,9 +21,17 @@ import type { CompanionWindows, WindowSurface } from '../windows/companion'
 import { characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
 import { giftSpecSchema } from '../gifts/schema'
 import type { GiftService } from '../gifts/service'
+import type { HeartFlowService } from '../heart-flow/service'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('flow.enter') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.exit') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.mode'), mode: z.enum(['plan', 'execute']) }),
+  z.strictObject({ ...envelope, type: z.literal('flow.compact') }),
+  z.strictObject({ ...envelope, type: z.literal('flow.undo'), changeId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.run'), code: z.string().min(1).max(10000) }),
+  z.strictObject({ ...envelope, type: z.literal('flow.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('message.send'), text: z.string().trim().min(1).max(20_000) }),
   z.strictObject({ ...envelope, type: z.literal('turn.stop'), taskId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('mode.set'), mode: z.enum(['work', 'quiet', 'rest']) }),
@@ -101,6 +109,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let modelSettings: ModelSettingsService | undefined
   let windows: CompanionWindows | undefined
   let gifts: GiftService | undefined
+  let heartFlow: HeartFlowService | undefined
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
     protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0, onboarding: onboardingView(store?.projection().onboarding ?? initialOnboarding(), !!options.booth),
@@ -182,6 +191,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     }
     if (quill) snapshot.quill = quill.read()
     if (gifts) { snapshot.gifts = gifts.view(); snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'rodin' ? { ...item, status: snapshot.gifts!.configured ? 'ready' : 'unconfigured', source: snapshot.gifts!.items.at(-1)?.source ?? 'none' } : item) }
+    if (heartFlow) { snapshot.heartFlow = heartFlow.view(); snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'heart-flow' ? { ...item, status: 'ready', source: 'real' } : item); if (snapshot.heartFlow.activeId) snapshot.companion.pose = 'desk-computer' }
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
@@ -199,6 +209,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.epoch !== snapshot.epoch) return reject(command.requestId, 'stale-epoch')
     if (surface === 'diagnostics' || (command.type === 'window.mini.hover' || command.type === 'window.mini.move' || command.type === 'window.mini.moveBy') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('flow.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'onboarding.reset' && options.booth) return reject(command.requestId, 'permission-denied')
     const signature = commandHash(command)
     const prior = requests.get(command.requestId)
@@ -235,6 +246,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       catch { return reject(command.requestId, 'internal') }
       snapshot.companion.lightsOut = command.lightsOut
       gifts?.stateChanged()
+      heartFlow?.stateChanged()
       pomodoro?.stateChanged(command)
       campus?.stateChanged()
       documents?.stateChanged()
@@ -245,7 +257,10 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       publish('mode', command.requestId)
       execution?.stateChanged()
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
-    } else if (memory && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
+    } else if (heartFlow?.active() && command.type === 'message.send' && ['/exit', '/plan', '/compact', '/permissions', '/status', '/diff', '/undo'].includes(command.text)) {
+      const action: AppCommand | undefined = command.text === '/exit' ? { ...command, type: 'flow.exit' } : command.text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : command.text === '/compact' ? { ...command, type: 'flow.compact' } : command.text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
+      const error = action ? heartFlow.dispatch(action) : undefined; ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (memory && !heartFlow?.active() && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
       try { const error = memory.dispatch(command.type === 'message.send' ? { ...command, type: 'context.compact' } : command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (documents && command.type === 'message.send' && /^\/privacy(?:\s+(?:on|off))?$/i.test(command.text)) {
@@ -255,6 +270,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (documents && (command.type === 'privacy.set' || command.type.startsWith('document.') || command.type === 'developer.documents' || command.type === 'developer.document.import' || (command.type === 'artifact.open' && documents.ownsArtifact(command.artifactId)))) {
       try { const error = command.type === 'artifact.open' ? documents.openArtifact(command.artifactId) : documents.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
+    } else if (heartFlow && command.type.startsWith('flow.')) {
+      const error = heartFlow.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (gifts && command.type.startsWith('gift.')) {
       try { const error = gifts.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -315,6 +332,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachBackup: (port: BackupService) => { backup = port; publish('connection') },
     attachQuill: (port: QuillService) => { quill = port; publish('connection') },
     attachGifts: (port: GiftService) => { gifts = port; publish('connection') },
+    attachHeartFlow: (port: HeartFlowService) => { heartFlow = port; publish('connection') },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },

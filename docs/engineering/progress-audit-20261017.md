@@ -26,3 +26,4 @@
 - 新手流程：必要接线与完整 Electron 场景已通过，保留 Claude 画面。其他书本验收显式完成初始化作为前置条件，不绕过新手流程独立验收。
 - Rodin：正式 SDK MCP／REST 生命周期、本地 GLB／3D 预览、来源／日预算／取消／恢复已接通；合成 Electron 通过，真实探针 1 次成功（约 32.3 秒、1.21 MB），今晚 1/3 次。详见 [礼物记录](rodin-second-circle.md)。
 - 周月归并：已接空闲维护与朴素手动入口，保留可见来源和追加版本；单测及原生 Electron／SQLite 跨周月探针通过，见 [归并记录](memory-hierarchy.md)。
+- 心流：书桌、冻结前缀、快照撤回、逐次审批、隔离 JavaScript 执行及退出摘要已通过原生探针和 Electron 场景；运行环境收窄及剩余 UI／Git 完善见 [心流记录](heart-flow-second-circle.md)。
