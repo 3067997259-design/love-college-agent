@@ -116,6 +116,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm probe:deeptech-audit` | 只读结构探针（27 项断言，不需构建）：DeepTech 审计的代码级主张与 F1／F2 修复后的行为 |
 | `pnpm experiment:deeptech-memory` | 跨产物一致性实验装置：24 条冻结经历的旧规则／守卫对照；`--holdout`、`--json` |
 | `pnpm experiment:deeptech-grounding` | 子串接地实验装置：32 条对抗＋20 条良性句对照四组检查器；`--holdout`、`--json` |
+| `pnpm experiment:deeptech-flow-undo` | 心流选择性回滚实验装置：13 条编辑轨迹对照四组撤销策略；脚本自带参照实现，`--holdout`、`--json` |
 
 不运行 `playwright install`。electron-builder 26.15.3 已单独提交；model-viewer 和 Tailwind 仍延期。打包前先确认当前 Electron 的原生模块已通过 `rebuild:native`／`probe:sqlite`。安装包当前未签名；测试安装命令遇到已有同名用户安装会拒绝覆盖。
 
@@ -262,3 +263,5 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 `pnpm experiment:deeptech-memory` 是跨产物一致性实验装置：24 条冻结经历（开发 12／留出 12），用真实投影与真实 `prepareContext` 对照"旧选择规则"与"守卫后规则"，实测 6/16 → 0/16 过期条目且覆盖不降。`--holdout` 跑全部、`--json` 输出机器可读汇总。它只覆盖摘要选择与来源权限，**不代表真实模型质量或端到端产品验收**。
 
 `pnpm experiment:deeptech-grounding` 是子串接地的语义保真实验装置：32 条对抗＋20 条良性合成句，对照 `.includes`、引文内正则、整句正则与 `src/main/memory/grounding.ts` 的作用域检查。实测留出集 FAR 从 22/24 降到 0/24、FRR 0/20。接地检查已接入记忆抽取（`memory/model.ts`）与邮件标题（`mail/privacy.ts`）：**逐字包含不等于被来源蕴含**。它是可枚举的作用域规则，不是自然逻辑演算；合成句结果不能外推为中文蕴含准确率。详见 [接地实验记录](docs/research/deeptech-grounding-experiment-20261017.md)。
+
+`pnpm experiment:deeptech-flow-undo` 是心流选择性回滚实验装置：13 条冻结编辑轨迹，对照现有哈希锁、全栈连坐、朴素行号补丁与锚定补丁代数。实测留出集选择性撤销 0/13 → 7/13，且现有实现在"撤销后文件又被改动"时有 2 次**照写不误**的错值。**脚本自带参照实现，生产集成已撤回**：内核被反例反复击穿，未达到可合入程度；详见 [选择性回滚实验记录](docs/research/deeptech-flow-undo-experiment-20261017.md)。不要把该装置的数字读作"产品已能选择性回滚"。
