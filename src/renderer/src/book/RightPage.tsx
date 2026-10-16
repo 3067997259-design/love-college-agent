@@ -4,6 +4,7 @@ import { activityText } from '../voice/activity-text'
 import { CandidateCard, DeliveryCard, TaskCard } from './cards'
 import { formatClock } from './format'
 import { useCountdown } from './useCountdown'
+import { FileIntake } from '../tools/FileIntake'
 
 type Item =
   | { kind: 'message'; at: number; id: string; view: MessageView }
@@ -101,6 +102,7 @@ export function RightPage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
         )}
       </div>
 
+      <FileIntake snapshot={snapshot} bridge={bridge} />
       <footer className="composer">
         {commandError && <span role="alert" className="notice-mark" title={commandError} aria-label={commandError}>！</span>}
         {privacy.fileFilteringEnabled && <span className="filter-mark" title="/privacy 开着：附件和拖进来的文件只交给隐私模型">滤芯</span>}

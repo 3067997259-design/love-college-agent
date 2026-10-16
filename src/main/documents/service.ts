@@ -27,6 +27,7 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
   let state = projectDocuments(records()); let disposed = false; let pluginEnabled = true
   let active: { id: string; abort: AbortController } | undefined; let worker: Promise<void> | undefined
   const enabled = () => settings.read().fileFilteringEnabled
+  const initialState = (): Pick<DocumentView, 'status' | 'error'> => !enabled() ? { status: 'staged' } : options.model?.ready ? { status: 'queued' } : { status: 'failed', error: { code: 'privacy-unavailable', retryable: true } }
   const canRun = () => !disposed && pluginEnabled && enabled() && !!options.model?.ready && !store.projection().lightsOut
   const append = (row: JournalInput) => {
     try { store.append(row); state = projectDocuments(records()) }
@@ -100,7 +101,7 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
     if (state.jobs.some((job) => job.view.id === id)) return id
     append({ type: 'document/job', job: { sourceRef, attempt: 0, view: { id, displayName: '资料-' + id.slice(-8) + '.' + suffix[format], format,
       origin, source: options.model?.source ?? 'real', byteLength: bytes.length, createdAtMs: clock.nowMs(), updatedAtMs: clock.nowMs(),
-      status: enabled() ? 'queued' : 'staged', pageCount: null, deadlineIso: null } } })
+      ...initialState(), pageCount: null, deadlineIso: null } } })
     schedule(); return id
   }
   const importPaths = (paths: readonly string[]): FileImportAck => {
@@ -133,6 +134,7 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
   const resume = () => { if (canRun()) { for (const job of state.jobs.filter((job) => job.view.status === 'staged')) update(job, { status: 'queued' }); schedule() } }
   // Never infer completion or silently rerun a half-completed model request after a crash.
   for (const job of state.jobs.filter((job) => job.view.status === 'processing')) update(job, { status: 'failed', error: { code: 'document-interrupted', retryable: true } })
+  if (enabled() && !options.model?.ready) for (const job of state.jobs.filter((job) => job.view.status === 'queued' || job.view.status === 'staged')) update(job, { status: 'failed', error: { code: 'privacy-unavailable', retryable: true } })
   scheduler.schedule('documents.outbox', clock.nowMs() + 1000, flush, { everyMs: 1000 })
   resume()
   return { importPaths, stage, runNext, flush,
@@ -172,13 +174,13 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
         if (state.jobs.some((job) => job.view.id === id)) return
         if (state.jobs.length >= 200 || state.jobs.filter((job) => ['staged', 'queued', 'processing'].includes(job.view.status)).length >= 20) return 'budget-exceeded'
         append({ type: 'document/job', job: { sourceRef: null, attachmentId: record.view.id, attempt: 0, view: { id, displayName: '资料-' + id.slice(-8) + '.' + suffix[record.view.format],
-          origin: 'mail-attachment', format: record.view.format, byteLength: record.view.byteLength, source: record.view.source, createdAtMs: clock.nowMs(), updatedAtMs: clock.nowMs(), status: enabled() ? 'queued' : 'staged', pageCount: null, deadlineIso: null } } })
+          origin: 'mail-attachment', format: record.view.format, byteLength: record.view.byteLength, source: record.view.source, createdAtMs: clock.nowMs(), updatedAtMs: clock.nowMs(), ...initialState(), pageCount: null, deadlineIso: null } } })
         schedule(); return
       }
       if (command.type === 'document.retry' || command.type === 'document.cancel') {
         const job = state.jobs.find((job) => job.view.id === command.documentId); if (!job || job.view.status === 'ready') return 'invalid-command'
         if (command.type === 'document.cancel') { if (active?.id === job.view.id) active.abort.abort(); update(job, { status: 'cancelled' }) }
-        else { if (active?.id === job.view.id) return 'unavailable'; update(job, { status: enabled() ? 'queued' : 'staged' }); schedule() }
+        else { if (active?.id === job.view.id) return 'unavailable'; update(job, initialState()); schedule() }
         return
       }
       return 'unavailable'
