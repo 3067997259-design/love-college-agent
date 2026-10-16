@@ -67,9 +67,13 @@ try {
   await page.locator('[data-mode="quiet"][data-pose]').waitFor()
   assert.equal((await page.evaluate(() => window.lca.getSnapshot())).scope.sessionId, original.scope.sessionId)
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results/installed.png') })
+  await instance.close(); instance = undefined
+  env.LCA_HISTORY_EXECUTABLE = exe
+  await run(process.execPath, [join(root, 'scripts/smoke-history.mjs')])
+  delete env.LCA_HISTORY_EXECUTABLE
   const bytes = await readFile(installer)
   const report = { ok: true, atIso: new Date().toISOString(), installer, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
-    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: true, privateSaveProbe: true, installedUiRestart: true, secondCircleProbes: ['memory', 'life', 'heart-flow'] }
+    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: true, privateSaveProbe: true, installedUiRestart: true, historyQuoteAndPhoto: true, secondCircleProbes: ['memory', 'life', 'heart-flow'] }
   await writeFile(join(root, 'test-results/package-report.json'), JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report))
 } finally {

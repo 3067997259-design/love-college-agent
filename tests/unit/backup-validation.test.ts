@@ -16,6 +16,17 @@ async function fixture(events: JournalInput[] = []) {
   return { manifest, zip, bytes: () => zip.generateAsync({ type: 'nodebuffer' }) }
 }
 describe('untrusted private-save validation before touching current data', () => {
+  it('binds photo dimensions and provenance to its actual PNG and owning journal page', async () => {
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7ioAAAAASUVORK5CYII=', 'base64')
+    const asset = { ref: 'asset:' + sha256(png), sha256: sha256(png), format: 'png' as const, byteLength: png.length }; const path = 'artifacts/' + asset.sha256 + '.png'
+    for (const change of [{}, { width: 2 }, { sessionId: 'other-session' }, { dayKey: '2026-10-15' }]) {
+      const f = await fixture([{ type: 'asset/stored', asset }, { type: 'history/photo', photo: { id: randomUUID(), sessionId: 'session', dayKey: '2026-10-16', reason: 'manual', eventId: 'manual', asset, width: 1, height: 1, ...change } }])
+      f.zip.file(path, png, { createFolders: false }); f.manifest.files.push({ path, bytes: png.length, sha256: asset.sha256 }); f.zip.file('manifest.json', JSON.stringify(f.manifest))
+      const checked = validatePrivateSave(await f.bytes(), owner, 'fake')
+      if (Object.keys(change).length) await expect(checked).rejects.toMatchObject({ code: 'backup-invalid' })
+      else await expect(checked).resolves.toHaveProperty('manifest')
+    }
+  })
   it('rejects non-replayable applied desk snapshots but preserves failed legacy intents', async () => {
     for (const invalid of [{ path: 'a.txt', after: '字'.repeat(22_000) }, { path: 'a.txt', after: 'short\0text' }, { path: '../outside', after: 'text' }, { path: 'a.txt', after: '\ud800' }]) {
       const change: JournalInput = { type: 'desk/change', id: 'write', flowId: 'flow', before: null, ...invalid }
