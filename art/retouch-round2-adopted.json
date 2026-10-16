@@ -1,0 +1,84 @@
+{
+  "approvedOn": "2026-10-16",
+  "authorization": "非常好图片，替换现有素材并提交。",
+  "method": "NovelAI base artwork followed by GPT-image refinement through built-in image_gen",
+  "reportedModel": null,
+  "assets": [
+    {
+      "source": "2026-10-16-v5/facing-user_hands-overlap-calm-v1.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_calm.png",
+      "sha256": "2BF35342CDB89202A0305AD27CF8D3D0E7F65937736DE32BB8CE19288B21729A",
+      "previous": {
+        "source": "2026-10-16-v1/facing-user_calm-v1.png",
+        "sha256": "C27A152100CAA1EDF60E6A18EFE3F92FB1E21B02FF905F533B22C395DBD59086"
+      },
+      "generation": {
+        "output": "facing-user_hands-overlap-calm-v1.png",
+        "prompt": "Use case: identity-preserve, coherent seated pose redesign.\nImage 1 is the scene to edit. Image 2 is Taozi's character design sheet for identity and costume ONLY, not a frontal head to paste.\nCreate one complete square scene of Taozi comfortably pausing work and facing the viewer beside her desk. Redraw the connected head-neck-shoulder-ribcage-arm system together, not merely the hands. Turn her chest and cardigan button line a modest 15-20 degrees toward the viewer relative to the original laptop-facing torso. Keep shoulders low and relaxed, elbows comfortably close, and a balanced seated posture in the same chair.\n\nCRITICAL HEAD/NECK CORRECTION: Do NOT freeze the current head position, tilt, outline or neck. Reposition the head slightly backward toward her torso and toward image-right, and slightly lower as needed to sit naturally over the newly rotated shoulders and spine. Eliminate the forward-reaching diagonal neck and lateral unsupported head. The neck rises naturally through the white collar; the head has a comfortable near-upright attitude, not an exaggerated sideways tilt. Maintain gentle coherent three-quarter facial perspective, with the far image-left cheek foreshortened, not a broad flat frontal face. Let the short bob settle close against the shoulders with a few tips naturally touching the cardigan; preserve bob length, do not lengthen hair to fake contact. Preserve her recognizable face, soft peach hair, navy ribbon on HER LEFT / image-right, grey amber eyes focused on the viewer, and restrained calm attentive expression with small closed neutral mouth. Adjust features to the corrected perspective rather than pasting the old face.\n\nPreserve the room and camera exactly as closely as possible: square framing, window divisions, cloud shapes, curtains, desk geometry, open laptop and its location/lid angle, book row, closed notebook, lamp, existing plant, chair and daylight. No new props or text. Preserve cream cardigan, small white rounded blouse collar, fine colored linework, flat pastel colors and simple lavender shadows. Clothing folds should follow the new torso and arms. No blur, texture, bloom, exaggerated cute face, blush, jewelry or design-sheet panels. Both hands must be anatomically legible with relaxed fingers, contact and weight. No hand remains touching the laptop.\nPOSE A — BOTH HANDS RESTING TOGETHER ON THE TABLE:\nBoth forearms are visibly supported on the bare desk in front of her torso, to the right of the laptop, with elbows naturally bent and wrists supported. Her right hand rests lightly over the back/wrist of her left hand. Fingers loosely curved, gently overlapping without interlocking, gripping or pressing. The hands have a comfortable mutual support, not a formal clenched clasp, not crossed arms. Leave a clear gap from the computer. Show continuous plausible sleeve-to-wrist-to-hand anatomy for both arms. The existing white mug stays in its original place beside the books. Mood: unhurried, quietly listening, relaxed rather than ceremoniously posed."
+      }
+    },
+    {
+      "source": "2026-10-16-v7/facing-user_hands-overlap-smile-v1.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_smile.png",
+      "sha256": "B8E5DF5F488C217C4B4ED889DD896B896135B5470D66C02602202C16A0888A24",
+      "previous": {
+        "source": "2026-10-16-v1/facing-user_smile-v1.png",
+        "sha256": "20364A60DB6E269EDEF2F9FEC1E05255FCBAE91BFFEBD6B85032CC39D2442FFB"
+      },
+      "generation": {
+        "output": "facing-user_hands-overlap-smile-v1.png",
+        "inputs": [
+          "../2026-10-16-v5/facing-user_hands-overlap-calm-v1.png"
+        ],
+        "prompt": "Use case: identity-preserve, expression variant.\nCreate a restrained natural gentle SMILE version of this exact approved hands-overlapping conversation illustration of Taozi. Same square complete scene.\n\nExpression is a small coordinated change across brows, eyelids, subtle cheek contours and closed lips, not disconnected facial stickers. She quietly enjoys the conversation. Keep her eyes clearly open at nearly the original height; avoid straight compressed upper lids, sleepy half-closed eyes or a smug look. Add only a delicate lift/softening of lower eyelid curves and outer eye corners, relaxed brows, and a small balanced closed-mouth smile that follows the existing three-quarter perspective. Preserve eye size, muted grey-amber irises and coherent gaze toward the viewer. No teeth, open mouth, added blush, wink, tears, exaggerated cuteness or new face identity.\n\nKeep the accepted skull, face proportions, head angle, neck support, peach bob silhouette, navy ribbon on HER left, collar, shoulders, torso, clothing and both softly overlapping hands unchanged. Do not alter the calm master pose. Preserve every object and position: mug beside books, notebook, plant, lamp, chair, open laptop including keyboard/palm-rest geometry, desk, window, clouds and curtains. Same daylight, fine colored linework, flat pastel fills and lavender shadows. No background redrawing, zoom, crop, palette change, new accessories or texture. Return one complete scene."
+      }
+    },
+    {
+      "source": "2026-10-16-v8/facing-user_interlaced-worried-v1.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_worried.png",
+      "sha256": "BF5D76E2C70D82FD15951E9552FFDD1018F765827C07A58F151D13E3F2636E15",
+      "previous": {
+        "source": "2026-10-16-v1/facing-user_worried-v1.png",
+        "sha256": "9DCBDD295C502AC101AD1828DE9D0535D0EDB1C5A1252408926646DFB48531E1"
+      },
+      "generation": {
+        "output": "facing-user_interlaced-worried-v1.png",
+        "input": "../2026-10-16-v7/facing-user_hands-overlap-worried-v1.png",
+        "prompt": "Use case: precise-object-edit, hand-gesture variant.\nEdit ONLY the two hands and the minimum adjacent wrist/cuff area in this exact illustration. The existing mildly concerned FACE is already liked by the user: preserve the face, expression, gaze, head shape/position, hair, neck, collar, shoulders and torso unchanged.\n\nReplace the current one-hand-laid-over-the-other resting pose with both hands gently INTERLACED on the tabletop in the SAME general location to the right of the laptop. Both wrists and forearms remain comfortably supported. Fingers loosely interweave, with one thumb lightly rubbing/resting against the opposite thumb, suggesting a small thoughtful hesitation while she explains a problem. Make the interlacing readable and anatomically plausible: five fingers per hand, believable alternating finger paths and knuckles, no fused finger mass, extra digits, rigid prayer pose, clenched fists or painful twisting. Keep the gesture restrained and low on the table, not raised to the chest. Mild concern conveyed by hands, not panic. Preserve her existing calm serious face exactly; do not intensify eyebrows, change eye size, add blush or alter mouth.\n\nKeep all scene objects, object positions, room/window/clouds/curtains, camera and square framing identical. Preserve laptop keyboard/palm rest, books, mug, closed notebook, lamp, plant, chair, desk, cream cardigan and white collar. Only tiny sleeve/cuff adjustments necessary for natural wrist contact are allowed. Same fine colored linework, clean flat pastel colors, lavender shadows and daylight. No global redraw, new props, text or design changes. One full square scene."
+      }
+    },
+    {
+      "source": "2026-10-16-v8/desk-writing-original-face-day-v4.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/desk-writing_calm.png",
+      "sha256": "C981B9BE4B1D5467D1395E5C2C063D03039F0428462C2FC2E440177D336279AE",
+      "previous": {
+        "source": "2026-10-16-v2/desk-writing_calm-v2.png",
+        "sha256": "246705E2FD980DC6B6B9150B983BDC732B81DB34F806DAFEE5C223DE32CAA2E7"
+      },
+      "generation": {
+        "output": "desk-writing-original-face-day-v4.png",
+        "input": "../../../src/renderer/src/assets/character/taozi/approved/desk-writing_calm.png",
+        "prompt": "Use case: precise-object-edit.\nPerform ONE tiny object removal on this exact DAYTIME illustration. Remove ONLY the miniature plant in the small white cylindrical pot standing in front of the book spines, to the LEFT of the white mug (approximately x=150, y=845 in the 1254px square image). Remove its little sprig, pot and local contact shadow; seamlessly restore the narrow book-spine area and wooden tabletop hidden behind it.\n\nEverything else must remain exactly as close to the input as possible. In particular the character's ORIGINAL FACE IS APPROVED and must NOT be refined: preserve the precise cheek/jaw/chin outline, eye shape and iris positions, gaze direction, expression, nose, mouth, head pitch and silhouette, hair, ribbon, neck, collar and skin shading. Do not redirect her eyes toward the pen, do not lower her head, do not reshape the face, do not redraw any part of the character. Keep both hands, pen, arms, sleeves, the open notebook with its existing diagonal spine and ruled lines, mug, eraser, book row, daylight/shadows, desk, chair, window, sky, clouds and curtains unchanged. KEEP the LARGE leafy plant and its large cream pot at the far LEFT edge. Keep camera, dimensions, framing, fine colored linework, flat pastel color and simple lavender shadows. No new object, no global color shift, no blur. Output the same full square scene with only that tiny unwanted potted sprig removed."
+      }
+    },
+    {
+      "source": "2026-10-16-v8/desk-writing-original-face-night-v4.png",
+      "runtime": "src/renderer/src/assets/character/taozi/approved/desk-writing_night.png",
+      "sha256": "E2ED8F2BBA48577C5673836A96309E2261C6D33B26CDA046E228DD4395894133",
+      "previous": {
+        "source": "2026-10-16-v2/desk-writing-night-v2.png",
+        "sha256": "E7EE5CAD4B07918C58B1CDBE0463388FC58A539C97600D7DCCB5C6092B8178AE"
+      },
+      "generation": {
+        "output": "desk-writing-original-face-night-v4.png",
+        "input": "../../../src/renderer/src/assets/character/taozi/approved/desk-writing_night.png",
+        "prompt": "Use case: precise-object-edit.\nPerform ONE tiny object removal on this exact NIGHTTIME illustration. Remove ONLY the miniature plant in the small white cylindrical pot standing in front of the book spines, to the LEFT of the white mug (approximately x=150, y=845 in the 1254px square image). Remove its little sprig, pot and local contact shadow; seamlessly restore the narrow book-spine area and wooden tabletop behind it, matching their existing warm lamp illumination.\n\nEverything else must remain exactly as close to the input as possible. The character's ORIGINAL FACE IS APPROVED and must NOT be refined: preserve precise cheek/jaw/chin outline, eye shape and iris positions, gaze direction, expression, nose, mouth, head pitch and silhouette, hair, ribbon, neck, collar and facial light/shadow. Do not redirect her eyes toward the pen, lower her head, reshape her face or redraw the character. Keep both hands, pen, arms, sleeves, open notebook diagonal spine/ruled lines, mug, eraser, book row, desk, chair, window and curtains unchanged. KEEP the LARGE leafy plant and its large cream pot at the far LEFT edge.\n\nPreserve the original night lighting and color exactly: deep blue window exterior, muted night clouds, existing LEFT desk lamp's warm light on books/mug/table/paper/near face/hands/cardigan, and the cool subdued far-side shadows. No global exposure change, recolor, different night sky, additional glow or altered shadow shape outside the removed mini-plant's patch. Same camera, dimensions, square framing, fine colored linework, flat pastel style and lavender cel shadows. No new object, no blur. Output the same full square NIGHT scene with ONLY that tiny unwanted potted sprig removed."
+      }
+    }
+  ],
+  "retainedCandidates": [
+    "2026-10-16-v6/resting-mug-calm-a.png",
+    "2026-10-16-v6/resting-mug-calm-b.png"
+  ],
+  "note": "Five approved outputs copied without resizing or synthesis. Writing variants derive from the earlier adopted faces and remove only the miniature plant; V7 writing face changes are not adopted. Both mug candidates remain undecided. Historical pending flags are superseded only for the five outputs listed here."
+}
