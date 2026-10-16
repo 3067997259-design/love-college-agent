@@ -394,7 +394,7 @@ export interface DiaryView { status: 'idle' | 'writing' | 'failed' | 'unconfigur
 /** Explicit user-only read, absent from snapshots, debug MCP, model contexts and memory. */
 export interface DiaryRead { id: string; dayKey: string; text: string; key: string; subjective: true }
 export type OutingPlace = 'coast' | 'swing'
-export interface OutingView { id: string; place: OutingPlace; startsAtMs: number; returnsAtMs: number; acquiredAtMs: number; item: 'shell' | 'leaf'; status: 'proposed' | 'away' | 'returned' | 'cut_short'; settledAtMs: number | null; offline: boolean }
+export interface OutingView { id: string; place: OutingPlace; startsAtMs: number; returnsAtMs: number; acquiredAtMs: number; item: 'shell' | 'leaf'; status: 'proposed' | 'away' | 'returned' | 'cut_short' | 'cancelled'; settledAtMs: number | null; offline: boolean }
 export interface LifeView {
   dayKey: string
   userSchedule: 'auto' | 'work' | 'rest'
