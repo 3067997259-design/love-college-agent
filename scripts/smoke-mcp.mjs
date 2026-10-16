@@ -7,13 +7,13 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'mcp-smoke-' + randomUUID()); const sceneId = randomUUID()
 const profile = join(data, 'developer', sceneId)
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-test-providers.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '19532' }
 let instance; let page; let client
-async function launch() { instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 }); page = await instance.firstWindow(); await page.locator('[data-mode][data-pose]').waitFor() }
+async function launch() { instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 }); page = await instance.firstWindow(); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 async function waitFor(predicate, error) { for (let i = 0; i < 150; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(error) }
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) }, body)

@@ -13,3 +13,17 @@ export function runtimeEnv(root) {
   delete env.ELECTRON_RUN_AS_NODE
   return env
 }
+
+/** Existing book-focused scenarios explicitly finish initialization as a real fixture precondition.
+ * The onboarding scenario never calls this helper, so it still tests a genuinely fresh profile. */
+export async function initializeTestBook(page) {
+  await page.waitForFunction(() => !!window.lca)
+  const ok = await page.evaluate(async () => {
+    const snapshot = await window.lca.getSnapshot()
+    if (snapshot.onboarding?.status !== 'needed') return true
+    const ack = await window.lca.dispatch({ protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID(), type: 'onboarding.complete' })
+    return ack.status === 'accepted'
+  })
+  if (!ok) throw new Error('BOOK_FIXTURE_INITIALIZATION_FAILED')
+  await page.getByRole('region', { name: '新手流程', exact: true }).waitFor({ state: 'hidden' })
+}

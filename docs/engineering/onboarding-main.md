@@ -25,6 +25,8 @@
 
 后端 Electron 使用正常模式和临时 profile、本机合成 HTTP，不读真实配置、不调真实模型：验证 needed／booth completed，未完成名字重启、完成重启、实际模型输入分层与记忆排除、实际 ZIP manifest、新空 profile 的原生文件选择与确认恢复。原有 harness／完整存档流程继续通过，含 SQLite、原文隔离、撤销／损坏拒绝、安全副本与计时重锚。
 
-命令 `pnpm test:onboarding:backend` 会构建并运行上述主进程场景；`pnpm test:onboarding` 为完整按钮／输入框／动画结束／导入流程场景，**待 Claude 接快照开关与提交命令后运行，当前不宣称 UI 验收通过**。默认脚本不绕过向导；仅显式 `--backend-only` 可通过 IPC 独立验主进程。
+命令 `pnpm test:onboarding:backend` 会构建并运行上述主进程场景。2026-10-17 夜间用户授权一口气完成第二圈后，GPT 已补必要接线，保留 Claude 绘画／上色／文案：Stage 据快照开关，表单逐步保存名字，结束提交 complete，重置重新进向导。构建后 `node scripts/smoke-onboarding.mjs` 完整通过：真实输入框／重启预填／动画结束／完成重启、重新初始化，以及新空 profile 从“我已经有一本书了”原生选择、明确确认、恢复后跳过向导。完整入口为 `pnpm test:onboarding`。
+
+其他书本场景调用共用 initializeTestBook，以真实 onboarding.complete 命令建立“已初始化”的前置条件；新手验收场景不调用它，持续覆盖真实新 profile。浏览器 ?onboarding 保留画面预览。
 
 没有重打安装包。全局记忆未修改；IMAP 仍 blocked，与本次流程无关。

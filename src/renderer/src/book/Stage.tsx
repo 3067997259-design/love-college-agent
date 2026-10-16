@@ -34,9 +34,13 @@ export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: App
   const { ref, scale } = useFitScale()
   const { companion } = snapshot
   useRootAmbience(companion)
-  const [onboarding, setOnboarding] = useState<OnboardingStep | null>(previewOnboarding)
+  const [step, setStep] = useState<OnboardingStep>('cover')
+  const [previewDone, setPreviewDone] = useState(false)
+  const needed = snapshot.onboarding?.status === 'needed' || (!previewDone && previewOnboarding() !== null)
+  const onboarding = needed ? step : null
   // 新手流程里点过的家具（按先后）：左页据此一件件上色，右页列出来
   const [painted, setPainted] = useState<string[]>([])
+  useLayoutEffect(() => { if (needed) { setStep('cover'); setPainted([]) } }, [needed, snapshot.scope.characterId])
 
   return (
     <div className="stage" ref={ref} data-mode={companion.mode} data-phase={snapshot.pomodoro.phase}
@@ -53,7 +57,7 @@ export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: App
           <div className="gutter" aria-hidden />
           {onboarding
             ? <OnboardingPage snapshot={snapshot} bridge={bridge} step={onboarding} painted={painted.map((id) => FURNITURE.find((f) => f.id === id)?.name ?? id)}
-              onStep={setOnboarding} onDone={() => setOnboarding(null)} />
+              onStep={setStep} onDone={() => setPreviewDone(true)} />
             : <RightPage snapshot={snapshot} bridge={bridge} />}
           {!onboarding && <QuillDock snapshot={snapshot} onExport={() => { void sendCommand(bridge, snapshot.epoch, { type: 'backup.export' }) }} />}
           <nav className="bookmarks" aria-label="书签">
@@ -67,7 +71,7 @@ export function Stage({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: App
   )
 }
 
-/** 只在浏览器预览（没有 preload）里用 ?onboarding 打开新手流程；正式入口等主进程记录“是否完成” */
+/** Browser-only art preview; real entry is owned by snapshot.onboarding. */
 function previewOnboarding(): OnboardingStep | null {
   if ('lca' in window) return null
   return new URLSearchParams(location.search).has('onboarding') ? 'cover' : null

@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `developer-smoke-${randomUUID()}`)
@@ -15,7 +15,7 @@ const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(
 let instance; let client
 async function launch(extra = {}) {
   instance = await _electron.launch({ executablePath: electronPath, args: [root], env: { ...env, ...extra }, timeout: 30_000 })
-  const page = await instance.firstWindow(); await page.locator('[data-mode][data-pose]').waitFor()
+  const page = await instance.firstWindow(); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor()
   return page
 }
 try {

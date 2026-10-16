@@ -384,7 +384,7 @@ pnpm dev
 | `pnpm probe:backup` / `pnpm test:backup` | 实际 SQLite backup／ZIP、哈希／作用域拒绝、安全备份、回滚、空白 profile 恢复、计时重锚通过 |
 | `pnpm test:model-slots` | 正常模式原生配置／重启＋本机合成 HTTP：background／privacy 专用路由和失败不回退通过 |
 | `pnpm test:mini` | 实际 280×350 内容区／点穿调用／物理像素拖动限位、位置持久化与失效归位、纸片返回、无重启残留，以及独立诊断入口／安全刷新／只读权限通过；真人 OS 穿透待验收 |
-| `pnpm test:onboarding:backend` / `pnpm test:onboarding` | 前者验证主进程档案／重启／提示词分层／真实存档恢复；后者完整向导 UI 场景，待 Claude 接快照入口后验收 |
+| `pnpm test:onboarding:backend` / `pnpm test:onboarding` | 前者验证主进程档案／重启／提示词分层／真实存档恢复；后者已通过真实向导输入／重启预填／完成退出／恢复跳过，以及展位跳过 |
 | `pnpm preview:ui` / `pnpm shot:ui` | 只起渲染层，用假数据场景在浏览器预览、截图书本界面；不启动 Electron，不读密钥。数字键切场景，“跳过本段”让番茄钟当前阶段到点 |
 
 GPT 开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER_PORT` 指定不同端口；数据默认放 `<worktree>/.local-data`，用 `LCA_DATA_DIR` 可覆盖。开发实例的端口和数据目录必须各自独立，远程调试默认关闭。共享接口说明见 [src/shared/README.md](src/shared/README.md)。
