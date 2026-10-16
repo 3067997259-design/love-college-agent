@@ -25,6 +25,45 @@ function response(value: unknown) {
   return new Response('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: JSON.stringify(value) }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 3 } }) + '\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
 }
 describe('production task model ports without runtime model calls', () => {
+  it('runs private synthetic desk production only on background with strict JSON and metadata-only attempts', async () => {
+    const f = fixture(); let calls = 0; let body: Record<string, unknown> = {}
+    const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => {
+      calls++; body = JSON.parse(String(init.body))
+      return response({ markdown: 'PRIVATE_AUTONOMOUS_PRODUCT' })
+    })
+    expect(await ports.lifeWork!.produce({ kind: 'read', step: 1, totalSteps: 3, material: 'REGISTERED_DESK_SOURCE', previous: '' }, new AbortController().signal)).toEqual({ markdown: 'PRIVATE_AUTONOMOUS_PRODUCT' })
+    expect(body.model).toBe(configs.get('background')!.model); expect(body.tools).toBeUndefined(); expect(body.messages).toHaveLength(2); expect(body.max_tokens).toBe(4096)
+    expect(JSON.parse((body.messages as { content: string }[])[1].content)).toEqual({ kind: 'read', step: 1, totalSteps: 3, material: 'REGISTERED_DESK_SOURCE', previous: '' })
+    expect(calls).toBe(1); expect(JSON.stringify(f.rows)).not.toMatch(/REGISTERED_DESK|PRIVATE_AUTONOMOUS/)
+    expect(f.rows.filter((row) => row.type === 'model/attempt' && row.status === 'started')).toMatchObject([{ slot: 'background', bucket: 'autonomous' }])
+    expect(f.rows.some((row) => row.type === 'model/seen')).toBe(false)
+    expect(createTaskModelPorts(new Map([['chat', configs.get('chat')!]]), f.clock, f.store).lifeWork).toBeNull()
+  })
+  it('rejects oversized work input before network, malformed output, and exhausted shared autonomous budget', async () => {
+    const f = fixture(); let calls = 0
+    const ports = createTaskModelPorts(configs, f.clock, f.store, async () => { calls++; return response({ markdown: '', extra: 'untrusted' }) })
+    const input = { kind: 'write' as const, step: 1, totalSteps: 3, material: 'synthetic', previous: '' }
+    await expect(ports.lifeWork!.produce({ ...input, material: '文'.repeat(5000) }, new AbortController().signal)).rejects.toBeDefined(); expect(calls).toBe(0)
+    await expect(ports.lifeWork!.produce(input, new AbortController().signal)).rejects.toBeDefined(); expect(calls).toBe(1)
+    f.store.append({ type: 'model/attempt', turnId: 'used', slot: 'background', attempt: 1, status: 'started', waitMs: 0, bucket: 'autonomous', reservedTokens: 100000 })
+    await expect(ports.lifeWork!.produce(input, new AbortController().signal)).rejects.toMatchObject({ code: 'budget-exceeded' }); expect(calls).toBe(1)
+  })
+  it('cancels private production, ignores a late transport, and never records its body as model-seen', async () => {
+    const f = fixture(); let complete!: (value: Response) => void
+    const ports = createTaskModelPorts(configs, f.clock, f.store, async () => new Promise<Response>((resolve) => { complete = resolve }))
+    const parent = new AbortController(); const pending = ports.lifeWork!.produce({ kind: 'write', step: 1, totalSteps: 3, material: 'PRIVATE_CANCELLED_MATERIAL', previous: '' }, parent.signal)
+    const rejected = expect(pending).rejects.toBeDefined(); parent.abort(); await rejected
+    complete(response({ markdown: 'PRIVATE_LATE_PRODUCT' })); await Promise.resolve(); await Promise.resolve()
+    expect(JSON.stringify(f.rows)).not.toMatch(/PRIVATE_CANCELLED|PRIVATE_LATE/); expect(f.rows.some((row) => row.type === 'model/seen')).toBe(false)
+  })
+  it('times out a stalled life producer at thirty seconds even when the transport ignores abort', async () => {
+    const f = fixture(); let complete!: (value: Response) => void
+    const ports = createTaskModelPorts(configs, f.clock, f.store, async () => new Promise<Response>((resolve) => { complete = resolve }))
+    const pending = ports.lifeWork!.produce({ kind: 'read', step: 1, totalSteps: 3, material: 'SYNTHETIC_STALLED_INPUT', previous: '' }, new AbortController().signal)
+    const rejected = expect(pending).rejects.toMatchObject({ kind: 'timeout' }); f.clock.advanceBy(30000); await rejected
+    complete(response({ markdown: 'LATE_WORK_MUST_NOT_COMMIT' })); await Promise.resolve(); await Promise.resolve()
+    expect(JSON.stringify(f.rows)).not.toMatch(/SYNTHETIC_STALLED_INPUT|LATE_WORK_MUST_NOT_COMMIT/)
+  })
   it('extracts a legal long CJK message then its short successor without duplicating local grounding sources', async () => {
     const f = fixture(); const requests: unknown[][] = []; const scheduler = createScheduler(f.clock)
     const text = '可见材料'.repeat(2500)

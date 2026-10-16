@@ -391,7 +391,7 @@ void app.whenReady().then(async () => {
       previewDraft: (view, text) => previewArtifact({ id: view.id, artifactId: view.id, displayName: view.outputPath, kind: 'markdown', status: 'ready', createdAtMs: view.createdAtMs, sourceRefs: [], source: view.source }, text, '用户工作草稿 · 未经审核 · 已产出不表示审查或测试通过。'),
       inspect: (view) => previewArtifact({ id: view.flowId, artifactId: view.flowId, displayName: '心流 · ' + view.section, kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: prepared.developer ? 'fake' : 'real' }, JSON.stringify(view, null, 2), '用户专用查阅 · 书桌范围 · 每次运行单独审批 · 费用未知时为 null。'),
       prepare: async (id, signal) => { const preparedContext = await memory!.prepareContext(id, signal); const world = life?.view(); if (!world) return preparedContext
-        const facts = { role: 'user' as const, content: JSON.stringify({ source: 'autonomous', worldFacts: { locationId: world.locationId, outings: world.outings.slice(-3), items: world.items.slice(-3) }, actualWorks: world.work?.jobs.slice(-6).map(({ id, kind, source, status, completedSteps, totalSteps, completedAtMs }) => ({ id, kind, source, status, completedSteps, totalSteps, completedAtMs })), fictional: true, actualOfflineWork: false }) }
+        const facts = { role: 'user' as const, content: JSON.stringify({ source: 'autonomous', worldFacts: { locationId: world.locationId, outings: world.outings.slice(-3), items: world.items.slice(-3) }, actualWorks: world.work?.jobs.slice(-6).map(({ id, kind, source, materialId, status, completedSteps, totalSteps, completedAtMs }) => ({ id, kind, source, materialSource: world.work?.materials.find((material) => material.id === materialId)?.source ?? 'unknown', status, completedSteps, totalSteps, completedAtMs })), fictional: true, actualOfflineWork: false }) }
         const insertion = Math.max(0, preparedContext.messages.findLastIndex((message) => message.role === 'user')); const messages = [...preparedContext.messages.slice(0, insertion), facts, ...preparedContext.messages.slice(insertion)]
         return { messages, eligibleIndexes: [...preparedContext.eligibleIndexes.map((index) => index >= insertion ? index + 1 : index), insertion] } }, entered: () => { lifeWork?.foreground(); life?.foreground() }, emit: (id, summary) => { harness?.postEvent('autonomous', summary, id) }, run: (code, signal) => runIsolatedJavaScript(code, systemClock, signal) })
     controller.attachHeartFlow(heartFlow)
@@ -406,14 +406,14 @@ void app.whenReady().then(async () => {
       changed: () => controller?.refresh('task'), safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
     heartFlow.attachWebFetch(webFetch)
     scheduler.schedule('computer.guard', clock.nowMs() + 250, () => computer?.stateChanged(), { everyMs: 250 })
-    lifeWork = createLifeWork({ store, clock, scheduler, desk, developer: prepared.developer, model: prepared.developer ? createFakeLifeWorkModel() : null,
+    lifeWork = createLifeWork({ store, clock, scheduler, desk, developer: prepared.developer, model: prepared.developer ? createFakeLifeWorkModel() : taskModels.lifeWork,
       available: () => {
         const projection = store!.projection(); const timer = projection.pomodoro
         return !projection.sleeping && !backup?.isBusy() && !harness?.isBusy() && !heartFlow?.active() && !minecraft?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing') && diary?.view().status !== 'writing' && !['extracting', 'compacting'].includes(memory?.view().status ?? '')
           && controller?.getSnapshot().onboarding?.status === 'completed' && life?.view().locationId === 'room'
           && (timer.phase === 'focus' && timer.status === 'running' || !['short-break', 'long-break'].includes(timer.phase) && (life?.view().userSchedule === 'work' || projection.mode !== 'rest'))
       }, changed: () => controller?.refresh('task'), projected: () => { life?.reconcile(); roomProjection.rebuild() },
-      open: (path, text) => previewArtifact({ id: 'life-work', artifactId: 'life-work', displayName: path.split('/').at(-1)!, kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: 'fake' }, text, '书桌作品 · 仅供用户查阅，不注入对话。') })
+      open: (path, text, source) => previewArtifact({ id: 'life-work', artifactId: 'life-work', displayName: path.split('/').at(-1)!, kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source }, text, '合成材料作品 · 仅供用户查阅，不注入对话。') })
     controller.attachLifeWork(lifeWork)
     life = createLife({ store, clock, scheduler, work: lifeWork, restored: restoreReceipt?.status === 'restored', working: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('mode'), emit: (id, facts) => { harness?.postEvent('autonomous', facts, id) } })
     controller.attachLife(life)

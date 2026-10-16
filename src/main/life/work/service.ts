@@ -12,7 +12,7 @@ import { lifeWorkFixtures } from './fake'
 const DAILY_ATTEMPTS = 8
 export function createLifeWork(options: {
   store: SessionStore; clock: Clock; scheduler: Scheduler; desk: ReturnType<typeof createDesk>; model: LifeWorkModel | null; developer: boolean
-  available(): boolean; changed(): void; projected(): void; open(path: string, text: string): void
+  available(): boolean; changed(): void; projected(): void; open(path: string, text: string, source: LifeWorkItem['source']): void
 }) {
   const { store, clock, desk } = options; const rows = () => store.history?.() ?? store.records()
   let enabled = true; let closed = false; let active: AbortController | undefined; let worker: Promise<void> | undefined
@@ -93,6 +93,8 @@ export function createLifeWork(options: {
     if (blocked()) return Promise.resolve()
     const job = [...jobs.values()].find((job) => job.status === 'queued' || job.status === 'paused' && (job.reason === 'busy' || job.reason === 'lights'))
     if (!job) return Promise.resolve()
+    // A fake checkpoint cannot quietly become a real-model work on mode/config changes.
+    if (job.source !== options.model!.source) { fail(job, 'model'); return Promise.resolve() }
     // Never attempt a step that does not exist: `life/work-attempt.step` is capped at the last step, so a
     // job whose steps are all committed must settle as completed instead of leaving a phantom "running".
     if (job.completedSteps >= job.totalSteps) { job.status = 'completed'; job.completedAtMs = clock.nowMs(); delete job.reason; save(job); return Promise.resolve() }
@@ -123,10 +125,10 @@ export function createLifeWork(options: {
         if (present !== null && present !== text) { conflict = true; throw new Error('WORK_CONFLICT') }
         store.append({ type: 'life/work-draft', draft })
         try { if (present === null) desk.write(draft.path, text); checkpoint(job, draft) } catch { conflict = true; throw new Error('WORK_CONFLICT') }
-      } catch {
+      } catch (cause) {
         if (job.status === 'running') {
           if (abort.signal.aborted) pause(job, blocked() ? reason() : 'interrupted')
-          else fail(job, conflict ? 'conflict' : 'model')
+          else fail(job, conflict ? 'conflict' : cause && typeof cause === 'object' && 'code' in cause && cause.code === 'budget-exceeded' ? 'budget' : 'model')
         }
       } finally { stop(); remove(); active = undefined; worker = undefined; options.changed() }
     }); return worker
@@ -155,7 +157,7 @@ export function createLifeWork(options: {
       if (command.type === 'life.work.open') {
         if (!job.output) return 'unavailable'
         const text = desk.read(job.output.path); if (text === null || workHash(text) !== job.output.sha256) return 'unavailable'
-        options.open(job.output.path, text); return
+        options.open(job.output.path, text, job.source); return
       }
       if (job.status === 'completed') return 'unavailable'
       if (command.type === 'life.work.pause') { if (active && job.status === 'running') active.abort(); pause(job, 'user'); return }
@@ -169,6 +171,7 @@ export function createLifeWork(options: {
         job.status = 'completed'; job.completedAtMs = rows().findLast((row) => row.type === 'life/work-commit' && row.workId === job.id)?.atMs ?? clock.nowMs(); delete job.reason; save(job); return
       }
       if (!enabled || !options.model || worker) return 'unavailable'
+      if (job.source !== options.model.source) { fail(job, 'model'); return 'unavailable' }
       job.status = 'queued'; delete job.reason; save(job); void tick()
     },
     idle: async () => { await worker },

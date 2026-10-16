@@ -94,7 +94,7 @@ function WorkRow({ job, work, onCommand }: { job: LifeWorkItem; work: LifeWorkVi
   return (
     <li className="work-row" data-status={job.status} data-work-id={job.id}>
       <span className="work-kind" aria-hidden>{job.kind === 'read' ? '读' : '写'}</span>
-      <span className="work-text">{text}{job.source === 'fake' && <small className="demo-tag">{copy.shelf.fake}</small>}</span>
+      <span className="work-text">{text}{(job.source === 'fake' || material?.source === 'fake') && <small className="demo-tag">{copy.shelf.fake}</small>}</span>
       <span className="work-progress" role="img" aria-label={fill(copy.schedule.works.progress, { done: job.completedSteps, total: job.totalSteps })}>
         {Array.from({ length: job.totalSteps }, (_, index) => <span key={index} data-done={index < job.completedSteps} />)}
       </span>
