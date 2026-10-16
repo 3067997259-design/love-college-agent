@@ -1,5 +1,11 @@
 /** Public, serializable UI projections. Never put credentials or raw tool results here. */
 export const PROTOCOL_VERSION = 1 as const
+export const EXPRESSION_IDS = ['calm', 'smile', 'think', 'worried'] as const
+export const DEFAULT_EXPRESSION = 'calm' as const
+export const POSE_IDS = ['desk-computer', 'desk-writing', 'facing-user', 'sleeping'] as const
+export type KnownExpressionId = typeof EXPRESSION_IDS[number]
+export type KnownPoseId = typeof POSE_IDS[number]
+export type Daypart = 'morning' | 'day' | 'evening' | 'night'
 export type InteractionMode = 'work' | 'quiet' | 'rest'
 export type Availability = 'unavailable' | 'unconfigured' | 'connecting' | 'ready' | 'failed'
 export type TaskStatus = 'queued' | 'running' | 'waiting-user' | 'cancelling' | 'completed' | 'aborted' | 'failed'
@@ -20,6 +26,9 @@ export interface CompanionView {
   locationId: string
   pose: string
   expression: string
+  daypart: Daypart
+  /** Meaningful only while the mail capability is ready. Failure is not zero new mail. */
+  mailboxUnseen: number
 }
 export interface PomodoroView {
   phase: 'idle' | 'focus' | 'short-break' | 'long-break'
@@ -27,6 +36,8 @@ export interface PomodoroView {
   remainingMs: number
   endsAtMs: number | null
   focusIndex: number
+  phaseDurationMs: number
+  plannedCount: number
 }
 export interface PlanStep { id: string; text: string; status: 'pending' | 'active' | 'done' | 'failed' }
 export interface TaskView {
@@ -55,20 +66,35 @@ export interface ActivityView {
 }
 export interface CandidateView {
   id: string
+  createdAtMs: number
+  kind: 'deadline' | 'event'
   title: string
   deadlineIso: string | null
   plannedCompletionIso: string | null
   status: 'candidate' | 'confirmed' | 'changed' | 'ignored'
+  eventStartIso?: string
+  locationText?: string
+  /** Validated short label, not a raw subject or sender address. */
+  sourceLabel: string
   /** Evidence is fetched separately for the user, never carried into model context. */
   evidenceRef: string
 }
 export interface DeliveryView {
   id: string
+  createdAtMs: number
   artifactId: string
   displayName: string
   kind: 'calendar' | 'markdown' | 'document' | 'gift'
   status: 'ready' | 'failed'
   sourceRefs: readonly string[]
+}
+export interface EvidenceView {
+  subject: string
+  senderName: string
+  receivedAtMs: number
+  excerpt: string
+  /** UTF-16 offsets into excerpt; start inclusive, end exclusive. */
+  highlights: readonly { start: number; end: number; field: 'deadlineIso' | 'eventStartIso' | 'locationText' | 'title' }[]
 }
 export interface CapabilityView {
   id: 'chat' | 'pomodoro' | 'mail' | 'privacy' | 'memory' | 'backup' | 'mcp' | 'rodin' | 'heart-flow'

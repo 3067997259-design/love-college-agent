@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { AppCommand, AppEvent, AppSnapshot, CommandAck, PublicErrorCode } from '../../shared'
-import { PROTOCOL_VERSION } from '../../shared'
+import { DEFAULT_EXPRESSION, PROTOCOL_VERSION } from '../../shared'
 import type { Clock } from '../clock'
+import { deriveDaypart, type DaypartSchedule } from '../clock/daypart'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
@@ -21,15 +22,16 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('privacy.set'), enabled: z.boolean() }),
 ])
 
-export function createAppController(clock: Clock) {
+export function createAppController(clock: Clock, daypartSchedule?: DaypartSchedule) {
   const listeners = new Set<(event: AppEvent) => void>()
   const requests = new Map<string, { signature: string; ack: CommandAck }>()
   const snapshot: AppSnapshot = {
     protocolVersion: PROTOCOL_VERSION, epoch: randomUUID(), revision: 0,
     scope: { userId: 'local-user', characterId: 'default-character', sessionId: randomUUID() },
     clock: { nowMs: clock.nowMs(), timeZone: 'Asia/Shanghai', rate: 1, frozen: false },
-    companion: { mode: 'rest', lightsOut: false, locationId: 'room', pose: 'facing-user', expression: 'neutral' },
-    pomodoro: { phase: 'idle', status: 'idle', remainingMs: 0, endsAtMs: null, focusIndex: 0 },
+    companion: { mode: 'rest', lightsOut: false, locationId: 'room', pose: 'facing-user', expression: DEFAULT_EXPRESSION,
+      daypart: deriveDaypart(clock.nowMs(), daypartSchedule), mailboxUnseen: 0 },
+    pomodoro: { phase: 'idle', status: 'idle', remainingMs: 0, endsAtMs: null, focusIndex: 0, phaseDurationMs: 0, plannedCount: 0 },
     task: null, messages: [], activities: [], candidates: [], deliveries: [],
     capabilities: (['chat', 'pomodoro', 'mail', 'privacy', 'memory', 'backup', 'mcp', 'rodin', 'heart-flow'] as const).map((id) => ({
       id, status: 'unavailable' as const, source: 'none' as const,
@@ -39,6 +41,7 @@ export function createAppController(clock: Clock) {
   const publish = (reason: AppEvent['reason'], requestId?: string) => {
     snapshot.revision++
     snapshot.clock.nowMs = clock.nowMs()
+    snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
     const event: AppEvent = { protocolVersion: PROTOCOL_VERSION, epoch: snapshot.epoch, revision: snapshot.revision,
       occurredAtMs: snapshot.clock.nowMs, type: 'state.snapshot', reason, snapshot: structuredClone(snapshot), ...(requestId ? { requestId } : {}) }
     for (const listener of listeners) listener(event)
@@ -57,7 +60,7 @@ export function createAppController(clock: Clock) {
     let ack: CommandAck
     if (command.type === 'mode.set') {
       snapshot.companion.mode = command.mode
-      snapshot.companion.pose = { work: 'computer', quiet: 'writing', rest: 'facing-user' }[command.mode]
+      snapshot.companion.pose = { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[command.mode]
       publish('mode', command.requestId)
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else if (command.type === 'lights.set') {

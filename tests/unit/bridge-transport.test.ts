@@ -17,6 +17,7 @@ describe('snapshot / event handoff', () => {
       getSnapshot: () => new Promise((resolve) => { complete = resolve }),
       subscribe: (listener) => { receive = listener; return () => { detached = true } },
       dispatch: async (command) => ({ protocolVersion: 1, epoch: snapshot.epoch, requestId: command.requestId, status: 'rejected', error: { code: 'unavailable', retryable: false } }),
+      readEvidence: async () => { throw new Error('EVIDENCE_UNAVAILABLE') },
     }
     const rendered: AppSnapshot[] = []
     const disconnect = connectBridge(bridge, (value) => rendered.push(value), () => { throw new Error('unexpected transport error') })
