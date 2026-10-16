@@ -69,7 +69,7 @@ export function createPluginRegistry(options: { root: string; settings: Settings
         const fingerprint = hash(manifestText + '\n' + code)
         const saved = options.settings.read().plugins[manifest.id]
         const conflict = manifest.tools.some((tool) => [...entries.values()].some((entry) => entry.view.tools.includes(tool.name)))
-        const status = manifest.apiVersion !== 1 || conflict ? 'incompatible' : !manifest.entry ? 'enabled'
+        const status = manifest.apiVersion !== 1 || conflict ? 'incompatible' : !manifest.entry ? (saved?.enabled === false ? 'disabled' : 'enabled')
           : saved?.fingerprint !== fingerprint ? 'needs-approval' : 'disabled'
         const entry: Entry = { view: { id: manifest.id, name: manifest.name, version: manifest.version, source: 'folder', status,
           privacy: saved?.privacy ?? manifest.privacy, permissions: manifest.permissions, tools: manifest.tools.map((tool) => tool.name), fingerprint },
@@ -82,6 +82,7 @@ export function createPluginRegistry(options: { root: string; settings: Settings
   const enable = (id: string, fingerprint: string): PublicErrorCode | undefined => {
     const entry = entries.get(id)
     if (!entry || fingerprint !== entry.view.fingerprint || ['incompatible', 'failed'].includes(entry.view.status)) return 'invalid-command'
+    if (entry.view.status === 'enabled') return
     try {
       if (entry.manifest?.entry && entry.folder) {
         // Recheck disk before consent is used; a changed entry must be discovered and approved again.

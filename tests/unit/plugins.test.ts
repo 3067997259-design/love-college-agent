@@ -41,6 +41,16 @@ describe('plugin consent and narrow result boundary', () => {
     expect(f.registry.enable('synthetic', view.fingerprint)).toBe('permission-denied')
     expect(existsSync(join(f.folder, 'executed'))).toBe(false)
   })
+  it('does not re-run initialization when enable is repeated and remembers asset-only disable', () => {
+    const f = fixture('const fs=require("node:fs"); const p=__dirname+"/once"; if(fs.existsSync(p)) throw new Error("repeated"); fs.writeFileSync(p,"x"); module.exports={tools:{synthetic:async()=>({ok:true,raw:{},visible:{}})}}')
+    const view = f.registry.views().at(-1)!
+    expect(f.registry.enable(view.id, view.fingerprint)).toBeUndefined()
+    expect(f.registry.enable(view.id, view.fingerprint)).toBeUndefined()
+    const asset = fixture(undefined, { entry: undefined, tools: [], permissions: [] })
+    asset.registry.disable('synthetic')
+    const again = createPluginRegistry({ root: join(asset.root, 'plugins'), settings: asset.settings }); again.discover()
+    expect(again.views()[0].status).toBe('disabled')
+  })
   it('rejects incompatible APIs and traversal manifests without execution', () => {
     expect(fixture(undefined, { apiVersion: 2 }).registry.views().at(-1)?.status).toBe('incompatible')
     expect(fixture(undefined, { entry: '../outside.cjs' }).registry.views()).toHaveLength(1)
