@@ -2,7 +2,9 @@ import { z } from 'zod'
 import type { PomodoroView } from '../../shared'
 
 export const planItemSchema = z.strictObject({
-  text: z.string().min(1).max(80).refine((text) => [...text].length <= 40 && text.trim().length > 0 && !/[\u0000-\u001f\u007f\u2028\u2029]/u.test(text)),
+  text: z.string().min(1).max(80).refine((text) => [...text].length <= 40 && text.trim().length > 0 && [...text].every((character) => {
+    const code = character.codePointAt(0)!; return code > 31 && code !== 127 && code !== 0x2028 && code !== 0x2029
+  })),
   count: z.number().int().min(1).max(24), assist: z.boolean(),
 })
 export const planSchema = z.strictObject({ label: z.string().trim().min(1).max(80), plannedCount: z.number().int().min(1).max(24),
