@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { EvidenceView } from '../../shared'
 import type { Clock } from '../clock'
 import { redactFixed } from '../privacy/redact'
-import { groundedIn } from '../memory/grounding'
+import { groundedIn, groundingVerdict } from '../memory/grounding'
 import type { SourceMail } from './types'
 
 const short = (length: number) => z.string().trim().min(1).max(length).refine((text) => [...text].every((char) => char.charCodeAt(0) > 31 && char.charCodeAt(0) !== 127)
@@ -86,9 +86,15 @@ export async function extractMail(mail: SourceMail, model: EmailPrivacyModel | n
     if (parsed.kind === 'notice') return { ok: true, value: null }
     const source = mail.subject + '\n' + mail.body
     const quotes: CheckedMail['quotes'] = []
-    if (!source.includes(parsed.titleQuote) || !parsed.titleQuote.includes(parsed.task)) throw new Error('MAIL_TITLE_UNGROUNDED')
+    const titleAt = source.indexOf(parsed.titleQuote)
+    if (titleAt < 0 || !parsed.titleQuote.includes(parsed.task)) throw new Error('MAIL_TITLE_UNGROUNDED')
     // "本周不交作业" must not become the task "交作业": the title has to be entailed, not merely contained.
     if (!groundedIn(source, parsed.titleQuote).entailed) throw new Error('MAIL_TITLE_UNGROUNDED')
+    // The task is the title's shortened claim, so it has to be checked at the occurrence *inside* that
+    // title: a plain `source.includes(task)` would match an earlier affirmative mention and let the
+    // negation-stripped title through (issue #15).
+    const taskAt = titleAt + parsed.titleQuote.indexOf(parsed.task)
+    if (!groundingVerdict(source, parsed.task, taskAt, taskAt + parsed.task.length).entailed) throw new Error('MAIL_TITLE_UNGROUNDED')
     quotes.push({ field: 'title', text: parsed.task })
     const checkedDate = (value: z.infer<typeof date> | undefined | null, field: 'deadlineIso' | 'eventStartIso' | 'eventEndIso') => {
       if (!value) return undefined
@@ -104,6 +110,10 @@ export async function extractMail(mail: SourceMail, model: EmailPrivacyModel | n
     if (eventEndIso && (!eventStartIso || clock.parse(eventEndIso) <= clock.parse(eventStartIso))) throw new Error('MAIL_EVENT_RANGE_INVALID')
     if (parsed.location) {
       if (!source.includes(parsed.location.quote) || !parsed.location.quote.includes(parsed.location.text)) throw new Error('MAIL_LOCATION_UNGROUNDED')
+      const locationAt = source.indexOf(parsed.location.quote)
+      const locationTextAt = locationAt + parsed.location.quote.indexOf(parsed.location.text)
+      // Same shape as the task: the location text is the quote's shortened claim, so check it where it sits.
+      if (!groundingVerdict(source, parsed.location.text, locationTextAt, locationTextAt + parsed.location.text.length).entailed) throw new Error('MAIL_LOCATION_UNGROUNDED')
       quotes.push({ field: 'locationText', text: parsed.location.text })
     }
     if (parsed.urgency && (!source.includes(parsed.urgency.quote) || /无需|取消|不再|不要|不用|不必|不需/.test(parsed.urgency.quote) || !(parsed.urgency.level === 'reply-today' ? /(?:今天|今日)(?:内)?(?:务必|需要|请)?(?:上午|下午|晚上|中午)?(?:前)?回复/ : /(?:考场|教室|地点)(?:已|将|现)?(?:变更|更改|调整)/).test(parsed.urgency.quote))) throw new Error('MAIL_URGENCY_UNGROUNDED')
