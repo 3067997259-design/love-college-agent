@@ -14,7 +14,7 @@ it('redacts escaped provider values before actual harness parsing, execution, se
   const store: SessionStore = { scope: journal.scope, append: journal.append, records: journal.records, projection: () => projectJournal(journal.records()), close: journal.close }
   const config = { base_url: 'https://synthetic.invalid/v1', api_key: 'synthetic-private-key', model: 'synthetic-config-model' }; let index = 0; let received: unknown
   const model = createModelClient(new Map([['chat', config]]), ['chat'], clock, async () => {
-    const args = '{"text":"\\u0073ynthetic-private-key","nested":[{"name":"\\u0073ynthetic-config-model","url":"https:\\/\\/synthetic.invalid\\/v1"}],"ordinary":"literal \\\"quote\\\""}'
+    const args = String.raw`{"text":"\u0073ynthetic-private-key","nested":[{"name":"\u0073ynthetic-config-model","url":"https:\/\/synthetic.invalid\/v1"}],"ordinary":"literal \"quote\""}`
     const delta = index++ === 0 ? { tool_calls: [{ index: 0, id: 'safe', function: { name: 'echo', arguments: args } }] } : { content: 'safe result' }
     return new Response('data: ' + JSON.stringify({ choices: [{ index: 0, delta, finish_reason: index === 1 ? 'tool_calls' : 'stop' }] }) + '\n\ndata: [DONE]\n\n')
   })
