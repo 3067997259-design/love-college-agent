@@ -19,6 +19,13 @@ function response(value: unknown) {
   return new Response('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: JSON.stringify(value) }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 3 } }) + '\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
 }
 describe('production task model ports without runtime model calls', () => {
+  it('routes subjective diaries to chat with autonomous budget and never persists their prose', async () => {
+    const f = fixture(); const models: string[] = []
+    const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => { models.push(JSON.parse(String(init.body)).model); return response({ entry: 'SYNTHETIC_SUBJECTIVE_DIARY' }) })
+    expect(await ports.diary!.write([{ id: 'seen', text: 'VISIBLE_ONLY' }], new AbortController().signal)).toEqual({ entry: 'SYNTHETIC_SUBJECTIVE_DIARY' })
+    expect(models).toEqual([configs.get('chat')!.model]); expect(JSON.stringify(f.rows)).not.toContain('SYNTHETIC_SUBJECTIVE_DIARY')
+    expect(f.rows.filter((row) => row.type === 'model/attempt' && row.status === 'started')).toMatchObject([{ bucket: 'autonomous', slot: 'chat' }])
+  })
   it('routes memory to background without tools and preserves scrubbed provenance IDs', async () => {
     const f = fixture(); let model = ''; let auth = ''; let sourceId = ''; let tools: unknown
     const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => {

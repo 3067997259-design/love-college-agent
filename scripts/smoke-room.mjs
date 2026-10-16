@@ -18,9 +18,10 @@ async function waitFor(test, message) { for (let i = 0; i < 120; i++) { if (test
 async function debug(name, args = {}) { const result = await client.callTool({ name, arguments: args }); assert.ok(!result.isError); return JSON.parse(result.content[0].text) }
 try {
   await mkdir(data, { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
+  await mkdir(join(data, 'developer', sceneId), { recursive: true }); await writeFile(join(data, 'developer', sceneId, 'clock.json'), JSON.stringify({ nowMs: Date.parse('2026-10-16T12:00:00+08:00'), rate: 1, frozen: true }))
   await launch(); await debug('set_clock', { nowMs: Date.parse('2026-10-16T12:00:00+08:00'), frozen: true }); await debug('set_fake_model', { script: [{ text: '合成共同经历', toolCalls: [], delayMs: 0 }] })
   await send({ type: 'message.send', text: '我把纸桥放在书桌上，给它取名叫周五桥。' }); await waitFor((s) => s.task?.status === 'completed', 'ROOM_CONTEXT_FAILED')
-  await debug('set_clock', { nowMs: Date.parse('2026-10-17T12:00:00+08:00') }); await send({ type: 'diary.write' }); await waitFor((s) => s.diary.entries.length > 0, 'DIARY_WRITE_FAILED')
+  await debug('set_clock', { nowMs: Date.parse('2026-10-17T12:00:00+08:00') }); await waitFor((s) => s.session.dayKey === '2026-10-17', 'DIARY_ROLLOVER_FAILED'); await send({ type: 'diary.write' }); await waitFor((s) => s.diary.entries.length > 0, 'DIARY_WRITE_FAILED')
   const id = (await snapshot()).diary.entries[0].id
   assert.equal(await page.evaluate(async (id) => { try { await window.lca.readDiary(id); return false } catch { return true } }, id), true)
   await debug('set_clock', { nowMs: Date.parse('2026-10-18T12:00:00+08:00') }); const entry = await page.evaluate((id) => window.lca.readDiary(id), id)
