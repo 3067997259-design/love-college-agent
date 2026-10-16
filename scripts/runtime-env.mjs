@@ -1,6 +1,12 @@
 import { mkdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 
+/** Run the identical native scenario against source Electron or an explicitly supplied build. */
+export function electronLaunchTarget(root, fallback) {
+  const packaged = process.env.LCA_TEST_EXECUTABLE
+  return { executablePath: packaged ?? fallback, args: packaged ? [] : [root] }
+}
+
 export function runtimeEnv(root) {
   const cacheRoot = process.platform === 'win32' ? join(root.slice(0, 3), '.lca-cache') : join(root, '.cache')
   for (const part of ['tmp', 'electron', 'electron-builder', 'electron-gyp']) mkdirSync(join(cacheRoot, part), { recursive: true })

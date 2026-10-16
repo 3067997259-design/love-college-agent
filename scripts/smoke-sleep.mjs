@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', 'sleep-' + randomUUID()); const sceneId = randomUUID()
@@ -18,7 +18,7 @@ const send = (body) => page.evaluate(async (body) => { const s = await window.lc
 async function accepted(body) { const result = await send(body); assert.equal(result.status, 'accepted', body.type) }
 async function waitFor(predicate, code) { for (let i = 0; i < 100; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(code) }
 async function launch() {
-  instance = await _electron.launch({ executablePath: process.env.LCA_TEST_EXECUTABLE ?? electronPath, args: process.env.LCA_TEST_EXECUTABLE ? [] : [root], env })
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env })
   page = await instance.firstWindow(); await initializeTestBook(page)
   const connection = JSON.parse(await readFile(join(data, 'developer', sceneId, 'debug-connection.json'), 'utf8'))
   client = new Client({ name: 'sleep-smoke', version: '1.0.0' })
