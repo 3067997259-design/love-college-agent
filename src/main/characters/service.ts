@@ -7,7 +7,8 @@ import type { BinaryAssets, BinaryAsset } from '../storage/assets'
 import { assetUrl } from '../storage/assets'
 import type { CharacterLibrary } from './library'
 import { exportCharacterPackage, parseCharacterPackage, type CharacterDefinition } from './package'
-export const builtinCharacter = { id: 'default-character', name: '桃子', persona: '', images: {} as Record<string, BinaryAsset> }
+import { BUILTIN_CARD } from './builtin-persona'
+export const builtinCharacter = { id: 'default-character', name: BUILTIN_CARD.name, persona: BUILTIN_CARD.persona, images: {} as Record<string, BinaryAsset> }
 export function createCharacterService(options: { library: CharacterLibrary; active: CharacterDefinition | typeof builtinCharacter; settings: SettingsStore; assets: BinaryAssets; normalizePng(bytes: Buffer): Buffer; exportBuiltin?(): Promise<Buffer>; busy(): boolean; chooseImport(): Promise<string | null>; chooseExport(): Promise<string | null>; changed(): void }) {
   let status: CharacterPackView['status'] = 'idle'; let worker: Promise<void> | undefined
   const run = (state: typeof status, work: () => Promise<void>) => { status = state; options.changed(); worker = work().catch(() => { status = 'failed' }).finally(() => { worker = undefined; if (status !== 'failed') status = 'idle'; options.changed() }) }

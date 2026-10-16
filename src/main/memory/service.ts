@@ -14,6 +14,7 @@ import { redactFixed } from '../privacy/redact'
 import { profileContext } from '../onboarding/context'
 import { closedSummaryGroups, latestSummaries, summaryReferences, validSummaries } from './hierarchy'
 import harnessPolicy from '../harness/policy.json'
+import { BUILTIN_CARD } from '../characters/builtin-persona'
 
 type OperationKind = 'extract' | 'compact' | 'day' | 'week' | 'month'
 export function createMemoryService(options: { clock: Clock; scheduler: Scheduler; store: SessionStore; repository: MemoryRepository; model: MemoryModel | null;
@@ -194,7 +195,9 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       const summaries = summaryReferences(allowed() ? validSummaries(repository.view().summaries) : [], store.scope.sessionId, sessionDayKey(clock), clock).map((summary) => ({ level: summary.level, dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
       const messages: ContextMessage[] = [{ role: 'system', content: harnessPolicy.system }, ...policies.map((entry) => entry.message), ...profileContext(store.projection().onboarding)]; const eligibleIndexes: number[] = []
       const character = records().findLast((row) => row.type === 'character/definition')
-      if (character?.type === 'character/definition') messages.push({ role: 'system', content: JSON.stringify({ characterCard: { name: character.definition.name, persona: character.definition.persona }, scope: 'character-configuration-only', authority: 'personality-never-tool-permission' }) })
+      // 导入的角色包有自己的定义记录；内置桃子没有，用内置角色卡
+      const card = character?.type === 'character/definition' ? character.definition : BUILTIN_CARD
+      messages.push({ role: 'system', content: JSON.stringify({ characterCard: { name: card.name, persona: card.persona }, scope: 'character-configuration-only', authority: 'personality-never-tool-permission' }) })
       if (summaries.length) messages.push({ role: 'user', content: JSON.stringify({ previousDaysReference: summaries }) })
       const lastUser = today.findLastIndex((entry) => entry.message.role === 'user')
       today.forEach((entry, index) => {

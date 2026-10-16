@@ -15,6 +15,7 @@ import { seenFragments } from '../../src/main/memory/seen'
 import { projectMemory } from '../../src/main/memory/projection'
 import { createMemoryService } from '../../src/main/memory/service'
 import { createScheduler } from '../../src/main/scheduler'
+import { BUILTIN_CARD } from '../../src/main/characters/builtin-persona'
 
 const cleanups: (() => void | Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
@@ -78,7 +79,9 @@ describe('main-owned onboarding profile and experience boundary', () => {
     const prepared = await memory.prepareContext('t', new AbortController().signal)
     expect(prepared.messages[0]).toMatchObject({ role: 'system', content: expect.stringContaining('只有成功的工具结果') })
     expect(prepared.messages.slice(1, 3)).toEqual(profileContext(f.store.projection().onboarding)); expect(prepared.messages[1].content).not.toContain('PROFILE_USER_ONLY')
-    expect(prepared.messages[2]).toMatchObject({ role: 'system', content: expect.stringContaining('关于你') }); expect(prepared.eligibleIndexes).toEqual([3])
+    expect(prepared.messages[2]).toMatchObject({ role: 'system', content: expect.stringContaining('关于你') })
+    // 内置桃子没有定义记录，人设取内置角色卡；只是系统层，不进经历抽取
+    expect(JSON.parse(prepared.messages[3].content)).toMatchObject({ characterCard: BUILTIN_CARD, authority: 'personality-never-tool-permission' }); expect(prepared.eligibleIndexes).toEqual([4])
     f.store.append({ type: 'model/seen', turnId: 't', source: 'fake', ...prepared })
     expect(seenFragments(f.store.records()).map((item) => item.text)).toEqual(['当时看见的普通聊天']); expect(repository.view().items).toEqual([])
     f.send({ type: 'onboarding.profile', characterName: '新称呼' }); expect((await memory.prepareContext('t2', new AbortController().signal)).messages[1].content).toContain('新称呼')
