@@ -8,9 +8,17 @@
 
 ## 当前状态
 
+**最新（2026-10-16 22:10，赛中）：** 第零圈底座和第一圈的邮箱主线、资料处理、文字记忆都已合入 main，都是显式开发场景（合成邮件、fake 隐私模型和 fake 记忆模型）；真实 IMAP 仍被认证前重置阻塞。21:41–22:06 又合入受限 MCP 客户端（`812ceb0`）、私人存档与安全恢复（`18e7248`）和开发模式诊断视图的接口（`a211e43`），这几项的运行记录尚未写入 `docs/engineering/`。界面线合入番茄计划卡、顶部番茄格、门牌翻面与熄灯拉线（`6620324`），下一步是迷你陪伴窗和晕染着色器。main 上 `pnpm test` 为 25 个文件、103 项通过。可用命令与各批验证见文末“赛中开发命令”，工程状态展开见 [AGENTS.md](AGENTS.md) 和 `docs/engineering/`。安装包仍是 19:11 打的第零圈版本。
+
 **2026-10-16 美术精修已获用户批准：** 书本 Demo 已采用 NovelAI 原图经 GPT-image 精修的十张整景素材；写字本朝向她，睡姿改同机位近景且电脑和本子合上，夜间睡眠保留柔和夜灯，外出去向写在空房间桌上的纸条。用户同时授权接入、提交并向 Claude 交接；新工作方法见 [美术规格 §6.9](docs/art-spec.md#69-精修素材采用与-demo-接入2026-10-16-晚)，实际检查、素材映射与尚缺的匹配线稿见 [精修交接](docs/engineering/art-retouch-handoff.md)。这是源码与浏览器 Demo 的美术更新，不代表已有安装包已更新。
 
-项目处于赛前设计阶段。已确定采用 **Electron 的 Windows 桌面端**，前端 React + Vite + TypeScript，模型走 OpenAI 兼容协议，校园数据经 IMAP 读取，详见 [技术方案](docs/tech-design.md)。当前目录保存讨论文档和参考视频，尚无应用实现或可运行的 Demo。
+**早期记录（17:38；用户宣布的 0 h = 16:32 GMT+8）：** 脚手架、共享接口与受限 IPC 已落地；SQLite 在 Electron 内通过原生加载和落盘重开，类型检查、lint、Vitest 与 Electron smoke 已通过。163 IMAP 连接在认证前被重置，邮件管线尚未接通；Clash/TUN 是待排查因素。详细结果、延期依赖与未完成项见 [首批工程记录](docs/engineering/first-hour.md)。下段保留赛前状态作历史背景。
+
+（19:14 记录）第零圈后续已接通 append-only JSONL、可重建的 SQLite 投影、模型流式客户端和最小 harness；真实 chat 模型已完成代码时钟工具往返。书本界面的发送、停止与重启恢复也已通过合成 HTTP 场景。当前内置工具仅统一时钟和计划；完整番茄钟、插件加载器及邮件管线仍待后续，见 [日志与执行底座记录](docs/engineering/journal-harness.md)。
+
+开赛前项目处于设计阶段，已确定采用 **Electron 的 Windows 桌面端**，前端 React + Vite + TypeScript，模型走 OpenAI 兼容协议，校园数据经 IMAP 读取，详见 [技术方案](docs/tech-design.md)。当时目录只有讨论文档和参考视频，应用代码全部在开赛后编写。
+
+2026-10-16 用户明确：等其宣布“正式开赛”后才动代码；此前只整理计划，不按旧赛程自动开始。第一小时的执行顺序、两条编码线的接口与目录交接见 [开赛清单 §2](docs/kickoff.md#2-开赛第一小时)。执行顺序从用户宣布时计，官方提交与冻结截止时间不因此顺延。
 
 参考项目中的实现、测试和运行记录，均不代表本项目已经实现或通过验收。
 
@@ -325,3 +333,61 @@ Nestopi 的游戏，角色为聪音（Satone）。参考重点是共同工作、
 上述顺序是当前建议，不是已排定的开发批次。暂不以完整复刻 AIRI、所有校园平台接入或成熟游戏的素材规模作为首版目标。
 
 后续记录需分清产品设想、代码实现、自动化测试和真实使用证据。跨上下文、重启恢复、跨天推进也应分别验证；加速时钟或预先准备的场景可以用于 Demo，但不证明真实跨天运行已经通过。
+
+## 赛中开发命令（2026-10-16）
+
+以下命令已在 GPT worktree `D:\lca-gpt` 验证，Node 24.14.0、pnpm 11.24.0。每个 worktree 独立安装依赖；本机 `pnpm store path` 为 `D:\.pnpm-store\v11`。
+
+```powershell
+Set-Location 'D:\lca-gpt'
+$env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1'
+pnpm install --frozen-lockfile
+pnpm setup:electron
+pnpm rebuild:native
+pnpm dev
+```
+
+| 命令 | 用途／本轮结果 |
+| --- | --- |
+| `pnpm build` / `pnpm start` | 构建／构建后预览，已启动检查 |
+| `pnpm typecheck` | main／preload／shared／renderer／单测类型检查通过 |
+| `pnpm lint` | 通过，业务时间调用及 renderer 特权 import 受限制 |
+| `pnpm test` | 合入美术精修后 22 个文件、89 项单测通过；22:10 合入番茄计划卡后 25 个文件、103 项通过 |
+| `pnpm test:electron` | 真实 Electron 窗口、隔离、IPC 及退订检查通过 |
+| `pnpm probe:sqlite` | 原生加载与落盘重开通过，无需退回 sql.js |
+| `pnpm probe:journal` | 日志重放、过期／缺失缓存重建、作用域与原文隔离通过 |
+| `pnpm probe:model` | 主进程 chat 槽位真实流式小请求通过，不打印回复或配置 |
+| `pnpm probe:harness` | 真实模型调用 get_clock 并结束回合，通过 |
+| `pnpm test:harness` | 合成 HTTP＋真实 Electron：发送、工具往返、停止断连、重启恢复通过 |
+| `pnpm test:developer` | 隔离假模型、鉴权 MCP、时钟、目录插件确认、场景与展位拒绝通过 |
+| `pnpm test:pomodoro` | 确认计划、SQLite 截止点、重启、熄灯与中断通过 |
+| `pnpm test:pomodoro:realtime` | 正常模式真实约 80 秒；60,000 ms 专注＋20,047 ms 休息通过 |
+| `pnpm probe:pomodoro` | 合成时钟＋真实 SQLite，跨 4 点重启保留截止点且只结算一次 |
+| `pnpm probe:campus` | Electron／SQLite 合成邮箱：证据隔离、幂等候选、版本确认、同 UID 改期与实际文件重启 |
+| `pnpm test:campus` | 合成邮件完整界面流程、原文高亮、确认／改期、文件预览、MCP／上下文／日志隔离与重启通过 |
+| `pnpm probe:documents` | Electron／SQLite 私有源库、独立 PDF 解析子进程、用户 Markdown 文件、重启和失败关闭 |
+| `pnpm test:documents` | 原生文件拖入／选择、合成附件、持久 /privacy、元数据工具回合、用户文件与 MCP／日志隔离通过 |
+| `pnpm probe:memory` | Electron／SQLite：可见经历抽取、纠正／晋升、旧回合压缩、运行中跨日、失败补摘要和用户／角色隔离通过 |
+| `pnpm test:memory` | 完整窗口：fake 记忆、元数据边界、/compact、用户旧页、同进程跨 4 点、熄灯与重启通过 |
+| `pnpm package:win` | 构建 Windows x64 NSIS，`release/` 下生成安装包 |
+| `pnpm test:package` | 已构建包的 D 盘安装／SQLite／日志／界面重启／测试卸载通过 |
+| `pnpm probe:imap` | 主进程只读探针已实现，真实连接仍被 `ECONNRESET` 阻塞 |
+| `pnpm test:mcp` / `pnpm probe:mcp:student-hub` | 第一圈 MCP 客户端（`812ceb0`）的检查；结果以 GPT 的运行记录为准，记录待补 |
+| `pnpm probe:backup` / `pnpm test:backup` | 私人存档与恢复（`18e7248`）的检查；结果以 GPT 的运行记录为准，记录待补 |
+| `pnpm preview:ui` / `pnpm shot:ui` | 只起渲染层，用假数据场景在浏览器预览、截图书本界面；不启动 Electron，不读密钥。数字键切场景，“跳过本段”让番茄钟当前阶段到点 |
+
+GPT 开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER_PORT` 指定不同端口；数据默认放 `<worktree>/.local-data`，用 `LCA_DATA_DIR` 可覆盖。开发实例的端口和数据目录必须各自独立，远程调试默认关闭。共享接口说明见 [src/shared/README.md](src/shared/README.md)。
+
+不运行 `playwright install`。首个 NSIS 安装包在 18:50 完成实际安装验收，早于 22:32 目标；当前未签名，使用默认图标。打包前确认 `pnpm rebuild:native` 与 `pnpm probe:sqlite` 通过，再运行 `pnpm package:win`、`pnpm test:package`。安装版使用 Electron 用户数据目录，不向安装目录写存档；自动验收遇到已有同名用户安装会拒绝覆盖。
+
+开发者模式在“工具与设置”手动打开、重启生效，使用独立测试 profile 和脚本假模型，不加载真实供应商配置。默认 CDP：GPT 9527／其他 9427；鉴权本机 MCP：5275／5175，可用 `LCA_CDP_PORT`、`LCA_MCP_PORT` 分别覆盖。`LCA_BOOTH=1` 禁止打开调试。当前场景只是开发 fixture，完整私人 `.lca-save` 留待第一圈。
+
+邮箱探针仅由主进程读用户授权的本机配置；worktree 用 `$env:LCA_PROVIDERS_FILE = 'D:\love, college&agent\secrets\providers.json'` 指向原文件，不复制或打印凭据。IMAP 按用户要求继续记为阻塞；学校隐私模型未配时业务关闭，不回退主模型。更多实际结果、提交和第一圈边界见 [第零圈记录](docs/engineering/zero-circle.md)。
+
+第一圈邮箱主线现已在独立开发 profile 跑通：合成邮件 → fake 隐私模型 → 代码校验 → 用户证据对照与版本确认 → 实际本地 .ics／Markdown。开发模式重启后，“工具与设置”选择合成邮件场景并扫描；右页看原文、确认，再回设置导出，交付卡可打开校验后的实际文件。改期重新确认后沿用 UID、递增 SEQUENCE；重复扫描／导出幂等。正常 IMAP 仍 blocked，本批不读取真实邮箱或配置。原文不进快照、模型、调试 MCP 或日志；滤芯失败不会回退。范围、操作与证据见 [邮箱主线记录](docs/engineering/mail-first-circle.md)。附件／`/privacy`、记忆的后续进展见下段；MCP 客户端和私人存档仍待后续。本批未更新 NSIS，也未实测手机日历重复导入。上方赛前与早期底座描述保留为历史背景，以本节最新记录为准。
+
+后续资料批次已接通合成附件、拖入／选择文件和持久 `/privacy`：支持文字层 PDF、UTF-8 文本／Markdown，关闭时暂存，开启且隔离依赖可用时整理。开发模式扫描初始邮件后可在设置页“整理附件”，也可直接拖入文件；输入 `/privacy` 或 `/privacy on/off` 控制，成品从用户交付卡打开。原文留在私有源库，整理成品只给用户，模型只拿通用文件名、类型、页数和校验过的截止时间。滤芯失败直接停止，需显式重试；不回退主模型。真实 IMAP／隐私模型仍未接通，本批 fake 是确定性开发排版，不代表真实整理质量。公开资料跟随主模型、MCP 客户端及私人存档仍待后续，本批未更新安装包。操作、限制和真实验证记录见 [资料处理记录](docs/engineering/documents-first-circle.md)。
+
+后续文字记忆批次已接通合成经历与 fake 后台模型：仅从成功模型输入的可见片段抽取，保留来源、纠正链和未审核标记，按用户＋角色隔离；邮件、附件与整理成品原文不参与。确定性检索支持中文，相关记忆自动放在新消息之前，也有只读 search_memory 工具。上海时间 04:00 后，等执行回合结束、最近发送空闲两分钟、未熄灯且番茄未运行再翻到新页；后台失败可以安全翻页，摘要恢复后补做。`/compact` 或设置页“压缩旧回合”只改模型投影，用户在“历史会话”仍能看原始聊天。实际 Electron 已验证同进程跨日、旧页字节不变、纠正／晋升、缓存重建、作用域隔离和重启；是显式调整时钟与 fake 的证据，不是真实自然跨天或真实概括质量验收。正常模式后台模型尚未装配，不回退 chat；周／月归并、日记、私人存档与自主生活仍待后续，安装包仍是第零圈。操作与测试见 [记忆与日会话记录](docs/engineering/memory-first-circle.md)。
+
+界面线（Claude，worktree `D:\lca-claude`，分支 `claude/ui`）22:10 合入番茄计划卡：她或你排的草案在右页确认后，顶部出现番茄格和开始／暂停／继续，休息结束不自动开始；门牌可翻成工作中／安静／休息，专注中翻到休息即提前结束这一段；熄灯可从门牌菜单或左页页边的拉线开关。浏览器假数据里点通整条流程，Electron 冒烟 `test:pomodoro`、`test:campus` 在该分支通过。待 GPT 的接口：计划条目，以及新草案不顶掉已确认计划。迷你陪伴窗和晕染着色器在做；两项美术取舍（迷你窗用整景图裁切加羽化、晕染的铅笔底由着色器从彩图实时提取）已获用户批准，见体验设计 §6、§7.1。
