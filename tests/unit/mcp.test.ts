@@ -11,6 +11,9 @@ import { boundedMcp } from '../../src/main/mcp/bounded'
 import { mcpConfigSchema, readMcpConfig, saveMcpConfig } from '../../src/main/mcp/config'
 import { createFakePrivacyModel } from '../../src/main/privacy/filter'
 import type { ToolContext } from '../../src/main/harness/tools'
+import { createMinecraft } from '../../src/main/minecraft/service'
+import { createScheduler } from '../../src/main/scheduler'
+import type { AppCommand } from '../../src/shared'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
@@ -22,6 +25,25 @@ async function setup(privacy = true) {
   return { fixture, connection, context }
 }
 describe('MCP configuration, transport and private result boundaries', () => {
+  it.each([false, true])('releases game ownership before intentional disconnect and preserves uncertainty on failure (%s, #22)', async (releaseFails) => {
+    const fixture = await startMcpFixture(systemClock); cleanups.push(fixture.close); const scheduler = createScheduler(systemClock); const order: string[] = []
+    const service = createMcpService({ clock: systemClock, configPath: 'unused', source: 'fake', privacyModel: null, developmentConfig: fixture.config, chooseConfig: async () => null, confirmConnection: async () => true, canConfigure: () => true, changed: () => {},
+      beforeDisconnect: async (id) => { if (id !== 'synthetic-game') return; order.push('release-start'); expect(service.protocol(id)).toBeDefined(); await game.stop(); order.push('release-finished'); expect(service.protocol(id)).toBeDefined() } })
+    const game = createMinecraft({ clock: systemClock, scheduler, source: () => 'fake', protocol: (id) => {
+      const protocol = service.protocol(id); if (!protocol) return
+      return { ...protocol, call: (name, input, signal) => name === 'release_control_session' && releaseFails ? Promise.reject(new Error('SYNTHETIC_RELEASE_FAILURE')) : protocol.call(name, input, signal) }
+    }, blocked: () => false, changed: () => {} })
+    cleanups.push(async () => { await game.close(); scheduler.dispose(); await service.close() })
+    const send = (type: 'mcp.connect' | 'mcp.disconnect', serverId: string) => service.dispatch({ protocolVersion: 1, epoch: 'test', requestId: randomUUID(), type, serverId, fingerprint: service.view().servers.find((server) => server.id === serverId)!.fingerprint } as AppCommand)
+    send('mcp.connect', 'synthetic-game'); send('mcp.connect', 'synthetic-public'); await service.idle()
+    game.dispatch({ type: 'minecraft.check', serverId: 'synthetic-game' } as AppCommand); await game.idle(); const uuid = game.view().pilot!.uuid
+    game.dispatch({ type: 'minecraft.start', serverId: 'synthetic-game', expectedPlayerUuid: uuid, scope: { radiusBlocks: 8, durationMs: 60000, allowChat: false } } as AppCommand); await game.idle()
+    await game.tool('minecraft_navigate', { x: 2, y: 64, z: 0 }, new AbortController().signal)
+    send('mcp.disconnect', 'synthetic-public'); await service.idle(); expect(game.view().status).toBe('playing')
+    send('mcp.disconnect', 'synthetic-game'); expect(game.view().status).toBe('stopping'); await service.idle()
+    expect(order).toEqual(['release-start', 'release-finished']); expect(service.protocol('synthetic-game')).toBeUndefined()
+    expect(game.view()).toMatchObject({ status: releaseFails ? 'failed' : 'idle', stopVerified: !releaseFails })
+  })
   it('requires native target consent and cannot accept a late approval after disconnect', async () => {
     const fixture = await startMcpFixture(systemClock); cleanups.push(fixture.close)
     let answer: (value: boolean) => void = () => {}; const confirm = vi.fn(() => new Promise<boolean>((resolve) => { answer = resolve }))
