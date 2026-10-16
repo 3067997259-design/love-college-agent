@@ -45,6 +45,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('mcp.disconnect'), serverId: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/) }),
   z.strictObject({ ...envelope, type: z.literal('models.configure') }),
   z.strictObject({ ...envelope, type: z.literal('window.mini') }),
+  z.strictObject({ ...envelope, type: z.literal('window.expand') }),
   z.strictObject({ ...envelope, type: z.literal('window.book') }),
   z.strictObject({ ...envelope, type: z.literal('window.mini.hover'), over: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('window.mini.move'), dx: z.number().int().min(-10000).max(10000), dy: z.number().int().min(-10000).max(10000) }),
