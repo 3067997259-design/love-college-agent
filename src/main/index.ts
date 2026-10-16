@@ -49,6 +49,7 @@ import { buildDiagnostics } from './developer/diagnostics'
 import { createTaskModelPorts } from './model/task-ports'
 import { createModelSettings, providerConfigPath, type ModelSettingsService } from './config/model-settings'
 import { createCompanionWindows, type CompanionWindows } from './windows/companion'
+import { roundedMiniShape, type MiniFallbackReason } from './windows/presentation'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -85,6 +86,13 @@ let backup: BackupService | undefined
 let quill: QuillService | undefined
 let modelSettings: ModelSettingsService | undefined
 let companionWindows: CompanionWindows | undefined
+let miniFallbackReason: MiniFallbackReason | null = process.env.LCA_MINI_OPAQUE === '1' ? 'forced' : null
+app.on('gpu-info-update', () => {
+  if (!miniFallbackReason && /^(disabled|unavailable)/.test(app.getGPUFeatureStatus().gpu_compositing ?? '')) { miniFallbackReason = 'gpu-unavailable'; companionWindows?.fallback(miniFallbackReason) }
+})
+app.on('child-process-gone', (_event, details) => {
+  if (!miniFallbackReason && details.type === 'GPU' && details.reason !== 'clean-exit') { miniFallbackReason = 'gpu-crash'; companionWindows?.fallback(miniFallbackReason) }
+})
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -95,10 +103,14 @@ function createWindow(): void {
     },
   })
   bridge!.attach(window)
-  companionWindows = createCompanionWindows({ book: window, clock, uiClock: systemClock, scheduler: scheduler!, settings: prepared.pluginSettings, snapshot: controller!.getSnapshot, subscribe: controller!.subscribe, changed: () => controller?.refresh('mode'),
-    createMini: (bounds) => {
-      const mini = new BrowserWindow({ ...bounds, title: 'Love College Agent · Mini', show: false, frame: false, thickFrame: false, transparent: true, backgroundColor: '#00000000', alwaysOnTop: true, skipTaskbar: true, resizable: false, maximizable: false, minimizable: false, hasShadow: false,
+  companionWindows = createCompanionWindows({ book: window, clock, uiClock: systemClock, scheduler: scheduler!, settings: prepared.pluginSettings, initialFallbackReason: miniFallbackReason, snapshot: controller!.getSnapshot, subscribe: controller!.subscribe, changed: () => controller?.refresh('mode'),
+    createMini: (bounds, opaque) => {
+      const mini = new BrowserWindow({ ...bounds, title: 'Love College Agent · Mini', show: false, frame: false, thickFrame: false, roundedCorners: true, transparent: !opaque, backgroundColor: opaque ? '#F5EEDC' : '#00000000', alwaysOnTop: true, skipTaskbar: true, resizable: false, maximizable: false, minimizable: false, hasShadow: false,
         webPreferences: { preload: join(__dirname, '../preload/index.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false } })
+      if (opaque && ['win32', 'linux'].includes(process.platform)) {
+        const shape = () => { if (!mini.isDestroyed()) { const [width, height] = mini.getSize(); mini.setShape(roundedMiniShape(width, height)) } }
+        shape(); mini.on('resize', shape)
+      }
       bridge!.attach(mini, 'mini'); mini.webContents.setWindowOpenHandler(() => ({ action: 'deny' })); mini.webContents.on('will-navigate', (event) => event.preventDefault())
       if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) { const url = new URL(process.env.ELECTRON_RENDERER_URL); url.searchParams.set('view', 'mini'); void mini.loadURL(url.toString()) }
       else void mini.loadFile(join(__dirname, '../renderer/index.html'), { query: { view: 'mini' } })

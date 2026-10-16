@@ -67,3 +67,7 @@
 `window.mini` 收起书本；`window.expand` 回到书本并销毁小窗，旧 `window.book` 兼容同一行为，不改变计时和任务。迷你渲染入口为 ?view=mini；`window.mini.hover` 携带 `over: boolean`，hover/move 只接受迷你窗口的主 frame，不能由书本伪造。主进程设置置顶和鼠标穿透，透明异常时回退不透明圆角窗；可选的 miniPresentation／miniFallbackReason 仅说明本机显示模式，不含 GPU 或配置细节。主进程夹住拖动坐标、保存 profile 位置。开始新一段专注收起一次；短／长休息、停止和熄灯保留当前窗口，不抢焦点；熄灯暂停计时／后台，点她仍可回书本。重启从书本开始，不自动复原上次小窗。
 
 `PomodoroPlanInput.items` 可省略；提供时每条为 `{ text, count, assist }`，text 是非空单行短文本（最多 40 Unicode code points），count 为正整数，全部 count 之和必须等于 plannedCount，assist 为必填布尔。工具 plan_pomodoros 使用同一校验，非法输入不写日志、不创建计划。PomodoroPlanView 保留通过校验的原始条目，不补造条目或改变 assist。
+
+计划条目与草案的完整契约（取代早期的 plan.status=proposed 接法）：`pomodoro.plan`／plan_pomodoros 只写 `pomodoro.proposal`，草案只能是 proposed；`pomodoro.plan` 字段只放 confirmed／finished 的生效计划。提议可发生在专注／休息／暂停／空闲中，已有草案就替换草案，不动生效计划、focusIndex、阶段、截止点或暂停原因。
+
+`pomodoro.confirm(planId)` 只确认当前 proposal，任何阶段可确认；plannedCount 是今天的总数，包含已完成和正在进行的那个，少于 focusIndex 时拒绝。确认保留当前阶段、剩余时长、截止点、已完成进度，更新生效计划及总数，清 proposal；新时长从下一阶段使用。`pomodoro.discard(planId)` 只丢弃匹配的 proposal；`pomodoro.stop` 只结束生效计划，不再丢草案。完成数由主进程提供 completedCount（旧 fixture 可省略），正在进行／暂停的专注不计已完成；get_timer 返回它供模型排当天总数。渲染层不要从新草案重新起算进度。

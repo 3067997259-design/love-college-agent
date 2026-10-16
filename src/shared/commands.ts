@@ -14,6 +14,7 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'pomodoro.start'; planId: string }
   | { type: 'pomodoro.plan'; plan: PomodoroPlanInput }
   | { type: 'pomodoro.confirm'; planId: string }
+  | { type: 'pomodoro.discard'; planId: string }
   | { type: 'pomodoro.resume' }
   | { type: 'pomodoro.pause' }
   | { type: 'pomodoro.stop' }
