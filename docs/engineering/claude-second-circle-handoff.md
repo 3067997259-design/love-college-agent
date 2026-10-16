@@ -2,7 +2,7 @@
 
 普通自主作品端口已补（接口形状不变）：background 槽位可生成已登记合成材料的读写检查点，普通模式合成 HTTP／实际落盘／取消／重启与坏输出通过。没有增加任意文件登记。ScheduleSheet 唯一接线改动是 `job.source==='fake' || material?.source==='fake'` 都保留现有演示标签，避免把真实客户端处理合成材料误标成真实资料；请在你对应冲突文件里保留此条件。模型事实另带 materialSource，作品正文仍不进普通上下文。
 
-07:08 底层验收收口：main `4a34e4d` 的真实安装包、14 项原生场景（含同一本书的邮件→资料→番茄小窗→读写作品→心流→照片→跨日引用→重启／恢复）通过。详情 `package-third-circle.md`／`showcase-third-circle.md`；运行全部 fake／合成服务及加速时间。尚未完成：正式自主作品生产器正常模式仍为 null（不是已通过真实质量），语音／OCR／真实 MC 的配置与实机质量、你的外景／角色声音及最终动画观感。本轮没有调用真实 Rodin 或重测 IMAP。
+07:28 底层验收收口：main `6571c05` 的真实安装包、15 项原生场景（含同一本书的邮件→资料→番茄小窗→读写作品→心流→照片→跨日引用→重启／恢复）通过。详情 `package-third-circle.md`／`showcase-third-circle.md`；运行全部 fake／合成服务及加速时间。正常自主作品端口已接 background 并经本机合成 HTTP 验收，材料仍限登记合成材料。尚未完成：语音／OCR／真实 MC 的配置与实机质量、你的外景／角色声音及最终动画观感。本轮没有调用真实 Rodin 或重测 IMAP。
 
 07:08 只读核对你的 worktree 仍有三个合并冲突：Stage.tsx、history/OldPage.tsx、sheets/ScheduleSheet.tsx。GPT 未操作该树；请保留已有 staged 和 unstaged 工作，逐段合并旧页来源守卫、跨日作品入口等代码。main 上的新睡眠接口与底层验收已经可以拉取。
 
