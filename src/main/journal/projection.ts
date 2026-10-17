@@ -2,6 +2,7 @@ import type { ActivityView, InteractionMode, MessageView, OnboardingView, Pomodo
 import { initialOnboarding } from '../onboarding/schema'
 import { idleTimer, normalizePomodoro } from '../pomodoro/schema'
 import type { ContextMessage, JournalRecord } from './schema'
+import { projectFailure } from '../harness/failure'
 
 export interface SessionProjection {
   scope: Scope
@@ -73,7 +74,18 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
         break
       case 'assistant/message':
         if (record.text) (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'assistant', text: record.text, createdAtMs: record.atMs, status: record.status })
-        context.push({ seq: record.seq, message: { role: 'assistant', content: record.text, ...(record.toolCalls?.length ? { toolCalls: record.toolCalls } : {}) } }); break
+        if (!record.displayOnly) context.push({ seq: record.seq, message: { role: 'assistant', content: record.text, ...(record.toolCalls?.length ? { toolCalls: record.toolCalls } : {}) } }); break
+      case 'narrator/failure':
+        (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'narrator', text: record.text, createdAtMs: record.atMs, status: 'complete', failure: projectFailure(records, record.failure, record.seq) }); break
+      case 'question/requested': if (result.task?.id === record.turnId && result.task.status === 'running') result.task.status = 'waiting-user'; break
+      case 'question/answered':
+      case 'question/closed': if (result.task?.id === record.turnId && result.task.status === 'waiting-user') result.task.status = 'running'; break
+      case 'flow/command':
+        if (record.turnId && result.task?.id === record.turnId) {
+          if (record.status === 'awaiting-approval' && result.task.status === 'running') result.task.status = 'waiting-user'
+          else if (record.status !== 'preparing' && result.task.status === 'waiting-user') result.task.status = 'running'
+        }
+        break
       case 'turn/start': result.task = { id: record.turnId, status: 'running', steps: [] }; break
       case 'turn/cancelling': if (result.task?.id === record.turnId) result.task.status = 'cancelling'; break
       case 'turn/paused': if (result.task?.id === record.turnId) result.task.status = 'waiting-user'; break

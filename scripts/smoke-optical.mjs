@@ -58,6 +58,26 @@ try {
   await page.locator('.turn-back').click(); await page.locator('.impression-toggle').click(); await page.locator('.impression-sheet').waitFor()
   await page.waitForFunction(() => document.querySelector('.impression-sheet')?.naturalWidth > 0); assert.equal(await page.locator('.impression-sheet').evaluate((img) => img.naturalWidth), 1280)
   assert.ok((await page.locator('.impression-tier').first().innerText()).includes('我们一起折了蓝色的纸桥。'))
+  // Same mounted session: disable through the actual settings entry, then quote raw text.
+  await page.locator('.old-page').evaluate((element) => { element.dataset.mountCanary = 'same-old-page' })
+  const setOptical = async (enabled) => {
+    await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+    await page.getByRole('checkbox', { name: '启用光学印象', exact: true }).setChecked(enabled)
+    await waitFor((s) => s.opticalMemory.enabled === enabled, 'OPTICAL_SETTING_NOT_APPLIED')
+    await page.getByRole('button', { name: '关闭', exact: true }).click()
+  }
+  await setOptical(false); assert.equal(await page.locator('.old-page').getAttribute('data-mount-canary'), 'same-old-page')
+  await page.locator('.impression').waitFor({ state: 'detached' }); const raw = page.locator('.old-page [data-recallable="true"] .msg-text').first()
+  const chosen = await raw.evaluate((element) => {
+    const range = document.createRange(); range.setStart(element.firstChild, 0); range.setEnd(element.firstChild, 7)
+    const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range)
+    element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); return range.toString()
+  })
+  const selectionButton = page.getByRole('button', { name: '引用这一段', exact: true }); await selectionButton.waitFor()
+  assert.equal(await page.locator('.quote-preview').innerText(), chosen)
+  await setOptical(true); await page.locator('.impression').waitFor(); assert.equal(await selectionButton.count(), 0)
+  assert.equal(await page.locator('.impression-toggle').getAttribute('aria-pressed'), 'true')
+  assert.equal(await page.locator('.impression .quote-button').count(), 0)
   await page.locator('.impression-toggle').click(); await page.locator('.old-page .page-turn button', { hasText: '回到今天' }).click(); await page.locator('.old-page').waitFor({ state: 'detached' })
   const miniPromise = instance.waitForEvent('window'); await accept({ type: 'window.mini' }); const mini = await miniPromise; await mini.waitForFunction(() => !!window.lca)
   assert.equal(await mini.evaluate(async (id) => { try { await window.lca.readOpticalMemory(id); return false } catch { return true } }, frame.id), true); await accept({ type: 'window.expand' })

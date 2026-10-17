@@ -7,6 +7,8 @@ import type { ContextMessage } from '../journal/schema'
 import { ModelFailure, type ModelClient } from '../model/types'
 import type { HarnessTool } from './tools'
 import { MemoryFailure } from '../memory/model'
+import { ResourceFailure, type ResourceAdmissions } from '../resources/ledger'
+import { failureNarration } from './failure'
 
 class GuardFailure extends Error {
   constructor(readonly reason: 'max-steps' | 'loop' | 'budget', readonly code: PublicErrorCode) { super('EXECUTION_GUARD') }
@@ -19,9 +21,10 @@ function canonical(value: unknown): unknown {
 function errorCode(error: unknown): PublicErrorCode {
   if (error instanceof GuardFailure) return error.code
   if (error instanceof MemoryFailure) return error.code
+  if (error instanceof ResourceFailure) return error.code
   if (!(error instanceof ModelFailure)) return 'internal'
   return ({ configuration: 'configuration-failed', network: 'connection-failed', timeout: 'connection-failed', upstream: 'upstream-busy', quota: 'quota-exhausted',
-    cancelled: 'internal', 'invalid-output': 'invalid-model-output', interrupted: 'stream-interrupted' } as const)[error.kind]
+    cancelled: 'internal', 'invalid-output': 'invalid-model-output', interrupted: 'stream-interrupted', 'content-filtered': 'content-filtered' } as const)[error.kind]
 }
 
 export function createHarness(options: {
@@ -31,10 +34,13 @@ export function createHarness(options: {
   enabled?: () => boolean
   backgroundQuiet?: () => boolean
   limits?: { steps?: number; dailyTokens?: number; autonomousTokens?: number; outputTokens?: number }
+  budget?: ResourceAdmissions
   prepareContext?(turnId: string, signal: AbortSignal): Promise<{ messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }>
   foreground?(): void
   userWork?(): void
   settled?(): void
+  afterTools?(turnId: string, callIds: readonly string[]): void
+  turnSettled?(turnId: string): void
 }) {
   const { store, clock, model } = options
   const currentTools = () => {
@@ -49,7 +55,7 @@ export function createHarness(options: {
   let worker: Promise<void> | undefined
   let disposed = false
   let resumeGate: (() => void) | undefined
-  const record = (input: JournalInput) => { store.append(input); if (input.type !== 'model/attempt') options.changed?.(input.type === 'user/message' || input.type === 'assistant/message' ? 'message' : 'task') }
+  const record = (input: JournalInput) => { store.append(input); if (input.type !== 'model/attempt') options.changed?.(input.type === 'user/message' || input.type === 'assistant/message' || input.type === 'narrator/failure' ? 'message' : 'task') }
   const quiet = () => { const view = store.projection(); return options.backgroundQuiet?.() || view.sleeping || view.mode === 'quiet' || view.pomodoro.phase === 'focus' }
   const eligible = () => !disposed && (options.enabled?.() ?? true) && !store.projection().lightsOut && inbox.some((entry) => entry.source === 'user' || !quiet())
   const drain = () => {
@@ -93,6 +99,7 @@ export function createHarness(options: {
     const delivery = () => !userEngaged && (quiet() || store.projection().lightsOut) ? { delivery: 'rest' as const } : {}
     let reason: Extract<JournalInput, { type: 'turn/end' }>['reason'] = 'completed'
     let failure: PublicErrorCode | undefined
+    let failureHttpStatus: number | undefined
     try {
       for (let step = 0; ; step++) {
         try {
@@ -107,13 +114,15 @@ export function createHarness(options: {
           const reservation = Buffer.byteLength(JSON.stringify({ messages, tools: definitions }), 'utf8') + messages.reduce((n, message) => n + (message.imageRefs?.length ?? 0) * 16384, 0) + outputTokens + 1024
           const reply = await model.complete({ messages, tools: definitions, signal: turn.abort.signal, toolsExecuted, maxOutputTokens: outputTokens }, (attempt) => {
             const bucket = trigger === 'user' ? 'work' : 'autonomous'
+            let resourceReservationId: string | undefined
             if (attempt.status === 'started') {
               const reservations = store.records().filter((row) => row.type === 'model/attempt' && row.status === 'started')
               const used = reservations.reduce((sum, row) => sum + (row.type === 'model/attempt' ? row.reservedTokens ?? 0 : 0), 0)
               const autonomous = reservations.reduce((sum, row) => sum + (row.type === 'model/attempt' && row.bucket === 'autonomous' ? row.reservedTokens ?? 0 : 0), 0)
-              if (used + reservation > (options.limits?.dailyTokens ?? 500_000) || (bucket === 'autonomous' && autonomous + reservation > (options.limits?.autonomousTokens ?? 100_000))) throw new GuardFailure('budget', 'budget-exceeded')
+              if ((!options.budget || options.limits?.dailyTokens !== undefined) && used + reservation > (options.limits?.dailyTokens ?? 500_000) || bucket === 'autonomous' && (!options.budget || options.limits?.autonomousTokens !== undefined) && autonomous + reservation > (options.limits?.autonomousTokens ?? 100_000)) throw new GuardFailure('budget', 'budget-exceeded')
+              resourceReservationId = options.budget?.reserveModel(reservation, bucket)
             }
-            record({ type: 'model/attempt', turnId: turn.id, ...attempt, bucket, ...(attempt.status === 'started' ? { reservedTokens: reservation } : {}) })
+            record({ type: 'model/attempt', turnId: turn.id, ...attempt, bucket, ...(attempt.status === 'started' ? { reservedTokens: reservation, ...(resourceReservationId ? { resourceReservationId } : {}) } : {}) })
           })
           turn.abort.signal.throwIfAborted()
           record({ type: 'model/seen', turnId: turn.id, source: model.source, ...seen })
@@ -137,13 +146,14 @@ export function createHarness(options: {
             let result
             try {
               if (!valid || !tool || !args) result = { ok: false, raw: { error: 'invalid-tool-arguments' }, visible: { error: 'invalid-tool-arguments', requirement: 'one JSON object matching the tool schema' } }
-              else { toolsExecuted = true; result = await tool.run(args, { clock, store, turnId: turn.id, signal: turn.abort.signal }) }
+              else { toolsExecuted = true; result = await tool.run(args, { clock, store, turnId: turn.id, callId: call.id, signal: turn.abort.signal }) }
             } catch {
               result = { ok: false, raw: { error: turn.abort.signal.aborted ? 'cancelled' : 'tool-failed' }, visible: { error: turn.abort.signal.aborted ? 'cancelled' : 'tool-failed' } }
             }
             record({ type: 'tool/result', turnId: turn.id, callId: call.id, ...result, elapsedMs: Math.max(0, clock.nowMs() - started) })
             turn.abort.signal.throwIfAborted()
           }
+          options.afterTools?.(turn.id, reply.toolCalls.map((call) => call.id))
           if (!reply.toolCalls.length && !eligible()) break
         } catch (error) {
           if (turn.pauseRequested && !turn.stopping && !disposed) {
@@ -165,10 +175,13 @@ export function createHarness(options: {
       reason = turn.abort.signal.aborted ? 'aborted' : error instanceof GuardFailure ? error.reason : 'error'
       if (error instanceof ModelFailure && error.partialText) record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: error.partialText, status: 'interrupted', ...delivery() })
       if (reason !== 'aborted') failure = errorCode(error)
+      if (error instanceof ModelFailure) failureHttpStatus = error.httpStatus
     } finally {
+      options.turnSettled?.(turn.id)
       active = undefined
       finishOpenCalls(turn.id)
       record({ type: 'turn/end', turnId: turn.id, reason, ...(failure ? { error: { code: failure, retryable: failure === 'upstream-busy' || failure === 'connection-failed' } } : {}) })
+      if (failure) record({ ...failureNarration(store, turn.id, failure, toolsExecuted, failureHttpStatus), ...delivery() })
     }
   }
   const kick = () => {

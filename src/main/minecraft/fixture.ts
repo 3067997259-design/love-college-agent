@@ -4,7 +4,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { syntheticGamePng } from './fixture-image'
 
 /** Owned synthetic world behind a real MCP transport. Never contacts or starts Minecraft. */
-export function createMinecraftFixture(privateState = 'SYNTHETIC_PRIVATE_STATE') {
+export function createMinecraftFixture(privateState = 'SYNTHETIC_PRIVATE_STATE', screenshotPng?: Buffer) {
   const world = { instanceId: randomUUID(), sessionId: randomUUID(), revision: 1, connected: true, playerUuid: randomUUID(), dimension: 'minecraft:overworld' }
   const player = { uuid: world.playerUuid, name: 'SyntheticPilot', dimension: world.dimension, x: 0, y: 64, z: 0, alive: true, yaw: 0, pitch: 0, gameMode: 'survival', onGround: true, inWater: false, fallFlying: false, riding: false, usingItem: false }
   const streamId = randomUUID(); const other = randomUUID(); let cursor = 0; let owner: string | undefined; let target: { x: number; y: number; z: number } | undefined
@@ -30,8 +30,8 @@ export function createMinecraftFixture(privateState = 'SYNTHETIC_PRIVATE_STATE')
     })
     server.registerTool('screenshot', { inputSchema: binding }, async (input) => {
       if (input.expectedWorldSessionId !== world.sessionId) throw new Error('SYNTHETIC_WORLD_CHANGED')
-      const png = syntheticGamePng(); const tick = ++observationTick
-      const metadata = stamped({ format: 'png', width: 16, height: 12, bytes: png.length, source: 'client-framebuffer', sourceTickStart: tick, sourceTick: tick, playerUuid: player.uuid, dimension: world.dimension })
+      const png = screenshotPng ?? syntheticGamePng(); const tick = ++observationTick
+      const metadata = stamped({ format: 'png', width: png.readUInt32BE(16), height: png.readUInt32BE(20), bytes: png.length, source: 'client-framebuffer', sourceTickStart: tick, sourceTick: tick, playerUuid: player.uuid, dimension: world.dimension })
       return { content: [{ type: 'image', mimeType: 'image/png', data: png.toString('base64') }, { type: 'text', text: JSON.stringify(metadata) }], structuredContent: metadata }
     })
     register('get_inventory', {}, () => stamped({ source: 'client-player', sourceTick: ++observationTick, dimension: world.dimension, selectedSlot: 0, storageSlots: 36, emptyStorageSlots: 35,

@@ -10,6 +10,7 @@ import { createHarness } from '../harness/loop'
 import type { HarnessTool } from '../harness/tools'
 import type { ContextMessage } from '../journal/schema'
 import { imageSize } from '../model/image-size'
+import type { ResourceAdmissions } from '../resources/ledger'
 import { MemoryFailure } from '../memory/model'
 import { sessionDayKey } from '../journal/file'
 import { redactFixed } from '../privacy/redact'
@@ -23,7 +24,7 @@ import playSkill from './play-with-user.md?raw'
  */
 export function createMinecraftChat(options: { root: string; clock: Clock; mainStore: SessionStore; model: ModelClient;
   game(): MinecraftService; enabled(): boolean; persona(): { name: string; persona: string }; credentials: readonly string[]; changed(): void;
-  normalizePixels?(png: Buffer): { jpeg: Buffer; width: number; height: number } }) {
+  normalizePixels?(png: Buffer): { jpeg: Buffer; width: number; height: number }; budget?: ResourceAdmissions }) {
   let store: SessionStore | undefined; let harness: ReturnType<typeof createHarness> | undefined; let closing: Promise<void> | undefined
   let roundId: string | undefined; let eventCount = 0
   const frames = new Map<string, Buffer>()
@@ -73,13 +74,15 @@ export function createMinecraftChat(options: { root: string; clock: Clock; mainS
       const model: ModelClient = { source: options.model.source, complete: async (request, onAttempt) => {
         const reservation = Buffer.byteLength(JSON.stringify({ messages: request.messages, tools: request.tools })) + request.messages.reduce((sum, message) => sum + (message.imageRefs?.length ?? 0) * 16384, 0) + (request.maxOutputTokens ?? 800) + 1024
         const reply = await options.model.complete(request, (attempt) => {
+          let resourceReservationId: string | undefined
           if (attempt.status === 'started') {
             const rows = (options.mainStore.history?.() ?? options.mainStore.records()).filter((row) => row.type === 'model/attempt' && row.status === 'started' && sessionDayKey(options.clock, row.atMs) === sessionDayKey(options.clock))
             const used = rows.reduce((sum, row) => sum + (row.type === 'model/attempt' ? row.reservedTokens ?? 0 : 0), 0)
             const autonomous = rows.reduce((sum, row) => sum + (row.type === 'model/attempt' && row.bucket === 'autonomous' ? row.reservedTokens ?? 0 : 0), 0)
-            if (used + reservation > 500_000 || autonomous + reservation > 100_000) throw new MemoryFailure('budget-exceeded')
+            if (!options.budget && (used + reservation > 500_000 || autonomous + reservation > 100_000)) throw new MemoryFailure('budget-exceeded')
+            resourceReservationId = options.budget?.reserveModel(reservation, 'autonomous')
           }
-          options.mainStore.append({ type: 'model/attempt', turnId: 'minecraft:' + id, ...attempt, bucket: 'autonomous', ...(attempt.status === 'started' ? { reservedTokens: reservation } : {}) }); onAttempt(attempt)
+          options.mainStore.append({ type: 'model/attempt', turnId: 'minecraft:' + id, ...attempt, bucket: 'autonomous', ...(attempt.status === 'started' ? { reservedTokens: reservation, ...(resourceReservationId ? { resourceReservationId } : {}) } : {}) }); onAttempt(attempt)
         })
         return { ...reply, text: scrub(reply.text), toolCalls: reply.toolCalls.map((call) => ({ ...call, arguments: scrub(call.arguments) })) }
       } }

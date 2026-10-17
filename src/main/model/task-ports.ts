@@ -21,9 +21,10 @@ import delegatePrompts from '../delegates/prompts.json'
 import type { DelegateModel } from '../delegates/schema'
 import { workModelInput, workOutput, type LifeWorkModel } from '../life/work/schema'
 import workProtocol from '../life/work/protocol.json'
+import { ResourceFailure, type ResourceAdmissions } from '../resources/ledger'
 
 /** Machine JSON tasks only. Persona, diary and dream wording remain on the voice line. */
-export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, clock: Clock, store: SessionStore, fetcher?: Parameters<typeof createModelClient>[3]) {
+export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, clock: Clock, store: SessionStore, fetcher?: Parameters<typeof createModelClient>[3], budget?: ResourceAdmissions) {
   const clients = { background: createModelClient(providers, ['background'], clock, fetcher), privacy: createModelClient(providers, ['privacy'], clock, fetcher), chat: createModelClient(providers, ['chat'], clock, fetcher) }
   const json = async (slot: keyof typeof clients, prompt: string, input: unknown, parent: AbortSignal, maxOutputTokens: number, preserveSourceIds = false): Promise<unknown> => {
     const abort = new AbortController(); const signal = AbortSignal.any([parent, abort.signal]); signal.throwIfAborted()
@@ -33,19 +34,22 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
     let remove = () => {}
     try {
       const pending = clients[slot].complete({ messages: [{ role: 'system', content: prompt }, { role: 'user', content }], tools: [], signal, toolsExecuted: false, maxOutputTokens }, (attempt) => {
+        let resourceReservationId: string | undefined
         if (attempt.status === 'started') {
           const rows = (store.history?.() ?? store.records()).filter((row) => row.type === 'model/attempt' && row.status === 'started' && sessionDayKey(clock, row.atMs) === sessionDayKey(clock))
           const used = rows.reduce((sum, row) => sum + (row.type === 'model/attempt' ? row.reservedTokens ?? 0 : 0), 0)
           const autonomous = rows.reduce((sum, row) => sum + (row.type === 'model/attempt' && row.bucket === 'autonomous' ? row.reservedTokens ?? 0 : 0), 0)
-          if (used + reservation > 500_000 || slot !== 'privacy' && autonomous + reservation > 100_000) throw new MemoryFailure('budget-exceeded')
+          if (!budget && (used + reservation > 500_000 || slot !== 'privacy' && autonomous + reservation > 100_000)) throw new MemoryFailure('budget-exceeded')
+          resourceReservationId = budget?.reserveModel(reservation, slot !== 'privacy' ? 'autonomous' : 'work')
         }
         // Private task inputs and output prose are never stored, even in model/seen or raw tool fields.
-        store.append({ type: 'model/attempt', turnId, ...attempt, bucket: slot !== 'privacy' ? 'autonomous' : 'work', ...(attempt.status === 'started' ? { reservedTokens: reservation } : {}) })
+        store.append({ type: 'model/attempt', turnId, ...attempt, bucket: slot !== 'privacy' ? 'autonomous' : 'work', ...(attempt.status === 'started' ? { reservedTokens: reservation, ...(resourceReservationId ? { resourceReservationId } : {}) } : {}) })
       })
       const result = await Promise.race([pending, new Promise<never>((_resolve, reject) => { const listener = () => reject(new ModelFailure(parent.aborted ? 'cancelled' : 'timeout')); signal.addEventListener('abort', listener, { once: true }); remove = () => signal.removeEventListener('abort', listener); if (signal.aborted) listener() })])
       signal.throwIfAborted(); if (result.toolCalls.length) throw new ModelFailure('invalid-output')
       return JSON.parse(result.text)
-    } finally { stop(); remove(); abort.abort() }
+    } catch (error) { if (error instanceof ResourceFailure) throw new MemoryFailure(error.code === 'budget-exceeded' ? 'budget-exceeded' : 'unavailable'); throw error }
+    finally { stop(); remove(); abort.abort() }
   }
   const memory: MemoryModel | null = providers.has('background') ? { source: 'real', extract: (input, signal) => json('background', prompts.memoryExtract, memoryModelInput(input), signal, 4096, true), summarize: (input, signal) => json('background', prompts.memorySummary, memoryModelInput(input), signal, 4096, true) } : null
   const mail: EmailPrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (input, signal) => json('privacy', prompts.mail + '\n' + notificationPrompts.mailAddition, input, signal, 2048) } : null

@@ -38,15 +38,26 @@ import { opticalTier } from '../optical/schema'
 import { minecraftScopeSchema, type MinecraftService } from '../minecraft/service'
 import type { MinecraftChat } from '../minecraft/chat'
 import { goalTextSchema, goalStatusSchema } from '../heart-flow/goals'
+import type { ResourceBudget } from '../resources/service'
+import type { QuestionService } from '../questions/service'
+import { answerInput } from '../questions/schema'
+import { deskCommandInput } from '../desk-command/schema'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('flow.command.run'), ...deskCommandInput.shape }),
+  z.strictObject({ ...envelope, type: z.literal('flow.command.approve'), commandId: z.string().uuid(), allow: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.command.cancel'), commandId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.command.open'), commandId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('question.answer'), questionId: z.string().uuid(), answer: answerInput }),
+  z.strictObject({ ...envelope, type: z.literal('question.dismiss'), questionId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('companion.sleep'), sleeping: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('flow.fetch.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('flow.computer.open'), path: z.string().min(1).max(180) }),
   z.strictObject({ ...envelope, type: z.literal('flow.computer.close') }),
   z.strictObject({ ...envelope, type: z.literal('flow.computer.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('voice.set'), enabled: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('resources.configure'), dailyTotalUnits: z.number().int().min(10000).max(5_000_000), dailyAutonomousUnits: z.number().int().nonnegative().max(5_000_000) }).refine((value) => value.dailyAutonomousUnits <= value.dailyTotalUnits),
   z.strictObject({ ...envelope, type: z.literal('voice.stop'), utteranceId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('voice.playback'), utteranceId: z.string().uuid(), status: z.enum(['playing', 'ended', 'failed']) }),
   z.strictObject({ ...envelope, type: z.literal('minecraft.check'), serverId: z.string().min(1).max(128) }),
@@ -92,6 +103,9 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('flow.resume'), flowId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('flow.delegate.cancel'), delegateId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('flow.undo'), changeId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.rewind.prepare'), changeId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.rewind.apply'), rewindId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.rewind.cancel'), rewindId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('flow.run'), code: z.string().min(1).max(10000) }),
   z.strictObject({ ...envelope, type: z.literal('flow.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('message.send'), text: z.string().trim().min(1).max(20_000) }),
@@ -173,6 +187,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let gifts: GiftService | undefined
   let heartFlow: HeartFlowService | undefined
   let voice: VoiceService | undefined
+  let resources: ResourceBudget | undefined
+  let questions: QuestionService | undefined
   let life: LifeService | undefined
   let sleep: SleepService | undefined
   let lifeWork: LifeWorkService | undefined
@@ -276,6 +292,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (photos) snapshot.history = { ...photos.view(), recall: recall?.view() ?? { status: 'idle' } }
     if (optical) snapshot.opticalMemory = optical.view()
     if (voice) snapshot.voice = voice.view()
+    if (resources) snapshot.resources = resources.view()
+    const question = questions?.view(); if (question) snapshot.question = question; else delete snapshot.question
     if (minecraft) {
       snapshot.minecraft = minecraft.view()
       if (minecraft.active() && minecraftChat) { const game = minecraftChat.view(); snapshot.messages = [...game.messages]; snapshot.activities = [...game.activities]; snapshot.task = game.task }
@@ -299,6 +317,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('flow.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('voice.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('resources.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('question.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'companion.sleep' && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('room.') || command.type === 'diary.write') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -323,6 +343,11 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       const error = sleep.set(command.sleeping, 'user', { requestId: command.requestId, commandHash: signature }); readProjection()
       ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
       publish('mode', command.requestId); execution?.stateChanged()
+    } else if (command.type.startsWith('question.') && questions) {
+      const error = questions.dispatch(command, signature); readProjection()
+      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (command.type === 'resources.configure' && resources) {
+      const error = resources.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId)
     } else if (command.type.startsWith('voice.') && voice) {
       const error = voice.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId)
     } else if (command.type.startsWith('minecraft.') && minecraft) {
@@ -390,7 +415,10 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       const section = ({ '/permissions': 'permissions', '/status': 'status', '/diff': 'diff' } as const)[text as '/permissions' | '/status' | '/diff']
       const goalText = text.startsWith('/goal ') ? text.slice(6).trim() : ''; const flowView = heartFlow.view(); const selectedGoal = flowView.goals?.find((goal) => goal.id === flowView.goalId && goal.status === 'active')
       const action: AppCommand | undefined = goalText ? { ...command, type: 'flow.goal.set', text: goalText, ...(selectedGoal ? { goalId: selectedGoal.id } : {}) } : text === '/init' ? { ...command, type: 'flow.init' } : text === '/review' ? { ...command, type: 'flow.review' } : text === '/exit' ? { ...command, type: 'flow.exit' } : text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : text.startsWith('/compact') ? { ...command, type: 'flow.compact', ...(focus ? { focus } : {}) } : section ? { ...command, type: 'flow.inspect', section } : text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
-      const error = focus && focus.length > 500 ? 'invalid-command' : action ? heartFlow.dispatch(action, signature) : 'unavailable'; ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+      const effectiveAction: AppCommand | undefined = action?.type === 'flow.undo' && text === '/undo' ? { ...action, type: 'flow.rewind.prepare' } : action
+      const error = focus && focus.length > 500 ? 'invalid-command' : effectiveAction ? heartFlow.dispatch(effectiveAction, signature) : 'unavailable'
+      if (!error && effectiveAction) questions?.stateChanged(effectiveAction)
+      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (memory && !heartFlow?.active() && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
       try { const error = memory.dispatch(command.type === 'message.send' ? { ...command, type: 'context.compact' } : command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -471,6 +499,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     minecraft?.stateChanged()
     voice?.stateChanged()
     heartFlow?.stateChanged()
+    questions?.stateChanged(ack.status === 'accepted' ? command : undefined)
     requests.set(command.requestId, { signature, ack })
     if (requests.size > 1000) requests.delete(requests.keys().next().value!)
     return structuredClone(ack)
@@ -481,6 +510,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   return {
     getSnapshot: () => structuredClone(snapshot), dispatch,
     attachRuntime: (port: RuntimePort) => { runtime = port; publish('connection') },
+    attachResources: (port: ResourceBudget) => { resources = port; publish('connection') },
+    attachQuestions: (port: QuestionService) => { questions = port; publish('task') },
     attachCampus: (port: CampusService) => { campus = port; publish('connection') },
     attachDocuments: (port: DocumentService) => { documents = port; publish('connection') },
     attachMemory: (port: MemoryService) => { memory = port; publish('connection') },

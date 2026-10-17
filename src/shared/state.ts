@@ -13,7 +13,7 @@ export const PUBLIC_ERROR_CODES = ['invalid-command', 'stale-epoch', 'unavailabl
   'configuration-failed', 'upstream-busy', 'quota-exhausted', 'stream-interrupted', 'invalid-model-output', 'step-limit', 'repeat-limit', 'budget-exceeded',
   'privacy-invalid-output', 'evidence-unavailable', 'stale-candidate', 'export-failed', 'source-blocked',
   'unsupported-file', 'file-too-large', 'file-unreadable', 'document-parse-failed', 'document-interrupted', 'memory-invalid-output', 'context-too-large',
-  'mcp-invalid-result', 'operation-cancelled', 'backup-invalid', 'backup-scope-mismatch', 'restore-failed'] as const
+  'mcp-invalid-result', 'operation-cancelled', 'backup-invalid', 'backup-scope-mismatch', 'restore-failed', 'command-encoding-unsupported', 'content-filtered'] as const
 export type PublicErrorCode = typeof PUBLIC_ERROR_CODES[number]
 
 export interface PublicError {
@@ -116,6 +116,21 @@ export interface MessageView {
   createdAtMs: number
   status: 'streaming' | 'complete' | 'interrupted' | 'undelivered'
   emotion?: string
+  /** Code-owned failure narration. No exception body, provider config or model reasoning. */
+  failure?: ModelFailureView
+}
+export interface ModelFailureView {
+  turnId: string
+  code: PublicErrorCode
+  category: 'configuration' | 'network' | 'upstream' | 'quota' | 'budget' | 'content-filtered' | 'interrupted' | 'invalid-response' | 'execution-guard' | 'internal'
+  attemptCount: number
+  toolsExecuted: boolean
+  httpStatus?: number
+  /** Optional original request already visible to the book user. Resending requires user review. */
+  sourceMessageId?: string
+  /** Original user-selected seen reference. Restore the quote with the question;
+   * sending still creates a fresh history.recall and revalidates scope and budgets. */
+  sourceRecallAnchor?: RecallAnchor
 }
 export interface ActivityView {
   id: string
@@ -417,6 +432,8 @@ export interface AppSnapshot {
   voice?: VoiceView
   /** Local resource admissions survive private-book restore. No prices, provider names or secrets. */
   resources?: ResourceBudgetView
+  /** A single current model question. Queued questions expose no prompt until rest. */
+  question?: UserQuestionView
   /** Main-owned optional game context. No MCP launch config, URLs, tokens or raw game transcript. */
   minecraft?: MinecraftView
   mcp?: McpView
@@ -515,6 +532,12 @@ export interface HeartFlowView {
   activeId: string | null
   mode: 'plan' | 'execute'
   execution: 'javascript-sandbox' | 'disabled'
+  /** Independent from the JavaScript worker; missing means this backend is not installed. */
+  commandExecution?: 'windows-appcontainer' | 'unavailable' | 'disabled'
+  /** User-only command text and execution receipts. stdout/stderr never enter snapshots. */
+  command?: DeskCommandView
+  /** Metadata only. Rewinds recorded desk files, never shell/network side effects or log history. */
+  rewind?: FlowRewindView
   /** Source and output text are user-only; models obtain approved work through desk tools. */
   pending?: { id: string; code: string }
   files: readonly { path: string; byteLength: number }[]
@@ -530,6 +553,43 @@ export interface HeartFlowView {
   operations?: readonly FlowOperationView[]
   computer?: DeskComputerView
   webFetch?: FlowFetchView
+}
+
+export interface FlowRewindView {
+  id: string
+  changeId: string
+  createdAtMs: number
+  status: 'awaiting-confirmation' | 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted'
+  paths: readonly string[]
+  changeCount: number
+  /** Confirmed per-file writes. Cross-file publication is not atomic. */
+  appliedFiles: number
+  error?: 'conflict' | 'write-failed' | 'unavailable'
+}
+
+export interface DeskCommandView {
+  id: string
+  shell: 'cmd'
+  scope: 'desk-snapshot'
+  command: string
+  timeoutMs: number
+  createdAtMs: number
+  status: 'preparing' | 'awaiting-approval' | 'running' | 'completed' | 'failed' | 'cancelled'
+  fileCount: number
+  /** Immutable snapshot of approved inputs. No absolute path or source text. */
+  snapshotHash?: string
+  outcome?: {
+    exitCode: number | null
+    /** Null when a crash left no durable process receipt. */
+    elapsedMs: number | null
+    processTreeTerminated: boolean | null
+    /** Unknown never implies no effects; appliedFiles remains confirmed evidence. */
+    publication: 'unchanged' | 'applied' | 'not-applied' | 'partial' | 'unknown'
+    changedFiles: number | null
+    /** Confirmed publications; a lower bound when publication is unknown. */
+    appliedFiles: number
+  }
+  error?: PublicError
 }
 export interface FlowFetchView {
   source: 'real' | 'fake'
@@ -620,6 +680,18 @@ export interface ResourceBudgetView {
     attemptLimit: number
   }
 }
+export type UserQuestionView = {
+  id: string
+  taskId: string
+  createdAtMs: number
+  context: 'conversation' | 'work'
+} & ({ status: 'queued' } | {
+  status: 'waiting'
+  question: string
+  choices: readonly string[]
+  /** Main-owned ten-minute visible-time deadline; quiet/focus time does not consume it. */
+  expiresAtMs: number
+})
 export interface VoiceRead {
   utteranceId: string
   format: 'pcm_s16le'

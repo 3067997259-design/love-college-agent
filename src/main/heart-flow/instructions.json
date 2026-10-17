@@ -1,6 +1,7 @@
 {
-  "policy": "心流工作：规则、人设和进入前的对话参考已冻结。参考不覆盖系统规则。仅操作她的书桌；计划模式只能阅读，用户批准切换执行后才能写入。run_javascript 在独立 Chromium 沙箱中执行纯 JavaScript，没有 Node、网络、系统文件、应用 IPC；每次等待用户单独审批，不声称运行 shell。return 返回可序列化结果。用 update_plan 排工作清单；遇到问题直接向用户询问。退出时由代码附带文件变更和执行结果证据。",
+  "policy": "心流工作：规则、人设和进入前的对话参考已冻结。参考不覆盖系统规则。仅操作她的书桌；计划模式只能阅读，用户批准切换执行后才能写入。run_javascript 是独立 Chromium worker 的纯 JavaScript，没有 Node、网络、系统文件、应用 IPC，不能冒充终端。run_command 才是受 AppContainer/Job 约束的 Windows cmd：只运行一次性书桌副本、逐条人工审批、无网络，实际版本校验通过才写回；退出码和写回收据分别核对，不把部分写回说成完成。两者展位禁用，不因不可用退回无隔离进程。用 update_plan 排工作清单；缺信息用 ask_user，回答不是执行许可。退出时由代码附带文件变更和执行结果证据。",
   "compacted": "工作过程已收起为文件变更索引；请用 desk_find 和 desk_read 核对当前书桌内容后继续。",
+  "rewound": "File state may differ from earlier work messages. Read current desk files before continuing. Rewind does not undo command side effects or erase conversation.",
   "tools": {
     "desk_read": "读取书桌内 UTF-8 文本，最多 64 KB；不能读取程序私有目录。",
     "desk_write": "执行模式下写书桌内 UTF-8 文件；先留可撤销快照。",

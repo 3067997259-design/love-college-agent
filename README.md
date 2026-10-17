@@ -1,5 +1,15 @@
 # Love, College & Agent
 
+**12:50 第三圈底层与安装验收：** #1–37 当前均已修复、回复并关闭，接口 `2c0207b` 先合 main；69 文件／493 单测、完整 Windows CI、真实安装版 26 项场景与七阶段同档连续链通过。包源码 `3edea7c`，含旧失败记录的引用恢复与隐私探针隔离，记录见 [安装验收](docs/engineering/package-third-circle.md)。模型／服务合成；真实 privacy 仍为网络阻塞，失败关闭且未回退主模型。用户尚在选择 TTS／OCR 服务，MC 双客户端和最终画面仍待验收，整圈未标完成。见 [连接记录](docs/engineering/live-readiness.md) 和 [当前清单](docs/engineering/third-circle-completion-audit.md)。
+
+**第三圈实际命令（2026-10-17）：** 接口 `2f96cc6`／`fd884da` 先合 main，心流可逐次申请真实 Windows cmd；AppContainer／Job 限制书桌副本、无网络、进程树及资源，版本核对通过才写回。书页审批／输出预览、拒绝／冲突／取消、重启与私人恢复、展位禁用均有真实 Electron 验收；任务和模型合成。编码不能保真则明确失败，旧 NSIS 未收录；见 [书桌命令记录](docs/engineering/desk-command-sandbox.md)。
+
+**第三圈澄清问答（2026-10-17）：** 接口 `d8270ad` 已先合 main；普通聊天／心流可 ask_user，专注和安静时排队到休息，可见十分钟、每回合三问／每日十二问。回答为用户信息，整批工具结果之后才送模型；取消和重启不恢复旧等待，心流材料不串普通记忆。原生问答／合成 HTTP／私人恢复及 425 项全量单测通过，随后语音专项 14 项通过；见 [问答记录](docs/engineering/questions-third-circle.md)。
+
+**stdio 截图修复（2026-10-17）：** #28 已补仅限获准公开 screenshot 的 9 MiB 传输缓冲，普通／隐私 stdio 仍为 256k。合法 1 MB PNG 整条／分片、近 6 MiB 实际解码／缩图／模型 HTTP 通过；图像超限可拒绝并核实释放，传输超限明确未核实。类型／lint、408 单测与五项原生矩阵通过，全部合成。`pnpm test:minecraft:stdio`，见 [修复记录](docs/engineering/minecraft-stdio-images.md)。
+
+**资源守卫（2026-10-17）：** 接口 `248e640` 已先合 main；模型／语音准入现进存档外 append-only 账本，恢复书本或个人／展位切换不会返还用量。展位设置可显式调整日模型额度并查看计数，默认仍总 500k／自主 100k 预留，语音另有字符／次数上限。类型／lint、407 单测、双进程原生锁及真实恢复／坏账本关闭／网络前拒绝通过，供应商均合成。`pnpm test:resources`，见 [资源记录](docs/engineering/resources-third-circle.md)。
+
 **MC 近身挖掘（2026-10-17）：** 既有 allowMining 每轮单独同意，限定四种普通方块、survival／站稳／准星／工具和危险检查，启动后核验目标变空气且自己的挖掘输入已结束；不声称因果归属或拿到掉落物。类型／lint、388 单测及原生同意→场景→挖掘→背包→停止／重启通过，世界与模型为合成。`pnpm test:minecraft:mining`，见 [挖掘记录](docs/engineering/minecraft-mining-third-circle.md)。下一步是展位预算和心流剩余工具。
 
 **MC 图像增补（2026-10-17，前批）：** 默认关闭、每轮同意的 framebuffer 截图已接；实际 PNG 解码为有界 JPEG，只交独立游戏客户端，最近两帧仅内存，停止清除。类型／lint、377 单测、多模态 HTTP／共享预算／私人 ZIP 隔离及原有 MC、书桌预览原生回归通过；均为合成世界／模型。`pnpm test:minecraft:images`，见 [截图记录](docs/engineering/minecraft-screenshots-third-circle.md)。后续挖掘见上；AIRI 测试端点已核对，当时未监听。
@@ -14,7 +24,7 @@
 
 **她的人设与书里的工作台（2026-10-17 早，Claude）：** 内置桃子的人设正文已接入聊天和日记（此前为空），改编自用户赛前的原创卡、不引用原文，用户看过认为基本没问题，之后交 Gemini 精修，见 `src/main/characters/taozi.zh.json`。书里的心流换成工作台：计划／执行、运行输出、书桌改动与撤回、分身活动卡、工作草稿与跨次目标，书桌预览和网页读取的逐次审批；待批准的代码贴在输入框上方，迷你窗也会提示。旧页可看“她的印象”（可选光学记忆，标明未审核），历史照片边缘改为纸色，日记提示词改为她的口吻；#18／#19 两线修复已合并。各项 Electron 场景改为或补上从书里走通，见 [书签页记录](docs/engineering/book-life-pages.md)。
 
-**最新安装态（2026-10-17 07:28）：** 第三圈底层及现有 main 画面已重打 NSIS，七类原生探针／普通重启／历史照片引用，以及 15 项安装版场景（含同档连续链路及普通作品端口）全部通过。构建源码 `6571c05`，合成服务，未签名；真实 OCR／语音／MC 双客户端及最终外景画面仍待验收。包与哈希见 [安装态记录](docs/engineering/package-third-circle.md)。
+**最新安装态（2026-10-17 12:50）：** NSIS 源码 `3edea7c`，解包／实际安装两侧各七类原生探针、普通重启、历史照片引用和 26 项场景全部通过。含实际命令强杀恢复、步骤回退、资源账本、问答、旧记录引用恢复和三槽位探针隔离；服务合成、未签名。包位于 GPT worktree，路径与哈希见 [安装态记录](docs/engineering/package-third-circle.md)。
 
 **第三圈睡眠接线（2026-10-17）：** `436fbbd` 接口先合 main；沿用四点后安全翻页点入睡，独立于熄灯，已有夜灯／熄灯睡姿实际显示。用户回来交流可唤醒，睡眠期间不生产作品或出门；重启与私人恢复保留状态。类型／lint、340 项单测和 `pnpm test:sleep` 原生流程通过（合成时钟／fake 模型）。见 [睡眠记录](docs/engineering/sleep-third-circle.md)。
 
@@ -401,6 +411,13 @@ pnpm dev
 | `pnpm probe:model` | 主进程 chat 槽位真实流式小请求通过，不打印回复或配置 |
 | `pnpm probe:harness` | 真实模型调用 get_clock 并结束回合，通过 |
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron：发送、工具往返、停止断连、重启恢复通过 |
+| `pnpm test:questions` | 真实 SQLite 延迟日切／作用域额度；有界 ask_user、书本千字提示、专注到休息、心流隔离、合成 HTTP、停止／重启／私人恢复 |
+| `pnpm test:flow-rewind` | 书页选择边界／确认、实际多文件回退、版本冲突、取消、重启／私人恢复不重放；fake 工作模型 |
+| `pnpm test:settings` | 正常／展位分组、配置失败中文详情、私人导出、隐私锁、开发模式重启／诊断隔离 |
+| `pnpm test:failure-narrator` | 合成 HTTP 失败旁白与闭集详情、保留原请求／草稿、手动重发、工具调用提示、重启／私人恢复和上下文隔离 |
+| `pnpm probe:live-readiness` | 主进程只读装配状态、独立新 profile／零模型请求；不表示真实服务连接或质量通过 |
+| `pnpm probe:desk-command:runtime` | Windows 原生隔离／中文或明确拒绝／外部文件及网络拒绝／上限／取消／子进程退出；真实主进程协议 |
+| `pnpm test:desk-command` | Electron 逐次人工审批、实际 cmd 与受版本保护的写回、输出窗口、编码错误、取消／重启／私人恢复、展位拒绝 |
 | `pnpm test:developer` | 隔离假模型、鉴权 MCP、时钟、目录插件确认、场景与展位拒绝通过 |
 | `pnpm test:pomodoro` | 计划、SQLite、重启、熄灯／中断，以及双窗口／点穿 API／展开销毁／展位不透明回退／合成黑底替换通过 |
 | `pnpm test:pomodoro:realtime` | 正常模式真实约 80 秒；60,000 ms 专注＋20,047 ms 休息通过 |

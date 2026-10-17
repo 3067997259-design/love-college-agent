@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { commandOutcome } from '../desk-command/schema'
+import { rewindSchema } from '../heart-flow/rewind'
+import { failureViewSchema } from '../harness/failure'
 import { goalSchema } from '../heart-flow/goals'
 import { operationSchema } from '../heart-flow/operations'
 import { PUBLIC_ERROR_CODES } from '../../shared'
@@ -72,9 +75,12 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('flow/close'), id, summary: z.string().max(2000) }),
   z.strictObject({ type: z.literal('flow/compact'), id, throughSeq: z.number().int().positive(), summary: z.string().max(6000), focus: z.string().max(500).optional(),
     retained: z.strictObject({ turnId: id, messages: z.array(contextMessageSchema).max(200) }).optional() }),
-  z.strictObject({ type: z.literal('desk/change'), id, flowId: id, path: z.string().max(180), before: z.string().max(64000).nullable(), after: z.string().max(64000).nullable(), undoes: id.optional(), pending: z.boolean().optional() }),
+  z.strictObject({ type: z.literal('desk/change'), id, flowId: id, path: z.string().max(180), before: z.string().max(64000).nullable(), after: z.string().max(64000).nullable(), undoes: id.optional(), pending: z.boolean().optional(), commandId: z.string().uuid().optional(), rewindId: z.string().uuid().optional(), rewinds: z.array(id).max(500).optional() }),
+  rewindSchema.extend({ type: z.literal('flow/rewind') }),
   z.strictObject({ type: z.literal('desk/settled'), id, status: z.enum(['applied', 'failed']) }),
   z.strictObject({ type: z.literal('flow/run'), id, flowId: id, status: z.enum(['requested', 'approved', 'denied', 'completed', 'failed', 'interrupted']), codeHash: z.string().regex(/^[a-f0-9]{64}$/) }),
+  z.strictObject({ type: z.literal('flow/command'), id: z.string().uuid(), flowId: id, turnId: id.optional(), status: z.enum(['preparing', 'awaiting-approval', 'approved', 'denied', 'running', 'completed', 'failed', 'cancelled', 'interrupted']),
+    executionHash: z.string().regex(/^[a-f0-9]{64}$/), timeoutMs: z.number().int().min(500).max(30000), fileCount: z.number().int().min(0).max(300), snapshotHash: z.string().regex(/^[a-f0-9]{64}$/).optional(), outcome: commandOutcome.optional(), requestId: id.optional(), commandHash: id.optional() }),
   z.strictObject({ type: z.literal('session/header'), userId: id, characterId: id, sessionId: id }),
   z.strictObject({ type: z.literal('asset/stored'), asset: binaryAssetSchema }),
   z.strictObject({ type: z.literal('gift/state'), gift: giftSchema }),
@@ -91,7 +97,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('flow/computer-frame'), flowId: id, ref: z.string().regex(/^work-frame:[a-f0-9]{64}$/), asset: binaryAssetSchema.refine((asset) => asset.format === 'png' && asset.byteLength <= 131072), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ type: z.literal('flow/computer-action'), flowId: id, approvalId: id, status: z.enum(['requested', 'denied', 'dispatched', 'failed', 'cancelled']), actionHash: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ type: z.literal('desk/shadow'), changeId: id, status: z.enum(['committed', 'not-git', 'unavailable', 'failed']), commit: z.string().regex(/^[a-f0-9]{40}$/).optional() }).refine((row) => (row.status === 'committed') === !!row.commit),
-  z.strictObject({ type: z.literal('voice/attempt'), id, dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), charCount: z.number().int().min(1).max(1200), source: z.enum(['real', 'fake']) }),
+  z.strictObject({ type: z.literal('voice/attempt'), id, dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), charCount: z.number().int().min(1).max(1200), source: z.enum(['real', 'fake']), resourceReservationId: z.string().uuid().optional() }),
   z.strictObject({ type: z.literal('mail/state'), view: mailboxSchema }),
   z.strictObject({ type: z.literal('mail/processed'), sourceKey: opaqueId, contentHash: z.string().regex(/^[a-f0-9]{64}$/), evidenceRef: opaqueId, result: z.enum(['candidate', 'notice']), candidateId: opaqueId.optional(), facts: mailFactsSchema.optional() }),
   z.strictObject({ type: z.literal('campus/proposed'), candidate: candidateSchema, calendarUid: opaqueId }),
@@ -114,7 +120,12 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('turn/paused'), turnId: id }),
   z.strictObject({ type: z.literal('turn/resumed'), turnId: id }),
   z.strictObject({ type: z.literal('turn/end'), turnId: id, reason: z.enum(['completed', 'aborted', 'max-steps', 'loop', 'budget', 'error']), error: publicError.optional() }),
-  z.strictObject({ type: z.literal('assistant/message'), id, turnId: id, text, status: z.enum(['complete', 'interrupted']), delivery: z.enum(['immediate', 'rest']).optional(), toolCalls: z.array(toolCall).max(16).optional() }),
+  z.strictObject({ type: z.literal('assistant/message'), id, turnId: id, text, status: z.enum(['complete', 'interrupted']), displayOnly: z.boolean().optional(), delivery: z.enum(['immediate', 'rest']).optional(), toolCalls: z.array(toolCall).max(16).optional() }),
+  z.strictObject({ type: z.literal('narrator/failure'), id, turnId: id, text: z.string().min(1).max(1000), failure: failureViewSchema, delivery: z.enum(['immediate', 'rest']).optional() }).refine((row) => row.turnId === row.failure.turnId),
+  z.strictObject({ type: z.literal('question/requested'), id: z.string().uuid(), turnId: id, callId: id, flowId: id.optional(), question: z.string().min(1).max(480), choices: z.array(z.string().min(1).max(120)).max(3) }),
+  z.strictObject({ type: z.literal('question/answered'), id: z.string().uuid(), turnId: id, answerMessageId: id }),
+  z.strictObject({ type: z.literal('question/committed'), id: z.string().uuid(), turnId: id, answerMessageId: id }),
+  z.strictObject({ type: z.literal('question/closed'), id: z.string().uuid(), turnId: id, cause: z.enum(['declined', 'cancelled', 'timeout', 'superseded', 'interrupted', 'disabled']), requestId: id.optional(), commandHash: id.optional() }),
   z.strictObject({ type: z.literal('tool/call'), turnId: id, callId: id, name: toolCall.shape.name, arguments: z.record(z.string(), z.json()), templateId: id }),
   z.strictObject({ type: z.literal('tool/result'), turnId: id, callId: id, ok: z.boolean(), raw: z.json(), visible: z.json(), elapsedMs: z.number().nonnegative(),
     imageRefs: contextMessageSchema.shape.imageRefs,
@@ -134,8 +145,8 @@ export const inputSchema = z.discriminatedUnion('type', [
     status: z.enum(['started', 'success', 'failed']), reservedChars: z.number().int().nonnegative(), error: publicError.optional() }),
   z.strictObject({ type: z.literal('model/attempt'), turnId: id, slot: z.enum(['chat', 'background', 'chat_google', 'chat_claude', 'privacy']), attempt: z.number().int().positive(),
     status: z.enum(['started', 'success', 'failed', 'retry']), waitMs: z.number().nonnegative(), httpStatus: z.number().int().optional(),
-    reservedTokens: z.number().int().nonnegative().optional(), bucket: z.enum(['work', 'autonomous']).optional(),
-    error: z.enum(['configuration', 'network', 'timeout', 'upstream', 'quota', 'cancelled', 'invalid-output', 'interrupted']).optional(),
+    reservedTokens: z.number().int().nonnegative().optional(), bucket: z.enum(['work', 'autonomous']).optional(), resourceReservationId: z.string().uuid().optional(),
+    error: z.enum(['configuration', 'network', 'timeout', 'upstream', 'quota', 'cancelled', 'invalid-output', 'interrupted', 'content-filtered']).optional(),
     inputTokens: z.number().int().nonnegative().optional(), outputTokens: z.number().int().nonnegative().optional() }),
 ])
 export type JournalInput = z.infer<typeof inputSchema>

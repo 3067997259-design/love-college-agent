@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, openSettingsGroup } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `pomodoro-smoke-${randomUUID()}`)
@@ -59,17 +59,29 @@ try {
     await send({ type: 'pomodoro.confirm', planId }); await send({ type: 'pomodoro.start', planId })
     const started = await snapshot()
     await page.locator('[data-mode][data-phase="short-break"]').waitFor({ timeout: 75_000 })
-    const focusEnded = await snapshot()
     await page.locator('[data-mode][data-phase="idle"]').waitFor({ timeout: 35_000 })
     const finished = await snapshot()
     assert.equal(finished.pomodoro.focusIndex, 1); assert.equal(finished.pomodoro.plan.status, 'confirmed')
-    assert.ok(focusEnded.clock.nowMs - started.clock.nowMs >= 60_000)
-    assert.ok(finished.clock.nowMs - focusEnded.clock.nowMs >= 20_000)
+    const rows = []
+    for (const owner of await readdir(join(data, 'journals'))) for (const name of await readdir(join(data, 'journals', owner))) if (name.endsWith('.jsonl')) rows.push(...(await readFile(join(data, 'journals', owner, name), 'utf8')).trim().split('\n').map(JSON.parse))
+    const states = rows.filter((row) => row.type === 'pomodoro/state' && row.view.plan?.id === planId)
+    const focusStart = states.find((row) => row.cause === 'started' && row.view.phase === 'focus')
+    const focusEnd = states.find((row) => row.cause === 'elapsed' && row.view.phase === 'short-break')
+    const breakEnd = states.find((row) => row.cause === 'elapsed' && row.view.phase === 'idle')
+    assert.ok(focusStart && focusEnd && breakEnd)
+    assert.equal(focusStart.view.phaseDurationMs, 60_000); assert.equal(focusEnd.view.phaseDurationMs, 20_000)
+    // UI snapshots arrive after start/phase publication; use the durable code-owned deadlines.
+    assert.ok(focusEnd.atMs >= focusStart.view.endsAtMs); assert.ok(breakEnd.atMs >= focusEnd.view.endsAtMs)
+    const focusElapsedMs = focusEnd.atMs - (focusStart.view.endsAtMs - focusStart.view.phaseDurationMs)
+    const breakElapsedMs = breakEnd.atMs - (focusEnd.view.endsAtMs - focusEnd.view.phaseDurationMs)
+    assert.ok(focusElapsedMs >= 60_000); assert.ok(breakElapsedMs >= 20_000)
+    assert.equal(started.clock.rate, 1); assert.equal(started.clock.frozen, false); assert.equal(finished.clock.rate, 1); assert.equal(finished.clock.frozen, false)
     console.log(JSON.stringify({ ok: true, probe: 'pomodoro-real-time', rate: finished.clock.rate, frozen: finished.clock.frozen,
-      focusElapsedMs: focusEnded.clock.nowMs - started.clock.nowMs, breakElapsedMs: finished.clock.nowMs - focusEnded.clock.nowMs, noAutomaticNext: true }))
+      focusElapsedMs, breakElapsedMs, durableDeadlineAnchors: true, noAutomaticNext: true }))
   } else {
   await send({ type: 'developer.clock', frozen: true })
   await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettingsGroup(page, '专注节奏')
   await page.getByRole('checkbox', { name: /演示节奏/ }).check()
   await page.getByRole('button', { name: '生成待确认计划', exact: true }).click()
   let state = await snapshot(); let planId = state.pomodoro.proposal.id

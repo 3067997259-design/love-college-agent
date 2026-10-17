@@ -21,7 +21,7 @@ pnpm dev
 
 源码数据默认 `<checkout>/.local-data`，安装版使用 Electron userData；可用 `LCA_DATA_DIR` 为实例指定独立目录。GPT 默认渲染端口 5273，其他 checkout 为 5173，可用 `LCA_RENDERER_PORT` 覆盖。开发调试默认关闭，只有显式开发模式才开启 CDP／鉴权本机 MCP。
 
-透明小窗若在显卡上出现黑底，可在启动前设置 `$env:LCA_MINI_OPAQUE = '1'`，强制不透明圆角回退；程序也检测 GPU 不可用、异常退出和可观察的黑角。详情与验收边界见 [迷你窗增补](engineering/pomodoro-mini-update.md)。该增补发生于 22:47 安装包之后，当前请从新源码运行；旧安装包不含它。
+透明小窗若在显卡上出现黑底，可在启动前设置 `$env:LCA_MINI_OPAQUE = '1'`，强制不透明圆角回退；程序也检测 GPU 不可用、异常退出和可观察的黑角。当前第三圈安装包已收录这部分，构建与验收 SHA 以 [安装记录](engineering/package-third-circle.md) 为准。
 
 ## 安装与模型配置
 
@@ -29,13 +29,13 @@ pnpm dev
 
 正常模式打开“工具与设置”的模型配置入口，选择本机 providers JSON。字段为 `providers.<槽位>.{base_url, api_key, model}`；可用槽位 `chat`、`background`、`chat_google`、`chat_claude`、`privacy`，其他槽位可保存但未必有功能消费者。配置只由主进程读取，保存到数据根 `connections/providers.json`；重启后应用。界面只显示配置状态和已装配槽位名，不显示值。保存成功不代表连接成功。
 
-聊天使用 chat；记忆／摘要使用 background；隔离邮件、资料与私有插件结果使用 privacy。缺少 privacy 或调用失败就停止相关隔离处理，不借用 chat。学校端点尚未提供，因此当前不能承诺真实隔离业务可用。顶层 mail 配置可保存，但运行中的真实邮箱仍明确阻塞，不会因导入而偷偷开始扫描。
+聊天使用 chat；记忆／摘要使用 background；隔离邮件、资料与私有插件结果使用 privacy。缺少 privacy 或调用失败就停止相关隔离处理，不借用 chat。12:24 复核时 privacy 能装配，但一份合成资料的真实调用遇网络失败，学校端点身份与质量仍未确认，见 [连接复核](engineering/live-readiness.md)。顶层 mail 配置可保存，真实邮箱仍明确阻塞，不会因导入而开始扫描。
 
 源码也可用 `LCA_PROVIDERS_FILE` 指向获授权的本机 JSON。已导入的数据根配置优先于此 fallback。不要将密钥写入 renderer、命令参数、错误输出、测试报告或公开仓库；不要为演示复制参考项目的认证和运行数据。
 
 ## 开发演练
 
-“工具与设置”打开开发者模式并重启，进入 `<数据根>/developer/<sceneId>/`。它不读取真实 providers 内容，所有 fake 来源明确标记。展位设置 `LCA_BOOTH=1` 禁止启用调试；准备正式演示时应使用真实依赖，不能把 fake 当实际模型运行。
+“工具与设置”→“高级与开发”打开开发模式并重启，进入 `<数据根>/developer/<sceneId>/`。它不读取真实 providers 内容，所有 fake 来源明确标记。展位设置 `LCA_BOOTH=1` 禁止启用调试；准备正式演示时应使用真实依赖，不能把 fake 当实际模型运行。正常设置里的存档／重置在“书本与角色”，MCP 在“工具连接与提醒”，手动番茄计划在“专注节奏”。
 
 1. 扫描合成邮件，在候选卡查原文、确认，再导出新确认事项；交付卡打开实际 `.ics` 与 Markdown。
 2. 从合成邮件取附件，或原生选择／拖入 UTF-8 文本、Markdown、文字层 PDF；`/privacy on` 后隔离整理，成品只给用户。关闭滤芯时暂存。

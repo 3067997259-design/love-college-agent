@@ -33,3 +33,11 @@ export async function initializeTestBook(page) {
   if (!ok) throw new Error('BOOK_FIXTURE_INITIALIZATION_FAILED')
   await page.getByRole('region', { name: '新手流程', exact: true }).waitFor({ state: 'hidden' })
 }
+
+/** Navigate the grouped user settings; the developer panel keeps its direct controls. */
+export async function openSettingsGroup(page, name) {
+  const summary = page.locator('[data-settings="user"] .settings-group > summary').filter({ hasText: name })
+  if (!await summary.count()) return
+  const details = summary.locator('..')
+  if (!await details.evaluate((element) => element.open)) await summary.click()
+}

@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, openSettingsGroup } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'mcp-smoke-' + randomUUID()); const sceneId = randomUUID()
 const profile = join(data, 'developer', sceneId)
@@ -32,7 +32,7 @@ try {
   assert.equal(await page.evaluate(() => window.lca.readDiagnostics().then(() => false, () => true)), true)
   const invalid = join(data, 'invalid-mcp.json'); await writeFile(invalid, '{"mcpServers":{"invalid":{"url":"SYNTHETIC_CONFIG_VALUE"}}}')
   await instance.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, invalid)
-  await tools(); await page.getByRole('button', { name: '导入 MCP 配置', exact: true }).click()
+  await tools(); await openSettingsGroup(page, '工具连接与提醒'); await page.getByRole('button', { name: '导入 MCP 配置', exact: true }).click()
   await waitFor((s) => s.mcp.error?.code === 'configuration-failed', 'INVALID_CONFIG_NOT_REJECTED'); safe(await snapshot())
   await instance.close(); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
   await launch(); await tools()

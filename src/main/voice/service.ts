@@ -5,8 +5,9 @@ import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import { calendarDay } from '../life/service'
 import type { VoicePort } from './port'
+import { ResourceFailure, type ResourceAdmissions } from '../resources/ledger'
 
-export function createVoice(options: { store: SessionStore; clock: Clock; port: VoicePort | null; blocked(): boolean; changed(): void; safeText(text: string): string }) {
+export function createVoice(options: { store: SessionStore; clock: Clock; port: VoicePort | null; blocked(): boolean; changed(): void; safeText(text: string): string; budget?: ResourceAdmissions }) {
   const { store, clock, port } = options; const rows = () => store.history?.() ?? store.records()
   let enabled = rows().findLast((row) => row.type === 'voice/settings')?.enabled ?? false
   let utterance: VoiceView['utterance']; let chunks: Buffer[] = []; let error: VoiceView['error']; let active: AbortController | undefined; let worker: Promise<void> | undefined; let closed = false
@@ -16,14 +17,16 @@ export function createVoice(options: { store: SessionStore; clock: Clock; port: 
   const observe = () => {
     const messages = store.projection().messages.filter((message) => message.role === 'assistant' && !observed.has(message.id))
     for (const message of messages) observed.add(message.id)
-    const message = messages.findLast((message) => { const record = rows().find((row) => row.type === 'assistant/message' && row.id === message.id); return message.status === 'complete' && message.text.trim() && record?.type === 'assistant/message' && !record.toolCalls?.length && rows().some((row) => row.type === 'turn/end' && row.turnId === record.turnId && row.reason === 'completed') })
+    const message = messages.findLast((message) => { const record = rows().find((row) => row.type === 'assistant/message' && row.id === message.id); return message.status === 'complete' && message.text.trim() && record?.type === 'assistant/message' && !record.displayOnly && !record.toolCalls?.length && rows().some((row) => row.type === 'turn/end' && row.turnId === record.turnId && row.reason === 'completed') })
     if (!message || closed || !enabled || !port || options.blocked()) return
     stop(); if (worker) return // Never overlap requests, even when a provider ignores cancellation.
     const text = options.safeText(message.text); const attempts = rows().filter((row) => row.type === 'voice/attempt' && row.dayKey === calendarDay(clock))
-    if (!text.trim() || text.length > 1200 || attempts.length >= 30 || attempts.reduce((n, row) => n + (row.type === 'voice/attempt' ? row.charCount : 0), 0) + text.length > 12000) { error = { code: 'quota-exhausted', retryable: false }; options.changed(); return }
+    if (!text.trim() || text.length > 1200 || !options.budget && (attempts.length >= 30 || attempts.reduce((n, row) => n + (row.type === 'voice/attempt' ? row.charCount : 0), 0) + text.length > 12000)) { error = { code: 'quota-exhausted', retryable: false }; options.changed(); return }
+    let resourceReservationId: string | undefined
+    try { resourceReservationId = options.budget?.reserveSpeech(text.length) } catch (cause) { error = { code: cause instanceof ResourceFailure ? cause.code : 'unavailable', retryable: false }; options.changed(); return }
     const abort = new AbortController(); active = abort; chunks = []; error = undefined
     utterance = { id: randomUUID(), messageId: message.id, status: 'synthesizing', playback: 'idle', chunkCount: 0, byteLength: 0, createdAtMs: clock.nowMs() }; const id = utterance.id
-    store.append({ type: 'voice/attempt', id, dayKey: calendarDay(clock), charCount: text.length, source: port.source })
+    store.append({ type: 'voice/attempt', id, dayKey: calendarDay(clock), charCount: text.length, source: port.source, ...(resourceReservationId ? { resourceReservationId } : {}) })
     const timeout = clock.after(30_000, () => { abort.abort(); if (utterance?.id === id && utterance.status === 'synthesizing') { utterance.status = 'failed'; utterance.playback = 'ended'; chunks = []; error = { code: 'connection-failed', retryable: true }; options.changed() } })
     worker = port.synthesize(text, abort.signal, (data) => {
       abort.signal.throwIfAborted()

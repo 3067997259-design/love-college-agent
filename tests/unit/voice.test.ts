@@ -11,18 +11,31 @@ import { openJournal } from '../../src/main/journal/file'
 import { projectJournal } from '../../src/main/journal/projection'
 import type { SessionStore } from '../../src/main/store/session'
 import type { AppCommand } from '../../src/shared'
+import { ResourceFailure, type ResourceAdmissions } from '../../src/main/resources/ledger'
 
 const cleanup: (() => void)[] = []; afterEach(() => cleanup.splice(0).reverse().forEach((fn) => fn()))
-function fixture(port: VoicePort | null = { source: 'fake', synthesize: async (_text, _signal, chunk) => { chunk(new Uint8Array([0, 0, 1, 0])) } }) {
+it('does not speak a displayed clarification question after the turn settles', async () => {
+  const synthesize = vi.fn(async () => {}); const f = fixture({ source: 'fake', synthesize }); f.send({ type: 'voice.set', enabled: true })
+  f.store.append({ type: 'turn/start', turnId: 'question', trigger: 'user' }); f.store.append({ type: 'assistant/message', id: randomUUID(), turnId: 'question', text: 'A displayed question', status: 'complete', displayOnly: true }); f.store.append({ type: 'turn/end', turnId: 'question', reason: 'completed' })
+  f.voice.observe(); await f.voice.idle(); expect(synthesize).not.toHaveBeenCalled(); await f.voice.close()
+})
+function fixture(port: VoicePort | null = { source: 'fake', synthesize: async (_text, _signal, chunk) => { chunk(new Uint8Array([0, 0, 1, 0])) } }, budget?: ResourceAdmissions) {
   const root = mkdtempSync(join(tmpdir(), 'lca-voice-')); cleanup.push(() => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-voice-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })
   const clock = createManualClock(1000); const j = openJournal(root, { userId: 'u', characterId: 'c' }, clock); cleanup.push(j.close)
   const store: SessionStore = { scope: j.scope, append: j.append, records: j.records, projection: () => projectJournal(j.records()), close: j.close }
-  let blocked = false; const changed = vi.fn(); const options = { store, clock, port, blocked: () => blocked, changed, safeText: (text: string) => text.replaceAll('PRIVATE_KEY_CANARY', '[redacted]') }
+  let blocked = false; const changed = vi.fn(); const options = { store, clock, port, budget, blocked: () => blocked, changed, safeText: (text: string) => text.replaceAll('PRIVATE_KEY_CANARY', '[redacted]') }
   const voice = createVoice(options)
   const say = (text = 'PUBLIC_REPLY', reason: 'completed' | 'error' = 'completed') => { const id = randomUUID(); store.append({ type: 'turn/start', turnId: id, trigger: 'user' }); store.append({ type: 'assistant/message', id, turnId: id, text, status: 'complete' }); store.append({ type: 'turn/end', turnId: id, reason }); voice.observe(); return id }
   const send = (body: object) => voice.dispatch(body as AppCommand)
   return { root, clock, store, voice, say, send, options, block: () => { blocked = true; voice.stateChanged() } }
 }
+it('refuses an exhausted durable speech admission before invoking the synthesis port', async () => {
+  const synthesize = vi.fn(async () => {}); const reserveSpeech = vi.fn(() => { throw new ResourceFailure('quota-exhausted') })
+  const f = fixture({ source: 'fake', synthesize }, { reserveModel: () => crypto.randomUUID(), reserveSpeech })
+  f.send({ type: 'voice.set', enabled: true }); f.say(); await f.voice.idle()
+  expect(reserveSpeech).toHaveBeenCalledOnce(); expect(synthesize).not.toHaveBeenCalled(); expect(f.voice.view()).toMatchObject({ error: { code: 'quota-exhausted' } })
+  expect(f.store.records().some((row) => row.type === 'voice/attempt')).toBe(false); await f.voice.close()
+})
 it('defaults to silence, fails closed without configuration and never replays old messages on enable/restart', async () => {
   const f = fixture(); f.say(); expect(f.voice.view().utterance).toBeUndefined(); f.send({ type: 'voice.set', enabled: true }); f.voice.observe(); expect(f.voice.view().utterance).toBeUndefined()
   f.say(); await f.voice.idle(); const view = f.voice.view(); expect(view.utterance).toMatchObject({ status: 'ready', chunkCount: 1, byteLength: 4 })

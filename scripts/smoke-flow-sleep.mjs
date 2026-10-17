@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettingsGroup } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', 'flow-sleep-' + randomUUID())
@@ -50,10 +50,11 @@ try {
   await appendFile(journal, fixture.join('\n') + '\n'); await launch()
   assert.ok((await snapshot()).memory.contextChars > 24000)
   await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettingsGroup(page, '她的生活与书桌')
   await page.getByRole('button', { name: '进入心流', exact: true }).click()
   await waitFor(() => !!pendingSummary, 'SLOW_COMPACTION_NOT_REACHED')
   assert.equal((await snapshot()).heartFlow.activeId, null); assert.equal((await snapshot()).memory.status, 'compacting')
-  await page.getByRole('button', { name: '让她休息', exact: true }).click()
+  await openSettingsGroup(page, '她的生活与书桌'); await page.getByRole('button', { name: '让她休息', exact: true }).click()
   await page.getByRole('region', { name: '她的生活', exact: true }).getByRole('alert').filter({ hasText: 'unavailable' }).waitFor()
   assert.equal((await snapshot()).companion.sleeping, false)
   pendingSummary(); pendingSummary = undefined
@@ -62,6 +63,7 @@ try {
   await page.getByRole('button', { name: '退出心流', exact: true }).click()
   await waitFor((s) => !s.heartFlow.activeId, 'FLOW_EXIT_FAILED')
   await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettingsGroup(page, '她的生活与书桌')
   await page.getByRole('button', { name: '让她休息', exact: true }).click()
   await waitFor((s) => s.companion.sleeping && s.companion.pose === 'sleeping', 'POST_FLOW_SLEEP_FAILED')
   await stop(); await launch()

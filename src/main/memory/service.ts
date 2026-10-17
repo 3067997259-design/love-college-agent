@@ -6,6 +6,7 @@ import type { SessionStore } from '../store/session'
 import type { ContextMessage } from '../journal/schema'
 import { sessionDayKey } from '../journal/file'
 import { projectJournal } from '../journal/projection'
+import { projectFailure } from '../harness/failure'
 import type { MemoryRepository } from './repository'
 import { seenFragments, memoryDigest, memoryInputBytes, type SeenFragment } from './seen'
 import { boundedMemoryCall, MemoryFailure, validateMemories, validateSummary, type MemoryModel, type createFakeMemoryModel } from './model'
@@ -165,7 +166,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
         ...(options.development ? { scenarioId: options.development.scenario() } : {}), ...(error ? { error } : {}) }
     },
     sessionView: (): SessionView => ({ dayKey: dayKey(), rolloverPending: pendingDay(), pages: pages().slice(-30).map((page) => ({ sessionId: page.sessionId, dayKey: page.dayKey,
-      messageCount: page.records.filter((row) => row.type === 'user/message' || row.type === 'assistant/message' && row.text).length,
+      messageCount: page.records.filter((row) => row.type === 'user/message' || row.type === 'narrator/failure' || row.type === 'assistant/message' && row.text).length,
       summarized: repository.view().summaries.some((summary) => summary.sourceSessionIds.includes(page.sessionId)) })) }),
     readSession: (id: string): SessionPage => {
       const page = pages().find((page) => page.sessionId === id); if (!page) throw new Error('SESSION_UNAVAILABLE')
@@ -174,6 +175,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       const messages = page.records.flatMap((row): MessageView[] => {
         if (row.type === 'user/message') return [delivered.get(row.id) ?? { id: row.id, role: 'user', text: row.text, createdAtMs: row.atMs, status: 'complete' }]
         if (row.type === 'assistant/message' && row.text) return [{ id: row.id, role: 'assistant', text: row.text, createdAtMs: row.atMs, status: row.status }]
+        if (row.type === 'narrator/failure') return [{ id: row.id, role: 'narrator', text: row.text, createdAtMs: row.atMs, status: 'complete', failure: projectFailure(page.records, row.failure, row.seq) }]
         return []
       })
       const selected = messages.slice(-200); let chars = 0

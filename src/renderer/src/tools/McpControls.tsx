@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot } from '../../../shared'
+import { SettingsIssue, settingStatus } from './SettingsIssue'
 
 export function McpControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
   const [error, setError] = useState(''); const [approving, setApproving] = useState<string | null>(null)
@@ -12,7 +13,7 @@ export function McpControls({ bridge, snapshot }: { bridge: AppBridge; snapshot:
     <p>导入标准 mcpServers 配置文件；配置只由主进程读取。仅开放 allowTools 中列出的工具。</p>
     {snapshot.runtime?.developer.mode !== 'developer' && <button type="button" onClick={() => void send({ type: 'mcp.configure' })}>导入 MCP 配置</button>}
     {snapshot.mcp.servers.map((server) => <div className="mcp-server tools-plugin" key={server.id} data-id={server.id}>
-      <strong>{server.id}</strong> · {server.transport} · {server.source === 'fake' ? '合成服务' : '外部服务'} · {server.status}
+      <strong>{server.id}</strong> · {server.transport} · {server.source === 'fake' ? '合成服务' : '外部服务'} · {settingStatus(server.status)}
       <p>隐私过滤：{server.privacy === 'always' ? '总是隔离；依赖缺失时关闭' : '已声明为公开结果'}；允许：{server.tools.join('、') || '无，仅连接发现'}</p>
       {server.status === 'ready' || server.status === 'connecting' ? <button type="button" onClick={() => void send({ type: 'mcp.disconnect', serverId: server.id })}>断开</button>
         : <button type="button" onClick={() => setApproving(server.id)}>连接</button>}
@@ -21,8 +22,8 @@ export function McpControls({ bridge, snapshot }: { bridge: AppBridge; snapshot:
         <code>{server.fingerprint}</code><button type="button" onClick={() => { setApproving(null); void send({ type: 'mcp.connect', serverId: server.id, fingerprint: server.fingerprint }) }}>确认此配置并连接</button>
         <button type="button" onClick={() => setApproving(null)}>取消</button>
       </div>}
-      {server.error && <p role="alert">连接未完成：{server.error.code}</p>}
+      <SettingsIssue code={server.error?.code} />
     </div>)}
-    {(error || snapshot.mcp.error) && <p role="alert">MCP 未完成：{error || snapshot.mcp.error?.code}</p>}
+    <SettingsIssue code={error || snapshot.mcp.error?.code} />
   </div>
 }

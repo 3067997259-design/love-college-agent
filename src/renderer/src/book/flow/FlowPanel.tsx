@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { AppBridge, AppSnapshot, DelegateView, HeartFlowView } from '../../../../shared'
 import copy from '../../voice/book.zh.json'
+import rewindWords from '../../voice/rewind.zh.json'
 import { ComputerControls } from '../../tools/ComputerControls'
 import { WebFetchControls } from '../../tools/WebFetchControls'
 import { sendCommand, type CommandBody } from '../command'
@@ -58,6 +59,7 @@ export function FlowPanel({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
                 <code>{change.path}</code>
                 <small>{change.undone ? copy.flow.undone : copy.flow.kept}</small>
                 {!change.undone && <button type="button" className="link-button" disabled={flow.mode === 'plan'} onClick={() => send({ type: 'flow.undo', changeId: change.id })}>{copy.flow.undo}</button>}
+                {!change.undone && <button type="button" className="link-button" disabled={flow.mode === 'plan' || flow.rewind?.status === 'running'} onClick={() => send({ type: 'flow.rewind.prepare', changeId: change.id })}>{rewindWords.boundary}</button>}
               </li>
             ))}
           </ul>

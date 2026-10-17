@@ -16,7 +16,9 @@ it('imports explicit TTS fields, preserves mixed chat/privacy slots, and reads t
   const saved = join(root, 'connections', 'providers.json'); expect(JSON.parse(readFileSync(saved, 'utf8'))).toEqual(config); await settings.close()
   const reopened = createModelSettings(options); expect(await readVoiceConfig(saved)).toEqual(tts); expect((await readModelProviders(saved)).has('chat')).toBe(true); expect((await readModelProviders(saved)).has('privacy')).toBe(false)
   expect(JSON.stringify(reopened.view())).not.toContain('synthetic-'); await reopened.close()
-})
+// Real Windows filesystem import/readback can exceed 5s on a hosted worker.
+// Assertions and application deadlines stay unchanged; this fixture has no network.
+}, 15000)
 it.each(['missing-voice', 'protocol', 'http', 'extra', 'chat-extra'])('rejects invalid %s atomically without replacing a saved configuration (#23)', async (kind) => {
   const root = mkdtempSync(join(tmpdir(), 'lca-slot-')); roots.push(root); const file = join(root, 'input.json'); const tts: Record<string, string> = { protocol: 'openai-speech', base_url: 'https://speech.invalid/v1', api_key: 'synthetic-only', model: 'synthetic-model', voice: 'synthetic-voice' }
   const options = { root, developer: false, slots: [] as const, canConfigure: () => true, choose: async () => file, changed: () => {} }; const settings = createModelSettings(options)

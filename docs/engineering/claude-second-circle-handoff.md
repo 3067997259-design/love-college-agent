@@ -55,3 +55,36 @@ MC 新接口 `37cb419`（state.ts／shared README）已先合；此批已接 inv
 08:12：MC 截图消费既有 37cb419 的 allowScreenshots／features，无新增公开接口。朴素控制增加默认关闭的逐轮勾选；只有游戏模型拿最近两帧 JPEG，图像仅内存、停止清除、不进普通记忆或存档。377 单测、booth 模式实际多模态 HTTP／原生解码／ZIP 排除及原有 MC／computer 场景通过，世界／像素／模型均合成。见 minecraft-screenshots-third-circle.md；继续 survival 挖掘、展位资源及心流缺口，整圈尚未完成。
 
 08:23：近身 survival 挖掘也消费既有 37cb419，无新增共享接口。allowMining 默认关闭、每轮单独勾选；仅四种普通方块，scene／harvest／姿态和危险守卫，目标空气＋owned mining 已结束才记观察成功。pickupVerified／breakAttributedToPilot 均 false，不假称已拿掉落物。388 单测、原生 scene→mine→inventory 与停止／重启及 MC／图像回归通过（合成世界／模型）。见 minecraft-mining-third-circle.md；继续展位预算、ask_user、真实命令隔离和步骤撤回核验。
+
+08:45：资源接口 248e640 已先合 main：snapshot.resources（模型预留／语音字符与次数，坏账本 null）和仅展位书本 resources.configure。已接朴素“运行资源”面板、存档外追加账本、原生 SQLite 跨进程锁；两个进程 20 次竞争只准入十笔，真实恢复后 24,901 模型预留和 9 语音字符保留，个人／展位共享及坏账本关闭通过。407 单测、MC 三项／作品端口／语音原生回归通过，均合成。复核接受你保留的短人设＋90k 单轮：八次实测 81,752；日默认仍 100k／500k。你的 a253a08 画面／人设已同步，未修改措辞。接着独立修 #28，再推进 ask_user／实际命令隔离／步骤撤回；整圈未完成。
+
+08:55：#28 已动态复现并修复，无共享接口变化。仅获准 public screenshot 放 stdio 9 MiB，其余 256k；1 MB PNG 整条／分片、近 6 MiB 实际解码／JPEG HTTP、图像超限保留连接核实释放、传输超限明确未核实，五项原生通过；408 单测通过。见 minecraft-stdio-images.md。已读上午交接，设置页／失败旁白列入后续；角色措辞不改，旁白待你的独立文案文件。
+
+09:17：问答接口 SHA **d8270ad**（合 main 4fde7dd）：snapshot.question 可选，queued 只有元数据，waiting 才有 question／choices／expiresAtMs；书本命令 question.answer(questionId, answer)／question.dismiss(questionId)。朴素 QuestionControls 已放右页 stream，文案独立 voice/questions.zh.json。普通和心流的 ask_user 实际原生／合成 HTTP／私人恢复通过，专注和安静排队、不抢窗口、回答不作运行授权。你可按现有界面整理，不改排队／书本权限及工作上下文隔离。原生 harness／准备入睡竞态／声音回归也通过；接着做命令隔离和多文件步骤回退，整圈未完成。
+
+09:29：Windows 实际命令的原生底座探针已过（AppContainer、Job Object、书桌外读写／ACL拒绝、零网络、本机监听器零连接、中文和原生子命令、上限／超时／取消、强杀 helper 清理子孙）。使用系统 cmd.exe，不新增 Bash 安装；PowerShell provider 下直接外部调用不可靠，已记录。**尚未接应用入口或共享接口**，UI 现有运行仍是 JavaScript。下一步接逐次审批、一次性工作副本／版本保护的写回和安装态，不据此报告 shell 已完成，见 desk-command-sandbox.md。
+
+09:34：实际命令接口 **2f96cc6** 先合 main（6a9448b）；见 shared/README 的实际命令段。commandExecution 独立旧 JS execution，flow.command.run／approve／cancel／open，snapshot 只有命令和输入指纹／进程及写回收据，不含 stdout/stderr。7 项副本单测、编译收据／UTF-8／信号取消的原生进程端口已通过，尚未开放应用审批／写回。CI 已修旧三故障测试合用 5 秒的超时问题，91a80e3／6a9448b 远端均已成功；与接口及产品断言失败无关。
+
+10:20：实际命令已接入心流。右页新增独立 CommandControls（未改你的 FlowPanel/CSS），逐条 cmd 审批、脚本解码预览、输入指纹及进程／写回收据，stdout/stderr 走用户专用窗口。接口仍 2f96cc6，失败码 **fd884da**；book-only，展位禁用，任何重启／恢复不重放旧批准。67 文件／454 单测和真实命令＋fake 模型的 Electron/SQLite、冲突／取消／输出预览／私人恢复均过。短缓存避免 .NET MAX_PATH；非法／不支持的编码明确失败，保留原中文回归。你可接 heartFlow.command，勿把旧 execution（JS）改当 cmd。新 UI 文案在 voice/commands.zh.json，角色声音未动。
+
+审计新开 #29～#33：先前 #1～#28 都已回复关闭；这批将逐项修复并回 issue。#31 原生编码修复已合，等远端链完整结果；#29 目标别名取消问答、#30 延迟翻页的日问答计数、#32 回答字数提示、#33 关闭印象后的选段入口随后修。不宣告第三圈完工，步骤回退／正常设置／失败旁白及最终安装态仍在原范围内。
+# 步骤回退接口（2026-10-17 11:15）
+
+接口 SHA **9d5fe06**（main 合并 3b2e57f），实现的 RewindControls 与 rewind.zh.json 已接朴素卡；FlowPanel 只加了范围预览按钮，原单版本按钮保留。多文件和私人恢复原生整链、类型／lint／469 单测通过，旧包待收录。正常设置和失败旁白接下来由 GPT 继续。
+
+`src/shared/commands.ts` 新增 flow.rewind.prepare／apply／cancel，`state.ts` 的 heartFlow.rewind 见 FlowRewindView。先合接口后实现；列表选择早一步可以回退多文件，必须预览、再次确认版本。原单文件 undo 保留兼容，文档 flow-rewind.md。审计 #29–33 已全部回复关闭；当前类型／lint／457 单测、问答和光学原生整链通过。命令应用接线 8e9fd1c 的远端 Windows CI 38997463591 已通过。
+
+11:35：正常／展位设置改为 UserSettings 分组入口，开发页仍保留。文字在 voice/settings.zh.json；常见错误中文说明＋闭集错误码详情，配置值不进界面，合成标记保留。新 test:settings、模型槽位／预算／MCP／开发隔离／新手／慢压缩入睡原生回归已过，类型／lint／469 单测通过。真实计时 60007／20008 ms 已过，旧 UI 采样断言修为持久截止锚点，没有改引擎。高级记录的元数据仍可查，整体文案待你们审。失败旁白接口 **3a25b26** 已先合 main，GPT 接下来做其底层，暂不改她的人设或声音。
+11:48：失败旁白接口 **3a25b26** 已实现并接上书页（FailureDetails）。技术占位在 `src/main/harness/narrator.zh.json`，操作文字在 `voice/failure.zh.json`，请审措辞；不是她的语音，不改人设。闭集原因／记录次数／HTTP 状态可查，不显示供应商错误原文或配置值。原请求只带回输入框，不覆盖草稿／引用，检查后手动发送；调用过工具会提醒先核对结果。真实 Electron／SQLite＋合成 HTTP 的分类、原请求、心流／模型／回忆隔离和私人恢复已过，485 全量单测＋追加语音隔离通过。字体／CSP／控制台、问答、光学原生回归过；新包和连续流程继续。
+11:55：旁白 8e8b2fe 已合 main **8a95801**，Windows CI 39000167291 成功（486 单测＋原生命令）。扩展后的同档连续链源 Electron 已过七阶段，含 ask_user、真正 cmd、两文件回退和上限旁白；下一步新包 25 项安装态。只读装配探针读到 privacy 槽位已能装配、TTS 未装配、Rodin 已配置，尚未测试真实质量或消耗额度；Minecraft 25600／25602 仍未监听，AIRI／游戏未动。详见 live-readiness.md。
+
+12:20：审计 #34/#35/#36 已分别修复并合 main（0c93e5e / 32a2fa7 / e64e218），接口 **2c0207b** 已先合。DeskCommand outcome 现在允许 unknown publication 和 null 进程／差异值，appliedFiles 只报已核实数；失败旁白 sourceRecallAnchor 可与问题一起恢复，不重用旧回合授权。真实主进程部分写回时强杀／重启，以及 401 引用恢复→新 request→recall_seen 原生场景通过。新包上一轮在截图设置分组的验收入口失败，已定位并补实际点击，正在重打重验，别把旧成功报告当新验收。
+
+12:34：接口仍 **2c0207b**，#1–36 当前已回复关闭。本地 492 单测、native 全链和 main 16fbf56 的 CI 39002705712 通过；后续仅探针／测试期限／文档改动，新 CI 等结果。新包业务源码 6d6d2e7 正重跑 25 项；上轮已过 18，普通作品验收修为显式 resume 已有日程任务，对同一 EXE 独测通过。真实 privacy 四次全为 network，失败关闭未回退；无凭据 HEAD 两套栈都未连通，没有改 Clash。TTS／OCR／双客户端 MC 和最终外景／动画／旁白文字仍待你们，完整性表已改成当前状态，不再列已完成的代码任务。
+
+12:35：新包全部 25 项安装态已过，源码 **6d6d2e7**，D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe；SHA **e44b413ecdbd09c5f568a80f5c4c37878426d27ea5c25a1eae722cad160d85ae**，未签名。包含命令真实强杀恢复／引用重发和新版连续演示。main 之后仅诊断／测试／文档；你看完整性表的剩余项即可，接口 2c0207b 不变。主进程继续守住隐私失败关闭和隔离书桌边界。
+
+补充：#36 的旧格式兼容 d2f7267、#37 的探针隔离 df2d693 均已合 main 并回复关闭，接口 2c0207b 不变。全量 493 单测和原生旧日志重开／私人恢复、合成三槽位探针成功／失败／inspect 零普通模型通过。新包源码 **3edea7c** 正跑 26 项；此前 6d6d2e7 的 25 项回执保持历史证据。用户确认尚无 TTS／OCR 服务，准备自己寻找；当前无真实配置，不要把合成质量算作已验收。
+
+12:50：**3edea7c** 新包的全部 **26 项实际安装场景** 已过，含旧格式引用恢复及 privacy 三槽位／inspect 隔离。493 单测与该 SHA 的完整 CI 39003562314 通过，#1–37 回复关闭。D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe，SHA **85d057f44d12cd84062dd6270ca069c22929dac7f101a8271ea52a86af1fe8f2**，未签名。接口 **2c0207b** 不变；你继续最终外景／动画／文字和声音接线，真实 TTS／OCR 等用户找服务。GPT 本批实现与合成安装链已收口，完整性表保留真实服务和真人验收。

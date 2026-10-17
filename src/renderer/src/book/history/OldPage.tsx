@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { MessageView, OpticalMemoryRead, OpticalMemoryView, SessionPage, SessionPageInfo } from '../../../../shared'
 import { Impression } from './Impression'
 import { MAX_QUOTE, quoteOnPage, type Quote } from './quote'
 import copy from '../../voice/book.zh.json'
 import { formatClock } from '../format'
 import { dayKeyLabel } from '../life/text'
+import { FailureDetails } from '../FailureDetails'
 
 export type { Quote }
 
@@ -25,6 +26,7 @@ export function OldPage({ info, page: loadedPage, failed, older, newer, onTurn, 
   optical?: { frames: readonly OpticalMemoryView['frames'][number][]; read: (frameId: string) => Promise<OpticalMemoryRead> } | null
 }) {
   const [impression, setImpression] = useState(false)
+  const showImpression = impression && !!optical?.frames.length
   const [selection, setPending] = useState<Quote | null>(null)
   // 只认这一页、已经读到、没有失败的内容；选段还要可引用、原文仍对得上（GitHub #19，两条线的修复合在一起）
   const page = !failed && loadedPage?.sessionId === info.sessionId ? loadedPage : null
@@ -57,8 +59,8 @@ export function OldPage({ info, page: loadedPage, failed, older, newer, onTurn, 
         <span className="page-date">{dayKeyLabel(info.dayKey, true)}</span>
         <nav className="page-turn" aria-label="翻页">
           {optical && optical.frames.length > 0 && (
-            <button type="button" className="link-button impression-toggle" aria-pressed={impression} onClick={() => setImpression(!impression)}>
-              {impression ? copy.history.impression.back : copy.history.impression.open}
+            <button type="button" className="link-button impression-toggle" aria-pressed={showImpression} onClick={() => setImpression(!showImpression)}>
+              {showImpression ? copy.history.impression.back : copy.history.impression.open}
             </button>
           )}
           <button type="button" className="link-button" disabled={!older} onClick={() => older && onTurn(older.sessionId)}>‹ {copy.history.older}</button>
@@ -66,7 +68,7 @@ export function OldPage({ info, page: loadedPage, failed, older, newer, onTurn, 
         </nav>
       </header>
       <div className="stream old-stream">
-        {impression && optical ? <Impression frames={optical.frames} read={optical.read} />
+        {showImpression && optical ? <Impression frames={optical.frames} read={optical.read} />
           : failed ? <p className="sheet-status" role="alert">{copy.history.failed}</p>
           : !page ? <p className="sheet-status" role="status">{copy.history.loading}</p>
           : page.messages.length === 0 ? <p className="sheet-empty">{copy.history.empty}</p>
@@ -75,20 +77,20 @@ export function OldPage({ info, page: loadedPage, failed, older, newer, onTurn, 
             {page.messages.map((message) => {
               const canQuote = recallable.has(message.id)
               return (
-                <p key={message.id} className={`msg msg-${message.role}`} data-recallable={canQuote} data-message-id={message.id}>
+                <Fragment key={message.id}><p className={`msg msg-${message.role}`} data-recallable={canQuote} data-message-id={message.id}>
                   {message.role === 'assistant' && <span className="msg-who" aria-hidden />}
                   <span className="msg-text" onMouseUp={(event) => select(message, event.currentTarget)}>{message.text}</span>
                   <time className="msg-time">{formatClock(message.createdAtMs)}</time>
                   {canQuote && (
                     <button type="button" className="quote-button" onClick={() => { const quote = whole(message); if (quote) onQuote(quote) }}>{copy.history.quote}</button>
                   )}
-                </p>
+                </p>{message.failure && <FailureDetails failure={message.failure} />}</Fragment>
               )
             })}
           </>}
       </div>
       <footer className="old-foot">
-        {impression ? null : selected
+        {showImpression ? null : selected
           ? <>
             <blockquote className="quote-preview">{selected.text}</blockquote>
             <button type="button" className="btn btn-primary btn-small" onClick={() => onQuote(selected)}>{copy.history.quoteSelection}</button>

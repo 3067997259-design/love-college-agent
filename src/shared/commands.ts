@@ -13,6 +13,9 @@ export type AppCommand = CommandEnvelope & (
   /** Booth book only. Integer reservations: total 10000..5000000, autonomous 0..total.
    * A reduction never refunds prior admissions; it only gates subsequent requests. */
   | { type: 'resources.configure'; dailyTotalUnits: number; dailyAutonomousUnits: number }
+  /** Book-only answer to the current visible question. Information, never an execution grant. */
+  | { type: 'question.answer'; questionId: string; answer: string }
+  | { type: 'question.dismiss'; questionId: string }
   | { type: 'voice.stop'; utteranceId: string }
   /** Book playback reports only; this is renderer telemetry, not synthesis or external-action evidence. */
   | { type: 'voice.playback'; utteranceId: string; status: 'playing' | 'ended' | 'failed' }
@@ -143,6 +146,18 @@ export type AppCommand = CommandEnvelope & (
   /** Book-only native preview. Draft prose is never carried in snapshots or ordinary memory. */
   | { type: 'flow.operation.open'; operationId: string }
   | { type: 'flow.undo'; changeId: string }
+  /** Book-only preview of all recorded desk file changes from this step onward in the active flow. */
+  | { type: 'flow.rewind.prepare'; changeId: string }
+  /** Fresh confirmation; any change to the recorded range or affected live files rejects execution. */
+  | { type: 'flow.rewind.apply'; rewindId: string }
+  | { type: 'flow.rewind.cancel'; rewindId: string }
+  /** Book-only. Single-line cmd command <=6000 UTF-16 chars, timeout 500..30000 ms (default 5000). Never executes on request alone. */
+  | { type: 'flow.command.run'; command: string; timeoutMs?: number }
+  /** Fresh per-command human decision; booth always refuses execution. */
+  | { type: 'flow.command.approve'; commandId: string; allow: boolean }
+  | { type: 'flow.command.cancel'; commandId: string }
+  /** User-only native output preview; stdout/stderr are work data, not snapshot or ordinary memory. */
+  | { type: 'flow.command.open'; commandId: string }
   /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
   | { type: 'flow.run'; code: string }
   | { type: 'flow.approve'; approvalId: string; allow: boolean }
