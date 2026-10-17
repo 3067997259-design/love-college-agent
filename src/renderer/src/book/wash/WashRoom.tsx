@@ -3,15 +3,17 @@ import { Character, sceneSrc } from '../Character'
 import type { CharacterArt } from '../characterArt'
 import { QuillArt } from '../quill/QuillArt'
 import { FURNITURE } from './furniture'
-import { furnitureJob, INTRO_ORDER, introJobs, poseJob, restoreJob, type IntroStep } from './intro'
+import { ARRIVE_MS, furnitureJob, INTRO_ORDER, introJobs, poseJob, restoreJob, type IntroStep } from './intro'
 import { Painter, type Job, type PainterFrame } from './painter'
 import { WashRenderer, type Frame, type HerMask, type Layer } from './renderer'
 import { regionOf } from './strokes'
-import { transitionKind, washProgress } from './wash-math'
+import { easeInOut, ghostAlpha, LEAVE_COLOR_MS, LEAVE_TOTAL_MS, transitionKind, washProgress, type ArtRef } from './wash-math'
 
 /**
  * 左页房间的画：颜色聚在她周围、往外褪成铅笔（铅笔是你的，颜色是她的）。
- * - 换姿势：房间不动，旧颜色在 0.2 s 里褪到新姿势的铅笔上，再把她一笔一笔重画；同一姿势换表情或光照只交叉淡化。
+ * - 换姿势：房间不动，旧颜色在 0.2 s 里褪到新姿势的铅笔上，再把她一笔一笔重画；同一姿势换表情、拉灯只交叉淡化。
+ * - 光线变了（天黑、睡着、醒来）：整张图慢慢淡过去。夜图和白天的空房间处处不同，不能按剪影重画。
+ * - 她出门：颜色先跟她走，她的铅笔影子留一会儿再散；她回来：先出线稿，再比平常慢一点地一笔笔上色。
  * - 存档恢复：应用重启后第一次看到这次恢复，羽毛笔把整个房间重新画一遍（视频第 18 镜的意思）。
  * - 新手流程（intro）：铅笔画空房间再勾出她，羽毛笔先上彩铅的简单颜色、再上真实颜色；点家具就画那一件，最后画满整间。
  * 所有上色都是笔触，不再从一点往外扩（2026-10-16 用户意见）。计时只用 performance.now() 和 requestAnimationFrame，
@@ -20,6 +22,8 @@ import { transitionKind, washProgress } from './wash-math'
 
 const CROSSFADE_MS = 320
 const PREVIOUS_FADE_MS = 200
+/** 光线变化：和房间调色层（book.css .room-light）同一个时长 */
+const LIGHT_FADE_MS = 1400
 
 interface Engine {
   renderer: WashRenderer
@@ -27,9 +31,11 @@ interface Engine {
   mode: 'static' | 'crossfade' | 'paint' | 'intro'
   painter: Painter
   current?: Layer
-  key?: string
+  art?: ArtRef
   empty?: Layer
-  previous?: { layer: Layer; startedAt: number; durationMs: number }
+  previous?: { layer: Layer; startedAt: number; durationMs: number; eased?: boolean }
+  /** 她刚出门：上一张姿势的线稿和剪影 */
+  ghost?: { pencil: WebGLTexture; mask: WebGLTexture; startedAt: number }
   keepOutside?: HerMask
   introStep?: IntroStep
   introTarget?: IntroStep
@@ -37,12 +43,14 @@ interface Engine {
   pendingRestore?: string
 }
 
-export function WashRoom({ art, restoreId, intro = null, paintFurniture = [] }: {
+export function WashRoom({ art, restoreId, intro = null, paintFurniture = [], lightSwitch = false }: {
   art: CharacterArt
   restoreId: string | null
   intro?: IntroStep | null
   /** 新手流程里点过的家具，按点的先后；新出现的 id 就排上一件 */
   paintFurniture?: readonly string[]
+  /** 这次光线变化是拉灯（一下子），不是天色（慢慢变） */
+  lightSwitch?: boolean
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pencilRef = useRef<HTMLDivElement>(null)
@@ -95,8 +103,13 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [] }: 
     const frame: Frame = { current: e.current, previousAlpha: 0 }
     let again = false
     if (e.previous) {
-      const alpha = 1 - washProgress(now - e.previous.startedAt, e.previous.durationMs)
+      const t = washProgress(now - e.previous.startedAt, e.previous.durationMs)
+      const alpha = 1 - (e.previous.eased ? easeInOut(t) : t)
       if (alpha > 0) { frame.previous = e.previous.layer; frame.previousAlpha = alpha; again = true } else e.previous = undefined
+    }
+    if (e.ghost) {
+      const elapsed = now - e.ghost.startedAt
+      if (elapsed < LEAVE_TOTAL_MS) { frame.ghost = { pencil: e.ghost.pencil, mask: e.ghost.mask, alpha: ghostAlpha(elapsed) }; again = true } else e.ghost = undefined
     }
     let cursor: PainterFrame['cursor'] = null
     if (e.mode === 'paint' || e.mode === 'intro') {
@@ -109,7 +122,7 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [] }: 
       if (out.busy || out.dry < 1) again = true
       else if (e.mode === 'paint') { e.mode = 'static'; e.keepOutside = undefined; frame.paint = undefined }
     }
-    if (e.mode === 'crossfade' && !frame.previous) e.mode = 'static'
+    if (e.mode === 'crossfade' && !frame.previous && !frame.ghost) e.mode = 'static'
     moveCursor(cursor)
     e.renderer.keep(e.current, e.empty, frame.previous)
     e.renderer.draw(frame)
@@ -142,6 +155,7 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [] }: 
   function startRestore(e: Engine) {
     e.pendingRestore = undefined
     e.previous = undefined
+    e.ghost = undefined
     e.keepOutside = undefined
     e.painter.clear()
     if (reduced()) { e.mode = 'static'; return }
@@ -150,20 +164,36 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [] }: 
     e.mode = 'paint'
   }
 
-  function startPose(e: Engine, previous: Layer) {
+  /** 交叉淡化；eased 的两头慢，用在光线变化上 */
+  function startFade(e: Engine, previous: Layer, durationMs: number, eased = false) {
+    e.previous = { layer: previous, startedAt: performance.now(), durationMs, eased }
+    if (e.mode === 'static') e.mode = 'crossfade'
+  }
+
+  function startPose(e: Engine, previous: Layer, durationMs?: number) {
     const her = e.empty && e.current ? e.renderer.herMask(e.current, e.empty) : null
     if (!her?.region || reduced()) {
-      // 她出门了或素材不全：只交叉淡化
-      e.previous = { layer: previous, startedAt: performance.now(), durationMs: CROSSFADE_MS }
-      e.mode = 'crossfade'
+      // 素材不全：只交叉淡化
+      startFade(e, previous, CROSSFADE_MS)
       return
     }
     e.renderer.resetReveal(1, 1, 0, 1)
     e.keepOutside = her
+    e.ghost = undefined
     e.previous = { layer: previous, startedAt: performance.now(), durationMs: PREVIOUS_FADE_MS }
     e.painter.clear()
-    e.painter.enqueue(poseJob(her.region))
+    e.painter.enqueue(poseJob(her.region, durationMs))
     e.mode = 'paint'
+  }
+
+  /** 她出门：她的颜色淡走，剪影里留下她的铅笔线，再慢慢散掉 */
+  function startLeave(e: Engine, previous: Layer) {
+    const her = e.empty ? e.renderer.herMask(previous, e.empty) : null
+    if (!her?.region || reduced()) { startFade(e, previous, reduced() ? CROSSFADE_MS : LIGHT_FADE_MS, true); return }
+    const now = performance.now()
+    e.previous = { layer: previous, startedAt: now, durationMs: LEAVE_COLOR_MS, eased: true }
+    e.ghost = { pencil: previous.pencil, mask: her.texture, startedAt: now }
+    if (e.mode === 'static') e.mode = 'crossfade'
   }
 
   /** 新手流程走到目标步骤：把中间各步的活按顺序排上（要等这张图和空房间图都载好，才能算她的剪影） */
@@ -186,14 +216,19 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [] }: 
     e.renderer.keep(e.current)
     e.renderer.layer(src).then((layer) => {
       if (cancelled || engine.current !== e) return
-      const kind = transitionKind(e.key ?? null, art.key)
+      const kind = transitionKind(e.art ?? null, art, lightSwitch)
       const previous = e.current
       e.current = layer
-      e.key = art.key
+      e.art = { key: art.key, lighting: art.lighting }
       if (e.mode === 'intro') syncIntro(e)
       else if (e.pendingRestore) startRestore(e)
-      else if (previous && kind === 'crossfade') { e.previous = { layer: previous, startedAt: performance.now(), durationMs: CROSSFADE_MS }; if (e.mode === 'static') e.mode = 'crossfade' }
-      else if (previous && kind === 'wash') startPose(e, previous)
+      else if (previous) {
+        if (kind === 'crossfade') startFade(e, previous, CROSSFADE_MS)
+        else if (kind === 'fade') startFade(e, previous, reduced() ? CROSSFADE_MS : LIGHT_FADE_MS, true)
+        else if (kind === 'leave') startLeave(e, previous)
+        else if (kind === 'arrive') startPose(e, previous, ARRIVE_MS)
+        else if (kind === 'wash') startPose(e, previous)
+      }
       paint()
     }, () => { if (!cancelled && engine.current === e) setFallback(true) })
     return () => { cancelled = true }
@@ -211,6 +246,7 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [] }: 
       e.mode = 'intro'
       e.painter.clear()
       e.previous = undefined
+      e.ghost = undefined
       e.keepOutside = undefined
       e.renderer.resetReveal(0, 0, 0, 0)
       e.introStep = undefined

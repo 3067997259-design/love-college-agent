@@ -124,6 +124,10 @@
   --room-tint-blend: multiply;
   --lamp: 0;
 }
+/* 拉灯是一下子的事：只换了熄灯（没换时段）时，光线过渡缩短（ambience.ts 的 data-light-switch） */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-light-switch='true'] { --dur-daypart: 450ms; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   :root {

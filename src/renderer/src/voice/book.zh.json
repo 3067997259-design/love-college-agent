@@ -138,6 +138,14 @@
       "event": "活动"
     }
   },
+  "note": {
+    "_说明": "她出门前留在桌上的纸条，是她的笔迹。地点和回来的时间由主进程定，这里只是措辞。",
+    "went": { "coast": "去海边走走", "swing": "去秋千那儿坐坐" },
+    "wentOther": "去{place}了",
+    "back": "{time} 回来",
+    "title": "纸条：她去{place}了",
+    "titleBack": "纸条：她去{place}了，{time} 回来"
+  },
   "sill": {
     "diary": "读那天的日记",
     "diaryLocked": "那天的日记还锁着",

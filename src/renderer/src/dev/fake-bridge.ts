@@ -4,7 +4,7 @@
  * 番茄钟照主进程的规则粗略模拟（技术方案 §3.5、docs/engineering/pomodoro.md），只为在浏览器里点得通；
  * 真正的计时、落盘和阶段事件都在主进程，这里点通不代表真实运行通过。
  */
-import type { AppBridge, AppCommand, AppEvent, AppSnapshot, CommandAck, HistoryPhotoView, PomodoroView, PublicErrorCode } from '../../../shared'
+import type { AppBridge, AppCommand, AppEvent, AppSnapshot, CommandAck, HistoryPhotoView, LifeView, OutingPlace, OutingView, PomodoroView, PublicErrorCode } from '../../../shared'
 import { DEFAULT_SCENARIO, evidence, fakeDiary, fakeImpressions, fakePages, SCENARIOS, type ScenarioId } from './scenarios'
 
 /** 预览用：把几行对话排成一张白底印刷页，返回 data URL（CSP 允许 img-src data:） */
@@ -36,6 +36,8 @@ export interface FakeBridge extends AppBridge {
   skipPhase(): void
   /** 开发用：模拟“恢复存档后重启”——换 epoch，备份状态为 restored，左页颜色重新长回来 */
   simulateRestore(): void
+  /** 开发用：同一个 epoch 里出门／回来／入睡／唤醒／换时段，用来看左页的生活转场（真实的由主进程决定） */
+  simulateLife(kind: 'depart' | 'return' | 'sleep' | 'wake' | 'daypart'): void
   readonly scenarioId: ScenarioId
 }
 
@@ -190,6 +192,34 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
       current = withEpoch({ ...current, backup: { status: 'restored', operationId: `fake-restore-${Math.round(performance.timeOrigin)}-${restoreCount}`,
         incoming: { savedAtMs: current.clock.nowMs, source: 'fake', pageCount: 2, messageCount: 18, memoryCount: 6, deliveryCount: 2 } } })
       emit('restore')
+    },
+    simulateLife(kind) {
+      const now = current.clock.nowMs
+      const life: LifeView = current.life ?? { dayKey: '2026-10-17', userSchedule: 'rest', locationId: 'room', settledUntilMs: now, agenda: [], outings: [], items: [] }
+      const companion = current.companion
+      if (kind === 'depart') {
+        if (life.locationId !== 'room' || companion.sleeping || companion.pose === 'sleeping') return
+        const place: OutingPlace = life.outings.length % 2 ? 'swing' : 'coast'
+        const outing: OutingView = { id: `out-fake-${life.outings.length + 1}`, place, startsAtMs: now, returnsAtMs: now + 150 * 60_000, acquiredAtMs: now + 90 * 60_000, item: place === 'coast' ? 'shell' : 'leaf', status: 'away', settledAtMs: null, offline: false }
+        commit({ life: { ...life, locationId: place, outings: [...life.outings, outing] }, companion: { ...companion, locationId: place } }, 'task')
+      } else if (kind === 'return') {
+        const outing = life.outings.find((item) => item.status === 'away')
+        if (!outing) return
+        const items = [...life.items, { id: `item:${outing.id}`, outingId: outing.id, dayKey: life.dayKey, place: outing.place, kind: outing.item, acquiredAtMs: outing.acquiredAtMs, display: 'desk' as const }]
+        commit({
+          life: { ...life, locationId: 'room', outings: life.outings.map((item) => item.id === outing.id ? { ...item, status: 'returned', settledAtMs: now } : item), items: items.map((item, i) => ({ ...item, display: i >= items.length - 3 ? 'desk' : 'drawer' })) },
+          companion: { ...companion, locationId: 'room', mode: 'rest', pose: 'facing-user', expression: 'smile' },
+          messages: [...current.messages, { id: `back-${outing.id}`, role: 'assistant', text: outing.place === 'coast' ? '回来了。海边风很大，捡了一个贝壳。' : '回来了。秋千那儿落了好多叶子，带了一片。', createdAtMs: now, status: 'complete', emotion: 'smile' }],
+        }, 'task')
+      } else if (kind === 'sleep') {
+        if (companion.locationId !== 'room') return
+        commit({ companion: { ...companion, sleeping: true, pose: 'sleeping', expression: 'calm' } }, 'mode')
+      } else if (kind === 'wake') {
+        commit({ companion: { ...companion, sleeping: false, mode: 'rest', pose: 'facing-user', expression: 'calm' } }, 'mode')
+      } else {
+        const order = ['morning', 'day', 'evening', 'night'] as const
+        commit({ companion: { ...companion, daypart: order[(order.indexOf(companion.daypart) + 1) % order.length] } }, 'mode')
+      }
     },
     async getSnapshot() { return current },
     subscribe(listener) {

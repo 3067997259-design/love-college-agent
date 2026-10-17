@@ -255,6 +255,9 @@ svg[data-drawing='true'] .sketch-shape { animation: sketch-draw 1100ms var(--eas
 .showcase-sketch .sketch-line { stroke-width: 0.45; }
 .gift-sketch .sketch-shape { stroke-width: 0.8; }
 .gift-sketch .sketch-line { stroke-width: 0.55; }
+/* 她刚回来：先等她上完色（WashRoom 的 ARRIVE_MS），再画她带回来的东西 */
+.room[data-arriving='true'] svg[data-drawing='true'] .sketch-line { animation-delay: 1900ms; }
+.room[data-arriving='true'] svg[data-drawing='true'] .sketch-shape { animation-delay: 1900ms, 3000ms; }
 /* 花样最后才落上去 */
 svg[data-drawing='true'] .sketch-motif { animation: sketch-fill 700ms 1600ms var(--ease-out) both; }
 /* 礼物还在做：铅笔线一遍遍描，不上色 */

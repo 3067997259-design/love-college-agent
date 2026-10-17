@@ -4,6 +4,9 @@ import { resolveCharacterArt } from './characterArt'
 import { sendCommand, type CommandBody } from './command'
 import { formatClock, formatRemaining } from './format'
 import { locationLabel, MODE_LABEL } from './labels'
+import { useLightSwitch } from './ambience'
+import copy from '../voice/book.zh.json'
+import { fill } from './life/text'
 import { useCountdown } from './useCountdown'
 import type { IntroStep } from './wash/intro'
 import { FURNITURE } from './wash/furniture'
@@ -41,7 +44,11 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
     setCommandFailed(!result.ok)
   }
   const remaining = useCountdown(snapshot)
+  const lightSwitch = useLightSwitch(companion)
   const away = companion.locationId !== 'room'
+  // 这次运行里亲眼看着她出门／回来：纸条一笔笔写上；窗台上新带回的东西等她上完色再画
+  const moved = useLiveFlip(snapshot.epoch, companion.locationId)
+  const arriving = moved && !away
   const pose = away ? 'empty' : companion.pose
   const art = intro ? (intro === 'done' ? GREET_ART : INTRO_ART) : resolveCharacterArt(companion)
   const importedScene = packageScene(snapshot, art.key)
@@ -82,9 +89,9 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
         onClick={() => { void command({ type: 'lights.set', lightsOut: !companion.lightsOut }) }}>
         <span className="pull-cord-string" aria-hidden><span className="pull-cord-bead" /></span>
       </button>
-      <div className="room" data-photo-scene data-session-id={snapshot.scope.sessionId} data-shot="close" data-location={companion.locationId} data-pose={pose} data-lighting={art.lighting}>
+      <div className="room" data-photo-scene data-session-id={snapshot.scope.sessionId} data-shot="close" data-location={companion.locationId} data-pose={pose} data-lighting={art.lighting} data-arriving={arriving || undefined}>
         {/* 精修整景：颜色聚在她周围，往外褪成从彩图实时提取的铅笔线（体验设计 §7.1，用户批准） */}
-        {importedScene ? <div className="character character-color"><img className="character-art" data-character-package alt="" src={importedScene} draggable={false} /></div> : <WashRoom art={art} restoreId={restoreId} />}
+        {importedScene ? <div className="character character-color"><img className="character-art" data-character-package alt="" src={importedScene} draggable={false} /></div> : <WashRoom art={art} restoreId={restoreId} lightSwitch={lightSwitch} />}
 
         {/* 墙上的钟就是番茄钟；不计时的时候显示现在几点 */}
         <div className="wall-clock" data-photo-omit data-phase={pomodoro.phase} data-status={pomodoro.status}>
@@ -98,18 +105,18 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
           <div className="mail-slot" title={`${companion.mailboxUnseen} 封新邮件`}><span className="mail-letter" /></div>
         )}
 
-        {away && <p className="away-note" title={`她去${locationLabel(companion.locationId)}了`}>她去{locationLabel(companion.locationId)}了</p>}
+        {away && <AwayNote snapshot={snapshot} writing={moved} />}
         {/* 她出门带回来的东西摆在窗台上，跟着房间一起进照片、一起变暗 */}
         <SillItems snapshot={snapshot} onOpenDiary={(dayKey) => onOpenDiary?.(dayKey)} />
 
-        {/* 光线层在最上面：钟、门牌、信都是房间里的东西，跟着房间一起暗 */}
-        {art.lighting === 'ambient' && <><div className="room-tint" /><div className="room-lamp" /></>}
+        {/* 光线层在最上面：钟、门牌、信都是房间里的东西，跟着房间一起暗。重光的夜图自带光线，调色层淡出（不叠两次夜色） */}
+        <div className="room-tint" /><div className="room-lamp" />
       </div>
       {/* 房间之外的兄弟节点：盖在上面，但不进实时拍照的根 */}
       {historyPhoto && <HistoryPhoto view={historyPhoto} />}
 
       {lastLine && historyPhoto?.mode !== 'page' && (
-        <p className="speech" data-status={lastLine.status}>
+        <p className="speech" data-status={lastLine.status} data-absent={away || pose === 'sleeping' || undefined}>
           {lastLine.text}
           {lastLine.status === 'streaming' && <span className="speech-caret" />}
         </p>
@@ -117,6 +124,34 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
       </>}
     </section>
   )
+}
+
+/**
+ * 桌上的纸条是她出门前写的：去哪、几点回来。地点和时间都由主进程定（life.outings），这里只排字。
+ * 字贴着精修图里那张纸的透视（四角从 empty.png 量出）。这次运行里看着她出门，字才一笔笔写上；
+ * 开书、重启、换 epoch 时纸条本来就在桌上，不重播。
+ */
+function AwayNote({ snapshot, writing }: { snapshot: AppSnapshot; writing: boolean }) {
+  const place = snapshot.companion.locationId
+  const outing = snapshot.life?.outings.find((item) => item.status === 'away' && item.place === place)
+  const notes = copy.note.went as Record<string, string>
+  const went = Object.hasOwn(notes, place) ? notes[place] : fill(copy.note.wentOther, { place: locationLabel(place) })
+  const back = outing ? fill(copy.note.back, { time: formatClock(outing.returnsAtMs) }) : null
+  const label = fill(back ? copy.note.titleBack : copy.note.title, { place: locationLabel(place), time: outing ? formatClock(outing.returnsAtMs) : '' })
+  return (
+    <p className="away-note" data-writing={writing} title={label} aria-label={label}>
+      <span className="away-note-line" aria-hidden>{went}</span>
+      {back && <span className="away-note-line away-note-time" aria-hidden>{back}</span>}
+    </p>
+  )
+}
+
+/** 这次运行里亲眼看着变成这个值的（同一个 epoch 里从别的值变过来）；首个快照、重启、换 epoch 不算 */
+function useLiveFlip(epoch: string, value: string): boolean {
+  const seen = useRef<{ epoch: string; value: string; live: boolean } | null>(null)
+  if (!seen.current || seen.current.epoch !== epoch) seen.current = { epoch, value, live: false }
+  else if (seen.current.value !== value) seen.current = { epoch, value, live: true }
+  return seen.current.live
 }
 
 /**

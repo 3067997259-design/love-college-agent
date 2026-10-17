@@ -1,0 +1,124 @@
+{
+  "_说明": "短片关键帧的提示词（NovelAI V5 full）。槽位与参数沿用美术规格 §2.3、§3.6 冻结的标签块（2026-10-16 用户批准）；每帧只写镜头里变化的部分。生成一律经 film/nai.mjs 一次一张、由人要求时发（NovelAI 条款，技术方案 §8）。出图交用户审：直接用，或交 GPT-image 精修。",
+  "params": {
+    "model": "nai-diffusion-5-full",
+    "sampler": "k_euler_ancestral",
+    "steps": 23,
+    "scale": 5,
+    "noise_schedule": "karras",
+    "seed": 271828
+  },
+  "sizes": {
+    "portrait": [
+      832,
+      1216
+    ],
+    "landscape": [
+      1216,
+      832
+    ]
+  },
+  "slots": {
+    "style": "colored lineart, thin lineart, flat color, pastel colors, hard-edged lavender shadows under hair and in clothing folds, one shadow tone, single light source from the upper left, shadows fall on the lower right side of each form, few large simple shadow shapes",
+    "character": "1girl, solo, young adult woman, college student, short hair, chin-length bob, soft hair ends curling slightly inward, pastel peach pink hair, light pink hair with a warm peach tint, greyish amber eyes, muted light amber eyes with a soft grey tint, a thin dark navy ribbon tied in her hair on the left side, two short ribbon tails hanging straight down like a bookmark ribbon",
+    "outfitOut": "white blouse with a small rounded collar, dark navy capelet covering the shoulders down to the elbows, small round gold clasp at the neck, pale lavender long skirt reaching the calves, white socks, brown loafers",
+    "quill": "a white feather quill pen, the feather has a faint peach tint near its base, a thin dark navy ribbon tied around the grip, a small gold nib",
+    "quality": "very aesthetic, masterpiece, no text",
+    "negative": "lowres, artistic error, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, watermark, signature, text, logo, multiple views, loli, child, star-shaped pupils, wings, nose highlight, shiny nose, white spot on nose, blush",
+    "negativeScenery": "lowres, artistic error, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, watermark, signature, text, logo, sign, people, 1girl, person, photorealistic"
+  },
+  "frames": {
+    "bg-swing": {
+      "shot": "15、18 的空秋千（白天）；12 的夜色由渲染脚本调色",
+      "size": "landscape",
+      "character": false,
+      "scene": "scenery, no humans, a simple wooden swing with rope hanging from a thick branch of a large old tree on a gentle grassy hill near the sea, a small notebook left lying on the wooden swing seat, distant calm sea and low white clouds, wide shot, eye level",
+      "light": "soft afternoon daylight, clear pale blue sky"
+    },
+    "bg-coast": {
+      "shot": "15 的海岸：沙滩上的脚印与留下的透明伞",
+      "size": "landscape",
+      "character": false,
+      "scene": "scenery, no humans, a quiet sandy beach, a single line of small footprints in the wet sand following the waterline into the distance, a clear transparent umbrella lying open on the sand, gentle low waves, wide shot, slightly high angle",
+      "light": "soft late afternoon light, pale sky"
+    },
+    "k12-writing": {
+      "shot": "12：夜里回到秋千写日记，侧身挡住不给你看",
+      "size": "landscape",
+      "character": true,
+      "outfit": "outfitOut",
+      "scene": "sitting on a wooden rope swing under a large tree on a grassy hill, writing in a small notebook on her lap with a pen, body turned slightly away from the viewer as if hiding the page, glancing at the notebook, medium shot, eye level",
+      "expression": "quiet focused expression, closed mouth",
+      "light": "night, deep blue sky, scattered stars, soft cool moonlight from the upper left, gentle rim light on her hair"
+    },
+    "k13-smile": {
+      "shot": "13 第一帧：写完，抬头笑着看你",
+      "size": "landscape",
+      "character": true,
+      "outfit": "outfitOut",
+      "scene": "sitting on a wooden rope swing under a large tree at night, a small closed notebook on her lap, looking up at the viewer, medium close-up, eye level",
+      "expression": "soft gentle smile, warm eyes",
+      "light": "night, deep blue sky, soft cool moonlight from the upper left"
+    },
+    "k13-quill": {
+      "shot": "13 递笔：把羽毛笔递到你面前（书写者的手在下方接住）",
+      "size": "landscape",
+      "character": true,
+      "outfit": "outfitOut",
+      "with": [
+        "quill"
+      ],
+      "scene": "sitting on a wooden rope swing at night, leaning forward and holding out the quill pen toward the viewer with one hand, foreshortening, the quill pointing at the viewer, pov, a viewer's hand reaching up from the bottom of the frame to receive it, close-up",
+      "expression": "gentle smile, slightly shy",
+      "light": "night, soft cool moonlight from the upper left"
+    },
+    "k14-wind": {
+      "shot": "14：风起，她惊慌地跳下秋千奔向你，日记留在座板上",
+      "size": "landscape",
+      "character": true,
+      "outfit": "outfitOut",
+      "scene": "jumping down from a wooden swing that hangs by two ropes from a thick branch of a large old tree, running toward the viewer, reaching one hand forward, strong wind, flower petals and leaves swirling around her, hair and capelet blown by the wind, a small notebook left behind on the swing seat, grassy hill, dynamic angle, full body",
+      "expression": "surprised and worried, eyes wide, mouth slightly open",
+      "light": "dusk turning to night, wind-swept sky"
+    },
+    "k18-under-swing": {
+      "shot": "18 尾：她坐在秋千下，抬头看你，像什么都没发生",
+      "size": "landscape",
+      "character": true,
+      "outfit": "outfitOut",
+      "scene": "sitting on the ground on the grass, an empty wooden swing hanging by two ropes from a large tree branch above and behind her, she sits beneath the swing, not on it, knees drawn up, hands resting on her knees, looking up at the viewer, medium shot, slightly high angle",
+      "expression": "calm faint smile",
+      "light": "soft afternoon daylight, clear pale blue sky"
+    },
+    "k19-turn": {
+      "shot": "19 第一帧：拿起日记，扭着头不太敢看你",
+      "size": "portrait",
+      "character": true,
+      "outfit": "outfitOut",
+      "allowBlush": true,
+      "scene": "outdoors on a grassy hill under a large old tree, a wooden rope swing in the background, holding a small notebook close to her chest with both hands, head turned away to the side, eyes glancing aside, upper body, close-up, face in focus",
+      "expression": "shy, light blush",
+      "light": "soft afternoon daylight"
+    },
+    "k19-offer": {
+      "shot": "19 第二帧：日记慢慢递过来，脸颊泛红",
+      "size": "portrait",
+      "character": true,
+      "outfit": "outfitOut",
+      "allowBlush": true,
+      "scene": "outdoors on a grassy hill under a large old tree, holding out a small notebook toward the viewer with both hands, arms extended, face turned slightly away, glancing at the viewer from the corner of her eyes, upper body, close-up, foreshortening",
+      "expression": "shy, blush, closed mouth",
+      "light": "soft afternoon daylight"
+    },
+    "k19-given": {
+      "shot": "19 第三帧：日记交到你手里，脸红最浓",
+      "size": "portrait",
+      "character": true,
+      "outfit": "outfitOut",
+      "allowBlush": true,
+      "scene": "outdoors under a large old tree, a small notebook held between her hands and a viewer's hand reaching in from the bottom of the frame, pov, she looks straight at the viewer, close-up, face in focus",
+      "expression": "deep blush, embarrassed small smile",
+      "light": "soft afternoon daylight"
+    }
+  }
+}

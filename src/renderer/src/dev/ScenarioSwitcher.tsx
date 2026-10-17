@@ -32,6 +32,13 @@ export function ScenarioSwitcher({ fake }: { fake: FakeBridge }) {
       ))}
       <button onClick={() => fake.skipPhase()} title="番茄钟的当前阶段直接到点">跳过本段</button>
       <button onClick={() => fake.simulateRestore()} title="模拟恢复存档后重启：颜色从她身上重新长回来">恢复晕染</button>
+      <span className="dev-life" title="同一个 epoch 里切换，看左页的生活转场；真实的出门、睡眠和时段由主进程决定">
+        <button onClick={() => fake.simulateLife('depart')}>出门</button>
+        <button onClick={() => fake.simulateLife('return')}>回来</button>
+        <button onClick={() => fake.simulateLife('sleep')}>入睡</button>
+        <button onClick={() => fake.simulateLife('wake')}>唤醒</button>
+        <button onClick={() => fake.simulateLife('daypart')}>换时段</button>
+      </span>
     </aside>
   )
 }

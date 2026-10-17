@@ -29,3 +29,7 @@ release/
 test-results/
 playwright-report/
 *.tsbuildinfo
+
+# 短片：生成和渲染的中间产物只在本机，用户审过的关键帧另行挑出
+film/gen/
+film/out/

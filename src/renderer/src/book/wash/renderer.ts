@@ -15,6 +15,8 @@ export interface Frame {
   paint?: { dry: number; keepOutside?: WebGLTexture }
   /** 新手流程：铅笔层也按揭开遮罩显示，先是空房间的线 */
   intro?: { empty: Layer }
+  /** 她出门：上一张姿势的铅笔线，只留在她的剪影里，盖在最上面慢慢散掉 */
+  ghost?: { pencil: WebGLTexture; mask: WebGLTexture; alpha: number }
 }
 
 // 铅笔线的颜色跟着设计 token 的 --graphite／--pencil 之间取（tokens.css）
@@ -227,6 +229,9 @@ export class WashRenderer {
     bind(gl, 3, this.reveal); gl.uniform1i(p.uniform('uReveal'), 3)
     bind(gl, 4, (frame.intro?.empty ?? frame.current).pencil); gl.uniform1i(p.uniform('uEmptyPencil'), 4)
     bind(gl, 5, frame.paint?.keepOutside ?? this.scratch); gl.uniform1i(p.uniform('uHerMask'), 5)
+    bind(gl, 6, frame.ghost?.pencil ?? frame.current.pencil); gl.uniform1i(p.uniform('uGhostPencil'), 6)
+    bind(gl, 7, frame.ghost?.mask ?? this.scratch); gl.uniform1i(p.uniform('uGhostMask'), 7)
+    gl.uniform1f(p.uniform('uGhostAlpha'), frame.ghost?.alpha ?? 0)
     gl.uniform1f(p.uniform('uHasPrev'), frame.previous ? 1 : 0)
     gl.uniform1f(p.uniform('uPrevAlpha'), frame.previousAlpha)
     gl.uniform1f(p.uniform('uPaint'), frame.paint || frame.intro ? 1 : 0)

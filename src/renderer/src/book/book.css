@@ -191,14 +191,18 @@
   mask-composite: intersect;
 }
 .room-tint { position: absolute; inset: 0; background: var(--room-tint); mix-blend-mode: var(--room-tint-blend); pointer-events: none; }
+/* 台灯强度放进渐变的透明度里，opacity 留给下面的“重光图淡出” */
 .room-lamp {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(circle at var(--lamp-x) var(--lamp-y), color-mix(in oklab, var(--lamp-light) 90%, transparent), transparent 34%);
-  opacity: calc(var(--lamp) * var(--lamp-on));
+  background: radial-gradient(circle at var(--lamp-x) var(--lamp-y), color-mix(in oklab, var(--lamp-light) calc(90% * var(--lamp) * var(--lamp-on)), transparent), transparent 34%);
   mix-blend-mode: screen;
 }
+/* 重光的夜图自带光线：调色层和左页晕染（WashRoom 的 LIGHT_FADE_MS）一起淡出／淡入；拉灯时一起变快 */
+.room-tint, .room-lamp { transition: opacity 1400ms var(--ease-in-out); }
+:root[data-light-switch='true'] .room-tint, :root[data-light-switch='true'] .room-lamp { transition-duration: 320ms; }
+.room[data-lighting^='baked'] .room-tint, .room[data-lighting^='baked'] .room-lamp { opacity: 0; }
 /* 近景：台灯在书桌左端（画面左缘露出灯罩），开着 */
 .room[data-shot='close'] { --lamp-x: 3%; --lamp-y: 38%; --lamp-on: 1; }
 /* 远景：她出门或睡着，台灯是关着的 */
@@ -393,21 +397,39 @@
 .room[data-shot='close'] .mail-letter { position: relative; display: block; left: 0; bottom: 0; transform: rotate(-7deg); animation: none; box-shadow: var(--shadow-card); }
 
 /* 去向写在精修空房间图已有的桌上纸条里，变换跟随桌面透视。 */
+/*
+ * 桌上纸条：她出门前写的去向和回来的时间。盒子按 empty.png 里那张纸的四角做仿射贴合
+ * （左上 539,1111／右上 733,1077／左下 612,1171，原图 1254 → 房间 600），字居中排在纸面上。
+ */
 .away-note {
   position: absolute;
-  left: 46%;
-  top: 88.8%;
-  width: 20%;
+  left: 257.9px;
+  top: 531.8px;
+  width: 94.5px;
+  height: 45.25px;
   margin: 0;
-  padding: 0;
-  font: 15px / 1.2 var(--font-hand);
-  color: var(--graphite);
+  padding: 0 6px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1px;
+  font: 14px / 1.15 var(--font-hand);
+  color: var(--ink-her);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   transform-origin: 0 0;
-  transform: matrix(0.97, -0.17, 0.73, 0.57, 0, 0);
+  transform: matrix(0.9849, -0.1722, 0.7772, 0.6292, 0, 0);
+  pointer-events: auto;
+  cursor: default;
 }
+.away-note-line { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.away-note-time { font-size: 12px; color: color-mix(in oklab, var(--ink-her) 78%, var(--paper)); }
+/* 看着她出门：等颜色跟她走了、纸条露出来，再一行一行写上 */
+.away-note[data-writing='true'] .away-note-line { animation: note-write 900ms 1000ms steps(9, end) both; }
+.away-note[data-writing='true'] .away-note-time { animation-delay: 1900ms; animation-duration: 700ms; }
+@keyframes note-write { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.room[data-lighting^='baked'] .away-note { color: color-mix(in oklab, var(--ink-her) 70%, #1d1f36); }
 
 /* 画内夜光已经完成重光，只调暗叠加的真实时钟／状态物件。 */
 .room[data-lighting^='baked'] .wall-clock,
@@ -440,6 +462,9 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* 她出门或睡着了：这句是之前说的，淡一点 */
+.speech { transition: opacity var(--dur-slow) var(--ease-out); }
+.speech[data-absent='true'] { opacity: 0.45; }
 .speech-caret {
   display: inline-block;
   width: 2px;
@@ -752,4 +777,8 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 /* 翻页：右页每次出现（往回翻、换书签、回到今天）都从中缝那边轻轻翻过来；隐藏到显示也算 */
 .page-right { transform-origin: 0 50%; transition: opacity 360ms var(--ease-out), transform 360ms var(--ease-out); }
 @starting-style { .page-right { opacity: 0; transform: perspective(1800px) rotateY(-8deg); } }
-@media (prefers-reduced-motion: reduce) { .page-right { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .page-right { transition: none; }
+  .room-tint, .room-lamp { transition: none; }
+  .away-note[data-writing='true'] .away-note-line { animation: none; }
+}

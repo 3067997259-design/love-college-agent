@@ -21,6 +21,8 @@ const FURNITURE_MS = 1300
 const ROOM_PAINT_MS = 4800
 const ROOM_FILL_MS = 800
 const POSE_MS = 900
+/** 她回来：先出线稿，再比平常换姿势慢一点地上色 */
+export const ARRIVE_MS = 1700
 /** 整屋上色从开始到收干的时间（新手流程据此转到“她注意到你”） */
 export const ROOM_COLOR_MS = ROOM_PAINT_MS + ROOM_FILL_MS + 900
 
@@ -77,10 +79,11 @@ export function restoreJob(): Job {
   return roomJob('restore', 'paint')
 }
 
-/** 换姿势：房间不动，只把她重画一遍，不出现笔 */
-export function poseJob(her: Region): Job {
-  const { stroke, radius } = brushStrokes(her, 4, POSE_MS, 17)
-  return { id: 'pose', stroke, style: brush(radius), channel: 'paint', blend: 'add', mask: { kind: 'her' }, cursor: null, fillMs: 300 }
+/** 换姿势：房间不动，只把她重画一遍，不出现笔；她回来时多画两笔、慢一点 */
+export function poseJob(her: Region, durationMs = POSE_MS): Job {
+  const slow = durationMs > POSE_MS
+  const { stroke, radius } = brushStrokes(her, slow ? 6 : 4, durationMs, 17)
+  return { id: 'pose', stroke, style: brush(radius), channel: 'paint', blend: 'add', mask: { kind: 'her' }, cursor: null, fillMs: slow ? 500 : 300 }
 }
 
 function roomJob(id: string, channel: 'paint' | 'paint+real'): Job {
