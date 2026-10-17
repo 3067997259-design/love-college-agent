@@ -110,3 +110,5 @@ characterName 进入角色的系统称呼，userName 进入用户档案的“关
 `character.import/export` 走原生文件选择器，格式是版本化 `.lca-character` ZIP，首版只接名字、人设和具名 PNG。包中不允许代码、URL、私人档案或未声明文件。`character.select` 保存选择，重启后开独立角色日志、记忆、资料和房间；从不复制共同经历。`characterPack.images` 只返回当前角色自己的本地资源 URL，缺姿势回退同姿势 calm、正面 calm，最后内置场景。私人存档恢复仍要求同用户／同角色：新机器先导入同一角色包并切换，再恢复对应存档。
 
 资源接口：`snapshot.resources` 是本机数据根的守卫投影，不属于私人书本，不随存档恢复或展位／个人切换回退。模型按 04:00 分日的保守预留单位，语音按自然日的字符／尝试数分别显示；状态不可用时计数为 null，不虚报零。`resources.configure` 仅展位书本操作员可发，设置总日 10000..5000000、自主日 0..总日的整数上限；不改旧消耗，不展示币种或未知单价。
+
+澄清接口：`snapshot.question` 是单个当前问题。`queued` 只有 id／taskId／createdAtMs／context（conversation 或 work），不含问题正文；`waiting` 才有 question、最多三个 choices 和主进程的 expiresAtMs。专注／安静先排队，休息才显示；十分钟只计可见等待时间。书本 `question.answer {questionId,answer}`（最多 1000 字，可多行）或 `question.dismiss {questionId}`，均不能替代执行审批。停止／熄灯／关闭／新用户要求取消旧等待，重启不复活；心流问题和回答留在工作上下文。
