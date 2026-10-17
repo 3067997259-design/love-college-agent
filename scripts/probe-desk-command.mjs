@@ -11,6 +11,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); await build
 const data = join(root, '.local-data', 'command-probe-' + randomUUID()); await mkdir(data, { recursive: true })
 const outside = join(data, 'outside.txt'); await writeFile(outside, 'OUTSIDE_CANARY')
 const quote = (text) => "'" + text.replaceAll("'", "''") + "'"
+const ps = (script) => 'powershell.exe -NoLogo -NoProfile -NonInteractive -EncodedCommand ' + Buffer.from(script, 'utf16le').toString('base64')
 async function run(command, timeoutMs = 5000, cancel = false, killed = false) {
   const work = join(data, 'lca-command-' + randomUUID()); await mkdir(work); const output = []
   if (typeof command === 'function') command = command(work)
@@ -32,8 +33,10 @@ async function run(command, timeoutMs = 5000, cancel = false, killed = false) {
   }
   const result = frames.at(-1); return { work, result }
 }
-const first = await run('echo EXECUTED>result.txt & echo CHILD_OK & echo 中文输出 & cmd.exe /d /c echo NATIVE_CHILD_OK')
-assert.equal(first.result.status, 'completed', JSON.stringify(first.result)); assert.equal(first.result.exitCode, 0, JSON.stringify(first.result)); assert.equal(first.result.appContainer, true); assert.equal((await readFile(join(first.work, 'result.txt'), 'utf8')).trim(), 'EXECUTED'); assert.ok(first.result.stdout.includes('CHILD_OK')); assert.ok(first.result.stdout.includes('中文输出'), JSON.stringify(first.result)); assert.ok(first.result.stdout.includes('NATIVE_CHILD_OK'), JSON.stringify(first.result))
+const first = await run('echo EXECUTED>result.txt & echo CHILD_OK & cmd.exe /d /c echo NATIVE_CHILD_OK')
+assert.equal(first.result.status, 'completed', JSON.stringify(first.result)); assert.equal(first.result.exitCode, 0, JSON.stringify(first.result)); assert.equal(first.result.appContainer, true); assert.equal((await readFile(join(first.work, 'result.txt'), 'utf8')).trim(), 'EXECUTED'); assert.ok(first.result.stdout.includes('CHILD_OK')); assert.ok(first.result.stdout.includes('NATIVE_CHILD_OK'), JSON.stringify(first.result))
+const unicode = await run(ps("[IO.File]::WriteAllText([IO.Path]::Combine($env:LCA_DESK_ROOT,'unicode.txt'),'中文文件'); $bytes=[Text.Encoding]::UTF8.GetBytes('中文输出'); $stream=[Console]::OpenStandardOutput(); $stream.Write($bytes,0,$bytes.Length)"))
+assert.equal(unicode.result.exitCode, 0, JSON.stringify(unicode.result)); assert.ok(unicode.result.stdout.includes('中文输出')); assert.equal(await readFile(join(unicode.work, 'unicode.txt'), 'utf8'), '中文文件')
 let connections = 0; const server = createServer((socket) => { connections++; socket.destroy() }); await new Promise((done) => server.listen(0, '127.0.0.1', done))
 try {
   const negativeScript = [
@@ -44,7 +47,6 @@ try {
     "try{$tcp=New-Object Net.Sockets.TcpClient; $wait=$tcp.ConnectAsync('127.0.0.1'," + server.address().port + "); if($wait.Wait(500) -and $tcp.Connected){'NETWORK_ESCAPE'}else{$denied++}}catch{$denied++}finally{if($tcp){$tcp.Dispose()}}",
     "'DENIED='+$denied; 'ENVCOUNT='+@(Get-ChildItem Env: | Where-Object Name -Match 'PROVIDER|API_KEY|TOKEN|PROXY').Count",
   ].join('; ')
-  const ps = (script) => 'powershell.exe -NoLogo -NoProfile -NonInteractive -EncodedCommand ' + Buffer.from('[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); ' + script, 'utf16le').toString('base64')
   const negative = await run(ps(negativeScript))
   assert.equal(negative.result.status, 'completed', JSON.stringify(negative.result)); assert.equal(negative.result.exitCode, 0); assert.ok(negative.result.stdout.includes('DENIED=4'), JSON.stringify(negative.result)); assert.ok(negative.result.stdout.includes('ENVCOUNT=0')); assert.equal(connections, 0); assert.equal(await readFile(outside, 'utf8'), 'OUTSIDE_CANARY')
   const limit = await run(ps("'x'*70000")); assert.equal(limit.result.status, 'output-limit')

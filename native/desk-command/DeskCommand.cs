@@ -51,11 +51,13 @@ internal static class DeskCommand {
     [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr CreateFile(string path,uint access,uint share,ref SA attributes,uint disposition,uint flags,IntPtr template);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
     [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr memory);
+    [DllImport("kernel32.dll")] static extern uint GetOEMCP();
 
     static void Need(bool condition) { if (!condition) throw new InvalidOperationException("win32-" + Marshal.GetLastWin32Error()); }
     static IntPtr Value<T>(T value) where T:struct { IntPtr p=Marshal.AllocHGlobal(Marshal.SizeOf(typeof(T))); Marshal.StructureToPtr(value,p,false); return p; }
     static void Free(ref IntPtr p) { if(p!=IntPtr.Zero){Marshal.FreeHGlobal(p);p=IntPtr.Zero;} }
     static void Close(ref IntPtr p) { if(p!=IntPtr.Zero && p!=new IntPtr(-1))CloseHandle(p);p=IntPtr.Zero; }
+    static string DecodeOutput(byte[] bytes) { try{return new UTF8Encoding(false,true).GetString(bytes);}catch(DecoderFallbackException){return Encoding.GetEncoding((int)GetOEMCP()).GetString(bytes);} }
     static void LowLabel(string path) {
         IntPtr descriptor=IntPtr.Zero; uint size; bool present,def; IntPtr sacl;
         try { stage="label-descriptor"; Need(ConvertStringSecurityDescriptorToSecurityDescriptor("S:(ML;OICI;NW;;;LW)",1,out descriptor,out size)); stage="label-sacl"; Need(GetSecurityDescriptorSacl(descriptor,out present,out sacl,out def) && present); stage="label-apply"; uint code=SetNamedSecurityInfo(path,1,0x10,IntPtr.Zero,IntPtr.Zero,IntPtr.Zero,sacl);if(code!=0)throw new InvalidOperationException("win32-"+code.ToString()); }
@@ -87,7 +89,7 @@ internal static class DeskCommand {
             Console.WriteLine(serializer.Serialize(Run(root,command,timeout))); return 0;
         } catch(Exception error) {
             // No exception text, paths, command, environment or Win32 messages leave the trusted helper.
-            string code=error is InvalidOperationException && error.Message.StartsWith("win32-",StringComparison.Ordinal) ? error.Message : "sandbox-unavailable";
+            string code=error is InvalidOperationException && error.Message.StartsWith("win32-",StringComparison.Ordinal) ? error.Message : "hresult-"+error.HResult.ToString();
             Console.WriteLine(serializer.Serialize(new { status="unavailable", stage=stage, error=code })); return 1;
         }
     }
@@ -98,7 +100,7 @@ internal static class DeskCommand {
         try {
             stage="profile"; int hr=CreateAppContainerProfile(name,name,"Disposable desk command",IntPtr.Zero,0,out sid); if(hr!=0)throw new InvalidOperationException("win32-"+hr.ToString());
             Console.WriteLine(new JavaScriptSerializer().Serialize(new {kind="profile",name=name})); Console.Out.Flush();
-            stage="acl"; Grant(root,new SecurityIdentifier(sid)); string temp=Path.Combine(root,".lca-runtime"); Directory.CreateDirectory(temp);
+            stage="acl"; Grant(root,new SecurityIdentifier(sid)); stage="runtime-directory"; string temp=Path.Combine(root,".lca-runtime"); Directory.CreateDirectory(temp);
             stage="job";
             job=CreateJobObject(IntPtr.Zero,null); Need(job!=IntPtr.Zero);
             Limits limits=new Limits(); limits.basic.flags=0x2000|0x8|0x200; limits.basic.active=8; limits.jobMemory=new UIntPtr(512UL*1024*1024);
@@ -113,9 +115,9 @@ internal static class DeskCommand {
             Need(UpdateProcThreadAttribute(attributes,0,new IntPtr(0x20002),handles,new IntPtr(IntPtr.Size*3),IntPtr.Zero,IntPtr.Zero));
             string windows=Environment.GetFolderPath(Environment.SpecialFolder.Windows); string powershell=Path.Combine(windows,"System32","WindowsPowerShell","v1.0","powershell.exe");
             var env=new SortedDictionary<string,string>(StringComparer.OrdinalIgnoreCase) { {"SystemRoot",windows},{"WINDIR",windows},{"SystemDrive",Path.GetPathRoot(windows).TrimEnd('\\')},{"TEMP",temp},{"TMP",temp},{"USERPROFILE",temp},{"LOCALAPPDATA",temp},{"APPDATA",temp},{"PATH",Path.Combine(windows,"System32")+";"+Path.GetDirectoryName(powershell)},{"PSModulePath",Path.Combine(windows,"System32","WindowsPowerShell","v1.0","Modules")},{"COMSPEC",Path.Combine(windows,"System32","cmd.exe")} };
-            var block=new StringBuilder(); foreach(var pair in env)block.Append(pair.Key).Append('=').Append(pair.Value).Append('\0'); block.Append('\0'); environment=Marshal.StringToHGlobalUni(block.ToString());
+            env.Add("LCA_DESK_ROOT",root); var block=new StringBuilder(); foreach(var pair in env)block.Append(pair.Key).Append('=').Append(pair.Value).Append('\0'); block.Append('\0'); environment=Marshal.StringToHGlobalUni(block.ToString());
             string shell=Path.Combine(windows,"System32","cmd.exe"); SX startup=new SX(); startup.si.cb=Marshal.SizeOf(typeof(SX)); startup.si.flags=0x101; startup.si.stdin=nul; startup.si.stdout=outWrite; startup.si.stderr=errWrite; startup.attributes=attributes;
-            stage="launch"; Need(CreateProcess(shell,new StringBuilder("\""+shell+"\" /d /q /s /c \"chcp 65001>nul & "+command+"\""),IntPtr.Zero,IntPtr.Zero,true,0x80000|0x400|4|0x8000000,environment,root,ref startup,out process));
+            stage="launch"; Need(CreateProcess(shell,new StringBuilder("\""+shell+"\" /d /q /s /c \""+command+"\""),IntPtr.Zero,IntPtr.Zero,true,0x80000|0x400|4|0x8000000,environment,root,ref startup,out process));
             // No untrusted instruction runs before the process is in the kill-on-close job and its token is checked.
             stage="token"; Need(AssignProcessToJobObject(job,process.process)); IntPtr token=IntPtr.Zero,info=Marshal.AllocHGlobal(4); int needed;
             try{Need(OpenProcessToken(process.process,8,out token)); Need(GetTokenInformation(token,29,info,4,out needed)); Need(Marshal.ReadInt32(info)!=0);}finally{Marshal.FreeHGlobal(info);Close(ref token);}
@@ -127,7 +129,7 @@ internal static class DeskCommand {
             while(WaitForSingleObject(process.process,50)==258){if(stop.WaitOne(0)){status=overflow?"output-limit":"cancelled";break;}if(watch.ElapsedMilliseconds>=timeout){status="timeout";break;}}
             uint exitCode; Need(GetExitCodeProcess(process.process,out exitCode)); TerminateJobObject(job,1); WaitForSingleObject(process.process,2000);
             Need(outThread.Join(2000) && errThread.Join(2000)); if(overflow)status="output-limit";
-            return new {status=status,exitCode=status=="completed"?(int?)exitCode:null,stdout=Encoding.UTF8.GetString(stdout.ToArray()),stderr=Encoding.UTF8.GetString(stderr.ToArray()),appContainer=true,networkCapabilities=0,processTreeTerminated=true,elapsedMs=watch.ElapsedMilliseconds};
+            return new {status=status,exitCode=status=="completed"?(int?)exitCode:null,stdout=DecodeOutput(stdout.ToArray()),stderr=DecodeOutput(stderr.ToArray()),appContainer=true,networkCapabilities=0,processTreeTerminated=true,elapsedMs=watch.ElapsedMilliseconds};
         } finally {
             if(job!=IntPtr.Zero)TerminateJobObject(job,1);if(process.process!=IntPtr.Zero){TerminateProcess(process.process,1);WaitForSingleObject(process.process,2000);}Close(ref process.thread);Close(ref process.process);Close(ref job);
             Close(ref outRead);Close(ref outWrite);Close(ref errRead);Close(ref errWrite);Close(ref nul);
