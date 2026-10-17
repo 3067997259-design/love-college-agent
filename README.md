@@ -408,6 +408,7 @@ pnpm dev
 | `pnpm probe:harness` | 真实模型调用 get_clock 并结束回合，通过 |
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron：发送、工具往返、停止断连、重启恢复通过 |
 | `pnpm test:questions` | 有界 ask_user、书本回答、专注到休息、心流隔离、实际合成 HTTP、停止／重启／私人恢复 |
+| `pnpm probe:desk-command:runtime` | Windows 原生 AppContainer／Job 命令底座探针；尚未开放应用终端入口 |
 | `pnpm test:developer` | 隔离假模型、鉴权 MCP、时钟、目录插件确认、场景与展位拒绝通过 |
 | `pnpm test:pomodoro` | 计划、SQLite、重启、熄灯／中断，以及双窗口／点穿 API／展开销毁／展位不透明回退／合成黑底替换通过 |
 | `pnpm test:pomodoro:realtime` | 正常模式真实约 80 秒；60,000 ms 专注＋20,047 ms 休息通过 |
