@@ -43,7 +43,10 @@ if (literal.result.status === 'unavailable') {
 } else {
   assert.equal(literal.result.status, 'completed'); assert.equal(literal.result.exitCode, 0); assert.ok(literal.result.stdout.includes('中文输出')); assert.equal((await readFile(join(literal.work, 'unicode-literal.txt'), 'utf8')).trim(), '中文文件')
 }
-const unicode = await run(ps("[IO.File]::WriteAllText([IO.Path]::Combine($env:LCA_DESK_ROOT,'unicode.txt'),'中文文件'); $bytes=[Text.Encoding]::UTF8.GetBytes('中文输出'); $stream=[Console]::OpenStandardOutput(); $stream.Write($bytes,0,$bytes.Length)"))
+// First PowerShell/.NET start on a fresh hosted Windows worker can exceed 5s.
+// This positive encoding check uses the supported 30s request limit; the 1200ms
+// timeout and explicit cancellation cases below keep their original limits.
+const unicode = await run(ps("[IO.File]::WriteAllText([IO.Path]::Combine($env:LCA_DESK_ROOT,'unicode.txt'),'中文文件'); $bytes=[Text.Encoding]::UTF8.GetBytes('中文输出'); $stream=[Console]::OpenStandardOutput(); $stream.Write($bytes,0,$bytes.Length)"), 30000)
 assert.equal(unicode.result.exitCode, 0, JSON.stringify(unicode.result)); assert.ok(unicode.result.stdout.includes('中文输出')); assert.equal(await readFile(join(unicode.work, 'unicode.txt'), 'utf8'), '中文文件')
 const invalid = await run(ps('$stream=[Console]::OpenStandardOutput(); $stream.WriteByte(255)')); assert.equal(invalid.result.status, 'unavailable'); assert.equal(invalid.result.error, 'command-encoding-unsupported')
 let connections = 0; const server = createServer((socket) => { connections++; socket.destroy() }); await new Promise((done) => server.listen(0, '127.0.0.1', done))

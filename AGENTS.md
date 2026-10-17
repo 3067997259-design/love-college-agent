@@ -91,6 +91,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm probe:sqlite` | Electron 内加载原生模块、事务写入、关闭后重开 |
 | `pnpm probe:journal` | Electron 内验证日志重放、缓存重建、作用域和原文隔离 |
 | `pnpm probe:model` | 主进程 chat 槽位的有界极小流式请求，结果不含配置或回复正文 |
+| `pnpm probe:privacy` | 普通隔离 profile 的单份合成资料真实 privacy 探针；最多四次有界尝试，只输出闭集结果，不回退主模型 |
 | `pnpm probe:harness` | 真实 chat 模型调用代码时钟并结束回合的有界探针 |
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron 的发送／工具／停止／重启场景 |
 | `pnpm test:questions` | 真实 SQLite 延迟日切／作用域额度；有界 ask_user、书本回答、专注到休息、心流隔离、合成 HTTP、停止／重启／私人恢复 |
