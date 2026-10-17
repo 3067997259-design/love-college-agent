@@ -521,6 +521,8 @@ export interface HeartFlowView {
   commandExecution?: 'windows-appcontainer' | 'unavailable' | 'disabled'
   /** User-only command text and execution receipts. stdout/stderr never enter snapshots. */
   command?: DeskCommandView
+  /** Metadata only. Rewinds recorded desk files, never shell/network side effects or log history. */
+  rewind?: FlowRewindView
   /** Source and output text are user-only; models obtain approved work through desk tools. */
   pending?: { id: string; code: string }
   files: readonly { path: string; byteLength: number }[]
@@ -536,6 +538,18 @@ export interface HeartFlowView {
   operations?: readonly FlowOperationView[]
   computer?: DeskComputerView
   webFetch?: FlowFetchView
+}
+
+export interface FlowRewindView {
+  id: string
+  changeId: string
+  createdAtMs: number
+  status: 'awaiting-confirmation' | 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted'
+  paths: readonly string[]
+  changeCount: number
+  /** Confirmed per-file writes. Cross-file publication is not atomic. */
+  appliedFiles: number
+  error?: 'conflict' | 'write-failed' | 'unavailable'
 }
 
 export interface DeskCommandView {
