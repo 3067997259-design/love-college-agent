@@ -13,7 +13,7 @@ export const PUBLIC_ERROR_CODES = ['invalid-command', 'stale-epoch', 'unavailabl
   'configuration-failed', 'upstream-busy', 'quota-exhausted', 'stream-interrupted', 'invalid-model-output', 'step-limit', 'repeat-limit', 'budget-exceeded',
   'privacy-invalid-output', 'evidence-unavailable', 'stale-candidate', 'export-failed', 'source-blocked',
   'unsupported-file', 'file-too-large', 'file-unreadable', 'document-parse-failed', 'document-interrupted', 'memory-invalid-output', 'context-too-large',
-  'mcp-invalid-result', 'operation-cancelled', 'backup-invalid', 'backup-scope-mismatch', 'restore-failed', 'command-encoding-unsupported'] as const
+  'mcp-invalid-result', 'operation-cancelled', 'backup-invalid', 'backup-scope-mismatch', 'restore-failed', 'command-encoding-unsupported', 'content-filtered'] as const
 export type PublicErrorCode = typeof PUBLIC_ERROR_CODES[number]
 
 export interface PublicError {
@@ -116,6 +116,18 @@ export interface MessageView {
   createdAtMs: number
   status: 'streaming' | 'complete' | 'interrupted' | 'undelivered'
   emotion?: string
+  /** Code-owned failure narration. No exception body, provider config or model reasoning. */
+  failure?: ModelFailureView
+}
+export interface ModelFailureView {
+  turnId: string
+  code: PublicErrorCode
+  category: 'configuration' | 'network' | 'upstream' | 'quota' | 'budget' | 'content-filtered' | 'interrupted' | 'invalid-response' | 'execution-guard' | 'internal'
+  attemptCount: number
+  toolsExecuted: boolean
+  httpStatus?: number
+  /** Optional original request already visible to the book user. Resending requires user review. */
+  sourceMessageId?: string
 }
 export interface ActivityView {
   id: string
