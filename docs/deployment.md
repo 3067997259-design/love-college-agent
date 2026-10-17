@@ -27,7 +27,7 @@ pnpm dev
 
 构建 `pnpm package:win`，运行 `release/Love-College-Agent-0.1.0-Setup.exe`。安装不需要系统 Node 或 pnpm；当前 Windows x64、未签名、默认图标。应用数据不写在安装目录，卸载不自动删除用户数据。
 
-正常模式打开“工具与设置”的模型配置入口，选择本机 providers JSON。字段为 `providers.<槽位>.{base_url, api_key, model}`；可用槽位 `chat`、`background`、`chat_google`、`chat_claude`、`privacy`，其他槽位可保存但未必有功能消费者。配置只由主进程读取，保存到数据根 `connections/providers.json`；重启后应用。界面只显示配置状态和已装配槽位名，不显示值。保存成功不代表连接成功。
+正常模式打开“工具与设置”→“模型连接”，可直接在图形界面填写日常对话／记忆与日记／隐私滤芯的接口地址、模型和密钥，保存后可点“测试连接”，再重启应用生效。也可以选择本机 providers JSON 导入。字段为 `providers.<槽位>.{base_url, api_key, model}`；可用槽位 `chat`、`background`、`chat_google`、`chat_claude`、`privacy`，其他槽位可保存但未必有功能消费者。配置只由主进程读取，保存到数据根 `connections/providers.json`；重启后应用。界面不显示已保存的地址、模型或密钥值；测试成功只表示这次固定小请求连上了，不代表真实回答质量。保存成功不代表连接成功。
 
 聊天使用 chat；记忆／摘要使用 background；隔离邮件、资料与私有插件结果使用 privacy。缺少 privacy 或调用失败就停止相关隔离处理，不借用 chat。12:24 复核时 privacy 能装配，但一份合成资料的真实调用遇网络失败，学校端点身份与质量仍未确认，见 [连接复核](engineering/live-readiness.md)。顶层 mail 配置可保存，真实邮箱仍明确阻塞，不会因导入而开始扫描。
 
@@ -73,7 +73,8 @@ pnpm test:package
 CDP 仅开发模式：GPT 9527／其他 9427；鉴权 MCP：5275／5175。多实例用 `LCA_CDP_PORT`、`LCA_MCP_PORT` 分开。令牌留在开发 profile `debug-connection.json`，不打印或发给模型。安全诊断显示已采集的值，未采集的费用和缓存等显示未提供。
 ## 最新安装验收（2026-10-18 02:00）
 
-最新 NSIS 于 2026-10-18 03:20 基于源码 `ccab7cb`（#48 邮箱身份绑定 + 静默测试窗口）完成实际安装验收，发布到 GitHub Release `v0.1.4`（tag `v0.1.4`，下载 `https://github.com/3067997259-design/love-college-agent/releases/tag/v0.1.4`），**264,345,983 字节**；SHA-256 `773a918a3f089e99780332fa2cf1a0a8386180d7c3a03f9acc9803479d4daca3`，实际签名 NotSigned。解包版／安装版七类探针、普通界面重启、历史照片／引用／恢复及全部 **26 项安装版原生场景**均通过（报告 ok=true，静默模式）；模型／服务为合成，不是实机 MC 或真实 OCR／TTS 质量验收。另用真实 providers + 真实邮箱复测：真实未读邮件生成候选并导出 .ics/.md 交付，休息触发羽毛笔，安装版复扫 `source=real/ready`。该版在 #38–#47 基础上补 #48 与测试静默；构建回执 sourceRevision `ccab7cb…`，trackedDirty=false。详细记录见 [安装态记录](engineering/package-third-circle.md)、[Issue 记录](engineering/issues-20261018.md) 与[真实使用验证](engineering/live-use-20261017.md)。
+最新 NSIS 于 2026-10-18 04:10 基于源码 `f510a58`（#38–#51 修复 + 静默测试）完成实际安装验收，发布到 GitHub Release `v0.1.5`（下载 `https://github.com/3067997259-design/love-college-agent/releases/tag/v0.1.5`），**264,346,527 字节**；SHA-256 `453894834f9e3e7f83e8a23c16e5cddcb81a8850bd5b3654c9cbddd00ffa81b6`，实际签名 NotSigned。解包版／安装版七类探针、普通界面重启、历史照片／引用／恢复及全部 **26 项安装版原生场景**均通过（报告 ok=true，静默模式）；真实 providers + 真实邮箱复测候选/交付/羽毛笔通过。真实 04:00 跨日已验证旧页（两页、照片/消息/交付/羽毛笔）；跨日存档 `demo-mail-day2.lca-save` 仅本机保留（含个人邮件证据，未上传）。构建回执 sourceRevision `f510a58…`，trackedDirty=false。
 
 `pnpm package:win` 重建当前 worktree 的包；`pnpm test:package` 验证该包。不要从 main 目录拿旧 release 代替这次产物。显式 `LCA_DATA_DIR` 的实例把房间投影放进各自数据目录；正常安装、不设该变量时才放“文档/桃子的房间/<作用域摘要>-<数据根摘要>”，目录名含数据根身份，不同 profile 不共用房间。Python 只用于源码／CI 的 ZIP 独立验证，安装后的应用不需要 Python；没有下载 Playwright 浏览器。
+
 
