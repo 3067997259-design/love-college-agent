@@ -2,6 +2,7 @@
   "name": "love-college-agent",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Love, College & Agent — Windows desktop agent",
   "type": "module",
   "main": "out/main/index.cjs",
