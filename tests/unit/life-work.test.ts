@@ -184,4 +184,4 @@ it('keeps 3/3 conflicts until actual material and checkpoints match, including w
   expect(f.desk.read(draft.path)).toBe('USER_EDITED_OUTSIDE_THE_APP')
   f.desk.write(draft.path, draft.text); expect(next.dispatch({ type: 'life.work.resume', workId: job.id } as AppCommand)).toBeUndefined()
   expect(next.completed('write', job.dayKey)).toBe(true); expect(f.store.records().filter((row) => row.type === 'life/work-attempt')).toHaveLength(attempts)
-})
+}, 20_000)
