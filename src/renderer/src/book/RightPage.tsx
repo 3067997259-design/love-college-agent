@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanView, QuillView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
 import { CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
@@ -12,8 +12,8 @@ import { useCountdown } from './useCountdown'
 import { FileIntake } from '../tools/FileIntake'
 import { FlowApproval, FlowPanel } from './flow/FlowPanel'
 import { QuestionControls } from './QuestionControls'
-import { CommandControls } from './CommandControls'
-import { RewindControls } from './RewindControls'
+import { CommandDock, Notice } from './CommandControls'
+import { RewindDock } from './RewindControls'
 import { FailureDetails } from './FailureDetails'
 import failureWords from '../voice/failure.zh.json'
 import { quoteOnPage } from './history/quote'
@@ -151,14 +151,19 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
 
       <div className="stream" ref={streamRef}>
         <FlowPanel bridge={bridge} snapshot={snapshot} />
-        <QuestionControls snapshot={snapshot} bridge={bridge} />
-        <CommandControls snapshot={snapshot} bridge={bridge} />
-        <RewindControls snapshot={snapshot} bridge={bridge} />
         {items.map((item) => {
           switch (item.kind) {
             case 'message': {
-              const source = item.view.failure?.sourceMessageId ? messages.find((message) => message.role === 'user' && message.id === item.view.failure!.sourceMessageId) : undefined
-              return <Fragment key={item.id}><Message view={item.view} />{item.view.failure && <FailureDetails failure={item.view.failure} onDraft={source ? () => { void restoreRequest(source, item.view.failure!) } : undefined} />}</Fragment>
+              const failure = item.view.failure
+              if (!failure) return <Message key={item.id} view={item.view} />
+              // 失败旁白：书的旁白，不是她说的话；和原因、带回原请求放在一块
+              const source = failure.sourceMessageId ? messages.find((message) => message.role === 'user' && message.id === failure.sourceMessageId) : undefined
+              return (
+                <div key={item.id} className="narration">
+                  <Message view={item.view} />
+                  <FailureDetails failure={failure} onDraft={source ? () => { void restoreRequest(source, failure) } : undefined} />
+                </div>
+              )
             }
             case 'task': return task && <TaskCard key={item.id} task={task} activities={activities} />
             case 'candidate': return (
@@ -192,11 +197,18 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
         )}
       </div>
 
-      <FlowApproval snapshot={snapshot} bridge={bridge} />
+      {/* 停在输入框上面：她的提问、要你确认的回退和命令、要你批准的代码；你的话没送达也在这里说明 */}
+      <div className="dock">
+        <QuestionControls snapshot={snapshot} bridge={bridge} />
+        <RewindDock snapshot={snapshot} bridge={bridge} />
+        <CommandDock snapshot={snapshot} bridge={bridge} />
+        <FlowApproval snapshot={snapshot} bridge={bridge} />
+        {commandError && <Notice>{commandError}</Notice>}
+      </div>
       <FileIntake snapshot={snapshot} bridge={bridge} />
       <footer className="composer">
         {quote && <QuoteChip quote={quote} onClear={() => onClearQuote?.()} />}
-        {commandError && <span role="alert" className="notice-mark" title={commandError} aria-label={commandError}>！</span>}
+        {commandError && <span className="notice-mark" title={commandError} aria-hidden>！</span>}
         {privacy.fileFilteringEnabled && <span className="filter-mark" title="/privacy 开着：附件和拖进来的文件只交给隐私模型">滤芯</span>}
         <textarea
           ref={inputRef}
@@ -218,6 +230,7 @@ function Message({ view }: { view: MessageView }) {
   return (
     <p className={`msg msg-${view.role}`} data-status={view.status}>
       {view.role === 'assistant' && <span className="msg-who" aria-label="桃子" />}
+      {view.role === 'narrator' && <span className="narrator-tag">{failureWords.label}</span>}
       <span className="msg-text">{view.text}</span>
       {view.status === 'streaming' && <span className="speech-caret" />}
       {(view.status === 'interrupted' || view.status === 'undelivered') && (

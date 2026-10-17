@@ -5,6 +5,8 @@ import rewindWords from '../../voice/rewind.zh.json'
 import { ComputerControls } from '../../tools/ComputerControls'
 import { WebFetchControls } from '../../tools/WebFetchControls'
 import { sendCommand, type CommandBody } from '../command'
+import { CommandReceipt } from '../CommandControls'
+import { RewindResult } from '../RewindControls'
 import { fill } from '../life/text'
 import './flow.css'
 
@@ -63,8 +65,10 @@ export function FlowPanel({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
               </li>
             ))}
           </ul>
+          <RewindResult snapshot={snapshot} />
         </div>
       )}
+      <CommandReceipt snapshot={snapshot} bridge={bridge} />
 
       {delegates.length > 0 && <Delegates jobs={delegates} onCancel={(id) => send({ type: 'flow.delegate.cancel', delegateId: id })} />}
       <Drafts flow={flow} busy={snapshot.task?.status === 'running'} send={send} />

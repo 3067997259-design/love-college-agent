@@ -1,4 +1,5 @@
 {
+  "title": "工具与设置",
   "groups": { "campus": "邮箱与资料", "book": "书本与角色", "connections": "工具连接与提醒", "voice": "语音与运行资源", "life": "她的生活与书桌", "memory": "记忆与历史", "experimental": "光学记忆实验", "extensions": "本地扩展", "advanced": "高级与开发", "pomodoro": "专注节奏" },
   "pomodoro": { "title": "番茄钟", "count": "计划个数", "demo": "演示节奏：专注 1 分钟，休息 20 秒", "demoLabel": "演示计划", "label": "专注计划", "demoTime": "演示时长", "realTime": "实际时长", "proposal": "生成待确认计划", "confirm": "确认计划", "discard": "丢弃草案", "start": "开始下一段专注", "pause": "暂停计时", "resume": "继续计时", "stop": "结束计划", "pending": "待确认", "dayCount": "今日共 {count} 个", "seconds": "秒", "progress": "阶段进度", "phase": { "idle": "等待开始", "focus": "专注", "short-break": "短休息", "long-break": "长休息" } },
   "source": { "fake": "当前含合成服务或演示数据，结果不能当作真实来源的验收。", "booth": "展位模式" },

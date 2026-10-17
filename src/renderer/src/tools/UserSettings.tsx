@@ -30,9 +30,15 @@ export function UserSettings({ bridge, snapshot, onClose }: { bridge: AppBridge;
   const send = async (body: CommandBody) => { try { const ack = await bridge.dispatch({ ...body, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() } as AppCommand); setError(ack.status === 'rejected' ? ack.error.code : '') } catch { setError('connection-failed') } }
   const synthetic = snapshot.capabilities.some((capability) => capability.source === 'fake') || snapshot.voice?.source === 'fake' || snapshot.mailbox?.source === 'fake'
   return <>
-    <button type="button" onClick={onClose}>{words.close}</button>
-    {snapshot.windows && <button type="button" onClick={() => void send({ type: 'window.mini' })}>{words.mini}</button>}
-    {booth && <p>{words.source.booth}</p>}{synthetic && <p data-synthetic-source>{words.source.fake}</p>}
+    {/* 标题栏固定在面板顶上：内容往下滚，关闭和收起一直够得着 */}
+    <header className="settings-head">
+      <span className="settings-title">{words.title}</span>
+      <span className="settings-head-actions">
+        {snapshot.windows && <button type="button" onClick={() => void send({ type: 'window.mini' })}>{words.mini}</button>}
+        <button type="button" onClick={onClose}>{words.close}</button>
+      </span>
+    </header>
+    {booth && <p className="settings-source">{words.source.booth}</p>}{synthetic && <p className="settings-source" data-synthetic-source>{words.source.fake}</p>}
     <ModelControls {...props} />
     <Group name={words.groups.campus}><MailboxControls {...props} /><DocumentControls {...props} /></Group>
     <Group name={words.groups.pomodoro}><PomodoroSettings {...props} /></Group>

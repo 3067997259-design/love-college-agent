@@ -67,6 +67,21 @@
 
 验证：类型／lint、69 文件 494 单测（`wash-math` 新增过渡种类和铅笔影子曲线）；`pnpm build` 后 `smoke-electron`（字体／CSP／控制台）、`smoke-sleep`、`smoke-history` 原生通过；浏览器预览逐帧连拍检查了出门、回来、入睡、拉灯、唤醒。
 
+## 新增工作界面的统一（第三圈收尾第 2 包，10-17 下午）
+
+GPT 线做通的命令审批与输出、步骤回退、她的提问、失败旁白和分组设置，统一到书页上。接口、命令、权限和测试钩子（`data-desk-command`、`data-question`、`data-answer-length`、`data-failure-turn`、按钮名）都没变。
+
+- **停靠区**（`RightPage.tsx` 的 `.dock`）：需要你决定或正在进行的东西停在输入框上面，排在发起它的那句话之后，而不是对话流最上面：她的提问、回退确认、命令批准／准备／运行、原来的代码审批，以及“你的话没送达”的说明（可见的一行，输入框旁的“！”只作标记）。内容多时停靠区自己滚，不把输入框挤出去。
+- **命令**（`CommandControls.tsx`）：批准卡写“她想在书桌副本上运行一条命令”，命令原文限三行可滚，能解码的脚本默认展开，范围和证据做成小签（书桌副本／无网络／最长 N 秒／N 份文字文件／输入指纹前 8 位）。结束后回执收进工作台：退出码、用时、改动份数、是否结束进程树；写回结果不确定或中断时用“！”明说，已核实的份数只是下限。
+- **回退**（`RewindControls.tsx`）：确认卡先写“会回退这 N 份文件（涉及 M 条书桌改动）”和文件清单、不撤回什么，再给确认按钮；进行中显示逐份核实进度；结束后一行结果写在“书桌上改过的文件”下面。
+- **提问**（`QuestionControls.tsx`）：桃色纸，问题用她的墨色；选项是可选中的小签，回答框和主输入框同样式（回车发送）；字数计数、超长提示保留；专注时排队只留一行小字。
+- **失败旁白**（`FailureDetails.tsx`）：旁白和原因、“带回原请求，检查后发送”放在一块，带“旁白”小签，印刷体藏青色，既不是她的墨色也不是你的铅笔色；调用过工具的提醒用“！”。
+- **操作反馈**（`useAct.ts`）：按下后到主进程回话、再到下一张快照之间按钮停住并写“正在交给书桌……”，避免空档重复点；被拒绝就在卡片原处说明。
+- **分组设置**（`tools/tools.css`、`UserSettings.tsx`）：仍是朴素面板，但和书同一套字体、纸色和按钮；标题栏固定在顶上，分组有折叠箭头，错误用“！”＋一句说明，闭集代码收在“查看原因”里。
+- 文案新增在 `voice/commands.zh.json`、`rewind.zh.json`、`questions.zh.json`、`settings.zh.json`（标题）；`failure.css` 并入 `work.css`。预览新增 `flow-command`、`flow-command-done`、`flow-rewind`、`ask-question`、`model-failure` 场景，假桥能走通批准→运行→回执、确认回退、回答。
+
+验证：类型／lint、494 单测；`pnpm build` 后 `smoke-electron`、`smoke-desk-command`、`smoke-flow-rewind`、`smoke-failure-narrator`、`smoke-settings`、问答探针与 `smoke-questions` 原生通过；浏览器预览逐状态截图，设置面板在真实 Electron（正常模式、新数据目录）逐组截图。
+
 ## 没做和边界
 
 - 礼物架的 3D 只在真实快照有 `assetUrl` 时出现；预览没有 GLB，实际 3D 展台要靠 `test:gifts` 那条合成生成链或真机看。
