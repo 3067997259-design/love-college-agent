@@ -8,7 +8,7 @@ import ts from 'typescript'
 import JSZip from 'jszip'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettingsGroup } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const stdioMode = process.argv.find((arg) => arg.startsWith('--stdio='))?.slice(8)
@@ -90,9 +90,11 @@ try {
   await waitFor((s) => s.task?.status === 'completed', 'ORDINARY_PRECONDITION_FAILED')
   await instance.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false }) })
   await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettingsGroup(page, '工具连接与提醒')
   await page.locator('.mcp-server[data-id="synthetic-game"]').getByRole('button', { name: '连接', exact: true }).click()
   await page.getByRole('alertdialog', { name: 'MCP 连接确认' }).getByRole('button', { name: '确认此配置并连接', exact: true }).click()
   await waitFor((s) => s.mcp.servers.find((item) => item.id === 'synthetic-game')?.status === 'ready', 'MCP_CONNECT_FAILED')
+  await openSettingsGroup(page, 'Minecraft')
   const controls = page.getByRole('region', { name: 'Minecraft 展位控制', exact: true })
   await controls.getByRole('button', { name: '核对游戏玩家', exact: true }).click(); await waitFor((s) => s.minecraft.status === 'ready', 'GAME_CHECK_FAILED')
   assert.ok((await snapshot()).minecraft.features.includes('screenshot'))
