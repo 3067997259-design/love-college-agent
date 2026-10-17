@@ -65,7 +65,7 @@
 - `probe:deeptech-audit` 实测 26/27（一条断言是修复前快照），约 0.3 h 更新。
 - 文档口径：`deployment.md` 包 SHA、`architecture.md` 部分过时、完整性复核行、README changelog；约 1 h。
 - 工作树有其他人的未提交文件（`README.md`、`art/gen-log.jsonl`、`film/`、`promo/`、`art/retouch` 等）；**打包必须用干净 worktree**，提交时只 add 自己的路径。
-- 无 LICENSE/NOTICE 主文件（第三方清单在说明文档草稿）；安装包未签名、无 GitHub Release。
+- 仓库已有 MIT `LICENSE` 与 `package.json` license 字段（2026-10-17 晚另一条线补入）；安装包未签名、无 GitHub Release。
 
 ## 6. 外部阻塞（不是代码）
 
