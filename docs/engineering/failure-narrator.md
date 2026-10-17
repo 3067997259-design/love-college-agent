@@ -13,3 +13,5 @@
 类型／lint、69 文件／485 项全量 Vitest 通过，随后新增语音端口隔离用例也通过（旁白文件共 17 项）：错误和半截回复不合成语音，对照的成功回复实际进 fake PCM 端口。原有 harness、问答含 SQLite 日切、光学及字体／CSP／控制台原生整链通过。新安装包与最终连续流程仍待收录。
 
 main 8a95801 的 [Windows CI 39000167291](https://github.com/3067997259-design/love-college-agent/actions/runs/39000167291) 已通过类型／lint、69 文件／486 单测及原生完整命令链；这包含追加语音隔离项。后续新的七阶段源码连续链亦已通过，见 showcase-third-circle.md，安装版仍另验。
+
+旧格式兼容补充（d2f7267）：缺 sourceRecallAnchor 的已保存失败，在当前快照及用户旧页读取时沿此前的 sourceMessageId／requestId／history recall 事件补齐投影，不重写日志。真实重开、恢复问题和引用卡、新 request 扩读与私人存档恢复均过原生合成场景，已收录 3edea7c 安装版。

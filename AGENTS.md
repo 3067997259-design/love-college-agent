@@ -258,7 +258,7 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 - 只有在用户要求时才更新跨项目的全局记忆；本工程文档不等于全局记忆。
 # 已实现的心流命令
 
-`pnpm package:win` 生成带 Git／安装器／asar 哈希回执的 Windows 包；`pnpm test:package` 对实际安装 EXE 追加 25 项原生场景（含同档连续流程及普通模式生产端口，合成服务），不把源码 Electron 验收充当安装态。每轮先清除旧成功报告，失败记录本轮回执和已过场景。已有用户安装时拒绝升级／卸载；缓存与独立测试安装目录均在 D 盘。结果见 [安装态记录](docs/engineering/package-third-circle.md)。
+`pnpm package:win` 生成带 Git／安装器／asar 哈希回执的 Windows 包；`pnpm test:package` 对实际安装 EXE 追加 26 项原生场景（含同档连续流程、普通模式生产端口及隐私探针隔离，合成服务），不把源码 Electron 验收充当安装态。每轮先清除旧成功报告，失败记录本轮回执和已过场景。已有用户安装时拒绝升级／卸载；缓存与独立测试安装目录均在 D 盘。结果见 [安装态记录](docs/engineering/package-third-circle.md)。
 
 `pnpm test:showcase` 跑同一 profile 的“邮件证据→确认→文件交付→/privacy 资料→番茄小窗→实际读写作品→心流→照片→跨日回忆→重启／私人恢复”。全部合成服务／加速时钟，不是长期运行、真实隐私质量或外部平台写入的验收。详见 [连续流程](docs/engineering/showcase-third-circle.md)。
 
