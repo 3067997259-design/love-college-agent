@@ -417,7 +417,7 @@ void app.whenReady().then(async () => {
     controller.attachLifeWork(lifeWork)
     life = createLife({ store, clock, scheduler, work: lifeWork, restored: restoreReceipt?.status === 'restored', working: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('mode'), emit: (id, facts) => { harness?.postEvent('autonomous', facts, id) } })
     controller.attachLife(life)
-    sleep = createSleep({ store, canSleep: () => !harness?.isBusy() && !heartFlow?.active() && !lifeWork?.active() && !minecraft?.active() && store!.projection().pomodoro.status !== 'running' && life?.view().locationId === 'room' && controller?.getSnapshot().onboarding?.status === 'completed',
+    sleep = createSleep({ store, canSleep: () => !harness?.isBusy() && !heartFlow?.occupied() && !lifeWork?.active() && !minecraft?.active() && store!.projection().pomodoro.status !== 'running' && life?.view().locationId === 'room' && controller?.getSnapshot().onboarding?.status === 'completed',
       changed: () => { voice?.interrupt(); lifeWork?.foreground(); controller?.refresh('mode') } })
     controller.attachSleep(sleep)
     diary = createDiary({ clock, scheduler, store, assets: binaryAssets, model: prepared.developer ? { source: 'fake', write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary, busy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })

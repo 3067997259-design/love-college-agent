@@ -254,6 +254,8 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 
 `pnpm test:sleep` 验证独立于熄灯的睡眠、夜灯／熄灯睡姿、忙时拒绝、安全翻页、用户唤醒、零离线生产和私人恢复。睡眠在主进程决定，渲染层不能从天色或 lightsOut 推导；模型和时间为合成，不当长期验收。
 
+`pnpm test:flow-sleep` 验证普通 Electron 的慢自动压缩与入睡交接：准备期间明确拒绝入睡，退出后入睡及重启一致；仅隔离合成历史／本机 HTTP。准备请求和已打开的心流都计入入睡忙碌，取消后的旧请求不能覆盖后来的状态。
+
 输出语音：`pnpm test:voice` 验证 PCM／AudioContext、取消、书本白名单与不重播；默认静音，开发模式为合成测试音。真实 `providers.tts` 必须显式指定兼容协议、HTTPS 前缀、模型、音色和密钥，仍待真实服务验收；不把合成音当角色声音。见 [语音记录](docs/engineering/voice-third-circle.md)。
 
 `/init`／`/review` 只在 execute 心流生成用户专用草稿，最多 8 个来源／24 KB 输入；实际读写、来源版本和当前产物匹配后才 ready，不能解释成审查或测试通过。`pnpm test:flow-drafts` 验证原生落盘、预览、取消、重启、存档恢复及正文隔离；不会执行脚本或编辑源文件。

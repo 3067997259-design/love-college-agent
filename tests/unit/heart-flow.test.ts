@@ -14,17 +14,34 @@ import { createAppController } from '../../src/main/bridge/controller'
 import { createHarness } from '../../src/main/harness/loop'
 const cleanups: (() => void)[] = []
 afterEach(() => cleanups.splice(0).reverse().forEach((cleanup) => cleanup()))
-function fixture(booth = false) {
+function fixture(booth = false, prepare?: Parameters<typeof createHeartFlow>[0]['prepare']) {
   const root = mkdtempSync(join(tmpdir(), 'lca-flow-')); cleanups.push(() => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-flow-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })
   const clock = createManualClock(1000); const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
   const store: SessionStore = { scope: journal.scope, records: journal.records, append: journal.append, projection: () => projectJournal(journal.records()), close: journal.close }
   const desk = createDesk(join(root, 'desk')); const run = vi.fn(async () => '42'); const emit = vi.fn()
   const inspect = vi.fn()
-  const opts = { store, clock, desk, booth, inspect, busy: () => false, changed: () => {}, prepare: async () => ({ messages: [{ role: 'system' as const, content: 'frozen' }], eligibleIndexes: [] }), emit, run }
+  const opts = { store, clock, desk, booth, inspect, busy: () => false, changed: () => {}, prepare: prepare ?? (async () => ({ messages: [{ role: 'system' as const, content: 'frozen' }], eligibleIndexes: [] })), emit, run }
   const flow = createHeartFlow(opts); cleanups.push(store.close); cleanups.push(flow.close)
   const dispatch = (body: Record<string, unknown>) => flow.dispatch({ ...body, protocolVersion: 1, epoch: 'x', requestId: 'x' } as AppCommand)
   return { root, store, clock, desk, run, emit, inspect, flow, opts, dispatch }
 }
+it.each(['sleep', 'lights', 'disabled', 'close'] as const)('invalidates pending entry on %s even when preparation ignores abort', async (cause) => {
+  const attempts: { signal: AbortSignal; release(): void }[] = []
+  const f = fixture(false, async (_id, signal) => new Promise((done) => { attempts.push({ signal, release: () => done({ messages: [{ role: 'system', content: 'prepared' }], eligibleIndexes: [] }) }) }))
+  expect(f.dispatch({ type: 'flow.enter' })).toBeUndefined(); expect(f.flow.occupied()).toBe(true); expect(f.flow.active()).toBe(false)
+  if (cause === 'sleep') { f.store.append({ type: 'companion/sleep', sleeping: true, cause: 'user' }); f.flow.stateChanged(); f.store.append({ type: 'companion/sleep', sleeping: false, cause: 'interaction' }) }
+  if (cause === 'lights') { f.store.append({ type: 'companion/lights', lightsOut: true, requestId: 'dark', commandHash: 'h' }); f.flow.stateChanged(); f.store.append({ type: 'companion/lights', lightsOut: false, requestId: 'light', commandHash: 'h' }) }
+  if (cause === 'disabled') { f.flow.setEnabled(false); f.flow.setEnabled(true) }
+  if (cause === 'close') f.flow.close()
+  expect(attempts[0].signal.aborted).toBe(true); expect(f.flow.occupied()).toBe(false)
+  expect(f.dispatch({ type: 'flow.enter' })).toBeUndefined(); expect(attempts).toHaveLength(2)
+  const changed = vi.spyOn(f.opts, 'changed'); attempts[0].release()
+  // Wait for the old completion and its finally; it cannot release the newer owner.
+  await vi.waitFor(() => expect(changed).toHaveBeenCalled()); expect(f.flow.active()).toBe(false)
+  expect(f.flow.occupied()).toBe(true); expect(f.dispatch({ type: 'flow.enter' })).toBe('unavailable')
+  attempts[1].release(); await vi.waitFor(() => expect(f.flow.active()).toBe(true))
+  expect(f.store.records().filter((row) => row.type === 'flow/open')).toHaveLength(1)
+})
 it('restricts paths, hardlinks and exact file-version undo', async () => {
   const f = fixture(); f.dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(f.flow.active()).toBe(true))
   expect(() => f.flow.write('a.js', 'one')).toThrow(); f.dispatch({ type: 'flow.mode', mode: 'execute' })
