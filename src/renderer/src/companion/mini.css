@@ -96,9 +96,9 @@ html[data-view='mini'] body { background: transparent; overflow: hidden; }
   stroke-width: 1.4;
   stroke-linejoin: round;
   transform-origin: 50% 12%;
-  animation: bell-ring 0.9s var(--ease-in-out) 3;
   pointer-events: none;
 }
+.mini-bell[data-ring='true'] { animation: bell-ring 0.9s var(--ease-in-out) 3; }
 @keyframes bell-ring { 0%, 100% { rotate: 0deg; } 20% { rotate: 16deg; } 40% { rotate: -14deg; } 60% { rotate: 9deg; } 80% { rotate: -5deg; } }
 
 @media (prefers-reduced-motion: reduce) {

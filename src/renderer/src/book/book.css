@@ -461,7 +461,12 @@
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: anywhere;
 }
+/* 钟、门牌、信、拉线是房间里的东西：出现时淡进来（进书、开书、她回来时门牌重新挂上），不弹出来 */
+.room-ui { animation: room-ui-in 520ms var(--ease-out) both; }
+@keyframes room-ui-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .room-ui { animation: none; } }
 /* 她出门或睡着了：这句是之前说的，淡一点 */
 .speech { transition: opacity var(--dur-slow) var(--ease-out); }
 .speech[data-absent='true'] { opacity: 0.45; }
@@ -538,7 +543,7 @@
   scrollbar-color: color-mix(in oklab, var(--pencil) 60%, transparent) transparent;
 }
 
-.msg { margin: 0; max-width: 88%; font-size: var(--fs-md); line-height: var(--lh-body); }
+.msg { margin: 0; max-width: 88%; font-size: var(--fs-md); line-height: var(--lh-body); overflow-wrap: anywhere; }
 .msg-assistant { align-self: flex-start; color: var(--ink-her); }
 .msg-user { align-self: flex-end; text-align: right; color: var(--graphite); }
 .msg-narrator { align-self: center; font: var(--fs-sm) var(--font-hand); color: var(--graphite); }
@@ -604,7 +609,7 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .card-source { font-size: var(--fs-xs); color: var(--graphite); }
 .card-tag { font: 14px var(--font-hand); color: var(--ink-her); border: 1px solid var(--ink-her); border-radius: 999px; padding: 0 9px; }
-.card-title { margin: 6px 0 10px; font-size: 20px; font-weight: normal; color: var(--ink-her); line-height: 1.4; }
+.card-title { margin: 6px 0 10px; font-size: 20px; font-weight: normal; color: var(--ink-her); line-height: 1.4; overflow-wrap: anywhere; }
 .card-times { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; }
 .card-times dt { font-size: 14px; color: var(--graphite); }
 .card-times dd { margin: 0; font-size: 16px; color: var(--ink-her); font-variant-numeric: tabular-nums; }
@@ -694,7 +699,7 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 .delivery-icon[data-kind='document']::after { content: '文'; }
 .delivery-icon[data-kind='gift']::after { content: '礼'; }
 .delivery-body { flex: 1; display: grid; }
-.delivery-name { font-size: 17px; color: var(--ink-her); }
+.delivery-name { font-size: 17px; color: var(--ink-her); overflow-wrap: anywhere; }
 
 /* —— 按钮 —— */
 .btn {

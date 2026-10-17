@@ -112,10 +112,23 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
   ].sort((a, b) => a.at - b.at)
   const orphanActivities = activities.filter((a) => a.taskId !== task?.id)
 
+  // 只在你本来就看着最新一句时跟着滚；你往上翻旧消息时，她说话、来卡片都不把你拽回底部。翻回底部或你发消息时重新跟随。
+  // 只有你的操作（滚轮往上、上翻键、拖滚动条）会取消跟随：程序平滑滚动途中的 scroll 事件不算
+  const pinned = useRef(true)
+  const dragging = useRef(false)
+  const atBottom = (el: HTMLElement) => el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  const streamEvents = {
+    onScroll: () => { const el = streamRef.current; if (!el) return; if (dragging.current) pinned.current = atBottom(el); else if (atBottom(el)) pinned.current = true },
+    onWheel: (event: React.WheelEvent) => { if (event.deltaY < 0) pinned.current = false },
+    onKeyDown: (event: React.KeyboardEvent) => { if (event.key === 'PageUp' || event.key === 'ArrowUp' || event.key === 'Home') pinned.current = false },
+    onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => { if (event.nativeEvent.offsetX > event.currentTarget.clientWidth) dragging.current = true },
+    onPointerUp: () => { dragging.current = false },
+  }
+  const dockKey = [snapshot.question?.id, snapshot.question?.status, snapshot.heartFlow?.command?.status, snapshot.heartFlow?.rewind?.status, snapshot.heartFlow?.pending?.id].join(':')
   useEffect(() => {
     const el = streamRef.current
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-  }, [items.length, messages.at(-1)?.text, restoreReceipt?.status])
+    if (el && pinned.current) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+  }, [items.length, messages.at(-1)?.text, restoreReceipt?.status, dockKey])
 
   async function dispatch(body: CommandBody) {
     const result = await sendCommand(bridge, snapshot.epoch, body)
@@ -129,6 +142,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
     const text = draft.trim()
     if (!text || sending) return
     setSending(true)
+    pinned.current = true
     try {
       const body: CommandBody = quote ? { type: 'history.recall', anchor: quote.anchor, question: text } : { type: 'message.send', text }
       if (await dispatch(body)) {
@@ -149,7 +163,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
         <PlanHead snapshot={snapshot} onCommand={(body) => { void dispatch(body) }} />
       </header>
 
-      <div className="stream" ref={streamRef}>
+      <div className="stream" ref={streamRef} {...streamEvents}>
         <FlowPanel bridge={bridge} snapshot={snapshot} />
         {items.map((item) => {
           switch (item.kind) {
