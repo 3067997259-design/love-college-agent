@@ -6,6 +6,7 @@ import type { ToolContext, ToolResult, HarnessTool } from '../harness/tools'
 import type { JournalInput } from '../journal/schema'
 import { answerInput, questionInput } from './schema'
 import manifest from './tool.json'
+import { sessionDayKey } from '../journal/file'
 
 type Cause = Extract<JournalInput, { type: 'question/closed' }>['cause']
 type Reply = { id: string; turnId: string; callId: string; answerId: string; unlisten(): void }
@@ -64,8 +65,9 @@ export function createQuestions(options: { store: SessionStore; clock: Clock; fl
     if (!parsed.success || !callId || context.signal.aborted || pending || closed || !enabled || state.lightsOut || state.sleeping || state.task?.id !== context.turnId) return result({ status: 'unavailable' })
     const values = [parsed.data.question, ...(parsed.data.choices ?? [])]
     if (values.some((text) => options.safeText(text) !== text)) return result({ status: 'invalid-question' })
-    const day = (atMs: number) => clock.iso(atMs + 4 * 3600_000).slice(0, 10)
-    const requests = store.records().filter((row) => row.type === 'question/requested')
+    // A busy session may span 04:00 and rotate later. Count by event time across scoped pages.
+    const day = (atMs: number) => sessionDayKey(clock, atMs)
+    const requests = (store.history?.() ?? store.records()).filter((row) => row.type === 'question/requested')
     if (requests.filter((row) => day(row.atMs) === day(clock.nowMs())).length >= 12 || requests.filter((row) => row.type === 'question/requested' && row.turnId === context.turnId).length >= 3) return result({ status: 'question-limit' })
     const id = randomUUID(); const flowId = options.flowId()
     append({ type: 'question/requested', id, turnId: context.turnId, callId, question: parsed.data.question, choices: parsed.data.choices ?? [], ...(flowId ? { flowId } : {}) })
