@@ -94,7 +94,8 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm probe:harness` | 真实 chat 模型调用代码时钟并结束回合的有界探针 |
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron 的发送／工具／停止／重启场景 |
 | `pnpm test:questions` | 有界 ask_user、书本回答、专注到休息、心流隔离、实际合成 HTTP、停止／重启／私人恢复 |
-| `pnpm probe:desk-command:runtime` | Windows 原生 AppContainer／Job 命令底座探针；尚未开放应用终端入口 |
+| `pnpm probe:desk-command:runtime` | Windows 原生隔离／中文或明确拒绝／外部文件及网络拒绝／上限／取消／子进程退出；真实主进程协议 |
+| `pnpm test:desk-command` | Electron 逐次人工审批、实际 cmd 与受版本保护的写回、输出窗口、编码错误、取消／重启／私人恢复、展位拒绝 |
 | `pnpm test:developer` | 隔离假模型、MCP 鉴权／时钟、文件夹插件授权、场景与展位拒绝 |
 | `pnpm test:pomodoro` | Electron 计划／SQLite／计时；双窗口、点穿 API、展开销毁、展位强制回退、合成黑角替换、重启无残留 |
 | `pnpm test:pomodoro:realtime` | 正常模式真实计时约 80 秒，不用加速时钟 |

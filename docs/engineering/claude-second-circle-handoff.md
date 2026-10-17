@@ -65,3 +65,7 @@ MC 新接口 `37cb419`（state.ts／shared README）已先合；此批已接 inv
 09:29：Windows 实际命令的原生底座探针已过（AppContainer、Job Object、书桌外读写／ACL拒绝、零网络、本机监听器零连接、中文和原生子命令、上限／超时／取消、强杀 helper 清理子孙）。使用系统 cmd.exe，不新增 Bash 安装；PowerShell provider 下直接外部调用不可靠，已记录。**尚未接应用入口或共享接口**，UI 现有运行仍是 JavaScript。下一步接逐次审批、一次性工作副本／版本保护的写回和安装态，不据此报告 shell 已完成，见 desk-command-sandbox.md。
 
 09:34：实际命令接口 **2f96cc6** 先合 main（6a9448b）；见 shared/README 的实际命令段。commandExecution 独立旧 JS execution，flow.command.run／approve／cancel／open，snapshot 只有命令和输入指纹／进程及写回收据，不含 stdout/stderr。7 项副本单测、编译收据／UTF-8／信号取消的原生进程端口已通过，尚未开放应用审批／写回。CI 已修旧三故障测试合用 5 秒的超时问题，91a80e3／6a9448b 远端均已成功；与接口及产品断言失败无关。
+
+10:20：实际命令已接入心流。右页新增独立 CommandControls（未改你的 FlowPanel/CSS），逐条 cmd 审批、脚本解码预览、输入指纹及进程／写回收据，stdout/stderr 走用户专用窗口。接口仍 2f96cc6，失败码 **fd884da**；book-only，展位禁用，任何重启／恢复不重放旧批准。67 文件／454 单测和真实命令＋fake 模型的 Electron/SQLite、冲突／取消／输出预览／私人恢复均过。短缓存避免 .NET MAX_PATH；非法／不支持的编码明确失败，保留原中文回归。你可接 heartFlow.command，勿把旧 execution（JS）改当 cmd。新 UI 文案在 voice/commands.zh.json，角色声音未动。
+
+审计新开 #29～#33：先前 #1～#28 都已回复关闭；这批将逐项修复并回 issue。#31 原生编码修复已合，等远端链完整结果；#29 目标别名取消问答、#30 延迟翻页的日问答计数、#32 回答字数提示、#33 关闭印象后的选段入口随后修。不宣告第三圈完工，步骤回退／正常设置／失败旁白及最终安装态仍在原范围内。

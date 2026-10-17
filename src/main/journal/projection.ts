@@ -77,6 +77,12 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
       case 'question/requested': if (result.task?.id === record.turnId && result.task.status === 'running') result.task.status = 'waiting-user'; break
       case 'question/answered':
       case 'question/closed': if (result.task?.id === record.turnId && result.task.status === 'waiting-user') result.task.status = 'running'; break
+      case 'flow/command':
+        if (record.turnId && result.task?.id === record.turnId) {
+          if (record.status === 'awaiting-approval' && result.task.status === 'running') result.task.status = 'waiting-user'
+          else if (record.status !== 'preparing' && result.task.status === 'waiting-user') result.task.status = 'running'
+        }
+        break
       case 'turn/start': result.task = { id: record.turnId, status: 'running', steps: [] }; break
       case 'turn/cancelling': if (result.task?.id === record.turnId) result.task.status = 'cancelling'; break
       case 'turn/paused': if (result.task?.id === record.turnId) result.task.status = 'waiting-user'; break
