@@ -6,4 +6,6 @@
 
 这只是选定配置的装配状态，不是连接、真实隐私质量、音色、OCR 或双客户端游戏验收；`connectionOrQualityAccepted=false` 明确保留。真实质量缺口继续列在第三圈完整性复核。
 
+`pnpm probe:network` 只由主进程读已配置 privacy 的 origin，对 Node 和 Chromium 各做一次无凭据 HEAD，不读响应正文或调用模型，也不改网络设置。实际结果两者均未连通（Node 为 ECONNRESET），当前系统解析没有选中代理，不能认定换 Chromium 就能修好。两套网络栈及系统代理支持的区别见 [Electron 官方 net 文档](https://www.electronjs.org/docs/latest/api/net)。该诊断的地址、代理地址和配置值不返回脚本。
+
 12:24 增补：新增 pnpm probe:privacy，经普通隔离 profile 原生导入一份合成短文本并打开 /privacy。真实任务按现有客户端上限四次尝试，持久事件均为 privacy/network，最终 privacy-unavailable；未调用 chat/background、没有成品。首次探针的计数断言误按三次写，已更正为当前四次上限；随后仅 --inspect 只读重开同一合成 profile，确认新增请求为零、原文不在快照／日志、普通 model/seen 为空，并生成闭集失败报告。没有重试真实服务，也没有读 IMAP 或生成 Rodin。该命令会真实请求供应商；非只读配置检查，不宜反复运行。学校端点的身份／连接／质量仍未确认。
