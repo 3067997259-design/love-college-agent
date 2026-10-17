@@ -32,6 +32,8 @@
 
 09:47 CI 增补：Windows runner 的系统代码页不同，旧 helper 默认控制流解码及 `chcp 65001` 假设不成立，出现问号和 Access denied。已固定 helper stdin/stdout UTF-8，移除沙箱内改控制台代码页的要求，以显式 UTF-8 的子程序字节验证 Unicode；没有放开 AppContainer、UI Job 或文件权限。Windows 8.3 临时目录别名已在 949db62 修为规范路径锚定；普通文件／符号链接和硬链接守卫保留，新增大小写别名回归。
 
+09:58 CI 探针增补：文件／ACL 与网络负面探针拆开；ACL 直接构造 SecurityIdentifier 而非通过账户名做 LSA 翻译，并写下调用前标记，证明真正到达 SetAccessControl。环境检查直接调用 .NET，减少 PowerShell provider／模块初始化。网络探针也须有实际尝试标记，核对零 capability、监听器零连接及无逃逸输出；若网络栈被 OS 卡住，则接受监督器超时作为“未连接且已终止”的证据，不将它当作网络操作完成。
+
 ## API 来源
 
 参考的是机制和公开参数，无整段拷贝参考项目代码：[Microsoft 启动 AppContainer](https://learn.microsoft.com/en-us/windows/win32/secauthz/implementing-an-appcontainer)、[隔离资源边界](https://learn.microsoft.com/en-us/windows/win32/secauthz/appcontainer-isolation)、[进程属性 API](https://learn.microsoft.com/en-us/windows/desktop/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute)、[Job Object 生命周期](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects)。
