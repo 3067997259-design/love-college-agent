@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AppBridge, AppSnapshot, InteractionMode } from '../../../shared'
-import { resolveCharacterArt } from './characterArt'
+import { resolveCharacterArt, type CharacterArt } from './characterArt'
 import { resolveAwayArt } from './life/awayArt'
 import { AwayScene } from './life/AwayScene'
 import { MailMoment } from './life/MailMoment'
+import { CharacterPatches } from './deltas/CharacterPatches'
 import { uiSrc } from './Character'
 import { sendCommand, type CommandBody } from './command'
 import { formatClock, formatRemaining } from './format'
@@ -57,8 +58,9 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   const moved = useLiveFlip(snapshot.epoch, companion.locationId)
   const arriving = moved && !away
   const pose = away ? 'empty' : companion.pose
-  const art = intro ? (intro === 'done' ? GREET_ART : INTRO_ART) : resolveCharacterArt(companion)
-  const importedScene = packageScene(snapshot, art.key)
+  const art: CharacterArt = intro ? (intro === 'done' ? GREET_ART : INTRO_ART) : resolveCharacterArt(companion)
+  // 整帧变体（夜景/think）用基础名回退到自定义角色包，避免包没有对应差分时变成她的图
+  const importedScene = packageScene(snapshot, art.baseKey ?? art.key)
   // 外出：左页是她在外面（体验设计 §3），复用视频冻结包里的外景；自定义角色包没有对应外景，回退包内空房间
   const awayArt = !intro && away && !importedScene ? resolveAwayArt(companion) : null
   const mailReady = capabilities.find((c) => c.id === 'mail')?.status === 'ready'
@@ -96,6 +98,8 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
         data-location={intro ? 'room' : companion.locationId} data-pose={intro ? art.key.split('_')[0] : awayArt ? 'away' : pose} data-lighting={awayArt ? awayArt.lighting : art.lighting} data-away={awayArt ? companion.locationId : undefined} data-arriving={(!intro && arriving) || undefined}>
         {/* 精修整景：颜色聚在她周围，往外褪成从彩图实时提取的铅笔线（体验设计 §7.1，用户批准） */}
         {scene}
+        {/* 差分贴片（眨眼/抬头/嘴型）：只在白天 approved 底图上贴回面部小矩形；夜里整帧重光不适用 */}
+        {!intro && !awayArt && !importedScene && <CharacterPatches art={art} snapshot={snapshot} />}
         {intro ? furniture && (
           <svg className="furniture-hits" viewBox="0 0 1 1" preserveAspectRatio="none" aria-label="房间里的家具">
             {FURNITURE.map((item) => {

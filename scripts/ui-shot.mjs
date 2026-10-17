@@ -36,7 +36,8 @@ try {
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
     page.on('response', (r) => { if (r.status() >= 400) errors.push(`${r.status()} ${r.url()}`) })
     for (const id of scenarios) {
-      await page.goto(`${base}?scenario=${id}`)
+      // LCA_SHOT_QUERY 给截图预览加临时参数（如 &blink=1、&mouth=open、&look=1），生产窗口没有这些参数
+      await page.goto(`${base}?scenario=${id}${process.env.LCA_SHOT_QUERY ?? ''}`)
       await page.locator('.stage').waitFor()
       await page.evaluate(() => document.fonts.ready)
       await page.waitForTimeout(Number(process.env.LCA_SHOT_WAIT ?? 900)) // 等入场和时段过渡

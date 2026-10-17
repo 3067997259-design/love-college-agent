@@ -1,0 +1,22 @@
+{
+  "id": "empty__night",
+  "tool": "NovelAI image-to-image",
+  "model": "nai-diffusion-5-full",
+  "seed": 410011,
+  "source": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/empty.png",
+  "source_sha256": "0f6b11b5994482d7537a3c18f65acfa38744f31f38b5b9883a291e3c475278be",
+  "workingCrop": null,
+  "input": "D:\\love, college&agent\\art\\retouch\\2026-10-18-face-deltas\\empty__night-nai-input.png",
+  "input_sha256": "330d3478ef39e33b01c85d61ac2bb5e22b48603d728eec19ebd9d5c466f222e3",
+  "width": 1024,
+  "height": 1024,
+  "strength": 0.31,
+  "noise": 0.02,
+  "steps": 23,
+  "scale": 5,
+  "prompt": "anime illustration, delicate thin colored lineart, flat warm pastel colors, one soft lavender shadow tone, same young adult woman and exact same facial identity as input, same camera and pose, no style change, same empty room at night, lamp OFF, no human, cool deep blue window night, faint indirect moonlit ambient illumination, no warm lamp pool, clean restrained natural expression, preserve all non-target details",
+  "negative": "lowres, bad anatomy, bad hands, extra arms, extra hands, duplicated limbs, extra fingers, three hands, different person, different face, different hairstyle, different pose, mature face, child, chibi, huge eyes, blush, nose highlight, tears, grimace, photorealistic, 3d, thick black outlines, text, watermark, signature, harsh shadows, overexposure",
+  "output": "D:\\love, college&agent\\art\\retouch\\2026-10-18-face-deltas\\empty__night-nai-v1.png",
+  "sha256": "520bb7037714d724f386fd6156d1baf76aec68e3729205330f9d5cb1f4ab2ff5",
+  "seconds": 8.2
+}

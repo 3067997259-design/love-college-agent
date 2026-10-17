@@ -1,0 +1,92 @@
+{
+  "id": "facing-user_smile__blink",
+  "base": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/facing-user_smile.png",
+  "baseSha256": "b8e5df5f488c217c4b4ed889dd896b896135b5470d66c02602202c16a0888a24",
+  "seed": 410002,
+  "novelaiRecord": "facing-user_smile__blink-nai-record.json",
+  "imageGenRecord": "facing-user_smile__blink-gpt-record.json",
+  "raw": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_smile__blink-gpt-v1.png",
+  "rawSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_smile__blink.png",
+  "outputSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "outputSha256": "6f15ab4148f3109303d0de842c67f5fad3239a84d49075a9a80d4a1e2395e0e0",
+  "changedRegion": [
+    [
+      [
+        748,
+        445
+      ],
+      [
+        769,
+        432
+      ],
+      [
+        797,
+        433
+      ],
+      [
+        820,
+        444
+      ],
+      [
+        824,
+        467
+      ],
+      [
+        798,
+        481
+      ],
+      [
+        770,
+        476
+      ],
+      [
+        750,
+        465
+      ]
+    ],
+    [
+      [
+        851,
+        410
+      ],
+      [
+        875,
+        396
+      ],
+      [
+        907,
+        396
+      ],
+      [
+        926,
+        405
+      ],
+      [
+        924,
+        434
+      ],
+      [
+        902,
+        449
+      ],
+      [
+        873,
+        449
+      ],
+      [
+        851,
+        437
+      ]
+    ]
+  ],
+  "method": "Generated local face working area resized to ROI and composited ONLY inside explicit polygons; original base itself never resized or cropped in delivery",
+  "status": "awaiting-user-review",
+  "adopted": false
+}

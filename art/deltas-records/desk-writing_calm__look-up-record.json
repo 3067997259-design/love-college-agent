@@ -1,0 +1,88 @@
+{
+  "id": "desk-writing_calm__look-up",
+  "base": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/desk-writing_calm.png",
+  "baseSha256": "c981b9be4b1d5467d1395e5c2c063d03039f0428462c2fc2e440177d336279ae",
+  "seed": 410006,
+  "novelaiRecord": "desk-writing_calm__look-up-nai-record.json",
+  "imageGenRecord": "desk-writing_calm__look-up-gpt-record.json",
+  "raw": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/desk-writing_calm__look-up-gpt-v1.png",
+  "rawSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/desk-writing_calm__look-up.png",
+  "outputSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "outputSha256": "1588633172fa0e1b2409db73f6565689f35ced67be356fcff2980b2f11c1c664",
+  "changedRegion": [
+    [
+      [
+        729,
+        497
+      ],
+      [
+        744,
+        490
+      ],
+      [
+        760,
+        498
+      ],
+      [
+        774,
+        509
+      ],
+      [
+        764,
+        525
+      ],
+      [
+        744,
+        523
+      ],
+      [
+        731,
+        513
+      ]
+    ],
+    [
+      [
+        813,
+        475
+      ],
+      [
+        837,
+        464
+      ],
+      [
+        873,
+        465
+      ],
+      [
+        889,
+        475
+      ],
+      [
+        885,
+        497
+      ],
+      [
+        857,
+        508
+      ],
+      [
+        832,
+        502
+      ],
+      [
+        815,
+        490
+      ]
+    ]
+  ],
+  "method": "Generated local face working area resized to ROI and composited ONLY inside explicit polygons; original base itself never resized or cropped in delivery",
+  "status": "awaiting-user-review",
+  "adopted": false
+}

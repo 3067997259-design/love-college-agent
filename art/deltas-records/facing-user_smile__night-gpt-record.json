@@ -1,0 +1,15 @@
+{
+  "id": "facing-user_smile__night",
+  "tool": "built-in image_gen",
+  "modelVersion": "not-reported",
+  "seed": "not-reported",
+  "novelaiSeed": 410009,
+  "inputs": [
+    "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/facing-user_smile.png",
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_smile__night-nai-v1.png"
+  ],
+  "source": "C:\\Users\\86130\\.codex\\generated_images\\01a144b6-c596-7a11-af8f-f8d3bc92a478\\exec-b57d62e6-2143-431d-9e5b-69eb41c39d0d.png",
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_smile__night-gpt-v1.png",
+  "prompt": "Use case: lighting-weather. Image1 is the exact approved square 1254x1254 scene. Image2 is its preliminary NovelAI draft, not a face reference. Change ONLY the time-of-day lighting to NIGHT. Keep original approved face and small gentle closed-mouth SMILE from Image1, same eyes/irises and brows. Keep peach bob and navy ribbon, hands overlapped on desk, body, cardigan and white round collar, laptop, cup, books, small diary, plant, chair and all window/curtain geometry EXACTLY.\nDeep indigo-blue window sky (#202B50), soft dark blue cloud silhouettes in same arrangement, sparse faint stars, no daytime cream-white clouds or sunshine. EXISTING lamp at LEFT quietly ON. Warm cream-amber light under its existing shade illuminates nearby books, plant, cup and desk, gently falls on her image-left hair/face planes, sleeves and overlapping hands, fading with distance to cool lavender-blue shadows at chair/right curtain. Hair remains peach where illuminated, not grey or saturated orange. Soft restrained warm/cool contrast, gentle comfortable night; no new lamp, no overexposure, no hard spotlight or glow halo. Preserve original delicate colored lines, flat pastel anime style and simple lavender shading; do not make it painterly or alter any shape. Same camera and square framing, output 1254x1254 PNG.",
+  "status": "raw-candidate; final requires local compositing and review"
+}

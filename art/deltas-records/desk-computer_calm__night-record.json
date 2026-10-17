@@ -1,0 +1,23 @@
+{
+  "id": "desk-computer_calm__night",
+  "base": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/desk-computer_calm.png",
+  "baseSha256": "712abccbca0e41c33f6a122bb5ef1753097022d872079d735ab94655d5b3c290",
+  "seed": 410007,
+  "novelaiRecord": "desk-computer_calm__night-nai-record.json",
+  "imageGenRecord": "desk-computer_calm__night-gpt-record.json",
+  "raw": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/desk-computer_calm__night-gpt-v1.png",
+  "rawSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/desk-computer_calm__night.png",
+  "outputSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "outputSha256": "1a6bb5a076bd414443a001d42453cff1349ced4b0fcabd730884e03d6e6ae384",
+  "changedRegion": "whole-frame lighting only; structural review required",
+  "method": "Generated baked night relighting on original frame dimensions",
+  "status": "awaiting-user-review",
+  "adopted": false
+}

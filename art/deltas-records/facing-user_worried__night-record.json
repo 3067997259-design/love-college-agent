@@ -1,0 +1,23 @@
+{
+  "id": "facing-user_worried__night",
+  "base": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/facing-user_worried.png",
+  "baseSha256": "bf5d76e2c70d82fd15951e9552ffdd1018f765827c07a58f151d13e3f2636e15",
+  "seed": 410010,
+  "novelaiRecord": "facing-user_worried__night-nai-record.json",
+  "imageGenRecord": "facing-user_worried__night-gpt-record.json",
+  "raw": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_worried__night-gpt-v1.png",
+  "rawSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_worried__night.png",
+  "outputSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "outputSha256": "0af355e743f66b535e15a882ed6d1268f036b14a1d4d3eb824cfee6a249a2695",
+  "changedRegion": "whole-frame lighting only; structural review required",
+  "method": "Generated baked night relighting on original frame dimensions",
+  "status": "awaiting-user-review",
+  "adopted": false
+}

@@ -1,0 +1,50 @@
+{
+  "id": "facing-user_calm__mouth-half",
+  "base": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/facing-user_calm.png",
+  "baseSha256": "2bf35342cdb89202a0305ad27cf8d3d0e7f65937736de32bb8ce19288b21729a",
+  "seed": 410012,
+  "novelaiRecord": "facing-user_calm__mouth-half-nai-record.json",
+  "imageGenRecord": "facing-user_calm__mouth-half-gpt-record.json",
+  "raw": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__mouth-half-gpt-v1.png",
+  "rawSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__mouth-half.png",
+  "outputSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "outputSha256": "226570b2609f070164386767a12d2bd0b019b1c81af41ad8ad37b9c755e87203",
+  "changedRegion": [
+    [
+      [
+        836,
+        500
+      ],
+      [
+        878,
+        496
+      ],
+      [
+        888,
+        517
+      ],
+      [
+        882,
+        539
+      ],
+      [
+        849,
+        546
+      ],
+      [
+        832,
+        527
+      ]
+    ]
+  ],
+  "method": "Generated local face working area resized to ROI and composited ONLY inside explicit polygons; original base itself never resized or cropped in delivery",
+  "status": "awaiting-user-review",
+  "adopted": false
+}

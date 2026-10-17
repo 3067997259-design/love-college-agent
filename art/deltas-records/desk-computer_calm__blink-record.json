@@ -1,0 +1,92 @@
+{
+  "id": "desk-computer_calm__blink",
+  "base": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/desk-computer_calm.png",
+  "baseSha256": "712abccbca0e41c33f6a122bb5ef1753097022d872079d735ab94655d5b3c290",
+  "seed": 410005,
+  "novelaiRecord": "desk-computer_calm__blink-nai-record.json",
+  "imageGenRecord": "desk-computer_calm__blink-gpt-record.json",
+  "raw": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/desk-computer_calm__blink-gpt-v1.png",
+  "rawSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/desk-computer_calm__blink.png",
+  "outputSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "outputSha256": "d20bd33f56bef5611e8b73606cd29e61ee0b92bb5cd89d5fcfd661f155481cd4",
+  "changedRegion": [
+    [
+      [
+        739,
+        470
+      ],
+      [
+        762,
+        468
+      ],
+      [
+        785,
+        479
+      ],
+      [
+        804,
+        498
+      ],
+      [
+        794,
+        521
+      ],
+      [
+        767,
+        519
+      ],
+      [
+        744,
+        506
+      ],
+      [
+        736,
+        486
+      ]
+    ],
+    [
+      [
+        829,
+        452
+      ],
+      [
+        854,
+        439
+      ],
+      [
+        899,
+        440
+      ],
+      [
+        920,
+        454
+      ],
+      [
+        916,
+        491
+      ],
+      [
+        882,
+        507
+      ],
+      [
+        848,
+        500
+      ],
+      [
+        829,
+        481
+      ]
+    ]
+  ],
+  "method": "Generated local face working area resized to ROI and composited ONLY inside explicit polygons; original base itself never resized or cropped in delivery",
+  "status": "awaiting-user-review",
+  "adopted": false
+}

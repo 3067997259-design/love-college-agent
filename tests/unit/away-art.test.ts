@@ -25,15 +25,13 @@ describe('away art (视频冻结包外景复用)', () => {
     expect(resolveAwayArt({ ...companion, locationId: 'swing', daypart: 'evening' })).toMatchObject({ key: 'swing-evening' })
   })
 
-  it('marks the night swing as baked light so the daypart tint is not applied twice', () => {
+  it('marks both night frames as baked light so the daypart tint is not applied twice', () => {
     expect(resolveAwayArt({ ...companion, locationId: 'swing', daypart: 'night' })).toMatchObject({
       key: 'swing-night', lighting: 'baked-night',
     })
-  })
-
-  it('falls back to the daylit coast frame with ambient tint at night (no fake relight)', () => {
-    const art = resolveAwayArt({ ...companion, locationId: 'coast', daypart: 'night' })
-    expect(art).toMatchObject({ key: 'coast-day', lighting: 'ambient' })
+    expect(resolveAwayArt({ ...companion, locationId: 'coast', daypart: 'night' })).toMatchObject({
+      key: 'coast-night', lighting: 'baked-night',
+    })
   })
 
   it('returns null for the room and for unknown legacy locations', () => {

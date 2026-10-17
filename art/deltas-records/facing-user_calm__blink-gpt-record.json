@@ -1,0 +1,15 @@
+{
+  "id": "facing-user_calm__blink",
+  "tool": "built-in image_gen",
+  "modelVersion": "not-reported",
+  "seed": "not-reported",
+  "novelaiSeed": 410001,
+  "inputs": [
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__blink-base-work.png",
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__blink-nai-v1.png"
+  ],
+  "source": "C:\\Users\\86130\\.codex\\generated_images\\01a144b6-c596-7a11-af8f-f8d3bc92a478\\exec-5291ae53-6e75-42f4-9f4e-16c082f89e7a.png",
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__blink-gpt-v1.png",
+  "prompt": "Use case: precise-object-edit. Image1 is a crop of the EXACT APPROVED application artwork. Image2 is the actual NovelAI draft of the blink, but it failed to close the eyes. Finish the delta using Image1 as identity and geometry master.\nChange ONLY BOTH EYES to fully CLOSED in a brief ordinary blink. No visible irises, pupils, or eye whites. The upper eyelids descend to meet the lower lid positions; a fine dark natural lash line remains, with a few tiny outer lashes. Follow each existing eye's oblique 3/4 angle and original corner positions. The far smaller eye remains smaller. Neutral brief blink, not sleeping, not happy crescent arcs and not a squint. Eyebrows stay precisely unchanged in position and shape, retain original calm expression. Preserve cheek/jaw contour, nose, tiny closed mouth, head angle, fringe, hair, ribbon, collar, skin colors and shading exactly from Image1. Do not beautify, age or redesign the face. Same thin rose-grey lineart, flat pastel colors and simple lavender shadows; no painterly upgrade or new lighting. Output the exact same square FACE-CROP framing and alignment as Image1, not the whole room, high-resolution PNG, no crop shift or zoom. This will be placed only over the original eye region.",
+  "status": "raw-candidate; final requires local compositing and review"
+}

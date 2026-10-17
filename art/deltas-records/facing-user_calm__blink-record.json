@@ -1,0 +1,92 @@
+{
+  "id": "facing-user_calm__blink",
+  "base": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/facing-user_calm.png",
+  "baseSha256": "2bf35342cdb89202a0305ad27cf8d3d0e7f65937736de32bb8ce19288b21729a",
+  "seed": 410001,
+  "novelaiRecord": "facing-user_calm__blink-nai-record.json",
+  "imageGenRecord": "facing-user_calm__blink-gpt-record.json",
+  "raw": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__blink-gpt-v1.png",
+  "rawSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__blink.png",
+  "outputSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "outputSha256": "231d308cf358b993cd60b12509e7ad27391ee745a2fb5c73caac7629218493ca",
+  "changedRegion": [
+    [
+      [
+        748,
+        445
+      ],
+      [
+        769,
+        432
+      ],
+      [
+        797,
+        433
+      ],
+      [
+        820,
+        444
+      ],
+      [
+        824,
+        467
+      ],
+      [
+        798,
+        481
+      ],
+      [
+        770,
+        476
+      ],
+      [
+        750,
+        465
+      ]
+    ],
+    [
+      [
+        851,
+        410
+      ],
+      [
+        875,
+        396
+      ],
+      [
+        907,
+        396
+      ],
+      [
+        926,
+        405
+      ],
+      [
+        924,
+        434
+      ],
+      [
+        902,
+        449
+      ],
+      [
+        873,
+        449
+      ],
+      [
+        851,
+        437
+      ]
+    ]
+  ],
+  "method": "Generated local face working area resized to ROI and composited ONLY inside explicit polygons; original base itself never resized or cropped in delivery",
+  "status": "awaiting-user-review",
+  "adopted": false
+}

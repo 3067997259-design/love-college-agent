@@ -1,0 +1,15 @@
+{
+  "id": "empty__night",
+  "tool": "built-in image_gen",
+  "modelVersion": "not-reported",
+  "seed": "not-reported",
+  "novelaiSeed": 410011,
+  "inputs": [
+    "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/empty.png",
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/empty__night-nai-v1.png"
+  ],
+  "source": "C:\\Users\\86130\\.codex\\generated_images\\01a144b6-c596-7a11-af8f-f8d3bc92a478\\exec-46cc6488-c53e-49a2-b13d-76d51bd45c7e.png",
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/empty__night-gpt-v1.png",
+  "prompt": "Use case: lighting-weather. Image1 is the exact approved EMPTY room, Image2 its NovelAI first draft. Make a baked NIGHT variant of the SAME EMPTY room. NO PERSON OR BODY PARTS. Geometry locked: exactly same chair and slats, closed pink laptop and its ports, rectangular eraser, closed diary, white mug, books, large plant, blank desk note, all paper and desk edges, window frames and curtains. Do not add or remove anything.\nThe EXISTING lamp on LEFT is OFF: underside of shade is dark muted cool grey, absolutely no yellow glowing bulb, no warm cone or pool of lamp light on books/desk/plant. Outside window deep indigo-blue night, dim bluish cloud silhouettes and a few faint stars, no white daylight clouds. The ONLY illumination is very weak broad cool ambient moon/sky light from window upper-left, enough to read furniture shapes, blue-violet soft shadows and muted wood tones. Original objects retain identifiable colors under dim light; no black crushing, no monotone grey-purple veil, no theatrical silver spotlight, no bright rim. Remove all daytime sunlight and warm diagonal sun patches. Quiet empty late-night room, darker than occupied lamp-on scenes. Preserve original thin colored lineart, flat pastel/simple lavender shading and exact camera square crop. Output same 1254x1254 PNG.",
+  "status": "raw-candidate; final requires local compositing and review"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "facing-user_worried__night",
+  "tool": "NovelAI image-to-image",
+  "model": "nai-diffusion-5-full",
+  "seed": 410010,
+  "source": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/facing-user_worried.png",
+  "source_sha256": "bf5d76e2c70d82fd15951e9552ffdd1018f765827c07a58f151d13e3f2636e15",
+  "workingCrop": null,
+  "input": "D:\\love, college&agent\\art\\retouch\\2026-10-18-face-deltas\\facing-user_worried__night-nai-input.png",
+  "input_sha256": "1abe0c747cc629180432afc568608b6cc7650bf8e607b473cb1edcfb1c912412",
+  "width": 1024,
+  "height": 1024,
+  "strength": 0.31,
+  "noise": 0.02,
+  "steps": 23,
+  "scale": 5,
+  "prompt": "anime illustration, delicate thin colored lineart, flat warm pastel colors, one soft lavender shadow tone, same young adult woman and exact same facial identity as input, same camera and pose, no style change, same exact room, face, expression, pose and props at night, existing LEFT desk lamp ON with soft localized warm light on face, hands and nearby wood, deep blue night outside window, distant room softly cool dark, peach hair retains warm peach tint, not grey, clean restrained natural expression, preserve all non-target details",
+  "negative": "lowres, bad anatomy, bad hands, extra arms, extra hands, duplicated limbs, extra fingers, three hands, different person, different face, different hairstyle, different pose, mature face, child, chibi, huge eyes, blush, nose highlight, tears, grimace, photorealistic, 3d, thick black outlines, text, watermark, signature, harsh shadows, overexposure",
+  "output": "D:\\love, college&agent\\art\\retouch\\2026-10-18-face-deltas\\facing-user_worried__night-nai-v1.png",
+  "sha256": "1e4bd2741d9ec8911905b3cfae4938bc9d5805ccfb5eb258a64a98c699c6a218",
+  "seconds": 11.7
+}

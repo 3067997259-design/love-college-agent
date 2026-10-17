@@ -1,0 +1,23 @@
+{
+  "id": "facing-user_smile__night",
+  "base": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/facing-user_smile.png",
+  "baseSha256": "b8e5df5f488c217c4b4ed889dd896b896135b5470d66c02602202c16a0888a24",
+  "seed": 410009,
+  "novelaiRecord": "facing-user_smile__night-nai-record.json",
+  "imageGenRecord": "facing-user_smile__night-gpt-record.json",
+  "raw": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_smile__night-gpt-v1.png",
+  "rawSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_smile__night.png",
+  "outputSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "outputSha256": "c2beeebdc88fce6ec80d3075aac022b45761bf9ef06129a3ebd2e3680ccde926",
+  "changedRegion": "whole-frame lighting only; structural review required",
+  "method": "Generated baked night relighting on original frame dimensions",
+  "status": "awaiting-user-review",
+  "adopted": false
+}

@@ -1,0 +1,23 @@
+{
+  "id": "empty__night",
+  "base": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/empty.png",
+  "baseSha256": "0f6b11b5994482d7537a3c18f65acfa38744f31f38b5b9883a291e3c475278be",
+  "seed": 410011,
+  "novelaiRecord": "empty__night-nai-record.json",
+  "imageGenRecord": "empty__night-gpt-record.json",
+  "raw": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/empty__night-gpt-v1.png",
+  "rawSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/empty__night.png",
+  "outputSize": {
+    "width": 1254,
+    "height": 1254
+  },
+  "outputSha256": "8fcf18bb19c42e874968019fff54d01a2cefcf8f23f1e80a20713ec2548f537a",
+  "changedRegion": "whole-frame lighting only; structural review required",
+  "method": "Generated baked night relighting on original frame dimensions",
+  "status": "awaiting-user-review",
+  "adopted": false
+}

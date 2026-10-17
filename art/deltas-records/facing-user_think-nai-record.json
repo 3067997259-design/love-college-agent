@@ -1,0 +1,27 @@
+{
+  "id": "facing-user_think",
+  "tool": "NovelAI image-to-image",
+  "model": "nai-diffusion-5-full",
+  "seed": 410018,
+  "source": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/facing-user_calm.png",
+  "source_sha256": "2bf35342cdb89202a0305ad27cf8d3d0e7f65937736de32bb8ce19288b21729a",
+  "workingCrop": [
+    700,
+    340,
+    300,
+    300
+  ],
+  "input": "D:\\love, college&agent\\art\\retouch\\2026-10-18-face-deltas\\facing-user_think-nai-input.png",
+  "input_sha256": "3ccd427c9900b1ed29b99e2ae2d55699fa50ccb0af965ec935c4f6c92d97878a",
+  "width": 768,
+  "height": 768,
+  "strength": 0.26,
+  "noise": 0.02,
+  "steps": 23,
+  "scale": 5,
+  "prompt": "anime illustration, delicate thin colored lineart, flat warm pastel colors, one soft lavender shadow tone, same young adult woman and exact same facial identity as input, same camera and pose, no style change, eyes glance slightly downward/sideward thoughtfully, eyebrows gently gather by a tiny amount, quiet composed thinking expression, mouth unchanged, clean restrained natural expression, preserve all non-target details",
+  "negative": "lowres, bad anatomy, bad hands, extra arms, extra hands, duplicated limbs, extra fingers, three hands, different person, different face, different hairstyle, different pose, mature face, child, chibi, huge eyes, blush, nose highlight, tears, grimace, photorealistic, 3d, thick black outlines, text, watermark, signature, harsh shadows, overexposure",
+  "output": "D:\\love, college&agent\\art\\retouch\\2026-10-18-face-deltas\\facing-user_think-nai-v1.png",
+  "sha256": "17904fe7414fedeb6980286e0663afd37e9afa5f64431c625a12acada8240312",
+  "seconds": 8.9
+}

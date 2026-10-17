@@ -1,0 +1,7 @@
+/* 差分贴片：只在面部小矩形内覆盖，不整帧切换；下面的房间、光线层照常作用在上面 */
+.delta-patch {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}

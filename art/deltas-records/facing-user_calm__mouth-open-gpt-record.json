@@ -1,0 +1,15 @@
+{
+  "id": "facing-user_calm__mouth-open",
+  "tool": "built-in image_gen",
+  "modelVersion": "not-reported",
+  "seed": "not-reported",
+  "novelaiSeed": 410013,
+  "inputs": [
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__mouth-open-base-work.png",
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__mouth-open-nai-v1.png"
+  ],
+  "source": "C:\\Users\\86130\\.codex\\generated_images\\01a144b6-c596-7a11-af8f-f8d3bc92a478\\exec-cc1ff7fb-bf20-4bca-a211-2d929827190a.png",
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__mouth-open-gpt-v1.png",
+  "prompt": "Precise mouth-only speech delta for the approved application's face crop. Image1 is the original identity/geometry master. Image2 is the actual NovelAI draft.\nChange ONLY the tiny mouth to a natural SMALL OPEN spoken vowel, clearly one step more open than slightly-parted lips. Width remains about 18-22 pixels in this original 300px crop, height about 9-11px, softly oblique to follow her 3/4 facial plane. Relaxed lip corners remain in original place, dark muted warm inner mouth and a subtle lower tongue plane, no teeth. She is quietly speaking, not surprised, gasping, shouting, laughing or smiling. No big round O, grin or exaggerated chin opening. Do not change jaw/chin or other facial geometry. Preserve exact eyes, irises, eyebrows, nose, hair/fringe, ribbon, head pitch, neck/collar, color and lighting. Same delicate colored linework, flat pastel and lavender shading. Exact same square face-crop scale/framing and landmark alignment as Image1, no zoom. High-resolution PNG. Only mouth pixels will be composited into the unchanged approved base.",
+  "status": "raw-candidate; final requires local compositing and review"
+}

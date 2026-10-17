@@ -1,0 +1,15 @@
+{
+  "id": "facing-user_worried__night",
+  "tool": "built-in image_gen",
+  "modelVersion": "not-reported",
+  "seed": "not-reported",
+  "novelaiSeed": 410010,
+  "inputs": [
+    "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/facing-user_worried.png",
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_worried__night-nai-v1.png"
+  ],
+  "source": "C:\\Users\\86130\\.codex\\generated_images\\01a144b6-c596-7a11-af8f-f8d3bc92a478\\exec-020189cd-2d48-4aff-8a70-8e2fca9ac6ec.png",
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_worried__night-gpt-v1.png",
+  "prompt": "Use case: lighting-weather. Image1 is the exact approved 1254x1254 full scene. Image2 is preliminary NovelAI img2img, not a new identity reference. Change ONLY NIGHT lighting and sky.\nKeep her slightly WORRIED expression exactly as Image1 (tiny closed neutral mouth, modest brow tension), exact grey-amber eyes/gaze, cheek/jaw/head tilt, peach bob/navy ribbon, white round collar and cream cardigan, fingers INTERLACED naturally on desk, laptop, books, cup, small diary, lamp, plant, chair, curtain and geometry. Do not relax the interlaced hands into overlapped hands. Do not change face, pose or props.\nWindow is deep blue-indigo night, subdued soft blue clouds in same silhouettes, sparse faint stars; remove cream-white daytime brightness and all sunlight. Existing far-LEFT desk lamp ON with a soft warm cream-amber pool on nearby books/plant/cup/wood; warm light gently catches her left-facing hair/skin, hands and sleeve, fades into quiet cool lavender-blue shadows at far room/chair/curtain. Peach hair retains softly peach color, not grey or orange. Readable gentle midtones, no black crush, no overexposure, no new light source or objects, no halo or global blue veil. Original thin colored lines, flat soft pastel fills and simple lavender shadows, no painterly redraw. Same square camera/crop, exact 1254x1254 PNG.",
+  "status": "raw-candidate; final requires local compositing and review"
+}

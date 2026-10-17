@@ -16,6 +16,12 @@
       "use": "海边：傍晚（海边小街与橱窗）"
     },
     {
+      "runtime": "coast-night.png",
+      "from": "art/retouch/2026-10-18-face-deltas/coast-day__night.png",
+      "sha256": "80e184b5a8814e9cb74ce505c33a0cad094af1f24e8022ead215650f5711a03b",
+      "use": "海边：夜里（2026-10-17 晚差分批次补的整帧重光：同一构图的海岸夜景）"
+    },
+    {
       "runtime": "swing-day.png",
       "from": "selected/base-07-k18-under-swing.png",
       "sha256": "e6ff53fc7436a7a5c8667b6f220ca7ff0281a338eb3fbb84a981ade2623292f9",
@@ -34,5 +40,5 @@
       "use": "秋千：夜里（画内夜光，她在秋千上写东西）"
     }
   ],
-  "fallback": "海岸没有夜景重光图：夜里复用 coast-day.png，由时段调色回退（不误报为物理重光）。缺图时回退空房间＋桌上纸条。"
+  "fallback": "海岸与秋千夜里都有整帧重光图；缺图时回退空房间＋桌上纸条。外景页不贴面部差分（那批贴片只对应 approved 的室内底图）。"
 }

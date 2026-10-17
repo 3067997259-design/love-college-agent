@@ -1,0 +1,15 @@
+{
+  "id": "desk-computer_calm__night",
+  "tool": "built-in image_gen",
+  "modelVersion": "not-reported",
+  "seed": "not-reported",
+  "novelaiSeed": 410007,
+  "inputs": [
+    "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/desk-computer_calm.png",
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/desk-computer_calm__night-nai-v1.png"
+  ],
+  "source": "C:\\Users\\86130\\.codex\\generated_images\\01a144b6-c596-7a11-af8f-f8d3bc92a478\\exec-d74df47b-1f12-47af-9c37-d181e03b41cd.png",
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/desk-computer_calm__night-gpt-v1.png",
+  "prompt": "Use case: lighting-weather. Image1 is the EXACT approved 1254x1254 application scene and identity/geometry master. Image2 is its real low-strength NovelAI draft, which retained too much daylight. Finish a TRUE BAKED NIGHT-LIGHTING variant of Image1, not a color-filter daytime image.\nLOCK all shapes, positions, perspective, camera, crop, head pitch, gaze, facial expression, hair silhouette, navy ribbon side, round white collar, hands on laptop keyboard, laptop, books, cup, small closed diary, plant, chair and window framing. Do not redesign or move anything.\nLIGHTING ONLY: outside the window is deep indigo-blue NIGHT, with subdued darker bluish cloud silhouettes and a few very faint stars; remove all cream-white sunlit cloud brightness. Turn ON the EXISTING desk lamp at the far LEFT edge; warm dim amber light originates under that same shade, softly illuminates the nearby plant/books/cup and tabletop, then diminishes across her face, peach hair and typing hands. A restrained warm highlight on image-left-facing skin and hair planes, gentle lavender-blue shadows on opposite side. Her peach hair must stay softly peach where lit, not become grey or orange. The distant chair, curtains and room are cool and darker, still readable. No added lamps, no new objects, no theatrical spotlight, no bright white rim, no glowing computer face, no repeated blue overlay. Preserve the original fine colored linework, flat soft pastel rendering and single lavender shadow vocabulary, no movie-style painterly upgrade. Warm quiet late-evening companionship. Output the SAME complete square 1254x1254 scene, no scaling/cropping/framing changes.",
+  "status": "raw-candidate; final requires local compositing and review"
+}

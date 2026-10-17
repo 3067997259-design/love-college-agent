@@ -1,0 +1,15 @@
+{
+  "id": "facing-user_calm__night",
+  "tool": "built-in image_gen",
+  "modelVersion": "not-reported",
+  "seed": "not-reported",
+  "novelaiSeed": 410008,
+  "inputs": [
+    "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/facing-user_calm.png",
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__night-nai-v1.png"
+  ],
+  "source": "C:\\Users\\86130\\.codex\\generated_images\\01a144b6-c596-7a11-af8f-f8d3bc92a478\\exec-f74cbba0-1b3c-4ff9-9129-6e05ef150af3.png",
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__night-gpt-v1.png",
+  "prompt": "Use case: lighting-weather. Image1 is the exact approved 1254x1254 scene, Image2 its low-strength NovelAI draft. Produce the SAME scene at NIGHT by changing ONLY lighting and window sky.\nPreserve her original CALM neutral tiny closed mouth, exact eyes/irises and eyebrows, head angle, cheek/jaw, peach bob and navy hair ribbon, white rounded collar, cream cardigan, both hands gently overlapped on desk, laptop, cup, books, little closed diary, plant, chair, curtain and all geometry. No repositioning or beautification.\nNight setup: window deep indigo #202B50 with subdued bluish cloud silhouettes and a few faint distant stars, no white daytime clouds or sunlight. Existing far-left desk lamp is softly ON, warm cream-amber light under its existing shade; illuminates nearby plant/books/cup/wood strongly but softly, then her image-left-facing hair and face, sleeves and hands with natural distance falloff. Keep skin warm and readable, peach hair softly peach, no grey hair or orange saturation. Room shadows lavender-blue, curtains and chair quieter cool dark. Subdued contrast like late-night quiet company, not black, not theatrical or overexposed. No second light source or new lamp, no glowing halo, no bloom. Keep original delicate colored lines, flat pale pastel fills and simple lavender shadows. Same complete square crop, exactly 1254x1254, no altered positions or props.",
+  "status": "raw-candidate; final requires local compositing and review"
+}

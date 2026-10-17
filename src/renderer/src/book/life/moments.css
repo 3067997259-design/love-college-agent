@@ -1,14 +1,14 @@
 /* 有新邮件时别在页角的快照（生活瞬间，2026-10-17 晚接下）。 */
 .mail-moment {
   position: absolute;
-  right: 1.5%;
-  top: 2%;
-  width: 176px;
+  left: 2%;
+  top: 2.5%;
+  width: 172px;
   padding: 7px 7px 6px;
   display: grid;
   gap: 5px;
   background: color-mix(in oklab, var(--paper) 96%, white);
-  transform: rotate(2.4deg);
+  transform: rotate(-2.6deg);
   box-shadow: 0 3px 7px color-mix(in oklab, #6e5a3c 24%, transparent);
   pointer-events: none;
   z-index: 1;

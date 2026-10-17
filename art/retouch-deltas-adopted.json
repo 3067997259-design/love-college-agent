@@ -1,0 +1,180 @@
+{
+ "version": 1,
+ "approvedAt": "2026-10-17 evening",
+ "approvedBy": "用户（自审：19 张全部完成，浅笑嘴型已收小，喜欢差分刻画）",
+ "sourceDir": "art/retouch/2026-10-18-face-deltas",
+ "recordsDir": "art/deltas-records",
+ "assets": [
+  {
+   "id": "facing-user_calm__blink",
+   "variant": "blink",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_calm__blink.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/facing-user_calm__blink.png",
+   "sourceSha256": "231d308cf358b993cd60b12509e7ad27391ee745a2fb5c73caac7629218493ca",
+   "runtimeSha256": "2ac0652d48a180d987320e3d8c5484c6e91bbddd10392aa802f217636f54e34f"
+  },
+  {
+   "id": "facing-user_smile__blink",
+   "variant": "blink",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_smile__blink.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/facing-user_smile__blink.png",
+   "sourceSha256": "6f15ab4148f3109303d0de842c67f5fad3239a84d49075a9a80d4a1e2395e0e0",
+   "runtimeSha256": "f5c298072fcfd95c837960e1293fad33c9edbaa3c5dfc3411282e89cfb2daa7d"
+  },
+  {
+   "id": "facing-user_worried__blink",
+   "variant": "blink",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_worried__blink.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/facing-user_worried__blink.png",
+   "sourceSha256": "e146c4dff5f04361a6c7d87c21edef376fe5540c2868e2f70e7c969534563ef6",
+   "runtimeSha256": "f995510b24c23f67affc1c2247754631b07b9fd086f2a6f3e53b4ccd9d85787b"
+  },
+  {
+   "id": "desk-writing_calm__blink",
+   "variant": "blink",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/desk-writing_calm__blink.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/desk-writing_calm__blink.png",
+   "sourceSha256": "df96a3c6c553550459cfad9bee8965402c688ab8ad7600c086d9614f727660c7",
+   "runtimeSha256": "109c8fe2ca59a359f466ab8990f9818adab65c09093f1be56f253bfa2a8316f6"
+  },
+  {
+   "id": "desk-computer_calm__blink",
+   "variant": "blink",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/desk-computer_calm__blink.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/desk-computer_calm__blink.png",
+   "sourceSha256": "d20bd33f56bef5611e8b73606cd29e61ee0b92bb5cd89d5fcfd661f155481cd4",
+   "runtimeSha256": "fcdc70f32c0b065a99a27d4ecd0743d20e3f379affd4403a8e4510fafbcd0875"
+  },
+  {
+   "id": "desk-writing_calm__look-up",
+   "variant": "look-up",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/desk-writing_calm__look-up.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/desk-writing_calm__look-up.png",
+   "sourceSha256": "1588633172fa0e1b2409db73f6565689f35ced67be356fcff2980b2f11c1c664",
+   "runtimeSha256": "052120742e17970a1577dc869ac9e354203285981658efe2e86242b4d37930bb"
+  },
+  {
+   "id": "facing-user_calm__mouth-half",
+   "variant": "mouth-half",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_calm__mouth-half.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/facing-user_calm__mouth-half.png",
+   "sourceSha256": "226570b2609f070164386767a12d2bd0b019b1c81af41ad8ad37b9c755e87203",
+   "runtimeSha256": "6981ebe6ad393135914720aaca7910d17476a15e9115e99c946781c13c2a7008"
+  },
+  {
+   "id": "facing-user_calm__mouth-open",
+   "variant": "mouth-open",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_calm__mouth-open.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/facing-user_calm__mouth-open.png",
+   "sourceSha256": "b35b9281a969ae20a294056327a1a76182902e0f2c3815a4a57bc205e173bd5e",
+   "runtimeSha256": "8345ed50a0821ba5ab273e1bb8cee82648210cd2d2d66a97a10a355990cb0b7f"
+  },
+  {
+   "id": "facing-user_smile__mouth-half",
+   "variant": "mouth-half",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_smile__mouth-half.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/facing-user_smile__mouth-half.png",
+   "sourceSha256": "8c923eddd220989b2d8f88cbac08c6afe40d01b4693f751e01630e6ff71b3c1a",
+   "runtimeSha256": "30feb2e2be7ade543964bbda32da14bc4dc62c142ecdf12ea9a84c5772e271fb"
+  },
+  {
+   "id": "facing-user_smile__mouth-open",
+   "variant": "mouth-open",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_smile__mouth-open.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/facing-user_smile__mouth-open.png",
+   "sourceSha256": "18c6f034d40b767be6278dbf329595b9d59ed0f6e214f9ce56cdabffaa7f83e7",
+   "runtimeSha256": "1adfef4f25eda3f1fe9abb73cf3c509dda0a84477b1aab3456302b0c60ea9cf7"
+  },
+  {
+   "id": "facing-user_worried__mouth-half",
+   "variant": "mouth-half",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_worried__mouth-half.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/facing-user_worried__mouth-half.png",
+   "sourceSha256": "0a87384127221df7a2334b68934f28e548cc35aead5fa7eaa0c24a05e9706c62",
+   "runtimeSha256": "47ea93c5ef3198ecd80998e8918b4a43e7fd61ff11eb52414d56274a5dd99cae"
+  },
+  {
+   "id": "facing-user_worried__mouth-open",
+   "variant": "mouth-open",
+   "kind": "patch",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_worried__mouth-open.png",
+   "runtime": "src/renderer/src/assets/character/taozi/deltas/facing-user_worried__mouth-open.png",
+   "sourceSha256": "e0ede94db22636d27366761497d0bcd57936f614fa07903e359c92a3145e4806",
+   "runtimeSha256": "bee900ae95790ecc08913c2253417a7b2cb7b75806a1ae279798f0d7e8b8fe8e"
+  },
+  {
+   "id": "facing-user_think",
+   "kind": "full-frame",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_think.png",
+   "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_think.png",
+   "sourceSha256": "77ec0b38e251c9c5971d7007c897ae409fa22650e2c5cecbae148715b07ff29f",
+   "runtimeSha256": "77ec0b38e251c9c5971d7007c897ae409fa22650e2c5cecbae148715b07ff29f",
+   "runtimeName": "facing-user_think.png"
+  },
+  {
+   "id": "desk-computer_calm__night",
+   "kind": "full-frame",
+   "source": "art/retouch/2026-10-18-face-deltas/desk-computer_calm__night.png",
+   "runtime": "src/renderer/src/assets/character/taozi/approved/desk-computer_calm__night.png",
+   "sourceSha256": "1a6bb5a076bd414443a001d42453cff1349ced4b0fcabd730884e03d6e6ae384",
+   "runtimeSha256": "1a6bb5a076bd414443a001d42453cff1349ced4b0fcabd730884e03d6e6ae384",
+   "runtimeName": "desk-computer_calm__night.png"
+  },
+  {
+   "id": "facing-user_calm__night",
+   "kind": "full-frame",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_calm__night.png",
+   "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_calm__night.png",
+   "sourceSha256": "391b167a34eef8c7709ff94fbb419c9a8227367e7cdb0dfb3971b1a3890afc86",
+   "runtimeSha256": "391b167a34eef8c7709ff94fbb419c9a8227367e7cdb0dfb3971b1a3890afc86",
+   "runtimeName": "facing-user_calm__night.png"
+  },
+  {
+   "id": "facing-user_smile__night",
+   "kind": "full-frame",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_smile__night.png",
+   "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_smile__night.png",
+   "sourceSha256": "c2beeebdc88fce6ec80d3075aac022b45761bf9ef06129a3ebd2e3680ccde926",
+   "runtimeSha256": "c2beeebdc88fce6ec80d3075aac022b45761bf9ef06129a3ebd2e3680ccde926",
+   "runtimeName": "facing-user_smile__night.png"
+  },
+  {
+   "id": "facing-user_worried__night",
+   "kind": "full-frame",
+   "source": "art/retouch/2026-10-18-face-deltas/facing-user_worried__night.png",
+   "runtime": "src/renderer/src/assets/character/taozi/approved/facing-user_worried__night.png",
+   "sourceSha256": "0af355e743f66b535e15a882ed6d1268f036b14a1d4d3eb824cfee6a249a2695",
+   "runtimeSha256": "0af355e743f66b535e15a882ed6d1268f036b14a1d4d3eb824cfee6a249a2695",
+   "runtimeName": "facing-user_worried__night.png"
+  },
+  {
+   "id": "empty__night",
+   "kind": "full-frame",
+   "source": "art/retouch/2026-10-18-face-deltas/empty__night.png",
+   "runtime": "src/renderer/src/assets/character/taozi/approved/empty__night.png",
+   "sourceSha256": "8fcf18bb19c42e874968019fff54d01a2cefcf8f23f1e80a20713ec2548f537a",
+   "runtimeSha256": "8fcf18bb19c42e874968019fff54d01a2cefcf8f23f1e80a20713ec2548f537a",
+   "runtimeName": "empty__night.png"
+  },
+  {
+   "id": "coast-day__night",
+   "kind": "away-full-frame",
+   "source": "art/retouch/2026-10-18-face-deltas/coast-day__night.png",
+   "runtime": "src/renderer/src/assets/character/taozi/away/coast-night.png",
+   "sourceSha256": "80e184b5a8814e9cb74ce505c33a0cad094af1f24e8022ead215650f5711a03b",
+   "runtimeSha256": "80e184b5a8814e9cb74ce505c33a0cad094af1f24e8022ead215650f5711a03b",
+   "runtimeName": "coast-night.png"
+  }
+ ]
+}

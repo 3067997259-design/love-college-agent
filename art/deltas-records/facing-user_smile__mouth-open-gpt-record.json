@@ -1,0 +1,15 @@
+{
+  "id": "facing-user_smile__mouth-open",
+  "tool": "built-in image_gen",
+  "modelVersion": "not-reported",
+  "seed": "not-reported",
+  "novelaiSeed": 410015,
+  "inputs": [
+    "D:\\love, college&agent\\art\\retouch\\2026-10-18-face-deltas\\facing-user_smile__mouth-open-base-work.png",
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_smile__mouth-open-nai-v1.png"
+  ],
+  "source": "C:\\Users\\86130\\.codex\\generated_images\\01a144b6-c596-7a11-af8f-f8d3bc92a478\\exec-76de5849-23f3-4097-b094-66037b8cfbfb.png",
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_smile__mouth-open-gpt-v2.png",
+  "prompt": "Use case precise-object-edit: create a SMALL speaking mouth, only mouth. Image1 approved face is target; Image2 NovelAI draft. Keep exact Image1 face and square alignment. She is softly speaking with a faint smile, NOT laughing. Her existing closed smile has a wide curve; do not turn that whole curve into a big open grin. Instead draw a small rounded softly smiling vowel mouth in its CENTER, narrower than her closed smile: 23-25px wide, about 11px tall at the original 300px crop. Tiny muted warm dark interior with subtle tongue at bottom, NO TEETH. Soft short corners gently lifted, not a triangular wedge or crescent laugh. All eyes, eyebrows, nose, face shape, hair, chin, skin and lighting absolutely unchanged. Thin colored outline, restrained flat pastel anime style. Tiny natural dialogue mouth.",
+  "status": "raw-candidate; final requires local compositing and review"
+}

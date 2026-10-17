@@ -45,7 +45,8 @@ export function MiniCompanion({ snapshot, onExpand, onHover, onMove }: {
   const remaining = useCountdown(snapshot)
   const id = useId().replace(/:/g, '')
   const art = resolveCharacterArt(companion)
-  const imported = packageScene(snapshot, art.key)
+  // 夜景/think 整帧用基础名回退到自定义角色包
+  const imported = packageScene(snapshot, art.baseKey ?? art.key)
   // 她出门时小窗也显示同一张外景（体验设计 §6）；自定义角色包优先用包内素材，缺了才回退
   const awayArt = companion.locationId !== 'room' && !imported ? resolveAwayArt(companion) : null
   const src = imported ?? (awayArt ? awaySceneSrc(awayArt.key) : undefined) ?? sceneSrc(art.key)

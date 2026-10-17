@@ -1,0 +1,27 @@
+{
+  "id": "desk-writing_calm__blink",
+  "tool": "NovelAI image-to-image",
+  "model": "nai-diffusion-5-full",
+  "seed": 410004,
+  "source": "D:/love, college&agent/src/renderer/src/assets/character/taozi/approved/desk-writing_calm.png",
+  "source_sha256": "c981b9be4b1d5467d1395e5c2c063d03039f0428462c2fc2e440177d336279ae",
+  "workingCrop": [
+    680,
+    400,
+    300,
+    300
+  ],
+  "input": "D:\\love, college&agent\\art\\retouch\\2026-10-18-face-deltas\\desk-writing_calm__blink-nai-input.png",
+  "input_sha256": "1ed052c9250d898663daa45745ce841c6a03890102f81d5e01027340ae52581a",
+  "width": 768,
+  "height": 768,
+  "strength": 0.32,
+  "noise": 0.02,
+  "steps": 23,
+  "scale": 5,
+  "prompt": "anime illustration, delicate thin colored lineart, flat warm pastel colors, one soft lavender shadow tone, same young adult woman and exact same facial identity as input, same camera and pose, no style change, both eyes gently closed in a brief natural blink, upper eyelids lowered, relaxed eyelash lines following existing eye angles; not smiling crescent eyes or sleeping expression, clean restrained natural expression, preserve all non-target details",
+  "negative": "lowres, bad anatomy, bad hands, extra arms, extra hands, duplicated limbs, extra fingers, three hands, different person, different face, different hairstyle, different pose, mature face, child, chibi, huge eyes, blush, nose highlight, tears, grimace, photorealistic, 3d, thick black outlines, text, watermark, signature, harsh shadows, overexposure, open eyes, visible iris, crescent happy eyes, sleeping",
+  "output": "D:\\love, college&agent\\art\\retouch\\2026-10-18-face-deltas\\desk-writing_calm__blink-nai-v1.png",
+  "sha256": "a84f5ba345d3a01bd77a59aef773f13d765a1913cc149cc39fab0174ca7b4009",
+  "seconds": 7.4
+}

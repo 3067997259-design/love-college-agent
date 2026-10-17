@@ -255,6 +255,30 @@ export const SCENARIOS = {
     },
   })),
 
+  /** 夜里坐过来交流：差分批次补的整帧重光（P2） */
+  'night-face': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat2240 },
+    companion: { ...s.companion, mode: 'rest', daypart: 'night', pose: 'facing-user', expression: 'calm' },
+  })),
+
+  /** 白天安静写字（写字姿势；抬头差分与眨眼预览用） */
+  'writing-day': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1420 },
+    companion: { ...s.companion, mode: 'quiet', daypart: 'day', pose: 'desk-writing', expression: 'calm' },
+  })),
+
+  /** 思考表情（第 4 种表情，差分批次 P3） */
+  'think-face': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1445 },
+    companion: { ...s.companion, mode: 'rest', pose: 'facing-user', expression: 'think' },
+  })),
+
+  /** 夜里用电脑（工作姿势整帧重光） */
+  'night-computer': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat2240 },
+    companion: { ...s.companion, mode: 'work', daypart: 'night', pose: 'desk-computer', expression: 'think' },
+  })),
+
   /** 凌晨四点以后，她睡着了，房间暗下来 */
   'asleep': scenario((s) => ({
     clock: { ...s.clock, nowMs: T.sun0430 },

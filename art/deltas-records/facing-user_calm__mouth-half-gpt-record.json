@@ -1,0 +1,15 @@
+{
+  "id": "facing-user_calm__mouth-half",
+  "tool": "built-in image_gen",
+  "modelVersion": "not-reported",
+  "seed": "not-reported",
+  "novelaiSeed": 410012,
+  "inputs": [
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__mouth-half-base-work.png",
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__mouth-half-nai-v1.png"
+  ],
+  "source": "C:\\Users\\86130\\.codex\\generated_images\\01a144b6-c596-7a11-af8f-f8d3bc92a478\\exec-a507855f-1f02-48cb-8ba3-73e35070f4ce.png",
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_calm__mouth-half-gpt-v1.png",
+  "prompt": "Precise tiny mouth-only speech delta. Image1 is the exact approved 300x300 face crop; Image2 is the NovelAI draft. Preserve Image1 literally except mouth. Keep eyes, irises, brows, face shape, nose, head angle, hair, ribbon, skin color and light unchanged.\nChange her current tiny closed mouth to a SMALL SLIGHTLY PARTED mid-speech mouth, calm neutral expression. Keep lip corners at same location and width (about 18-22 pixels in the original 300px crop), add only a shallow dark opening about 3-4 pixels high beneath the original lip line. Soft relaxed lips, no teeth, no tongue needed at this small opening, no grin, smile, surprise, pout, gasp or rounded O. Do not move or enlarge mouth or alter chin. Fine rose-grey line and muted warm dark inner mouth, same simple flat pastel anime rendering. Exact same square crop alignment and framing. High-resolution PNG; this is a small mouth overlay, not a whole new portrait.",
+  "status": "raw-candidate; final requires local compositing and review"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "facing-user_think",
+  "tool": "built-in image_gen",
+  "modelVersion": "not-reported",
+  "seed": "not-reported",
+  "novelaiSeed": 410018,
+  "inputs": [
+    "D:\\love, college&agent\\art\\retouch\\2026-10-18-face-deltas\\facing-user_think-base-work.png",
+    "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_think-nai-v1.png"
+  ],
+  "source": "C:\\Users\\86130\\.codex\\generated_images\\01a144b6-c596-7a11-af8f-f8d3bc92a478\\exec-03a27874-d470-46ea-b0f0-10b16cac96ea.png",
+  "output": "D:/love, college&agent/art/retouch/2026-10-18-face-deltas/facing-user_think-gpt-v1.png",
+  "prompt": "Use case: identity-preserve, extremely local thoughtful eye expression delta. Image1 is the exact approved calm face crop. Image2 is the NovelAI initial draft. Keep Image1 face shape, youthful college-age identity, eye shape/size, head tilt, exact framing and feature placement, hair, ribbon, nose, closed mouth and all colors. Change ONLY gaze and a very slight eyebrow gathering: both irises look a little downward and toward image-left together, as if quietly thinking, not crossing eyes. Upper lids relaxed; retain soft grey-amber irises. Brows gently gather by a tiny amount, not angry, sad, alarmed or exaggerated. Mouth literally unchanged. Do not change eyelash style, enlarge eyes, add blush, move head, or introduce a hand near chin. Same fine colored lineart and simple pastel lavender shadow. Exact aligned square crop; no redesign.",
+  "status": "raw-candidate; final requires local compositing and review"
+}
