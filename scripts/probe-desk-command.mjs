@@ -26,6 +26,7 @@ async function run(command, timeoutMs = 5000, cancel = false, killed = false) {
   const timer = cancel ? setTimeout(() => child.stdin.write('cancel\n'), 1600) : undefined
   await code; clearTimeout(timer); child.stdin.end()
   const frames = Buffer.concat(output).toString('utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line)); const profile = frames.find((row) => row.kind === 'profile')?.name
+  if (!profile && frames.at(-1)?.status === 'unavailable' && frames.at(-1)?.stage === 'encoding') return { work, result: frames.at(-1) }
   assert.match(profile, /^lca\.desk\.[a-f0-9]{32}$/)
   if (killed) {
     let gone = false; for (let i = 0; i < 100; i++) { try { process.kill(descendant, 0) } catch { gone = true; break }; await new Promise((done) => setTimeout(done, 50)) }; assert.ok(gone, 'DESCENDANT_SURVIVED_HELPER')
@@ -35,8 +36,16 @@ async function run(command, timeoutMs = 5000, cancel = false, killed = false) {
 }
 const first = await run('echo EXECUTED>result.txt & echo CHILD_OK & cmd.exe /d /c echo NATIVE_CHILD_OK')
 assert.equal(first.result.status, 'completed', JSON.stringify(first.result)); assert.equal(first.result.exitCode, 0, JSON.stringify(first.result)); assert.equal(first.result.appContainer, true); assert.equal((await readFile(join(first.work, 'result.txt'), 'utf8')).trim(), 'EXECUTED'); assert.ok(first.result.stdout.includes('CHILD_OK')); assert.ok(first.result.stdout.includes('NATIVE_CHILD_OK'), JSON.stringify(first.result))
+// Original #31 compound command, including effects before/after Unicode. Unsupported hosts must reject all of it before execution.
+const literal = await run('echo EXECUTED>result.txt & echo CHILD_OK & echo 中文输出 & echo 中文文件>unicode-literal.txt & cmd.exe /d /c echo NATIVE_CHILD_OK')
+if (literal.result.status === 'unavailable') {
+  assert.equal(literal.result.stage, 'encoding'); assert.equal(literal.result.error, 'command-encoding-unsupported'); await assert.rejects(readFile(join(literal.work, 'result.txt'))); await assert.rejects(readFile(join(literal.work, 'unicode-literal.txt')))
+} else {
+  assert.equal(literal.result.status, 'completed'); assert.equal(literal.result.exitCode, 0); assert.ok(literal.result.stdout.includes('中文输出')); assert.equal((await readFile(join(literal.work, 'unicode-literal.txt'), 'utf8')).trim(), '中文文件')
+}
 const unicode = await run(ps("[IO.File]::WriteAllText([IO.Path]::Combine($env:LCA_DESK_ROOT,'unicode.txt'),'中文文件'); $bytes=[Text.Encoding]::UTF8.GetBytes('中文输出'); $stream=[Console]::OpenStandardOutput(); $stream.Write($bytes,0,$bytes.Length)"))
 assert.equal(unicode.result.exitCode, 0, JSON.stringify(unicode.result)); assert.ok(unicode.result.stdout.includes('中文输出')); assert.equal(await readFile(join(unicode.work, 'unicode.txt'), 'utf8'), '中文文件')
+const invalid = await run(ps('$stream=[Console]::OpenStandardOutput(); $stream.WriteByte(255)')); assert.equal(invalid.result.status, 'unavailable'); assert.equal(invalid.result.error, 'command-encoding-unsupported')
 let connections = 0; const server = createServer((socket) => { connections++; socket.destroy() }); await new Promise((done) => server.listen(0, '127.0.0.1', done))
 try {
   const negativeScript = [
@@ -55,5 +64,5 @@ try {
   const cancelled = await run(ps('Start-Sleep -Seconds 20'), 5000, true); assert.equal(cancelled.result.status, 'cancelled')
   const sub = Buffer.from('Start-Sleep -Seconds 30', 'utf16le').toString('base64')
   await run((work) => ps('$ErrorActionPreference=\'Stop\'; $start=New-Object Diagnostics.ProcessStartInfo; $start.FileName="$env:SystemRoot\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"; $start.Arguments="-NoLogo -NoProfile -NonInteractive -EncodedCommand ' + sub + '"; $start.UseShellExecute=$false; $start.CreateNoWindow=$true; $child=[Diagnostics.Process]::Start($start); [IO.File]::WriteAllText(' + quote(join(work, 'descendant.pid')) + ',[string]$child.Id); Start-Sleep -Seconds 20'), 10000, false, true)
-  console.log(JSON.stringify({ ok: true, probe: 'desk-command-native', appContainer: true, actualCmd: true, unicodeStdout: true, nativeChild: true, deskWrite: true, outsideReadDenied: true, outsideWriteDenied: true, outsideAclDenied: true, loopbackDenied: true, cleanEnvironment: true, outputBound: true, timeout: true, cancellation: true, helperDeathKillsDescendant: true }))
+  console.log(JSON.stringify({ ok: true, probe: 'desk-command-native', appContainer: true, actualCmd: true, unicodeLiteral: literal.result.status === 'completed' ? 'preserved' : 'rejected-before-effects', unicodeStdout: true, invalidUtf8Rejected: true, nativeChild: true, deskWrite: true, outsideReadDenied: true, outsideWriteDenied: true, outsideAclDenied: true, loopbackDenied: true, cleanEnvironment: true, outputBound: true, timeout: true, cancellation: true, helperDeathKillsDescendant: true }))
 } finally { await new Promise((done) => server.close(done)) }

@@ -9,7 +9,7 @@
 - 每次创建唯一 AppContainer profile，不授予网络 capability。只对主进程准备的一次性副本授予该 SID 的 Modify 及低完整性标签；不改真实书桌、私人 profile、系统或祖先目录的 ACL。副本中给当前宿主用户 FullControl 是降低标签所需的 WRITE_OWNER；受限进程仅获 Modify。
 - 通过 `SECURITY_CAPABILITIES` 启动挂起进程，查询 token 确认确为 AppContainer，加入 kill-on-close Job Object 后才恢复。Job 最多八个进程、512 MiB，限制剪贴板、窗口句柄等 UI 权利；不允许 breakaway。无隔离失败后的普通进程回退。
 - 仅继承三个显式 stdio 句柄；环境从系统／临时路径白名单构造，没有宿主模型、邮箱、代理变量。系统运行时和该 AppContainer 自己的存储属于 OS 的运行资源，不把 cwd 当成文件安全边界。
-- 命令后端使用系统 `cmd.exe /d /q /s /c`，关闭 AutoRun。命令单行最多 6000 UTF-16 字符，时间 500–30000 ms，stdout＋stderr 共 65536 bytes。helper 自身的输入／JSON 控制协议固定 UTF-8，子程序字节先严格 UTF-8 解码、失败才用系统 OEM 编码；不假设任意混合编码都能自动辨认。Unicode 文件／输出探针使用 PowerShell 的显式 UTF-8 文件和原始输出流，`LCA_DESK_ROOT` 只指向本次隔离副本。
+- 命令后端使用系统 `cmd.exe /d /q /s /c`，关闭 AutoRun。命令单行最多 6000 UTF-16 字符，时间 500–30000 ms，stdout＋stderr 共 65536 bytes。helper 的输入／JSON 控制协议及子程序输出都采用严格 UTF-8，不按 OEM 猜测或替换字节；无效输出明确失败且不写回。非 UTF-8 OEM 系统的非 ASCII 命令字面量在任何执行前拒绝，报 command-encoding-unsupported。Unicode 文件／输出可用 ASCII 的 PowerShell -EncodedCommand 和显式 UTF-8 文件／原始输出流；`LCA_DESK_ROOT` 只指向本次隔离副本。
 - 正常结束、超时、取消、超量均终止 Job 全树。宿主断开 stdin 会取消；helper 被强杀时 OS 关闭 Job 句柄，子孙进程也结束。正常路径删除自己的 AppContainer profile；可信父进程可用提前收到的 profile 控制帧在强杀后调用 `--cleanup`。不得从工作副本里的可改文件读取清理目标。
 - helper 的控制流 stdout 只有 JSON 控制帧和结果；不直接透传进程字节，错误仅阶段／固定代码。标准输出／错误正文属于之后的工作专用输出，尚未送到模型、快照或业务日志。
 
@@ -33,6 +33,8 @@
 09:47 CI 增补：Windows runner 的系统代码页不同，旧 helper 默认控制流解码及 `chcp 65001` 假设不成立，出现问号和 Access denied。已固定 helper stdin/stdout UTF-8，移除沙箱内改控制台代码页的要求，以显式 UTF-8 的子程序字节验证 Unicode；没有放开 AppContainer、UI Job 或文件权限。Windows 8.3 临时目录别名已在 949db62 修为规范路径锚定；普通文件／符号链接和硬链接守卫保留，新增大小写别名回归。
 
 09:58 CI 探针增补：文件／ACL 与网络负面探针拆开；ACL 直接构造 SecurityIdentifier 而非通过账户名做 LSA 翻译，并写下调用前标记，证明真正到达 SetAccessControl。环境检查直接调用 .NET，减少 PowerShell provider／模块初始化。网络探针也须有实际尝试标记，核对零 capability、监听器零连接及无逃逸输出；若网络栈被 OS 卡住，则接受监督器超时作为“未连接且已终止”的证据，不将它当作网络操作完成。
+
+10:06 #31：编码接口 fd884da 先合 main。原始中文复合命令及中文重定向文件回归保留：支持 UTF-8 的机器必须逐字正确，其他 OEM 系统必须在任何前置写文件前明确拒绝。另有任意非法 UTF-8 字节（0xff）输出必须被拒的独立回归，不能因进程退出码零就返回 completed。显式 UTF-8 的中文脚本／文件和后续全套隔离探针仍须实际通过；不以删除原始回归或猜测编码消除 CI 失败。
 
 ## API 来源
 

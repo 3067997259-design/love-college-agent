@@ -14,6 +14,7 @@ using System.Web.Script.Serialization;
 using Microsoft.Win32.SafeHandles;
 
 internal static class DeskCommand {
+    sealed class CommandEncodingException : Exception {}
     static string stage="input";
     [StructLayout(LayoutKind.Sequential)] struct SA { public int length; public IntPtr descriptor; public int inherit; }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] struct SI {
@@ -57,7 +58,7 @@ internal static class DeskCommand {
     static IntPtr Value<T>(T value) where T:struct { IntPtr p=Marshal.AllocHGlobal(Marshal.SizeOf(typeof(T))); Marshal.StructureToPtr(value,p,false); return p; }
     static void Free(ref IntPtr p) { if(p!=IntPtr.Zero){Marshal.FreeHGlobal(p);p=IntPtr.Zero;} }
     static void Close(ref IntPtr p) { if(p!=IntPtr.Zero && p!=new IntPtr(-1))CloseHandle(p);p=IntPtr.Zero; }
-    static string DecodeOutput(byte[] bytes) { try{return new UTF8Encoding(false,true).GetString(bytes);}catch(DecoderFallbackException){return Encoding.GetEncoding((int)GetOEMCP()).GetString(bytes);} }
+    static string DecodeOutput(byte[] bytes,bool incomplete) { try{return new UTF8Encoding(false,true).GetString(bytes);}catch(DecoderFallbackException){if(incomplete)return "";throw;} }
     static void LowLabel(string path) {
         IntPtr descriptor=IntPtr.Zero; uint size; bool present,def; IntPtr sacl;
         try { stage="label-descriptor"; Need(ConvertStringSecurityDescriptorToSecurityDescriptor("S:(ML;OICI;NW;;;LW)",1,out descriptor,out size)); stage="label-sacl"; Need(GetSecurityDescriptorSacl(descriptor,out present,out sacl,out def) && present); stage="label-apply"; uint code=SetNamedSecurityInfo(path,1,0x10,IntPtr.Zero,IntPtr.Zero,IntPtr.Zero,sacl);if(code!=0)throw new InvalidOperationException("win32-"+code.ToString()); }
@@ -86,10 +87,13 @@ internal static class DeskCommand {
             string root=Path.GetFullPath((string)input["root"]); string command=(string)input["command"]; int timeout=Convert.ToInt32(input["timeoutMs"]);
             Need(Path.GetFileName(root).StartsWith("lca-command-",StringComparison.Ordinal) && Directory.Exists(root) && (File.GetAttributes(root)&FileAttributes.ReparsePoint)==0);
             Need(command.Length>0 && command.Length<=6000 && command.IndexOf('\0')<0 && command.IndexOf('\r')<0 && command.IndexOf('\n')<0 && timeout>=500 && timeout<=30000);
+            stage="encoding";
+            new UTF8Encoding(false,true).GetByteCount(command);
+            if(GetOEMCP()!=65001) foreach(char ch in command) if(ch>127)throw new CommandEncodingException();
             Console.WriteLine(serializer.Serialize(Run(root,command,timeout))); return 0;
         } catch(Exception error) {
             // No exception text, paths, command, environment or Win32 messages leave the trusted helper.
-            string code=error is InvalidOperationException && error.Message.StartsWith("win32-",StringComparison.Ordinal) ? error.Message : "hresult-"+error.HResult.ToString();
+            string code=error is CommandEncodingException || error is EncoderFallbackException || error is DecoderFallbackException ? "command-encoding-unsupported" : error is InvalidOperationException && error.Message.StartsWith("win32-",StringComparison.Ordinal) ? error.Message : "hresult-"+error.HResult.ToString();
             Console.WriteLine(serializer.Serialize(new { status="unavailable", stage=stage, error=code })); return 1;
         }
     }
@@ -129,7 +133,7 @@ internal static class DeskCommand {
             while(WaitForSingleObject(process.process,50)==258){if(stop.WaitOne(0)){status=overflow?"output-limit":"cancelled";break;}if(watch.ElapsedMilliseconds>=timeout){status="timeout";break;}}
             uint exitCode; Need(GetExitCodeProcess(process.process,out exitCode)); TerminateJobObject(job,1); WaitForSingleObject(process.process,2000);
             Need(outThread.Join(2000) && errThread.Join(2000)); if(overflow)status="output-limit";
-            return new {status=status,exitCode=status=="completed"?(int?)exitCode:null,stdout=DecodeOutput(stdout.ToArray()),stderr=DecodeOutput(stderr.ToArray()),appContainer=true,networkCapabilities=0,processTreeTerminated=true,elapsedMs=watch.ElapsedMilliseconds};
+            stage="encoding"; return new {status=status,exitCode=status=="completed"?(int?)exitCode:null,stdout=DecodeOutput(stdout.ToArray(),status!="completed"),stderr=DecodeOutput(stderr.ToArray(),status!="completed"),appContainer=true,networkCapabilities=0,processTreeTerminated=true,elapsedMs=watch.ElapsedMilliseconds};
         } finally {
             if(job!=IntPtr.Zero)TerminateJobObject(job,1);if(process.process!=IntPtr.Zero){TerminateProcess(process.process,1);WaitForSingleObject(process.process,2000);}Close(ref process.thread);Close(ref process.process);Close(ref job);
             Close(ref outRead);Close(ref outWrite);Close(ref errRead);Close(ref errWrite);Close(ref nul);
