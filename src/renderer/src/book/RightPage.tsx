@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, PomodoroPlanView, QuillView } from '../../../shared'
+import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanView, QuillView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
 import { CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
 import { sourceText } from './life/text'
@@ -16,6 +16,7 @@ import { CommandControls } from './CommandControls'
 import { RewindControls } from './RewindControls'
 import { FailureDetails } from './FailureDetails'
 import failureWords from '../voice/failure.zh.json'
+import { quoteOnPage } from './history/quote'
 
 type Item =
   | { kind: 'message'; at: number; id: string; view: MessageView }
@@ -47,7 +48,7 @@ function useEnteringIds(snapshot: AppSnapshot): Set<string> {
   return fresh
 }
 
-export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTurnBack, quote = null, onClearQuote }: {
+export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTurnBack, quote = null, onClearQuote, onRestoreQuote }: {
   snapshot: AppSnapshot
   bridge: AppBridge
   /** 翻到别的书签时这一页留着（草稿和滚动位置都在），只是不显示 */
@@ -58,6 +59,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
   /** 从旧页引用来的一段：发送时连同问题交给主进程回忆（history.recall），不当普通消息发 */
   quote?: Quote | null
   onClearQuote?: () => void
+  onRestoreQuote?: (quote: Quote) => void
 }) {
   const { messages, candidates, deliveries, task, activities, pomodoro, privacy, quill, backup } = snapshot
   const recall = snapshot.history?.recall
@@ -70,6 +72,28 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [commandError, setCommandError] = useState('')
+  const composerState = useRef({ draft, quote, epoch: snapshot.epoch }); composerState.current = { draft, quote, epoch: snapshot.epoch }
+  const restoring = useRef(false)
+  async function restoreRequest(source: MessageView, failure: ModelFailureView) {
+    if (draft.trim() || quote || restoring.current) { setCommandError(failureWords.draftExists); return }
+    restoring.current = true; const epoch = snapshot.epoch
+    try {
+      let restored: Quote | null = null
+      if (failure.sourceRecallAnchor) {
+        if (!bridge.readSession || !onRestoreQuote) throw new Error('RECALL_UNAVAILABLE')
+        const anchor = failure.sourceRecallAnchor; const page = await bridge.readSession(anchor.sessionId)
+        const text = page.messages.find((message) => message.id === anchor.messageId)?.text.slice(anchor.start, anchor.end) ?? ''
+        restored = text.trim() && anchor.start >= 0 && anchor.end > anchor.start ? quoteOnPage({ anchor, text, dayKey: page.dayKey }, page) : null
+        if (!restored) throw new Error('RECALL_UNAVAILABLE')
+      }
+      // A page read can finish after a new draft, quote or profile has arrived.
+      if (composerState.current.epoch !== epoch) return
+      if (composerState.current.draft.trim() || composerState.current.quote) { setCommandError(failureWords.draftExists); return }
+      if (restored) onRestoreQuote?.(restored)
+      setCommandError(''); setDraft(source.text); inputRef.current?.focus()
+    } catch { setCommandError(failureWords.recallUnavailable) }
+    finally { restoring.current = false }
+  }
 
   // 任务卡没有时间戳：放在发起它的那条用户消息、以及她紧接着的那句应答后面
   const lastUserIndex = messages.findLastIndex((m) => m.role === 'user')
@@ -134,10 +158,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
           switch (item.kind) {
             case 'message': {
               const source = item.view.failure?.sourceMessageId ? messages.find((message) => message.role === 'user' && message.id === item.view.failure!.sourceMessageId) : undefined
-              return <Fragment key={item.id}><Message view={item.view} />{item.view.failure && <FailureDetails failure={item.view.failure} onDraft={source ? () => {
-                if (draft.trim() || quote) { setCommandError(failureWords.draftExists); return }
-                setCommandError(''); setDraft(source.text); inputRef.current?.focus()
-              } : undefined} />}</Fragment>
+              return <Fragment key={item.id}><Message view={item.view} />{item.view.failure && <FailureDetails failure={item.view.failure} onDraft={source ? () => { void restoreRequest(source, item.view.failure!) } : undefined} />}</Fragment>
             }
             case 'task': return task && <TaskCard key={item.id} task={task} activities={activities} />
             case 'candidate': return (

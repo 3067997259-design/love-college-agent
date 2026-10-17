@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHash } from 'node:crypto'
 import { createServer } from 'node:http'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
@@ -19,6 +19,11 @@ const server = createServer(async (req, res) => {
     res.writeHead(status, { 'Content-Type': 'application/json', 'Retry-After': '0' }).end(JSON.stringify({ error: { code: mode === 'filter' ? 'content_policy_violation' : mode === 'plain-403' ? 'invalid_api_key' : 'synthetic_failure', message: vendorBody + ' content filter ' + credential } })); return
   }
   res.writeHead(200, { 'Content-Type': 'text/event-stream' })
+  if (mode === 'recall-expand' && phase === 1) {
+    const reference = requests.at(-1).messages.map((message) => { try { return JSON.parse(message.content).recalledSeenReference } catch { return undefined } }).find(Boolean)
+    assert.ok(reference?.requestId)
+    res.end(frame({ tool_calls: [{ index: 0, id: 'recall-expand', type: 'function', function: { name: 'recall_seen', arguments: JSON.stringify({ requestId: reference.requestId, relativeStart: 0, count: 1 }) } }] }, 'tool_calls') + 'data: [DONE]\n\n'); return
+  }
   if (mode === 'tool-fail') { res.end(frame({ tool_calls: [{ index: 0, id: 'clock-' + requests.length, type: 'function', function: { name: 'get_clock', arguments: '{}' } }] }, 'tool_calls') + 'data: [DONE]\n\n'); return }
   if (mode === 'interrupted') { res.end(frame({ content: 'SAFE_PARTIAL_REPLY' }, null)); return }
   res.end(frame({ content: 'SYNTHETIC_SUCCESS_REPLY' }, 'stop') + 'data: [DONE]\n\n')
@@ -38,6 +43,15 @@ async function records() { const rows = []; for (const owner of await readdir(jo
 const safe = (value) => { const text = JSON.stringify(value); assert.ok(!text.includes(credential) && !text.includes(vendorBody), 'PRIVATE_FAILURE_LEAK') }
 try {
   await mkdir(data, { recursive: true }); await writeFile(fixture, JSON.stringify({ providers: { chat: { base_url: 'http://127.0.0.1:' + server.address().port + '/v1', api_key: credential, model: 'synthetic-failure-model' } } }))
+  // An explicit synthetic historical page with successful-input evidence; no
+  // private data, accelerated normal clock or relaxed recall validation.
+  const oldAt = Date.now() - 86400000; const oldDay = new Date(oldAt + 4 * 3600000).toISOString().slice(0, 10)
+  const oldSession = randomUUID(); const oldText = 'SYNTHETIC_SEEN_QUOTE 周五桥在窗边。'
+  const folder = join(data, 'journals', createHash('sha256').update(JSON.stringify(['local-user', 'default-character'])).digest('hex')); await mkdir(folder, { recursive: true })
+  const oldRows = [{ type: 'session/header', userId: 'local-user', characterId: 'default-character', sessionId: oldSession },
+    { type: 'user/message', id: 'old-seen', text: oldText, requestId: 'old-seen', commandHash: 'h' }, { type: 'inbox/drain', ids: ['old-seen'] },
+    { type: 'model/seen', turnId: 'old-turn', source: 'fake', messages: [{ role: 'user', content: oldText }], eligibleIndexes: [0] }]
+  await writeFile(join(folder, oldDay + '.jsonl'), oldRows.map((row, index) => JSON.stringify({ ...row, version: 1, seq: index + 1, atMs: oldAt })).join('\n') + '\n')
   await launch(); await accept({ type: 'mode.set', mode: 'quiet' })
   const first = await fail('configuration', 'ORIGINAL_REVIEWED_REQUEST'); assert.equal(first.failure.category, 'configuration'); assert.equal(first.failure.httpStatus, 401); assert.equal(first.failure.attemptCount, 1)
   const details = page.locator(`[data-failure-turn="${first.failure.turnId}"]`); await details.locator('summary').click(); assert.ok((await details.innerText()).includes('configuration-failed'))
@@ -46,6 +60,21 @@ try {
   await composer.fill(''); await details.getByRole('button', { name: '带回原请求，检查后发送', exact: true }).click(); assert.equal(await composer.inputValue(), 'ORIGINAL_REVIEWED_REQUEST'); assert.equal(requests.length, beforeRetry)
   mode = 'success'; phase = 0; await page.getByRole('button', { name: '发送', exact: true }).click(); await waitFor((s) => s.task?.id !== first.failure.turnId && s.task?.status === 'completed', 'USER_RETRY_FAILED')
   assert.ok(!JSON.stringify(requests.at(-1).messages).includes(first.text)); assert.equal(requests.at(-1).messages.at(-1).content, 'ORIGINAL_REVIEWED_REQUEST')
+  const anchor = { sessionId: oldSession, messageId: 'old-seen', start: 0, end: oldText.length }
+  mode = 'configuration'; phase = 0; await accept({ type: 'history.recall', anchor, question: 'ORIGINAL_RECALL_QUESTION' })
+  await waitFor((s) => s.task?.status === 'failed' && !!failureFor(s), 'RECALL_FAILURE_MISSING')
+  const recallFailure = failureFor(await snapshot()); assert.deepEqual(recallFailure.failure.sourceRecallAnchor, anchor)
+  const oldRequest = (await records()).filter((row) => row.type === 'history/recall-request').at(-1).requestId; const beforeRecallRetry = requests.length
+  await page.locator(`[data-failure-turn="${recallFailure.failure.turnId}"]`).getByRole('button', { name: '带回原请求，检查后发送', exact: true }).click()
+  await page.waitForFunction(() => document.querySelector('.composer-input').value === 'ORIGINAL_RECALL_QUESTION')
+  assert.equal(await page.locator('.quote-chip-text').innerText(), oldText); assert.equal(requests.length, beforeRecallRetry)
+  mode = 'recall-expand'; phase = 0; await page.getByRole('button', { name: '发送', exact: true }).click()
+  await waitFor((s) => s.task?.id !== recallFailure.failure.turnId && s.task?.status === 'completed', 'RECALL_RESEND_FAILED')
+  const newRequest = (await records()).filter((row) => row.type === 'history/recall-request').at(-1).requestId
+  assert.notEqual(newRequest, oldRequest); assert.equal(phase, 2); assert.ok(requests.at(-2).messages.some((message) => message.content?.includes('recalledSeenReference') && message.content.includes(newRequest)))
+  assert.ok(requests.at(-1).messages.some((message) => message.role === 'tool' && message.content.includes(oldText)))
+  mode = 'success'; phase = 0; await accept({ type: 'message.send', text: 'UNRELATED_AFTER_RECALL' }); await waitFor((s) => s.task?.status === 'completed' && s.messages.at(-1)?.text === 'SYNTHETIC_SUCCESS_REPLY', 'UNRELATED_TURN_FAILED')
+  assert.ok(!requests.at(-1).messages.some((message) => message.content?.includes('recalledSeenReference')))
   const plain = await fail('plain-403', 'plain status is not evidence of filtering'); assert.equal(plain.failure.category, 'configuration')
   const filtered = await fail('filter', 'explicit filter marker'); assert.equal(filtered.failure.category, 'content-filtered'); assert.equal(phase, 1)
   const interrupted = await fail('interrupted', 'partial stream'); assert.equal(interrupted.failure.category, 'interrupted'); assert.equal(phase, 1); assert.ok((await snapshot()).messages.some((message) => message.text === 'SAFE_PARTIAL_REPLY' && message.status === 'interrupted'))
@@ -73,5 +102,5 @@ try {
   const narration = finalRows.filter((row) => row.type === 'narrator/failure').map((row) => row.text)
   for (const request of requests) for (const text of narration) assert.ok(!request.messages.some((message) => message.content?.includes(text)), 'NARRATOR_IN_HTTP')
   for (const row of finalRows.filter((row) => row.type === 'model/seen')) for (const text of narration) assert.ok(!row.messages.some((message) => message.content.includes(text)))
-  console.log(JSON.stringify({ ok: true, probe: 'failure-narrator', source: 'synthetic-http', nativeSQLite: true, classifiedFailures: true, explicitFilterOnly: true, partialPreserved: true, userDraftReviewNoReplay: true, toolReceiptWarning: true, stoppedNotFailure: true, workIsolation: true, modelAndRecallExclusion: true, restartNoReplay: true, privateRestore: true, noPrivateErrorBody: true }))
+  console.log(JSON.stringify({ ok: true, probe: 'failure-narrator', source: 'synthetic-http', nativeSQLite: true, classifiedFailures: true, explicitFilterOnly: true, partialPreserved: true, userDraftReviewNoReplay: true, recallQuestionAndQuoteRestored: true, freshRecallRequestAndToolExpansion: true, toolReceiptWarning: true, stoppedNotFailure: true, workIsolation: true, modelAndRecallExclusion: true, restartNoReplay: true, privateRestore: true, noPrivateErrorBody: true }))
 } finally { await close(); server.closeAllConnections(); await new Promise((done) => server.close(done)) }

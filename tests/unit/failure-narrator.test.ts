@@ -25,6 +25,15 @@ function fixture() {
   return { store, clock, start }
 }
 const reply = { text: 'SYNTHETIC_REPLY', toolCalls: [], usage: { inputTokens: 1, outputTokens: 1 } }
+it('binds a failed recall request to its original anchor without attaching it to a later ordinary request', async () => {
+  const f = fixture(); const anchor = { sessionId: 'old', messageId: 'seen', start: 0, end: 3 }
+  f.store.append({ type: 'history/recall-request', requestId: 'recall-r1', anchor, sourceCount: 1 })
+  const h = f.start({ source: 'fake', complete: async () => { throw new ModelFailure('configuration') } })
+  h.send('Recall question', 'recall-r1', 'h'); await h.idle()
+  expect(f.store.projection().messages.findLast((message) => message.failure)?.failure).toMatchObject({ sourceRecallAnchor: anchor })
+  h.send('Ordinary question', 'ordinary-r2', 'h'); await h.idle()
+  expect(f.store.projection().messages.findLast((message) => message.failure)?.failure?.sourceRecallAnchor).toBeUndefined()
+})
 it('never sends failure narration or partial replies to an enabled speech port', async () => {
   const f = fixture(); const spoken: string[] = []; let count = 0
   const voice = createVoice({ store: f.store, clock: f.clock, blocked: () => false, changed: () => {}, safeText: (text) => text,
