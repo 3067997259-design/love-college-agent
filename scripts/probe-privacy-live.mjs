@@ -32,9 +32,13 @@ try {
   }
   if (inspectId) {
     // An inspect run must never resume a paused/queued document task: startup would call the privacy model again.
-    const latest = new Map()
-    for (const row of beforeRows) if (row.type === 'document/job' && row.job?.view?.id) latest.set(row.job.view.id, row.job.view.status)
-    const nonTerminal = [...latest.values()].filter((status) => ['staged', 'queued', 'processing'].includes(status))
+    const jobs = new Map()
+    for (const row of beforeRows) {
+      if (row.type === 'document/job' && row.job?.view?.id) jobs.set(row.job.view.id, row.job.view.status)
+      // Completion is projected from document/completed, not a second document/job row.
+      else if (row.type === 'document/completed' && jobs.get(row.documentId) === 'processing') jobs.set(row.documentId, 'ready')
+    }
+    const nonTerminal = [...jobs.values()].filter((status) => ['staged', 'queued', 'processing'].includes(status))
     if (nonTerminal.length) {
       report = { ...report, error: 'INSPECTION_REQUIRES_TERMINAL_DOCUMENTS', nonTerminalDocuments: nonTerminal.length }
       throw new Error('UNSAFE_INSPECTION')
