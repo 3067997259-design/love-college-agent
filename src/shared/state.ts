@@ -128,6 +128,9 @@ export interface ModelFailureView {
   httpStatus?: number
   /** Optional original request already visible to the book user. Resending requires user review. */
   sourceMessageId?: string
+  /** Original user-selected seen reference. Restore the quote with the question;
+   * sending still creates a fresh history.recall and revalidates scope and budgets. */
+  sourceRecallAnchor?: RecallAnchor
 }
 export interface ActivityView {
   id: string
@@ -577,10 +580,13 @@ export interface DeskCommandView {
   snapshotHash?: string
   outcome?: {
     exitCode: number | null
-    elapsedMs: number
-    processTreeTerminated: boolean
-    publication: 'unchanged' | 'applied' | 'not-applied' | 'partial'
-    changedFiles: number
+    /** Null when a crash left no durable process receipt. */
+    elapsedMs: number | null
+    processTreeTerminated: boolean | null
+    /** Unknown never implies no effects; appliedFiles remains confirmed evidence. */
+    publication: 'unchanged' | 'applied' | 'not-applied' | 'partial' | 'unknown'
+    changedFiles: number | null
+    /** Confirmed publications; a lower bound when publication is unknown. */
     appliedFiles: number
   }
   error?: PublicError
