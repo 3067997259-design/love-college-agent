@@ -10,6 +10,7 @@ import { openJournal } from '../../src/main/journal/file'
 import { projectJournal } from '../../src/main/journal/projection'
 import { createDesk } from '../../src/main/heart-flow/desk'
 import { createHeartFlow } from '../../src/main/heart-flow/service'
+import { appliedDeskChanges, changeUndone } from '../../src/main/heart-flow/changes'
 
 const cleanup: (() => void)[] = []
 afterEach(() => { for (const close of cleanup.splice(0).reverse()) close() })
@@ -40,6 +41,21 @@ it('restores multiple files to before a boundary, including repeated edits, dele
   expect(f.flow.view().changes.every((change) => change.undone)).toBe(true); expect(f.flow.inspect({ section: 'diff' }).changes.every((change) => change.undone)).toBe(true)
   expect(f.store.records().length).toBeGreaterThan(oldCount); expect(f.send({ type: 'flow.rewind.apply', rewindId: id })).toBe('invalid-command')
   const prepared = await f.flow.prepareContext('after', new AbortController().signal); expect(prepared.eligibleIndexes).toEqual([]); expect(JSON.stringify(prepared.messages)).toContain('recordedFileRewind')
+})
+it.each([false, true])('reactivates a pre-boundary write when its undo is rewound, including legacy targets=%s', async (legacy) => {
+  const f = await fixture(); const a = f.flow.write('a.txt', 'A'); const b = f.flow.write('b.txt', 'B')
+  expect(f.send({ type: 'flow.undo', changeId: a })).toBeUndefined()
+  f.send({ type: 'flow.rewind.prepare', changeId: b }); f.send({ type: 'flow.rewind.apply', rewindId: f.flow.view().rewind!.id }); await f.settle()
+  expect(f.desk.read('a.txt')).toBe('A'); expect(f.desk.read('b.txt')).toBeNull()
+  const rows = f.store.records().map((row) => legacy && row.type === 'desk/change' && row.rewindId ? { ...row, rewinds: row.rewinds?.filter((id) => id === b) } : row)
+  const changes = appliedDeskChanges(rows)
+  expect(changeUndone(changes, a)).toBe(false); expect(changeUndone(changes, b)).toBe(true)
+  expect(f.flow.view().changes.find((change) => change.id === a)?.undone).toBe(false)
+  expect(f.flow.inspect({ section: 'diff' }).changes.find((change) => change.id === a)?.undone).toBe(false)
+  f.flow.close(); const reopened = createHeartFlow(f.options); cleanup.push(reopened.close)
+  expect(reopened.view().changes.find((change) => change.id === a)?.undone).toBe(false)
+  expect(reopened.dispatch({ protocolVersion: 1, epoch: 'x', requestId: 'x', type: 'flow.undo', changeId: a })).toBeUndefined()
+  expect(f.desk.read('a.txt')).toBeNull()
 })
 it.each(['file', 'new-record'] as const)('rejects stale confirmation before any writes after %s', async (cause) => {
   const f = await fixture(); const boundary = f.flow.write('a.txt', 'a'); f.flow.write('b.txt', 'b')

@@ -73,5 +73,19 @@ try {
   const restored = await page.evaluate((flowId) => window.lca.readHeartFlow({ section: 'diff', flowId }), flowId); assert.equal(restored.changes.filter((change) => change.undone).length, 3)
   assert.ok(rows.some((row) => row.type === 'flow/rewind' && row.status === 'cancelled' && row.appliedFiles === 0))
   for (const row of rows.filter((row) => row.type === 'model/seen' && workTurns.has(row.turnId))) assert.deepEqual(row.eligibleIndexes, [])
+  await accept({ type: 'flow.enter' }); await waitFor((s) => s.heartFlow.activeId, 'SECOND_FLOW_MISSING'); await accept({ type: 'flow.mode', mode: 'execute' })
+  await writes([['inverse-a.txt', 'A'], ['inverse-b.txt', 'B']])
+  const inverseA = (await snapshot()).heartFlow.changes.find((change) => change.path === 'inverse-a.txt').id
+  const inverseB = (await snapshot()).heartFlow.changes.find((change) => change.path === 'inverse-b.txt').id
+  await accept({ type: 'flow.undo', changeId: inverseA }); await accept({ type: 'flow.rewind.prepare', changeId: inverseB })
+  await accept({ type: 'flow.rewind.apply', rewindId: (await snapshot()).heartFlow.rewind.id }); await waitFor((s) => s.heartFlow.rewind?.status === 'completed', 'INVERSE_REWIND_FAILED')
+  assert.equal(await readFile(join(desk, 'inverse-a.txt'), 'utf8'), 'A'); await assert.rejects(readFile(join(desk, 'inverse-b.txt')), { code: 'ENOENT' })
+  await close(); await launch()
+  assert.equal((await snapshot()).heartFlow.changes.find((change) => change.id === inverseA).undone, false)
+  assert.equal((await page.evaluate(() => window.lca.readHeartFlow({ section: 'diff' }))).changes.find((change) => change.id === inverseA).undone, false)
+  assert.equal(await page.locator('.flow-changes li').filter({ hasText: 'inverse-a.txt' }).getByRole('button', { name: '从这里往后回退', exact: true }).count(), 1)
+  await accept({ type: 'message.send', text: '/undo' }); await waitFor((s) => s.heartFlow.rewind?.status === 'awaiting-confirmation', 'INVERSE_SLASH_UNDO_FAILED')
+  assert.equal((await snapshot()).heartFlow.rewind.changeId, inverseA); await accept({ type: 'flow.rewind.cancel', rewindId: (await snapshot()).heartFlow.rewind.id })
+  await accept({ type: 'flow.undo', changeId: inverseA }); await assert.rejects(readFile(join(desk, 'inverse-a.txt')), { code: 'ENOENT' })
   console.log(JSON.stringify({ ok: true, probe: 'flow-rewind', nativeSQLite: true, source: 'synthetic', uiBoundaryAndConfirmation: true, repeatedEditsAndMultipleFiles: true, staleVersionNoWrites: true, slashPreview: true, cancel: true, restartNoReplay: true, privateRestoreNoReplay: true, workIsolation: true }))
 } finally { await close() }
