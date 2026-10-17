@@ -10,6 +10,9 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'message.send'; text: string }
   | { type: 'turn.stop'; taskId: string }
   | { type: 'voice.set'; enabled: boolean }
+  /** Booth book only. Integer reservations: total 10000..5000000, autonomous 0..total.
+   * A reduction never refunds prior admissions; it only gates subsequent requests. */
+  | { type: 'resources.configure'; dailyTotalUnits: number; dailyAutonomousUnits: number }
   | { type: 'voice.stop'; utteranceId: string }
   /** Book playback reports only; this is renderer telemetry, not synthesis or external-action evidence. */
   | { type: 'voice.playback'; utteranceId: string; status: 'playing' | 'ended' | 'failed' }
