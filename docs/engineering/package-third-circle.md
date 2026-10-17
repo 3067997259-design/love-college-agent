@@ -9,3 +9,5 @@
 2026-10-17 07:28 实测通过：七类探针分别跑解包版与安装版、普通界面重启、完整历史照片／引用／私人恢复，以及上述 15 项安装版原生场景，最终 `ok=true`。测试安装已卸载。源码回执 `6571c057a5da9dd8c5afb96e22398f43a1de2c68`，trackedDirty=false，该 SHA 的 CI 也已通过。安装器 238117936 字节，SHA-256 `763c365b563fd5b1285775e5c6c148442376d72bda20c711f7715354e8685b85`；实际 Authenticode 状态 NotSigned。此包替代 07:08 的 4a34e4d 测试包。
 
 本机安装器：`D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe`；构建回执 `release/build-receipt.json`，验收报告 `test-results/package-report.json`。main checkout 的 release 不会随 Git 合并更新。前 13 个场景按独立 profile 顺序跑，showcase 是同一书本的跨功能连续链路，life-port 在普通模式走本机合成 HTTP 客户端验证六步产物、取消、坏输出及隔离。这些场景仍不是五分钟路演观感、真实供应商质量或长期自主运行的证明。
+
+11:55：验收入口已扩至 25 项，收录后续的 flow-sleep、游戏图像／stdio／挖掘、资源账本，以及 questions、desk-command、flow-rewind、settings、failure-narrator。showcase 源码新的七阶段连续链已通过；此次新 NSIS 的构建、实际安装及完整 25 项结果待补，以上 07:28 的包仍只对应当时 15 项，不能混用 SHA 或证据。

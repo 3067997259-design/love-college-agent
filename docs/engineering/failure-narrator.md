@@ -11,3 +11,5 @@
 `pnpm test:failure-narrator` 已通过：普通 Electron／真实 SQLite／本机合成 HTTP，401 配置、单独 403 不猜内容拦截、显式拦截、半截 SSE、真实时钟工具后 503、闭集详情、保留草稿／手动重发、停止不报故障、心流书页隔离、实际 HTTP 与成功输入排除、旧页不可引用、重启／私人 ZIP 恢复不重放。日志和快照无合成供应商错误正文或配置值。没有真实模型质量验收。
 
 类型／lint、69 文件／485 项全量 Vitest 通过，随后新增语音端口隔离用例也通过（旁白文件共 17 项）：错误和半截回复不合成语音，对照的成功回复实际进 fake PCM 端口。原有 harness、问答含 SQLite 日切、光学及字体／CSP／控制台原生整链通过。新安装包与最终连续流程仍待收录。
+
+main 8a95801 的 [Windows CI 39000167291](https://github.com/3067997259-design/love-college-agent/actions/runs/39000167291) 已通过类型／lint、69 文件／486 单测及原生完整命令链；这包含追加语音隔离项。后续新的七阶段源码连续链亦已通过，见 showcase-third-circle.md，安装版仍另验。

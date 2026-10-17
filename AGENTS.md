@@ -97,6 +97,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm test:flow-rewind` | 实际多文件步骤回退、书页预览／确认、版本冲突前拒绝、取消、重启／私人恢复不重放；fake 工作模型 |
 | `pnpm test:settings` | 正常／展位分组设置、原生配置失败详情、私人导出、隐私锁、重启后独立开发模式及诊断隔离 |
 | `pnpm test:failure-narrator` | 合成 HTTP 失败分类／明确拦截／半截回复、用户草稿检查后重发、工具证据提示、普通／工作隔离、重启及私人恢复 |
+| `pnpm probe:live-readiness` | 主进程只读本机装配状态、独立新 profile、零模型／语音／礼物请求；不做连接或质量验收 |
 | `pnpm probe:desk-command:runtime` | Windows 原生隔离／中文或明确拒绝／外部文件及网络拒绝／上限／取消／子进程退出；真实主进程协议 |
 | `pnpm test:desk-command` | Electron 逐次人工审批、实际 cmd 与受版本保护的写回、输出窗口、编码错误、取消／重启／私人恢复、展位拒绝 |
 | `pnpm test:developer` | 隔离假模型、MCP 鉴权／时钟、文件夹插件授权、场景与展位拒绝 |
