@@ -90,7 +90,7 @@ export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot
             : <>
               <RightPage snapshot={snapshot} bridge={bridge} hidden={tab !== 'chat' || !!old.view} onOpenShelf={() => turnTab('gifts')}
                 onTurnBack={old.past.length ? () => old.open(old.past.at(-1)!.sessionId) : undefined}
-                quote={quote} onClearQuote={() => setQuote(null)} />
+                quote={quote} onClearQuote={() => setQuote(null)} onRestoreQuote={setQuote} />
               {tab === 'chat' && old.view && (
                 <OldPage key={old.view.info.sessionId} info={old.view.info} page={old.view.page} failed={old.view.failed} older={old.neighbor(-1)} newer={old.neighbor(1)}
                   optical={snapshot.opticalMemory?.enabled && bridge.readOpticalMemory
