@@ -5,6 +5,7 @@ import { sendCommand, type CommandBody } from './command'
 import { formatClock, formatRemaining } from './format'
 import { locationLabel, MODE_LABEL } from './labels'
 import { useLightSwitch } from './ambience'
+import { useLiveFlip } from './live'
 import copy from '../voice/book.zh.json'
 import { fill } from './life/text'
 import { useCountdown } from './useCountdown'
@@ -60,68 +61,73 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   const backup = snapshot.backup
   const restoreId = backup?.status === 'restored' ? (backup.restoreId ?? backup.operationId ?? null) : null
 
+  const scene = importedScene
+    ? <div className="character character-color"><img className="character-art" data-character-package alt="" src={importedScene} draggable={false} /></div>
+    : <WashRoom art={art} restoreId={intro ? null : restoreId} intro={intro && intro !== 'done' ? intro : null} paintFurniture={intro ? furniture?.painted : undefined} lightSwitch={lightSwitch} />
+
   return (
     <section className="page page-left" aria-label="她在的地方" data-intro={intro ?? undefined}>
-      {intro ? (
-        <div className="room" data-shot="close" data-location="room" data-pose={art.key.split('_')[0]} data-lighting="ambient">
-          {importedScene ? <div className="character character-color"><img className="character-art" data-character-package alt="" src={importedScene} draggable={false} /></div> : <WashRoom art={art} restoreId={null} intro={intro === 'done' ? null : intro} paintFurniture={furniture?.painted} />}
-          {furniture && (
-            <svg className="furniture-hits" viewBox="0 0 1 1" preserveAspectRatio="none" aria-label="房间里的家具">
-              {FURNITURE.map((item) => {
-                const done = furniture.painted.includes(item.id)
-                return (
-                  <polygon key={item.id} className="furniture-hit" data-done={done} points={item.points.map((p) => p.join(',')).join(' ')}
-                    role="button" aria-label={done ? `${item.name}（已上色）` : `给${item.name}上色`} tabIndex={done ? -1 : 0}
-                    onClick={() => { if (!done) furniture.onPaint(item.id) }}
-                    onKeyDown={(event) => { if (!done && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); furniture.onPaint(item.id) } }}>
-                    <title>{item.name}</title>
-                  </polygon>
-                )
-              })}
-            </svg>
-          )}
-        </div>
-      ) : <>
       {/* 熄灯开关是页边垂下的一根拉线：她睡着、出门、门牌收起来的时候也拉得到 */}
-      <button type="button" className="pull-cord" data-on={!companion.lightsOut}
-        aria-label={companion.lightsOut ? '拉线开灯' : '拉线熄灯'}
-        title={companion.lightsOut ? '开灯：计时和后台活动接着走' : '熄灯：暂停计时和所有后台活动'}
-        onClick={() => { void command({ type: 'lights.set', lightsOut: !companion.lightsOut }) }}>
-        <span className="pull-cord-string" aria-hidden><span className="pull-cord-bead" /></span>
-      </button>
-      <div className="room" data-photo-scene data-session-id={snapshot.scope.sessionId} data-shot="close" data-location={companion.locationId} data-pose={pose} data-lighting={art.lighting} data-arriving={arriving || undefined}>
+      {!intro && (
+        <button type="button" className="pull-cord room-ui" data-on={!companion.lightsOut}
+          aria-label={companion.lightsOut ? '拉线开灯' : '拉线熄灯'}
+          title={companion.lightsOut ? '开灯：计时和后台活动接着走' : '熄灯：暂停计时和所有后台活动'}
+          onClick={() => { void command({ type: 'lights.set', lightsOut: !companion.lightsOut }) }}>
+          <span className="pull-cord-string" aria-hidden><span className="pull-cord-bead" /></span>
+        </button>
+      )}
+      {/*
+        新手流程和平常是同一个房间节点：画布不重建。点“开始吧”进书时，房间不会闪白，只把她的表情交叉淡化一次，
+        钟、门牌这些房间里的东西再淡进来。
+      */}
+      <div className="room" data-photo-scene={intro ? undefined : true} data-session-id={intro ? undefined : snapshot.scope.sessionId} data-shot="close"
+        data-location={intro ? 'room' : companion.locationId} data-pose={intro ? art.key.split('_')[0] : pose} data-lighting={art.lighting} data-arriving={(!intro && arriving) || undefined}>
         {/* 精修整景：颜色聚在她周围，往外褪成从彩图实时提取的铅笔线（体验设计 §7.1，用户批准） */}
-        {importedScene ? <div className="character character-color"><img className="character-art" data-character-package alt="" src={importedScene} draggable={false} /></div> : <WashRoom art={art} restoreId={restoreId} lightSwitch={lightSwitch} />}
+        {scene}
+        {intro ? furniture && (
+          <svg className="furniture-hits" viewBox="0 0 1 1" preserveAspectRatio="none" aria-label="房间里的家具">
+            {FURNITURE.map((item) => {
+              const done = furniture.painted.includes(item.id)
+              return (
+                <polygon key={item.id} className="furniture-hit" data-done={done} points={item.points.map((p) => p.join(',')).join(' ')}
+                  role="button" aria-label={done ? `${item.name}（已上色）` : `给${item.name}上色`} tabIndex={done ? -1 : 0}
+                  onClick={() => { if (!done) furniture.onPaint(item.id) }}
+                  onKeyDown={(event) => { if (!done && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); furniture.onPaint(item.id) } }}>
+                  <title>{item.name}</title>
+                </polygon>
+              )
+            })}
+          </svg>
+        ) : <>
+          {/* 墙上的钟就是番茄钟；不计时的时候显示现在几点 */}
+          <div className="wall-clock room-ui" data-photo-omit data-phase={pomodoro.phase} data-status={pomodoro.status}>
+            <span className="wall-clock-time">{timerOn ? formatRemaining(remaining) : formatClock(snapshot.clock.nowMs)}</span>
+            {timerOn && <span className="wall-clock-phase">{pomodoro.phase === 'focus' ? '专注' : '休息'}</span>}
+          </div>
+          {/* 外出用桌上纸条，睡着不挂“休息”牌。 */}
+          {!away && pose !== 'sleeping' && <DoorSign snapshot={snapshot} onCommand={command} failed={commandFailed} />}
+          {/* 新邮件：近景是桌上的一封信，远景是门上的信箱口。只有邮箱连着的时候才显示；连不上不能显示成“没有信” */}
+          {newMail && (
+            <div className="mail-slot room-ui" title={`${companion.mailboxUnseen} 封新邮件`}><span className="mail-letter" /></div>
+          )}
 
-        {/* 墙上的钟就是番茄钟；不计时的时候显示现在几点 */}
-        <div className="wall-clock" data-photo-omit data-phase={pomodoro.phase} data-status={pomodoro.status}>
-          <span className="wall-clock-time">{timerOn ? formatRemaining(remaining) : formatClock(snapshot.clock.nowMs)}</span>
-          {timerOn && <span className="wall-clock-phase">{pomodoro.phase === 'focus' ? '专注' : '休息'}</span>}
-        </div>
-        {/* 外出用桌上纸条，睡着不挂“休息”牌。 */}
-        {!away && pose !== 'sleeping' && <DoorSign snapshot={snapshot} onCommand={command} failed={commandFailed} />}
-        {/* 新邮件：近景是桌上的一封信，远景是门上的信箱口。只有邮箱连着的时候才显示；连不上不能显示成“没有信” */}
-        {newMail && (
-          <div className="mail-slot" title={`${companion.mailboxUnseen} 封新邮件`}><span className="mail-letter" /></div>
-        )}
+          {away && <AwayNote snapshot={snapshot} writing={moved} />}
+          {/* 她出门带回来的东西摆在窗台上，跟着房间一起进照片、一起变暗 */}
+          <SillItems snapshot={snapshot} onOpenDiary={(dayKey) => onOpenDiary?.(dayKey)} />
 
-        {away && <AwayNote snapshot={snapshot} writing={moved} />}
-        {/* 她出门带回来的东西摆在窗台上，跟着房间一起进照片、一起变暗 */}
-        <SillItems snapshot={snapshot} onOpenDiary={(dayKey) => onOpenDiary?.(dayKey)} />
-
-        {/* 光线层在最上面：钟、门牌、信都是房间里的东西，跟着房间一起暗。重光的夜图自带光线，调色层淡出（不叠两次夜色） */}
-        <div className="room-tint" /><div className="room-lamp" />
+          {/* 光线层在最上面：钟、门牌、信都是房间里的东西，跟着房间一起暗。重光的夜图自带光线，调色层淡出（不叠两次夜色） */}
+          <div className="room-tint" /><div className="room-lamp" />
+        </>}
       </div>
       {/* 房间之外的兄弟节点：盖在上面，但不进实时拍照的根 */}
-      {historyPhoto && <HistoryPhoto view={historyPhoto} />}
+      {!intro && historyPhoto && <HistoryPhoto view={historyPhoto} />}
 
-      {lastLine && historyPhoto?.mode !== 'page' && (
+      {!intro && lastLine && historyPhoto?.mode !== 'page' && (
         <p className="speech" data-status={lastLine.status} data-absent={away || pose === 'sleeping' || undefined}>
           {lastLine.text}
           {lastLine.status === 'streaming' && <span className="speech-caret" />}
         </p>
       )}
-      </>}
     </section>
   )
 }
@@ -146,14 +152,6 @@ function AwayNote({ snapshot, writing }: { snapshot: AppSnapshot; writing: boole
   )
 }
 
-/** 这次运行里亲眼看着变成这个值的（同一个 epoch 里从别的值变过来）；首个快照、重启、换 epoch 不算 */
-function useLiveFlip(epoch: string, value: string): boolean {
-  const seen = useRef<{ epoch: string; value: string; live: boolean } | null>(null)
-  if (!seen.current || seen.current.epoch !== epoch) seen.current = { epoch, value, live: false }
-  else if (seen.current.value !== value) seen.current = { epoch, value, live: true }
-  return seen.current.live
-}
-
 /**
  * 门牌是你的情境开关（体验设计 §2）：工作中／安静／休息，番茄钟的阶段会自动翻它。
  * 专注时翻到“休息”就是提前结束这一段，记为中断，由主进程判定（技术方案 §3.5）。熄灯是另一个开关，也收在这里。
@@ -174,7 +172,7 @@ function DoorSign({ snapshot, onCommand, failed }: { snapshot: AppSnapshot; onCo
   const interrupts = pomodoro.phase === 'focus' && pomodoro.status !== 'idle'
 
   return (
-    <div className="door" data-photo-omit ref={ref}>
+    <div className="door room-ui" data-photo-omit ref={ref}>
       <button type="button" className="door-sign" data-mode={companion.mode} aria-haspopup="menu" aria-expanded={open}
         title="门牌：点一下翻面" onClick={() => setOpen((value) => !value)}>
         {MODE_LABEL[companion.mode]}

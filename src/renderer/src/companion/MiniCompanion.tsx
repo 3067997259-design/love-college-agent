@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react'
+import { useId, useRef, useState } from 'react'
 import type { ActivityView, AppSnapshot } from '../../../shared'
 import { useRootAmbience } from '../book/ambience'
 import { sceneSrc } from '../book/Character'
@@ -106,13 +106,8 @@ export function MiniCompanion({ snapshot, onExpand, onHover, onMove }: {
         {!src && <span className="mini-missing">（场景素材缺失）</span>}
       </button>
 
-      {/* 铃：休息开始时摇几下，她也转过来了（姿势来自快照） */}
-      {onBreak && (
-        <svg key={`bell-${pomodoro.focusIndex}-${pomodoro.phase}`} className="mini-bell" viewBox="0 0 24 24" aria-hidden>
-          <path d="M12 3 C 8 3, 6 6, 6 10 L 6 14 L 4 17 L 20 17 L 18 14 L 18 10 C 18 6, 16 3, 12 3 Z" />
-          <circle cx="12" cy="19.5" r="1.8" />
-        </svg>
-      )}
+      {/* 铃：休息开始时摇几下，她也转过来了（姿势来自快照）。休息过了一会儿才打开小窗，铃只挂着不摇 */}
+      {onBreak && <Bell key={`bell-${pomodoro.focusIndex}-${pomodoro.phase}`} ring={(pomodoro.phaseDurationMs - pomodoro.remainingMs) / Math.max(1, snapshot.clock.rate) < 4000} />}
 
       <p className="mini-tag">
         {companion.lightsOut ? '熄灯中'
@@ -122,6 +117,17 @@ export function MiniCompanion({ snapshot, onExpand, onHover, onMove }: {
       </p>
       <p className="mini-note" aria-live="polite" data-status={approval ? 'approval' : doing ? doing.status : work ? 'running' : undefined}>{note}</p>
     </div>
+  )
+}
+
+/** 休息铃：只在这次休息刚开始（主进程计时的头几秒）时摇；挂载时定下，之后的快照不再改它 */
+function Bell({ ring }: { ring: boolean }) {
+  const [ringing] = useState(ring)
+  return (
+    <svg className="mini-bell" data-ring={ringing} viewBox="0 0 24 24" aria-hidden>
+      <path d="M12 3 C 8 3, 6 6, 6 10 L 6 14 L 4 17 L 20 17 L 18 14 L 18 10 C 18 6, 16 3, 12 3 Z" />
+      <circle cx="12" cy="19.5" r="1.8" />
+    </svg>
   )
 }
 

@@ -90,9 +90,9 @@ function LockMark() {
 }
 
 /** 书签上的小钥匙（技术方案 §3.16“随进度解锁”）：最新一篇解锁了、你还没翻开过，就挂在丝带上 */
-export function RibbonKey({ label, onOpen }: { label: string; onOpen: () => void }) {
+export function RibbonKey({ label, onOpen, arriving = false }: { label: string; onOpen: () => void; arriving?: boolean }) {
   return (
-    <button type="button" className="ribbon-key" aria-label={label} title={label} onClick={onOpen}>
+    <button type="button" className="ribbon-key" data-arriving={arriving} aria-label={label} title={label} onClick={onOpen}>
       <svg viewBox="0 0 22 44" aria-hidden>
         <path d="M11 0 V8" stroke="var(--navy)" strokeWidth="1.2" />
         <g fill="#e3c785" stroke="#6b5426" strokeWidth="1.1" strokeLinejoin="round">

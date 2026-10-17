@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { AppBridge, AppSnapshot } from '../../../shared'
 import copy from '../voice/book.zh.json'
 import { useRootAmbience } from './ambience'
+import { useLiveFlip } from './live'
 import { sendCommand } from './command'
 import { LeftPage } from './LeftPage'
 import { fill, dayKeyLabel } from './life/text'
@@ -67,6 +68,8 @@ export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot
   // 最近解锁的那一篇还没翻开过：钥匙夹在书签丝带上
   const latest = snapshot.diary?.entries.findLast((entry) => entry.unlocked)
   const ribbonKey = !onboarding && latest?.unlocked && !opened.has(latest.id) ? latest : null
+  // 钥匙只在这次运行里刚解锁时“落”到丝带上；开书、重启时它本来就挂着
+  const keyArriving = useLiveFlip(snapshot.epoch, ribbonKey?.id ?? '')
 
   return (
     <div className="stage" ref={ref} data-mode={companion.mode} data-phase={snapshot.pomodoro.phase}
@@ -78,7 +81,7 @@ export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot
           {(['tl', 'tr', 'bl', 'br'] as const).map((c) => <span key={c} className={`corner corner-${c}`} aria-hidden />)}
           {/* 中缝垂下的丝带书签：就是她头发上那条 */}
           <span className="ribbon" aria-hidden />
-          {ribbonKey && <RibbonKey label={fill(copy.diary.ribbonKey, { date: dayKeyLabel(ribbonKey.dayKey) })} onOpen={() => openDiary(ribbonKey.id)} />}
+          {ribbonKey && <RibbonKey label={fill(copy.diary.ribbonKey, { date: dayKeyLabel(ribbonKey.dayKey) })} arriving={keyArriving} onOpen={() => openDiary(ribbonKey.id)} />}
           <LeftPage snapshot={snapshot} bridge={bridge} intro={onboarding ? introStepOf(onboarding) : null}
             furniture={onboarding === 'alive' ? { painted, onPaint: (id) => setPainted((list) => list.includes(id) ? list : [...list, id]) } : undefined}
             onOpenDiary={(dayKey) => { const entry = snapshot.diary?.entries.find((item) => item.dayKey === dayKey); if (entry) openDiary(entry.id) }}

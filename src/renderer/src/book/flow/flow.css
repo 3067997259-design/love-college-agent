@@ -35,7 +35,8 @@
 textarea.flow-code { width: 100%; box-sizing: border-box; resize: vertical; border: 1px dashed var(--pencil); }
 .flow-run[data-ok='false'] .flow-code { color: var(--notice-ink); background: color-mix(in oklab, var(--notice-bg) 35%, var(--paper)); }
 .flow-changes ul, .flow-delegates ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.flow-changes li { display: flex; align-items: baseline; gap: 10px; font-size: var(--fs-sm); }
+.flow-changes li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: var(--fs-sm); }
+.flow-changes li > code { min-width: 0; overflow-wrap: anywhere; }
 .flow-changes code { font: 14px var(--font-num); color: var(--ink-her); }
 .flow-changes small { color: var(--graphite); }
 .flow-changes li[data-undone='true'] code { color: var(--graphite); text-decoration: line-through; }
@@ -73,7 +74,7 @@ textarea.flow-code { width: 100%; box-sizing: border-box; resize: vertical; bord
 /* 草稿、目标和沿用的预览／网页读取控件：同一张工作台上的几栏，按钮收成书页的样子 */
 .flow-drafts, .flow-goals { display: grid; gap: 6px; }
 .flow-drafts ul, .flow-goals ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.flow-drafts li, .flow-goals li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: var(--fs-sm); color: var(--ink-her); }
+.flow-drafts li, .flow-goals li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: var(--fs-sm); color: var(--ink-her); overflow-wrap: anywhere; }
 .flow-drafts small, .flow-goals small { color: var(--graphite); }
 .flow-goals li[data-current='true'] > span:first-child { text-decoration: underline 1.5px color-mix(in oklab, var(--peach-mid) 70%, transparent); text-underline-offset: 4px; }
 .flow-goal-input { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }

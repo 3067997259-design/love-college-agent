@@ -339,6 +339,23 @@ export const SCENARIOS = {
     ],
   })),
 
+  /** 压力场景：超长网址、路径、计划名、标题和文件名，检查哪里会撑破版面（体验验收用） */
+  'long-content': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1445 + 8 * MIN },
+    companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'think', mailboxUnseen: 2 },
+    pomodoro: { ...s.pomodoro, phase: 'idle', status: 'idle', focusIndex: 1, plannedCount: 12,
+      plan: { ...afternoonPlan('confirmed'), label: '这是一个非常非常长的计划名字，用来检查顶栏会不会被撑开或者盖住番茄格', plannedCount: 12,
+        items: [{ text: '数据结构第三次作业', count: 11, assist: false }, { text: '一起过一遍新邮件', count: 1, assist: true }] } },
+    candidates: [{ ...candidates[1], id: 'cand-long', title: '流萤学社 × 东区图书馆联合举办的第十七届“夜读与远行”主题经验分享会暨新学期社团招新说明会（需提前在线报名并填写问卷）', locationText: '东区第二教学楼 316 室（若人数超过一百二十人则改到西区报告厅，届时以群公告为准）' }],
+    deliveries: [{ ...deliveries[1], id: 'dlv-long', displayName: '第三次作业要求与评分细则·整理版（含助教十月二十四日更正与附录B的全部示例代码说明）.md' }],
+    heartFlow: { ...flowBase(), changes: [{ id: 'c1', path: '整理/2026秋季学期/数据结构与算法基础/第三次作业/参考资料/助教更正版评分细则与示例代码说明.md', undone: false }] },
+    messages: [
+      msg('m1', 'user', '这个链接帮我看看：https://elearning.example.edu.cn/webapps/blackboard/content/listContent.jsp?course_id=_123456_1&content_id=_7890123_1&mode=reset', T.sat1445 + 2 * MIN),
+      msg('m2', 'assistant', '这个页面要登录才能看，我这里打不开。文件我放在 书桌/整理/2026秋季学期/数据结构与算法基础/第三次作业/助教更正版评分细则与示例代码说明.md 了，你先看这一份。', T.sat1445 + 3 * MIN, { emotion: 'think' }),
+      msg('m3', 'assistant', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', T.sat1445 + 4 * MIN),
+    ],
+  })),
+
   /**
    * 傍晚，她从海边回来：窗台上两件带回来的东西，休息时送了你一只杯子，纸桥还在做；
    * 前天的日记解锁了，钥匙夹在丝带上（书签页：?scenario=evening-home&tab=gifts）
