@@ -114,6 +114,8 @@ export async function extractMail(mail: SourceMail, model: EmailPrivacyModel | n
       }
     }
     if (!titleGrounded) throw new Error('MAIL_TITLE_UNGROUNDED')
+    // The candidate title has its own short(20) contract. A fallback must never smuggle a longer quote into it.
+    if (!short(20).safeParse(titleEvidence).success) throw new Error('MAIL_TITLE_TOO_LONG')
     quotes.push({ field: 'title', text: titleEvidence })
     const checkedDate = (value: z.infer<typeof date> | undefined | null, field: 'deadlineIso' | 'eventStartIso' | 'eventEndIso') => {
       if (!value) return undefined

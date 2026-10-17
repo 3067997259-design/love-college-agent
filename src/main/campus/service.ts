@@ -63,9 +63,10 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
         if (!options.privacy) { setState({ status: 'failed', error: { code: 'privacy-unavailable', retryable: false } }); return { ok: false, source: source.source, error: 'privacy-unavailable' } }
         const batch = await source.readUnseen(combined)
         if (!Number.isSafeInteger(batch.unseenCount) || batch.unseenCount < batch.messages.length) throw new Error('MAIL_SOURCE_INVALID')
-        let failure: PublicErrorCode | undefined
+        let failure: PublicErrorCode | undefined = (batch.skipped ?? 0) > 0 ? 'invalid-command' : undefined
         for (const mail of batch.messages.slice(0, 30)) {
           combined.throwIfAborted()
+          try {
           const sourceKey = digest(JSON.stringify([store.scope.userId, store.scope.characterId, source.source, '桃子', mail.uidValidity, mail.uid]))
           const hash = mailContentHash(mail); const processed = repository.view().processed.find((entry) => entry.sourceKey === sourceKey)
           if (processed) { if (processed.contentHash !== hash) throw new Error('MAIL_SOURCE_CHANGED'); registerAttachments(mail, sourceKey, processed.candidateId); continue }
@@ -96,6 +97,10 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
           repository.append({ type: 'mail/processed', sourceKey, contentHash: hash, evidenceRef, result: 'candidate', candidateId, facts }); newCount++
           registerAttachments(mail, sourceKey, candidateId)
           publish()
+          } catch (cause) {
+            if (cause instanceof CampusStorageFailure || combined.aborted) throw cause
+            failure = failure ?? 'invalid-command'
+          }
         }
         setState({ status: failure ? 'failed' : 'ready', unseenCount: batch.unseenCount, ...(failure ? { error: { code: failure, retryable: true } } : { lastSuccessAtMs: clock.nowMs(), error: undefined }) })
         flush()

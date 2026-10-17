@@ -14,6 +14,7 @@ export interface MailSource {
   readonly source: 'real' | 'fake'
   readonly blocked: boolean
   /** Read-only adapter; neither this interface nor its fixtures expose a mark-as-read operation. */
-  readUnseen(signal: AbortSignal): Promise<{ unseenCount: number; messages: readonly SourceMail[] }>
+  /** `skipped` counts messages whose fields exceed the private source limits; they are not sent to privacy. */
+  readUnseen(signal: AbortSignal): Promise<{ unseenCount: number; messages: readonly SourceMail[]; skipped?: number }>
   readAttachment?(mail: { uidValidity: string; uid: number; partId: string }, signal: AbortSignal): Promise<Uint8Array>
 }

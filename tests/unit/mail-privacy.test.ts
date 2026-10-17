@@ -69,5 +69,11 @@ describe('mail isolation and evidence-bound extraction', () => {
     const result = await extractMail(input, { source: 'fake', extract: async () => ({ ...output, task: '课程展示安排', titleQuote: quote }) }, clock, signal())
     expect(result).toMatchObject({ ok: true, value: { title: quote } })
   })
+  it('rejects a fallback that would exceed the short-title contract instead of leaking a long quote', async () => {
+    const quote = '请各位同学按要求提交课程 展示报告的最终电子版本'
+    const input = { ...mail, subject: quote, body: quote + '，截止：' + output.deadline.quote }
+    const result = await extractMail(input, { source: 'fake', extract: async () => ({ ...output, task: '提交课程展示报告', titleQuote: quote }) }, clock, signal())
+    expect(result).toEqual({ ok: false, error: 'privacy-invalid-output' })
+  })
 })
 

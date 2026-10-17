@@ -30,6 +30,16 @@ try {
   if (inspectId && beforeRows.findLast((row) => row.type === 'companion/mode' || row.type === 'session/carry')?.mode !== 'quiet') {
     report = { ...report, error: 'INSPECTION_REQUIRES_QUIET_PROFILE' }; throw new Error('UNSAFE_INSPECTION')
   }
+  if (inspectId) {
+    // An inspect run must never resume a paused/queued document task: startup would call the privacy model again.
+    const latest = new Map()
+    for (const row of beforeRows) if (row.type === 'document/job' && row.job?.view?.id) latest.set(row.job.view.id, row.job.view.status)
+    const nonTerminal = [...latest.values()].filter((status) => ['staged', 'queued', 'processing'].includes(status))
+    if (nonTerminal.length) {
+      report = { ...report, error: 'INSPECTION_REQUIRES_TERMINAL_DOCUMENTS', nonTerminalDocuments: nonTerminal.length }
+      throw new Error('UNSAFE_INSPECTION')
+    }
+  }
   const beforeAttempts = beforeRows.filter((row) => row.type === 'model/attempt' && row.status === 'started').length
   instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env }); page = await instance.firstWindow(); await initializeTestBook(page)
   const snapshot = () => page.evaluate(() => window.lca.getSnapshot())

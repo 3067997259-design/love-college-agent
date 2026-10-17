@@ -2,7 +2,7 @@ import { useId, useRef, useState } from 'react'
 import type { ActivityView, AppSnapshot } from '../../../shared'
 import { useRootAmbience } from '../book/ambience'
 import { awaySceneSrc, sceneSrc } from '../book/Character'
-import { packageScene } from '../book/characterPackage'
+import { resolvePackageScene } from '../book/characterPackage'
 import { resolveCharacterArt } from '../book/characterArt'
 import { resolveAwayArt } from '../book/life/awayArt'
 import { formatRemaining } from '../book/format'
@@ -45,12 +45,13 @@ export function MiniCompanion({ snapshot, onExpand, onHover, onMove }: {
   const remaining = useCountdown(snapshot)
   const id = useId().replace(/:/g, '')
   const art = resolveCharacterArt(companion)
-  // 夜景/think 整帧用基础名回退到自定义角色包
-  const imported = packageScene(snapshot, art.baseKey ?? art.key)
+  // 夜景/think 整帧优先用包内精确槽位；回退基础图时改用 ambient 调色
+  const packageArt = resolvePackageScene(snapshot, art)
+  const imported = packageArt?.src
   // 她出门时小窗也显示同一张外景（体验设计 §6）；自定义角色包优先用包内素材，缺了才回退
   const awayArt = companion.locationId !== 'room' && !imported ? resolveAwayArt(companion) : null
   const src = imported ?? (awayArt ? awaySceneSrc(awayArt.key) : undefined) ?? sceneSrc(art.key)
-  const lighting = awayArt ? awayArt.lighting : art.lighting
+  const lighting = awayArt ? awayArt.lighting : packageArt?.lighting ?? art.lighting
   const onBreak = pomodoro.phase === 'short-break' || pomodoro.phase === 'long-break'
   const away = companion.locationId !== 'room'
   const mailReady = capabilities.find((c) => c.id === 'mail')?.status === 'ready'

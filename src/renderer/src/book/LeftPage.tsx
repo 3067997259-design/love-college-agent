@@ -17,7 +17,7 @@ import { useCountdown } from './useCountdown'
 import type { IntroStep } from './wash/intro'
 import { FURNITURE } from './wash/furniture'
 import { WashRoom } from './wash/WashRoom'
-import { packageScene } from './characterPackage'
+import { resolvePackageScene } from './characterPackage'
 import { SillItems } from './life/SillItems'
 import { HistoryPhoto, type PhotoOverlay } from './history/HistoryPhoto'
 import { VoiceMark } from './VoiceMark'
@@ -59,8 +59,9 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   const arriving = moved && !away
   const pose = away ? 'empty' : companion.pose
   const art: CharacterArt = intro ? (intro === 'done' ? GREET_ART : INTRO_ART) : resolveCharacterArt(companion)
-  // 整帧变体（夜景/think）用基础名回退到自定义角色包，避免包没有对应差分时变成她的图
-  const importedScene = packageScene(snapshot, art.baseKey ?? art.key)
+  // 整帧变体（夜景/think）优先用包内精确槽位；没有时才回退基础图，并改用 ambient 调色
+  const packageArt = resolvePackageScene(snapshot, art)
+  const importedScene = packageArt?.src
   // 外出：左页是她在外面（体验设计 §3），复用视频冻结包里的外景；自定义角色包没有对应外景，回退包内空房间
   const awayArt = !intro && away && !importedScene ? resolveAwayArt(companion) : null
   const mailReady = capabilities.find((c) => c.id === 'mail')?.status === 'ready'
@@ -95,7 +96,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
         钟、门牌这些房间里的东西再淡进来。
       */}
       <div ref={roomRef} className="room" data-photo-scene={intro ? undefined : true} data-session-id={intro ? undefined : snapshot.scope.sessionId} data-shot="close"
-        data-location={intro ? 'room' : companion.locationId} data-pose={intro ? art.key.split('_')[0] : awayArt ? 'away' : pose} data-lighting={awayArt ? awayArt.lighting : art.lighting} data-away={awayArt ? companion.locationId : undefined} data-arriving={(!intro && arriving) || undefined}>
+        data-location={intro ? 'room' : companion.locationId} data-pose={intro ? art.key.split('_')[0] : awayArt ? 'away' : pose} data-lighting={awayArt ? awayArt.lighting : packageArt?.lighting ?? art.lighting} data-away={awayArt ? companion.locationId : undefined} data-arriving={(!intro && arriving) || undefined}>
         {/* 精修整景：颜色聚在她周围，往外褪成从彩图实时提取的铅笔线（体验设计 §7.1，用户批准） */}
         {scene}
         {/* 差分贴片（眨眼/抬头/嘴型）：只在白天 approved 底图上贴回面部小矩形；夜里整帧重光不适用 */}

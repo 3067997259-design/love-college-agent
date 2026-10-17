@@ -1,7 +1,8 @@
 import JSZip from 'jszip'
 import { expect, it } from 'vitest'
 import { parseCharacterPackage, pngDimensions } from '../../src/main/characters/package'
-import { packageScene } from '../../src/renderer/src/book/characterPackage'
+import { packageScene, resolvePackageScene } from '../../src/renderer/src/book/characterPackage'
+import { resolveCharacterArt } from '../../src/renderer/src/book/characterArt'
 import type { AppSnapshot } from '../../src/shared'
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5YsAAAAASUVORK5CYII=', 'base64')
 const manifest = { formatVersion: 1, kind: 'lca-character', name: '合成角色', persona: '合成人设，不执行任何代码。', images: { 'facing-user_calm': 'images/facing-user_calm.png' } }
@@ -19,4 +20,13 @@ it('rejects forged expanded sizes before unbounded inflation and oversized image
 it('falls back inside a character before the built-in scene and preserves away state', () => {
   const snapshot = { characterPack: { images: { 'facing-user_calm': 'owned-face', 'desk-writing_calm': 'owned-desk' } } } as unknown as AppSnapshot
   expect(packageScene(snapshot, 'desk-writing_night')).toBe('owned-desk'); expect(packageScene(snapshot, 'sleeping_dark')).toBe('owned-face'); expect(packageScene(snapshot, 'empty')).toBeUndefined()
+})
+it('uses an exact night slot and keeps ambient tint only for day/base fallbacks', () => {
+  const night = resolveCharacterArt({ locationId: 'room', pose: 'desk-writing', expression: 'calm', daypart: 'night', lightsOut: false } as AppSnapshot['companion'])
+  const withNight = { characterPack: { images: { 'desk-writing_night': 'owned-night', 'desk-writing_calm': 'owned-day' } } } as unknown as AppSnapshot
+  expect(resolvePackageScene(withNight, night)).toEqual({ src: 'owned-night', lighting: 'baked-night' })
+  const dayOnly = { characterPack: { images: { 'desk-writing_calm': 'owned-day', 'facing-user_calm': 'owned-face' } } } as unknown as AppSnapshot
+  expect(resolvePackageScene(dayOnly, night)).toEqual({ src: 'owned-day', lighting: 'ambient' })
+  const facing = resolveCharacterArt({ locationId: 'room', pose: 'facing-user', expression: 'calm', daypart: 'night', lightsOut: false } as AppSnapshot['companion'])
+  expect(resolvePackageScene(dayOnly, facing)).toEqual({ src: 'owned-face', lighting: 'ambient' })
 })

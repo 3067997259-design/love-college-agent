@@ -42,4 +42,4 @@ providers JSON 只在主进程读取。正常模式的导入配置保存在数�
 
 运行依赖包括 Electron、React、electron-vite／Vite、TypeScript、better-sqlite3、MCP SDK、imapflow、mailparser、JSZip、pdf-parse 等。依赖版本由 package.json 与 pnpm-lock.yaml 固定；采用开源库不代表其所有功能已经接入。PDF 使用独立 Electron Node 子进程解析，不装浏览器。美术来源与采用范围另见美术规格和精修交接。
 
-验收证据与未完成项见 [第一圈收尾记录](first-circle-closeout.md)，实际操作见 [部署说明](../deployment.md)。真实 IMAP 仍被网络重置阻塞，不能将 fake 场景展示为真实采集。
+验收证据与未完成项见 [第一圈收尾记录](first-circle-closeout.md)，实际操作见 [部署说明](../deployment.md)。真实 IMAP 只读源已在后续接入并通过真实邮箱联调；不能将 fake 场景展示为真实采集。

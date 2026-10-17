@@ -92,7 +92,8 @@
     "test:web-fetch": "pnpm build && node scripts/smoke-web-fetch.mjs",
     "probe:web-fetch": "node scripts/probe-web-fetch.mjs",
     "test:delegates": "pnpm build && node scripts/smoke-delegates.mjs",
-    "test:optical": "pnpm build && node scripts/smoke-optical.mjs"
+    "test:optical": "pnpm build && node scripts/smoke-optical.mjs",
+    "test:privacy-inspect": "node scripts/smoke-privacy-inspect.mjs"
   },
   "dependencies": {
     "@fontsource/long-cang": "5.3.0",

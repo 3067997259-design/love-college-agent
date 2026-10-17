@@ -18,6 +18,18 @@ describe('model JSON task parsing', () => {
     expect(parseModelJson('```\n[{"a":1}]\n```')).toEqual([{ a: 1 }])
   })
 
+  it('does not mistake braces inside JSON strings for a second value', () => {
+    expect(parseModelJson('{"quote":"a{b}c [d] \\"e\\"","items":[{"x":1}]}')).toEqual({ quote: 'a{b}c [d] "e"', items: [{ x: 1 }] })
+  })
+
+  it('rejects two fenced JSON values as ambiguous', () => {
+    expect(() => parseModelJson('first:\n```json\n{"items":[]}\n```\nsecond:\n```json\n{"items":[1]}\n```')).toThrow('MODEL_JSON_AMBIGUOUS')
+  })
+
+  it('rejects a fenced value plus a contradicting top-level value', () => {
+    expect(() => parseModelJson('```json\n{"items":[]}\n```\n{"items":[1]}')).toThrow('MODEL_JSON_AMBIGUOUS')
+  })
+
   it('still rejects text with no JSON value', () => {
     expect(() => parseModelJson('I cannot help with that.')).toThrow('MODEL_JSON_INVALID')
   })
