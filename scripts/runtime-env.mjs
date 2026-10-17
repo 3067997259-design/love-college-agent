@@ -13,6 +13,7 @@ export function runtimeEnv(root) {
   const env = { ...process.env, TEMP: join(cacheRoot, 'tmp'), TMP: join(cacheRoot, 'tmp'),
     ELECTRON_CACHE: join(cacheRoot, 'electron'), ELECTRON_BUILDER_CACHE: join(cacheRoot, 'electron-builder'),
     npm_config_devdir: join(cacheRoot, 'electron-gyp'), LCA_DATA_DIR: process.env.LCA_DATA_DIR ?? join(root, '.local-data'),
+    LCA_TEST_SILENT: process.env.LCA_TEST_SILENT ?? '1',
     LCA_RENDERER_PORT: process.env.LCA_RENDERER_PORT ?? (basename(root).includes('gpt') ? '5273' : '5173') }
   env.LCA_MCP_PORT = process.env.LCA_MCP_PORT ?? (basename(root).includes('gpt') ? '5275' : '5175')
   env.LCA_CDP_PORT = process.env.LCA_CDP_PORT ?? (basename(root).includes('gpt') ? '9527' : '9427')

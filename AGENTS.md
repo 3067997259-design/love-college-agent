@@ -87,6 +87,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm dev` | 开发服务器及 Electron |
 | `pnpm build` / `pnpm start` | 构建／构建后预览 Electron |
 | `pnpm typecheck` / `pnpm lint` / `pnpm test` | 类型、时钟与边界 lint、Vitest |
+| Electron 测试静默（默认） | 测试 env 默认 `LCA_TEST_SILENT=1`：窗口 0 透明度 + `showInactive`，不弹窗/不抢焦点，`isVisible`、布局与截图仍可用；需要看窗口时设 `LCA_TEST_SILENT=0`。 |
 | `pnpm test:electron` | Playwright 驱动 Electron，检查字体文件加载／CSP／控制台、窗口、隔离及 IPC；保持 CSP，renderer 禁止资源内联 |
 | `pnpm probe:sqlite` | Electron 内加载原生模块、事务写入、关闭后重开 |
 | `pnpm probe:journal` | Electron 内验证日志重放、缓存重建、作用域和原文隔离 |

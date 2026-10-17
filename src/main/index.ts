@@ -122,6 +122,19 @@ app.setPath('userData', dataDir)
 app.setPath('sessionData', join(dataDir, 'chromium'))
 const ownsData = app.requestSingleInstanceLock()
 if (!ownsData) app.quit()
+const silentTestWindows = process.env.LCA_TEST_SILENT === '1'
+// Automated Electron tests must not flash/focus windows on the developer's desktop. Keep the native
+// visible/geometry contract used by tests, but make the window fully transparent and show it inactive.
+if (silentTestWindows) {
+  app.on('browser-window-created', (_event, window) => {
+    try { window.setOpacity(0); window.setSkipTaskbar(true) } catch { /* platform fallback */ }
+    const showInactive = window.showInactive.bind(window)
+    ;(window as unknown as { show: () => void }).show = () => {
+      try { window.setOpacity(0) } catch { /* platform fallback */ }
+      showInactive()
+    }
+  })
+}
 let controller: ReturnType<typeof createAppController> | undefined
 let bridge: ReturnType<typeof registerAppBridge> | undefined
 let store: SessionStore | undefined
