@@ -7,11 +7,13 @@ export interface ResolvedPackageScene { src: string; lighting: CharacterArt['lig
 export function resolvePackageScene(snapshot: AppSnapshot, art: CharacterArt): ResolvedPackageScene | undefined {
   const images = snapshot.characterPack?.images; if (!images) return undefined
   if (images[art.key]) return { src: images[art.key], lighting: art.lighting }
+  // Away/empty must stay empty when the pack has no such slot: fall back to the built-in away scene.
+  if (art.key === 'empty' || art.key === 'empty__night') return undefined
   const fallbackKey = art.baseKey ?? art.key.split('_')[0] + '_calm'
   const fallback = images[fallbackKey] ?? images['facing-user_calm']
   if (!fallback) return undefined
-  // The exact night asset signals its own baked lighting; a day/base fallback still needs the room tint.
-  return { src: fallback, lighting: art.lighting === 'baked-dark' ? 'baked-dark' : 'ambient' }
+  // A day/base fallback never carries the baked night/dark marker; it must receive the room tint.
+  return { src: fallback, lighting: 'ambient' }
 }
 
 /** Legacy helper kept for callers that only need the image URL. New code should use resolvePackageScene for lighting. */

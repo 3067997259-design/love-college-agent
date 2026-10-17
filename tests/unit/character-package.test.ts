@@ -30,3 +30,14 @@ it('uses an exact night slot and keeps ambient tint only for day/base fallbacks'
   const facing = resolveCharacterArt({ locationId: 'room', pose: 'facing-user', expression: 'calm', daypart: 'night', lightsOut: false } as AppSnapshot['companion'])
   expect(resolvePackageScene(dayOnly, facing)).toEqual({ src: 'owned-face', lighting: 'ambient' })
 })
+it('does not keep baked-dark on a day fallback and lets missing empty fall back to the built-in away scene', () => {
+  const sleeping = resolveCharacterArt({ locationId: 'room', pose: 'sleeping', expression: 'calm', daypart: 'night', lightsOut: true } as AppSnapshot['companion'])
+  const dayOnly = { characterPack: { images: { 'facing-user_calm': 'owned-face', sleeping_calm: 'owned-sleep' } } } as unknown as AppSnapshot
+  expect(resolvePackageScene(dayOnly, sleeping)).toEqual({ src: 'owned-sleep', lighting: 'ambient' })
+  for (const companion of [
+    { locationId: 'coast', pose: 'facing-user', expression: 'calm', daypart: 'day', lightsOut: false },
+    { locationId: 'coast', pose: 'facing-user', expression: 'calm', daypart: 'night', lightsOut: false },
+  ] as AppSnapshot['companion'][]) {
+    expect(resolvePackageScene(dayOnly, resolveCharacterArt(companion))).toBeUndefined()
+  }
+})
