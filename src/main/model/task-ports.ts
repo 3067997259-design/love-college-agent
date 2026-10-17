@@ -11,6 +11,7 @@ import type { PrivacyModel } from '../privacy/filter'
 import { redactFixed } from '../privacy/redact'
 import { sessionDayKey } from '../journal/file'
 import { createModelClient } from './client'
+import { parseModelJson } from './parse-json'
 import { ModelFailure } from './types'
 import prompts from './task-prompts.json'
 import diaryPrompts from '../diary/prompts.json'
@@ -47,7 +48,7 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
       })
       const result = await Promise.race([pending, new Promise<never>((_resolve, reject) => { const listener = () => reject(new ModelFailure(parent.aborted ? 'cancelled' : 'timeout')); signal.addEventListener('abort', listener, { once: true }); remove = () => signal.removeEventListener('abort', listener); if (signal.aborted) listener() })])
       signal.throwIfAborted(); if (result.toolCalls.length) throw new ModelFailure('invalid-output')
-      return JSON.parse(result.text)
+      return parseModelJson(result.text)
     } catch (error) { if (error instanceof ResourceFailure) throw new MemoryFailure(error.code === 'budget-exceeded' ? 'budget-exceeded' : 'unavailable'); throw error }
     finally { stop(); remove(); abort.abort() }
   }

@@ -1,7 +1,7 @@
 [
   {
     "name": "get_clock",
-    "description": "Read the application clock. Use the returned timestamp as the time fact.",
+    "description": "Read the application clock. The result includes `local` (Asia/Shanghai date/time) and `timeZone`; speak to the user in that local time, not UTC. Call with {} only; do not add extra fields.",
     "parameters": { "type": "object", "properties": {}, "additionalProperties": false }
   },
   {
