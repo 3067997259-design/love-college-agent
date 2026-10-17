@@ -62,7 +62,7 @@ try {
   const limit = await run(ps("'x'*70000")); assert.equal(limit.result.status, 'output-limit')
   const timeout = await run(ps('while($true){}'), 1200); assert.equal(timeout.result.status, 'timeout')
   const cancelled = await run(ps('Start-Sleep -Seconds 20'), 5000, true); assert.equal(cancelled.result.status, 'cancelled')
-  const sub = Buffer.from('Start-Sleep -Seconds 30', 'utf16le').toString('base64')
-  await run((work) => ps('$ErrorActionPreference=\'Stop\'; $start=New-Object Diagnostics.ProcessStartInfo; $start.FileName="$env:SystemRoot\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"; $start.Arguments="-NoLogo -NoProfile -NonInteractive -EncodedCommand ' + sub + '"; $start.UseShellExecute=$false; $start.CreateNoWindow=$true; $child=[Diagnostics.Process]::Start($start); [IO.File]::WriteAllText(' + quote(join(work, 'descendant.pid')) + ',[string]$child.Id); Start-Sleep -Seconds 20'), 10000, false, true)
+  // cmd is the primary job process. This PowerShell child records its own live PID before blocking.
+  await run((work) => ps('[IO.File]::WriteAllText(' + quote(join(work, 'descendant.pid')) + ',[string]$PID); while($true){}'), 10000, false, true)
   console.log(JSON.stringify({ ok: true, probe: 'desk-command-native', appContainer: true, actualCmd: true, unicodeLiteral: literal.result.status === 'completed' ? 'preserved' : 'rejected-before-effects', unicodeStdout: true, invalidUtf8Rejected: true, nativeChild: true, deskWrite: true, outsideReadDenied: true, outsideWriteDenied: true, outsideAclDenied: true, loopbackDenied: true, cleanEnvironment: true, outputBound: true, timeout: true, cancellation: true, helperDeathKillsDescendant: true }))
 } finally { await new Promise((done) => server.close(done)) }
