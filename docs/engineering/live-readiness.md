@@ -11,3 +11,5 @@
 12:24 增补：新增 pnpm probe:privacy，经普通隔离 profile 原生导入一份合成短文本并打开 /privacy。真实任务按现有客户端上限四次尝试，持久事件均为 privacy/network，最终 privacy-unavailable；未调用 chat/background、没有成品。首次探针的计数断言误按三次写，已更正为当前四次上限；随后仅 --inspect 只读重开同一合成 profile，确认新增请求为零、原文不在快照／日志、普通 model/seen 为空，并生成闭集失败报告。没有重试真实服务，也没有读 IMAP 或生成 Rodin。该命令会真实请求供应商；非只读配置检查，不宜反复运行。学校端点的身份／连接／质量仍未确认。
 
 12:42 审计 #37：探针现在先持久切到 quiet 并核对回执／快照，再导入资料；inspect 在启动应用前要求日志的最后模式为 quiet，旧 rest profile 保守拒绝，防止启动阶段消费完成事件。pnpm test:privacy-probe 配置合成 privacy/chat/background，成功／失败各一份文件及重开检查通过，chat/background 零请求、普通 model/seen 为空；原真实失败报告独立保留，没有新增真实请求。该回归追加到安装矩阵，下一包为 26 项。
+
+用户后续明确确认：目前还没有选定 TTS／OCR 服务，会自行寻找。真实配置、模型与音色保留待办；现有合成验收继续保留，不替用户填默认供应商，也不把未装配写成实现失败。

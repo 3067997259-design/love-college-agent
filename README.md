@@ -1,6 +1,6 @@
 # Love, College & Agent
 
-**12:35 第三圈底层与安装验收：** #34–36 已分别修复、回复并关闭，接口 `2c0207b` 先合 main；69 文件／492 单测、完整 Windows CI、真实安装版 25 项场景与七阶段同档连续链通过。包的业务源码为 `6d6d2e7`，记录见 [安装验收](docs/engineering/package-third-circle.md)。真实 privacy 的合成资料请求遇网络失败，业务关闭且未回退主模型；TTS／OCR、MC 双客户端和最终画面仍待验收，整圈未标完成。探针与边界见 [连接记录](docs/engineering/live-readiness.md) 和 [当前清单](docs/engineering/third-circle-completion-audit.md)。
+**12:50 第三圈底层与安装验收：** #1–37 当前均已修复、回复并关闭，接口 `2c0207b` 先合 main；69 文件／493 单测、完整 Windows CI、真实安装版 26 项场景与七阶段同档连续链通过。包源码 `3edea7c`，含旧失败记录的引用恢复与隐私探针隔离，记录见 [安装验收](docs/engineering/package-third-circle.md)。模型／服务合成；真实 privacy 仍为网络阻塞，失败关闭且未回退主模型。用户尚在选择 TTS／OCR 服务，MC 双客户端和最终画面仍待验收，整圈未标完成。见 [连接记录](docs/engineering/live-readiness.md) 和 [当前清单](docs/engineering/third-circle-completion-audit.md)。
 
 **第三圈实际命令（2026-10-17）：** 接口 `2f96cc6`／`fd884da` 先合 main，心流可逐次申请真实 Windows cmd；AppContainer／Job 限制书桌副本、无网络、进程树及资源，版本核对通过才写回。书页审批／输出预览、拒绝／冲突／取消、重启与私人恢复、展位禁用均有真实 Electron 验收；任务和模型合成。编码不能保真则明确失败，旧 NSIS 未收录；见 [书桌命令记录](docs/engineering/desk-command-sandbox.md)。
 
@@ -24,7 +24,7 @@
 
 **她的人设与书里的工作台（2026-10-17 早，Claude）：** 内置桃子的人设正文已接入聊天和日记（此前为空），改编自用户赛前的原创卡、不引用原文，用户看过认为基本没问题，之后交 Gemini 精修，见 `src/main/characters/taozi.zh.json`。书里的心流换成工作台：计划／执行、运行输出、书桌改动与撤回、分身活动卡、工作草稿与跨次目标，书桌预览和网页读取的逐次审批；待批准的代码贴在输入框上方，迷你窗也会提示。旧页可看“她的印象”（可选光学记忆，标明未审核），历史照片边缘改为纸色，日记提示词改为她的口吻；#18／#19 两线修复已合并。各项 Electron 场景改为或补上从书里走通，见 [书签页记录](docs/engineering/book-life-pages.md)。
 
-**最新安装态（2026-10-17 12:35）：** NSIS 源码 `6d6d2e7`，解包／实际安装两侧各七类原生探针、普通重启、历史照片引用和 25 项场景全部通过。含实际命令、步骤回退、资源账本、问答及失败旁白；服务合成、未签名，真实质量与最终外景仍待验收。包位于 GPT worktree，路径与哈希见 [安装态记录](docs/engineering/package-third-circle.md)。
+**最新安装态（2026-10-17 12:50）：** NSIS 源码 `3edea7c`，解包／实际安装两侧各七类原生探针、普通重启、历史照片引用和 26 项场景全部通过。含实际命令强杀恢复、步骤回退、资源账本、问答、旧记录引用恢复和三槽位探针隔离；服务合成、未签名。包位于 GPT worktree，路径与哈希见 [安装态记录](docs/engineering/package-third-circle.md)。
 
 **第三圈睡眠接线（2026-10-17）：** `436fbbd` 接口先合 main；沿用四点后安全翻页点入睡，独立于熄灯，已有夜灯／熄灯睡姿实际显示。用户回来交流可唤醒，睡眠期间不生产作品或出门；重启与私人恢复保留状态。类型／lint、340 项单测和 `pnpm test:sleep` 原生流程通过（合成时钟／fake 模型）。见 [睡眠记录](docs/engineering/sleep-third-circle.md)。
 
