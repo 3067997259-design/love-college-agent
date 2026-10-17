@@ -4,6 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runtimeEnv } from './runtime-env.mjs'
+import { buildDeskCommand } from './build-desk-command.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const env = { ...runtimeEnv(root), CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
@@ -18,6 +19,7 @@ const run = (path, args) => new Promise((resolve, reject) => {
 try {
   // Native ABI is rebuilt explicitly with pnpm rebuild:native; packaged probes verify it again.
   await run('electron-vite/bin/electron-vite.js', ['build', '--logLevel', 'warn'])
+  await buildDeskCommand()
   await run('electron-builder/cli.js', ['--win', 'nsis', '--x64', '--publish', 'never', '--config', 'electron-builder.yml'])
   if (revision() !== sourceRevision || trackedDiff() !== sourceDiff) throw new Error('PACKAGE_SOURCE_CHANGED')
   const sha = async (path) => createHash('sha256').update(await readFile(join(root, path))).digest('hex')

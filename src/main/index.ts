@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, powerMonitor, protocol, shell, Notification, nativeImage } from 'electron'
-import { join, resolve } from 'node:path'
+import { join, resolve, parse } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { systemClock } from './clock'
 import { initialOnboarding } from './onboarding/schema'
@@ -13,6 +13,8 @@ import { createHeartFlow, deskTools, type HeartFlowService } from './heart-flow/
 import { contentHash, createDesk } from './heart-flow/desk'
 import { createDeskShadow } from './heart-flow/shadow'
 import { runIsolatedJavaScript } from './heart-flow/runner'
+import { createDeskCommands, type DeskCommands } from './desk-command/service'
+import { createCommandProcess } from './desk-command/process'
 import { probeHeartFlow } from './validation/heart-flow'
 import { createLife, type LifeService } from './life/service'
 import { createSleep, type SleepService } from './life/sleep'
@@ -125,6 +127,7 @@ let delegates: DelegatesService | undefined
 let optical: OpticalMemoryService | undefined
 let harness: ReturnType<typeof createHarness> | undefined
 let questions: ReturnType<typeof createQuestions> | undefined
+let deskCommands: DeskCommands | undefined
 let scheduler: Scheduler | undefined
 let runtime: Awaited<ReturnType<typeof attachRuntime>> | undefined
 let pomodoro: PomodoroService | undefined
@@ -407,6 +410,16 @@ void app.whenReady().then(async () => {
         const insertion = Math.max(0, preparedContext.messages.findLastIndex((message) => message.role === 'user')); const messages = [...preparedContext.messages.slice(0, insertion), facts, ...preparedContext.messages.slice(insertion)]
         return { messages, eligibleIndexes: [...preparedContext.eligibleIndexes.map((index) => index >= insertion ? index + 1 : index), insertion] } }, entered: () => { lifeWork?.foreground(); life?.foreground() }, emit: (id, summary) => { harness?.postEvent('autonomous', summary, id) }, run: (code, signal) => runIsolatedJavaScript(code, systemClock, signal) })
     controller.attachHeartFlow(heartFlow)
+    // Legacy system shells/.NET still impose MAX_PATH. 77-char scratch roots keep every permitted 180-char desk path below 260.
+    const commandDrive = /^[a-z]:\\$/i.test(parse(app.getPath('temp')).root) ? parse(app.getPath('temp')).root : parse(app.getPath('exe')).root
+    const commandCache = join(commandDrive, '.lca-cmd', contentHash(JSON.stringify([dataRoot, dataDir, ownerRoom])).slice(0, 16))
+    deskCommands = createDeskCommands({ store, clock, deskRoot: join(roomRoot, '书桌'), cacheRoot: commandCache, booth: prepared.booth,
+      port: createCommandProcess(join(app.isPackaged ? join(process.resourcesPath, 'app.asar.unpacked') : app.getAppPath(), 'out', 'native', 'DeskCommand.exe'), systemClock),
+      flowId: () => heartFlow!.id(), allowed: () => heartFlow!.commandAllowed(), manualAllowed: () => !harness?.isBusy(), changed: () => controller?.refresh('task'),
+      failed: () => { console.error('Command journal unavailable; execution closed.'); app.quit() },
+      safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text), current: (path) => desk.read(path), publish: (id, edit) => heartFlow!.publishCommand(id, edit),
+      preview: (id, text) => previewArtifact({ id, artifactId: id, displayName: '命令输出', kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: prepared.developer ? 'fake' : 'real' }, text, '用户专用命令输出 · 进程结果与文件写回分别核实。') })
+    heartFlow.attachCommands(deskCommands)
     delegates = createDelegates({ store, clock, model: prepared.developer ? createFakeDelegateModel() : taskModels.delegate,
       flowId: () => heartFlow?.active() ? heartFlow.view().activeId : null, read: (path) => heartFlow!.read(path), changed: () => controller?.refresh('task') })
     heartFlow.attachDelegates(delegates)
@@ -439,7 +452,7 @@ void app.whenReady().then(async () => {
       available: () => !harness?.isBusy() && !heartFlow?.active() && !lifeWork?.active() && !minecraft?.active() && !backup?.isBusy() && controller?.getSnapshot().onboarding?.status === 'completed',
       changed: () => controller?.refresh('task'), protectCredential: (value) => { if (value && !privateCredentials.includes(value)) privateCredentials.push(value) } })
     controller.attachOptical(optical)
-    notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => heartFlow?.view().pending?.id ?? computer?.view().pending?.id ?? webFetch?.view().pending?.id, changed: () => controller?.refresh('connection'),
+    notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => heartFlow?.view().pending?.id ?? (deskCommands?.view()?.status === 'awaiting-approval' ? deskCommands.view()?.id : undefined) ?? computer?.view().pending?.id ?? webFetch?.view().pending?.id, changed: () => controller?.refresh('connection'),
       notify: ({ title, body }) => { if (prepared.developer || prepared.booth || !Notification.isSupported()) return; const notification = new Notification({ title, body, silent: true }); notification.on('click', () => { const view = controller!.getSnapshot(); controller!.dispatch({ protocolVersion: 1, requestId: randomUUID(), epoch: view.epoch, type: 'window.expand' }) }); notification.show() } })
     controller.attachNotifications(notifications)
     character = createCharacterService({ library: characterLibrary, active: activeCharacter, settings: prepared.pluginSettings, assets: binaryAssets, busy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!backup?.isBusy(), changed: () => controller?.refresh('connection'),
@@ -449,7 +462,7 @@ void app.whenReady().then(async () => {
       chooseExport: async () => { const result = await dialog.showSaveDialog({ title: '导出静态角色包（不含私人资料）', defaultPath: 'character.lca-character', filters: [{ name: '角色包', extensions: ['lca-character'] }] }); return result.canceled ? null : result.filePath ?? null } })
     controller.attachCharacter(character)
     plugins.registerBuiltin('notifications', '急件与提醒标准', notificationTools(notifications))
-    plugins.registerBuiltin('coding', '书桌编码', [...deskTools(heartFlow), ...delegates.tools, ...computer.tools(), ...webFetch.tools])
+    plugins.registerBuiltin('coding', '书桌编码', [...deskTools(heartFlow), deskCommands.tool(), ...delegates.tools, ...computer.tools(), ...webFetch.tools])
     plugins.registerBuiltin('life-work', '自主阅读与写作', [])
     plugins.registerBuiltin('optical-memory', '可选光学记忆', [optical.tool()])
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
@@ -575,6 +588,6 @@ app.on('before-quit', (event) => {
     scheduler?.dispose()
     const closeGame = (async () => { await minecraft?.close(); await minecraftChat?.end(); await mcp?.close() })()
     // Keep the development clock alive until every service has finished its cancellation/release RPCs.
-    void Promise.all([harness.dispose(), closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), delegates?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); resourceBudget?.close(); storageClosed = true; app.quit() })
+    void Promise.all([deskCommands?.close(), harness.dispose(), closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), delegates?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); resourceBudget?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); resourceBudget?.close(); storageClosed = true }
 })

@@ -41,9 +41,14 @@ import { goalTextSchema, goalStatusSchema } from '../heart-flow/goals'
 import type { ResourceBudget } from '../resources/service'
 import type { QuestionService } from '../questions/service'
 import { answerInput } from '../questions/schema'
+import { deskCommandInput } from '../desk-command/schema'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('flow.command.run'), ...deskCommandInput.shape }),
+  z.strictObject({ ...envelope, type: z.literal('flow.command.approve'), commandId: z.string().uuid(), allow: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.command.cancel'), commandId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.command.open'), commandId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('question.answer'), questionId: z.string().uuid(), answer: answerInput }),
   z.strictObject({ ...envelope, type: z.literal('question.dismiss'), questionId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('companion.sleep'), sleeping: z.boolean() }),

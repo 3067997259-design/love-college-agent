@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "node scripts/run.mjs dev",
     "start": "node scripts/run.mjs preview",
-    "build": "electron-vite build",
+    "build": "electron-vite build && node scripts/build-desk-command.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint .",
     "test": "vitest run",
@@ -76,6 +76,7 @@
     "test:notifications": "pnpm build && node scripts/smoke-notifications.mjs",
     "test:characters": "pnpm build && node scripts/smoke-characters.mjs",
     "test:heart-flow": "pnpm build && node scripts/smoke-heart-flow.mjs",
+    "test:desk-command": "pnpm build && node scripts/smoke-desk-command.mjs",
     "test:flow-drafts": "pnpm build && node scripts/smoke-flow-drafts.mjs",
     "test:voice": "pnpm build && node scripts/smoke-voice.mjs",
     "test:desk-shadow": "pnpm build && node scripts/smoke-desk-shadow.mjs",
