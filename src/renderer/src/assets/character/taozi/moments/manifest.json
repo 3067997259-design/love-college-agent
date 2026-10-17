@@ -1,0 +1,26 @@
+{
+  "_说明": "生活瞬间插图与界面小图标：从视频冻结包复制（只复制、不缩放、不改画）。左页新邮件快照用 first-notice.png，礼物卡的递笔插图用 quill-offer.png，桌上的信封用 work-mail 图标。映射见 src/renderer/src/book/life/MailMoment.tsx 与 book/cards.tsx。",
+  "frozenPackage": "art/film-frozen/2026-10-17-v1",
+  "assets": [
+    {
+      "runtime": "../moments/first-notice.png",
+      "from": "selected/v6-05-first-notice.png",
+      "sha256": "8adfbbc82e8d4fe7be03387d0e75063409b595e2d949db32ac7b53687e7fa5ba",
+      "use": "左页有新邮件时别在页角的快照（她抬头注意到信）"
+    },
+    {
+      "runtime": "../moments/quill-offer.png",
+      "from": "selected/base-03-k13-quill.png",
+      "sha256": "b54e187246792fa791a0d15713069fdc4de09fd07b658090d065edb18d1451ae",
+      "use": "礼物卡：她把羽毛笔递过来的那一刻"
+    },
+    {
+      "runtime": "../../ui/mail.png",
+      "from": "vectors/work-mail-color.png",
+      "trimmed": "去掉四边透明留白（161,158,866,754 → 708×460）",
+      "sha256": "0a5615fac899c049d1462991918bce31d56abd12f032e365e495a798259f98af",
+      "use": "桌上的信封图标（新邮件提示）"
+    }
+  ],
+  "boundary": "风格与 approved/ 的平面淡彩不同；这里只作为“别在书页上的照片/卡片”出现，不替换任何姿势底图。"
+}

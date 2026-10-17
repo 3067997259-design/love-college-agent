@@ -3,10 +3,10 @@ import type { AppBridge, BackupView, CandidateView, DeliveryView, EvidenceView, 
 import { activityText } from '../voice/activity-text'
 import book from '../voice/book.zh.json'
 import { formatDateTime, formatIso } from './format'
+import { momentSrc } from './Character'
 import { GiftModel } from './life/GiftModel'
 import { ObjectSketch } from './life/objects'
 import { fill, giftName } from './life/text'
-import { QuillArt } from './quill/QuillArt'
 import { formatSpan, planSpanMs, rhythmText, tomatoStates, type TomatoState } from './plan'
 
 /* —— 候选卡：证据 → 候选 → 确认，要让评委亲眼看到（体验设计 §2） —— */
@@ -185,9 +185,10 @@ function PlanItems({ items, states }: { items: readonly PomodoroPlanItem[]; stat
 
 /* —— 礼物卡：做完第一件真事以后，她把羽毛笔从左页递过来（第 13 镜）。预制礼物，不说成实时生成 —— */
 export function GiftCard({ entering }: { entering: boolean }) {
+  const photo = momentSrc('quill-offer')
   return (
-    <article className="card card-gift" data-entering={entering}>
-      <QuillArt className="gift-quill" />
+    <article className="card card-gift" data-kind="quill" data-entering={entering}>
+      {photo && <img className="gift-photo" src={photo} alt="" draggable={false} />}
       <div className="gift-body">
         <span className="card-source">她送你的</span>
         <h3 className="card-title">一支羽毛笔</h3>

@@ -3,6 +3,8 @@ import type { AppBridge, AppSnapshot, InteractionMode } from '../../../shared'
 import { resolveCharacterArt } from './characterArt'
 import { resolveAwayArt } from './life/awayArt'
 import { AwayScene } from './life/AwayScene'
+import { MailMoment } from './life/MailMoment'
+import { uiSrc } from './Character'
 import { sendCommand, type CommandBody } from './command'
 import { formatClock, formatRemaining } from './format'
 import { locationLabel, MODE_LABEL } from './labels'
@@ -61,6 +63,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   const awayArt = !intro && away && !importedScene ? resolveAwayArt(companion) : null
   const mailReady = capabilities.find((c) => c.id === 'mail')?.status === 'ready'
   const newMail = mailReady && companion.mailboxUnseen > 0
+  const mailIcon = uiSrc('mail')
   const lastLine = [...messages].reverse().find((m) => m.role === 'assistant')
   const timerOn = pomodoro.phase !== 'idle'
   // 恢复完成后应用会重启；新页面第一次看到这次恢复，就让颜色重新长回来
@@ -115,10 +118,16 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
           </div>
           {/* 外出用桌上纸条，睡着不挂“休息”牌。 */}
           {!away && pose !== 'sleeping' && <DoorSign snapshot={snapshot} onCommand={command} failed={commandFailed} />}
-          {/* 新邮件：近景是桌上的一封信，远景是门上的信箱口。只有邮箱连着的时候才显示；连不上不能显示成“没有信” */}
+          {/* 新邮件：近景是桌上的一封信（2026-10-17 晚换成冻结包的邮件图标），远景是门上的信箱口。只有邮箱连着的时候才显示；连不上不能显示成“没有信” */}
           {newMail && !awayArt && (
-            <div className="mail-slot room-ui" title={`${companion.mailboxUnseen} 封新邮件`}><span className="mail-letter" /></div>
+            <div className="mail-slot room-ui" title={`${companion.mailboxUnseen} 封新邮件`}>
+              <span className="mail-letter" data-icon={mailIcon ? true : undefined}>
+                {mailIcon ? <img className="mail-icon" src={mailIcon} alt="" draggable={false} /> : null}
+              </span>
+            </div>
           )}
+          {/* 生活瞬间：有新邮件时，她抬头注意到信的那一刻别在页角（用户 2026-10-17 晚同意接入） */}
+          {newMail && !awayArt && !historyPhoto && <MailMoment snapshot={snapshot} />}
 
           {away && !awayArt && <AwayNote snapshot={snapshot} writing={moved} />}
           {/* 她出门带回来的东西摆在窗台上，跟着房间一起进照片、一起变暗；外景页不是房间，不摆 */}

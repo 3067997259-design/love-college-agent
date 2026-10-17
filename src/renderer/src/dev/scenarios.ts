@@ -272,6 +272,13 @@ export const SCENARIOS = {
     messages: [msg('m1', 'assistant', '邮箱登不上了，所以我不知道有没有新邮件。不是没有，是我看不到。', T.sat1445 - MIN, { emotion: 'worried' })],
   })),
 
+  /** 有新邮件：桌上一个信封，左页页角别一张她抬头注意到信的快照（数量来自快照；生活瞬间接入 2026-10-17 晚） */
+  'mail-new': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1445 },
+    companion: { ...s.companion, mailboxUnseen: 3 },
+    capabilities: capabilities({ mail: { status: 'ready' } }),
+  })),
+
   /** 书桌心流：可写执行中，她要运行一段代码等你批准；一个分身在查、一个已交回（右页工作视图） */
   'flow-working': scenario((s) => ({
     clock: { ...s.clock, nowMs: T.sat1420 + 12 * MIN },

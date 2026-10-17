@@ -1,11 +1,11 @@
 /* 羽毛笔：夹在书缝里，笔尖朝下，斜斜地跨过两页 */
 .quill-dock {
   position: absolute;
-  left: calc(50% - 26px);
-  top: 548px;
+  left: calc(50% - 30px);
+  top: 512px;
   z-index: 4;
-  width: 52px;
-  height: 260px;
+  width: 60px;
+  height: 274px;
   pointer-events: none;
 }
 .quill-button {
@@ -16,15 +16,38 @@
   border: none;
   cursor: pointer;
   pointer-events: auto;
-  transform: rotate(16deg);
+  transform: rotate(14deg);
   transform-origin: 50% 90%;
   filter: drop-shadow(2px 6px 5px color-mix(in oklab, var(--lavender-shadow) 80%, rgb(60 50 80 / 0.45)));
   transition: transform var(--dur) var(--ease-out), translate var(--dur) var(--ease-out);
 }
-.quill-button:hover:not(:disabled), .quill-button:focus-visible { translate: -3px -8px; transform: rotate(13deg); }
+.quill-button:hover:not(:disabled), .quill-button:focus-visible { translate: -3px -9px; transform: rotate(11deg); }
 .quill-button:focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 4px; border-radius: 12px; }
 .quill-button:disabled { cursor: progress; }
-.quill-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.quill-svg { display: block; width: 100%; height: 100%; overflow: visible; transform-origin: 50% 92%; animation: quill-sway 8s var(--ease-in-out) infinite; }
+/* 一直在的小纸签：让人看得出这支笔可以按（存档导出入口） */
+.quill-tag {
+  position: absolute;
+  left: 50px;
+  top: 42px;
+  padding: 1px 6px 2px;
+  background: color-mix(in oklab, var(--paper) 92%, #efe4d0);
+  border: 1px solid color-mix(in oklab, var(--pencil) 45%, transparent);
+  border-radius: 1px;
+  font: 11px / 1.2 var(--font-hand);
+  color: var(--ink-her);
+  transform: rotate(6deg);
+  box-shadow: 0 1px 2px color-mix(in oklab, #6e5a3c 22%, transparent);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: translate var(--dur) var(--ease-out);
+}
+.quill-dock:hover .quill-tag, .quill-dock:focus-within .quill-tag { translate: 0 -2px; }
+/* 很轻的呼吸，让笔不像贴上去的图 */
+@keyframes quill-sway {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(1.1deg); }
+}
 /* 写存档的时候，笔尖像在纸上写字一样轻轻地动 */
 .quill-dock[data-status='exporting'] .quill-button { animation: quill-write 0.9s var(--ease-in-out) infinite; }
 @keyframes quill-write {
@@ -48,8 +71,18 @@
 }
 .quill-note[data-failed='true'] { color: var(--graphite); }
 
-/* 礼物卡：她把笔递过来（第 13 镜） */
+/* 礼物卡：她把笔递过来（第 13 镜）。2026-10-17 晚起用视频冻结包里的插图；小徽记仍留给礼物架 */
 .card-gift { display: flex; align-items: center; gap: 18px; }
+.card-gift[data-kind='quill'] { display: grid; grid-template-columns: 138px minmax(0, 1fr); align-items: center; gap: 16px; }
+.gift-photo {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: 56% 34%;
+  border-radius: 3px;
+  background: var(--paper);
+  box-shadow: 0 2px 6px color-mix(in oklab, #6e5a3c 20%, transparent);
+}
 .gift-quill { flex: none; width: 34px; height: 170px; transform: rotate(-12deg); margin: -6px 2px -6px 4px; }
 .gift-body { display: grid; gap: 2px; }
 .gift-text { margin: 4px 0 0; font-size: 15px; line-height: 1.6; color: var(--graphite); }
@@ -78,4 +111,5 @@
 .paint-quill svg { display: block; width: 100%; height: 100%; overflow: visible; }
 @media (prefers-reduced-motion: reduce) {
   .quill-dock[data-status='exporting'] .quill-button { animation: none; }
+  .quill-svg { animation: none; }
 }

@@ -1,0 +1,47 @@
+/* 有新邮件时别在页角的快照（生活瞬间，2026-10-17 晚接下）。 */
+.mail-moment {
+  position: absolute;
+  right: 1.5%;
+  top: 2%;
+  width: 176px;
+  padding: 7px 7px 6px;
+  display: grid;
+  gap: 5px;
+  background: color-mix(in oklab, var(--paper) 96%, white);
+  transform: rotate(2.4deg);
+  box-shadow: 0 3px 7px color-mix(in oklab, #6e5a3c 24%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+/* 照片的纸边和四角：像随手别上的一张小相片 */
+.mail-moment::before {
+  content: '';
+  position: absolute;
+  inset: 3px 3px auto;
+  height: 1px;
+  background: color-mix(in oklab, var(--paper-edge) 70%, transparent);
+}
+.mail-moment-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  object-position: 47% 34%;
+  user-select: none;
+}
+.mail-moment-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font: 12.5px / 1.2 var(--font-hand);
+  color: var(--ink-her);
+  white-space: nowrap;
+}
+.mail-moment-caption b { font-weight: 400; color: color-mix(in oklab, var(--ink-her) 76%, var(--paper)); }
+.mail-moment-icon { width: 17px; height: auto; align-self: center; }
+
+/* 桌上的信封：图标来自视频冻结包的邮件矢量（去掉透明留白后 708×460）。有图标时不再用 CSS 叠画信封 */
+.mail-letter .mail-icon { display: block; width: 100%; height: auto; }
+.room[data-shot='close'] .mail-letter .mail-icon { width: 26px; }
+.mail-letter[data-icon], .room[data-shot='close'] .mail-letter[data-icon] { background: none; border: none; box-shadow: none; }
+.mail-letter[data-icon]::after { display: none; }
