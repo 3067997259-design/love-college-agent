@@ -160,8 +160,7 @@ it('survives an oversized or unreadable checkpoint instead of failing app startu
   unlinkSync(file); mkdirSync(file)
   expect(() => createLifeWork(f.options)).not.toThrow()
 })
-it('isolates unreadable pending drafts without committing, overwriting or blocking another job (reopened #16)', async () => {
-  for (const kind of ['oversized', 'nul', 'directory'] as const) {
+it.each(['oversized', 'nul', 'directory'] as const)('isolates a %s pending draft without committing, overwriting or blocking another job (reopened #16)', async (kind) => {
     const f = setup(); const job = f.work.ensure('read')!; const other = f.work.ensure('write')!
     const text = '# Interrupted synthetic draft'; const path = workPath(job.id, 1)
     f.store.append({ type: 'life/work-draft', draft: { id: randomUUID(), workId: job.id, step: 1, path, text, sha256: workHash(text) } })
@@ -174,7 +173,6 @@ it('isolates unreadable pending drafts without committing, overwriting or blocki
     if (kind !== 'directory') expect(readFileSync(absolute)).toEqual(Buffer.from(kind === 'oversized' ? 'x'.repeat(64001) : 'before\0after'))
     expect(restarted.dispatch({ type: 'life.work.resume', workId: other.id } as AppCommand)).toBeUndefined(); await restarted.idle()
     expect(restarted.view().jobs.find((entry) => entry.id === other.id)?.completedSteps).toBe(1)
-  }
 })
 it('keeps 3/3 conflicts until actual material and checkpoints match, including without a producer (reopened #17)', async () => {
   const f = setup(); const job = await completedThenConflict(f); const attempts = f.store.records().filter((row) => row.type === 'life/work-attempt').length
