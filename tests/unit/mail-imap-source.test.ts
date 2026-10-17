@@ -46,7 +46,7 @@ describe('read-only IMAP source', () => {
     expect(batch.messages[0]).toMatchObject({ uid: 1, uidValidity: '7', senderAddress: 'ta@example.test', senderName: 'TA', subject: '课程展示安排' })
     expect(batch.messages[0].body).toContain('信息楼 302')
     expect(batch.messages[1].attachments?.[0]).toMatchObject({ partId: '1', format: 'pdf' }); expect(batch.messages[1].attachments?.[0].byteLength).toBeGreaterThan(0)
-    expect(Buffer.from(await source.readAttachment!({ uidValidity: '7', uid: 2, partId: '1' }, new AbortController().signal)).toString()).toContain('%PDF')
+    expect(Buffer.from(await source.readAttachment!({ uidValidity: '7', uid: 2, partId: '1', mailboxId: batch.messages[1].mailboxId }, new AbortController().signal)).toString()).toContain('%PDF')
     expect(client.loggedOut).toBe(true)
   })
 
@@ -80,8 +80,18 @@ describe('read-only IMAP source', () => {
     const batch = await first.readUnseen(new AbortController().signal)
     expect(batch.messages[0].attachments?.[0].partId).toBe('1')
     const second = createImapSource(file, createManualClock(1_000_000), { createClient: () => client })
-    const bytes = await second.readAttachment!({ uidValidity: '7', uid: 2, partId: '1' }, new AbortController().signal)
+    const bytes = await second.readAttachment!({ uidValidity: '7', uid: 2, partId: '1', mailboxId: batch.messages[0].mailboxId }, new AbortController().signal)
     expect(Buffer.from(bytes).toString()).toContain('%PDF')
+  })
+
+  it('refuses to refetch when the mailbox identity changed or is absent', async () => {
+    const file = mailFile(); const client = fakeClient([{ uid: 2, raw: rawMail('带附件', '请查收附件。', true) }])
+    const first = createImapSource(file, createManualClock(1_000_000), { createClient: () => client })
+    const batch = await first.readUnseen(new AbortController().signal); const mailboxId = batch.messages[0].mailboxId!
+    writeFileSync(file, JSON.stringify({ providers: {}, mail: { host: 'imap.example.test', port: 993, tls: true, user: 'other@example.test', auth_code: 'synthetic-auth-code', folder: '桃子' } }))
+    const other = createImapSource(file, createManualClock(1_000_000), { createClient: () => client })
+    await expect(other.readAttachment!({ uidValidity: '7', uid: 2, partId: '1', mailboxId }, new AbortController().signal)).rejects.toThrow('ATTACHMENT_UNAVAILABLE')
+    await expect(first.readAttachment!({ uidValidity: '7', uid: 2, partId: '1' }, new AbortController().signal)).rejects.toThrow('ATTACHMENT_UNAVAILABLE')
   })
 
   it('rejects a mailbox that is not opened read-only', async () => {
@@ -114,3 +124,4 @@ describe('read-only IMAP source', () => {
     await expect(source.readUnseen(aborted.signal)).rejects.toThrow()
   })
 })
+

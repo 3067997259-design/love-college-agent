@@ -1,5 +1,6 @@
 import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
+import { createHash } from 'node:crypto'
 import { readMailCredentials, type MailCredentials } from '../config/providers'
 import type { Clock } from '../clock'
 import type { MailSource, SourceMail } from './types'
@@ -36,6 +37,8 @@ const timeOf = (value: unknown): number | undefined => {
   const date = value as { getTime?: () => number } | undefined
   return date && typeof date.getTime === 'function' ? date.getTime() : undefined
 }
+/** Stable non-secret mailbox identity; changing host/port/user/folder deliberately invalidates old attachment locators. */
+const mailboxIdentity = (mail: MailCredentials): string => createHash('sha256').update(JSON.stringify([mail.host.trim().toLowerCase(), mail.port, mail.user.trim().toLowerCase(), mail.folder])).digest('hex')
 
 export interface ImapClientLike {
   on?(event: 'error', listener: (error: unknown) => void): void
@@ -93,7 +96,7 @@ export function createImapSource(filename: string, clock: Clock, options: ImapSo
       client.off?.('error', onError)
     }
   }
-  const toSourceMail = async (source: Buffer, uid: number, uidValidity: string, receivedDefault: number): Promise<{ mail?: SourceMail; skipped: boolean }> => {
+  const toSourceMail = async (source: Buffer, uid: number, uidValidity: string, mailboxId: string, receivedDefault: number): Promise<{ mail?: SourceMail; skipped: boolean }> => {
     const parsed = await simpleParser(source)
     const body = textOf(parsed)
     const parts = attachmentParts(parsed)
@@ -106,9 +109,9 @@ export function createImapSource(filename: string, clock: Clock, options: ImapSo
     if (!senderAddress || (!body && parts.length === 0)) return { skipped: false }
     const sentAtMs = timeOf(parsed.date) ?? receivedDefault
     const receivedAtMs = receivedDefault
-    for (const part of parts) cachedAttachments.set(uidValidity + ':' + uid + ':' + part.partId, part.bytes)
+    for (const part of parts) cachedAttachments.set(mailboxId + ':' + uidValidity + ':' + uid + ':' + part.partId, part.bytes)
     return { skipped: false, mail: {
-      uidValidity, uid, senderAddress, senderName, subject, body,
+      uidValidity, uid, mailboxId, senderAddress, senderName, subject, body,
       sentAtMs: Number.isFinite(sentAtMs) && sentAtMs >= 0 ? sentAtMs : clock.nowMs(),
       receivedAtMs: Number.isFinite(receivedAtMs) && receivedAtMs >= 0 ? receivedAtMs : clock.nowMs(),
       ...(parts.length ? { attachments: parts.map(({ partId, format, byteLength }) => ({ partId, format, byteLength })) } : {}),
@@ -117,7 +120,8 @@ export function createImapSource(filename: string, clock: Clock, options: ImapSo
   return {
     source: 'real', blocked: false,
     async readUnseen(signal) {
-      return withClient(signal, async (client) => {
+      return withClient(signal, async (client, _uidValidity, credentials) => {
+        const mailboxId = mailboxIdentity(credentials)
         const uids = await client.search({ seen: false }, { uid: true })
         if (!Array.isArray(uids) || !uids.every((uid) => Number.isSafeInteger(uid) && uid > 0)) throw new Error('MAIL_SOURCE_INVALID')
         const messages: SourceMail[] = []; let skipped = 0
@@ -125,7 +129,7 @@ export function createImapSource(filename: string, clock: Clock, options: ImapSo
           signal.throwIfAborted()
           const item = await client.fetchOne(uid, { uid: true, envelope: true, internalDate: true, source: true }, { uid: true })
           if (!item || !item.source) { skipped++; continue }
-          const mapped = await toSourceMail(item.source, uid, String(client.mailbox?.uidValidity ?? ''), timeOf(item.internalDate) ?? clock.nowMs())
+          const mapped = await toSourceMail(item.source, uid, String(client.mailbox?.uidValidity ?? ''), mailboxId, timeOf(item.internalDate) ?? clock.nowMs())
           if (mapped.mail) messages.push(mapped.mail)
           if (mapped.skipped) skipped++
         }
@@ -134,10 +138,12 @@ export function createImapSource(filename: string, clock: Clock, options: ImapSo
     },
     async readAttachment(mail, signal) {
       signal.throwIfAborted()
-      const key = mail.uidValidity + ':' + mail.uid + ':' + mail.partId
+      // Legacy records without a mailbox identity cannot prove which account they came from.
+      if (!mail.mailboxId) throw new Error('ATTACHMENT_UNAVAILABLE')
+      const key = mail.mailboxId + ':' + mail.uidValidity + ':' + mail.uid + ':' + mail.partId
       const cached = cachedAttachments.get(key); if (cached) return cached
-      return withClient(signal, async (client, uidValidity) => {
-        if (uidValidity !== mail.uidValidity) throw new Error('ATTACHMENT_UNAVAILABLE')
+      return withClient(signal, async (client, uidValidity, credentials) => {
+        if (mailboxIdentity(credentials) !== mail.mailboxId || uidValidity !== mail.uidValidity) throw new Error('ATTACHMENT_UNAVAILABLE')
         const item = await client.fetchOne(mail.uid, { uid: true, source: true }, { uid: true })
         if (!item?.source) throw new Error('ATTACHMENT_UNAVAILABLE')
         const parsed = await simpleParser(item.source)

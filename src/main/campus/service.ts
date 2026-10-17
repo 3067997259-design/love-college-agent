@@ -39,7 +39,8 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
     for (const part of mail.attachments ?? []) {
       const id = 'att:' + digest(sourceKey + ':' + part.partId)
       options.attachment?.({ view: { id, ...(candidateId ? { candidateId } : {}), displayName: '附件-' + id.slice(-8) + '.' + ({ pdf: 'pdf', text: 'txt', markdown: 'md' }[part.format]),
-        byteLength: part.byteLength, format: part.format, source: source.source }, uidValidity: mail.uidValidity, uid: mail.uid, partId: part.partId })
+        byteLength: part.byteLength, format: part.format, source: source.source }, uidValidity: mail.uidValidity, uid: mail.uid, partId: part.partId,
+        ...(mail.mailboxId ? { mailboxId: mail.mailboxId } : {}) })
     }
   }
   const setState = (next: Partial<MailboxView>) => { mailbox = { ...mailbox, ...next }; repository.append({ type: 'mail/state', view: view() }); publish() }
