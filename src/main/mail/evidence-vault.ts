@@ -14,7 +14,18 @@ const sourceSchema = z.strictObject({ uidValidity: z.string().regex(/^\d{1,20}$/
   mailboxId: z.string().regex(/^[a-f0-9]{64}$/).optional() })
 const quotesSchema = z.array(z.strictObject({ field: z.enum(['deadlineIso', 'eventStartIso', 'eventEndIso', 'locationText', 'title']), text: z.string().min(1).max(300) })).max(10)
 export const digest = (value: string) => createHash('sha256').update(value).digest('hex')
-export const mailContentHash = (mail: SourceMail) => { const { attachments: _attachments, ...body } = sourceSchema.parse(mail); void _attachments; return digest(JSON.stringify(body)) }
+/** Stable content hash: transport-only attachment metadata and mailbox identity never invalidate an unchanged message. */
+export const mailContentHash = (mail: SourceMail) => {
+  const { attachments: _attachments, mailboxId: _mailboxId, ...body } = sourceSchema.parse(mail)
+  void _attachments; void _mailboxId
+  return digest(JSON.stringify(body))
+}
+/** Compatibility hash written by d47ae7b/ccab7cb (mailboxId included); accepted but not written again. */
+export const mailContentHashWithIdentity = (mail: SourceMail) => {
+  const { attachments: _attachments, ...body } = sourceSchema.parse(mail)
+  void _attachments
+  return digest(JSON.stringify(body))
+}
 
 /** Presentation is user-only. Fixed-pattern credentials remain hidden even in this separate view. */
 export function evidenceView(mail: SourceMail, quotes: CheckedMail['quotes']): EvidenceView {

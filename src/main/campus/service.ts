@@ -4,7 +4,7 @@ import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import type { Scheduler } from '../scheduler'
 import type { EvidenceVault } from '../mail/evidence-vault'
-import { digest, mailContentHash } from '../mail/evidence-vault'
+import { digest, mailContentHash, mailContentHashWithIdentity } from '../mail/evidence-vault'
 import { extractMail, type EmailPrivacyModel } from '../mail/privacy'
 import type { MailSource } from '../mail/types'
 import type { createFakeMailbox } from '../mail/fake'
@@ -70,7 +70,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
           try {
           const sourceKey = digest(JSON.stringify([store.scope.userId, store.scope.characterId, source.source, '桃子', mail.uidValidity, mail.uid]))
           const hash = mailContentHash(mail); const processed = repository.view().processed.find((entry) => entry.sourceKey === sourceKey)
-          if (processed) { if (processed.contentHash !== hash) throw new Error('MAIL_SOURCE_CHANGED'); registerAttachments(mail, sourceKey, processed.candidateId); continue }
+          if (processed) { if (processed.contentHash !== hash && processed.contentHash !== mailContentHashWithIdentity(mail)) throw new Error('MAIL_SOURCE_CHANGED'); registerAttachments(mail, sourceKey, processed.candidateId); continue }
           const extraction = await extractMail(mail, options.privacy, clock, combined)
           combined.throwIfAborted()
           if (!extraction.ok) { failure = extraction.error; continue }
@@ -185,3 +185,5 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
   }
 }
 export type CampusService = ReturnType<typeof createCampusService>
+
+

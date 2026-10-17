@@ -5,7 +5,8 @@ import { runtimeEnv } from './runtime-env.mjs'
 import { buildDeskCommand } from './build-desk-command.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const env = runtimeEnv(root)
+// runtimeEnv defaults to silent windows for tests; normal dev/preview must always be visible.
+const env = { ...runtimeEnv(root), LCA_TEST_SILENT: process.env.LCA_TEST_SILENT ?? '0' }
 const mode = process.argv[2]
 if (mode === 'dev' || mode === 'preview') await buildDeskCommand()
 const command = mode === 'rebuild' ? '@electron/rebuild/lib/cli.js' : mode === 'install-electron' ? 'electron/install.js' : 'electron-vite/bin/electron-vite.js'
