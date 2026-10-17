@@ -467,6 +467,33 @@
 .room-ui { animation: room-ui-in 520ms var(--ease-out) both; }
 @keyframes room-ui-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .room-ui { animation: none; } }
+/* 她说话：那句话上方的小喇叭；在说时声纹随音量（--voice-level，0–1）起伏，点一下停下这句 */
+.speech-voice { position: absolute; left: 64px; top: 656px; margin: 0; }
+.voice-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px 0 7px;
+  color: var(--ink-her);
+  background: color-mix(in oklab, var(--paper) 70%, white);
+  border: 1.5px solid color-mix(in oklab, var(--peach-mid) 45%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity var(--dur), border-color var(--dur);
+}
+.voice-mark:hover, .voice-mark[data-speaking='true'] { opacity: 1; border-color: var(--peach-mid); }
+.voice-mark:focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 2px; }
+.voice-mark svg { width: 18px; height: 15px; }
+.voice-speaker { fill: var(--peach); stroke: var(--ink-her); stroke-width: 1.2; stroke-linejoin: round; }
+.voice-wave { fill: none; stroke: var(--ink-her); stroke-width: 1.3; stroke-linecap: round; }
+.voice-bars { display: inline-flex; align-items: center; gap: 2px; height: 16px; --voice-level: 0; }
+.voice-bars i { display: block; width: 3px; border-radius: 2px; background: var(--peach-mid); height: calc(3px + var(--voice-level) * 13px); transition: height 60ms linear; }
+.voice-bars i:nth-child(2) { height: calc(3px + var(--voice-level) * 9px); }
+.voice-bars i:nth-child(3) { height: calc(3px + var(--voice-level) * 15px); }
+.voice-bars i:nth-child(4) { height: calc(3px + var(--voice-level) * 7px); }
+.voice-failed { font-size: var(--fs-xs); color: var(--graphite); }
 /* 她出门或睡着了：这句是之前说的，淡一点 */
 .speech { transition: opacity var(--dur-slow) var(--ease-out); }
 .speech[data-absent='true'] { opacity: 0.45; }

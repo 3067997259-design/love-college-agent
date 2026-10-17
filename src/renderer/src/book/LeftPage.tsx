@@ -15,6 +15,8 @@ import { WashRoom } from './wash/WashRoom'
 import { packageScene } from './characterPackage'
 import { SillItems } from './life/SillItems'
 import { HistoryPhoto, type PhotoOverlay } from './history/HistoryPhoto'
+import { VoiceMark } from './VoiceMark'
+import { voiceLevel } from '../voice/level'
 
 const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
 
@@ -60,6 +62,9 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   // 恢复完成后应用会重启；新页面第一次看到这次恢复，就让颜色重新长回来
   const backup = snapshot.backup
   const restoreId = backup?.status === 'restored' ? (backup.restoreId ?? backup.operationId ?? null) : null
+  // 嘴型：播放器按音量给出闭／半开／张开，挂在房间上（data-mouth）。还没有张嘴差分图，先只作为接线点；直接改 DOM，不每帧重渲染
+  const roomRef = useRef<HTMLDivElement>(null)
+  useEffect(() => voiceLevel.subscribe((_level, mouth) => { if (roomRef.current) roomRef.current.dataset.mouth = mouth }), [])
 
   const scene = importedScene
     ? <div className="character character-color"><img className="character-art" data-character-package alt="" src={importedScene} draggable={false} /></div>
@@ -80,7 +85,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
         新手流程和平常是同一个房间节点：画布不重建。点“开始吧”进书时，房间不会闪白，只把她的表情交叉淡化一次，
         钟、门牌这些房间里的东西再淡进来。
       */}
-      <div className="room" data-photo-scene={intro ? undefined : true} data-session-id={intro ? undefined : snapshot.scope.sessionId} data-shot="close"
+      <div ref={roomRef} className="room" data-photo-scene={intro ? undefined : true} data-session-id={intro ? undefined : snapshot.scope.sessionId} data-shot="close"
         data-location={intro ? 'room' : companion.locationId} data-pose={intro ? art.key.split('_')[0] : pose} data-lighting={art.lighting} data-arriving={(!intro && arriving) || undefined}>
         {/* 精修整景：颜色聚在她周围，往外褪成从彩图实时提取的铅笔线（体验设计 §7.1，用户批准） */}
         {scene}
@@ -122,6 +127,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
       {/* 房间之外的兄弟节点：盖在上面，但不进实时拍照的根 */}
       {!intro && historyPhoto && <HistoryPhoto view={historyPhoto} />}
 
+      {!intro && lastLine && historyPhoto?.mode !== 'page' && <VoiceMark snapshot={snapshot} bridge={bridge} messageId={lastLine.id} />}
       {!intro && lastLine && historyPhoto?.mode !== 'page' && (
         <p className="speech" data-status={lastLine.status} data-absent={away || pose === 'sleeping' || undefined}>
           {lastLine.text}

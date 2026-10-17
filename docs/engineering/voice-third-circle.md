@@ -18,6 +18,8 @@
 
 朴素设置有静音开关及“AI 合成语音”披露。书本已挂唯一 `VoiceAudio`／PCM 播放器，无定时器轮询，随分块计数增量读取，实际 AudioContext 排程与 ended 回调报告播放状态。嘴型／角色声音审美归 Claude；可使用 voice.utterance.playback，但不要在 mini 再开第二个播放器，不根据 synthesizing 自行宣称正在发声。开发 source=fake 是短测试音，不是角色嗓音。
 
+2026-10-17 下午 Claude 已接（接口不变）：左页她那句话上方的小喇叭只在 `playback='playing'` 时显示声纹，点一下 `voice.stop` 这一句，平时点一下静音；安静／专注／熄灯／睡着时不显示，失败显示“语音失败，已改为纯文字”。播放器的分块经同一个 AnalyserNode 出声，按音量给出 0–1 电平和闭／半开／张开三档（`voice/level.ts`，挂在房间 `data-mouth`）；还没有张嘴差分图，目前只驱动声纹。迷你窗仍不播放、不显示语音状态。见 [书签页记录](book-life-pages.md) 第 5 包。真实音色、延迟和中文听感仍待用户提供 TTS 服务后验收。
+
 ## 实际验收
 
 10 项单测通过：配置缺失／默认静音、成功公开消息、凭据遮盖、失败文字保留、四种取消／迟到、预算／数据上限、协议配置、分片错误及真实 loopback HTTP reader 取消。`node scripts/smoke-voice.mjs` 通过真实 Electron preload、PCM 数据、AudioContext 排程／结束、安静取消、书本白名单、重启偏好和不重播；测试用 webContents 静音，未在用户机器发声。合成数据／fake 模型／测试音，不是中文声音质量或真实 TTS 成本／延迟验收。
