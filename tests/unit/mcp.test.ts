@@ -116,4 +116,22 @@ describe('MCP configuration, transport and private result boundaries', () => {
     await connection.disconnect(); expect(connection.protocol.allows('synthetic_read')).toBe(false)
     await expect(connection.protocol.call('synthetic_read', {}, new AbortController().signal)).rejects.toMatchObject({ code: 'permission-denied' })
   })
+  it('accepts screenshots only through the fixed main-only image outlet with explicit public allowlist', async () => {
+    const fixture = await startMcpFixture(systemClock); cleanups.push(fixture.close)
+    const config = fixture.config.mcpServers['synthetic-game']
+    const connection = createMcpConnection({ id: 'game', config, clock: systemClock, source: 'fake', privacyModel: null, changed: () => {} }); cleanups.push(connection.disconnect); await connection.connect()
+    const world = await connection.protocol.call('get_world_session', {}, new AbortController().signal) as { sessionId: string }
+    const args = { expectedWorldSessionId: world.sessionId }; const image = await connection.protocol.image(args, new AbortController().signal)
+    expect(image.mimeType).toBe('image/png'); expect(image.metadata).toMatchObject({ source: 'client-framebuffer', width: 16, height: 12 })
+    // The generic text protocol and harness alias do not receive image/base64 data.
+    await expect(connection.protocol.call('screenshot', args, new AbortController().signal)).rejects.toMatchObject({ code: 'mcp-invalid-result' })
+    const alias = connection.tools().find((tool) => tool.definition.description.includes('/screenshot.'))!
+    const ordinary = await alias.run(args, { signal: new AbortController().signal } as ToolContext)
+    expect(ordinary.ok).toBe(false); expect(JSON.stringify(ordinary)).not.toContain(image.data)
+    const privateConnection = createMcpConnection({ id: 'private-game', config: { ...config, privacy: 'always' }, clock: systemClock, source: 'fake', privacyModel: null, changed: () => {} }); cleanups.push(privateConnection.disconnect); await privateConnection.connect()
+    await expect(privateConnection.protocol.image(args, new AbortController().signal)).rejects.toMatchObject({ code: 'permission-denied' })
+    const denied = createMcpConnection({ id: 'no-shots', config: { ...config, allowTools: config.allowTools.filter((name) => name !== 'screenshot') }, clock: systemClock, source: 'fake', privacyModel: null, changed: () => {} }); cleanups.push(denied.disconnect); await denied.connect()
+    await expect(denied.protocol.image(args, new AbortController().signal)).rejects.toMatchObject({ code: 'permission-denied' })
+    await connection.disconnect(); await expect(connection.protocol.image(args, new AbortController().signal)).rejects.toMatchObject({ code: 'permission-denied' })
+  })
 })

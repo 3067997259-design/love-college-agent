@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { McpConnection } from '../mcp/connection'
-export type GameProtocol = McpConnection['protocol']
+export type GameProtocol = Omit<McpConnection['protocol'], 'image'> & Partial<Pick<McpConnection['protocol'], 'image'>>
 const id = z.string().min(1).max(128)
 export const worldSchema = z.object({ instanceId: id, sessionId: id, revision: z.number().int().nonnegative(), connected: z.literal(true),
   playerUuid: z.string().uuid(), dimension: z.string().regex(/^[a-z0-9_.-]+:[a-z0-9_./-]+$/i) })

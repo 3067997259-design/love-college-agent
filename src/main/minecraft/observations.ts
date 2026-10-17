@@ -18,8 +18,9 @@ export function minecraftFeatures(protocol: GameProtocol): MinecraftFeature[] {
   const bound = ['expectedWorldSessionId']; const owned = [...bound, 'controlSessionId', 'sequence']
   const checks: [MinecraftFeature, string, string[]][] = [
     ['inventory', 'get_inventory', bound], ['scene', 'describe_scene', [...bound, 'maxDistance', 'rayColumns', 'rayRows']], ['look', 'look', [...owned, 'yaw', 'pitch']],
+    ['screenshot', 'screenshot', bound],
   ]
-  return checks.filter(([, name, fields]) => protocol.allows(name, fields)).map(([feature]) => feature)
+  return checks.filter(([feature, name, fields]) => (feature !== 'screenshot' || !!protocol.image) && protocol.allows(name, fields)).map(([feature]) => feature)
 }
 /** Drop item names, lore, NBT and arbitrary strings before game model/journal access. */
 export function inventoryObservation(value: unknown, world: GameWorld, protocol: GameProtocol) {
