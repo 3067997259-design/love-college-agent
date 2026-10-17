@@ -1,6 +1,6 @@
-# Windows 部署与第一圈操作
+# Windows 部署与运行入口
 
-适用 2026-10-16 第一圈源码。安装包的版本、哈希和验收记录见 [Windows 安装包](engineering/windows-package.md)。首次运行与最终画面仍在迭代，本文只描述实际入口。
+适用 2026-10-17 晚源码／终包（源码 `ba9aedc`）。最新安装包的版本、哈希和验收记录见 [Windows 安装包](engineering/package-third-circle.md)；本文描述实际入口与已知边界。
 
 ## 从源码运行
 
@@ -71,8 +71,8 @@ pnpm test:package
 `test:package` 检查 ASAR，运行解包和实际安装后的 SQLite／日志／番茄钟／存档探针，再检查界面重启，最后卸载自己刚建的 D 盘测试实例。发现已有同名用户安装会拒绝覆盖。测试用合成输入或不存在的供应商文件，不执行真实邮箱或模型调用。不要把这些结果当另一台干净机器的验收；该项仍需队友实际复现。
 
 CDP 仅开发模式：GPT 9527／其他 9427；鉴权 MCP：5275／5175。多实例用 `LCA_CDP_PORT`、`LCA_MCP_PORT` 分开。令牌留在开发 profile `debug-connection.json`，不打印或发给模型。安全诊断显示已采集的值，未采集的费用和缓存等显示未提供。
-## 最新安装验收（2026-10-17）
+## 最新安装验收（2026-10-17 21:44）
 
-最新 NSIS 于 2026-10-17 07:28 基于源码 `6571c05` 完成实际安装验收，位于 `D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe`，238117936 字节；SHA-256 `763c365b563fd5b1285775e5c6c148442376d72bda20c711f7715354e8685b85`，实际签名 NotSigned。解包版／安装版七类探针、普通界面重启、历史照片／引用／恢复及 15 项安装版原生场景（含同档连续链路及普通作品端口）均通过；模型／服务为合成，不是实机 MC 或真实 OCR／TTS 质量验收。测试目录在 D 盘，测试安装已卸载。构建回执 `release/build-receipt.json`，报告 `test-results/package-report.json`；此包替代 07:08 的旧产物，main checkout 的 release 不随 Git 合并更新。详细复现和边界见 [第三圈安装态记录](engineering/package-third-circle.md)。
+最新 NSIS 于 2026-10-17 21:44 基于源码 `ba9aedc` 完成实际安装验收（含今晚外景／生活瞬间／19 张差分与夜景重光），位于 `D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe`，**264,345,609 字节**；SHA-256 `2893bf477e30dfc6b77ad3759a3d1a94c770d300c46fec721145d9834430d12a`，实际签名 NotSigned。解包版／安装版七类探针、普通界面重启、历史照片／引用／恢复及全部 **26 项安装版原生场景**均通过（报告 ok=true）；模型／服务为合成，不是实机 MC 或真实 OCR／TTS 质量验收。测试目录在 D 盘，测试安装已卸载。构建回执 `release/build-receipt.json`（sourceRevision `ba9aedc…`，trackedDirty=false），报告 `test-results/package-report.json`；此包取代 12:50 的 `3edea7c` 旧产物，main checkout 的 release 不随 Git 合并更新。详细复现和边界见 [第三圈安装态记录](engineering/package-third-circle.md)。
 
 `pnpm package:win` 重建当前 worktree 的包；`pnpm test:package` 验证该包。不要从 main 目录拿旧 release 代替这次产物。显式 `LCA_DATA_DIR` 的实例把房间投影放进各自数据目录；正常安装、不设该变量时才放“文档/桃子的房间/<作用域摘要>-<数据根摘要>”，目录名含数据根身份，不同 profile 不共用房间。Python 只用于源码／CI 的 ZIP 独立验证，安装后的应用不需要 Python；没有下载 Playwright 浏览器。

@@ -1,5 +1,7 @@
 # Love, College & Agent
 
+**10-17 21:44 新终包验收：** NSIS 从干净 `D:\lca-gpt` 工作树、源码 `ba9aedc` 重打（trackedDirty=false），含今晚外景页、生活瞬间、19 张表情／夜景差分与夜景重光；实际安装后两侧七类探针、普通重启、历史照片引用与全部 **26 项安装场景** 通过（报告 ok=true），测试安装已卸载。安装器 264,345,609 字节，SHA-256 `2893bf477e30dfc6b77ad3759a3d1a94c770d300c46fec721145d9834430d12a`，未签名；服务仍为合成，真实 TTS／OCR／MC／干净第二机未验收。记录见[安装态记录](docs/engineering/package-third-circle.md) 与[部署说明](docs/deployment.md)。
+
 **10-17 晚 应用差分候选：** 按需求补齐 19 张（五张眨眼、一张抬眼、六张嘴型、一张思考、六张夜景），沿用 NovelAI 底稿＋GPT-image 精修；13 张面部差分在明确区域之外零像素改动，原采用图未覆盖。用户已确认“特别喜欢、差分刻画很好”并按整批采用；2026-10-17 晚已接入书页（眨眼／抬头／嘴型贴片、think、室内与海岸夜景重光），记录见[差分接入](docs/engineering/face-deltas-adoption-20261017.md)；[逐张审图](art/retouch/2026-10-18-face-deltas/review.html)、[交付与验收边界](docs/engineering/art-deltas-delivery-20261017.md)。
 
 **10-17 晚 外景页与生活瞬间：** 左页外出不再只有空房间＋纸条：海岸／秋千复用[视频冻结包](art/film-frozen/2026-10-17-v1/README.md)里她在外景的画面（海边白天／傍晚／夜里、秋千白天／傍晚／夜里，共六张），去向和回来时刻仍由主进程定；迷你窗同步同一张外景；出门时颜色先走、铅笔影子后散，外景 1.4 s 后淡入，开书时已在外不重播。同时接了生活瞬间：有新邮件时页角别一张她抬头的快照、桌上的信封换成邮件图标；礼物卡换成递笔插图；书缝里的存档羽毛笔重画并加了“存档”纸签。素材只复制不重画。类型／lint／构建、73 文件 509 项单测、浏览器预览与实际点“出门”转场通过；Electron 场景本轮未跑。记录见[外景记录](docs/engineering/away-third-circle.md)、[生活瞬间记录](docs/engineering/moments-third-circle.md)、[差分接入](docs/engineering/face-deltas-adoption-20261017.md)。
