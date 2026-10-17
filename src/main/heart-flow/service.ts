@@ -102,7 +102,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
     inspect,
     messages: () => {
       const combined = flowContexts(store, false); const activeFlow = open(); const activeSpan = combined.spans.find((span) => span.id === activeFlow?.id)
-      const positions = new Map(store.records().flatMap((row) => row.type === 'user/message' || row.type === 'assistant/message' ? [[row.id, combined.positions.get(store.scope.sessionId + ':' + row.seq) ?? -1] as const] : []))
+      const positions = new Map(store.records().flatMap((row) => row.type === 'user/message' || row.type === 'assistant/message' || row.type === 'narrator/failure' ? [[row.id, combined.positions.get(store.scope.sessionId + ':' + row.seq) ?? -1] as const] : []))
       return store.projection().messages.filter((message) => { const position = positions.get(message.id) ?? -1; return activeSpan ? position > activeSpan.start : !combined.spans.some((span) => position > span.start && (span.end < 0 || position < span.end)) })
     },
     normalEntriesAllowed: (seqs: readonly number[]) => normalContextAllowedSeqs(store, seqs),
@@ -118,7 +118,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
       const threshold = checkpointIndex >= 0 ? checkpointIndex : combined.spans.find((span) => span.id === flow.id)!.start
       const work = combined.context.filter((entry) => entry.position > threshold && combined.rows[entry.position]?.type !== 'context/inject')
       const retained = checkpoint?.type === 'flow/compact' ? checkpoint.retained : undefined
-      const rewindView = rewind.view(); const rewindContext: ContextMessage[] = rewindView ? [{ role: 'user', content: JSON.stringify({ recordedFileRewind: { ...rewindView, paths: rewindView.paths.slice(0, 20), totalFiles: rewindView.paths.length, pathsTruncated: rewindView.paths.length > 20 }, instruction: 'File state may differ from earlier work messages. Read current desk files before continuing. Rewind does not undo command side effects or erase conversation.' }) }] : []
+      const rewindView = rewind.view(); const rewindContext: ContextMessage[] = rewindView ? [{ role: 'user', content: JSON.stringify({ recordedFileRewind: { ...rewindView, paths: rewindView.paths.slice(0, 20), totalFiles: rewindView.paths.length, pathsTruncated: rewindView.paths.length > 20 }, instruction: instructions.rewound }) }] : []
       const messages: ContextMessage[] = [...flow.prefix, ...goalContext(), ...draftContext(), ...rewindContext, ...(checkpoint?.type === 'flow/compact' ? [{ role: 'user' as const, content: checkpoint.summary }, ...(retained?.messages ?? [])] : []), ...work.map((entry) => entry.message)]
       if (JSON.stringify(messages).length > 80_000) {
         const turnStart = combined.rows.findLastIndex((row) => row.type === 'turn/start' && row.turnId === id)
@@ -176,7 +176,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
             // a late completion cannot override sleep, shutdown or a newer entry.
             if (opening !== preparation || preparation.signal.aborted || !enabled || open() || options.busy() || store.projection().lightsOut || store.projection().sleeping) return
             const policies = prepared.messages.filter((message) => message.role === 'system')
-            const chat = store.projection().messages.slice(-12).map((message) => ({ role: message.role, text: message.text.slice(0, 500) }))
+            const chat = store.projection().messages.filter((message) => message.role !== 'narrator').slice(-12).map((message) => ({ role: message.role, text: message.text.slice(0, 500) }))
             const id = randomUUID(); store.append({ type: 'flow/open', id, mode: 'plan', prefix: [...policies, { role: 'system', content: instructions.policy }, { role: 'system', content: JSON.stringify({ builtinCodingSkill: codingSkill }) }, { role: 'user', content: JSON.stringify({ conversationReference: chat }) }] }); linkGoal(id)
             options.entered?.()
           }).catch(() => {}).finally(() => { if (opening === preparation) opening = undefined; options.changed() }); return

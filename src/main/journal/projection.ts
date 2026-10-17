@@ -74,6 +74,8 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
       case 'assistant/message':
         if (record.text) (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'assistant', text: record.text, createdAtMs: record.atMs, status: record.status })
         if (!record.displayOnly) context.push({ seq: record.seq, message: { role: 'assistant', content: record.text, ...(record.toolCalls?.length ? { toolCalls: record.toolCalls } : {}) } }); break
+      case 'narrator/failure':
+        (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'narrator', text: record.text, createdAtMs: record.atMs, status: 'complete', failure: record.failure }); break
       case 'question/requested': if (result.task?.id === record.turnId && result.task.status === 'running') result.task.status = 'waiting-user'; break
       case 'question/answered':
       case 'question/closed': if (result.task?.id === record.turnId && result.task.status === 'waiting-user') result.task.status = 'running'; break

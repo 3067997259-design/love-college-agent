@@ -8,6 +8,7 @@ import { ModelFailure, type ModelClient } from '../model/types'
 import type { HarnessTool } from './tools'
 import { MemoryFailure } from '../memory/model'
 import { ResourceFailure, type ResourceAdmissions } from '../resources/ledger'
+import { failureNarration } from './failure'
 
 class GuardFailure extends Error {
   constructor(readonly reason: 'max-steps' | 'loop' | 'budget', readonly code: PublicErrorCode) { super('EXECUTION_GUARD') }
@@ -23,7 +24,7 @@ function errorCode(error: unknown): PublicErrorCode {
   if (error instanceof ResourceFailure) return error.code
   if (!(error instanceof ModelFailure)) return 'internal'
   return ({ configuration: 'configuration-failed', network: 'connection-failed', timeout: 'connection-failed', upstream: 'upstream-busy', quota: 'quota-exhausted',
-    cancelled: 'internal', 'invalid-output': 'invalid-model-output', interrupted: 'stream-interrupted' } as const)[error.kind]
+    cancelled: 'internal', 'invalid-output': 'invalid-model-output', interrupted: 'stream-interrupted', 'content-filtered': 'content-filtered' } as const)[error.kind]
 }
 
 export function createHarness(options: {
@@ -54,7 +55,7 @@ export function createHarness(options: {
   let worker: Promise<void> | undefined
   let disposed = false
   let resumeGate: (() => void) | undefined
-  const record = (input: JournalInput) => { store.append(input); if (input.type !== 'model/attempt') options.changed?.(input.type === 'user/message' || input.type === 'assistant/message' ? 'message' : 'task') }
+  const record = (input: JournalInput) => { store.append(input); if (input.type !== 'model/attempt') options.changed?.(input.type === 'user/message' || input.type === 'assistant/message' || input.type === 'narrator/failure' ? 'message' : 'task') }
   const quiet = () => { const view = store.projection(); return options.backgroundQuiet?.() || view.sleeping || view.mode === 'quiet' || view.pomodoro.phase === 'focus' }
   const eligible = () => !disposed && (options.enabled?.() ?? true) && !store.projection().lightsOut && inbox.some((entry) => entry.source === 'user' || !quiet())
   const drain = () => {
@@ -98,6 +99,7 @@ export function createHarness(options: {
     const delivery = () => !userEngaged && (quiet() || store.projection().lightsOut) ? { delivery: 'rest' as const } : {}
     let reason: Extract<JournalInput, { type: 'turn/end' }>['reason'] = 'completed'
     let failure: PublicErrorCode | undefined
+    let failureHttpStatus: number | undefined
     try {
       for (let step = 0; ; step++) {
         try {
@@ -173,11 +175,13 @@ export function createHarness(options: {
       reason = turn.abort.signal.aborted ? 'aborted' : error instanceof GuardFailure ? error.reason : 'error'
       if (error instanceof ModelFailure && error.partialText) record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: error.partialText, status: 'interrupted', ...delivery() })
       if (reason !== 'aborted') failure = errorCode(error)
+      if (error instanceof ModelFailure) failureHttpStatus = error.httpStatus
     } finally {
       options.turnSettled?.(turn.id)
       active = undefined
       finishOpenCalls(turn.id)
       record({ type: 'turn/end', turnId: turn.id, reason, ...(failure ? { error: { code: failure, retryable: failure === 'upstream-busy' || failure === 'connection-failed' } } : {}) })
+      if (failure) record({ ...failureNarration(store, turn.id, failure, toolsExecuted, failureHttpStatus), ...delivery() })
     }
   }
   const kick = () => {

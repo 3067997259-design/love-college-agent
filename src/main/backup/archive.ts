@@ -119,7 +119,7 @@ export async function exportPrivateSave(options: { root: string; store: SessionS
     activeDayKey, activeSessionId: store.scope.sessionId,
     pomodoro: (() => { const view = store.projection().pomodoro; if (view.status === 'running' && view.endsAtMs !== null) view.remainingMs = Math.max(0, view.endsAtMs - clock.nowMs()); return view })(),
     pomodoroPause: store.projection().pomodoroPause, fileFilteringEnabled: options.fileFilteringEnabled, onboarding: options.onboarding ?? store.projection().onboarding,
-    counts: { pageCount: [...files.keys()].filter((path) => path.startsWith('journals/')).length, messageCount: allRecords.filter((row) => row.type === 'user/message' || row.type === 'assistant/message' && row.text).length,
+    counts: { pageCount: [...files.keys()].filter((path) => path.startsWith('journals/')).length, messageCount: allRecords.filter((row) => row.type === 'user/message' || row.type === 'narrator/failure' || row.type === 'assistant/message' && row.text).length,
       memoryCount: projectMemory(allRecords).items.length, deliveryCount: new Set(artifacts.map((artifact) => artifact.view.id)).size },
     files: [...files].map(([path, bytes]) => ({ path, bytes: bytes.length, sha256: sha256(bytes) })),
   })
@@ -150,7 +150,7 @@ export async function validatePrivateSave(bytes: Buffer, owner: SaveManifest['ow
     validateOpticalRecords(records)
     const active = files.get('journals/' + key + '/' + manifest.activeDayKey + '.jsonl'); if (!active) throw new BackupFailure('backup-invalid')
     const projected = projectJournal(parseJournalContent(active.toString('utf8'), owner)); if (projected.scope.sessionId !== manifest.activeSessionId) throw new BackupFailure('backup-invalid')
-    if (manifest.counts.pageCount !== [...files.keys()].filter((path) => path.startsWith('journals/')).length || manifest.counts.messageCount !== records.filter((row) => row.type === 'user/message' || row.type === 'assistant/message' && row.text).length || manifest.counts.memoryCount !== projectMemory(records).items.length) throw new BackupFailure('backup-invalid')
+    if (manifest.counts.pageCount !== [...files.keys()].filter((path) => path.startsWith('journals/')).length || manifest.counts.messageCount !== records.filter((row) => row.type === 'user/message' || row.type === 'narrator/failure' || row.type === 'assistant/message' && row.text).length || manifest.counts.memoryCount !== projectMemory(records).items.length) throw new BackupFailure('backup-invalid')
     const artifacts = records.flatMap((row) => row.type === 'campus/exported' ? row.artifacts : row.type === 'document/completed' ? [row.artifact] : [])
     if (manifest.counts.deliveryCount !== new Set(artifacts.map((artifact) => artifact.view.id)).size) throw new BackupFailure('backup-invalid')
     for (const artifact of artifacts) if (sha256(files.get(artifact.relativePath) ?? Buffer.alloc(0)) !== artifact.sha256) throw new BackupFailure('backup-invalid')

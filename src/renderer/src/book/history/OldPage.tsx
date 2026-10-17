@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { MessageView, OpticalMemoryRead, OpticalMemoryView, SessionPage, SessionPageInfo } from '../../../../shared'
 import { Impression } from './Impression'
 import { MAX_QUOTE, quoteOnPage, type Quote } from './quote'
 import copy from '../../voice/book.zh.json'
 import { formatClock } from '../format'
 import { dayKeyLabel } from '../life/text'
+import { FailureDetails } from '../FailureDetails'
 
 export type { Quote }
 
@@ -76,14 +77,14 @@ export function OldPage({ info, page: loadedPage, failed, older, newer, onTurn, 
             {page.messages.map((message) => {
               const canQuote = recallable.has(message.id)
               return (
-                <p key={message.id} className={`msg msg-${message.role}`} data-recallable={canQuote} data-message-id={message.id}>
+                <Fragment key={message.id}><p className={`msg msg-${message.role}`} data-recallable={canQuote} data-message-id={message.id}>
                   {message.role === 'assistant' && <span className="msg-who" aria-hidden />}
                   <span className="msg-text" onMouseUp={(event) => select(message, event.currentTarget)}>{message.text}</span>
                   <time className="msg-time">{formatClock(message.createdAtMs)}</time>
                   {canQuote && (
                     <button type="button" className="quote-button" onClick={() => { const quote = whole(message); if (quote) onQuote(quote) }}>{copy.history.quote}</button>
                   )}
-                </p>
+                </p>{message.failure && <FailureDetails failure={message.failure} />}</Fragment>
               )
             })}
           </>}

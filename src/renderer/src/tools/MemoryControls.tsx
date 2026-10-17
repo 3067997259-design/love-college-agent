@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot, SessionPage, RecallAnchor } from '../../../shared'
+import failureWords from '../voice/failure.zh.json'
 
 export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
   const [error, setError] = useState('')
@@ -44,7 +45,7 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
     {page && <section aria-label="历史聊天" className="memory-archive">
       <h3>{page.dayKey}</h3><button type="button" onClick={() => { request.current++; setPage(null); setPageId('') }}>收起旧页</button>
       {page.photo && <img data-history-photo src={page.photo.imageUrl} alt={`${page.dayKey} 保存的场景照片`} style={{ maxWidth: '100%', maxHeight: 240 }} />}
-      {page.messages.map((message) => <p key={message.id}>{message.role === 'user' ? '你' : '她'}：<span data-history-message={message.id} onMouseUp={(event) => {
+      {page.messages.map((message) => <p key={message.id}>{message.role === 'user' ? '你' : message.role === 'narrator' ? failureWords.label : '她'}：<span data-history-message={message.id} onMouseUp={(event) => {
         const selection = window.getSelection(); if (!selection?.rangeCount || !page.recallableMessageIds?.includes(message.id)) return
         const range = selection.getRangeAt(0); if (!event.currentTarget.contains(range.startContainer) || !event.currentTarget.contains(range.endContainer)) return
         const prefix = range.cloneRange(); prefix.selectNodeContents(event.currentTarget); prefix.setEnd(range.startContainer, range.startOffset)

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { commandOutcome } from '../desk-command/schema'
 import { rewindSchema } from '../heart-flow/rewind'
+import { failureViewSchema } from '../harness/failure'
 import { goalSchema } from '../heart-flow/goals'
 import { operationSchema } from '../heart-flow/operations'
 import { PUBLIC_ERROR_CODES } from '../../shared'
@@ -120,6 +121,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('turn/resumed'), turnId: id }),
   z.strictObject({ type: z.literal('turn/end'), turnId: id, reason: z.enum(['completed', 'aborted', 'max-steps', 'loop', 'budget', 'error']), error: publicError.optional() }),
   z.strictObject({ type: z.literal('assistant/message'), id, turnId: id, text, status: z.enum(['complete', 'interrupted']), displayOnly: z.boolean().optional(), delivery: z.enum(['immediate', 'rest']).optional(), toolCalls: z.array(toolCall).max(16).optional() }),
+  z.strictObject({ type: z.literal('narrator/failure'), id, turnId: id, text: z.string().min(1).max(1000), failure: failureViewSchema, delivery: z.enum(['immediate', 'rest']).optional() }).refine((row) => row.turnId === row.failure.turnId),
   z.strictObject({ type: z.literal('question/requested'), id: z.string().uuid(), turnId: id, callId: id, flowId: id.optional(), question: z.string().min(1).max(480), choices: z.array(z.string().min(1).max(120)).max(3) }),
   z.strictObject({ type: z.literal('question/answered'), id: z.string().uuid(), turnId: id, answerMessageId: id }),
   z.strictObject({ type: z.literal('question/committed'), id: z.string().uuid(), turnId: id, answerMessageId: id }),
@@ -144,7 +146,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('model/attempt'), turnId: id, slot: z.enum(['chat', 'background', 'chat_google', 'chat_claude', 'privacy']), attempt: z.number().int().positive(),
     status: z.enum(['started', 'success', 'failed', 'retry']), waitMs: z.number().nonnegative(), httpStatus: z.number().int().optional(),
     reservedTokens: z.number().int().nonnegative().optional(), bucket: z.enum(['work', 'autonomous']).optional(), resourceReservationId: z.string().uuid().optional(),
-    error: z.enum(['configuration', 'network', 'timeout', 'upstream', 'quota', 'cancelled', 'invalid-output', 'interrupted']).optional(),
+    error: z.enum(['configuration', 'network', 'timeout', 'upstream', 'quota', 'cancelled', 'invalid-output', 'interrupted', 'content-filtered']).optional(),
     inputTokens: z.number().int().nonnegative().optional(), outputTokens: z.number().int().nonnegative().optional() }),
 ])
 export type JournalInput = z.infer<typeof inputSchema>

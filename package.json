@@ -36,6 +36,7 @@
     "test:questions": "pnpm build && node scripts/probe-electron.mjs questions && node scripts/smoke-questions.mjs",
     "test:flow-rewind": "pnpm build && node scripts/smoke-flow-rewind.mjs",
     "test:settings": "pnpm build && node scripts/smoke-settings.mjs",
+    "test:failure-narrator": "pnpm build && node scripts/smoke-failure-narrator.mjs",
     "test:developer": "pnpm build && node scripts/smoke-developer.mjs",
     "test:booth": "pnpm build && node scripts/smoke-booth.mjs",
     "package:win": "node scripts/package-win.mjs",
