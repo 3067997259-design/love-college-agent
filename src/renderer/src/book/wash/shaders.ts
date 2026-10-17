@@ -139,6 +139,9 @@ uniform vec2 uVigCenter;
 uniform vec2 uVigRadius;
 uniform vec3 uGraphite;
 uniform float uPencilOpacity;
+uniform sampler2D uGhostPencil; // 她出门：上一张姿势的铅笔线
+uniform sampler2D uGhostMask;   // 上一张姿势里她的剪影
+uniform float uGhostAlpha;
 in vec2 vUv;
 out vec4 outColor;
 
@@ -191,6 +194,8 @@ void main() {
   }
 
   vec4 color = texture(uColor, uv);
+  // 交叉淡化（换表情、光线、她出门）：颜色层本身在两张图之间混，晕染边和铅笔线不变
+  if (uHasPrev > 0.5 && uPaint < 0.5) color.rgb = mix(color.rgb, texture(uPrev, uv).rgb, uPrevAlpha);
   color.rgb = mix(pencilColor(uv), color.rgb, real);
   color.rgb = mix(color.rgb, color.rgb * color.rgb, 0.55 * uWet * edge);
   // 颜料薄的地方透出纸纹
@@ -203,9 +208,15 @@ void main() {
   float pencil = lines * uPencilOpacity * fadeX * fadeY;
 
   vec4 outp = vec4(uGraphite * pencil, pencil);
-  if (uHasPrev > 0.5) {
+  // 换姿势：旧图垫在下面，新颜色画到哪里盖到哪里
+  if (uHasPrev > 0.5 && uPaint > 0.5) {
     float pa = vig * uPrevAlpha;
     outp = vec4(texture(uPrev, uv).rgb * pa, pa) + outp * (1.0 - pa);
   }
   outColor = vec4(color.rgb * a, a) + outp * (1.0 - a);
+  // 她的铅笔影子盖在最上面：颜色已经跟她走了，线还留一会儿
+  if (uGhostAlpha > 0.0) {
+    float g = texture(uGhostPencil, uv).r * texture(uGhostMask, uv).r * uGhostAlpha * uPencilOpacity * fadeX * fadeY;
+    outColor = vec4(uGraphite * g, g) + outColor * (1.0 - g);
+  }
 }`

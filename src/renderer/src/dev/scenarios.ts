@@ -214,10 +214,15 @@ export const SCENARIOS = {
     companion: { ...s.companion, mode: 'quiet', daypart: 'night', lightsOut: true, pose: 'desk-writing' },
   })),
 
-  /** 外出：保留空房间，去向写在桌上纸条（2026-10-16 用户定） */
+  /** 外出：保留空房间，去向和回来的时间写在桌上纸条（2026-10-16 用户定；地点、时间都由主进程给） */
   'out-shore': scenario((s) => ({
     clock: { ...s.clock, nowMs: T.sat1910 - 2 * 60 * MIN },
-    companion: { ...s.companion, locationId: 'shore', pose: 'facing-user', expression: 'smile' },
+    companion: { ...s.companion, locationId: 'coast', pose: 'facing-user', expression: 'smile' },
+    life: {
+      dayKey: '2026-10-17', userSchedule: 'rest', locationId: 'coast', settledUntilMs: T.sat1910 - 2 * 60 * MIN, agenda: [],
+      outings: [{ id: 'out-coast', place: 'coast', startsAtMs: T.sat1445 + 15 * MIN, returnsAtMs: T.sat1910 - 45 * MIN, acquiredAtMs: T.sat1910 - 90 * MIN, item: 'shell', status: 'away', settledAtMs: null, offline: false }],
+      items: [{ id: 'item-leaf', outingId: 'out-swing', dayKey: '2026-10-16', place: 'swing', kind: 'leaf', acquiredAtMs: T.fri2105 - 4 * 60 * MIN, display: 'desk' }],
+    },
   })),
 
   /** 凌晨四点以后，她睡着了，房间暗下来 */
