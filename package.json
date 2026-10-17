@@ -59,7 +59,7 @@
     "probe:rodin": "pnpm build && node scripts/probe-electron.mjs rodin",
     "test:gifts": "pnpm build && node scripts/smoke-gifts.mjs",
     "probe:heart-flow": "pnpm build && node scripts/probe-electron.mjs heart-flow",
-    "probe:desk-command:runtime": "node scripts/probe-desk-command.mjs",
+    "probe:desk-command:runtime": "node scripts/probe-desk-command.mjs && node --experimental-transform-types scripts/probe-command-process.mjs",
     "probe:life": "pnpm build && node scripts/probe-electron.mjs life",
     "test:life-work": "pnpm build && node scripts/smoke-life-work.mjs",
     "test:life-port": "pnpm build && node scripts/smoke-life-port.mjs",
