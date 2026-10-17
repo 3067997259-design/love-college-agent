@@ -76,7 +76,7 @@ try {
   env.LCA_HISTORY_EXECUTABLE = exe
   await run(process.execPath, [join(root, 'scripts/smoke-history.mjs')])
   delete env.LCA_HISTORY_EXECUTABLE
-  const thirdCircleScenarios = ['onboarding', 'life-work', 'sleep', 'flow-sleep', 'flow-drafts', 'desk-shadow', 'delegates', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'computer', 'web-fetch', 'booth', 'mini', 'showcase', 'life-port', 'resources']
+  const thirdCircleScenarios = ['onboarding', 'life-work', 'sleep', 'flow-sleep', 'flow-drafts', 'desk-shadow', 'delegates', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'computer', 'web-fetch', 'booth', 'mini', 'showcase', 'life-port', 'resources', 'questions', 'desk-command', 'flow-rewind', 'settings', 'failure-narrator']
   env.LCA_TEST_EXECUTABLE = exe
   for (const name of thirdCircleScenarios) { await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs')]); console.log('Installed Electron scenario passed: ' + name) }
   delete env.LCA_TEST_EXECUTABLE
