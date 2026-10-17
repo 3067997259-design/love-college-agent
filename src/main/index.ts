@@ -56,6 +56,7 @@ import { readModelProviders, readPrivateCredentialValues } from './config/provid
 import { createModelClient } from './model/client'
 import { createHarness } from './harness/loop'
 import { builtinTools } from './harness/tools'
+import { createQuestions } from './questions/service'
 import { probeHarness } from './validation/harness'
 import { createPluginRegistry } from './plugins/registry'
 import { createScheduler, type Scheduler } from './scheduler'
@@ -123,6 +124,7 @@ let lifeWork: LifeWorkService | undefined
 let delegates: DelegatesService | undefined
 let optical: OpticalMemoryService | undefined
 let harness: ReturnType<typeof createHarness> | undefined
+let questions: ReturnType<typeof createQuestions> | undefined
 let scheduler: Scheduler | undefined
 let runtime: Awaited<ReturnType<typeof attachRuntime>> | undefined
 let pomodoro: PomodoroService | undefined
@@ -325,6 +327,9 @@ void app.whenReady().then(async () => {
     controller = createAppController(clock, undefined, store, { booth: prepared.booth })
     const providers = prepared.developer ? new Map() : await readModelProviders(providersFile)
     const privateCredentials = [...(prepared.developer ? [] : await readPrivateCredentialValues(providersFile))]
+    questions = createQuestions({ store, clock, flowId: () => heartFlow?.id() ?? null, changed: () => controller?.refresh('task'),
+      safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
+    controller.attachQuestions(questions)
     resourceBudget = createResourceBudget({ root: join(prepared.developer ? dataDir : dataRoot, 'runtime-resources'), clock, configurable: prepared.booth })
     resourceBudget.bootstrap(JSON.stringify([dataDir, owner.userId, owner.characterId]), store.history?.() ?? store.records())
     controller.attachResources(resourceBudget)
@@ -362,10 +367,10 @@ void app.whenReady().then(async () => {
       failed: () => { console.error('Campus processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachCampus(campus)
     bridge = registerAppBridge(controller, async (ref, scope) => vault!.read(ref, scope))
-    pomodoro = createPomodoro({ clock, store, scheduler, changed: () => { life?.reconcile(); controller?.refresh('timer') }, stateChanged: () => harness?.stateChanged(),
+    pomodoro = createPomodoro({ clock, store, scheduler, changed: () => { life?.reconcile(); questions?.stateChanged(); controller?.refresh('timer') }, stateChanged: () => harness?.stateChanged(),
       emit: (id, text) => { harness?.postEvent('pomodoro', text, id) } })
     const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, privacyModel: prepared.developer ? createFakePrivacyModel() : taskModels.narrow })
-    plugins.registerBuiltin('core', '时钟与任务计划', builtinTools())
+    plugins.registerBuiltin('core', '时钟与任务计划', [...builtinTools(), questions.tool()])
     plugins.registerBuiltin('pomodoro', '番茄钟', pomodoroTools(pomodoro))
     plugins.registerBuiltin('mail', '邮箱与校园候选', mailTools(campus), { handlesPrivacy: true, permissions: ['network'] })
     plugins.registerBuiltin('documents', '附件与资料整理', documentTools(documents), { handlesPrivacy: true, permissions: ['filesystem'] })
@@ -487,10 +492,10 @@ void app.whenReady().then(async () => {
       // 游戏一轮每次调用都带人设并按字节计入展位预算：用短人设，不带整份正文
       persona: () => ({ name: controller!.getSnapshot().onboarding?.characterName ?? '桃子', persona: briefPersona(activeCharacter) }), credentials: privateCredentials, changed: () => controller?.refresh('message') })
     controller.attachMinecraft(minecraft, minecraftChat, mcpFixture ? (scenario) => mcpFixture!.game.select(scenario) : undefined)
-    harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
+    harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
       prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); if (!heartFlow!.active()) return recall!.prepare(id, preparedContext)
         const seen = new Set<string>(); const messages = preparedContext.messages.slice().reverse().map((message) => { if (!message.imageRefs) return message; const imageRefs = message.imageRefs.filter((ref) => { if (seen.has(ref) || seen.size >= 2) return false; seen.add(ref); return true }); return { ...message, imageRefs } }).reverse(); return { ...preparedContext, messages }
-      }, foreground: () => { memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, userWork: () => { sleep?.wake(); life?.foreground() },
+      }, foreground: () => { questions?.interrupt(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, afterTools: (turnId, callIds) => questions?.commit(turnId, callIds), turnSettled: (turnId) => questions?.settled(turnId), userWork: () => { sleep?.wake(); life?.foreground() },
       settled: () => { heartFlow?.settled(); voice?.observe() }, failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     const voiceConfig = prepared.developer ? null : await readVoiceConfig(providersFile)
     voice = createVoice({ store, clock, budget: resourceBudget, port: prepared.developer ? createFakeVoice(clock) : voiceConfig ? createSpeechPort(voiceConfig) : null,
@@ -522,6 +527,7 @@ void app.whenReady().then(async () => {
       pendingFiles: documents!.view().jobs.filter((job) => ['staged', 'queued', 'processing'].includes(job.status)).length }))
     controller.attachPomodoro(pomodoro, () => plugins.views().some((item) => item.id === 'pomodoro' && item.status === 'enabled'))
     plugins.mountService('pomodoro', (enabled) => { if (enabled) pomodoro?.reconcile(); else pomodoro?.pause() })
+    plugins.mountService('core', (enabled) => questions?.setEnabled(enabled))
     plugins.mountService('mail', (enabled) => campus?.setEnabled(enabled))
     plugins.mountService('documents', (enabled) => documents?.setEnabled(enabled))
     plugins.mountService('memory', (enabled) => memory?.setEnabled(enabled))
@@ -534,7 +540,7 @@ void app.whenReady().then(async () => {
     plugins.mountService('notifications', (enabled) => notifications?.setEnabled(enabled))
     if (prepared.scene?.preset === 'pomodoro-demo' && store.records().length <= 2) pomodoro.propose({ label: '开发演示', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }, 'user')
     harness.stateChanged()
-    scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => { minecraft?.stateChanged(); controller?.refresh('timer') }, { everyMs: 1000, background: false })
+    scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => { minecraft?.stateChanged(); questions?.stateChanged(); controller?.refresh('timer') }, { everyMs: 1000, background: false })
     runtime = await attachRuntime({ prepared, controller, plugins, harness, scheduler, store,
       locked: () => backup?.isBusy() ?? false,
       mcpPort: Number(process.env.LCA_MCP_PORT ?? 5175), cdpPort,
@@ -556,6 +562,7 @@ app.on('before-quit', (event) => {
     event.preventDefault()
     if (closing) return
     closing = true
+    questions?.close()
     pomodoro?.dispose()
     quill?.dispose()
     companionWindows?.dispose()
