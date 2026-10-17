@@ -114,3 +114,5 @@ characterName 进入角色的系统称呼，userName 进入用户档案的“关
 澄清接口：`snapshot.question` 是单个当前问题。`queued` 只有 id／taskId／createdAtMs／context（conversation 或 work），不含问题正文；`waiting` 才有 question、最多三个 choices 和主进程的 expiresAtMs。专注／安静先排队，休息才显示；十分钟只计可见等待时间。书本 `question.answer {questionId,answer}`（最多 1000 字，可多行）或 `question.dismiss {questionId}`，均不能替代执行审批。停止／熄灯／关闭／新用户要求取消旧等待，重启不复活；心流问题和回答留在工作上下文。
 
 实际命令接口：`heartFlow.commandExecution` 独立于旧 `execution`（JavaScript worker）；缺字段或 unavailable 时不能当作 shell 可用。`flow.command.run {command,timeoutMs?}` 只准备不可变的一次性书桌副本，产生 awaiting-approval 后由书本 `flow.command.approve {commandId,allow}` 逐次决定；`flow.command.cancel` 只取消对应 ID。展位禁止运行，计划模式也不执行，不恢复旧审批。固定后端 cmd／AppContainer、命令单行至多 6000 UTF-16 字符、默认 5 秒／最多 30 秒；无网络，无隔离失败回退。`heartFlow.command` 只含命令、输入指纹及进程／写回收据，不含 stdout／stderr；`flow.command.open` 走用户专用原生预览。工具 `run_command` 的结果只在工作上下文内，不能把 exitCode=0 当成文件已写回；publication 和 appliedFiles 由实际版本检查、文件写入与日志决定。
+
+命令错误码 `command-encoding-unsupported` 表示未能建立 UTF-8 约定：非 UTF-8 系统的 Unicode 命令字面量在执行前拒绝，非 UTF-8 子进程输出也不能当正常文本交付或写回；可改用 ASCII 编码的脚本及显式 UTF-8 文件／输出。它不是用户拒绝，也不触发普通进程回退。
