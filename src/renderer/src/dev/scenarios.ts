@@ -222,7 +222,7 @@ export const SCENARIOS = {
     companion: { ...s.companion, mode: 'quiet', daypart: 'night', lightsOut: true, pose: 'desk-writing' },
   })),
 
-  /** 外出：保留空房间，去向和回来的时间写在桌上纸条（2026-10-16 用户定；地点、时间都由主进程给） */
+  /** 外出：左页是她在外面（外景复用视频冻结包，2026-10-17 晚接入）；去向和回来的时间仍写在页角纸条上（地点、时间都由主进程给） */
   'out-shore': scenario((s) => ({
     clock: { ...s.clock, nowMs: T.sat1910 - 2 * 60 * MIN },
     companion: { ...s.companion, locationId: 'coast', pose: 'facing-user', expression: 'smile' },
@@ -230,6 +230,28 @@ export const SCENARIOS = {
       dayKey: '2026-10-17', userSchedule: 'rest', locationId: 'coast', settledUntilMs: T.sat1910 - 2 * 60 * MIN, agenda: [],
       outings: [{ id: 'out-coast', place: 'coast', startsAtMs: T.sat1445 + 15 * MIN, returnsAtMs: T.sat1910 - 45 * MIN, acquiredAtMs: T.sat1910 - 90 * MIN, item: 'shell', status: 'away', settledAtMs: null, offline: false }],
       items: [{ id: 'item-leaf', outingId: 'out-swing', dayKey: '2026-10-16', place: 'swing', kind: 'leaf', acquiredAtMs: T.fri2105 - 4 * 60 * MIN, display: 'desk' }],
+    },
+  })),
+
+  /** 外出：傍晚去秋千那儿（左页复用视频冻结包里的外景，2026-10-17 晚接入） */
+  'out-swing': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1910 - 40 * MIN },
+    companion: { ...s.companion, locationId: 'swing', pose: 'facing-user', expression: 'smile', daypart: 'evening' },
+    life: {
+      dayKey: '2026-10-17', userSchedule: 'rest', locationId: 'swing', settledUntilMs: T.sat1910 - 40 * MIN, agenda: [],
+      outings: [{ id: 'out-swing', place: 'swing', startsAtMs: T.sat1910 - 100 * MIN, returnsAtMs: T.sat1910 - 10 * MIN, acquiredAtMs: T.sat1910 - 70 * MIN, item: 'leaf', status: 'away', settledAtMs: null, offline: false }],
+      items: [{ id: 'item-shell', outingId: 'out-coast', dayKey: '2026-10-16', place: 'coast', kind: 'shell', acquiredAtMs: T.fri2105 - 4 * 60 * MIN, display: 'desk' }],
+    },
+  })),
+
+  /** 外出：夜里还在海边（海岸没有专门的夜景重光图，复用白天画面加时段调色，不误报为物理重光） */
+  'out-coast-night': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat2240 },
+    companion: { ...s.companion, locationId: 'coast', pose: 'facing-user', expression: 'calm', daypart: 'night' },
+    life: {
+      dayKey: '2026-10-17', userSchedule: 'rest', locationId: 'coast', settledUntilMs: T.sat2240, agenda: [],
+      outings: [{ id: 'out-coast-night', place: 'coast', startsAtMs: T.sat2240 - 90 * MIN, returnsAtMs: T.sat2240 + 30 * MIN, acquiredAtMs: T.sat2240 - 60 * MIN, item: 'shell', status: 'away', settledAtMs: null, offline: false }],
+      items: [],
     },
   })),
 

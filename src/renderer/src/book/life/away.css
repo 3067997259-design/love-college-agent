@@ -1,0 +1,66 @@
+/*
+ * 外出：她在外面的一页。2026-10-17 晚从视频冻结包复用外景（映射见 awayArt.ts）。
+ * 空房间仍留在下面（WashRoom 的出门／回来转场靠它），外景是一层盖上去的整页。
+ */
+.away-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--paper);
+}
+/* 这次运行里亲眼看着她出门：等她颜色走了、铅笔影子散了，外景才淡进来（总时长和 LEAVE_TOTAL_MS 对齐）。
+   打开书时她本来就在外面，不重播“刚出门”，直接显示。 */
+.away-scene[data-moved] { animation: away-in 700ms 1400ms var(--ease-out) both; }
+.away-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+  /* 四边淡进纸里，和左页其他整景图是同一种贴页方式 */
+  -webkit-mask-image: radial-gradient(ellipse 66% 68% at 50% 52%, black 58%, transparent 100%), linear-gradient(to bottom, transparent, black 5%, black 93%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: radial-gradient(ellipse 66% 68% at 50% 52%, black 58%, transparent 100%), linear-gradient(to bottom, transparent, black 5%, black 93%, transparent);
+  mask-composite: intersect;
+}
+.away-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 72% 74% at 50% 52%, transparent 52%, color-mix(in oklab, var(--paper) 82%, transparent) 100%);
+}
+/* 去向和回来的时间：页角的一张小纸签，是她的笔迹 */
+.away-caption {
+  position: absolute;
+  left: 5.5%;
+  bottom: 7.5%;
+  margin: 0;
+  padding: 7px 12px 6px;
+  max-width: 46%;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: center;
+  background: color-mix(in oklab, var(--paper) 90%, #efe4d0);
+  box-shadow: 0 2px 5px color-mix(in oklab, #6e5a3c 18%, transparent);
+  transform: rotate(-2.2deg);
+  font: 15px / 1.2 var(--font-hand);
+  color: var(--ink-her);
+}
+.away-caption-line { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.away-caption-time { font-size: 12px; color: color-mix(in oklab, var(--ink-her) 78%, var(--paper)); }
+
+/* 她出门时台灯是关着的：外景里不叠室内台灯；墙钟是房间里的东西，外景页不摆（计时在迷你窗／右页） */
+.room[data-away] .room-lamp { display: none; }
+.room[data-away] .wall-clock { display: none; }
+
+@keyframes away-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .away-scene { animation: none; }
+}

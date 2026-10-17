@@ -1,9 +1,10 @@
 import { useId, useRef, useState } from 'react'
 import type { ActivityView, AppSnapshot } from '../../../shared'
 import { useRootAmbience } from '../book/ambience'
-import { sceneSrc } from '../book/Character'
+import { awaySceneSrc, sceneSrc } from '../book/Character'
 import { packageScene } from '../book/characterPackage'
 import { resolveCharacterArt } from '../book/characterArt'
+import { resolveAwayArt } from '../book/life/awayArt'
 import { formatRemaining } from '../book/format'
 import { locationLabel } from '../book/labels'
 import { useCountdown } from '../book/useCountdown'
@@ -44,7 +45,11 @@ export function MiniCompanion({ snapshot, onExpand, onHover, onMove }: {
   const remaining = useCountdown(snapshot)
   const id = useId().replace(/:/g, '')
   const art = resolveCharacterArt(companion)
-  const src = packageScene(snapshot, art.key) ?? sceneSrc(art.key)
+  const imported = packageScene(snapshot, art.key)
+  // 她出门时小窗也显示同一张外景（体验设计 §6）；自定义角色包优先用包内素材，缺了才回退
+  const awayArt = companion.locationId !== 'room' && !imported ? resolveAwayArt(companion) : null
+  const src = imported ?? (awayArt ? awaySceneSrc(awayArt.key) : undefined) ?? sceneSrc(art.key)
+  const lighting = awayArt ? awayArt.lighting : art.lighting
   const onBreak = pomodoro.phase === 'short-break' || pomodoro.phase === 'long-break'
   const away = companion.locationId !== 'room'
   const mailReady = capabilities.find((c) => c.id === 'mail')?.status === 'ready'
@@ -91,9 +96,11 @@ export function MiniCompanion({ snapshot, onExpand, onHover, onMove }: {
           <path className="mini-sheet" d={PAPER} filter={`url(#${id}-rough)`} />
           <g clipPath={`url(#${id}-clip)`}>
             <g mask={`url(#${id}-wash)`}>
-              {src && <image href={src} x={IMAGE.x} y={IMAGE.y} width={IMAGE.size} height={IMAGE.size} preserveAspectRatio="xMidYMid slice" />}
+              {src && (awayArt
+                ? <image href={src} x={0} y={0} width={VIEW} height={VIEW} preserveAspectRatio={`${awayArt.align} slice`} />
+                : <image href={src} x={IMAGE.x} y={IMAGE.y} width={IMAGE.size} height={IMAGE.size} preserveAspectRatio="xMidYMid slice" />)}
               {/* 没有画内夜光的姿势，时段光和熄灯跟书本一样用调色叠上去 */}
-              {art.lighting === 'ambient' && <rect className="mini-tint" width={VIEW} height={VIEW} />}
+              {lighting === 'ambient' && <rect className="mini-tint" width={VIEW} height={VIEW} />}
             </g>
           </g>
           {/* 铅笔描的纸边：铅笔是你的，颜色是她的 */}

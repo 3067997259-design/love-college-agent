@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AppBridge, AppSnapshot, InteractionMode } from '../../../shared'
 import { resolveCharacterArt } from './characterArt'
+import { resolveAwayArt } from './life/awayArt'
+import { AwayScene } from './life/AwayScene'
 import { sendCommand, type CommandBody } from './command'
 import { formatClock, formatRemaining } from './format'
 import { locationLabel, MODE_LABEL } from './labels'
@@ -55,6 +57,8 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   const pose = away ? 'empty' : companion.pose
   const art = intro ? (intro === 'done' ? GREET_ART : INTRO_ART) : resolveCharacterArt(companion)
   const importedScene = packageScene(snapshot, art.key)
+  // 外出：左页是她在外面（体验设计 §3），复用视频冻结包里的外景；自定义角色包没有对应外景，回退包内空房间
+  const awayArt = !intro && away && !importedScene ? resolveAwayArt(companion) : null
   const mailReady = capabilities.find((c) => c.id === 'mail')?.status === 'ready'
   const newMail = mailReady && companion.mailboxUnseen > 0
   const lastLine = [...messages].reverse().find((m) => m.role === 'assistant')
@@ -68,7 +72,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
 
   const scene = importedScene
     ? <div className="character character-color"><img className="character-art" data-character-package alt="" src={importedScene} draggable={false} /></div>
-    : <WashRoom art={art} restoreId={intro ? null : restoreId} intro={intro && intro !== 'done' ? intro : null} paintFurniture={intro ? furniture?.painted : undefined} lightSwitch={lightSwitch} />
+    : <><WashRoom art={art} restoreId={intro ? null : restoreId} intro={intro && intro !== 'done' ? intro : null} paintFurniture={intro ? furniture?.painted : undefined} lightSwitch={lightSwitch} />{awayArt && <AwayScene snapshot={snapshot} moved={moved} />}</>
 
   return (
     <section className="page page-left" aria-label="她在的地方" data-intro={intro ?? undefined}>
@@ -86,7 +90,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
         钟、门牌这些房间里的东西再淡进来。
       */}
       <div ref={roomRef} className="room" data-photo-scene={intro ? undefined : true} data-session-id={intro ? undefined : snapshot.scope.sessionId} data-shot="close"
-        data-location={intro ? 'room' : companion.locationId} data-pose={intro ? art.key.split('_')[0] : pose} data-lighting={art.lighting} data-arriving={(!intro && arriving) || undefined}>
+        data-location={intro ? 'room' : companion.locationId} data-pose={intro ? art.key.split('_')[0] : awayArt ? 'away' : pose} data-lighting={awayArt ? awayArt.lighting : art.lighting} data-away={awayArt ? companion.locationId : undefined} data-arriving={(!intro && arriving) || undefined}>
         {/* 精修整景：颜色聚在她周围，往外褪成从彩图实时提取的铅笔线（体验设计 §7.1，用户批准） */}
         {scene}
         {intro ? furniture && (
@@ -112,13 +116,13 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
           {/* 外出用桌上纸条，睡着不挂“休息”牌。 */}
           {!away && pose !== 'sleeping' && <DoorSign snapshot={snapshot} onCommand={command} failed={commandFailed} />}
           {/* 新邮件：近景是桌上的一封信，远景是门上的信箱口。只有邮箱连着的时候才显示；连不上不能显示成“没有信” */}
-          {newMail && (
+          {newMail && !awayArt && (
             <div className="mail-slot room-ui" title={`${companion.mailboxUnseen} 封新邮件`}><span className="mail-letter" /></div>
           )}
 
-          {away && <AwayNote snapshot={snapshot} writing={moved} />}
-          {/* 她出门带回来的东西摆在窗台上，跟着房间一起进照片、一起变暗 */}
-          <SillItems snapshot={snapshot} onOpenDiary={(dayKey) => onOpenDiary?.(dayKey)} />
+          {away && !awayArt && <AwayNote snapshot={snapshot} writing={moved} />}
+          {/* 她出门带回来的东西摆在窗台上，跟着房间一起进照片、一起变暗；外景页不是房间，不摆 */}
+          {!awayArt && <SillItems snapshot={snapshot} onOpenDiary={(dayKey) => onOpenDiary?.(dayKey)} />}
 
           {/* 光线层在最上面：钟、门牌、信都是房间里的东西，跟着房间一起暗。重光的夜图自带光线，调色层淡出（不叠两次夜色） */}
           <div className="room-tint" /><div className="room-lamp" />

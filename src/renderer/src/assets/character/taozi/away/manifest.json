@@ -1,0 +1,38 @@
+{
+  "_说明": "外出页复用的视频冻结包素材。源图来自 art/film-frozen/2026-10-17-v1/selected/，只复制、不缩放、不改画；按地点与时段选图，映射见 src/renderer/src/book/life/awayArt.ts。",
+  "frozenPackage": "art/film-frozen/2026-10-17-v1",
+  "source": "用户 2026-10-17 晚确认：把下午画好的素材复用进应用；外景按体验设计 §3“外出”复用片子里的她在外景的画面。",
+  "assets": [
+    {
+      "runtime": "coast-day.png",
+      "from": "selected/v6-19-walk-a.png",
+      "sha256": "0571c4585c5bef3f225994911cab3138e0c8f0e9bf0a50627eeab70ab0eec85a",
+      "use": "海边：上午／白天（她撑着透明伞沿海走）"
+    },
+    {
+      "runtime": "coast-evening.png",
+      "from": "selected/v6-34-coast-window.png",
+      "sha256": "d5ac785f11584792d755ed56e8f6ef7069de7325233136a46bd2c2cb4e9379c8",
+      "use": "海边：傍晚（海边小街与橱窗）"
+    },
+    {
+      "runtime": "swing-day.png",
+      "from": "selected/base-07-k18-under-swing.png",
+      "sha256": "e6ff53fc7436a7a5c8667b6f220ca7ff0281a338eb3fbb84a981ade2623292f9",
+      "use": "秋千：白天（她坐在树下）"
+    },
+    {
+      "runtime": "swing-evening.png",
+      "from": "selected/v6-21-swing-arrival.png",
+      "sha256": "e3f7a843c6df6dc9a362d9d6b0ed6604f39eed4c33d793d81754e30b93cd6414",
+      "use": "秋千：傍晚（她坐在秋千上）"
+    },
+    {
+      "runtime": "swing-night.png",
+      "from": "selected/base-01-k12-writing.png",
+      "sha256": "9fe2c09797e64eab7dd738fcbfd8a889a1bcda13f0f037a946fad5b73b343356",
+      "use": "秋千：夜里（画内夜光，她在秋千上写东西）"
+    }
+  ],
+  "fallback": "海岸没有夜景重光图：夜里复用 coast-day.png，由时段调色回退（不误报为物理重光）。缺图时回退空房间＋桌上纸条。"
+}
