@@ -51,7 +51,13 @@ try {
   assert.equal((await job('read')).status, 'interrupted'); await new Promise((done) => setTimeout(done, 5500))
   assert.equal((await job('read')).completedSteps, 1); assert.equal(requests.filter((row) => row.input.kind === 'read').length, count)
   await accepted({ type: 'life.work.resume', workId: reading.id }); await waitFor((s) => s.life.work.jobs.some((item) => item.kind === 'read' && item.status === 'completed'), 'NORMAL_READ_FAILED')
-  scenario = 'hold'; await accepted({ type: 'life.work.start', kind: 'write' }); await waitFor(() => requests.some((row) => row.input.kind === 'write'), 'NORMAL_PENDING_REQUEST_MISSING')
+  // The real daily schedule may already have registered an unstarted writing
+  // job before the restart (e.g. afternoon). Restart deliberately interrupts it;
+  // use its explicit resume action instead of assuming that job does not exist.
+  scenario = 'hold'; const existingWriting = await job('write')
+  if (existingWriting && ['interrupted', 'paused', 'failed'].includes(existingWriting.status)) await accepted({ type: 'life.work.resume', workId: existingWriting.id })
+  else await accepted({ type: 'life.work.start', kind: 'write' })
+  await waitFor(() => requests.some((row) => row.input.kind === 'write'), 'NORMAL_PENDING_REQUEST_MISSING')
   await accepted({ type: 'mode.set', mode: 'rest' }); await waitFor((s) => s.life.work.jobs.some((item) => item.kind === 'write' && item.status === 'paused'), 'NORMAL_CANCEL_FAILED')
   for (let i = 0; i < 50 && !aborted; i++) await new Promise((done) => setTimeout(done, 100)); assert.ok(aborted > 0)
   assert.equal((await job('write')).completedSteps, 0)
