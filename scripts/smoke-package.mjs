@@ -34,7 +34,7 @@ const rel = relative(resolve(cache), resolve(installDir))
 assert.ok(rel && !rel.startsWith('..') && !isAbsolute(rel), 'Unsafe test installation path')
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: join(root, '.local-data', `package-smoke-${randomUUID()}`) }
 env.LCA_PROVIDERS_FILE = join(env.LCA_DATA_DIR, 'absent-test-providers.json')
-function run(exe, args, { capture = false } = {}) {
+function run(exe, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(exe, args, { env, cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = ''; let errors = ''; child.stdout?.on('data', (chunk) => { output = (output + chunk.toString()).slice(-16_384) }); child.stderr?.on('data', (chunk) => { errors = (errors + chunk.toString()).slice(-16_384) })
@@ -104,6 +104,7 @@ try {
     if (name) await run(join(installDir, name), ['/S', '/currentuser'])
   }
 }
+
 
 
 
