@@ -44,7 +44,7 @@
     "fromUnknown": "来自你们一起经历过的一件事",
     "proposed": "她想做一{measure}{object}送给你。",
     "making": "她在书桌上做这{measure}{object}……",
-    "ready": "做好了，等休息的时候给你。",
+    "ready": "做好了，等休息的时候她会拿给你。",
     "failed": "这一件没做成。",
     "cancelled": "这一件不做了。",
     "start": "好",
@@ -119,7 +119,7 @@
       "reason": {
         "user": "你让她停的",
         "interrupted": "中途被打断",
-        "busy": "你在用她",
+        "busy": "先让给你的事",
         "lights": "熄灯了",
         "conflict": "书桌上的材料变了",
         "model": "模型没接上",
@@ -201,8 +201,20 @@
     "devCode": "心流 JavaScript",
     "devSubmit": "申请执行"
   },
+  "deskTools": {
+    "_说明": "工作台里书桌预览和网页读取的状态文字（界面文字，不是她说的话）。按钮名保持原样，测试依赖。",
+    "computerStatus": { "closed": "没有打开", "opening": "正在打开", "ready": "已打开", "waiting-approval": "等你批准一个动作", "acting": "正在操作", "failed": "这次没成功" },
+    "computerUsage": "已用 {used}／{max} 次动作",
+    "action": { "click": "在画面上点一下（{x}, {y}）", "type": "输入：“{text}”", "key": "按一下 {key} 键" },
+    "keys": { "TAB": "Tab", "ENTER": "回车", "ESCAPE": "Esc", "BACKSPACE": "退格" },
+    "fetchSource": { "fake": "合成网页", "real": "公共 HTTPS" },
+    "fetchStatus": { "idle": "空闲", "waiting-approval": "等你批准地址", "fetching": "正在读取" },
+    "fetchUsage": "已读 {used}／{max} 次",
+    "fetchLast": { "fetched": "上次读到了 {bytes} 字节", "denied": "上次的地址你没有批准", "failed": "上次没读到", "cancelled": "上次取消了" },
+    "fetchTruncated": "只读取了开头部分"
+  },
   "mini": {
-    "approval": "有一段代码等你批准，点一下回到书本",
+    "approval": "有一件事等你批准，点一下回到书本",
     "work": {
       "read": "她在读 {name}（{done}/{total}）",
       "write": "她在照着 {name} 写（{done}/{total}）"
