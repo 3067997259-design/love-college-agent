@@ -405,6 +405,7 @@ void app.whenReady().then(async () => {
     }
     const shadow = createDeskShadow({ root: join(dataDir, 'desk-shadows', ownerRoom), deskRoot: join(roomRoot, '书桌'), store })
     heartFlow = createHeartFlow({ store, clock, desk, shadow, booth: prepared.booth, busy: () => harness?.isBusy() ?? false, changed: () => controller?.refresh('task'),
+      fatal: () => app.quit(),
       modelSource: () => prepared.developer ? 'fake' : providers.has('chat') ? 'real' : 'none',
       requestDraft: (text, requestId, hash) => { if (!harness) throw new Error('MODEL_UNAVAILABLE'); harness.send(text, requestId, hash); const id = store!.projection().task?.id; if (!id) throw new Error('MODEL_UNAVAILABLE'); return id },
       cancelTask: (id) => { harness?.stop(id) },
