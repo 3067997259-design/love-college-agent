@@ -70,7 +70,26 @@ try {
   await instance.evaluate(({ dialog, app }, file) => { app.relaunch = () => {}; dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, archive); await send({ type: 'backup.import' }); await waitFor((s) => s.backup.status === 'awaiting-confirmation', 'COMMAND_IMPORT_FAILED')
   const restoreId = (await snapshot()).backup.restoreId; await client.close(); client = undefined; const closed = instance.waitForEvent('close'); await send({ type: 'backup.restore', restoreId }); await closed; instance = undefined; await launch()
   assert.equal((await readFile(join(desk, 'delivered.txt'), 'utf8')).trim(), 'SAVED'); assert.ok(!(await snapshot()).heartFlow.command)
+  // Kill the actual Electron main process between durable publications. This
+  // bypasses graceful cancellation/finally, unlike the approval restart above.
+  await send({ type: 'flow.enter' }); await waitFor((s) => s.heartFlow.activeId, 'CRASH_FLOW_MISSING'); await send({ type: 'flow.mode', mode: 'execute' })
+  const crashScript = '$utf8=New-Object System.Text.UTF8Encoding($false); for($i=0;$i -lt 100;$i++){[IO.File]::WriteAllText(("crash-{0:D3}.txt" -f $i),"CRASH_PRODUCT",$utf8)}'
+  const crashId = await request('powershell.exe -NoProfile -NonInteractive -EncodedCommand ' + Buffer.from(crashScript, 'utf16le').toString('base64'))
+  const mainPid = await instance.evaluate(() => process.pid)
+  await send({ type: 'flow.command.approve', commandId: crashId, allow: true })
+  let count = 0
+  for (let i = 0; i < 3000 && !count; i++) { count = (await readdir(desk)).filter((name) => name.startsWith('crash-')).length; if (!count) await new Promise((done) => setTimeout(done, 5)) }
+  assert.ok(count > 0 && count < 100, 'MUST_CRASH_DURING_PARTIAL_PUBLICATION')
+  const child = instance.process(); const exited = new Promise((done) => child.once('exit', done)); process.kill(mainPid); if (child.pid !== mainPid) child.kill(); await exited; instance = undefined; await client.close(); client = undefined
+  await launch(); rows = await records(); const recovered = rows.findLast((row) => row.type === 'flow/command' && row.id === crashId)
+  const confirmed = rows.filter((row) => row.type === 'desk/change' && row.commandId === crashId && rows.some((settled) => settled.type === 'desk/settled' && settled.id === row.id && settled.status === 'applied')).length
+  const actual = (await readdir(desk)).filter((name) => name.startsWith('crash-')).length
+  assert.equal(recovered.status, 'interrupted'); assert.equal(recovered.outcome.appliedFiles, confirmed); assert.equal(confirmed, actual); assert.ok(confirmed > 0 && confirmed < 100)
+  assert.equal(recovered.outcome.changedFiles, 100); assert.equal(recovered.outcome.publication, 'partial'); assert.equal(recovered.outcome.exitCode, 0)
+  await send({ type: 'flow.exit' }); const crashSummary = JSON.parse((await records()).findLast((row) => row.type === 'flow/close').summary)
+  assert.deepEqual(crashSummary.commandEvidence.map(({ publication, appliedFiles }) => ({ publication, appliedFiles })), [{ publication: 'partial', appliedFiles: confirmed }])
+  await close(); await launch(); assert.equal((await readdir(desk)).filter((name) => name.startsWith('crash-')).length, confirmed)
   await close(); instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env: { ...runtimeEnv(root), LCA_DATA_DIR: join(data, 'booth'), LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_BOOTH: '1' } }); page = await instance.firstWindow(); await initializeTestBook(page)
   await send({ type: 'flow.enter' }); await waitFor((s) => s.heartFlow.activeId, 'BOOTH_FLOW_MISSING'); await send({ type: 'flow.mode', mode: 'execute' }); assert.equal((await snapshot()).heartFlow.commandExecution, 'disabled'); assert.equal((await send({ type: 'flow.command.run', command: 'echo MUST_NOT_RUN' })).error.code, 'permission-denied')
-  console.log(JSON.stringify({ ok: true, probe: 'desk-command-electron', source: 'fake-model-real-command', appContainer: true, uiApproval: true, decodedScriptReview: true, durablePublication: true, privateOutputPreview: true, denied: true, conflictBeforeExecution: true, nonzeroNoPublication: true, invalidEncodingRejected: true, cancel: true, taskStop: true, restartNoReplay: true, ordinaryContextIsolation: true, privateRestore: true, boothDisabled: true }))
+  console.log(JSON.stringify({ ok: true, probe: 'desk-command-electron', source: 'fake-model-real-command', appContainer: true, uiApproval: true, decodedScriptReview: true, durablePublication: true, privateOutputPreview: true, denied: true, conflictBeforeExecution: true, nonzeroNoPublication: true, invalidEncodingRejected: true, cancel: true, taskStop: true, restartNoReplay: true, actualMainProcessCrash: true, recoveredPublicationCount: confirmed, crashExitSummary: true, ordinaryContextIsolation: true, privateRestore: true, boothDisabled: true }))
 } finally { await close() }

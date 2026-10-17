@@ -102,6 +102,27 @@ it('marks interrupted requests without replay and does not log command or output
   expect(f.invoke).not.toHaveBeenCalled(); expect(f.store.records().some((r) => r.type === 'flow/command' && r.id === id && r.status === 'interrupted')).toBe(true)
   expect(JSON.stringify(f.store.records().filter((row) => row.type === 'flow/command'))).not.toContain('echo unit'); await reopened.close()
 })
+it.each(['legacy-partial', 'pending-settlement', 'all-published'] as const)('recovers %s from durable files and a reopened journal without replay', async (stage) => {
+  const f = await fixture(); const id = randomUUID(); const flowId = f.flow.id()!
+  await f.commands.close(); f.flow.close()
+  f.store.append({ type: 'flow/command', id, flowId, executionHash: 'a'.repeat(64), timeoutMs: 5000, status: 'running', fileCount: 0,
+    ...(stage === 'all-published' ? { outcome: { exitCode: 0, elapsedMs: 7, processTreeTerminated: true, changedFiles: 2, appliedFiles: 0, publication: 'not-applied' as const } } : {}) })
+  for (const path of stage === 'all-published' ? ['a.txt', 'b.txt'] : ['a.txt']) {
+    const change = randomUUID(); f.store.append({ type: 'desk/change', id: change, flowId, commandId: id, path, before: null, after: path, pending: true }); f.desk.write(path, path)
+    if (stage !== 'pending-settlement') f.store.append({ type: 'desk/settled', id: change, status: 'applied' })
+  }
+  f.store.close()
+  const journal = openJournal(f.root, f.store.scope, f.options.clock)
+  const store: SessionStore = { scope: journal.scope, records: journal.records, append: journal.append, projection: () => projectJournal(journal.records()), close: journal.close }
+  // Open commands first to also verify standalone pending-settlement recovery.
+  const recovered = createDeskCommands({ ...f.options, store }); const row = store.records().findLast((r) => r.type === 'flow/command' && r.id === id)
+  expect(row).toMatchObject({ status: 'interrupted', outcome: { publication: stage === 'all-published' ? 'applied' : 'unknown', appliedFiles: stage === 'all-published' ? 2 : 1,
+    elapsedMs: stage === 'all-published' ? 7 : null, changedFiles: stage === 'all-published' ? 2 : null } })
+  const flow = createHeartFlow({ store, clock: f.options.clock, desk: f.desk, booth: false, busy: () => false, changed: () => {}, run: async () => '', prepare: async () => ({ messages: [], eligibleIndexes: [] }), emit: () => {} })
+  expect(flow.dispatch(f.command({ type: 'flow.exit' }))).toBeUndefined()
+  const close = store.records().findLast((r) => r.type === 'flow/close'); expect(close?.type === 'flow/close' && JSON.parse(close.summary).commandEvidence).toMatchObject([{ publication: stage === 'all-published' ? 'applied' : 'unknown', appliedFiles: stage === 'all-published' ? 2 : 1 }])
+  expect(f.invoke).not.toHaveBeenCalled(); await recovered.close(); flow.close(); store.close()
+})
 it('enforces plan, booth, disabled, schema and known-credential gates', async () => {
   const f = await fixture(); f.send({ type: 'flow.mode', mode: 'plan' }); expect(f.send({ type: 'flow.command.run', command: 'echo unit' })).toBe('unavailable')
   f.send({ type: 'flow.mode', mode: 'execute' }); expect(f.send({ type: 'flow.command.run', command: 'echo SECRET_CANARY' })).toBe('unavailable'); f.commands.setEnabled(false); expect(f.send({ type: 'flow.command.run', command: 'echo unit' })).toBe('unavailable')
