@@ -415,6 +415,8 @@ export interface AppSnapshot {
   /** Optional optical impressions; default text memory remains authoritative. No OCR prose/page text here. */
   opticalMemory?: OpticalMemoryView
   voice?: VoiceView
+  /** Local resource admissions survive private-book restore. No prices, provider names or secrets. */
+  resources?: ResourceBudgetView
   /** Main-owned optional game context. No MCP launch config, URLs, tokens or raw game transcript. */
   minecraft?: MinecraftView
   mcp?: McpView
@@ -594,6 +596,29 @@ export interface VoiceView {
   utterance?: { id: string; messageId: string; status: 'synthesizing' | 'ready' | 'cancelled' | 'failed';
     playback: 'idle' | 'playing' | 'ended' | 'failed'; chunkCount: number; byteLength: number; createdAtMs: number }
   error?: PublicError
+}
+export interface ResourceBudgetView {
+  status: 'ready' | 'unavailable'
+  /** Conservative reservations before dispatch; never actual billing or fabricated currency cost. */
+  accounting: 'reserved-units'
+  /** Only the book's booth operator can change daily model limits. */
+  configurable: boolean
+  model: {
+    dayKey: string
+    totalReservedUnits: number | null
+    autonomousReservedUnits: number | null
+    totalLimitUnits: number
+    autonomousLimitUnits: number
+    attemptCount: number | null
+    legacyReservedUnits: number | null
+  }
+  speech: {
+    dayKey: string
+    reservedChars: number | null
+    charLimit: number
+    attemptCount: number | null
+    attemptLimit: number
+  }
 }
 export interface VoiceRead {
   utteranceId: string
