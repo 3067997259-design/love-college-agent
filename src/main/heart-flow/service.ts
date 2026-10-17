@@ -25,7 +25,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   requestDraft?(text: string, requestId: string, hash: string): string; cancelTask?(turnId: string): void; modelSource?(): 'real' | 'fake' | 'none'; previewDraft?(view: FlowOperationView, text: string): void; shadow?: DeskShadow }) {
   const { store, desk } = options; const rows = () => store.history?.() ?? store.records()
   let pending: { id: string; code: string; hash: string; resolve?(value: string): void } | undefined; let running: AbortController | undefined; let enabled = true
-  let lastRun: HeartFlowView['lastRun']; let opening = false
+  let lastRun: HeartFlowView['lastRun']; let opening: AbortController | undefined
   let delegates: DelegatesService | undefined
   let computer: DeskComputer | undefined
   let webFetch: FlowFetch | undefined
@@ -35,8 +35,8 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
   const goals = () => projectFlowGoals(rows())
   const linkGoal = (flowId: string) => { const goal = goals().current; if (goal?.status === 'active' && !goal.flowIds.includes(flowId)) store.append({ type: 'flow/goal-linked', goalId: goal.id, flowId }) }
   const goalContext = (): ContextMessage[] => { const goal = goals().current; return goal ? [{ role: 'user', content: JSON.stringify({ selectedWorkGoal: goal, authority: 'user-selected-work-data', completionMeaning: 'user-status-decision-only-not-tool-proof' }) }] : [] }
-  const safe = (write = false) => { if (!enabled || !open() || store.projection().lightsOut || write && mode() !== 'execute') throw new Error('FLOW_UNAVAILABLE') }
-  const cancel = () => { webFetch?.cancel(); computer?.close(); operations?.cancel(); delegates?.cancelAll(); if (pending) { store.append({ type: 'flow/run', id: pending.id, flowId: open()?.id ?? 'interrupted', status: 'denied', codeHash: pending.hash }); pending.resolve?.('execution-denied'); pending = undefined }; running?.abort() }
+  const safe = (write = false) => { if (!enabled || !open() || store.projection().lightsOut || store.projection().sleeping || write && mode() !== 'execute') throw new Error('FLOW_UNAVAILABLE') }
+  const cancel = () => { const preparation = opening; opening = undefined; preparation?.abort(); webFetch?.cancel(); computer?.close(); operations?.cancel(); delegates?.cancelAll(); if (pending) { store.append({ type: 'flow/run', id: pending.id, flowId: open()?.id ?? 'interrupted', status: 'denied', codeHash: pending.hash }); pending.resolve?.('execution-denied'); pending = undefined }; running?.abort() }
   // A saved request/approval never authorizes a process after restart.
   const runs = rows().filter((row) => row.type === 'flow/run')
   for (const row of runs) if ((row.status === 'requested' || row.status === 'approved') && runs.findLast((other) => other.id === row.id) === row) store.append({ type: 'flow/run', id: row.id, flowId: row.flowId, codeHash: row.codeHash, status: 'interrupted' })
@@ -85,6 +85,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
     settled: () => operations?.settled(),
     interruptDraft: () => { webFetch?.cancel(); computer?.interruptPending(); operations?.cancel() },
     active: () => !!open(),
+    occupied: () => !!opening || !!open(),
     id: () => open()?.id ?? null,
     inspect,
     messages: () => {
@@ -142,7 +143,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
           options.inspect(inspect({ section: command.section, flowId: command.flowId })); return
         }
         if (command.type === 'flow.resume') {
-          if (!enabled || open() || opening || options.busy() || store.projection().lightsOut) return 'unavailable'
+          if (!enabled || open() || opening || options.busy() || store.projection().lightsOut || store.projection().sleeping) return 'unavailable'
           const source = rows().find((row) => row.type === 'flow/open' && row.id === command.flowId)
           const closed = rows().find((row) => row.type === 'flow/close' && row.id === command.flowId)
           if (source?.type !== 'flow/open' || closed?.type !== 'flow/close') return 'unavailable'
@@ -153,15 +154,17 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
           const id = randomUUID(); store.append({ type: 'flow/open', id, mode: 'plan', prefix: [...prefix, reference], resumedFrom: source.id }); linkGoal(id); options.entered?.(); options.changed(); return
         }
         if (command.type === 'flow.enter') {
-          if (!enabled || open() || opening || options.busy() || store.projection().lightsOut) return 'unavailable'
-          opening = true
-          void options.prepare('flow-entry', new AbortController().signal).then((prepared) => {
-            if (!enabled || options.busy() || store.projection().lightsOut) return
+          if (!enabled || open() || opening || options.busy() || store.projection().lightsOut || store.projection().sleeping) return 'unavailable'
+          const preparation = new AbortController(); opening = preparation
+          void (async () => options.prepare('flow-entry', preparation.signal))().then((prepared) => {
+            // The port may ignore abort. Only the currently owned entry can open a flow;
+            // a late completion cannot override sleep, shutdown or a newer entry.
+            if (opening !== preparation || preparation.signal.aborted || !enabled || open() || options.busy() || store.projection().lightsOut || store.projection().sleeping) return
             const policies = prepared.messages.filter((message) => message.role === 'system')
             const chat = store.projection().messages.slice(-12).map((message) => ({ role: message.role, text: message.text.slice(0, 500) }))
             const id = randomUUID(); store.append({ type: 'flow/open', id, mode: 'plan', prefix: [...policies, { role: 'system', content: instructions.policy }, { role: 'system', content: JSON.stringify({ builtinCodingSkill: codingSkill }) }, { role: 'user', content: JSON.stringify({ conversationReference: chat }) }] }); linkGoal(id)
             options.entered?.()
-          }).catch(() => {}).finally(() => { opening = false; options.changed() }); return
+          }).catch(() => {}).finally(() => { if (opening === preparation) opening = undefined; options.changed() }); return
         }
         safe()
         if (command.type === 'flow.fetch.approve') return webFetch ? webFetch.dispatch(command) : 'unavailable'
@@ -206,7 +209,7 @@ export function createHeartFlow(options: { store: SessionStore; clock: Clock; de
       signal.throwIfAborted(); requestRun(code)
       return await new Promise<string>((resolve) => { pending!.resolve = resolve; const stop = () => { cancel(); resolve('execution-cancelled') }; signal.addEventListener('abort', stop, { once: true }); const settle = resolve; pending!.resolve = (value) => { signal.removeEventListener('abort', stop); settle(value) }; if (signal.aborted) stop() })
     },
-    stateChanged: () => { if (store.projection().lightsOut) cancel(); computer?.stateChanged(); webFetch?.stateChanged() },
+    stateChanged: () => { if (store.projection().lightsOut || store.projection().sleeping) cancel(); computer?.stateChanged(); webFetch?.stateChanged() },
     setEnabled: (value: boolean) => { enabled = value; if (!value) cancel(); options.changed() }, close: cancel,
   }
 }

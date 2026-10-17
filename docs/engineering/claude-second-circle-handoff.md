@@ -49,3 +49,5 @@ MC 新接口 `37cb419`（state.ts／shared README）已先合；此批已接 inv
 真实 IMAP 仍阻塞，学校 privacy URL 未到；滤芯缺失就关闭。Rodin 今晚已成功 1 次（32.3 秒，1.21 MB），用户总预算 3 次，余 2 次，不自动耗尽。角色包／日记／资料／礼物都带私人恢复边界；不要为方便接画面而让原文、钥匙或上游句柄进入快照／模型。
 
 05:45 协作观察：Claude 工作树当时在合 main，Stage.tsx、history/OldPage.tsx、sheets/ScheduleSheet.tsx 显示冲突。主线对应修复包含旧页切换清理／拒绝过期引用、旧日未完成作品入口；请将这些数据守卫与自己的 quote/schedule 画面合并，不以整文件覆盖处理。GPT 保留该工作树及其全部 staged/unstaged 内容。
+
+08:03：#27 修复没有公开接口变化。心流准备阶段也拒绝入睡，取消后的旧 prepare 无法开新心流或清除新请求；普通模式真实慢压缩客户端／原生按钮及重启回归通过，361 单测通过。用户明确 computer use 只需隔离书桌预览页；MC 复用 AIRI 测试配置，但当前相关端口未监听，未启动或接管参考实例。完整圈的实现缺口仍按 third-circle-completion-audit.md 推进。
