@@ -34,6 +34,19 @@ it('binds a failed recall request to its original anchor without attaching it to
   h.send('Ordinary question', 'ordinary-r2', 'h'); await h.idle()
   expect(f.store.projection().messages.findLast((message) => message.failure)?.failure?.sourceRecallAnchor).toBeUndefined()
 })
+it('projects legacy saved failures from the request chain without mutating their persisted payload', async () => {
+  const f = fixture(); const anchor = { sessionId: 'old', messageId: 'seen', start: 0, end: 3 }
+  f.store.append({ type: 'history/recall-request', requestId: 'legacy-recall', anchor, sourceCount: 1 })
+  const h = f.start({ source: 'fake', complete: async () => { throw new ModelFailure('configuration') } })
+  h.send('Legacy question', 'legacy-recall', 'h'); await h.idle()
+  const current = f.store.records().findLast((row) => row.type === 'narrator/failure')!
+  if (current.type !== 'narrator/failure') throw new Error('MISSING_FAILURE')
+  const failure = { ...current.failure }; delete failure.sourceRecallAnchor
+  f.store.append({ type: 'narrator/failure', id: 'legacy-saved', turnId: current.turnId, text: current.text, failure })
+  expect(f.store.projection().messages.find((message) => message.id === 'legacy-saved')?.failure?.sourceRecallAnchor).toEqual(anchor)
+  expect(f.store.records().findLast((row) => row.type === 'narrator/failure')).toMatchObject({ failure })
+  expect((f.store.records().at(-1) as typeof current).failure.sourceRecallAnchor).toBeUndefined()
+})
 it('never sends failure narration or partial replies to an enabled speech port', async () => {
   const f = fixture(); const spoken: string[] = []; let count = 0
   const voice = createVoice({ store: f.store, clock: f.clock, blocked: () => false, changed: () => {}, safeText: (text) => text,

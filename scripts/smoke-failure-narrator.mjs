@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID, createHash } from 'node:crypto'
 import { createServer } from 'node:http'
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, writeFile, appendFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
@@ -55,7 +55,7 @@ try {
   await launch(); await accept({ type: 'mode.set', mode: 'quiet' })
   const first = await fail('configuration', 'ORIGINAL_REVIEWED_REQUEST'); assert.equal(first.failure.category, 'configuration'); assert.equal(first.failure.httpStatus, 401); assert.equal(first.failure.attemptCount, 1)
   const details = page.locator(`[data-failure-turn="${first.failure.turnId}"]`); await details.locator('summary').click(); assert.ok((await details.innerText()).includes('configuration-failed'))
-  const beforeRetry = requests.length; const composer = page.locator('.composer-input')
+  const beforeRetry = requests.length; let composer = page.locator('.composer-input')
   await composer.fill('UNSENT_DRAFT'); await details.getByRole('button', { name: '带回原请求，检查后发送', exact: true }).click(); assert.equal(await composer.inputValue(), 'UNSENT_DRAFT'); assert.equal(requests.length, beforeRetry)
   await composer.fill(''); await details.getByRole('button', { name: '带回原请求，检查后发送', exact: true }).click(); assert.equal(await composer.inputValue(), 'ORIGINAL_REVIEWED_REQUEST'); assert.equal(requests.length, beforeRetry)
   mode = 'success'; phase = 0; await page.getByRole('button', { name: '发送', exact: true }).click(); await waitFor((s) => s.task?.id !== first.failure.turnId && s.task?.status === 'completed', 'USER_RETRY_FAILED')
@@ -75,6 +75,23 @@ try {
   assert.ok(requests.at(-1).messages.some((message) => message.role === 'tool' && message.content.includes(oldText)))
   mode = 'success'; phase = 0; await accept({ type: 'message.send', text: 'UNRELATED_AFTER_RECALL' }); await waitFor((s) => s.task?.status === 'completed' && s.messages.at(-1)?.text === 'SYNTHETIC_SUCCESS_REPLY', 'UNRELATED_TURN_FAILED')
   assert.ok(!requests.at(-1).messages.some((message) => message.content?.includes('recalledSeenReference')))
+  // Append an old-writer-format failure fixture to the closed, owned journal.
+  // Its genuine source message and recall request above provide the authority.
+  await close(); const journalOwner = (await readdir(join(data, 'journals')))[0]; const journalFolder = join(data, 'journals', journalOwner)
+  const journalFile = join(journalFolder, (await readdir(journalFolder)).filter((name) => name.endsWith('.jsonl')).sort().at(-1))
+  const prior = (await readFile(journalFile, 'utf8')).trim().split('\n').map(JSON.parse); const legacyFailure = { ...recallFailure.failure }; delete legacyFailure.sourceRecallAnchor
+  const legacyId = randomUUID(); await appendFile(journalFile, JSON.stringify({ version: 1, seq: prior.at(-1).seq + 1, atMs: Date.now(), type: 'narrator/failure', id: legacyId, turnId: legacyFailure.turnId, text: recallFailure.text, failure: legacyFailure }) + '\n')
+  const legacyHttp = requests.length; await launch(); composer = page.locator('.composer-input'); assert.equal(requests.length, legacyHttp)
+  assert.deepEqual((await snapshot()).messages.find((message) => message.id === legacyId).failure.sourceRecallAnchor, anchor)
+  const legacyArchive = await page.evaluate(async () => { const s = await window.lca.getSnapshot(); return window.lca.readSession(s.scope.sessionId) })
+  assert.deepEqual(legacyArchive.messages.find((message) => message.id === legacyId).failure.sourceRecallAnchor, anchor)
+  await page.locator(`[data-failure-turn="${legacyFailure.turnId}"]`).last().getByRole('button', { name: '带回原请求，检查后发送', exact: true }).click()
+  await page.locator('.quote-chip-text').waitFor(); assert.equal(await composer.inputValue(), 'ORIGINAL_RECALL_QUESTION'); assert.equal(await page.locator('.quote-chip-text').innerText(), oldText); assert.equal(requests.length, legacyHttp)
+  mode = 'recall-expand'; phase = 0; await page.getByRole('button', { name: '发送', exact: true }).click(); await waitFor((s) => s.task?.status === 'completed', 'LEGACY_RECALL_RETRY_FAILED')
+  const legacyNewRequest = (await records()).filter((row) => row.type === 'history/recall-request').at(-1).requestId
+  assert.notEqual(legacyNewRequest, newRequest); assert.notEqual(legacyNewRequest, oldRequest); assert.equal(phase, 2)
+  assert.ok(requests.at(-1).messages.some((message) => message.role === 'tool' && message.content.includes(oldText)))
+  assert.equal((await records()).find((row) => row.id === legacyId).failure.sourceRecallAnchor, undefined)
   const plain = await fail('plain-403', 'plain status is not evidence of filtering'); assert.equal(plain.failure.category, 'configuration')
   const filtered = await fail('filter', 'explicit filter marker'); assert.equal(filtered.failure.category, 'content-filtered'); assert.equal(phase, 1)
   const interrupted = await fail('interrupted', 'partial stream'); assert.equal(interrupted.failure.category, 'interrupted'); assert.equal(phase, 1); assert.ok((await snapshot()).messages.some((message) => message.text === 'SAFE_PARTIAL_REPLY' && message.status === 'interrupted'))
@@ -99,8 +116,9 @@ try {
   const closed = instance.waitForEvent('close'); await accept({ type: 'backup.restore', restoreId }); await closed; instance = undefined; await launch()
   assert.equal(requests.length, httpCount); assert.equal((await records()).filter((row) => row.type === 'model/attempt' && row.status === 'started').length, attempts)
   const finalRows = await records(); assert.equal(finalRows.filter((row) => row.type === 'narrator/failure').length, failures); safe(await snapshot()); safe(finalRows)
+  assert.deepEqual((await snapshot()).messages.find((message) => message.id === legacyId).failure.sourceRecallAnchor, anchor)
   const narration = finalRows.filter((row) => row.type === 'narrator/failure').map((row) => row.text)
   for (const request of requests) for (const text of narration) assert.ok(!request.messages.some((message) => message.content?.includes(text)), 'NARRATOR_IN_HTTP')
   for (const row of finalRows.filter((row) => row.type === 'model/seen')) for (const text of narration) assert.ok(!row.messages.some((message) => message.content.includes(text)))
-  console.log(JSON.stringify({ ok: true, probe: 'failure-narrator', source: 'synthetic-http', nativeSQLite: true, classifiedFailures: true, explicitFilterOnly: true, partialPreserved: true, userDraftReviewNoReplay: true, recallQuestionAndQuoteRestored: true, freshRecallRequestAndToolExpansion: true, toolReceiptWarning: true, stoppedNotFailure: true, workIsolation: true, modelAndRecallExclusion: true, restartNoReplay: true, privateRestore: true, noPrivateErrorBody: true }))
+  console.log(JSON.stringify({ ok: true, probe: 'failure-narrator', source: 'synthetic-http', nativeSQLite: true, classifiedFailures: true, explicitFilterOnly: true, partialPreserved: true, userDraftReviewNoReplay: true, recallQuestionAndQuoteRestored: true, freshRecallRequestAndToolExpansion: true, legacySavedFailureProjectedAfterReopenAndRestore: true, toolReceiptWarning: true, stoppedNotFailure: true, workIsolation: true, modelAndRecallExclusion: true, restartNoReplay: true, privateRestore: true, noPrivateErrorBody: true }))
 } finally { await close(); server.closeAllConnections(); await new Promise((done) => server.close(done)) }

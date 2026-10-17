@@ -6,6 +6,7 @@ import type { SessionStore } from '../store/session'
 import type { ContextMessage } from '../journal/schema'
 import { sessionDayKey } from '../journal/file'
 import { projectJournal } from '../journal/projection'
+import { projectFailure } from '../harness/failure'
 import type { MemoryRepository } from './repository'
 import { seenFragments, memoryDigest, memoryInputBytes, type SeenFragment } from './seen'
 import { boundedMemoryCall, MemoryFailure, validateMemories, validateSummary, type MemoryModel, type createFakeMemoryModel } from './model'
@@ -174,7 +175,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       const messages = page.records.flatMap((row): MessageView[] => {
         if (row.type === 'user/message') return [delivered.get(row.id) ?? { id: row.id, role: 'user', text: row.text, createdAtMs: row.atMs, status: 'complete' }]
         if (row.type === 'assistant/message' && row.text) return [{ id: row.id, role: 'assistant', text: row.text, createdAtMs: row.atMs, status: row.status }]
-        if (row.type === 'narrator/failure') return [{ id: row.id, role: 'narrator', text: row.text, createdAtMs: row.atMs, status: 'complete', failure: row.failure }]
+        if (row.type === 'narrator/failure') return [{ id: row.id, role: 'narrator', text: row.text, createdAtMs: row.atMs, status: 'complete', failure: projectFailure(page.records, row.failure, row.seq) }]
         return []
       })
       const selected = messages.slice(-200); let chars = 0
