@@ -92,6 +92,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm probe:journal` | Electron 内验证日志重放、缓存重建、作用域和原文隔离 |
 | `pnpm probe:model` | 主进程 chat 槽位的有界极小流式请求，结果不含配置或回复正文 |
 | `pnpm probe:privacy` | 普通隔离 profile 的单份合成资料真实 privacy 探针；最多四次有界尝试，只输出闭集结果，不回退主模型 |
+| `pnpm test:privacy-probe` | 合成 privacy/chat/background 同时配置，验证探针成功／失败与重开检查不触发普通模型 |
 | `pnpm probe:network` | 主进程对已配置 privacy 的 origin 比较 Node／Chromium 的无凭据 HEAD；不读响应正文、不调用模型、不改系统代理 |
 | `pnpm probe:harness` | 真实 chat 模型调用代码时钟并结束回合的有界探针 |
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron 的发送／工具／停止／重启场景 |

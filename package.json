@@ -39,6 +39,7 @@
     "test:failure-narrator": "pnpm build && node scripts/smoke-failure-narrator.mjs",
     "probe:live-readiness": "pnpm build && node scripts/probe-live-readiness.mjs",
     "probe:privacy": "pnpm build && node scripts/probe-privacy-live.mjs",
+    "test:privacy-probe": "pnpm build && node scripts/smoke-privacy-probe.mjs",
     "probe:network": "pnpm build && node scripts/probe-network-private-head.mjs",
     "test:developer": "pnpm build && node scripts/smoke-developer.mjs",
     "test:booth": "pnpm build && node scripts/smoke-booth.mjs",
