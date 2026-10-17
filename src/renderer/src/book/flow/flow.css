@@ -69,3 +69,21 @@ textarea.flow-code { width: 100%; box-sizing: border-box; resize: vertical; bord
 @media (prefers-reduced-motion: reduce) {
   .delegate-card[data-status='running'] .paper-plane, .delegate-card[data-status='running'] .plane-trail { animation: none; }
 }
+
+/* 草稿、目标和沿用的预览／网页读取控件：同一张工作台上的几栏，按钮收成书页的样子 */
+.flow-drafts, .flow-goals { display: grid; gap: 6px; }
+.flow-drafts ul, .flow-goals ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.flow-drafts li, .flow-goals li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: var(--fs-sm); color: var(--ink-her); }
+.flow-drafts small, .flow-goals small { color: var(--graphite); }
+.flow-goals li[data-current='true'] > span:first-child { text-decoration: underline 1.5px color-mix(in oklab, var(--peach-mid) 70%, transparent); text-underline-offset: 4px; }
+.flow-goal-input { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.flow-input { flex: 1; min-width: 160px; font: var(--fs-sm) var(--font-body); color: var(--graphite); background: transparent; border: none; border-bottom: 1.5px solid var(--pencil); outline: none; }
+.flow-input:focus { border-bottom-color: var(--peach-mid); }
+.flow-tools section { display: grid; gap: 4px; padding-top: 8px; border-top: 1px dashed color-mix(in oklab, var(--pencil) 60%, transparent); font-size: var(--fs-sm); color: var(--ink-her); }
+.flow-tools h3 { margin: 0; font: normal 16px var(--font-hand); color: var(--ink-her); }
+.flow-tools p { margin: 0; }
+.flow-tools code { font: 14px var(--font-num); word-break: break-all; }
+.flow-tools button { justify-self: start; margin-right: 8px; padding: 2px 12px; font: 15px var(--font-body); color: var(--graphite); background: transparent; border: 1.5px solid var(--pencil); border-radius: 999px; cursor: pointer; }
+.flow-tools button:disabled { opacity: 0.45; cursor: default; }
+.flow-tools [role='alertdialog'] { display: grid; gap: 6px; padding: 10px 12px; background: color-mix(in oklab, var(--notice-bg) 22%, var(--paper)); border: 1.5px solid color-mix(in oklab, var(--notice-bg) 80%, #8a6a2a); border-radius: 10px 7px 11px 6px; }
+.flow-other { display: flex; align-items: center; gap: 12px; font-size: var(--fs-sm); color: var(--notice-ink); }

@@ -53,7 +53,7 @@ export function MiniCompanion({ snapshot, onExpand, onHover, onMove }: {
   // 书合上以后，她在后台做的事只能在这里看见：专注时写一行她手上的活（和右页同一套活动模板，不调用模型）
   const doing = pomodoro.phase === 'focus' ? currentActivity(snapshot) : undefined
   // 心流里有代码等你批准：她卡在这一步，什么阶段都要说（系统通知另由主进程按规则发）
-  const approval = !!(snapshot.heartFlow?.activeId && snapshot.heartFlow.pending)
+  const approval = !!(snapshot.heartFlow?.activeId && (snapshot.heartFlow.pending || snapshot.heartFlow.webFetch?.pending || snapshot.heartFlow.computer?.pending))
   // 她自己的书桌作品：步数来自快照，不按时间推断
   const work = pomodoro.phase === 'focus' ? runningWork(snapshot) : undefined
   const plan = pomodoro.plan
