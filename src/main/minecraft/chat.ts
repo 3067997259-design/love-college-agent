@@ -84,9 +84,10 @@ export function createMinecraftChat(options: { root: string; clock: Clock; mainS
         return { ...reply, text: scrub(reply.text), toolCalls: reply.toolCalls.map((call) => ({ ...call, arguments: scrub(call.arguments) })) }
       } }
       harness = createHarness({ clock: options.clock, store: current, model, tools, getTools: () => {
-        const view = options.game().view(); const feature = { minecraft_inventory: 'inventory', minecraft_scene: 'scene', minecraft_look: 'look', minecraft_screenshot: 'screenshot' } as const
+        const view = options.game().view(); const feature = { minecraft_inventory: 'inventory', minecraft_scene: 'scene', minecraft_look: 'look', minecraft_screenshot: 'screenshot', minecraft_mine: 'mining' } as const
         return tools.filter((tool) => (tool.definition.name !== 'minecraft_chat' || view.scope?.allowChat)
           && (tool.definition.name !== 'minecraft_screenshot' || view.scope?.allowScreenshots && !!options.normalizePixels)
+          && (tool.definition.name !== 'minecraft_mine' || view.scope?.allowMining)
           && (!(tool.definition.name in feature) || view.features?.includes(feature[tool.definition.name as keyof typeof feature])))
       }, limits: { steps: 8, dailyTokens: 80_000, autonomousTokens: 80_000, outputTokens: 800 },
         enabled: () => options.enabled() && options.game().view().status === 'playing', changed: options.changed,

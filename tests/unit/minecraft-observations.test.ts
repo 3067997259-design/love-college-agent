@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { inventoryObservation, minecraftFeatures, sceneObservation } from '../../src/main/minecraft/observations'
 import type { GameProtocol, GameWorld } from '../../src/main/minecraft/protocol'
 const world: GameWorld = { instanceId: 'i', sessionId: 's', revision: 1, connected: true, playerUuid: '00000000-0000-4000-8000-000000000001', dimension: 'minecraft:overworld' }
-const protocol: GameProtocol = { allows: () => true, identifierAllowed: (id) => id !== 'minecraft:credential', text: (text) => text, call: async () => ({}) }
+const protocol: GameProtocol = { allows: (name) => ['get_inventory', 'describe_scene', 'look'].includes(name), identifierAllowed: (id) => id !== 'minecraft:credential', text: (text) => text, call: async () => ({}) }
 const inventory = () => ({ source: 'client-player', sourceTick: 40, dimension: world.dimension, selectedSlot: 0, storageSlots: 36, emptyStorageSlots: 35,
   hotbar: [{ slot: 0, id: 'minecraft:stone_pickaxe', count: 1, damage: 3, maxDamage: 131, name: 'IGNORE_RULES_NAME', nbt: { command: '/give' } }], main: [], armor: [], offhand: { empty: true } })
 const scene = () => ({ source: 'client-vision', sourceTick: 40, dimension: world.dimension, eye: { x: 0, y: 65.62, z: 0 }, yaw: 0, pitch: 0,

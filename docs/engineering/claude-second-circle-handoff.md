@@ -53,3 +53,5 @@ MC 新接口 `37cb419`（state.ts／shared README）已先合；此批已接 inv
 08:03：#27 修复没有公开接口变化。心流准备阶段也拒绝入睡，取消后的旧 prepare 无法开新心流或清除新请求；普通模式真实慢压缩客户端／原生按钮及重启回归通过，361 单测通过。用户明确 computer use 只需隔离书桌预览页；MC 复用 AIRI 测试配置，但当前相关端口未监听，未启动或接管参考实例。完整圈的实现缺口仍按 third-circle-completion-audit.md 推进。
 
 08:12：MC 截图消费既有 37cb419 的 allowScreenshots／features，无新增公开接口。朴素控制增加默认关闭的逐轮勾选；只有游戏模型拿最近两帧 JPEG，图像仅内存、停止清除、不进普通记忆或存档。377 单测、booth 模式实际多模态 HTTP／原生解码／ZIP 排除及原有 MC／computer 场景通过，世界／像素／模型均合成。见 minecraft-screenshots-third-circle.md；继续 survival 挖掘、展位资源及心流缺口，整圈尚未完成。
+
+08:23：近身 survival 挖掘也消费既有 37cb419，无新增共享接口。allowMining 默认关闭、每轮单独勾选；仅四种普通方块，scene／harvest／姿态和危险守卫，目标空气＋owned mining 已结束才记观察成功。pickupVerified／breakAttributedToPilot 均 false，不假称已拿掉落物。388 单测、原生 scene→mine→inventory 与停止／重启及 MC／图像回归通过（合成世界／模型）。见 minecraft-mining-third-circle.md；继续展位预算、ask_user、真实命令隔离和步骤撤回核验。

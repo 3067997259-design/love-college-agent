@@ -20,7 +20,9 @@ export function minecraftFeatures(protocol: GameProtocol): MinecraftFeature[] {
     ['inventory', 'get_inventory', bound], ['scene', 'describe_scene', [...bound, 'maxDistance', 'rayColumns', 'rayRows']], ['look', 'look', [...owned, 'yaw', 'pitch']],
     ['screenshot', 'screenshot', bound],
   ]
-  return checks.filter(([feature, name, fields]) => (feature !== 'screenshot' || !!protocol.image) && protocol.allows(name, fields)).map(([feature]) => feature)
+  const features = checks.filter(([feature, name, fields]) => (feature !== 'screenshot' || !!protocol.image) && protocol.allows(name, fields)).map(([feature]) => feature)
+  if (protocol.allows('evaluate_harvest', [...bound, 'x', 'y', 'z', 'dimension']) && protocol.allows('break_block', [...owned, 'x', 'y', 'z', 'mode']) && features.includes('scene')) features.push('mining')
+  return features
 }
 /** Drop item names, lore, NBT and arbitrary strings before game model/journal access. */
 export function inventoryObservation(value: unknown, world: GameWorld, protocol: GameProtocol) {
