@@ -36,3 +36,5 @@ CI 39002596878 的失败发生在 #23 配置导入／读回的纯文件系统单
 
 02:00 Issue 修复版完整通过（#38–#47）：源码 **1ca152b767418f300dca4c7a24f5e191b10cfeed**、trackedDirty=false；修复真实 IMAP 空正文附件/超长单封/异步 error/附件重取、候选标题超长回退、JSON 歧义、privacy inspect、自定义角色夜景与两处文档口径。首次整轮在 mini 超时、第二次在 privacy-probe 失败（preflight 只看 `document/job` 误判 completed 终态）；修正后整轮 **26/26** 通过（报告 ok=true）。安装器 **264,345,755 字节**，SHA-256 **06b2487d1f1608ff260eb98d97e4cbeb985a685154c47bd14c442ff2663cbdcf**；asar **bd354dd47a56bf32bf20a3969ba7da8d2fb692abc75c6305dee64f6e22307b75**；实测 NotSigned。源码本地类型/lint、75 文件／530 单测与 build 通过；Release **v0.1.2**（tag `v0.1.2`）。
 
+03:20 最终 Issue 修复版（v0.1.4）完整通过：安装器由源码 **ccab7cb**（#48 邮箱身份绑定 + 静默测试窗口）构建，安装包 **264,345,983 字节**，SHA-256 **773a918a3f089e99780332fa2cf1a0a8386180d7c3a03f9acc9803479d4daca3**；asar **a6b297071805163b48a20c161fb879d5f2d49a9b35211832d60415058194fdbf**；整轮 **26/26** 安装场景（静默模式）通过；源码 75 文件/531 单测、类型/lint 通过。发布 Release v0.1.4（tag 指向仅修 lint 的提交 8346b65，资产 SHA 与上面一致）。
+

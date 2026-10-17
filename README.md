@@ -501,3 +501,4 @@ GPT 开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER
 心流目标入口：设置中的“工作目标”，或 `/goal 一句话`（更新当前活动目标，没有时新建）。目标跨日／跨次保留，只有用户标记状态；不进入普通记忆，也不自动批准脚本。现有 `pnpm probe:heart-flow`、`pnpm test:heart-flow`、`pnpm test:backup` 覆盖它的范围和恢复边界。
 `pnpm test:notifications`：急件合并、规则操作、重启去重（开发模式合成投递，不弹系统通知）。
 `pnpm test:characters`：静态角色包原生导入／导出、素材回退、角色隔离与切回原关系。
+
