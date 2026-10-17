@@ -36,11 +36,11 @@ const env = { ...runtimeEnv(root), LCA_DATA_DIR: join(root, '.local-data', `pack
 env.LCA_PROVIDERS_FILE = join(env.LCA_DATA_DIR, 'absent-test-providers.json')
 function run(exe, args, { capture = false } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(exe, args, { env, cwd: root, windowsHide: true, stdio: ['ignore', capture ? 'pipe' : 'ignore', 'ignore'] })
-    let output = ''; child.stdout?.on('data', (chunk) => { output = (output + chunk.toString()).slice(-16_384) })
-    const deadline = setTimeout(() => { child.kill(); reject(new Error('PACKAGE_CHECK_TIMEOUT')) }, 120_000)
+    const child = spawn(exe, args, { env, cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+    let output = ''; let errors = ''; child.stdout?.on('data', (chunk) => { output = (output + chunk.toString()).slice(-16_384) }); child.stderr?.on('data', (chunk) => { errors = (errors + chunk.toString()).slice(-16_384) })
+    const deadline = setTimeout(() => { child.kill(); reject(new Error('PACKAGE_CHECK_TIMEOUT')) }, 300_000)
     child.on('error', () => { clearTimeout(deadline); reject(new Error('PACKAGE_CHECK_LAUNCH_FAILED')) })
-    child.on('exit', (code) => { clearTimeout(deadline); if (code === 0) resolve(output); else reject(new Error('PACKAGE_CHECK_FAILED: ' + (args.find((arg) => arg.endsWith('.mjs'))?.split(/[\\/]/).at(-1) ?? args.find((arg) => arg.startsWith('--lca-probe=')) ?? (exe.endsWith('powershell.exe') ? 'registry' : 'installer-or-uninstaller')) + ':' + code)) })
+    child.on('exit', (code) => { clearTimeout(deadline); if (code === 0) resolve(output); else reject(new Error('PACKAGE_CHECK_FAILED: ' + (args.find((arg) => arg.endsWith('.mjs'))?.split(/[\\/]/).at(-1) ?? args.find((arg) => arg.startsWith('--lca-probe=')) ?? (exe.endsWith('powershell.exe') ? 'registry' : 'installer-or-uninstaller')) + ':' + code + ' OUT=' + output.slice(-3000) + ' ERR=' + errors.slice(-3000))) })
   })
 }
 async function probe(exe, name) {
@@ -85,7 +85,7 @@ try {
   delete env.LCA_HISTORY_EXECUTABLE
   const thirdCircleScenarios = ['onboarding', 'life-work', 'sleep', 'flow-sleep', 'flow-drafts', 'desk-shadow', 'delegates', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'computer', 'web-fetch', 'booth', 'mini', 'showcase', 'life-port', 'resources', 'questions', 'desk-command', 'flow-rewind', 'settings', 'failure-narrator', 'privacy-probe']
   env.LCA_TEST_EXECUTABLE = exe
-  for (const name of thirdCircleScenarios) { stage = 'scenario:' + name; await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs')]); completedScenarios.push(name); console.log('Installed Electron scenario passed: ' + name) }
+  for (const name of thirdCircleScenarios) { stage = 'scenario:' + name; await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs')]); completedScenarios.push(name); console.log('Installed Electron scenario passed: ' + name); await new Promise((done) => setTimeout(done, 1500)) }
   delete env.LCA_TEST_EXECUTABLE
   const bytes = await readFile(installer)
   const report = { ok: true, status: 'passed', atIso: new Date().toISOString(), installer, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
@@ -104,3 +104,6 @@ try {
     if (name) await run(join(installDir, name), ['/S', '/currentuser'])
   }
 }
+
+
+

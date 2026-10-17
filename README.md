@@ -1,5 +1,7 @@
 # Love, College & Agent
 
+**10-18 02:00 v0.1.2（Issue 修复）：** 处理 #38–#47 十条 P2 审计 issue（真实 IMAP 空正文附件/超长单封/异步错误/附件重取、标题长度、JSON 歧义、privacy inspect、自定义角色夜景、文档口径）。源码 `1ca152b`，安装器 264,345,755 字节，SHA-256 `06b2487d…`，**26/26** 安装场景、75 文件/**530 单测**通过；Release `https://github.com/3067997259-design/love-college-agent/releases/tag/v0.1.2`（仓库冻结后转 public）。处理记录见[Issue 记录](docs/engineering/issues-20261018.md)。
+
 **10-18 00:05 v0.1.1（真实 IMAP）：** 已实现只读真实 IMAP source（只读“桃子”文件夹、不写已读、不写邮箱），应用可直接扫描真实未读邮件；真实邮箱本机走通“邮件→privacy→候选→确认→.ics/.md 交付→真实模型看到→羽毛笔→恢复”。源码 `4392b49`，安装器 264,344,481 字节，SHA-256 `770554c2…`，整轮 **26/26** 安装场景通过；Release：`https://github.com/3067997259-design/love-college-agent/releases/tag/v0.1.1`（仓库冻结后转 public）。演示存档 `demo-mail.lca-save`（474,880 字节，SHA-256 `2a1ab072…`）已在新 profile 恢复验证。详见[真实使用验证](docs/engineering/live-use-20261017.md)。
 
 **10-17 23:10 GitHub Release：** 安装包已发布到 `v0.1.0`：`https://github.com/3067997259-design/love-college-agent/releases/tag/v0.1.0`（安装器 264,346,098 字节，SHA-256 `61492b4c…`，GitHub 资产记录一致）。仓库当前 private，按计划在 2026-10-18 代码冻结后转 public。
