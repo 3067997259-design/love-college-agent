@@ -11,5 +11,5 @@
   "error": "操作没有完成，请检查当前命令状态。",
   "encoding": "无法可靠处理这条命令的文字编码，已停止执行或写回。请改用明确指定 UTF-8 的脚本。",
   "status": { "preparing": "正在准备书桌副本", "awaiting-approval": "等你确认", "running": "正在执行或写回", "completed": "已执行并核对写回", "failed": "执行或写回未完成", "cancelled": "已取消" },
-  "publication": { "unchanged": "未改文件", "applied": "已写回书桌", "not-applied": "未写回书桌", "partial": "写回中断，请核对书桌" }
+  "publication": { "unchanged": "未改文件", "applied": "已写回书桌", "not-applied": "未写回书桌", "partial": "写回中断，请核对书桌", "unknown": "完整结果未知，写回数仅为已核实下限" }
 }

@@ -6,6 +6,7 @@ import type { SessionStore } from '../store/session'
 import type { HarnessTool, ToolResult } from '../harness/tools'
 import type { JournalInput } from '../journal/schema'
 import { contentHash } from '../heart-flow/desk'
+import { appliedDeskChanges } from '../heart-flow/changes'
 import { CommandProcessFailure, type CommandProcessPort, type CommandProcessResult } from './process'
 import { deskCommandInput } from './schema'
 import { commandEdits, commandTreeHash, disposeCommandSnapshot, prepareCommandSnapshot, readCommandTree, type CommandSnapshot, type CommandEdit } from './snapshot'
@@ -21,11 +22,22 @@ export function createDeskCommands(options: {
 }) {
   const { store, clock } = options; let enabled = true; let closed = false; let current: Job | undefined; let view: DeskCommandView | undefined
   let worker: Promise<ToolResult> | undefined; let output: { id: string; text: string } | undefined; let viewFlowId: string | undefined
-  const rows = store.history?.() ?? store.records()
+  const history = () => store.history?.() ?? store.records()
+  // Recovery works even when this service is opened without HeartFlow first.
+  for (const row of history()) if (row.type === 'desk/change' && row.commandId && row.pending && !history().some((other) => other.type === 'desk/settled' && other.id === row.id)) {
+    let matches = false; try { matches = contentHash(options.current(row.path)) === contentHash(row.after) } catch { /* No confirmed publication. */ }
+    store.append({ type: 'desk/settled', id: row.id, status: matches ? 'applied' : 'failed' })
+  }
+  const published = (id: string) => appliedDeskChanges(history()).filter((row) => row.commandId === id).length
+  const rows = history()
   for (const row of rows) if (row.type === 'flow/command' && !['completed', 'failed', 'cancelled', 'interrupted'].includes(row.status) && rows.findLast((other) => other.type === 'flow/command' && other.id === row.id) === row) {
     const { version: _version, seq: _seq, atMs: _atMs, requestId: _request, commandHash: _hash, ...data } = row
     void _version; void _seq; void _atMs; void _request; void _hash
-    store.append({ ...data, status: 'interrupted' })
+    const appliedFiles = Math.max(row.outcome?.appliedFiles ?? 0, published(row.id))
+    const outcome: NonNullable<DeskCommandView['outcome']> = row.outcome
+      ? { ...row.outcome, appliedFiles, publication: row.outcome.changedFiles !== null && appliedFiles > 0 && appliedFiles === row.outcome.changedFiles ? 'applied' : appliedFiles > 0 && row.outcome.changedFiles !== null ? 'partial' : row.outcome.publication }
+      : { exitCode: null, elapsedMs: null, processTreeTerminated: null, publication: row.status === 'running' || appliedFiles > 0 ? 'unknown' : 'not-applied', changedFiles: null, appliedFiles }
+    store.append({ ...data, status: 'interrupted', outcome })
   }
   const record = (job: Job, status: Metadata['status'], receipt?: Receipt) => {
     try { store.append({ type: 'flow/command', id: job.view.id, flowId: job.flowId, ...(job.turnId ? { turnId: job.turnId } : {}), executionHash: contentHash(job.view.command), timeoutMs: job.view.timeoutMs,
@@ -49,7 +61,7 @@ export function createDeskCommands(options: {
     current = job; view = job.view; viewFlowId = flowId; output = undefined; record(job, 'preparing', receipt)
     const abort = () => { job.abort.abort(); job.decision?.(false) }; context?.signal.addEventListener('abort', abort, { once: true })
     const operation = (async (): Promise<ToolResult> => {
-      let process: CommandProcessResult | undefined; let edits: CommandEdit[] = []; let applied = 0; let attempts = 0; let publication: NonNullable<DeskCommandView['outcome']>['publication'] = 'not-applied'
+      let process: CommandProcessResult | undefined; let edits: CommandEdit[] = []; let diffReady = false; let applied = 0; let attempts = 0; let publication: NonNullable<DeskCommandView['outcome']>['publication'] = 'not-applied'
       let failure = false; let encodingFailure = false; let outputTruncated = false
       try {
         job.snapshot = await prepareCommandSnapshot(options.deskRoot, options.cacheRoot); job.abort.signal.throwIfAborted()
@@ -62,6 +74,8 @@ export function createDeskCommands(options: {
         if (!usable() || options.flowId() !== job.flowId || commandTreeHash(await readCommandTree(options.deskRoot)) !== job.snapshot.hash || commandTreeHash(await readCommandTree(job.snapshot.root)) !== job.snapshot.hash) throw new Error('COMMAND_INPUT_CHANGED')
         job.view.status = 'running'; record(job, 'running')
         process = await options.port.run({ root: job.snapshot.root, command: job.view.command, timeoutMs: job.view.timeoutMs }, job.abort.signal)
+        job.view.outcome = { exitCode: process.exitCode, elapsedMs: process.elapsedMs, processTreeTerminated: process.processTreeTerminated, publication: 'not-applied', changedFiles: null, appliedFiles: 0 }
+        record(job, 'running') // Process evidence is durable before diffing or publishing any file.
         const clean = (text: string) => {
           const safe = options.safeText(text).replaceAll(job.snapshot!.root, '[desk snapshot]'); let end = Math.min(16000, safe.length)
           if (end < safe.length && /[\ud800-\udbff]/.test(safe.charAt(end - 1))) end--
@@ -71,14 +85,16 @@ export function createDeskCommands(options: {
         output = { id: job.view.id, text: ['COMMAND', job.view.command, 'STDOUT', clean(process.stdout), 'STDERR', clean(process.stderr)].join('\n') }
         job.abort.signal.throwIfAborted()
         if (!usable() || options.flowId() !== job.flowId || process.status !== 'completed' || process.exitCode !== 0 || !process.processTreeTerminated) throw new Error('COMMAND_FAILED')
-        edits = await commandEdits(job.snapshot); job.abort.signal.throwIfAborted()
+        edits = await commandEdits(job.snapshot); diffReady = true; job.abort.signal.throwIfAborted()
         // All-file preflight first; no user file is overwritten to conceal a conflict.
         if (edits.some((edit) => contentHash(options.current(edit.path)) !== contentHash(edit.before))) throw new Error('COMMAND_OUTPUT_CONFLICT')
+        job.view.outcome = { ...job.view.outcome, changedFiles: edits.length }; record(job, 'running')
         job.publishing = true
         for (const edit of edits) {
           job.abort.signal.throwIfAborted()
           if (!usable() || options.flowId() !== job.flowId || contentHash(options.current(edit.path)) !== contentHash(edit.before)) throw new Error('COMMAND_OUTPUT_CONFLICT')
           attempts++; options.publish(job.view.id, edit); applied++
+          job.view.outcome = { ...job.view.outcome, appliedFiles: applied, publication: applied === edits.length ? 'applied' : 'partial' }; record(job, 'running')
           await new Promise<void>((done) => { systemClock.after(0, done) }) // Yield to stop/lights IPC between durable file writes.
         }
         publication = edits.length ? 'applied' : 'unchanged'
@@ -87,7 +103,7 @@ export function createDeskCommands(options: {
         job.publishing = false; job.decision = undefined
         job.view.status = job.abort.signal.aborted ? 'cancelled' : failure ? 'failed' : 'completed'
         if (failure && !job.abort.signal.aborted) job.view.error = { code: encodingFailure ? 'command-encoding-unsupported' : 'unavailable', retryable: false }
-        if (process) job.view.outcome = { exitCode: process.exitCode, elapsedMs: process.elapsedMs, processTreeTerminated: process.processTreeTerminated, publication, changedFiles: edits.length, appliedFiles: applied }
+        if (process) job.view.outcome = { exitCode: process.exitCode, elapsedMs: process.elapsedMs, processTreeTerminated: process.processTreeTerminated, publication, changedFiles: diffReady ? edits.length : null, appliedFiles: Math.max(applied, published(job.view.id)) }
         record(job, job.view.status)
         if (job.snapshot) { try { await disposeCommandSnapshot(job.snapshot) } catch { /* An altered scratch path is never followed or removed recursively. */ } }
         context?.signal.removeEventListener('abort', abort); if (current === job) current = undefined
