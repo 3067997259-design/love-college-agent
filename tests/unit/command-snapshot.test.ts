@@ -18,6 +18,11 @@ it('freezes exact text inputs and computes add/edit/delete without changing the 
   expect(await commandEdits(snapshot)).toEqual([{ path: 'a.txt', before: 'before', after: 'after' }, { path: 'delete.txt', before: 'old', after: null }, { path: 'new.txt', before: null, after: 'made' }])
   expect(await readFile(join(f.desk, 'a.txt'), 'utf8')).toBe('before'); await disposeCommandSnapshot(snapshot); await expect(readFile(join(snapshot.root, 'a.txt'))).rejects.toThrow()
 })
+it.skipIf(process.platform !== 'win32')('anchors Windows path casing aliases before containment checks', async () => {
+  const f = fixture(); writeFileSync(join(f.desk, 'source.txt'), 'DATA')
+  const snapshot = await prepareCommandSnapshot(f.desk.toUpperCase(), f.cache.toUpperCase())
+  expect(snapshot.files.get('source.txt')).toBe('DATA'); expect(await commandEdits(snapshot)).toEqual([]); await disposeCommandSnapshot(snapshot)
+})
 it.each(['oversized', 'nul', 'binary', 'hidden', 'hardlink'] as const)('refuses %s project inputs instead of silently omitting them', async (kind) => {
   const f = fixture(); const file = join(f.desk, kind === 'hidden' ? '.private' : 'source.txt')
   if (kind === 'hardlink') { writeFileSync(join(f.root, 'external'), 'private'); linkSync(join(f.root, 'external'), file) }

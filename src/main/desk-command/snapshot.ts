@@ -7,8 +7,10 @@ export type CommandSnapshot = { root: string; parent: string; files: ReadonlyMap
 export type CommandEdit = { path: string; before: string | null; after: string | null }
 /** Closed text project format: never silently omit binary files, links or unsupported paths. */
 export async function readCommandTree(root: string, runtime = false): Promise<Map<string, string>> {
-  const expected = resolve(root); const stat = await lstat(expected)
-  if (!stat.isDirectory() || stat.isSymbolicLink() || await realpath(expected) !== expected) throw new Error('COMMAND_TREE_INVALID')
+  const input = resolve(root); const stat = await lstat(input)
+  if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('COMMAND_TREE_INVALID')
+  // Windows may hand us an 8.3 temp-directory alias or different casing. Anchor every descendant to its canonical root.
+  const expected = await realpath(input)
   const files = new Map<string, string>(); let entries = 0
   const visit = async (folder: string, depth: number) => {
     if (depth > 8) throw new Error('COMMAND_TREE_LIMIT')
@@ -41,8 +43,9 @@ export function commandTreeHash(files: ReadonlyMap<string, string>): string {
 }
 export async function prepareCommandSnapshot(deskRoot: string, cacheRoot: string): Promise<CommandSnapshot> {
   const files = await readCommandTree(deskRoot)
-  await mkdir(cacheRoot, { recursive: true }); const parent = resolve(cacheRoot)
-  if ((await lstat(parent)).isSymbolicLink() || await realpath(parent) !== parent) throw new Error('COMMAND_CACHE_INVALID')
+  await mkdir(cacheRoot, { recursive: true })
+  if ((await lstat(cacheRoot)).isSymbolicLink()) throw new Error('COMMAND_CACHE_INVALID')
+  const parent = await realpath(cacheRoot)
   const root = join(parent, 'lca-command-' + randomUUID()); await mkdir(root)
   const snapshot: CommandSnapshot = { root, parent, files, hash: commandTreeHash(files) }
   try {
