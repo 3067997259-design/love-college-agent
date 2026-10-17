@@ -11,6 +11,18 @@ const frame = (delta: unknown, finish_reason: string | null = null) => `data: ${
 function stream(text = 'test reply') { return new Response(frame({ content: text, reasoning_content: 'must not surface' }, 'stop') + 'data: [DONE]\n\n') }
 
 describe('private compatible model client', () => {
+  it('keeps game JPEG resolution separate from desk PNG authority', async () => {
+    const jpeg = Buffer.from('ffd8ffe000040000ffc0000808000c001003ffd9', 'hex'); const ref = 'game-frame:' + 'b'.repeat(64)
+    const game: ModelRequest = { ...request(), messages: [{ role: 'tool', content: 'bounded game metadata', toolCallId: 'shot', imageRefs: [ref] }] }
+    const fetcher = vi.fn(async () => stream()); const resolve = vi.fn(() => jpeg)
+    await createModelClient(configs, ['chat'], createManualClock(), fetcher, { scope: 'game', resolve }).complete(game, () => {})
+    const messages = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).messages
+    expect(messages[1].content[1].image_url.url).toBe('data:image/jpeg;base64,' + jpeg.toString('base64'))
+    expect(messages[1].content[0].text).toContain('Minecraft')
+    const denied = vi.fn(); await expect(createModelClient(configs, ['chat'], createManualClock(), denied, { resolve }).complete(game, () => {})).rejects.toMatchObject({ kind: 'configuration' })
+    const work = { ...game, messages: [{ ...game.messages[0], imageRefs: ['work-frame:' + 'a'.repeat(64)] }] }
+    await expect(createModelClient(configs, ['chat'], createManualClock(), denied, { scope: 'game', resolve }).complete(work, () => {})).rejects.toMatchObject({ kind: 'configuration' }); expect(denied).not.toHaveBeenCalled()
+  })
   it('attaches only bounded owned work images after an entire tool batch, never unresolved files/URLs', async () => {
     const png = Buffer.alloc(33); Buffer.from('89504e470d0a1a0a', 'hex').copy(png); png.writeUInt32BE(800, 16); png.writeUInt32BE(600, 20)
     const ref = 'work-frame:' + 'a'.repeat(64); const fetcher = vi.fn(async () => stream()); const resolve = vi.fn(() => png)

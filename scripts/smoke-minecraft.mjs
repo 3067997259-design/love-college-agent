@@ -54,7 +54,7 @@ try {
   await controls.getByRole('button', { name: '核对游戏玩家', exact: true }).click(); await waitFor((s) => s.minecraft.status === 'ready', 'GAME_CHECK_FAILED')
   await controls.getByLabel('允许本轮公开游戏聊天').check(); await controls.getByRole('button', { name: '确认此玩家与范围并开始', exact: true }).click(); await waitFor((s) => s.minecraft.status === 'playing', 'GAME_START_FAILED')
   const roundId = (await snapshot()).minecraft.roundId; assert.equal((await snapshot()).minecraft.source, 'fake')
-  assert.deepEqual((await snapshot()).minecraft.features, ['inventory', 'scene', 'look'])
+  assert.deepEqual((await snapshot()).minecraft.features, ['inventory', 'scene', 'look', 'screenshot', 'mining'])
   await accepted({ type: 'mcp.disconnect', serverId: publicServer.id }); await waitFor((s) => s.mcp.servers.find((server) => server.id === publicServer.id)?.status === 'disconnected', 'OTHER_MCP_DISCONNECT_FAILED'); assert.equal((await snapshot()).minecraft.status, 'playing')
   await page.getByRole('button', { name: '关闭', exact: true }).click()
   await debug('set_fake_model', { script: [call('inventory', 'minecraft_inventory', {}), call('scene', 'minecraft_scene', {}), call('look', 'minecraft_look', { yaw: -90, pitch: 10 }), call('walk', 'minecraft_navigate', { x: 2, y: 64, z: 0 }), call('check', 'minecraft_navigation_status', {}), call('say', 'minecraft_chat', { message: 'SYNTHETIC_PUBLIC_REPLY' }), { text: 'GAME_ONLY_REPLY_CANARY', toolCalls: [], delayMs: 0 }] })

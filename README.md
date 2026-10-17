@@ -1,6 +1,12 @@
 # Love, College & Agent
 
-**MC 观察增补（2026-10-17）：** 接口 `37cb419` 先合 main；背包、原生射线场景、带 owner／新角度核验的转向及 Markdown 陪玩 skill 已接入，游戏工具增为七个。类型／lint、356 项单测和真实本机合成 MCP＋Electron 链路通过，原文仍不回普通日志／存档。截图、挖掘、展位预算与实机仍待推进，见 [观察记录](docs/engineering/minecraft-observations-third-circle.md) 和 [完整性复核](docs/engineering/third-circle-completion-audit.md)。
+**MC 近身挖掘（2026-10-17）：** 既有 allowMining 每轮单独同意，限定四种普通方块、survival／站稳／准星／工具和危险检查，启动后核验目标变空气且自己的挖掘输入已结束；不声称因果归属或拿到掉落物。类型／lint、388 单测及原生同意→场景→挖掘→背包→停止／重启通过，世界与模型为合成。`pnpm test:minecraft:mining`，见 [挖掘记录](docs/engineering/minecraft-mining-third-circle.md)。下一步是展位预算和心流剩余工具。
+
+**MC 图像增补（2026-10-17，前批）：** 默认关闭、每轮同意的 framebuffer 截图已接；实际 PNG 解码为有界 JPEG，只交独立游戏客户端，最近两帧仅内存，停止清除。类型／lint、377 单测、多模态 HTTP／共享预算／私人 ZIP 隔离及原有 MC、书桌预览原生回归通过；均为合成世界／模型。`pnpm test:minecraft:images`，见 [截图记录](docs/engineering/minecraft-screenshots-third-circle.md)。后续挖掘见上；AIRI 测试端点已核对，当时未监听。
+
+**心流／入睡交接修复（2026-10-17）：** #27 已补准备阶段的忙碌守卫及可取消的进入请求；旧异步结果不能越过入睡、熄灯或后来的进入请求。类型／lint、59 文件 361 单测、普通模式慢压缩原生按钮回归及既有睡眠／心流场景通过。`pnpm test:flow-sleep` 使用隔离合成历史和本机 HTTP，不请求真实模型；见 [睡眠记录](docs/engineering/sleep-third-circle.md)。
+
+**MC 观察增补（2026-10-17，前批）：** 接口 `37cb419` 先合 main；背包、原生射线场景、带 owner／新角度核验的转向及 Markdown 陪玩 skill 已接入，工具由四个增为七个。类型／lint、356 单测和本机合成 MCP＋Electron 通过，原文不回普通日志／存档。后续截图见上；前批证据见 [观察记录](docs/engineering/minecraft-observations-third-circle.md) 和 [完整性复核](docs/engineering/third-circle-completion-audit.md)。
 
 **自主作品普通端口（2026-10-17）：** 正常模式现已接 `background` 兼容客户端，共享自主预算、30 秒取消、严格 JSON／文件校验；缺槽位保持不可用。材料入口仍只有登记合成材料，未开放任意资料注册；fake 未完成作品不静默切换生产来源。类型／lint、346 项单测及普通模式真实 HTTP／实际文件／重启续做／取消／坏输出／普通上下文隔离通过，服务为本机合成。命令 `pnpm test:life-port`，见 [作品记录](docs/engineering/autonomous-work-third-circle.md)；真实供应商质量仍未验收。
 

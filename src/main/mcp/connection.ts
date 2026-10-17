@@ -14,6 +14,10 @@ import { configFingerprint, type McpConfigEntry } from './config'
 
 const nameSchema = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/)
 const resultSchema = z.object({ content: z.array(z.strictObject({ type: z.literal('text'), text: z.string().max(64_000), annotations: z.unknown().optional(), _meta: z.unknown().optional() })).max(32), isError: z.boolean().optional(), structuredContent: z.record(z.string(), z.unknown()).optional() })
+const imageResultSchema = z.object({ content: z.array(z.union([
+  z.object({ type: z.literal('image'), data: z.string().max(8_388_608), mimeType: z.literal('image/png') }),
+  z.object({ type: z.literal('text'), text: z.string().max(32_000) }),
+])).min(1).max(2), isError: z.boolean().optional(), structuredContent: z.record(z.string(), z.unknown()).optional() })
 function safeSchema(input: unknown): Record<string, unknown> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new McpFailure('configuration-failed')
   const encoded = JSON.stringify(input); if (encoded.length > 32_000 || /"\$(?:ref|dynamicRef)"/.test(encoded)) throw new McpFailure('configuration-failed')
@@ -75,6 +79,23 @@ export function createMcpConnection(options: { id: string; config: McpConfigEntr
     },
     identifierAllowed: (value: string) => value.length <= 128 && !privateParts.some((secret) => value.includes(secret)),
     text: sanitize,
+    // Fixed screenshot-only binary outlet. It never becomes a generic harness tool result.
+    image: async (input: Record<string, unknown>, signal: AbortSignal) => {
+      const spec = approved.get('screenshot')
+      if (config.privacy !== 'none' || !client || view.status !== 'ready' || !spec || !spec.validator.safeParse(input).success) throw new McpFailure('permission-denied')
+      signal.throwIfAborted(); const connected = client; const abort = new AbortController(); const forward = () => abort.abort(); signal.addEventListener('abort', forward, { once: true }); calls.add(abort)
+      try {
+        const output = await boundedMcp(clock, abort.signal, (requestSignal) => connected.callTool({ name: 'screenshot', arguments: input }, undefined, { signal: requestSignal, timeout: 2_147_000_000 }))
+        abort.signal.throwIfAborted(); if (client !== connected || view.status !== 'ready') throw new McpFailure('connection-failed')
+        const parsed = imageResultSchema.safeParse(output)
+        if (!parsed.success || parsed.data.isError) throw new McpFailure('mcp-invalid-result')
+        const images = parsed.data.content.filter((item) => item.type === 'image'); const texts = parsed.data.content.filter((item) => item.type === 'text')
+        const metadata: unknown = parsed.data.structuredContent ?? JSON.parse(texts.map((item) => item.text).join('\n'))
+        if (images.length !== 1 || !metadata || typeof metadata !== 'object' || Array.isArray(metadata) || JSON.stringify(metadata).length > 32000) throw new McpFailure('mcp-invalid-result')
+        return { data: images[0].data, mimeType: images[0].mimeType, metadata: metadata as Record<string, unknown> }
+      } catch (error) { throw new McpFailure(error instanceof McpFailure ? error.code : abort.signal.aborted ? 'operation-cancelled' : 'mcp-invalid-result') }
+      finally { calls.delete(abort); signal.removeEventListener('abort', forward) }
+    },
     call: async (name: string, input: Record<string, unknown>, signal: AbortSignal): Promise<unknown> => {
       const spec = approved.get(name)
       if (config.privacy !== 'none' || !client || view.status !== 'ready' || !spec || !spec.validator.safeParse(input).success) throw new McpFailure('permission-denied')

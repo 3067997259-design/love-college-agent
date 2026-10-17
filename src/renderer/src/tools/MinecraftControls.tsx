@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot } from '../../../shared'
 /** Plain operator controls; Claude owns the game scene and voice. */
 export function MinecraftControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
-  const [selected, setSelected] = useState(''); const [radius, setRadius] = useState(8); const [seconds, setSeconds] = useState(60); const [chat, setChat] = useState(false); const [error, setError] = useState('')
+  const [selected, setSelected] = useState(''); const [radius, setRadius] = useState(8); const [seconds, setSeconds] = useState(60); const [chat, setChat] = useState(false); const [screenshots, setScreenshots] = useState(false); const [mining, setMining] = useState(false); const [error, setError] = useState('')
   const view = snapshot.minecraft
   if (!view || snapshot.runtime?.developer.mode === 'normal') return null
   const servers = snapshot.mcp?.servers.filter((server) => server.tools.includes('get_world_session')) ?? []; const serverId = selected || servers[0]?.id || ''
@@ -19,7 +19,9 @@ export function MinecraftControls({ bridge, snapshot }: { bridge: AppBridge; sna
     <label>附近半径（格）<input aria-label="游戏半径" type="number" min={1} max={16} value={radius} disabled={active} onChange={(event) => setRadius(Number(event.target.value))} /></label>
     <label>本轮秒数<input aria-label="游戏秒数" type="number" min={1} max={600} value={seconds} disabled={active} onChange={(event) => setSeconds(Number(event.target.value))} /></label>
     <label><input type="checkbox" checked={chat} disabled={active} onChange={(event) => setChat(event.target.checked)} />允许本轮公开游戏聊天</label>
-    <button disabled={active || view.status !== 'ready' || view.serverId !== serverId || !view.pilot} onClick={() => void send({ type: 'minecraft.start', serverId, expectedPlayerUuid: view.pilot!.uuid, scope: { radiusBlocks: radius, durationMs: seconds * 1000, allowChat: chat } })}>确认此玩家与范围并开始</button>
+    <label><input type="checkbox" checked={screenshots} disabled={active || !view.features?.includes('screenshot')} onChange={(event) => setScreenshots(event.target.checked)} />允许本轮游戏截图交给游戏模型</label>
+    <label><input type="checkbox" checked={mining} disabled={active || !view.features?.includes('mining')} onChange={(event) => setMining(event.target.checked)} />允许本轮近身生存挖掘（泥土／草方块／石头／圆石）</label>
+    <button disabled={active || view.status !== 'ready' || view.serverId !== serverId || !view.pilot} onClick={() => void send({ type: 'minecraft.start', serverId, expectedPlayerUuid: view.pilot!.uuid, scope: { radiusBlocks: radius, durationMs: seconds * 1000, allowChat: chat, allowScreenshots: screenshots, allowMining: mining } })}>确认此玩家与范围并开始</button>
     <button disabled={!active && view.stopVerified} onClick={() => void send({ type: 'minecraft.stop' })}>停止游戏轮次</button>
     {view.lastAction && <p>最近动作：{view.lastAction.kind} · {view.lastAction.status}</p>}
     {(error || view.error) && <p role="alert">{error || view.error?.code}</p>}
