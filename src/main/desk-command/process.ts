@@ -11,7 +11,7 @@ export type CommandProcessResult = z.infer<typeof outcome>
 export class CommandProcessFailure extends Error {
   constructor(readonly stage: string, readonly nativeCode?: number) { super('COMMAND_EXECUTOR_FAILED') }
 }
-const nativeFailure = z.strictObject({ status: z.literal('unavailable'), stage: z.enum(['input', 'profile', 'acl', 'label-descriptor', 'label-sacl', 'label-apply', 'runtime-directory', 'job', 'pipes', 'attributes', 'launch', 'token']), error: z.string().regex(/^(?:(?:win32|hresult)--?\d+|sandbox-unavailable)$/) })
+const nativeFailure = z.strictObject({ status: z.literal('unavailable'), stage: z.enum(['input', 'encoding', 'profile', 'acl', 'label-descriptor', 'label-sacl', 'label-apply', 'runtime-directory', 'job', 'pipes', 'attributes', 'launch', 'token']), error: z.string().regex(/^(?:(?:win32|hresult)--?\d+|sandbox-unavailable|command-encoding-unsupported)$/) })
 export interface CommandProcessPort {
   available(): boolean
   run(input: { root: string; command: string; timeoutMs: number }, signal: AbortSignal): Promise<CommandProcessResult>
