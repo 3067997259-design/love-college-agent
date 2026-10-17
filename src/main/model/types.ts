@@ -1,7 +1,7 @@
 import type { ContextMessage } from '../journal/schema'
 import type { ProviderSlot } from '../config/providers'
 
-export type ModelFailureKind = 'configuration' | 'network' | 'timeout' | 'upstream' | 'quota' | 'cancelled' | 'invalid-output' | 'interrupted'
+export type ModelFailureKind = 'configuration' | 'network' | 'timeout' | 'upstream' | 'quota' | 'cancelled' | 'invalid-output' | 'interrupted' | 'content-filtered'
 export class ModelFailure extends Error {
   constructor(readonly kind: ModelFailureKind, readonly partialText = '', readonly httpStatus?: number, readonly retryAfterMs?: number) {
     super('MODEL_REQUEST_FAILED')

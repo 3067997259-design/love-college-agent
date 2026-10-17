@@ -3,6 +3,7 @@ import type { ProviderConfig, ProviderSlot } from '../config/providers'
 import { readCompletionStream } from './stream'
 import { ModelFailure, type ModelAttempt, type ModelClient, type ModelRequest } from './types'
 import { imageSize } from './image-size'
+import { z } from 'zod'
 
 type Fetcher = (url: string, options: RequestInit) => Promise<Response>
 type ImageResolver = { scope?: 'game'; resolve(ref: string): Buffer }
@@ -54,7 +55,9 @@ async function classifyHttp(response: Response, clock: Clock, signal: AbortSigna
     }
   } catch { /* Remote content is used privately only for fixed classification. */ }
   finally { await reader?.cancel().catch(() => {}); reader?.releaseLock() }
-  const kind = /balance|quota|credit|余额|额度|insufficient/i.test(text) ? 'quota'
+  let explicitFilter = false
+  try { const body: unknown = JSON.parse(text); const marker = z.object({ error: z.object({ code: z.enum(['content_filter', 'content_policy_violation', 'safety_rejection']) }) }).safeParse(body); explicitFilter = marker.success } catch { /* Only structured, explicit markers classify a content rejection. */ }
+  const kind = explicitFilter ? 'content-filtered' : /balance|quota|credit|余额|额度|insufficient/i.test(text) ? 'quota'
     : [400, 401, 403, 404].includes(response.status) || /invalid.?key|not.?supported|model.*not.?found/i.test(text) ? 'configuration' : 'upstream'
   return new ModelFailure(kind, '', response.status, retryAfter(response.headers.get('retry-after'), clock))
 }
@@ -111,7 +114,7 @@ export function createModelClient(configs: ReadonlyMap<ProviderSlot, ProviderCon
           if (last.kind === 'cancelled') throw last
           if (request.toolsExecuted && ['network', 'timeout', 'interrupted'].includes(last.kind)) throw last
           // An executed tool or a visible partial response is never replayed automatically.
-          if (last.kind === 'interrupted' || last.partialText || last.kind === 'invalid-output' || last.kind === 'quota') throw last
+          if (last.kind === 'interrupted' || last.partialText || last.kind === 'invalid-output' || last.kind === 'quota' || last.kind === 'content-filtered') throw last
           if (last.httpStatus === 503) consecutive503++; else consecutive503 = 0
           if (last.kind === 'configuration' || consecutive503 >= 2 || attempt === 4) break
           const delay = last.retryAfterMs ?? (last.httpStatus === 429 ? 5000 : 1000 * 2 ** (attempt - 1))

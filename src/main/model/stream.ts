@@ -38,6 +38,7 @@ export async function readCompletionStream(response: Response, signal: AbortSign
         calls.set(delta.index, call)
       }
       if (choice.finish_reason === 'stop' || choice.finish_reason === 'tool_calls') finished = true
+      else if (choice.finish_reason === 'content_filter') throw new ModelFailure('content-filtered', visible())
       else if (choice.finish_reason) throw new ModelFailure('interrupted', visible())
     }
   }

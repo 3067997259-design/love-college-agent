@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, PomodoroPlanView, QuillView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
 import { CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
@@ -14,6 +14,8 @@ import { FlowApproval, FlowPanel } from './flow/FlowPanel'
 import { QuestionControls } from './QuestionControls'
 import { CommandControls } from './CommandControls'
 import { RewindControls } from './RewindControls'
+import { FailureDetails } from './FailureDetails'
+import failureWords from '../voice/failure.zh.json'
 
 type Item =
   | { kind: 'message'; at: number; id: string; view: MessageView }
@@ -64,6 +66,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
   const restoreReceipt = backup && (backup.status === 'restored' || (backup.status === 'failed' && backup.error?.code === 'restore-failed')) ? backup : null
   const entering = useEnteringIds(snapshot)
   const streamRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [commandError, setCommandError] = useState('')
@@ -129,7 +132,13 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
         <RewindControls snapshot={snapshot} bridge={bridge} />
         {items.map((item) => {
           switch (item.kind) {
-            case 'message': return <Message key={item.id} view={item.view} />
+            case 'message': {
+              const source = item.view.failure?.sourceMessageId ? messages.find((message) => message.role === 'user' && message.id === item.view.failure!.sourceMessageId) : undefined
+              return <Fragment key={item.id}><Message view={item.view} />{item.view.failure && <FailureDetails failure={item.view.failure} onDraft={source ? () => {
+                if (draft.trim() || quote) { setCommandError(failureWords.draftExists); return }
+                setCommandError(''); setDraft(source.text); inputRef.current?.focus()
+              } : undefined} />}</Fragment>
+            }
             case 'task': return task && <TaskCard key={item.id} task={task} activities={activities} />
             case 'candidate': return (
               <CandidateCard key={`${item.id}:${item.view.revision ?? 0}`} view={item.view} bridge={bridge} entering={entering.has(item.id)}
@@ -169,6 +178,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
         {commandError && <span role="alert" className="notice-mark" title={commandError} aria-label={commandError}>！</span>}
         {privacy.fileFilteringEnabled && <span className="filter-mark" title="/privacy 开着：附件和拖进来的文件只交给隐私模型">滤芯</span>}
         <textarea
+          ref={inputRef}
           className="composer-input" rows={1} value={draft} placeholder={quote ? book.history.placeholder : '写点什么……'}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send() } }}

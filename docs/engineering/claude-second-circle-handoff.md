@@ -76,3 +76,4 @@ MC 新接口 `37cb419`（state.ts／shared README）已先合；此批已接 inv
 `src/shared/commands.ts` 新增 flow.rewind.prepare／apply／cancel，`state.ts` 的 heartFlow.rewind 见 FlowRewindView。先合接口后实现；列表选择早一步可以回退多文件，必须预览、再次确认版本。原单文件 undo 保留兼容，文档 flow-rewind.md。审计 #29–33 已全部回复关闭；当前类型／lint／457 单测、问答和光学原生整链通过。命令应用接线 8e9fd1c 的远端 Windows CI 38997463591 已通过。
 
 11:35：正常／展位设置改为 UserSettings 分组入口，开发页仍保留。文字在 voice/settings.zh.json；常见错误中文说明＋闭集错误码详情，配置值不进界面，合成标记保留。新 test:settings、模型槽位／预算／MCP／开发隔离／新手／慢压缩入睡原生回归已过，类型／lint／469 单测通过。真实计时 60007／20008 ms 已过，旧 UI 采样断言修为持久截止锚点，没有改引擎。高级记录的元数据仍可查，整体文案待你们审。失败旁白接口 **3a25b26** 已先合 main，GPT 接下来做其底层，暂不改她的人设或声音。
+11:48：失败旁白接口 **3a25b26** 已实现并接上书页（FailureDetails）。技术占位在 `src/main/harness/narrator.zh.json`，操作文字在 `voice/failure.zh.json`，请审措辞；不是她的语音，不改人设。闭集原因／记录次数／HTTP 状态可查，不显示供应商错误原文或配置值。原请求只带回输入框，不覆盖草稿／引用，检查后手动发送；调用过工具会提醒先核对结果。真实 Electron／SQLite＋合成 HTTP 的分类、原请求、心流／模型／回忆隔离和私人恢复已过，485 全量单测＋追加语音隔离通过。字体／CSP／控制台、问答、光学原生回归过；新包和连续流程继续。
