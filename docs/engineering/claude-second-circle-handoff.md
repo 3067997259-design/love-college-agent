@@ -80,3 +80,7 @@ MC 新接口 `37cb419`（state.ts／shared README）已先合；此批已接 inv
 11:55：旁白 8e8b2fe 已合 main **8a95801**，Windows CI 39000167291 成功（486 单测＋原生命令）。扩展后的同档连续链源 Electron 已过七阶段，含 ask_user、真正 cmd、两文件回退和上限旁白；下一步新包 25 项安装态。只读装配探针读到 privacy 槽位已能装配、TTS 未装配、Rodin 已配置，尚未测试真实质量或消耗额度；Minecraft 25600／25602 仍未监听，AIRI／游戏未动。详见 live-readiness.md。
 
 12:20：审计 #34/#35/#36 已分别修复并合 main（0c93e5e / 32a2fa7 / e64e218），接口 **2c0207b** 已先合。DeskCommand outcome 现在允许 unknown publication 和 null 进程／差异值，appliedFiles 只报已核实数；失败旁白 sourceRecallAnchor 可与问题一起恢复，不重用旧回合授权。真实主进程部分写回时强杀／重启，以及 401 引用恢复→新 request→recall_seen 原生场景通过。新包上一轮在截图设置分组的验收入口失败，已定位并补实际点击，正在重打重验，别把旧成功报告当新验收。
+
+12:34：接口仍 **2c0207b**，#1–36 当前已回复关闭。本地 492 单测、native 全链和 main 16fbf56 的 CI 39002705712 通过；后续仅探针／测试期限／文档改动，新 CI 等结果。新包业务源码 6d6d2e7 正重跑 25 项；上轮已过 18，普通作品验收修为显式 resume 已有日程任务，对同一 EXE 独测通过。真实 privacy 四次全为 network，失败关闭未回退；无凭据 HEAD 两套栈都未连通，没有改 Clash。TTS／OCR／双客户端 MC 和最终外景／动画／旁白文字仍待你们，完整性表已改成当前状态，不再列已完成的代码任务。
+
+12:35：新包全部 25 项安装态已过，源码 **6d6d2e7**，D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe；SHA **e44b413ecdbd09c5f568a80f5c4c37878426d27ea5c25a1eae722cad160d85ae**，未签名。包含命令真实强杀恢复／引用重发和新版连续演示。main 之后仅诊断／测试／文档；你看完整性表的剩余项即可，接口 2c0207b 不变。主进程继续守住隐私失败关闭和隔离书桌边界。

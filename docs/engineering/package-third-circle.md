@@ -2,13 +2,13 @@
 
 `pnpm package:win` 构建当前 Windows NSIS 包，临时目录、electron-builder 和 Electron 缓存沿用 D 盘。`release/build-receipt.json` 绑定实际 Git revision、已跟踪改动标记、安装器和 app.asar SHA-256；构建途中源码改变则拒绝生成回执。回执、包及 test-results 为本机产物，不进入源码提交。
 
-`pnpm test:package` 先核对回执哈希、包内凭据／本地数据排除和解包的 SQLite 原生模块，再做解包版／真实安装版原生探针、普通 profile 重启和历史照片／引用。随后用同一个实际安装 EXE 顺序运行 onboarding、life-work、sleep、flow-drafts、desk-shadow、delegates、optical、minecraft、voice、computer、web-fetch、booth、mini、showcase 和 life-port，共 15 项原生场景。模型／服务为自有合成 HTTP 或 fake，不消耗真实生成额度，也不把通过这些测试当真实模型质量验收。
+`pnpm test:package` 先核对回执哈希、包内凭据／本地数据排除和解包的 SQLite 原生模块，再做解包版／真实安装版原生探针、普通 profile 重启和历史照片／引用。随后用同一个实际安装 EXE 顺序运行 25 项原生场景，包含游戏图像／stdio／挖掘、资源、问答、实际命令、步骤回退、设置和失败旁白。完整名单写入本轮报告。模型／服务为自有合成 HTTP 或 fake，不消耗真实生成额度，也不把通过这些测试当真实模型质量验收。
 
 测试安装目录是 D 盘独立 GUID 目录，预先核对绝对路径归属；已有同名用户安装时拒绝升级／卸载。测试结束只调用自己本轮安装目录的卸载器。各场景使用独立 profile，未加载用户凭据或正常书本；不得为绕过检查删除用户的安装记录。
 
 2026-10-17 07:28 实测通过：七类探针分别跑解包版与安装版、普通界面重启、完整历史照片／引用／私人恢复，以及上述 15 项安装版原生场景，最终 `ok=true`。测试安装已卸载。源码回执 `6571c057a5da9dd8c5afb96e22398f43a1de2c68`，trackedDirty=false，该 SHA 的 CI 也已通过。安装器 238117936 字节，SHA-256 `763c365b563fd5b1285775e5c6c148442376d72bda20c711f7715354e8685b85`；实际 Authenticode 状态 NotSigned。此包替代 07:08 的 4a34e4d 测试包。
 
-本机安装器：`D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe`；构建回执 `release/build-receipt.json`，验收报告 `test-results/package-report.json`。main checkout 的 release 不会随 Git 合并更新。前 13 个场景按独立 profile 顺序跑，showcase 是同一书本的跨功能连续链路，life-port 在普通模式走本机合成 HTTP 客户端验证六步产物、取消、坏输出及隔离。这些场景仍不是五分钟路演观感、真实供应商质量或长期自主运行的证明。
+本机安装器：`D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe`；构建回执 `release/build-receipt.json`，验收报告 `test-results/package-report.json`。main checkout 的 release 不会随 Git 合并更新。场景按独立 profile 顺序跑，showcase 在同一书本串起跨功能连续链路，life-port 在普通模式走本机合成 HTTP 客户端验证六步产物、取消、坏输出及隔离。这些场景仍不是五分钟路演观感、真实供应商质量或长期自主运行的证明。
 
 11:55：验收入口已扩至 25 项，收录后续的 flow-sleep、游戏图像／stdio／挖掘、资源账本，以及 questions、desk-command、flow-rewind、settings、failure-narrator。showcase 源码新的七阶段连续链已通过；此次新 NSIS 的构建、实际安装及完整 25 项结果待补，以上 07:28 的包仍只对应当时 15 项，不能混用 SHA 或证据。
 
@@ -21,3 +21,5 @@
 12:28：含 #34–36 修复的 6d6d2e7 安装包通过前 18 项，life-port 的旧场景在上午 11 点后的真实作息登记上失败：重启已保留 interrupted 写作任务，start 幂等不能替代 resume。只改验收为显式恢复已有任务；对同一 unpacked EXE 的普通端口整链已通过，仍严格核对八次请求／六步实际产物／取消／坏输出和普通上下文排除。未改应用重启保护，不需因此重建相同业务二进制；接下来对该包完整重跑 25 项。
 
 CI 39002596878 的失败发生在 #23 配置导入／读回的纯文件系统单测，超过 Vitest 默认 5 秒；未进入 native 阶段。仅该文件系统用例保留 15 秒 fixture 上限，断言和应用期限不变，本机六项配置单测通过。另对已配置 privacy 的 origin 做无凭据 HEAD 诊断，Node 为 ECONNRESET、Chromium 也未连通，系统没有选中代理；没有响应正文或模型调用，不据此修改系统／Clash 或替换运行网络栈。
+
+12:35 最新完整安装验收通过：源码 6d6d2e76edfadd06b8de52a7d355efc09fd23acf、trackedDirty=false；两侧各七类探针、普通重启／历史照片与引用，以及全部 25 项真实安装场景，最终报告 ok=true。包含实际主进程部分写回后强杀、重启数量／摘要与不补写；引用 401 后问题＋锚点恢复并新请求扩读；七阶段同档连续演示及私人恢复。安装器 **238167481 字节**，SHA-256 **e44b413ecdbd09c5f568a80f5c4c37878426d27ea5c25a1eae722cad160d85ae**；asar **6fdbd9fc3e209c484de209992f2935cea6765fa3affdf2c6b9d955f6cd565a56**，实查 NotSigned。测试安装已按本轮 GUID 卸载。此后 main 的差异仅诊断脚本／测试／说明，不能把包的源码 SHA 写成后续 HEAD。
