@@ -71,8 +71,8 @@ pnpm test:package
 `test:package` 检查 ASAR，运行解包和实际安装后的 SQLite／日志／番茄钟／存档探针，再检查界面重启，最后卸载自己刚建的 D 盘测试实例。发现已有同名用户安装会拒绝覆盖。测试用合成输入或不存在的供应商文件，不执行真实邮箱或模型调用。不要把这些结果当另一台干净机器的验收；该项仍需队友实际复现。
 
 CDP 仅开发模式：GPT 9527／其他 9427；鉴权 MCP：5275／5175。多实例用 `LCA_CDP_PORT`、`LCA_MCP_PORT` 分开。令牌留在开发 profile `debug-connection.json`，不打印或发给模型。安全诊断显示已采集的值，未采集的费用和缓存等显示未提供。
-## 最新安装验收（2026-10-17 21:44）
+## 最新安装验收（2026-10-17 22:34）
 
-最新 NSIS 于 2026-10-17 21:44 基于源码 `ba9aedc` 完成实际安装验收（含今晚外景／生活瞬间／19 张差分与夜景重光），位于 `D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe`，**264,345,609 字节**；SHA-256 `2893bf477e30dfc6b77ad3759a3d1a94c770d300c46fec721145d9834430d12a`，实际签名 NotSigned。解包版／安装版七类探针、普通界面重启、历史照片／引用／恢复及全部 **26 项安装版原生场景**均通过（报告 ok=true）；模型／服务为合成，不是实机 MC 或真实 OCR／TTS 质量验收。测试目录在 D 盘，测试安装已卸载。构建回执 `release/build-receipt.json`（sourceRevision `ba9aedc…`，trackedDirty=false），报告 `test-results/package-report.json`；此包取代 12:50 的 `3edea7c` 旧产物，main checkout 的 release 不随 Git 合并更新。详细复现和边界见 [第三圈安装态记录](engineering/package-third-circle.md)。
+最新 NSIS 于 2026-10-17 22:34 基于源码 `efafe5d` 完成实际安装验收（21:44 全素材包 + 真实使用修复：`get_clock` 上海本地时间、记忆 JSON 容错），位于 `D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe`，**264,346,098 字节**；SHA-256 `61492b4cf67caeb6c86d553ab74b74d8c9bcdf4c2fc989f349b7a52fa9f5af7f`，实际签名 NotSigned。解包版／安装版七类探针、普通界面重启、历史照片／引用／恢复及全部 **26 项安装版原生场景**均通过（报告 ok=true；首轮 showcase 偶发退出，单跑与整轮重跑均通过）；模型／服务为合成，不是实机 MC 或真实 OCR／TTS 质量验收。本机另用真实 providers 复测：时钟回答上海时间、记忆抽取 success。测试目录在 D 盘，测试安装已卸载。构建回执 `release/build-receipt.json`（sourceRevision `efafe5d…`，trackedDirty=false），报告 `test-results/package-report.json`；此包取代 21:44 的 `ba9aedc` 旧产物，main checkout 的 release 不随 Git 合并更新。详细复现和边界见 [第三圈安装态记录](engineering/package-third-circle.md) 与[真实使用验证](engineering/live-use-20261017.md)。
 
 `pnpm package:win` 重建当前 worktree 的包；`pnpm test:package` 验证该包。不要从 main 目录拿旧 release 代替这次产物。显式 `LCA_DATA_DIR` 的实例把房间投影放进各自数据目录；正常安装、不设该变量时才放“文档/桃子的房间/<作用域摘要>-<数据根摘要>”，目录名含数据根身份，不同 profile 不共用房间。Python 只用于源码／CI 的 ZIP 独立验证，安装后的应用不需要 Python；没有下载 Playwright 浏览器。
