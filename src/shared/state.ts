@@ -13,7 +13,7 @@ export const PUBLIC_ERROR_CODES = ['invalid-command', 'stale-epoch', 'unavailabl
   'configuration-failed', 'upstream-busy', 'quota-exhausted', 'stream-interrupted', 'invalid-model-output', 'step-limit', 'repeat-limit', 'budget-exceeded',
   'privacy-invalid-output', 'evidence-unavailable', 'stale-candidate', 'export-failed', 'source-blocked',
   'unsupported-file', 'file-too-large', 'file-unreadable', 'document-parse-failed', 'document-interrupted', 'memory-invalid-output', 'context-too-large',
-  'mcp-invalid-result', 'operation-cancelled', 'backup-invalid', 'backup-scope-mismatch', 'restore-failed'] as const
+  'mcp-invalid-result', 'operation-cancelled', 'backup-invalid', 'backup-scope-mismatch', 'restore-failed', 'command-encoding-unsupported'] as const
 export type PublicErrorCode = typeof PUBLIC_ERROR_CODES[number]
 
 export interface PublicError {
