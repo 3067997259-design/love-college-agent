@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { commandOutcome } from '../desk-command/schema'
+import { rewindSchema } from '../heart-flow/rewind'
 import { goalSchema } from '../heart-flow/goals'
 import { operationSchema } from '../heart-flow/operations'
 import { PUBLIC_ERROR_CODES } from '../../shared'
@@ -73,7 +74,8 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('flow/close'), id, summary: z.string().max(2000) }),
   z.strictObject({ type: z.literal('flow/compact'), id, throughSeq: z.number().int().positive(), summary: z.string().max(6000), focus: z.string().max(500).optional(),
     retained: z.strictObject({ turnId: id, messages: z.array(contextMessageSchema).max(200) }).optional() }),
-  z.strictObject({ type: z.literal('desk/change'), id, flowId: id, path: z.string().max(180), before: z.string().max(64000).nullable(), after: z.string().max(64000).nullable(), undoes: id.optional(), pending: z.boolean().optional(), commandId: z.string().uuid().optional() }),
+  z.strictObject({ type: z.literal('desk/change'), id, flowId: id, path: z.string().max(180), before: z.string().max(64000).nullable(), after: z.string().max(64000).nullable(), undoes: id.optional(), pending: z.boolean().optional(), commandId: z.string().uuid().optional(), rewindId: z.string().uuid().optional(), rewinds: z.array(id).max(500).optional() }),
+  rewindSchema.extend({ type: z.literal('flow/rewind') }),
   z.strictObject({ type: z.literal('desk/settled'), id, status: z.enum(['applied', 'failed']) }),
   z.strictObject({ type: z.literal('flow/run'), id, flowId: id, status: z.enum(['requested', 'approved', 'denied', 'completed', 'failed', 'interrupted']), codeHash: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ type: z.literal('flow/command'), id: z.string().uuid(), flowId: id, turnId: id.optional(), status: z.enum(['preparing', 'awaiting-approval', 'approved', 'denied', 'running', 'completed', 'failed', 'cancelled', 'interrupted']),

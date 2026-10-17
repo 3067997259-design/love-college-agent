@@ -410,6 +410,7 @@ pnpm dev
 | `pnpm probe:harness` | 真实模型调用 get_clock 并结束回合，通过 |
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron：发送、工具往返、停止断连、重启恢复通过 |
 | `pnpm test:questions` | 真实 SQLite 延迟日切／作用域额度；有界 ask_user、书本千字提示、专注到休息、心流隔离、合成 HTTP、停止／重启／私人恢复 |
+| `pnpm test:flow-rewind` | 书页选择边界／确认、实际多文件回退、版本冲突、取消、重启／私人恢复不重放；fake 工作模型 |
 | `pnpm probe:desk-command:runtime` | Windows 原生隔离／中文或明确拒绝／外部文件及网络拒绝／上限／取消／子进程退出；真实主进程协议 |
 | `pnpm test:desk-command` | Electron 逐次人工审批、实际 cmd 与受版本保护的写回、输出窗口、编码错误、取消／重启／私人恢复、展位拒绝 |
 | `pnpm test:developer` | 隔离假模型、鉴权 MCP、时钟、目录插件确认、场景与展位拒绝通过 |

@@ -71,5 +71,7 @@ MC 新接口 `37cb419`（state.ts／shared README）已先合；此批已接 inv
 审计新开 #29～#33：先前 #1～#28 都已回复关闭；这批将逐项修复并回 issue。#31 原生编码修复已合，等远端链完整结果；#29 目标别名取消问答、#30 延迟翻页的日问答计数、#32 回答字数提示、#33 关闭印象后的选段入口随后修。不宣告第三圈完工，步骤回退／正常设置／失败旁白及最终安装态仍在原范围内。
 # 步骤回退接口（2026-10-17 11:15）
 
+接口 SHA **9d5fe06**（main 合并 3b2e57f），实现的 RewindControls 与 rewind.zh.json 已接朴素卡；FlowPanel 只加了范围预览按钮，原单版本按钮保留。多文件和私人恢复原生整链、类型／lint／469 单测通过，旧包待收录。正常设置和失败旁白接下来由 GPT 继续。
+
 `src/shared/commands.ts` 新增 flow.rewind.prepare／apply／cancel，`state.ts` 的 heartFlow.rewind 见 FlowRewindView。先合接口后实现；列表选择早一步可以回退多文件，必须预览、再次确认版本。原单文件 undo 保留兼容，文档 flow-rewind.md。审计 #29–33 已全部回复关闭；当前类型／lint／457 单测、问答和光学原生整链通过。命令应用接线 8e9fd1c 的远端 Windows CI 38997463591 已通过。
 

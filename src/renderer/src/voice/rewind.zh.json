@@ -1,0 +1,12 @@
+{
+  "title": "回到这一步之前",
+  "boundary": "从这里往后回退",
+  "files": "份文件已核实回退",
+  "count": "涉及 {count} 条书桌改动。",
+  "confirm": "确认回退这些文件",
+  "cancel": "取消回退",
+  "limit": "只回退记录覆盖的书桌文件。对话和日志保留，命令的其他副作用不撤回；多文件写入可能部分完成。",
+  "failed": "操作未受理，请核对当前回退状态。",
+  "status": { "awaiting-confirmation": "请核对范围", "running": "正在逐份回退", "completed": "文件回退已完成", "failed": "回退未全部完成", "cancelled": "回退已取消", "interrupted": "上次回退被中断，不会自动继续" },
+  "errors": { "conflict": "文件或改动记录已变化，请重新核对回退范围。", "write-failed": "写入未全部核实，请先检查当前文件。", "unavailable": "当前无法回退。" }
+}

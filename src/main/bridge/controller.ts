@@ -103,6 +103,9 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('flow.resume'), flowId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('flow.delegate.cancel'), delegateId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('flow.undo'), changeId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.rewind.prepare'), changeId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.rewind.apply'), rewindId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('flow.rewind.cancel'), rewindId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('flow.run'), code: z.string().min(1).max(10000) }),
   z.strictObject({ ...envelope, type: z.literal('flow.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('message.send'), text: z.string().trim().min(1).max(20_000) }),
@@ -412,8 +415,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       const section = ({ '/permissions': 'permissions', '/status': 'status', '/diff': 'diff' } as const)[text as '/permissions' | '/status' | '/diff']
       const goalText = text.startsWith('/goal ') ? text.slice(6).trim() : ''; const flowView = heartFlow.view(); const selectedGoal = flowView.goals?.find((goal) => goal.id === flowView.goalId && goal.status === 'active')
       const action: AppCommand | undefined = goalText ? { ...command, type: 'flow.goal.set', text: goalText, ...(selectedGoal ? { goalId: selectedGoal.id } : {}) } : text === '/init' ? { ...command, type: 'flow.init' } : text === '/review' ? { ...command, type: 'flow.review' } : text === '/exit' ? { ...command, type: 'flow.exit' } : text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : text.startsWith('/compact') ? { ...command, type: 'flow.compact', ...(focus ? { focus } : {}) } : section ? { ...command, type: 'flow.inspect', section } : text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
-      const error = focus && focus.length > 500 ? 'invalid-command' : action ? heartFlow.dispatch(action, signature) : 'unavailable'
-      if (!error && action) questions?.stateChanged(action)
+      const effectiveAction: AppCommand | undefined = action?.type === 'flow.undo' && text === '/undo' ? { ...action, type: 'flow.rewind.prepare' } : action
+      const error = focus && focus.length > 500 ? 'invalid-command' : effectiveAction ? heartFlow.dispatch(effectiveAction, signature) : 'unavailable'
+      if (!error && effectiveAction) questions?.stateChanged(effectiveAction)
       ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (memory && !heartFlow?.active() && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
       try { const error = memory.dispatch(command.type === 'message.send' ? { ...command, type: 'context.compact' } : command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
