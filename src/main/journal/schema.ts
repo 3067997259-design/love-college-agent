@@ -27,7 +27,7 @@ const publicError = z.strictObject({
 const step = z.strictObject({ id, text: z.string().max(500), status: z.enum(['pending', 'active', 'done', 'failed']) })
 const toolCall = z.strictObject({ id, name: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/), arguments: z.string().max(64_000) })
 export const contextMessageSchema = z.strictObject({ role: z.enum(['system', 'user', 'assistant', 'tool']), content: text,
-  imageRefs: z.array(z.string().regex(/^work-frame:[a-f0-9]{64}$/)).max(1).optional(),
+  imageRefs: z.array(z.string().regex(/^(?:work|game)-frame:[a-f0-9]{64}$/)).max(1).optional(),
   toolCallId: id.optional(), toolCalls: z.array(toolCall).max(16).optional() })
 export type ContextMessage = {
   imageRefs?: string[]

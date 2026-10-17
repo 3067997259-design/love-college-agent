@@ -13,7 +13,7 @@
 | 分身 | 4594698 接口及只读服务已实现；三并发／日预算／取消／重启、Electron 本体取结果和记忆边界通过 | Claude 活动卡；真实 background 模型质量／限流仍未验收，详见 delegates-third-circle.md |
 | 光学记忆插件 | 54646cf／9147a31 接口先合；11bcbb8 核心、应用接线及 251 单测／真实封页和合成 HTTP Electron 闭环通过；默认关闭 | 真正 OCR 部署／质量及遗忘体验仍待验收；不是已有可靠遗忘曲线，见 optical-third-circle.md |
 | 云端语音 | c54c2ba 接口先合；可选兼容 speech 端口、主进程 PCM 分块／预算／取消、朴素设置和唯一书本播放器，合成 Electron／真实 AudioContext 已通过 | 供应商／音色待配置及真实质量／延迟验收；Claude 嘴型／角色声音，详见 voice-third-circle.md |
-| 展位 Minecraft | 1f37779 接口、受限控制器、独立游戏上下文／日志、朴素入口及本机 HTTP＋Electron 合成闭环已通过；展位自动使用独立 booth profile，个人↔展位重启隔离通过 | 真实目标配置／双客户端和模型质量待验收；画面／声音归 Claude；见 minecraft-third-circle.md，不修改参考工程或接管其实例 |
+| 展位 Minecraft | 1f37779／37cb419 接口，受限控制器、独立上下文／日志、背包／射线／转向／skill、逐轮同意的真实图像 HTTP 原生链路通过；377 单测、booth 隔离和普通上下文／私人 ZIP 排除通过 | survival 挖掘／展位资源继续补；实机复用 AIRI 配置，当时端口未监听，双客户端与模型质量待验收；画面／声音归 Claude，见 minecraft-screenshots-third-circle.md |
 | computer use | 65dc9b4 接口、用户所选隔离书桌静态 HTML、真实截图／多模态传输、逐次审批的真实点击输入、取消／陈旧页面拒绝／私人恢复通过 | 用户最新明确仅隔离书桌预览页；按此边界验收，脚本／网络关闭，不控制整机，见 computer-third-circle.md |
 | 完整新手动画 | 家具线稿／上色和介绍动画代码已在 main；2026-10-17 再跑完整 `smoke-onboarding` 原生流程、名字持久、完成／重置和已完成存档恢复通过 | 最终动画观感仍由 Claude／用户复核，不把自动化流程通过当美术批准 |
 | 全圈收口 | 6571c05 的真实 NSIS、七类双版本探针／普通重启／历史照片及 15 项安装版场景通过，其中 showcase 同一 profile 串起交付、作品、窗口、心流、跨日、回忆与私人恢复；包、回执／哈希见 package-third-circle.md | 最新 Claude 画面／声音及上述真实服务配置／质量仍待补齐；加速合成流程不等于完整产品体验或长期运行通过 |

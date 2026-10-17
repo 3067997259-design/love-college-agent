@@ -5,6 +5,7 @@ import type { Clock } from '../clock'
 import type { Scheduler } from '../scheduler'
 import { checkedPermissions, checkedPlayer, checkedStamp, checkedWorld, checkToolset, sameWorld, type GameProtocol, type GameWorld, type GamePlayer } from './protocol'
 import { inventoryObservation, minecraftFeatures, sceneObservation } from './observations'
+import { checkedScreenshot } from './screenshot'
 
 export const minecraftScopeSchema = z.strictObject({ radiusBlocks: z.number().int().min(1).max(16), durationMs: z.number().int().min(1000).max(600_000), allowChat: z.boolean(), allowScreenshots: z.boolean().default(false), allowMining: z.boolean().default(false) })
 const targetSchema = z.strictObject({ x: z.number().int(), y: z.number().int(), z: z.number().int() })
@@ -25,7 +26,7 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
   available?(): boolean; stopping?(): void;
   record?(receipt: GameReceipt): void; interrupted?: GameReceipt; events?(messages: readonly { id: number; text: string; sender: string }[]): void }) {
   const { clock, scheduler } = options
-  let lastObservationTick = 0
+  let lastObservationTick = 0; let screenshots = 0
   const state: MinecraftView = { status: options.interrupted && !options.interrupted.stopVerified ? 'paused' : 'idle', source: 'none', serverId: options.interrupted?.serverId ?? null, roundId: options.interrupted?.roundId ?? null, endsAtMs: null, actionsUsed: 0, maxActions: 24, chatSeen: 0, stopVerified: !options.interrupted || options.interrupted.stopVerified }
   let bound: GameWorld | undefined; let player: GamePlayer | undefined; let anchor: GamePlayer | undefined
   let lease: Lease | undefined = options.interrupted && !options.interrupted.stopVerified ? { serverId: options.interrupted.serverId, controlSessionId: options.interrupted.controlSessionId } : undefined
@@ -129,7 +130,7 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
         const scope = minecraftScopeSchema.parse(command.scope)
         if (scope.allowScreenshots && !state.features?.includes('screenshot') || scope.allowMining && !state.features?.includes('mining')) throw new Error('GAME_UNSUPPORTED')
         if (command.expectedPlayerUuid !== player.uuid || scope.allowChat && !port().allows('send_chat', ['expectedWorldSessionId'])) throw new Error('GAME_PILOT_CHANGED')
-        anchor = player; sequence = 0; reads = 0; polls = 0; stream = undefined; cursor = undefined; target = undefined; lastObservationTick = 0
+        anchor = player; sequence = 0; reads = 0; polls = 0; stream = undefined; cursor = undefined; target = undefined; lastObservationTick = 0; screenshots = 0
         state.scope = scope; state.roundId = randomUUID(); state.endsAtMs = clock.nowMs() + scope.durationMs; state.actionsUsed = 0; state.chatSeen = 0; delete state.lastAction
         lease = { serverId: command.serverId, controlSessionId: randomUUID() }; state.stopVerified = false
         options.record?.({ roundId: state.roundId, ...lease, status: 'started', stopVerified: false })
@@ -138,11 +139,25 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
       } catch { if (generation === ticket) { await stop(); fail('permission-denied') } } finally { cancel() }
     })().finally(() => { worker = undefined; publish() }); return undefined
   }
-  const tool = async (name: string, input: Record<string, unknown>, parent: AbortSignal): Promise<Record<string, unknown>> => {
+  const withTool = async <T>(parent: AbortSignal, action: (signal: AbortSignal, ticket: number) => Promise<T>): Promise<T> => {
     if (toolRunning) throw new Error('MINECRAFT_TOOL_BUSY')
     const ticket = generation; live(ticket); const signal = AbortSignal.any([parent, active!.signal]); const abort = new AbortController(); const combined = AbortSignal.any([signal, abort.signal]); const cancel = clock.after(12_000, () => abort.abort())
     toolRunning = true
-    try {
+    try { return await action(combined, ticket) }
+    catch { if (generation === ticket) { if (state.lastAction?.status === 'running') state.lastAction.status = 'unknown'; await stop(); fail() }; throw new Error('MINECRAFT_TOOL_FAILED') }
+    finally { toolRunning = false; cancel() }
+  }
+  const capture = (parent: AbortSignal) => withTool(parent, async (signal, ticket) => {
+    if (!state.scope?.allowScreenshots || !state.features?.includes('screenshot') || !port().image || screenshots >= 6 || ++reads > 360) throw new Error('GAME_SCREENSHOT_UNAVAILABLE')
+    const before = await verifyPlayer(signal, ticket); screenshots++
+    const result = await port().image!({ expectedWorldSessionId: bound!.sessionId }, signal)
+    live(ticket); signal.throwIfAborted(); const captured = checkedScreenshot(result, bound!, port())
+    const after = await verifyPlayer(signal, ticket)
+    if (captured.metadata.sourceTickStart < lastObservationTick || distance(before, after) > 0.5) throw new Error('GAME_STALE_SCREENSHOT')
+    lastObservationTick = captured.metadata.sourceTick
+    return { png: captured.png, sourceTick: captured.metadata.sourceTick, capturedAtMs: clock.nowMs(), roundId: state.roundId! }
+  })
+  const tool = (name: string, input: Record<string, unknown>, parent: AbortSignal): Promise<Record<string, unknown>> => withTool(parent, async (combined, ticket) => {
       if (name === 'minecraft_observe') { empty.parse(input); const current = await verifyPlayer(combined, ticket); return { pilot: { uuid: current.uuid, name: current.name, dimension: current.dimension, position: { x: current.x, y: current.y, z: current.z } }, scope: state.scope!, actionsRemaining: state.maxActions - state.actionsUsed, endsAtMs: state.endsAtMs } }
       if (name === 'minecraft_inventory' || name === 'minecraft_scene') {
         empty.parse(input); const inventory = name === 'minecraft_inventory'; const feature = inventory ? 'inventory' : 'scene'
@@ -192,10 +207,8 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
       }
       const result = await rpc('send_chat', { message: chat!.message }, combined, ticket)
       z.object({ sent: z.literal(true) }).parse(result); state.lastAction = { kind: 'chat', status: 'succeeded', atMs: clock.nowMs() }; publish(); return { sent: true }
-    } catch { if (generation === ticket) { if (state.lastAction?.status === 'running') state.lastAction.status = 'unknown'; await stop(); fail() }; throw new Error('MINECRAFT_TOOL_FAILED') }
-    finally { toolRunning = false; cancel() }
-  }
-  return { view: () => structuredClone(state), active: () => state.status === 'playing' || state.status === 'checking' || state.status === 'stopping', tool,
+  })
+  return { view: () => structuredClone(state), active: () => state.status === 'playing' || state.status === 'checking' || state.status === 'stopping', tool, capture,
     poll, stop, stateChanged: () => { if ((state.status === 'playing' || state.status === 'checking') && options.blocked()) void stop() },
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       if (command.type === 'minecraft.stop') { void stop(); return }

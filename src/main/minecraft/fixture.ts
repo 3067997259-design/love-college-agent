@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { syntheticGamePng } from './fixture-image'
 
 /** Owned synthetic world behind a real MCP transport. Never contacts or starts Minecraft. */
 export function createMinecraftFixture(privateState = 'SYNTHETIC_PRIVATE_STATE') {
@@ -9,7 +10,7 @@ export function createMinecraftFixture(privateState = 'SYNTHETIC_PRIVATE_STATE')
   const streamId = randomUUID(); const other = randomUUID(); let cursor = 0; let owner: string | undefined; let target: { x: number; y: number; z: number } | undefined
   let scenario = 'ready'; let observationTick = 100; const events: { id: number; type: string; data: { text: string; sender: string; uuid: string } }[] = []
   const binding = { expectedWorldSessionId: z.string().optional() }; const stamped = (value: Record<string, unknown>) => ({ ...value, worldSession: { ...world } })
-  const names = ['get_status', 'list_capabilities', 'get_world_session', 'get_self', 'get_inventory', 'describe_scene', 'look', 'navigate_to', 'navigation_status', 'release_control_session', 'get_process_state', 'poll_event_page', 'send_chat']
+  const names = ['get_status', 'list_capabilities', 'get_world_session', 'get_self', 'get_inventory', 'describe_scene', 'look', 'screenshot', 'navigate_to', 'navigation_status', 'release_control_session', 'get_process_state', 'poll_event_page', 'send_chat']
   const install = (server: McpServer) => {
     const register = (name: string, shape: z.ZodRawShape, run: (input: Record<string, unknown>) => Record<string, unknown>) => {
       server.registerTool(name, { inputSchema: { ...binding, ...shape } }, async (input) => {
@@ -21,6 +22,12 @@ export function createMinecraftFixture(privateState = 'SYNTHETIC_PRIVATE_STATE')
     register('list_capabilities', {}, () => stamped({ groups: { command: scenario === 'unsafe', world_write: false, control: true, navigation: true, chat: true } }))
     register('get_world_session', {}, () => ({ ...world }))
     register('get_self', {}, () => stamped({ ...player }))
+    server.registerTool('screenshot', { inputSchema: binding }, async (input) => {
+      if (input.expectedWorldSessionId !== world.sessionId) throw new Error('SYNTHETIC_WORLD_CHANGED')
+      const png = syntheticGamePng(); const tick = ++observationTick
+      const metadata = stamped({ format: 'png', width: 16, height: 12, bytes: png.length, source: 'client-framebuffer', sourceTickStart: tick, sourceTick: tick, playerUuid: player.uuid, dimension: world.dimension })
+      return { content: [{ type: 'image', mimeType: 'image/png', data: png.toString('base64') }, { type: 'text', text: JSON.stringify(metadata) }], structuredContent: metadata }
+    })
     register('get_inventory', {}, () => stamped({ source: 'client-player', sourceTick: ++observationTick, dimension: world.dimension, selectedSlot: 0, storageSlots: 36, emptyStorageSlots: 35,
       hotbar: [{ slot: 0, id: 'minecraft:stone_pickaxe', count: 1, damage: 3, maxDamage: 131, name: 'GAME_ONLY_ITEM_LORE', lore: privateState }], main: [], armor: [], offhand: { empty: true } }))
     register('describe_scene', { maxDistance: z.number(), rayColumns: z.number(), rayRows: z.number() }, () => stamped({ source: 'client-vision', sourceTick: ++observationTick, dimension: world.dimension, yaw: player.yaw, pitch: player.pitch,

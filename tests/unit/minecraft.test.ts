@@ -1,10 +1,11 @@
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import type { AppCommand } from '../../src/shared'
 import { createManualClock } from '../../src/main/clock'
 import { createScheduler } from '../../src/main/scheduler'
 import { createMinecraft, type GameReceipt } from '../../src/main/minecraft/service'
 import type { GameProtocol } from '../../src/main/minecraft/protocol'
+import { syntheticGamePng } from '../../src/main/minecraft/fixture-image'
 const cleanup: (() => Promise<void>)[] = []
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close() })
 function fixture(interrupted?: GameReceipt) {
@@ -36,6 +37,35 @@ function fixture(interrupted?: GameReceipt) {
   return { game, clock, scheduler, world, player, protocol, calls, receipts, seen, send, start, finish: () => { active = false }, setLookApplied: (value: boolean) => { applyLook = value }, setBlocked: (value: boolean) => { blocked = value; game.stateChanged() }, setUnsafe: () => { unsafe = true }, setReleaseFailure: (value: boolean) => { releaseFails = value }, disconnect: () => { connected = false }, setEvents: (value: unknown[], latest: number) => { events = value; cursor = latest }, newStream: () => { streamId = randomUUID(); cursor = 0 }, setHang: (value: Promise<unknown>) => { hang = value } }
 }
 const signal = () => new AbortController().signal
+function imagePort(f: ReturnType<typeof fixture>) {
+  let tick = 100
+  return vi.fn(async () => { const png = syntheticGamePng(); return { data: png.toString('base64'), mimeType: 'image/png' as const, metadata: { worldSession: { ...f.world }, format: 'png', width: 16, height: 12, bytes: png.length, source: 'client-framebuffer', sourceTickStart: tick, sourceTick: tick++, playerUuid: f.player.uuid, dimension: f.world.dimension } } })
+}
+it('requires screenshot consent and bounds actual captures independently of movement actions', async () => {
+  const denied = fixture(); const unused = imagePort(denied); denied.protocol.image = unused; await denied.start()
+  await expect(denied.game.capture(signal())).rejects.toThrow(); expect(unused).not.toHaveBeenCalled()
+  const f = fixture(); const capture = imagePort(f); f.protocol.image = capture
+  await f.start({ radiusBlocks: 8, durationMs: 60000, allowChat: false, allowScreenshots: true })
+  for (let i = 0; i < 6; i++) expect((await f.game.capture(signal())).png.equals(syntheticGamePng())).toBe(true)
+  expect(f.game.view().actionsUsed).toBe(0); await expect(f.game.capture(signal())).rejects.toThrow()
+  expect(capture).toHaveBeenCalledTimes(6); expect(f.game.view()).toMatchObject({ status: 'failed', stopVerified: true })
+})
+it('discards a screenshot returned after stop even when the image port ignores abort', async () => {
+  const f = fixture(); let release: (value: Awaited<ReturnType<NonNullable<GameProtocol['image']>>>) => void = () => {}
+  const capture = vi.fn(async () => new Promise<Awaited<ReturnType<NonNullable<GameProtocol['image']>>>>((done) => { release = done })); f.protocol.image = capture
+  await f.start({ radiusBlocks: 8, durationMs: 60000, allowChat: false, allowScreenshots: true })
+  const pending = f.game.capture(signal()); const rejected = expect(pending).rejects.toThrow()
+  await vi.waitFor(() => expect(capture).toHaveBeenCalledOnce()); await f.game.stop(); release(await imagePort(f)())
+  await rejected; expect(f.game.view()).toMatchObject({ status: 'idle', stopVerified: true })
+})
+it('refuses pixels from a different world or a pilot that moved across capture', async () => {
+  for (const mismatch of ['world', 'movement']) {
+    const f = fixture(); const base = imagePort(f)
+    f.protocol.image = async () => { const value = await base(); if (mismatch === 'world') f.world.revision++; else f.player.x += 1; return value }
+    await f.start({ radiusBlocks: 8, durationMs: 60000, allowChat: false, allowScreenshots: true })
+    await expect(f.game.capture(signal())).rejects.toThrow(); expect(f.game.view()).toMatchObject({ status: 'failed', stopVerified: true })
+  }
+})
 it('requires the observed pilot, read-only host flags and world-bound schemas before a round', async () => {
   const f = fixture(); f.send({ type: 'minecraft.check', serverId: 'game' }); await f.game.idle(); expect(f.game.view()).toMatchObject({ status: 'ready', source: 'fake', pilot: { uuid: f.player.uuid }, checks: { commandsDisabled: true } })
   f.send({ type: 'minecraft.start', serverId: 'game', expectedPlayerUuid: randomUUID(), scope: { radiusBlocks: 8, durationMs: 60000, allowChat: true } }); await f.game.idle(); expect(f.game.view().status).toBe('failed'); expect(f.receipts).toHaveLength(0)

@@ -96,6 +96,7 @@ import { resolveRoomLayout, resolveRoomRoot } from './room/paths'
 import { migrateLegacyDesk } from './room/legacy-desk'
 import { createMinecraft, type MinecraftService } from './minecraft/service'
 import { createMinecraftChat, type MinecraftChat } from './minecraft/chat'
+import { normalizeGamePixels } from './minecraft/pixels'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -476,7 +477,7 @@ void app.whenReady().then(async () => {
         }
       },
       changed: () => controller?.refresh('task') })
-    minecraftChat = createMinecraftChat({ root: join(dataDir, 'minecraft'), clock, mainStore: store, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), game: () => minecraft!, enabled: () => modelReady,
+    minecraftChat = createMinecraftChat({ root: join(dataDir, 'minecraft'), clock, mainStore: store, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { scope: 'game', resolve: (ref) => minecraftChat!.resolveImage(ref) }), game: () => minecraft!, enabled: () => modelReady, normalizePixels: normalizeGamePixels,
       persona: () => ({ name: controller!.getSnapshot().onboarding?.characterName ?? '桃子', persona: activeCharacter.persona }), credentials: privateCredentials, changed: () => controller?.refresh('message') })
     controller.attachMinecraft(minecraft, minecraftChat, mcpFixture ? (scenario) => mcpFixture!.game.select(scenario) : undefined)
     harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
