@@ -146,6 +146,13 @@ export type AppCommand = CommandEnvelope & (
   /** Book-only native preview. Draft prose is never carried in snapshots or ordinary memory. */
   | { type: 'flow.operation.open'; operationId: string }
   | { type: 'flow.undo'; changeId: string }
+  /** Book-only. Single-line cmd command <=6000 UTF-16 chars, timeout 500..30000 ms (default 5000). Never executes on request alone. */
+  | { type: 'flow.command.run'; command: string; timeoutMs?: number }
+  /** Fresh per-command human decision; booth always refuses execution. */
+  | { type: 'flow.command.approve'; commandId: string; allow: boolean }
+  | { type: 'flow.command.cancel'; commandId: string }
+  /** User-only native output preview; stdout/stderr are work data, not snapshot or ordinary memory. */
+  | { type: 'flow.command.open'; commandId: string }
   /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
   | { type: 'flow.run'; code: string }
   | { type: 'flow.approve'; approvalId: string; allow: boolean }
