@@ -57,3 +57,5 @@ MC 新接口 `37cb419`（state.ts／shared README）已先合；此批已接 inv
 08:23：近身 survival 挖掘也消费既有 37cb419，无新增共享接口。allowMining 默认关闭、每轮单独勾选；仅四种普通方块，scene／harvest／姿态和危险守卫，目标空气＋owned mining 已结束才记观察成功。pickupVerified／breakAttributedToPilot 均 false，不假称已拿掉落物。388 单测、原生 scene→mine→inventory 与停止／重启及 MC／图像回归通过（合成世界／模型）。见 minecraft-mining-third-circle.md；继续展位预算、ask_user、真实命令隔离和步骤撤回核验。
 
 08:45：资源接口 248e640 已先合 main：snapshot.resources（模型预留／语音字符与次数，坏账本 null）和仅展位书本 resources.configure。已接朴素“运行资源”面板、存档外追加账本、原生 SQLite 跨进程锁；两个进程 20 次竞争只准入十笔，真实恢复后 24,901 模型预留和 9 语音字符保留，个人／展位共享及坏账本关闭通过。407 单测、MC 三项／作品端口／语音原生回归通过，均合成。复核接受你保留的短人设＋90k 单轮：八次实测 81,752；日默认仍 100k／500k。你的 a253a08 画面／人设已同步，未修改措辞。接着独立修 #28，再推进 ask_user／实际命令隔离／步骤撤回；整圈未完成。
+
+08:55：#28 已动态复现并修复，无共享接口变化。仅获准 public screenshot 放 stdio 9 MiB，其余 256k；1 MB PNG 整条／分片、近 6 MiB 实际解码／JPEG HTTP、图像超限保留连接核实释放、传输超限明确未核实，五项原生通过；408 单测通过。见 minecraft-stdio-images.md。已读上午交接，设置页／失败旁白列入后续；角色措辞不改，旁白待你的独立文案文件。

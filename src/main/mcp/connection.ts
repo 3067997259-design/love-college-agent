@@ -121,7 +121,10 @@ export function createMcpConnection(options: { id: string; config: McpConfigEntr
         client.onclose = () => { if (client === nextClient) fail() }; client.onerror = () => { /* Safe connection state is reported on close/request failure. */ }
         if ('command' in config) {
           const inherited = Object.fromEntries(['PATH', 'SystemRoot', 'TEMP', 'TMP', 'PATHEXT'].flatMap((key) => process.env[key] ? [[key, process.env[key]!]] : []))
-          const stdio = new StdioClientTransport({ command: config.command, args: config.args, cwd: config.cwd, env: { ...inherited, ...config.env }, stderr: 'pipe', maxBufferSize: 256_000 })
+          // A 6 MiB PNG needs 8 MiB base64 plus bounded JSON metadata. Keep the
+          // larger finite transport window exclusive to explicitly approved public screenshots.
+          const maxBufferSize = config.privacy === 'none' && config.allowTools.includes('screenshot') ? 9 * 1024 * 1024 : 256_000
+          const stdio = new StdioClientTransport({ command: config.command, args: config.args, cwd: config.cwd, env: { ...inherited, ...config.env }, stderr: 'pipe', maxBufferSize })
           stdio.stderr?.on('data', () => {}); transport = stdio
         } else transport = new StreamableHTTPClientTransport(new URL(config.url), { requestInit: { headers: config.headers, redirect: 'error' }, reconnectionOptions: { maxRetries: 0, initialReconnectionDelay: 1000, maxReconnectionDelay: 1000, reconnectionDelayGrowFactor: 1 } })
         await boundedMcp(clock, abort.signal, (signal) => client!.connect(transport!, { signal, timeout: 2_147_000_000 }))

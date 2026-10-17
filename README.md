@@ -1,5 +1,7 @@
 # Love, College & Agent
 
+**stdio 截图修复（2026-10-17）：** #28 已补仅限获准公开 screenshot 的 9 MiB 传输缓冲，普通／隐私 stdio 仍为 256k。合法 1 MB PNG 整条／分片、近 6 MiB 实际解码／缩图／模型 HTTP 通过；图像超限可拒绝并核实释放，传输超限明确未核实。类型／lint、408 单测与五项原生矩阵通过，全部合成。`pnpm test:minecraft:stdio`，见 [修复记录](docs/engineering/minecraft-stdio-images.md)。
+
 **资源守卫（2026-10-17）：** 接口 `248e640` 已先合 main；模型／语音准入现进存档外 append-only 账本，恢复书本或个人／展位切换不会返还用量。展位设置可显式调整日模型额度并查看计数，默认仍总 500k／自主 100k 预留，语音另有字符／次数上限。类型／lint、407 单测、双进程原生锁及真实恢复／坏账本关闭／网络前拒绝通过，供应商均合成。`pnpm test:resources`，见 [资源记录](docs/engineering/resources-third-circle.md)。
 
 **MC 近身挖掘（2026-10-17）：** 既有 allowMining 每轮单独同意，限定四种普通方块、survival／站稳／准星／工具和危险检查，启动后核验目标变空气且自己的挖掘输入已结束；不声称因果归属或拿到掉落物。类型／lint、388 单测及原生同意→场景→挖掘→背包→停止／重启通过，世界与模型为合成。`pnpm test:minecraft:mining`，见 [挖掘记录](docs/engineering/minecraft-mining-third-circle.md)。下一步是展位预算和心流剩余工具。

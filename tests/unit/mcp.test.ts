@@ -134,4 +134,19 @@ describe('MCP configuration, transport and private result boundaries', () => {
     await expect(denied.protocol.image(args, new AbortController().signal)).rejects.toMatchObject({ code: 'permission-denied' })
     await connection.disconnect(); await expect(connection.protocol.image(args, new AbortController().signal)).rejects.toMatchObject({ code: 'permission-denied' })
   })
+  it('keeps ordinary/private stdio at 256k and preserves the generic text-result limit on image-enabled transports', async () => {
+    const base = { command: process.execPath, args: [resolve('tests/fixtures/mcp-large-stdio.mjs')], cwd: process.cwd(), env: {}, disabled: false }
+    for (const privacy of ['none', 'always'] as const) {
+      const connection = createMcpConnection({ id: 'ordinary', config: { ...base, privacy, allowTools: privacy === 'always' ? ['screenshot', 'large_text'] : ['large_text'] }, clock: systemClock, source: 'fake', privacyModel: createFakePrivacyModel(), changed: () => {} })
+      cleanups.push(connection.disconnect); await connection.connect()
+      expect(connection.view().status).toBe('ready'); const tool = connection.tools().find((tool) => tool.definition.description.includes('/large_text.'))!
+      expect((await tool.run({}, { signal: new AbortController().signal } as ToolContext)).ok).toBe(false)
+      await vi.waitFor(() => expect(connection.view().status).toBe('failed'))
+    }
+    const images = createMcpConnection({ id: 'images', config: { ...base, privacy: 'none', allowTools: ['screenshot', 'large_text'] }, clock: systemClock, source: 'fake', privacyModel: null, changed: () => {} })
+    cleanups.push(images.disconnect); await images.connect(); expect(images.view().status).toBe('ready')
+    const tool = images.tools().find((tool) => tool.definition.description.includes('/large_text.'))!
+    expect(await tool.run({}, { signal: new AbortController().signal } as ToolContext)).toMatchObject({ ok: false, visible: { error: 'mcp-invalid-result' } })
+    expect(images.view().status).toBe('ready')
+  })
 })

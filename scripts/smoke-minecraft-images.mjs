@@ -11,6 +11,9 @@ import electronPath from 'electron'
 import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const stdioMode = process.argv.find((arg) => arg.startsWith('--stdio='))?.slice(8)
+if (stdioMode && !['whole', 'fragmented', 'near-limit', 'image-oversize', 'transport-oversize'].includes(stdioMode)) throw new Error('INVALID_STDIO_SCENARIO')
+const legacy = process.argv.includes('--legacy'); const failureExpected = legacy || stdioMode?.endsWith('oversize')
 const data = join(root, '.local-data', 'minecraft-images-' + randomUUID()); const profile = join(data, 'booth')
 await mkdir(data, { recursive: true })
 // Reuse only this repository's explicit synthetic MCP fixture in the Node test server.
@@ -25,6 +28,34 @@ for (const [source, target, replacements] of [
 }
 const { startMcpFixture } = await import(pathToFileURL(join(data, 'fixture-mcp.mjs')).href)
 const fixture = await startMcpFixture({ after: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) } })
+const statsPath = join(data, 'stdio-stats.json')
+if (stdioMode) {
+  const helper = join(data, 'stdio-game.mjs')
+  await writeFile(helper, `
+import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
+import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
+import {writeFile} from 'node:fs/promises';
+import {createMinecraftFixture} from './fixture-game.mjs';
+import {syntheticGamePng} from './fixture-image.mjs';
+const [mode,statsPath]=process.argv.slice(2); const width=['image-oversize','near-limit'].includes(mode)?1280:512; const height=mode==='near-limit'?1200:width;
+const png=syntheticGamePng({width,height,noise:true}); const game=createMinecraftFixture('SYNTHETIC_STDIO_PRIVATE',png);
+const server=new McpServer({name:'owned-stdio-game-fixture',version:'1.0.0'}); game.install(server);
+const transport=new StdioServerTransport(); const normalSend=transport.send.bind(transport);
+const stats={pngBytes:png.length,width,height,imageResponses:0,maxResponseBytes:0,maxWrites:0};
+process.stdout.on('error',()=>process.exit(0));
+transport.send=async(message)=>{
+ const image=message.result?.content?.find((item)=>item.type==='image');
+ if(image&&mode==='transport-oversize')image.data='A'.repeat(9*1024*1024+1024);
+ if(!image)return normalSend(message);
+ const line=JSON.stringify(message)+'\\n'; const fragmented=mode==='fragmented';
+ stats.imageResponses++; stats.maxResponseBytes=Math.max(stats.maxResponseBytes,Buffer.byteLength(line)); stats.maxWrites=Math.max(stats.maxWrites,fragmented?Math.ceil(line.length/4096):1); await writeFile(statsPath,JSON.stringify(stats));
+ if(!fragmented)return normalSend(message);
+ for(let offset=0;offset<line.length;offset+=4096)await new Promise((done,reject)=>process.stdout.write(line.slice(offset,offset+4096),(error)=>error?reject(error):done()));
+};
+await server.connect(transport);
+`)
+  fixture.config.mcpServers['synthetic-game'] = { command: process.execPath, args: [helper, stdioMode, statsPath], cwd: data, env: {}, allowTools: fixture.game.names, privacy: 'none', disabled: false }
+}
 const requests = []; let gameCount = 0
 const server = createServer((request, response) => { void (async () => {
   let text = ''; for await (const chunk of request) text += chunk
@@ -70,13 +101,26 @@ try {
   const round = (await snapshot()).minecraft.roundId; assert.equal((await snapshot()).minecraft.scope.allowScreenshots, true)
   await page.getByRole('button', { name: '关闭', exact: true }).click()
   await accepted({ type: 'message.send', text: 'GAME_IMAGE_ONLY_PROMPT 请看两帧合成游戏画面。' })
+  if (failureExpected) {
+    await waitFor((s) => s.minecraft.status === 'failed', 'EXPECTED_IMAGE_REFUSAL_MISSING')
+    const state = (await snapshot()).minecraft; const connected = (await snapshot()).mcp.servers.find((item) => item.id === 'synthetic-game')
+    assert.equal(state.stopVerified, !legacy && stdioMode === 'image-oversize'); assert.equal(connected.status, !legacy && stdioMode === 'image-oversize' ? 'ready' : 'failed')
+    const stats = JSON.parse(await readFile(statsPath, 'utf8')); assert.ok(stats.pngBytes > 192000); assert.ok(stats.maxResponseBytes > 256000)
+    if (legacy) assert.ok(stats.pngBytes <= 6291456)
+    if (stdioMode === 'image-oversize') assert.ok(stats.pngBytes > 6291456 && stats.maxResponseBytes < 9 * 1024 * 1024)
+    if (stdioMode === 'transport-oversize') assert.ok(stats.maxResponseBytes > 9 * 1024 * 1024)
+    assert.ok(requests.filter((item) => item.game).every((item) => item.images.length === 0))
+    await mkdir(join(root, 'test-results'), { recursive: true }); await writeFile(join(root, 'test-results/minecraft-stdio-' + (legacy ? 'legacy' : stdioMode) + '-report.json'), JSON.stringify({ ok: true, atIso: new Date().toISOString(), legacyBugReproduced: legacy, stdioMode, ...stats, stopVerified: state.stopVerified, connectionStatus: connected.status, noModelImageDelivered: true, syntheticOnly: true }, null, 2))
+    console.log('Minecraft stdio bounded refusal passed: ' + (legacy ? 'legacy 256k bug reproduced on valid PNG' : stdioMode) + '; release verification=' + state.stopVerified + ', connection=' + connected.status + '. Synthetic only.');
+  } else {
   await waitFor((s) => s.task?.status === 'completed' && s.messages.some((message) => message.text === 'GAME_IMAGE_ONLY_REPLY'), 'GAME_IMAGE_ROUND_FAILED')
   const gameRequests = requests.filter((item) => item.game); assert.equal(gameRequests.length, 3)
   assert.deepEqual(gameRequests.map((item) => item.images.length), [0, 1, 2])
   assert.ok(gameRequests.every((item) => !JSON.stringify(item.body).includes('PERSONAL_IMAGE_CONTEXT_CANARY')))
   assert.ok(gameRequests.every((item) => item.body.tools.some((tool) => tool.function.name === 'minecraft_screenshot')))
   const urls = gameRequests.at(-1).images; assert.ok(urls.every((url) => url.startsWith('data:image/jpeg;base64,')))
-  assert.equal(await instance.evaluate(({ nativeImage }, image) => { const bitmap = nativeImage.createFromBuffer(Buffer.from(image.split(',')[1], 'base64')); const size = bitmap.getSize(); return !bitmap.isEmpty() && size.width === 16 && size.height === 12 }, urls[0]), true)
+  const expected = stdioMode === 'near-limit' ? { width: 640, height: 600 } : stdioMode ? { width: 512, height: 512 } : { width: 16, height: 12 }
+  assert.equal(await instance.evaluate(({ nativeImage }, { image, expected }) => { const bitmap = nativeImage.createFromBuffer(Buffer.from(image.split(',')[1], 'base64')); const size = bitmap.getSize(); return !bitmap.isEmpty() && size.width === expected.width && size.height === expected.height }, { image: urls[0], expected }), true)
   const gameRows = await rowsAt(join(profile, 'minecraft', round)); const mainRows = await rowsAt(profile)
   const frames = gameRows.filter((row) => row.type === 'model/seen'); assert.equal(frames.length, 3); assert.ok(frames.every((row) => row.eligibleIndexes.length === 0))
   const refs = frames.at(-1).messages.flatMap((message) => message.imageRefs ?? []); assert.equal(refs.length, 2); assert.ok(refs.every((ref) => /^game-frame:[a-f0-9]{64}$/.test(ref)))
@@ -95,6 +139,10 @@ try {
   for (const file of Object.values(zip.files).filter((file) => !file.dir && /\.(json|jsonl|md)$/.test(file.name))) { const value = await file.async('string'); assert.ok(!value.includes('game-frame:') && !value.includes('GAME_IMAGE_ONLY') && !value.includes('data:image/jpeg')) }
   await stop(); await launch(); assert.equal((await snapshot()).minecraft.status, 'idle'); assert.equal((await snapshot()).task?.status === 'running', false)
   assert.ok(!(await snapshot()).messages.some((message) => message.text.includes('GAME_IMAGE_ONLY')))
-  await mkdir(join(root, 'test-results'), { recursive: true }); await writeFile(join(root, 'test-results/minecraft-images-report.json'), JSON.stringify({ ok: true, atIso: new Date().toISOString(), mode: 'booth', syntheticMcpAndPixelsAndModel: true, nativeImageDecoded: true, actualCompatibleMultimodalHttp: true, imageCounts: [0, 1, 2], sharedImageReservations: true, ordinaryContextAndPrivateSaveExcluded: true, stopAndRestartConsistent: true, realMinecraftOrProviderUsed: false }, null, 2))
+  const stats = stdioMode ? JSON.parse(await readFile(statsPath, 'utf8')) : undefined
+  if (stats) { assert.ok(stats.pngBytes > 192000); assert.ok(stats.maxResponseBytes > 256000); assert.equal(stats.imageResponses, 2); assert.equal(stats.maxWrites > 1, stdioMode === 'fragmented') }
+  if (stdioMode === 'near-limit') assert.ok(stats.pngBytes > 6000000 && stats.pngBytes <= 6291456 && stats.maxResponseBytes < 9 * 1024 * 1024)
+  await mkdir(join(root, 'test-results'), { recursive: true }); await writeFile(join(root, 'test-results/' + (stdioMode ? 'minecraft-stdio-' + stdioMode : 'minecraft-images') + '-report.json'), JSON.stringify({ ok: true, atIso: new Date().toISOString(), mode: 'booth', transport: stdioMode ? 'stdio' : 'http', ...(stats ?? {}), syntheticMcpAndPixelsAndModel: true, nativeImageDecoded: true, actualCompatibleMultimodalHttp: true, imageCounts: [0, 1, 2], sharedImageReservations: true, ordinaryContextAndPrivateSaveExcluded: true, stopAndRestartConsistent: true, realMinecraftOrProviderUsed: false }, null, 2))
   console.log('Minecraft pixels PASS: booth/native consent, fixed MCP image outlet, actual PNG decode/JPEG multimodal HTTP, latest two game-only frames, image budget mirrored, ordinary/private-save exclusion and stopped restart. Synthetic world/pixels/model; no real Minecraft or provider.')
+  }
 } finally { await stop(); await fixture.close(); server.closeAllConnections(); await new Promise((done) => server.close(done)) }
