@@ -34,9 +34,9 @@ function canonical(year: number, month: number, day: number, hour: number, minut
 /** Supported expressions are explicit dates or next-calendar-week weekdays. Unsupported language rejects. */
 export function dateFromQuote(text: string, sentAtMs: number, clock: Clock, end = false): string {
   const explicit = text.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日(?:\s*[（(][^）)]*[）)])?\s*(\d{1,2}):(\d{2})/)
-    ?? text.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})/)
+    ?? text.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})[ T](\d{1,2}):(\d{2})/)
   if (explicit) {
-    const dates = text.match(/\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日|\d{4}-\d{2}-\d{2}/g) ?? []
+    const dates = text.match(/\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日|\d{4}[-/]\d{1,2}[-/]\d{1,2}/g) ?? []
     if (dates.length !== 1) throw new Error('MAIL_DATE_AMBIGUOUS')
     // This parser accepts Shanghai-local expressions only. Never silently discard an explicit zone.
     const suffix = text.slice((explicit.index ?? 0) + explicit[0].length)
@@ -88,7 +88,7 @@ export async function extractMail(mail: SourceMail, model: EmailPrivacyModel | n
     const quotes: CheckedMail['quotes'] = []
     // Validate the released task at the very occurrence inside its cited quote. A valid surrounding
     // negative sentence (or an unrelated affirmative occurrence elsewhere) cannot justify a cut title.
-    let titleGrounded = false
+    let titleGrounded = false; let titleEvidence = parsed.task
     for (let quoteAt = source.indexOf(parsed.titleQuote); quoteAt >= 0 && !titleGrounded; quoteAt = source.indexOf(parsed.titleQuote, quoteAt + 1)) {
       if (!groundingVerdict(source, parsed.titleQuote, quoteAt, quoteAt + parsed.titleQuote.length).entailed) continue
       for (let taskAt = parsed.titleQuote.indexOf(parsed.task); taskAt >= 0; taskAt = parsed.titleQuote.indexOf(parsed.task, taskAt + 1)) {
@@ -96,8 +96,25 @@ export async function extractMail(mail: SourceMail, model: EmailPrivacyModel | n
         if (groundingVerdict(source, parsed.task, start, start + parsed.task.length).entailed) { titleGrounded = true; break }
       }
     }
+    // 真实邮件偶尔在短标题里跨标点/空格压缩（例如引文是“课程 展示安排”，task 是“课程展示安排”）。
+    // 仅当 task 不是引文的连续子串时才走这条窄回退；仍要求引文本身在原文中接地，且 task 的
+    // 非空白/标点字符按顺序全部来自引文。否定、条件、数字截断等反例仍由上面的逐字检查拒绝。
+    if (!titleGrounded && !parsed.titleQuote.includes(parsed.task)) {
+      const compact = (text: string) => text.replace(/[\s\p{P}\p{S}]/gu, '')
+      if (compact(parsed.task) && compact(parsed.titleQuote).includes(compact(parsed.task))) {
+        for (let quoteAt = source.indexOf(parsed.titleQuote); quoteAt >= 0; quoteAt = source.indexOf(parsed.titleQuote, quoteAt + 1)) {
+          if (groundingVerdict(source, parsed.titleQuote, quoteAt, quoteAt + parsed.titleQuote.length).entailed) { titleGrounded = true; titleEvidence = parsed.titleQuote; break }
+        }
+      }
+      // 模型若只是概括了标题（不是引文子串），宁可直接采用已接地的短引文，不采用概括后的标题。
+      if (!titleGrounded && [...parsed.titleQuote].length <= 20) {
+        for (let quoteAt = source.indexOf(parsed.titleQuote); quoteAt >= 0; quoteAt = source.indexOf(parsed.titleQuote, quoteAt + 1)) {
+          if (groundingVerdict(source, parsed.titleQuote, quoteAt, quoteAt + parsed.titleQuote.length).entailed) { titleGrounded = true; titleEvidence = parsed.titleQuote; break }
+        }
+      }
+    }
     if (!titleGrounded) throw new Error('MAIL_TITLE_UNGROUNDED')
-    quotes.push({ field: 'title', text: parsed.task })
+    quotes.push({ field: 'title', text: titleEvidence })
     const checkedDate = (value: z.infer<typeof date> | undefined | null, field: 'deadlineIso' | 'eventStartIso' | 'eventEndIso') => {
       if (!value) return undefined
       if (!source.includes(value.quote)) throw new Error('MAIL_EVIDENCE_UNGROUNDED')
@@ -119,7 +136,7 @@ export async function extractMail(mail: SourceMail, model: EmailPrivacyModel | n
       quotes.push({ field: 'locationText', text: parsed.location.text })
     }
     if (parsed.urgency && (!source.includes(parsed.urgency.quote) || /无需|取消|不再|不要|不用|不必|不需/.test(parsed.urgency.quote) || !(parsed.urgency.level === 'reply-today' ? /(?:今天|今日)(?:内)?(?:务必|需要|请)?(?:上午|下午|晚上|中午)?(?:前)?回复/ : /(?:考场|教室|地点)(?:已|将|现)?(?:变更|更改|调整)/).test(parsed.urgency.quote))) throw new Error('MAIL_URGENCY_UNGROUNDED')
-    return { ok: true, value: { kind: parsed.kind, title: parsed.task, sourceRole: parsed.sourceRole, deadlineIso,
+    return { ok: true, value: { kind: parsed.kind, title: titleEvidence, sourceRole: parsed.sourceRole, deadlineIso,
       ...(eventStartIso ? { eventStartIso } : {}), ...(eventEndIso ? { eventEndIso } : {}), ...(parsed.location ? { locationText: parsed.location.text } : {}), ...(parsed.urgency ? { urgency: parsed.urgency.level } : {}), quotes } }
   } catch { return { ok: false, error: 'privacy-invalid-output' } }
 }

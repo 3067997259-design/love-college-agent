@@ -59,4 +59,15 @@ describe('mail isolation and evidence-bound extraction', () => {
       expect(() => dateFromQuote(quote, mail.sentAtMs, clock)).toThrow()
     }
   })
+  it('parses slash dates inside a longer sentence', () => {
+    expect(dateFromQuote('请在 2026/10/19 14:00 前提交作业', mail.sentAtMs, clock)).toBe('2026-10-19T14:00:00+08:00')
+    expect(() => dateFromQuote('请在 2026/10/19 14:00 前提交作业', mail.sentAtMs, clock, true)).toThrow()
+  })
+  it('falls back to a grounded short quote when the model paraphrases the title', async () => {
+    const quote = '关于课程展示的通知'
+    const input = { ...mail, subject: '课程展示', body: quote + '，截止：' + output.deadline.quote }
+    const result = await extractMail(input, { source: 'fake', extract: async () => ({ ...output, task: '课程展示安排', titleQuote: quote }) }, clock, signal())
+    expect(result).toMatchObject({ ok: true, value: { title: quote } })
+  })
 })
+
