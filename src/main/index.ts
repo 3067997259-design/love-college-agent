@@ -55,7 +55,7 @@ import { probeImap } from './mail/probe'
 import { openSessionStore, resumeSavedSession, type SessionStore } from './store/session'
 import { probeJournal } from './validation/journal'
 import { probeModel } from './validation/model'
-import { readModelProviders, readPrivateCredentialValues } from './config/providers'
+import { readMailCredentials, readModelProviders, readPrivateCredentialValues } from './config/providers'
 import { createModelClient } from './model/client'
 import { createHarness } from './harness/loop'
 import { builtinTools } from './harness/tools'
@@ -69,6 +69,8 @@ import { createPomodoro, type PomodoroService } from './pomodoro/service'
 import { pomodoroTools } from './pomodoro/tools'
 import { probePomodoro } from './validation/pomodoro'
 import { createFakeMailbox, createBlockedImapSource } from './mail/fake'
+import { createImapSource } from './mail/imap'
+import type { MailSource } from './mail/types'
 import { openEvidenceVault, type EvidenceVault } from './mail/evidence-vault'
 import { createCampusService, type CampusService } from './campus/service'
 import { mailTools } from './mail/tools'
@@ -350,11 +352,16 @@ void app.whenReady().then(async () => {
     scheduler.schedule('history.photos', clock.nowMs() + 5000, () => photos?.reconcile(), { everyMs: 5000 })
     vault = openEvidenceVault(dataDir, store.scope)
     const fakeMailbox = prepared.developer ? createFakeMailbox(clock) : undefined
+    let realMailbox: MailSource | undefined
+    if (!prepared.developer && !prepared.booth) {
+      try { await readMailCredentials(providersFile); realMailbox = createImapSource(providersFile, clock) } catch { /* no usable mail configuration: keep source blocked */ }
+    }
+    const mailAttachmentSource = fakeMailbox?.source.readAttachment ?? realMailbox?.readAttachment
     const fakeDocuments = prepared.developer ? createFakeDocumentModel(clock) : undefined
     const artifacts = createArtifactStore(dataDir, store.scope)
     documentVault = openDocumentVault(dataDir, store.scope)
     documents = createDocumentService({ clock, store, scheduler, settings: prepared.pluginSettings, vault: documentVault, artifacts, model: fakeDocuments?.model ?? taskModels.document, development: fakeDocuments,
-      ...(fakeMailbox?.source.readAttachment ? { readAttachment: (attachment, signal) => fakeMailbox.source.readAttachment!(attachment, signal) } : {}),
+      ...(mailAttachmentSource ? { readAttachment: (attachment, signal) => mailAttachmentSource(attachment, signal) } : {}),
       openArtifact: previewArtifact, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('document', text, id) },
       failed: () => { console.error('Document processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachDocuments(documents)
@@ -368,7 +375,7 @@ void app.whenReady().then(async () => {
       rolled: () => { controller?.refresh('connection'); harness?.sessionChanged(); pomodoro?.reconcile(); campus?.stateChanged(); documents?.stateChanged() },
       failed: () => { console.error('Memory processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachMemory(memory)
-    campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? createBlockedImapSource(), privacy: fakeMailbox?.privacy ?? taskModels.mail,
+    campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? realMailbox ?? createBlockedImapSource(), privacy: fakeMailbox?.privacy ?? taskModels.mail,
       canProcess: () => (!life || life.view().locationId === 'room') && !lifeWork?.active() && !minecraft?.active(),
       artifacts, openArtifact: previewArtifact, attachment: (record) => documents!.registerAttachment(record),
       development: fakeMailbox, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('mail', text, id) },
