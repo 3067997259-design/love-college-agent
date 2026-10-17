@@ -1,5 +1,7 @@
 # Love, College & Agent
 
+**10-17 23:15 直连网络复测：** 关闭代理后真实 privacy 探针一次请求即 ready（实际 Markdown、事实与截止时间接地均通过）；IMAP 登录/ID 成功但打不开配置文件夹“桃子”，未读邮件，待用户确认/创建。已用真实 privacy 生成演示存档 `demo-real.lca-save`（真实交付 `整理-cf709fac.md` + 首件羽毛笔 `given`），新 profile 从向导恢复验证通过。详见[真实使用验证](docs/engineering/live-use-20261017.md)。
+
 **10-17 22:34 新终包验收：** NSIS 从干净 `D:\lca-gpt` 工作树、源码 `efafe5d` 重打（trackedDirty=false），在 21:44 包基础上修复真实模型下的本地时间回答（`get_clock` 增加 `local/timeZone`）与记忆 JSON 容错；实际安装后两侧七类探针、普通重启、历史照片引用与全部 **26 项安装场景** 通过（报告 ok=true），本机复测真实模型：时钟回答“22:35（上海时间）”、记忆抽取 `success`。安装器 264,346,098 字节，SHA-256 `61492b4cf67caeb6c86d553ab74b74d8c9bcdf4c2fc989f349b7a52fa9f5af7f`，未签名；服务仍为合成，真实 TTS／OCR／MC／干净第二机未验收。记录见[安装态记录](docs/engineering/package-third-circle.md)、[真实使用验证](docs/engineering/live-use-20261017.md) 与[部署说明](docs/deployment.md)。
 
 **10-17 晚 应用差分候选：** 按需求补齐 19 张（五张眨眼、一张抬眼、六张嘴型、一张思考、六张夜景），沿用 NovelAI 底稿＋GPT-image 精修；13 张面部差分在明确区域之外零像素改动，原采用图未覆盖。用户已确认“特别喜欢、差分刻画很好”并按整批采用；2026-10-17 晚已接入书页（眨眼／抬头／嘴型贴片、think、室内与海岸夜景重光），记录见[差分接入](docs/engineering/face-deltas-adoption-20261017.md)；[逐张审图](art/retouch/2026-10-18-face-deltas/review.html)、[交付与验收边界](docs/engineering/art-deltas-delivery-20261017.md)。

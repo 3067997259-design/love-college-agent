@@ -13,3 +13,5 @@
 12:42 审计 #37：探针现在先持久切到 quiet 并核对回执／快照，再导入资料；inspect 在启动应用前要求日志的最后模式为 quiet，旧 rest profile 保守拒绝，防止启动阶段消费完成事件。pnpm test:privacy-probe 配置合成 privacy/chat/background，成功／失败各一份文件及重开检查通过，chat/background 零请求、普通 model/seen 为空；原真实失败报告独立保留，没有新增真实请求。该回归追加到安装矩阵，下一包为 26 项。
 
 用户后续明确确认：目前还没有选定 TTS／OCR 服务，会自行寻找。真实配置、模型与音色保留待办；现有合成验收继续保留，不替用户填默认供应商，也不把未装配写成实现失败。
+
+23:00 直连复测（用户临时关闭代理，gh 的 127.0.0.1:7897 仍留在 git 配置，仅本机备忘）：`pnpm probe:privacy` 一次真实请求即 `ok=true/status=ready`，`actualMarkdownFile`、`basicFactsPresent`、`groundedDeadlineMatched` 均为 true，未调用 chat/background，说明此前失败是网络路径而非配置。`pnpm probe:imap` 认证与 IMAP ID 成功（`authenticated=true`、`idConfirmed=true`），但在 `open` 阶段打开配置文件夹失败（`reason=unknown`、`code=UNCLASSIFIED`），未读取任何邮件；最可能是邮箱里没有名为“桃子”的文件夹，或服务器对该文件夹名有编码限制，需要用户确认/创建。真实隐私质量和 IMAP 邮件内容仍未验收。
