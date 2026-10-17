@@ -6,6 +6,7 @@ import type { Scheduler } from '../scheduler'
 import { checkedPermissions, checkedPlayer, checkedStamp, checkedWorld, checkToolset, sameWorld, type GameProtocol, type GameWorld, type GamePlayer } from './protocol'
 import { inventoryObservation, minecraftFeatures, sceneObservation } from './observations'
 import { checkedScreenshot } from './screenshot'
+import { harvestObservation, miningTarget } from './mining'
 
 export const minecraftScopeSchema = z.strictObject({ radiusBlocks: z.number().int().min(1).max(16), durationMs: z.number().int().min(1000).max(600_000), allowChat: z.boolean(), allowScreenshots: z.boolean().default(false), allowMining: z.boolean().default(false) })
 const targetSchema = z.strictObject({ x: z.number().int(), y: z.number().int(), z: z.number().int() })
@@ -26,7 +27,7 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
   available?(): boolean; stopping?(): void;
   record?(receipt: GameReceipt): void; interrupted?: GameReceipt; events?(messages: readonly { id: number; text: string; sender: string }[]): void }) {
   const { clock, scheduler } = options
-  let lastObservationTick = 0; let screenshots = 0
+  let lastObservationTick = 0; let screenshots = 0; let miningAttempts = 0
   const state: MinecraftView = { status: options.interrupted && !options.interrupted.stopVerified ? 'paused' : 'idle', source: 'none', serverId: options.interrupted?.serverId ?? null, roundId: options.interrupted?.roundId ?? null, endsAtMs: null, actionsUsed: 0, maxActions: 24, chatSeen: 0, stopVerified: !options.interrupted || options.interrupted.stopVerified }
   let bound: GameWorld | undefined; let player: GamePlayer | undefined; let anchor: GamePlayer | undefined
   let lease: Lease | undefined = options.interrupted && !options.interrupted.stopVerified ? { serverId: options.interrupted.serverId, controlSessionId: options.interrupted.controlSessionId } : undefined
@@ -130,7 +131,7 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
         const scope = minecraftScopeSchema.parse(command.scope)
         if (scope.allowScreenshots && !state.features?.includes('screenshot') || scope.allowMining && !state.features?.includes('mining')) throw new Error('GAME_UNSUPPORTED')
         if (command.expectedPlayerUuid !== player.uuid || scope.allowChat && !port().allows('send_chat', ['expectedWorldSessionId'])) throw new Error('GAME_PILOT_CHANGED')
-        anchor = player; sequence = 0; reads = 0; polls = 0; stream = undefined; cursor = undefined; target = undefined; lastObservationTick = 0; screenshots = 0
+        anchor = player; sequence = 0; reads = 0; polls = 0; stream = undefined; cursor = undefined; target = undefined; lastObservationTick = 0; screenshots = 0; miningAttempts = 0
         state.scope = scope; state.roundId = randomUUID(); state.endsAtMs = clock.nowMs() + scope.durationMs; state.actionsUsed = 0; state.chatSeen = 0; delete state.lastAction
         lease = { serverId: command.serverId, controlSessionId: randomUUID() }; state.stopVerified = false
         options.record?.({ roundId: state.roundId, ...lease, status: 'started', stopVerified: false })
@@ -158,6 +159,43 @@ export function createMinecraft(options: { clock: Clock; scheduler: Scheduler; p
     return { png: captured.png, sourceTick: captured.metadata.sourceTick, capturedAtMs: clock.nowMs(), roundId: state.roundId! }
   })
   const tool = (name: string, input: Record<string, unknown>, parent: AbortSignal): Promise<Record<string, unknown>> => withTool(parent, async (combined, ticket) => {
+      if (name === 'minecraft_mine') {
+        const block = miningTarget.parse(input)
+        if (!state.scope?.allowMining || !state.features?.includes('mining') || state.actionsUsed >= state.maxActions || miningAttempts >= 4) throw new Error('GAME_MINING_UNAVAILABLE')
+        const checkPosition = async () => {
+          const current = await verifyPlayer(combined, ticket)
+          if (current.gameMode !== 'survival' || current.onGround !== true || current.inWater !== false || current.fallFlying !== false || current.riding !== false || current.usingItem !== false
+            || !anchor || distance(block, anchor) > state.scope!.radiusBlocks || block.y < Math.floor(current.y)
+            || block.x === Math.floor(current.x) && block.z === Math.floor(current.z) && block.y <= Math.floor(current.y) + 1
+            || distance({ x: block.x + 0.5, y: block.y + 0.5, z: block.z + 0.5 }, { ...current, y: current.y + 1.62 }) > 3) throw new Error('GAME_UNSAFE_MINING')
+          return current
+        }
+        const coordinates = { x: block.x, y: block.y, z: block.z, dimension: bound!.dimension }
+        const harvest = async () => harvestObservation(await rpc('evaluate_harvest', coordinates, combined, ticket), block, bound!, port())
+        const current = await checkPosition(); await permissions(combined, ticket)
+        const navigation = z.object({ active: z.boolean() }).parse(await rpc('navigation_status', {}, combined, ticket)); if (navigation.active) throw new Error('GAME_NAVIGATION_BUSY')
+        const scene = sceneObservation(await rpc('describe_scene', { maxDistance: 3, rayColumns: 3, rayRows: 3 }, combined, ticket), bound!, port(), 3)
+        if (scene.sourceTick < lastObservationTick || distance(scene.eye, { ...current, y: current.y + 1.62 }) > 0.5 || scene.lookingAt.type !== 'block' || scene.lookingAt.id !== block.expectedBlockId || scene.lookingAt.distance > 3 || distance(scene.lookingAt.pos, block) !== 0) throw new Error('GAME_TARGET_CHANGED')
+        lastObservationTick = scene.sourceTick; const before = await harvest()
+        if (before.air || before.blockStateId !== block.expectedBlockId || !before.harvestEligible || before.estimateQuality !== 'exact' || !before.estimatedTicks || before.estimatedTicks > 40 || before.hazards.length || before.unmet.length) throw new Error('GAME_UNSAFE_MINING')
+        await checkPosition(); state.actionsUsed++; miningAttempts++; target = undefined; state.lastAction = { kind: 'mine', status: 'running', atMs: clock.nowMs() }; publish()
+        z.object({ started: z.literal(true), mode: z.literal('survival') }).parse(await rpc('break_block', { x: block.x, y: block.y, z: block.z, mode: 'survival', controlSessionId: lease!.controlSessionId, sequence: ++sequence }, combined, ticket))
+        for (let pollIndex = 0; pollIndex < 9; pollIndex++) {
+          await checkPosition()
+          const process = z.object({ owned: z.literal(true), controlSessionId: z.literal(lease!.controlSessionId), source: z.literal('client-process'), mining: z.object({ active: z.boolean(), x: z.number().int().optional(), y: z.number().int().optional(), z: z.number().int().optional() }) }).parse(await rpc('get_process_state', { controlSessionId: lease!.controlSessionId }, combined, ticket))
+          const after = await harvest()
+          if (after.air && !process.mining.active) {
+            state.lastAction = { kind: 'mine', status: 'succeeded', atMs: clock.nowMs() }; publish()
+            return { target: { x: block.x, y: block.y, z: block.z }, previousBlockId: before.blockStateId, observedBlockId: after.blockStateId, removedObserved: true, inputStopped: true, breakAttributedToPilot: false, pickupVerified: false, evidence: 'client-block-and-input' }
+          }
+          if (!process.mining.active || process.mining.x !== block.x || process.mining.y !== block.y || process.mining.z !== block.z || after.hazards.length || after.unmet.length || !after.air && after.blockStateId !== before.blockStateId) throw new Error('GAME_MINING_UNVERIFIED')
+          await new Promise<void>((resolve, reject) => {
+            const abort = () => { cancel(); reject(new Error('GAME_STOPPED')) }
+            const cancel = clock.after(350, () => { combined.removeEventListener('abort', abort); resolve() }); combined.addEventListener('abort', abort, { once: true }); if (combined.aborted) abort()
+          })
+        }
+        throw new Error('GAME_MINING_UNVERIFIED')
+      }
       if (name === 'minecraft_observe') { empty.parse(input); const current = await verifyPlayer(combined, ticket); return { pilot: { uuid: current.uuid, name: current.name, dimension: current.dimension, position: { x: current.x, y: current.y, z: current.z } }, scope: state.scope!, actionsRemaining: state.maxActions - state.actionsUsed, endsAtMs: state.endsAtMs } }
       if (name === 'minecraft_inventory' || name === 'minecraft_scene') {
         empty.parse(input); const inventory = name === 'minecraft_inventory'; const feature = inventory ? 'inventory' : 'scene'

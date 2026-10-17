@@ -14,7 +14,7 @@ function fixture(interrupted?: GameReceipt) {
   const player = { uuid: world.playerUuid, name: 'SyntheticPilot', dimension: world.dimension, x: 0, y: 64, z: 0, alive: true, yaw: 0, pitch: 0 }
   let blocked = false; let unsafe = false; let releaseFails = false; let connected = true; let active = false; let streamId = randomUUID(); let cursor = 20
   let owner: string | undefined; let events: unknown[] = []; let hang: Promise<unknown> | undefined; let applyLook = true; const calls: { name: string; input: Record<string, unknown> }[] = []; const receipts: GameReceipt[] = []; const seen: unknown[] = []
-  const protocol: GameProtocol = { allows: () => true, identifierAllowed: (value) => value !== 'credential', text: (value) => value.replaceAll('PRIVATE', '[redacted]'), call: async (name, input) => {
+  const protocol: GameProtocol = { allows: (name) => !['evaluate_harvest', 'break_block'].includes(name), identifierAllowed: (value) => value !== 'credential', text: (value) => value.replaceAll('PRIVATE', '[redacted]'), call: async (name, input) => {
     calls.push({ name, input }); const stamp = (value: Record<string, unknown>) => ({ ...value, worldSession: { ...world } })
     if (name === 'get_status') return stamp({ mod: 'mcpfabric', side: 'client', serverPresent: true, integratedServer: true })
     if (name === 'list_capabilities') return stamp({ groups: { command: unsafe, world_write: false, control: true, navigation: true } })
@@ -91,13 +91,61 @@ it('hides optional capabilities unless the approved endpoint has qualified schem
   await expect(f.game.tool('minecraft_inventory', {}, signal())).rejects.toThrow()
   expect(f.calls.some((call) => call.name === 'get_inventory')).toBe(false)
 })
-it('accepts explicit false consent fields and refuses features that are not implemented yet', async () => {
+it('accepts explicit false consent fields and refuses optional capabilities absent from the connection', async () => {
   const f = fixture(); await f.start({ radiusBlocks: 8, durationMs: 60000, allowChat: true, allowScreenshots: false, allowMining: false })
   expect(f.game.view().status).toBe('playing')
   for (const field of ['allowScreenshots', 'allowMining']) {
     const other = fixture(); await other.start({ radiusBlocks: 8, durationMs: 60000, allowChat: true, [field]: true })
     expect(other.game.view().status).toBe('failed'); expect(other.receipts).toHaveLength(0)
   }
+})
+const mineScope = { radiusBlocks: 8, durationMs: 60000, allowChat: false, allowMining: true }
+const block = { x: 1, y: 64, z: 1, expectedBlockId: 'minecraft:stone' }
+function nativeMining(f: ReturnType<typeof fixture>, scenario = 'ready') {
+  Object.assign(f.player, { gameMode: scenario === 'creative' ? 'creative' : 'survival', onGround: true, inWater: false, fallFlying: false, riding: false, usingItem: false })
+  let removed = false; let active = false; let owner: string | undefined
+  const original = f.protocol.call; f.protocol.allows = () => true
+  f.protocol.call = async (name, input, signal) => {
+    const stamp = (value: Record<string, unknown>) => ({ ...value, worldSession: { ...f.world } })
+    if (['describe_scene', 'evaluate_harvest', 'break_block', 'get_process_state'].includes(name)) f.calls.push({ name, input })
+    if (name === 'describe_scene') return stamp({ source: 'client-vision', sourceTick: 100, dimension: f.world.dimension, eye: { x: f.player.x, y: 65.62, z: f.player.z }, yaw: 0, pitch: 0,
+      lookingAt: { type: 'block', id: scenario === 'crosshair' ? 'minecraft:dirt' : 'minecraft:stone', pos: { x: 1, y: 64, z: 1 }, face: 'north', distance: 2 }, rays: Array.from({ length: 9 }, (_, i) => ({ hit: false, row: Math.floor(i / 3), col: i % 3 })) })
+    if (name === 'evaluate_harvest') return stamp({ x: input.x, y: input.y, z: input.z, dimension: f.world.dimension, playerUuid: f.player.uuid,
+      blockStateId: removed ? 'minecraft:air' : 'minecraft:stone', air: removed, harvestEligible: scenario !== 'no-tool', estimateQuality: removed ? 'unknown' : 'exact', ...(removed ? {} : { estimatedTicks: scenario === 'slow' ? 100 : 20 }), hazards: scenario === 'hazard' ? ['fluids'] : [], unmet: scenario === 'no-tool' ? ['no_tool'] : [], candidates: [{ instructions: 'PRIVATE_MINING_MUST_BE_DROPPED' }] })
+    if (name === 'break_block') { owner = String(input.controlSessionId); removed = !['stuck', 'ack-only'].includes(scenario); active = scenario === 'stuck'; return stamp({ started: true, mode: 'survival' }) }
+    if (name === 'get_process_state') return stamp({ owned: owner === input.controlSessionId, controlSessionId: input.controlSessionId, source: 'client-process', mining: { active, ...(active ? { x: 1, y: 64, z: 1 } : {}) } })
+    if (name === 'release_control_session') { owner = undefined; active = false }
+    return original(name, input, signal)
+  }
+  return { reset: () => { removed = false } }
+}
+it('only confirms observed removal plus stopped owned mining, never pickup or break attribution', async () => {
+  const f = fixture(); nativeMining(f); await f.start(mineScope)
+  const result = await f.game.tool('minecraft_mine', block, signal())
+  expect(result).toMatchObject({ removedObserved: true, inputStopped: true, breakAttributedToPilot: false, pickupVerified: false, observedBlockId: 'minecraft:air' })
+  expect(JSON.stringify(result)).not.toContain('PRIVATE_MINING'); expect(f.game.view().lastAction).toMatchObject({ kind: 'mine', status: 'succeeded' })
+  expect(f.calls.filter((call) => call.name === 'break_block')).toMatchObject([{ input: { mode: 'survival', sequence: 1, expectedWorldSessionId: f.world.sessionId, controlSessionId: f.receipts[0].controlSessionId } }])
+})
+it('requires separate mining consent and enforces four attempts per round', async () => {
+  const denied = fixture(); nativeMining(denied); await denied.start(); await expect(denied.game.tool('minecraft_mine', block, signal())).rejects.toThrow()
+  expect(denied.calls.some((call) => call.name === 'break_block')).toBe(false)
+  const f = fixture(); const world = nativeMining(f); await f.start(mineScope)
+  for (let i = 0; i < 4; i++) { await f.game.tool('minecraft_mine', block, signal()); world.reset() }
+  await expect(f.game.tool('minecraft_mine', block, signal())).rejects.toThrow(); expect(f.calls.filter((call) => call.name === 'break_block')).toHaveLength(4)
+})
+it.each(['hazard', 'no-tool', 'slow', 'creative', 'underfoot', 'far', 'crosshair', 'ack-only'])('refuses unsafe or unverified mining: %s', async (scenario) => {
+  const f = fixture(); nativeMining(f, scenario); await f.start(mineScope)
+  const target = { ...block, ...(scenario === 'underfoot' ? { x: 0, z: 0 } : {}), ...(scenario === 'far' ? { x: 100 } : {}) }
+  await expect(f.game.tool('minecraft_mine', target, signal())).rejects.toThrow()
+  expect(f.game.view()).toMatchObject({ status: 'failed', stopVerified: true })
+  expect(f.calls.filter((call) => call.name === 'break_block')).toHaveLength(scenario === 'ack-only' ? 1 : 0)
+})
+it('cancels held mining on the unified clock deadline and verifies lease release', async () => {
+  const f = fixture(); nativeMining(f, 'stuck'); await f.start(mineScope)
+  const pending = f.game.tool('minecraft_mine', block, signal()); const rejected = expect(pending).rejects.toThrow()
+  await vi.waitFor(() => expect(f.calls.some((call) => call.name === 'get_process_state')).toBe(true)); f.clock.advanceBy(12000)
+  await rejected; expect(f.game.view()).toMatchObject({ status: 'failed', stopVerified: true })
+  expect(f.calls.some((call) => call.name === 'release_control_session')).toBe(true)
 })
 it('rejects an older inventory sample even if its world stamp is still valid', async () => {
   const f = fixture(); const original = f.protocol.call; let tick = 50

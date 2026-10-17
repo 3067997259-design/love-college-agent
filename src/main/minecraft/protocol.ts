@@ -7,7 +7,8 @@ export const worldSchema = z.object({ instanceId: id, sessionId: id, revision: z
 export type GameWorld = z.infer<typeof worldSchema>
 const position = { x: z.number().finite().min(-30_000_000).max(30_000_000), y: z.number().finite().min(-4096).max(4096), z: z.number().finite().min(-30_000_000).max(30_000_000) }
 export const playerSchema = z.object({ uuid: z.string().uuid(), name: z.string().min(1).max(32), dimension: worldSchema.shape.dimension, ...position, alive: z.literal(true),
-  yaw: z.number().finite().min(-3600000).max(3600000).optional(), pitch: z.number().finite().min(-90).max(90).optional() })
+  yaw: z.number().finite().min(-3600000).max(3600000).optional(), pitch: z.number().finite().min(-90).max(90).optional(),
+  gameMode: z.enum(['survival', 'creative', 'adventure', 'spectator', 'unknown']).optional(), onGround: z.boolean().optional(), inWater: z.boolean().optional(), fallFlying: z.boolean().optional(), riding: z.boolean().optional(), usingItem: z.boolean().optional() })
 export type GamePlayer = z.infer<typeof playerSchema>
 export const sameWorld = (a: GameWorld, b: GameWorld) => a.instanceId === b.instanceId && a.sessionId === b.sessionId && a.revision === b.revision && a.playerUuid === b.playerUuid && a.dimension === b.dimension
 export function checkedWorld(value: unknown, protocol: GameProtocol) {
