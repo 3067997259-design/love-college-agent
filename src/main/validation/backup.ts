@@ -3,7 +3,7 @@ import JSZip from 'jszip'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
-import { createManualClock } from '../clock'
+import { createManualClock, systemClock } from '../clock'
 import { openSessionStore } from '../store/session'
 import { openMemoryRepository } from '../memory/repository'
 import { openEvidenceVault } from '../mail/evidence-vault'
@@ -24,7 +24,8 @@ export async function probeBackup(root: string) {
   try {
     const desk = createDesk(join(root, 'desk'))
     const flowOptions = { store, clock, desk, booth: false, busy: () => false, changed: () => {}, prepare: async () => ({ messages: [], eligibleIndexes: [] }), emit: () => {}, run: async () => '' }
-    const flow = createHeartFlow(flowOptions); flow.dispatch({ type: 'flow.enter' } as AppCommand); await Promise.resolve(); await Promise.resolve()
+    const flow = createHeartFlow(flowOptions); flow.dispatch({ type: 'flow.enter' } as AppCommand)
+    await new Promise<void>((done) => systemClock.after(0, done)); if (!flow.active()) throw new Error('DESK_FLOW_ENTRY_FAILED')
     flow.dispatch({ type: 'flow.mode', mode: 'execute' } as AppCommand); flow.write('saved.txt', '字'.repeat(21_333) + 'x')
     const beforeInvalid = store.records().length
     for (const text of ['字'.repeat(22_000), 'short\0text']) { let rejected = false; try { flow.write('invalid.txt', text) } catch { rejected = true }; if (!rejected) throw new Error('DESK_INVALID_ACCEPTED') }
