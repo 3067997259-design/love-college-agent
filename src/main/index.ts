@@ -30,6 +30,7 @@ import { createNotifications, notificationTools, type NotificationsService } fro
 import { createCharacterLibrary } from './characters/library'
 import { builtinCharacter, createCharacterService, type CharacterService } from './characters/service'
 import { definitionSchema } from './characters/package'
+import { briefPersona } from './characters/builtin-persona'
 import { exportBuiltinCharacter } from './characters/builtin'
 import { appliedDeskChanges } from './heart-flow/changes'
 import { createHistoryPhotos, type HistoryPhotos } from './history/photos'
@@ -477,7 +478,8 @@ void app.whenReady().then(async () => {
       },
       changed: () => controller?.refresh('task') })
     minecraftChat = createMinecraftChat({ root: join(dataDir, 'minecraft'), clock, mainStore: store, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock), game: () => minecraft!, enabled: () => modelReady,
-      persona: () => ({ name: controller!.getSnapshot().onboarding?.characterName ?? '桃子', persona: activeCharacter.persona }), credentials: privateCredentials, changed: () => controller?.refresh('message') })
+      // 游戏一轮每次调用都带人设并按字节计入展位预算：用短人设，不带整份正文
+      persona: () => ({ name: controller!.getSnapshot().onboarding?.characterName ?? '桃子', persona: briefPersona(activeCharacter) }), credentials: privateCredentials, changed: () => controller?.refresh('message') })
     controller.attachMinecraft(minecraft, minecraftChat, mcpFixture ? (scenario) => mcpFixture!.game.select(scenario) : undefined)
     harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
       prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); if (!heartFlow!.active()) return recall!.prepare(id, preparedContext)

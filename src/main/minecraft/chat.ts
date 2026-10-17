@@ -61,7 +61,8 @@ export function createMinecraftChat(options: { root: string; clock: Clock; mainS
         const view = options.game().view(); const feature = { minecraft_inventory: 'inventory', minecraft_scene: 'scene', minecraft_look: 'look' } as const
         return tools.filter((tool) => (tool.definition.name !== 'minecraft_chat' || view.scope?.allowChat)
           && (!(tool.definition.name in feature) || view.features?.includes(feature[tool.definition.name as keyof typeof feature])))
-      }, limits: { steps: 8, dailyTokens: 80_000, autonomousTokens: 80_000, outputTokens: 800 },
+      // 一轮的用量上限。原 80k 是按内置人设为空时调的（一轮 8 次调用约 78k）；她的短人设每次约 0.6 KB，放宽到 90k，其余上限不变
+      }, limits: { steps: 8, dailyTokens: 90_000, autonomousTokens: 90_000, outputTokens: 800 },
         enabled: () => options.enabled() && options.game().view().status === 'playing', changed: options.changed,
         prepareContext: async (_id, signal) => {
           signal.throwIfAborted(); const view = options.game().view(); const persona = options.persona()
