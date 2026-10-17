@@ -260,6 +260,8 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 
 `pnpm test:minecraft:mining` 验证逐轮同意、近身 survival 的 scene／harvest 守卫、目标空气与 owned mining 停止、背包复查、普通上下文排除和释放／重启。仅合成世界／模型；不把启动回执、方块消失或可能的掉落说成她已拾取物品。
 
+`pnpm test:resources` 验证两个原生 Electron／SQLite 进程的跨进程准入、账本追加序号、私人恢复不返还模型／语音用量、个人／展位共享、原生限额设置及网络前拒绝、坏账本保留原书且关闭请求。资源账本在私人存档外；显示保守预留，不虚构费用。默认日模型上限不因测试调高；语音另按自然日字符／次数计。均用合成服务。
+
 输出语音：`pnpm test:voice` 验证 PCM／AudioContext、取消、书本白名单与不重播；默认静音，开发模式为合成测试音。真实 `providers.tts` 必须显式指定兼容协议、HTTPS 前缀、模型、音色和密钥，仍待真实服务验收；不把合成音当角色声音。见 [语音记录](docs/engineering/voice-third-circle.md)。
 
 `/init`／`/review` 只在 execute 心流生成用户专用草稿，最多 8 个来源／24 KB 输入；实际读写、来源版本和当前产物匹配后才 ready，不能解释成审查或测试通过。`pnpm test:flow-drafts` 验证原生落盘、预览、取消、重启、存档恢复及正文隔离；不会执行脚本或编辑源文件。

@@ -17,6 +17,7 @@ import { CharacterControls } from './CharacterControls'
 import { OpticalControls } from './OpticalControls'
 import { MinecraftControls } from './MinecraftControls'
 import { VoiceControls } from './VoiceControls'
+import { ResourceControls } from './ResourceControls'
 
 type Action = AppCommand extends infer Command ? Command extends AppCommand ? Omit<Command, 'epoch' | 'protocolVersion' | 'requestId'> : never : never
 
@@ -50,6 +51,7 @@ export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: {
       <McpControls bridge={bridge} snapshot={snapshot} />
       <MinecraftControls bridge={bridge} snapshot={snapshot} />
       <VoiceControls bridge={bridge} snapshot={snapshot} />
+      <ResourceControls bridge={bridge} snapshot={snapshot} />
       <DiagnosticsControls bridge={bridge} snapshot={snapshot} />
       <ModelControls bridge={bridge} snapshot={snapshot} />
       <GiftControls bridge={bridge} snapshot={snapshot} />

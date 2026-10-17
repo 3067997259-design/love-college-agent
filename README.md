@@ -1,5 +1,7 @@
 # Love, College & Agent
 
+**资源守卫（2026-10-17）：** 接口 `248e640` 已先合 main；模型／语音准入现进存档外 append-only 账本，恢复书本或个人／展位切换不会返还用量。展位设置可显式调整日模型额度并查看计数，默认仍总 500k／自主 100k 预留，语音另有字符／次数上限。类型／lint、407 单测、双进程原生锁及真实恢复／坏账本关闭／网络前拒绝通过，供应商均合成。`pnpm test:resources`，见 [资源记录](docs/engineering/resources-third-circle.md)。
+
 **MC 近身挖掘（2026-10-17）：** 既有 allowMining 每轮单独同意，限定四种普通方块、survival／站稳／准星／工具和危险检查，启动后核验目标变空气且自己的挖掘输入已结束；不声称因果归属或拿到掉落物。类型／lint、388 单测及原生同意→场景→挖掘→背包→停止／重启通过，世界与模型为合成。`pnpm test:minecraft:mining`，见 [挖掘记录](docs/engineering/minecraft-mining-third-circle.md)。下一步是展位预算和心流剩余工具。
 
 **MC 图像增补（2026-10-17，前批）：** 默认关闭、每轮同意的 framebuffer 截图已接；实际 PNG 解码为有界 JPEG，只交独立游戏客户端，最近两帧仅内存，停止清除。类型／lint、377 单测、多模态 HTTP／共享预算／私人 ZIP 隔离及原有 MC、书桌预览原生回归通过；均为合成世界／模型。`pnpm test:minecraft:images`，见 [截图记录](docs/engineering/minecraft-screenshots-third-circle.md)。后续挖掘见上；AIRI 测试端点已核对，当时未监听。

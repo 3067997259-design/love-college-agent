@@ -9,6 +9,7 @@ import type { SessionStore } from '../../src/main/store/session'
 import { createHarness } from '../../src/main/harness/loop'
 import { builtinTools, type HarnessTool } from '../../src/main/harness/tools'
 import { ModelFailure, type ModelClient, type ModelReply, type ModelRequest } from '../../src/main/model/types'
+import { ResourceFailure } from '../../src/main/resources/ledger'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
@@ -33,6 +34,14 @@ function echoTool(run = vi.fn(async () => ({ ok: true, raw: { private: 'syntheti
 function aborted(signal: AbortSignal): Promise<ModelReply> { return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new ModelFailure('cancelled')), { once: true })) }
 
 describe('single inbox execution loop', () => {
+  it('refuses a durable resource admission before model dispatch, independently of the book projection', async () => {
+    const f = fixture(); const dispatched = vi.fn(async () => reply([], 'must not dispatch'))
+    const reserveModel = vi.fn(() => { throw new ResourceFailure('budget-exceeded') })
+    const h = start({ ...f, model: scripted(dispatched), tools: [], budget: { reserveModel, reserveSpeech: () => crypto.randomUUID() } })
+    h.send('synthetic', 'request', 'hash'); await h.idle()
+    expect(dispatched).not.toHaveBeenCalled(); expect(reserveModel).toHaveBeenCalledOnce(); expect(f.store.projection().task).toMatchObject({ status: 'failed', error: { code: 'budget-exceeded' } })
+    expect(f.store.records().some((row) => row.type === 'model/attempt')).toBe(false)
+  })
   it('executes a real deterministic clock tool and projects only its model-visible result', async () => {
     const f = fixture()
     const model = scripted(async (_request, index) => index === 0 ? reply([{ id: 'call', name: 'get_clock', arguments: '{}' }]) : reply([], 'synthetic final'))
