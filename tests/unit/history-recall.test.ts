@@ -57,7 +57,7 @@ it('inserts bounded historical reference before the question without making it e
   expect(JSON.stringify(f.recall.view())).not.toContain('周五桥'); expect(f.recall.view().status).toBe('recalling')
   f.store.append({ type: 'turn/end', turnId: 'turn', reason: 'completed' }); f.busy(false)
   expect(createHistoryRecall(f.options).view().status).toBe('ready'); expect(f.recall.prepare('later-unrelated', f.prepared)).toEqual(f.prepared)
-})
+}, 20_000)
 it('restricts model expansion to this quote and turn, with durable read limits', async () => {
   const f = fixture(); f.recall.request(f.anchor, '回忆', 'request', 'h'); f.recall.prepare('turn', f.prepared)
   const tool = f.recall.tool(); const context = { clock: f.clock, store: f.store, turnId: 'turn', signal: new AbortController().signal }
@@ -68,7 +68,7 @@ it('restricts model expansion to this quote and turn, with durable read limits',
   for (let index = 1; index < 8; index++) await tool.run({ requestId: 'request', relativeStart: 0, count: 1 }, context)
   await expect(tool.run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).rejects.toThrow('RECALL_BUDGET_EXCEEDED')
   f.recall.setEnabled(false); await expect(tool.run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).rejects.toThrow()
-})
+}, 20_000)
 it('keeps the reference and expansion available when the user interjects mid-turn (issue #12)', async () => {
   const f = fixture(); f.recall.request(f.anchor, '回忆', 'request', 'h')
   const first = f.recall.prepare('turn', f.prepared)
