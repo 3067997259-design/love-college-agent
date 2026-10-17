@@ -1,38 +1,159 @@
 {
-  "_说明": "工具活动的手写体小字（体验设计 §2 右页）。由代码按模板生成，不调用模型。{字段} 只能用快照里校验过的短字段。人设：克制、用词准确、不用 emoji。草稿，待用户把关。",
+  "_说明": "工具活动的手写体小字（体验设计 §2 右页；书合上后迷你窗也只靠这一行告诉你她在做什么）。由代码按模板生成，不调用模型。{字段} 只能用快照里校验过的短字段；目前只有邮件检查带 newCount，其余工具不带字段，模板里不要写占位符。人设：克制、用词准确、不用 emoji。进行中的句子不带句号（界面会自动补“…”）；失败、取消、不确定都不能写成已经做完；草案、提议要写明还在等你。草稿，待用户把关。",
   "mail.check": {
-    "running": "去邮箱里看看。",
+    "running": "去邮箱里看看",
     "completed": "看过邮箱，{newCount} 封新邮件。",
     "completed:zero": "看过邮箱，没有新邮件。",
-    "failed": "邮箱登不上，没看到信。"
+    "failed": "邮箱登不上，有没有新邮件还不知道。"
   },
   "mail.read": {
-    "running": "在读：{sourceLabel}",
-    "completed": "读完了：{sourceLabel}"
+    "running": "读一封邮件",
+    "completed": "读过了这封邮件。",
+    "completed:zero": "读过了这封邮件。",
+    "failed": "这封邮件没读到。"
   },
   "privacy.extract": {
-    "running": "《{fileName}》交给学校的模型整理，原文不经过我。",
+    "running": "《{fileName}》交给学校的模型整理，原文不经过我",
     "completed": "《{fileName}》整理好了。",
     "failed": "学校的模型连不上，这份先放着，没有交给别处。"
   },
   "calendar.write": {
-    "running": "排进日程。",
+    "running": "排进日程",
     "completed": "排进日程：{count} 件。"
   },
   "doc.organize": {
-    "running": "整理《{fileName}》。",
+    "running": "整理《{fileName}》",
     "completed": "《{fileName}》整理好了。"
   },
+  "document.status": {
+    "running": "看一下资料整理到哪了",
+    "completed": "看过资料的进度。"
+  },
+  "clock.read": {
+    "running": "看一眼时间",
+    "completed": "看过时间。"
+  },
+  "plan.update": {
+    "running": "列一下步骤",
+    "completed": "步骤列好了。"
+  },
+  "pomodoro.get_timer": {
+    "running": "看一眼计时",
+    "completed": "看过计时。"
+  },
+  "pomodoro.plan_pomodoros": {
+    "running": "排一份番茄计划",
+    "completed": "排好一份草案，等你确认。",
+    "failed": "这份计划没排成。"
+  },
+  "pomodoro.start_focus": {
+    "running": "开始下一段专注",
+    "completed": "专注开始了。",
+    "failed": "这一段没能开始。"
+  },
+  "pomodoro.pause": {
+    "running": "让计时停一下",
+    "completed": "计时停住了。",
+    "failed": "计时没停住。"
+  },
+  "pomodoro.stop": {
+    "running": "收起今天的计划",
+    "completed": "今天的计划收起了。",
+    "failed": "计划没收起来。"
+  },
+  "user.ask": {
+    "running": "问你一个问题",
+    "completed": "问过你了。",
+    "cancelled": "这个问题先不问了。"
+  },
+  "memory.search": {
+    "running": "翻一下记得的事",
+    "completed": "翻过记得的事。"
+  },
+  "memory.recall": {
+    "running": "回想那一页",
+    "completed": "回想过那一页。",
+    "failed": "那一页现在想不起来。"
+  },
+  "memory.optical": {
+    "running": "看那一页留下的印象",
+    "completed": "看过那一页的印象。"
+  },
+  "desk.run": {
+    "running": "想在书桌上运行一段代码",
+    "completed": "这段代码运行完了。",
+    "failed": "这段代码没运行成。",
+    "cancelled": "这段代码没有运行。"
+  },
+  "desk.command": {
+    "running": "想在书桌副本上运行一条命令",
+    "completed": "命令运行完了，收据在工作台上。",
+    "failed": "这条命令没运行成，收据在工作台上。",
+    "cancelled": "这条命令取消了。"
+  },
+  "desk.web-fetch": {
+    "running": "想读一个网页",
+    "completed": "网页读到了。",
+    "failed": "网页没读到。",
+    "cancelled": "这个网页没有读。"
+  },
+  "desk.computer.observe": {
+    "running": "看一眼书桌上的预览",
+    "completed": "看过预览。",
+    "failed": "预览没看到。"
+  },
+  "desk.computer.action": {
+    "running": "想在预览里操作一下",
+    "completed": "在预览里操作过了。",
+    "failed": "这一下没操作成。",
+    "cancelled": "这一下没有操作。"
+  },
+  "desk.delegate": {
+    "running": "派一个分身去查",
+    "completed": "分身出发了。",
+    "failed": "分身没派出去。"
+  },
+  "desk.delegate.result": {
+    "running": "等分身回来",
+    "completed": "分身交回了结果，我再核对。",
+    "failed": "分身的结果没收到。"
+  },
+  "desk.goals": {
+    "running": "看一下工作目标",
+    "completed": "看过工作目标。"
+  },
+  "gift.read": {
+    "running": "看看第一件礼物",
+    "completed": "看过第一件礼物。"
+  },
+  "gift.propose": {
+    "running": "想做一件小东西送你",
+    "completed": "想好要做什么了，等你点头。",
+    "failed": "这件没想好。"
+  },
   "gift.make": {
-    "running": "在做一件小东西。",
+    "running": "在做一件小东西",
     "completed": "做好了。",
     "failed": "这次没做成。"
   },
+  "notification.propose": {
+    "running": "想加一条急件提醒",
+    "completed": "提醒规则写成了草案，等你在设置里确认。",
+    "failed": "这条提醒没写成。"
+  },
+  "mcp.call": {
+    "running": "用一下外部工具",
+    "completed": "外部工具有结果了，我再核对。",
+    "failed": "外部工具没用成。"
+  },
+  "tool.unavailable": {
+    "failed": "这个工具现在用不了。"
+  },
   "_fallback": {
-    "running": "在忙。",
-    "completed": "做完一件事。",
-    "failed": "有一步没做成。",
-    "cancelled": "停下了。",
+    "running": "在做这一步",
+    "completed": "这一步做完了。",
+    "failed": "这一步没做成。",
+    "cancelled": "这一步停下了。",
     "unknown": "这一步不确定有没有做完。"
   }
 }
