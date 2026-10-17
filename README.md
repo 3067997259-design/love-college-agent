@@ -1,5 +1,7 @@
 # Love, College & Agent
 
+**第三圈澄清问答（2026-10-17）：** 接口 `d8270ad` 已先合 main；普通聊天／心流可 ask_user，专注和安静时排队到休息，可见十分钟、每回合三问／每日十二问。回答为用户信息，整批工具结果之后才送模型；取消和重启不恢复旧等待，心流材料不串普通记忆。原生问答／合成 HTTP／私人恢复及 425 项全量单测通过，随后语音专项 14 项通过；见 [问答记录](docs/engineering/questions-third-circle.md)。
+
 **stdio 截图修复（2026-10-17）：** #28 已补仅限获准公开 screenshot 的 9 MiB 传输缓冲，普通／隐私 stdio 仍为 256k。合法 1 MB PNG 整条／分片、近 6 MiB 实际解码／缩图／模型 HTTP 通过；图像超限可拒绝并核实释放，传输超限明确未核实。类型／lint、408 单测与五项原生矩阵通过，全部合成。`pnpm test:minecraft:stdio`，见 [修复记录](docs/engineering/minecraft-stdio-images.md)。
 
 **资源守卫（2026-10-17）：** 接口 `248e640` 已先合 main；模型／语音准入现进存档外 append-only 账本，恢复书本或个人／展位切换不会返还用量。展位设置可显式调整日模型额度并查看计数，默认仍总 500k／自主 100k 预留，语音另有字符／次数上限。类型／lint、407 单测、双进程原生锁及真实恢复／坏账本关闭／网络前拒绝通过，供应商均合成。`pnpm test:resources`，见 [资源记录](docs/engineering/resources-third-circle.md)。
@@ -405,6 +407,7 @@ pnpm dev
 | `pnpm probe:model` | 主进程 chat 槽位真实流式小请求通过，不打印回复或配置 |
 | `pnpm probe:harness` | 真实模型调用 get_clock 并结束回合，通过 |
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron：发送、工具往返、停止断连、重启恢复通过 |
+| `pnpm test:questions` | 有界 ask_user、书本回答、专注到休息、心流隔离、实际合成 HTTP、停止／重启／私人恢复 |
 | `pnpm test:developer` | 隔离假模型、鉴权 MCP、时钟、目录插件确认、场景与展位拒绝通过 |
 | `pnpm test:pomodoro` | 计划、SQLite、重启、熄灯／中断，以及双窗口／点穿 API／展开销毁／展位不透明回退／合成黑底替换通过 |
 | `pnpm test:pomodoro:realtime` | 正常模式真实约 80 秒；60,000 ms 专注＋20,047 ms 休息通过 |

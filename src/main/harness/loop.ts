@@ -38,6 +38,8 @@ export function createHarness(options: {
   foreground?(): void
   userWork?(): void
   settled?(): void
+  afterTools?(turnId: string, callIds: readonly string[]): void
+  turnSettled?(turnId: string): void
 }) {
   const { store, clock, model } = options
   const currentTools = () => {
@@ -142,13 +144,14 @@ export function createHarness(options: {
             let result
             try {
               if (!valid || !tool || !args) result = { ok: false, raw: { error: 'invalid-tool-arguments' }, visible: { error: 'invalid-tool-arguments', requirement: 'one JSON object matching the tool schema' } }
-              else { toolsExecuted = true; result = await tool.run(args, { clock, store, turnId: turn.id, signal: turn.abort.signal }) }
+              else { toolsExecuted = true; result = await tool.run(args, { clock, store, turnId: turn.id, callId: call.id, signal: turn.abort.signal }) }
             } catch {
               result = { ok: false, raw: { error: turn.abort.signal.aborted ? 'cancelled' : 'tool-failed' }, visible: { error: turn.abort.signal.aborted ? 'cancelled' : 'tool-failed' } }
             }
             record({ type: 'tool/result', turnId: turn.id, callId: call.id, ...result, elapsedMs: Math.max(0, clock.nowMs() - started) })
             turn.abort.signal.throwIfAborted()
           }
+          options.afterTools?.(turn.id, reply.toolCalls.map((call) => call.id))
           if (!reply.toolCalls.length && !eligible()) break
         } catch (error) {
           if (turn.pauseRequested && !turn.stopping && !disposed) {
@@ -171,6 +174,7 @@ export function createHarness(options: {
       if (error instanceof ModelFailure && error.partialText) record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: error.partialText, status: 'interrupted', ...delivery() })
       if (reason !== 'aborted') failure = errorCode(error)
     } finally {
+      options.turnSettled?.(turn.id)
       active = undefined
       finishOpenCalls(turn.id)
       record({ type: 'turn/end', turnId: turn.id, reason, ...(failure ? { error: { code: failure, retryable: failure === 'upstream-busy' || failure === 'connection-failed' } } : {}) })

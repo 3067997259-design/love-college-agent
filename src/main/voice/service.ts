@@ -17,7 +17,7 @@ export function createVoice(options: { store: SessionStore; clock: Clock; port: 
   const observe = () => {
     const messages = store.projection().messages.filter((message) => message.role === 'assistant' && !observed.has(message.id))
     for (const message of messages) observed.add(message.id)
-    const message = messages.findLast((message) => { const record = rows().find((row) => row.type === 'assistant/message' && row.id === message.id); return message.status === 'complete' && message.text.trim() && record?.type === 'assistant/message' && !record.toolCalls?.length && rows().some((row) => row.type === 'turn/end' && row.turnId === record.turnId && row.reason === 'completed') })
+    const message = messages.findLast((message) => { const record = rows().find((row) => row.type === 'assistant/message' && row.id === message.id); return message.status === 'complete' && message.text.trim() && record?.type === 'assistant/message' && !record.displayOnly && !record.toolCalls?.length && rows().some((row) => row.type === 'turn/end' && row.turnId === record.turnId && row.reason === 'completed') })
     if (!message || closed || !enabled || !port || options.blocked()) return
     stop(); if (worker) return // Never overlap requests, even when a provider ignores cancellation.
     const text = options.safeText(message.text); const attempts = rows().filter((row) => row.type === 'voice/attempt' && row.dayKey === calendarDay(clock))

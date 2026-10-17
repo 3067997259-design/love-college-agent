@@ -14,6 +14,11 @@ import type { AppCommand } from '../../src/shared'
 import { ResourceFailure, type ResourceAdmissions } from '../../src/main/resources/ledger'
 
 const cleanup: (() => void)[] = []; afterEach(() => cleanup.splice(0).reverse().forEach((fn) => fn()))
+it('does not speak a displayed clarification question after the turn settles', async () => {
+  const synthesize = vi.fn(async () => {}); const f = fixture({ source: 'fake', synthesize }); f.send({ type: 'voice.set', enabled: true })
+  f.store.append({ type: 'turn/start', turnId: 'question', trigger: 'user' }); f.store.append({ type: 'assistant/message', id: randomUUID(), turnId: 'question', text: 'A displayed question', status: 'complete', displayOnly: true }); f.store.append({ type: 'turn/end', turnId: 'question', reason: 'completed' })
+  f.voice.observe(); await f.voice.idle(); expect(synthesize).not.toHaveBeenCalled(); await f.voice.close()
+})
 function fixture(port: VoicePort | null = { source: 'fake', synthesize: async (_text, _signal, chunk) => { chunk(new Uint8Array([0, 0, 1, 0])) } }, budget?: ResourceAdmissions) {
   const root = mkdtempSync(join(tmpdir(), 'lca-voice-')); cleanup.push(() => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-voice-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })
   const clock = createManualClock(1000); const j = openJournal(root, { userId: 'u', characterId: 'c' }, clock); cleanup.push(j.close)

@@ -59,3 +59,5 @@ MC 新接口 `37cb419`（state.ts／shared README）已先合；此批已接 inv
 08:45：资源接口 248e640 已先合 main：snapshot.resources（模型预留／语音字符与次数，坏账本 null）和仅展位书本 resources.configure。已接朴素“运行资源”面板、存档外追加账本、原生 SQLite 跨进程锁；两个进程 20 次竞争只准入十笔，真实恢复后 24,901 模型预留和 9 语音字符保留，个人／展位共享及坏账本关闭通过。407 单测、MC 三项／作品端口／语音原生回归通过，均合成。复核接受你保留的短人设＋90k 单轮：八次实测 81,752；日默认仍 100k／500k。你的 a253a08 画面／人设已同步，未修改措辞。接着独立修 #28，再推进 ask_user／实际命令隔离／步骤撤回；整圈未完成。
 
 08:55：#28 已动态复现并修复，无共享接口变化。仅获准 public screenshot 放 stdio 9 MiB，其余 256k；1 MB PNG 整条／分片、近 6 MiB 实际解码／JPEG HTTP、图像超限保留连接核实释放、传输超限明确未核实，五项原生通过；408 单测通过。见 minecraft-stdio-images.md。已读上午交接，设置页／失败旁白列入后续；角色措辞不改，旁白待你的独立文案文件。
+
+09:17：问答接口 SHA **d8270ad**（合 main 4fde7dd）：snapshot.question 可选，queued 只有元数据，waiting 才有 question／choices／expiresAtMs；书本命令 question.answer(questionId, answer)／question.dismiss(questionId)。朴素 QuestionControls 已放右页 stream，文案独立 voice/questions.zh.json。普通和心流的 ask_user 实际原生／合成 HTTP／私人恢复通过，专注和安静排队、不抢窗口、回答不作运行授权。你可按现有界面整理，不改排队／书本权限及工作上下文隔离。原生 harness／准备入睡竞态／声音回归也通过；接着做命令隔离和多文件步骤回退，整圈未完成。

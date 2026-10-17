@@ -39,9 +39,13 @@ import { minecraftScopeSchema, type MinecraftService } from '../minecraft/servic
 import type { MinecraftChat } from '../minecraft/chat'
 import { goalTextSchema, goalStatusSchema } from '../heart-flow/goals'
 import type { ResourceBudget } from '../resources/service'
+import type { QuestionService } from '../questions/service'
+import { answerInput } from '../questions/schema'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('question.answer'), questionId: z.string().uuid(), answer: answerInput }),
+  z.strictObject({ ...envelope, type: z.literal('question.dismiss'), questionId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('companion.sleep'), sleeping: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('flow.fetch.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('flow.computer.open'), path: z.string().min(1).max(180) }),
@@ -176,6 +180,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let heartFlow: HeartFlowService | undefined
   let voice: VoiceService | undefined
   let resources: ResourceBudget | undefined
+  let questions: QuestionService | undefined
   let life: LifeService | undefined
   let sleep: SleepService | undefined
   let lifeWork: LifeWorkService | undefined
@@ -280,6 +285,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (optical) snapshot.opticalMemory = optical.view()
     if (voice) snapshot.voice = voice.view()
     if (resources) snapshot.resources = resources.view()
+    const question = questions?.view(); if (question) snapshot.question = question; else delete snapshot.question
     if (minecraft) {
       snapshot.minecraft = minecraft.view()
       if (minecraft.active() && minecraftChat) { const game = minecraftChat.view(); snapshot.messages = [...game.messages]; snapshot.activities = [...game.activities]; snapshot.task = game.task }
@@ -304,6 +310,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('flow.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('voice.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('resources.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('question.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'companion.sleep' && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('room.') || command.type === 'diary.write') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -328,6 +335,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       const error = sleep.set(command.sleeping, 'user', { requestId: command.requestId, commandHash: signature }); readProjection()
       ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
       publish('mode', command.requestId); execution?.stateChanged()
+    } else if (command.type.startsWith('question.') && questions) {
+      const error = questions.dispatch(command, signature); readProjection()
+      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (command.type === 'resources.configure' && resources) {
       const error = resources.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId)
     } else if (command.type.startsWith('voice.') && voice) {
@@ -478,6 +488,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     minecraft?.stateChanged()
     voice?.stateChanged()
     heartFlow?.stateChanged()
+    questions?.stateChanged(ack.status === 'accepted' ? command : undefined)
     requests.set(command.requestId, { signature, ack })
     if (requests.size > 1000) requests.delete(requests.keys().next().value!)
     return structuredClone(ack)
@@ -489,6 +500,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     getSnapshot: () => structuredClone(snapshot), dispatch,
     attachRuntime: (port: RuntimePort) => { runtime = port; publish('connection') },
     attachResources: (port: ResourceBudget) => { resources = port; publish('connection') },
+    attachQuestions: (port: QuestionService) => { questions = port; publish('task') },
     attachCampus: (port: CampusService) => { campus = port; publish('connection') },
     attachDocuments: (port: DocumentService) => { documents = port; publish('connection') },
     attachMemory: (port: MemoryService) => { memory = port; publish('connection') },

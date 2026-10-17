@@ -11,6 +11,7 @@ import { rhythmText, tomatoStates } from './plan'
 import { useCountdown } from './useCountdown'
 import { FileIntake } from '../tools/FileIntake'
 import { FlowApproval, FlowPanel } from './flow/FlowPanel'
+import { QuestionControls } from './QuestionControls'
 
 type Item =
   | { kind: 'message'; at: number; id: string; view: MessageView }
@@ -121,6 +122,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
 
       <div className="stream" ref={streamRef}>
         <FlowPanel bridge={bridge} snapshot={snapshot} />
+        <QuestionControls snapshot={snapshot} bridge={bridge} />
         {items.map((item) => {
           switch (item.kind) {
             case 'message': return <Message key={item.id} view={item.view} />
