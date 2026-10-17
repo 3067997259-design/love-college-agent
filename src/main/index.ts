@@ -25,6 +25,7 @@ import { createFakeDelegateModel } from './delegates/fake'
 import { createOpticalMemory, type OpticalMemoryService } from './optical/service'
 import { renderOpticalPage } from './optical/render'
 import { probeLife } from './validation/life'
+import { probeQuestions } from './validation/questions'
 import { createDiary, type DiaryService } from './diary/service'
 import diaryPrompts from './diary/prompts.json'
 import { createRoomProjection } from './room/projection'
@@ -212,6 +213,10 @@ function createWindow(): void {
 void app.whenReady().then(async () => {
   if (!ownsData) return
   if (prepared.developer && process.argv.some((arg) => arg.startsWith('--lca-probe='))) { console.log('LCA_PROBE:{"ok":false,"error":"DEVELOPER_PROFILE_REFUSED"}'); app.exit(1); return }
+  if (process.argv.includes('--lca-probe=questions')) {
+    try { const report = await probeQuestions(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(0) }
+    catch { console.log('LCA_PROBE:{"ok":false,"probe":"questions","error":"QUESTIONS_PROBE_FAILED"}'); app.exit(1) }; return
+  }
   if (process.argv.includes('--lca-probe=life')) {
     try { console.log('LCA_PROBE:' + JSON.stringify(probeLife(dataDir))); app.exit(0) }
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"life","error":"LIFE_PROBE_FAILED"}'); app.exit(1) }; return
