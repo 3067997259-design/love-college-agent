@@ -92,6 +92,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm probe:journal` | Electron 内验证日志重放、缓存重建、作用域和原文隔离 |
 | `pnpm probe:model` | 主进程 chat 槽位的有界极小流式请求，结果不含配置或回复正文 |
 | `pnpm probe:privacy` | 普通隔离 profile 的单份合成资料真实 privacy 探针；最多四次有界尝试，只输出闭集结果，不回退主模型 |
+| `pnpm probe:network` | 主进程对已配置 privacy 的 origin 比较 Node／Chromium 的无凭据 HEAD；不读响应正文、不调用模型、不改系统代理 |
 | `pnpm probe:harness` | 真实 chat 模型调用代码时钟并结束回合的有界探针 |
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron 的发送／工具／停止／重启场景 |
 | `pnpm test:questions` | 真实 SQLite 延迟日切／作用域额度；有界 ask_user、书本回答、专注到休息、心流隔离、合成 HTTP、停止／重启／私人恢复 |
@@ -126,7 +127,7 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm experiment:deeptech-grounding` | 子串接地实验装置：32 条对抗＋20 条良性句对照四组检查器；`--holdout`、`--json` |
 | `pnpm experiment:deeptech-flow-undo` | 心流选择性回滚实验装置：13 条编辑轨迹对照四组撤销策略；脚本自带参照实现，`--holdout`、`--json` |
 
-不运行 `playwright install`。electron-builder 26.15.3 已单独提交；model-viewer 和 Tailwind 仍延期。打包前先确认当前 Electron 的原生模块已通过 `rebuild:native`／`probe:sqlite`。安装包当前未签名；测试安装命令遇到已有同名用户安装会拒绝覆盖。
+不运行 `playwright install`。electron-builder 26.15.3 已单独提交；model-viewer 已用于本地 GLB 礼物，Tailwind 未引入。打包前先确认当前 Electron 的原生模块已通过 `rebuild:native`／`probe:sqlite`。安装包当前未签名；测试安装命令遇到已有同名用户安装会拒绝覆盖。
 
 GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER_PORT` 覆盖。源码运行数据默认 `<worktree>/.local-data`，安装版用 Electron 用户数据目录，可用 `LCA_DATA_DIR` 覆盖。在“工具与设置”打开开发者模式并重启，才开启 CDP（GPT 9527，其他 9427）和本机鉴权 MCP（5275／5175），可用 `LCA_CDP_PORT`／`LCA_MCP_PORT` 覆盖。开发模式使用独立 profile、脚本假模型，不读真实 providers 内容；展位模式 `LCA_BOOTH=1` 禁用调试。fixture JSON 与完整 `.lca-save` 各有独立入口；存档含私有源库且当前不加密，不能当角色包分享。详见 [开发模式](docs/engineering/developer.md)。
 
@@ -256,7 +257,7 @@ GPT worktree 为 `D:\lca-gpt`，分支 `codex/gpt-foundation`；开发端口默�
 - 只有在用户要求时才更新跨项目的全局记忆；本工程文档不等于全局记忆。
 # 已实现的心流命令
 
-`pnpm package:win` 生成带 Git／安装器／asar 哈希回执的 Windows 包；`pnpm test:package` 对实际安装 EXE 追加 15 项原生场景（含同档连续流程及普通模式生产端口，合成服务），不把源码 Electron 验收充当安装态。已有用户安装时拒绝升级／卸载；缓存与独立测试安装目录均在 D 盘。结果见 [安装态记录](docs/engineering/package-third-circle.md)。
+`pnpm package:win` 生成带 Git／安装器／asar 哈希回执的 Windows 包；`pnpm test:package` 对实际安装 EXE 追加 25 项原生场景（含同档连续流程及普通模式生产端口，合成服务），不把源码 Electron 验收充当安装态。每轮先清除旧成功报告，失败记录本轮回执和已过场景。已有用户安装时拒绝升级／卸载；缓存与独立测试安装目录均在 D 盘。结果见 [安装态记录](docs/engineering/package-third-circle.md)。
 
 `pnpm test:showcase` 跑同一 profile 的“邮件证据→确认→文件交付→/privacy 资料→番茄小窗→实际读写作品→心流→照片→跨日回忆→重启／私人恢复”。全部合成服务／加速时钟，不是长期运行、真实隐私质量或外部平台写入的验收。详见 [连续流程](docs/engineering/showcase-third-circle.md)。
 
