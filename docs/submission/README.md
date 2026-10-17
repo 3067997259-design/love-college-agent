@@ -11,7 +11,7 @@
 | 展示 PPT | [04-PPT大纲.md](04-PPT大纲.md) | 大纲（7 页 + 附录） | 队友拼、用户定稿；嵌入片头/片尾 MP4 与真实截图 |
 | Demo／演示视频 | 视频线制作中（opening/closing 分镜与渲染） | 尚无成片 MP4 | 成片 ≤8 min，另备现场备用 MP4；提交版配乐二选一（授权曲/静音+字幕） |
 | 部署说明 | [03-部署说明.md](03-部署说明.md) | 已发布 GitHub Release `v0.1.1`（安装器 264,344,481 B / SHA `770554c2…`；26 项安装验收；真实 IMAP）；仓库待转 public | 仓库公开后做未登录下载验证；干净机器实测后更新 |
-| 代码仓库 | `github.com/3067997259-design/love-college-agent` | private；`main` 已同步 origin（含 `4392b49`）；tag `v0.1.1` 已发布；CI 待本轮确认 | 代码冻结后转 public→未登录验证 Release/仓库/视频/PPT 链接 |
+| 代码仓库 | `github.com/3067997259-design/love-college-agent` | private；`main` 已同步 origin（含 `4392b49`）；tag `v0.1.1` 已发布；main/tag CI 绿 | 代码冻结后转 public→未登录验证 Release/仓库/视频/PPT 链接 |
 | 参评表单 | 外部表单 | 未提交 | 确认字段/上传限制；14:00 前提交；16:00 截止 |
 
 ## 截图（占位，提交前替换）
@@ -31,3 +31,4 @@
 ## 仍需用户拍板
 
 队名/成员/学校、分工表述、AI 辅助编码写法、最终配乐、视频与 PPT 负责人、是否公开仓库、终包是否重打、Rodin 余量是否再用。
+
