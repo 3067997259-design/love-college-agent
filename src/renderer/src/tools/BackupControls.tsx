@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot } from '../../../shared'
+import { SettingsIssue, settingStatus } from './SettingsIssue'
 
 export function BackupControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
   const [error, setError] = useState(''); const backup = snapshot.backup
@@ -11,7 +12,7 @@ export function BackupControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
   }
   return <div aria-label="私人存档控制"><h2>私人存档</h2>
     <p>包含私人聊天、记忆、邮件证据、资料与交付物，请自行保管；不带应用凭据、调试配置或插件授权。</p>
-    <p role="status">{backup.status === 'exported' ? '私人存档已导出' : backup.status === 'restored' ? '私人存档已恢复' : backup.status}</p>
+    <p role="status">{backup.status === 'exported' ? '私人存档已导出' : backup.status === 'restored' ? '私人存档已恢复' : settingStatus(backup.status)}</p>
     <button type="button" disabled={busy} onClick={() => void send({ type: 'backup.export' })}>导出私人存档</button>
     <button type="button" disabled={busy} onClick={() => void send({ type: 'backup.import' })}>我已经有一本书了</button>
     {backup.status === 'awaiting-confirmation' && backup.incoming && <div role="alertdialog" aria-label="恢复私人存档确认">
@@ -21,6 +22,6 @@ export function BackupControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
       <button type="button" onClick={() => void send({ type: 'backup.cancel' })}>取消恢复</button>
     </div>}
     {backup.status === 'restored' && <button type="button" onClick={() => void send({ type: 'backup.cancel' })}>完成恢复查看</button>}
-    {(error || backup.error) && <p role="alert">存档操作未完成：{error || backup.error?.code}</p>}
+    <SettingsIssue code={error || backup.error?.code} />
   </div>
 }

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
 import JSZip from 'jszip'
-import { runtimeEnv, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, electronLaunchTarget, openSettingsGroup } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'onboarding-smoke-' + randomUUID())
 const backendOnly = process.argv.includes('--backend-only'); const requests = []
@@ -65,7 +65,7 @@ try {
   const journals = (await Promise.all(manifest.files.filter((file) => file.path.endsWith('.jsonl')).map((file) => zip.file(file.path).async('string')))).flatMap((text) => text.trim().split('\n').map((line) => JSON.parse(line)))
   const seen = journals.find((row) => row.type === 'model/seen'); assert.ok(seen.eligibleIndexes.every((index) => !JSON.stringify(seen.messages[index]).match(/程同学|杏子/)))
   const beforeReset = (await snapshot()).messages
-  if (!backendOnly) { await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '重新初始化', exact: true }).click(); await onboarding().waitFor() } else await send({ type: 'onboarding.reset' })
+  if (!backendOnly) { await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await openSettingsGroup(page, '书本与角色'); await page.getByRole('button', { name: '重新初始化', exact: true }).click(); await onboarding().waitFor() } else await send({ type: 'onboarding.reset' })
   assert.equal((await snapshot()).onboarding.status, 'needed'); assert.deepEqual((await snapshot()).messages, beforeReset)
   await instance.close(); env.LCA_DATA_DIR = join(data, 'empty-target'); await launch(); assert.equal((await snapshot()).onboarding.status, 'needed')
   if (!backendOnly) await onboarding().waitFor()
