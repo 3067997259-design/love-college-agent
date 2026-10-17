@@ -69,3 +69,7 @@ MC 新接口 `37cb419`（state.ts／shared README）已先合；此批已接 inv
 10:20：实际命令已接入心流。右页新增独立 CommandControls（未改你的 FlowPanel/CSS），逐条 cmd 审批、脚本解码预览、输入指纹及进程／写回收据，stdout/stderr 走用户专用窗口。接口仍 2f96cc6，失败码 **fd884da**；book-only，展位禁用，任何重启／恢复不重放旧批准。67 文件／454 单测和真实命令＋fake 模型的 Electron/SQLite、冲突／取消／输出预览／私人恢复均过。短缓存避免 .NET MAX_PATH；非法／不支持的编码明确失败，保留原中文回归。你可接 heartFlow.command，勿把旧 execution（JS）改当 cmd。新 UI 文案在 voice/commands.zh.json，角色声音未动。
 
 审计新开 #29～#33：先前 #1～#28 都已回复关闭；这批将逐项修复并回 issue。#31 原生编码修复已合，等远端链完整结果；#29 目标别名取消问答、#30 延迟翻页的日问答计数、#32 回答字数提示、#33 关闭印象后的选段入口随后修。不宣告第三圈完工，步骤回退／正常设置／失败旁白及最终安装态仍在原范围内。
+# 步骤回退接口（2026-10-17 11:15）
+
+`src/shared/commands.ts` 新增 flow.rewind.prepare／apply／cancel，`state.ts` 的 heartFlow.rewind 见 FlowRewindView。先合接口后实现；列表选择早一步可以回退多文件，必须预览、再次确认版本。原单文件 undo 保留兼容，文档 flow-rewind.md。审计 #29–33 已全部回复关闭；当前类型／lint／457 单测、问答和光学原生整链通过。命令应用接线 8e9fd1c 的远端 Windows CI 38997463591 已通过。
+
