@@ -417,6 +417,8 @@ export interface AppSnapshot {
   voice?: VoiceView
   /** Local resource admissions survive private-book restore. No prices, provider names or secrets. */
   resources?: ResourceBudgetView
+  /** A single current model question. Queued questions expose no prompt until rest. */
+  question?: UserQuestionView
   /** Main-owned optional game context. No MCP launch config, URLs, tokens or raw game transcript. */
   minecraft?: MinecraftView
   mcp?: McpView
@@ -620,6 +622,18 @@ export interface ResourceBudgetView {
     attemptLimit: number
   }
 }
+export type UserQuestionView = {
+  id: string
+  taskId: string
+  createdAtMs: number
+  context: 'conversation' | 'work'
+} & ({ status: 'queued' } | {
+  status: 'waiting'
+  question: string
+  choices: readonly string[]
+  /** Main-owned ten-minute visible-time deadline; quiet/focus time does not consume it. */
+  expiresAtMs: number
+})
 export interface VoiceRead {
   utteranceId: string
   format: 'pcm_s16le'
