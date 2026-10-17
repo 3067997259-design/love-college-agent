@@ -11,8 +11,9 @@ export async function probeHeartFlow(root: string) {
   const clock = createManualClock(1000); const scheduler = createScheduler(clock); const owner = { userId: 'flow-probe', characterId: 'flow-character' }; let store = openSessionStore(root, owner, clock)
   const desk = createDesk(join(root, 'desk')); const open = () => createHeartFlow({ store, clock, desk, booth: false, busy: () => false, changed: () => {}, prepare: async () => ({ messages: [], eligibleIndexes: [] }), emit: () => {}, run: (code, signal) => runIsolatedJavaScript(code, systemClock, signal) }); let flow = open()
   const send = (body: Record<string, unknown>) => flow.dispatch({ ...body, protocolVersion: 1, requestId: 'probe', epoch: 'probe' } as AppCommand)
+  const enter = async () => { if (send({ type: 'flow.enter' })) throw new Error('FLOW_ENTRY_REFUSED'); await new Promise<void>((done) => systemClock.after(0, done)); if (!flow.active()) throw new Error('FLOW_ENTRY_FAILED') }
   try {
-    send({ type: 'flow.enter' }); await Promise.resolve(); await Promise.resolve(); send({ type: 'flow.mode', mode: 'execute' })
+    await enter(); send({ type: 'flow.mode', mode: 'execute' })
     const changed = flow.write('result.js', 'return 42'); if (desk.read('result.js') !== 'return 42') throw new Error('WRITE_FAILED')
     if (send({ type: 'flow.undo', changeId: changed }) || desk.read('result.js') !== null) throw new Error('UNDO_FAILED')
     const output = await runIsolatedJavaScript('let network = false; try { await fetch("https://example.com") } catch { network = true }; return { value: 6*7, require: typeof require, process: typeof process, window: typeof window, rtc: typeof RTCPeerConnection, networkBlocked: network }', systemClock, new AbortController().signal)
@@ -47,7 +48,7 @@ export async function probeHeartFlow(root: string) {
     // Reopened #2: compact only AFTER reopening a new day with low local seq. Test both with and
     // without old-day writes, then cross a third page and trigger the actual automatic 80k branch.
     for (const withOldWrite of [false, true]) {
-      send({ type: 'flow.enter' }); await Promise.resolve(); await Promise.resolve(); send({ type: 'flow.mode', mode: 'execute' })
+      await enter(); send({ type: 'flow.mode', mode: 'execute' })
       if (withOldWrite) flow.write('old-day.txt', 'PRIVATE_OLD_DAY')
       const openingSeq = store.history!().findLast((row) => row.type === 'flow/open')!.seq
       flow.close(); store.close(); clock.advanceBy(86400000); store = openSessionStore(root, owner, clock); flow = open()
@@ -67,7 +68,7 @@ export async function probeHeartFlow(root: string) {
       if (!includes(prepared.messages, newWrite, 'new-day.txt') || !includes(prepared.messages, thirdWrite, 'third-day.txt') || !JSON.stringify(prepared.messages).includes('AUTOMATIC_REQUEST_4') || JSON.stringify(prepared.messages).includes('PRIVATE_THIRD_DAY') || prepared.eligibleIndexes.length) throw new Error('FLOW_AUTO_COMPACT_EVIDENCE_FAILED')
       send({ type: 'flow.exit' })
     }
-    send({ type: 'flow.enter' }); await Promise.resolve(); await Promise.resolve(); send({ type: 'flow.mode', mode: 'execute' }); flow.write('multi-input.md', 'SYNTHETIC_INPUT')
+    await enter(); send({ type: 'flow.mode', mode: 'execute' }); flow.write('multi-input.md', 'SYNTHETIC_INPUT')
     for (let index = 0; index < 6; index++) user('multi-old-' + index, 'old'.repeat(6000))
     flow.close(); store.close(); clock.advanceBy(86400000); store = openSessionStore(root, owner, clock); flow = open()
     let modelSteps = 0; const requestSeen: boolean[] = []
@@ -81,7 +82,7 @@ export async function probeHeartFlow(root: string) {
     if (!JSON.stringify((await flow.prepareContext('reopened-multi', new AbortController().signal)).messages).includes('NATIVE_CURRENT_REQUEST_CANARY')) throw new Error('FLOW_RETAINED_RESTART_FAILED')
     send({ type: 'flow.exit' })
     send({ type: 'flow.goal.set', text: 'WORK_GOAL_ONLY' }); const goalId = flow.view().goalId!
-    send({ type: 'flow.enter' }); await Promise.resolve(); await Promise.resolve(); const firstGoalFlow = flow.view().activeId!
+    await enter(); const firstGoalFlow = flow.view().activeId!
     const beforeGoal = await flow.prepareContext('goal', new AbortController().signal)
     if (!JSON.stringify(beforeGoal.messages).includes('WORK_GOAL_ONLY') || beforeGoal.eligibleIndexes.length) throw new Error('GOAL_WORK_CONTEXT_FAILED')
     flow.close(); store.close(); clock.advanceBy(86400000); store = openSessionStore(root, owner, clock); flow = open()

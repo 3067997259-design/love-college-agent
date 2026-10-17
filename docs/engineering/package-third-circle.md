@@ -11,3 +11,5 @@
 本机安装器：`D:/lca-gpt/release/Love-College-Agent-0.1.0-Setup.exe`；构建回执 `release/build-receipt.json`，验收报告 `test-results/package-report.json`。main checkout 的 release 不会随 Git 合并更新。前 13 个场景按独立 profile 顺序跑，showcase 是同一书本的跨功能连续链路，life-port 在普通模式走本机合成 HTTP 客户端验证六步产物、取消、坏输出及隔离。这些场景仍不是五分钟路演观感、真实供应商质量或长期自主运行的证明。
 
 11:55：验收入口已扩至 25 项，收录后续的 flow-sleep、游戏图像／stdio／挖掘、资源账本，以及 questions、desk-command、flow-rewind、settings、failure-narrator。showcase 源码新的七阶段连续链已通过；此次新 NSIS 的构建、实际安装及完整 25 项结果待补，以上 07:28 的包仍只对应当时 15 项，不能混用 SHA 或证据。
+
+12:02：首次新构建 4b8ff51 在解包版 backup 探针处未过，未进入用户安装。定位为旧 backup／heart-flow 验收只等待两次微任务便写文件，未等 #27 后的异步心流准备完成。探针现通过统一 systemClock 让出事件循环并检查 active；没有放宽应用的入睡、写入或存档守卫。源码的七类原生探针随后逐项通过，包含私人恢复／回滚、跨日压缩／多步请求和无限循环终止。安装测试错误现报告固定步骤名与退出码，继续隐藏第三方 stderr。下一包须包含该验收修正，完整结果仍待补。

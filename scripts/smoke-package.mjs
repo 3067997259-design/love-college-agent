@@ -37,7 +37,7 @@ function run(exe, args, { capture = false } = {}) {
     let output = ''; child.stdout?.on('data', (chunk) => { output = (output + chunk.toString()).slice(-16_384) })
     const deadline = setTimeout(() => { child.kill(); reject(new Error('PACKAGE_CHECK_TIMEOUT')) }, 120_000)
     child.on('error', () => { clearTimeout(deadline); reject(new Error('PACKAGE_CHECK_LAUNCH_FAILED')) })
-    child.on('exit', (code) => { clearTimeout(deadline); if (code === 0) resolve(output); else reject(new Error('PACKAGE_CHECK_FAILED: ' + (args.find((arg) => arg.endsWith('.mjs'))?.split(/[\\/]/).at(-1) ?? 'native-step'))) })
+    child.on('exit', (code) => { clearTimeout(deadline); if (code === 0) resolve(output); else reject(new Error('PACKAGE_CHECK_FAILED: ' + (args.find((arg) => arg.endsWith('.mjs'))?.split(/[\\/]/).at(-1) ?? args.find((arg) => arg.startsWith('--lca-probe=')) ?? (exe.endsWith('powershell.exe') ? 'registry' : 'installer-or-uninstaller')) + ':' + code)) })
   })
 }
 async function probe(exe, name) {
