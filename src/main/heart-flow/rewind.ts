@@ -27,7 +27,7 @@ export function planRewind(rows: Rows, flowId: string, changeId: string, read: (
     if (edit && contentHash(edit.before) !== contentHash(change.before)) throw new Error('REWIND_UNRECORDED_CHANGE')
     const next = edit ?? { path: change.path, before: change.before, after: change.before, rewinds: [] }
     next.before = change.after
-    if (!change.undoes && !change.rewindId) next.rewinds.push(change.id)
+    next.rewinds.push(change.id)
     edits.set(key, next)
   }
   if (edits.size > 300) throw new Error('REWIND_LIMIT')
