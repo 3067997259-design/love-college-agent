@@ -18,6 +18,8 @@ import { OpticalControls } from './OpticalControls'
 import { MinecraftControls } from './MinecraftControls'
 import { VoiceControls } from './VoiceControls'
 import { ResourceControls } from './ResourceControls'
+import { UserSettings } from './UserSettings'
+import { PomodoroSettings } from './PomodoroSettings'
 
 type Action = AppCommand extends infer Command ? Command extends AppCommand ? Omit<Command, 'epoch' | 'protocolVersion' | 'requestId'> : never : never
 
@@ -28,8 +30,6 @@ export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: {
   const setOpen = (value: boolean) => { if (onOpenChange) onOpenChange(value); else setOwnOpen(value) }
   const [error, setError] = useState('')
   const [approving, setApproving] = useState<string | null>(null)
-  const [plannedCount, setPlannedCount] = useState(2)
-  const [demo, setDemo] = useState(false)
   useEffect(() => { if (snapshot.heartFlow?.activeId) setOpen(false) }, [snapshot.heartFlow?.activeId])
   const send = async (action: Action) => {
     try {
@@ -38,6 +38,10 @@ export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: {
     } catch { setError('connection-failed') }
   }
   if (!snapshot.runtime) return null
+  if (snapshot.runtime.developer.mode !== 'developer') return <aside className="tools-panel" data-settings="user">
+    <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}>工具与设置</button>
+    {open && <section aria-label="工具与设置"><UserSettings bridge={bridge} snapshot={snapshot} onClose={() => setOpen(false)} /></section>}
+  </aside>
   return <aside className="tools-panel">
     <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}>工具与设置</button>
     {open && <section aria-label="工具与设置">
@@ -60,27 +64,7 @@ export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: {
       <DiaryControls bridge={bridge} snapshot={snapshot} />
       <NotificationControls bridge={bridge} snapshot={snapshot} />
       <CharacterControls bridge={bridge} snapshot={snapshot} />
-      <h2>番茄钟</h2>
-      <div aria-label="番茄钟控制" data-phase={snapshot.pomodoro.phase} data-status={snapshot.pomodoro.status}>
-        <p>{({ idle: '等待开始', focus: '专注', 'short-break': '短休息', 'long-break': '长休息' })[snapshot.pomodoro.phase]} · {Math.ceil(snapshot.pomodoro.remainingMs / 1000)} 秒 · {snapshot.pomodoro.focusIndex}/{snapshot.pomodoro.plannedCount}</p>
-        {snapshot.pomodoro.phaseDurationMs > 0 && <progress aria-label="阶段进度" max={snapshot.pomodoro.phaseDurationMs} value={Math.max(0, snapshot.pomodoro.phaseDurationMs - snapshot.pomodoro.remainingMs)} />}
-        <label>计划个数 <select value={plannedCount} onChange={(event) => setPlannedCount(Number(event.target.value))}>{[1, 2, 4, 6].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
-        <label><input type="checkbox" checked={demo} onChange={(event) => setDemo(event.target.checked)} />演示节奏：专注 1 分钟，休息 20 秒</label>
-        <button type="button" onClick={() => void send({ type: 'pomodoro.plan', plan: {
-          label: demo ? '演示计划' : '专注计划', plannedCount, focusDurationMs: demo ? 60_000 : 25 * 60_000,
-          shortBreakDurationMs: demo ? 20_000 : 5 * 60_000, longBreakDurationMs: demo ? 20_000 : 15 * 60_000, longBreakEvery: 4, timing: demo ? 'demo' : 'standard',
-        } })}>生成待确认计划</button>
-        {snapshot.pomodoro.plan && <p>{snapshot.pomodoro.plan.label} · {snapshot.pomodoro.plan.status} · {snapshot.pomodoro.plan.timing === 'demo' ? '演示时长' : '实际时长'}</p>}
-        {snapshot.pomodoro.proposal && <>
-          <p>{snapshot.pomodoro.proposal.label} · 待确认 · 今日共 {snapshot.pomodoro.proposal.plannedCount} 个</p>
-          <button type="button" onClick={() => void send({ type: 'pomodoro.confirm', planId: snapshot.pomodoro.proposal!.id })}>确认计划</button>
-          <button type="button" onClick={() => void send({ type: 'pomodoro.discard', planId: snapshot.pomodoro.proposal!.id })}>丢弃草案</button>
-        </>}
-        {snapshot.pomodoro.plan?.status === 'confirmed' && snapshot.pomodoro.status === 'idle' && <button type="button" disabled={snapshot.companion.lightsOut} onClick={() => void send({ type: 'pomodoro.start', planId: snapshot.pomodoro.plan!.id })}>开始下一段专注</button>}
-        {snapshot.pomodoro.status === 'running' && <button type="button" onClick={() => void send({ type: 'pomodoro.pause' })}>暂停计时</button>}
-        {snapshot.pomodoro.status === 'paused' && <button type="button" disabled={snapshot.companion.lightsOut} onClick={() => void send({ type: 'pomodoro.resume' })}>继续计时</button>}
-        {snapshot.pomodoro.plan && snapshot.pomodoro.plan.status !== 'finished' && <button type="button" onClick={() => void send({ type: 'pomodoro.stop' })}>结束计划</button>}
-      </div>
+      <PomodoroSettings bridge={bridge} snapshot={snapshot} />
       <h2>插件</h2>
       {snapshot.runtime.plugins.map((plugin) => <div className="tools-plugin" key={plugin.id}>
         <strong>{plugin.name}</strong> <small>{plugin.version} · {plugin.status}</small>
@@ -98,9 +82,9 @@ export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: {
         </div>}
       </div>)}
       <h2>开发者模式</h2>
-      <button type="button" disabled={snapshot.runtime.developer.mode === 'booth'} onClick={() => void send({ type: 'onboarding.reset' })}>重新初始化</button>
+      <button type="button" onClick={() => void send({ type: 'onboarding.reset' })}>重新初始化</button>
       <p>当前：{snapshot.runtime.developer.mode}</p>
-      <label><input type="checkbox" checked={snapshot.runtime.developer.requestedEnabled} disabled={snapshot.runtime.developer.mode === 'booth'} onChange={(event) => void send({ type: 'developer.set', enabled: event.target.checked })} />使用独立的假数据与假模型（重启生效）</label>
+      <label><input type="checkbox" checked={snapshot.runtime.developer.requestedEnabled} onChange={(event) => void send({ type: 'developer.set', enabled: event.target.checked })} />使用独立的假数据与假模型（重启生效）</label>
       {snapshot.runtime.developer.restartRequired && <button type="button" onClick={() => void send({ type: 'app.restart' })}>重启应用</button>}
       {snapshot.runtime.developer.mode === 'developer' && <div>
         <p>假模型 · 独立测试存档 · MCP {snapshot.runtime.developer.mcpPort ?? '未连接'} · CDP {snapshot.runtime.developer.cdpPort}</p>

@@ -4,6 +4,9 @@
 .tools-panel h2 { font: bold 18px system-ui, sans-serif; margin: 18px 0 8px; }
 .tools-plugin { border-bottom: 1px solid #d1c7b6; padding: 10px 0; }
 .tools-panel label { display: block; }
+.settings-group { margin-block: 12px; padding-block: 6px; border-top: 1px solid #d1c7b6; }
+.settings-group > summary { cursor: pointer; font-weight: 600; }
+.settings-issue p { margin-block: 6px; }
 .tools-panel code { display: block; overflow-wrap: anywhere; font-size: 11px; }
 .card-actions { flex-wrap: wrap; }
 .card-actions > label { flex-basis: 100%; font-size: 13px; }

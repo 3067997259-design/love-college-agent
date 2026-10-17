@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot, DocumentScenarioId } from '../../../shared'
+import { SettingsIssue } from './SettingsIssue'
 
 export function DocumentControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
   const [error, setError] = useState('')
@@ -31,10 +32,10 @@ export function DocumentControls({ bridge, snapshot }: { bridge: AppBridge; snap
     </li>)}</ul>
     <ul className="document-list">{view.jobs.map((job) => <li key={job.id} className="document-job" data-id={job.id} data-status={job.status}>
       <span>{job.source === 'fake' ? '合成 · ' : ''}{job.displayName} · {labels[job.status]}{job.pageCount ? ` · ${job.pageCount} 页` : ''}</span>
-      {job.error && <span role="alert">{job.error.code}</span>}
+      <SettingsIssue code={job.error?.code} />
       {['failed', 'cancelled'].includes(job.status) && <button type="button" onClick={() => void send({ type: 'document.retry', documentId: job.id })}>重试</button>}
       {!['ready', 'cancelled'].includes(job.status) && <button type="button" onClick={() => void send({ type: 'document.cancel', documentId: job.id })}>取消</button>}
     </li>)}</ul>
-    {error && <p role="alert">操作未完成：{error}</p>}
+    <SettingsIssue code={error} />
   </div>
 }

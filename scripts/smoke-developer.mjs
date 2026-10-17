@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, openSettingsGroup } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `developer-smoke-${randomUUID()}`)
@@ -25,6 +25,7 @@ try {
   const denied = await page.evaluate((epoch) => window.lca.dispatch({ protocolVersion: 1, epoch, requestId: crypto.randomUUID(), type: 'developer.clock', frozen: true }), normal.epoch)
   assert.equal(denied.status, 'rejected')
   await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettingsGroup(page, '高级与开发')
   await page.getByRole('checkbox', { name: /使用独立的假数据/ }).click()
   await page.getByRole('button', { name: '重启应用', exact: true }).waitFor()
   assert.equal((await page.evaluate(() => window.lca.getSnapshot())).runtime.developer.restartRequired, true)
