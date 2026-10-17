@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { PUBLIC_ERROR_CODES, type ModelFailureView, type PublicErrorCode } from '../../shared'
 import type { SessionStore } from '../store/session'
-import type { JournalInput } from '../journal/schema'
+import type { JournalInput, JournalRecord } from '../journal/schema'
 import words from './narrator.zh.json'
 import { recallAnchorSchema } from '../history/schema'
 
@@ -11,6 +11,14 @@ export const failureViewSchema = z.strictObject({
   category: z.enum(['configuration', 'network', 'upstream', 'quota', 'budget', 'content-filtered', 'interrupted', 'invalid-response', 'execution-guard', 'internal']),
   attemptCount: z.number().int().min(0).max(1000), toolsExecuted: z.boolean(), httpStatus: z.number().int().min(100).max(599).optional(), sourceMessageId: z.string().min(1).max(128).optional(), sourceRecallAnchor: recallAnchorSchema.optional(),
 })
+/** Upgrade old UI projections from authoritative events, without rewriting the log. */
+export function projectFailure(rows: readonly JournalRecord[], failure: ModelFailureView, beforeSeq: number): ModelFailureView {
+  if (failure.sourceRecallAnchor || !failure.sourceMessageId) return failure
+  const sources = rows.filter((row) => row.type === 'user/message' && row.id === failure.sourceMessageId && row.seq < beforeSeq)
+  const source = sources.length === 1 && sources[0].type === 'user/message' ? sources[0] : undefined
+  const request = source && rows.findLast((row) => row.type === 'history/recall-request' && row.requestId === source.requestId && row.seq < source.seq)
+  return request?.type === 'history/recall-request' ? { ...failure, sourceRecallAnchor: request.anchor } : failure
+}
 function category(code: PublicErrorCode): ModelFailureView['category'] {
   if (code === 'configuration-failed' || code === 'not-configured') return 'configuration'
   if (code === 'connection-failed') return 'network'
