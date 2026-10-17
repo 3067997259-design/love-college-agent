@@ -28,3 +28,5 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - name: Probe native Windows command containment (no Electron or browser download)
+        run: pnpm probe:desk-command:runtime

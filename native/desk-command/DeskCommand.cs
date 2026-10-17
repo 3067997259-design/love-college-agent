@@ -71,6 +71,7 @@ internal static class DeskCommand {
         DirectorySecurity acl=Directory.GetAccessControl(root); acl.AddAccessRule(new FileSystemAccessRule(WindowsIdentity.GetCurrent().User,FileSystemRights.FullControl,InheritanceFlags.ContainerInherit|InheritanceFlags.ObjectInherit,PropagationFlags.None,AccessControlType.Allow)); acl.AddAccessRule(new FileSystemAccessRule(sid,FileSystemRights.Modify,InheritanceFlags.ContainerInherit|InheritanceFlags.ObjectInherit,PropagationFlags.None,AccessControlType.Allow)); Directory.SetAccessControl(root,acl); LowLabel(root);
     }
     static int Main(string[] args) {
+        Console.InputEncoding=new UTF8Encoding(false); Console.OutputEncoding=new UTF8Encoding(false);
         var serializer=new JavaScriptSerializer(); serializer.MaxJsonLength=500000;
         try {
             // Only the trusted parent calls this with a profile name received from this helper's control pipe.
