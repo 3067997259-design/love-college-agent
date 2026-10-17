@@ -43,12 +43,13 @@ try {
     '$denied=0',
     "try{[void][IO.File]::ReadAllText(" + quote(outside) + "); 'READ_ESCAPE'}catch{$denied++}",
     "try{[IO.File]::WriteAllText(" + quote(outside) + ",'CHANGED'); 'WRITE_ESCAPE'}catch{$denied++}",
-    "try{$acl=New-Object Security.AccessControl.FileSecurity; $rule=New-Object Security.AccessControl.FileSystemAccessRule('S-1-15-2-1','FullControl','Allow'); $acl.AddAccessRule($rule); [IO.File]::SetAccessControl(" + quote(outside) + ",$acl); 'ACL_ESCAPE'}catch{$denied++}",
-    "try{$tcp=New-Object Net.Sockets.TcpClient; $wait=$tcp.ConnectAsync('127.0.0.1'," + server.address().port + "); if($wait.Wait(500) -and $tcp.Connected){'NETWORK_ESCAPE'}else{$denied++}}catch{$denied++}finally{if($tcp){$tcp.Dispose()}}",
-    "'DENIED='+$denied; 'ENVCOUNT='+@(Get-ChildItem Env: | Where-Object Name -Match 'PROVIDER|API_KEY|TOKEN|PROXY').Count",
+    "try{$acl=[Security.AccessControl.FileSecurity]::new(); $sid=[Security.Principal.SecurityIdentifier]::new('S-1-15-2-1'); $rule=[Security.AccessControl.FileSystemAccessRule]::new($sid,[Security.AccessControl.FileSystemRights]::FullControl,[Security.AccessControl.AccessControlType]::Allow); $acl.AddAccessRule($rule); [IO.File]::WriteAllText([IO.Path]::Combine($env:LCA_DESK_ROOT,'acl-attempt.txt'),'ATTEMPTED'); [IO.File]::SetAccessControl(" + quote(outside) + ",$acl); 'ACL_ESCAPE'}catch{$denied++}",
+    "'DENIED='+$denied; $count=0; foreach($key in [Environment]::GetEnvironmentVariables().Keys){if($key -match 'PROVIDER|API_KEY|TOKEN|PROXY'){$count++}}; 'ENVCOUNT='+$count",
   ].join('; ')
   const negative = await run(ps(negativeScript))
-  assert.equal(negative.result.status, 'completed', JSON.stringify(negative.result)); assert.equal(negative.result.exitCode, 0); assert.ok(negative.result.stdout.includes('DENIED=4'), JSON.stringify(negative.result)); assert.ok(negative.result.stdout.includes('ENVCOUNT=0')); assert.equal(connections, 0); assert.equal(await readFile(outside, 'utf8'), 'OUTSIDE_CANARY')
+  assert.equal(negative.result.status, 'completed', JSON.stringify(negative.result)); assert.equal(negative.result.exitCode, 0); assert.ok(negative.result.stdout.includes('DENIED=3'), JSON.stringify(negative.result)); assert.ok(negative.result.stdout.includes('ENVCOUNT=0')); assert.equal(await readFile(join(negative.work, 'acl-attempt.txt'), 'utf8'), 'ATTEMPTED'); assert.equal(await readFile(outside, 'utf8'), 'OUTSIDE_CANARY')
+  const network = await run(ps("[IO.File]::WriteAllText([IO.Path]::Combine($env:LCA_DESK_ROOT,'network-attempt.txt'),'ATTEMPTED'); try{$tcp=[Net.Sockets.TcpClient]::new(); $wait=$tcp.ConnectAsync('127.0.0.1'," + server.address().port + "); if($wait.Wait(500) -and $tcp.Connected){'NETWORK_ESCAPE'}else{'NETWORK_BLOCKED'}}catch{'NETWORK_BLOCKED'}"))
+  assert.equal(await readFile(join(network.work, 'network-attempt.txt'), 'utf8'), 'ATTEMPTED'); assert.ok(['completed', 'timeout'].includes(network.result.status), JSON.stringify(network.result)); assert.equal(network.result.networkCapabilities, 0); assert.equal(connections, 0); assert.ok(!network.result.stdout.includes('NETWORK_ESCAPE'))
   const limit = await run(ps("'x'*70000")); assert.equal(limit.result.status, 'output-limit')
   const timeout = await run(ps('while($true){}'), 1200); assert.equal(timeout.result.status, 'timeout')
   const cancelled = await run(ps('Start-Sleep -Seconds 20'), 5000, true); assert.equal(cancelled.result.status, 'cancelled')
