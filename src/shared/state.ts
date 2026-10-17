@@ -517,6 +517,10 @@ export interface HeartFlowView {
   activeId: string | null
   mode: 'plan' | 'execute'
   execution: 'javascript-sandbox' | 'disabled'
+  /** Independent from the JavaScript worker; missing means this backend is not installed. */
+  commandExecution?: 'windows-appcontainer' | 'unavailable' | 'disabled'
+  /** User-only command text and execution receipts. stdout/stderr never enter snapshots. */
+  command?: DeskCommandView
   /** Source and output text are user-only; models obtain approved work through desk tools. */
   pending?: { id: string; code: string }
   files: readonly { path: string; byteLength: number }[]
@@ -532,6 +536,28 @@ export interface HeartFlowView {
   operations?: readonly FlowOperationView[]
   computer?: DeskComputerView
   webFetch?: FlowFetchView
+}
+
+export interface DeskCommandView {
+  id: string
+  shell: 'cmd'
+  scope: 'desk-snapshot'
+  command: string
+  timeoutMs: number
+  createdAtMs: number
+  status: 'preparing' | 'awaiting-approval' | 'running' | 'completed' | 'failed' | 'cancelled'
+  fileCount: number
+  /** Immutable snapshot of approved inputs. No absolute path or source text. */
+  snapshotHash?: string
+  outcome?: {
+    exitCode: number | null
+    elapsedMs: number
+    processTreeTerminated: boolean
+    publication: 'unchanged' | 'applied' | 'not-applied' | 'partial'
+    changedFiles: number
+    appliedFiles: number
+  }
+  error?: PublicError
 }
 export interface FlowFetchView {
   source: 'real' | 'fake'
