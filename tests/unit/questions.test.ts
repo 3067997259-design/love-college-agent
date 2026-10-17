@@ -15,6 +15,8 @@ import { normalContextAllowedSeqs } from '../../src/main/heart-flow/context'
 import type { SessionStore } from '../../src/main/store/session'
 import type { AppCommand } from '../../src/shared'
 import type { ModelRequest } from '../../src/main/model/types'
+import { createDesk } from '../../src/main/heart-flow/desk'
+import { createHeartFlow } from '../../src/main/heart-flow/service'
 
 const cleanup: (() => void | Promise<void>)[] = []
 afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn() })
@@ -30,8 +32,25 @@ function fixture() {
   const ask = (turnId = 'turn') => q.tool().run({ question: 'Which format?', choices: ['Markdown', 'Text'] }, { store, clock, signal: abort.signal, turnId, callId: randomUUID() })
   const command = (body: object) => ({ protocolVersion: 1, epoch: 'epoch', requestId: randomUUID(), ...body }) as AppCommand
   const answer = (text = 'Markdown') => q.dispatch(command({ type: 'question.answer', questionId: q.view()!.id, answer: text }), 'hash')
-  return { store, clock, q, options, abort, start, ask, command, answer, flow: (id: string | null) => { flowId = id } }
+  return { root, store, clock, q, options, abort, start, ask, command, answer, flow: (id: string | null) => { flowId = id } }
 }
+it.each(['direct', 'slash', 'rejected'] as const)('invalidates questions only for accepted goal updates through %s', async (route) => {
+  const f = fixture(); const controller = createAppController(f.clock, undefined, f.store)
+  const flow = createHeartFlow({ store: f.store, clock: f.clock, desk: createDesk(join(f.root, 'desk')), booth: false, busy: () => false, changed: () => {},
+    prepare: async () => ({ messages: [], eligibleIndexes: [] }), emit: () => {}, run: async () => '' })
+  cleanup.push(() => { flow.close(); controller.dispose() }); controller.attachQuestions(f.q); controller.attachHeartFlow(flow)
+  const dispatch = (body: object) => controller.dispatch({ ...f.command(body), epoch: controller.getSnapshot().epoch })
+  dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(flow.active()).toBe(true)); f.flow(flow.view().activeId!)
+  f.start(); const pending = f.ask(); const id = f.q.view()!.id
+  const ack = dispatch(route === 'slash' ? { type: 'message.send', text: '/goal new goal' } : { type: 'flow.goal.set', text: 'new goal', ...(route === 'rejected' ? { goalId: randomUUID() } : {}) })
+  if (route === 'rejected') {
+    expect(ack.status).toBe('rejected'); expect(f.q.view()?.id).toBe(id); expect(f.answer('still valid')).toBeUndefined(); await pending
+  } else {
+    expect(ack.status).toBe('accepted'); expect((await pending).visible).toMatchObject({ status: 'superseded' }); expect(f.q.view()).toBeUndefined()
+    expect(dispatch({ type: 'question.answer', questionId: id, answer: 'OLD_GOAL_ANSWER' })).toMatchObject({ status: 'rejected' })
+    expect(f.store.records().some((row) => row.type === 'user/message' && row.text === 'OLD_GOAL_ANSWER')).toBe(false)
+  }
+})
 it('queues without exposing the prompt; only visible time consumes the deadline', async () => {
   const f = fixture(); f.start(); f.store.append({ type: 'companion/mode', mode: 'quiet', requestId: 'quiet', commandHash: 'q' })
   const pending = f.ask(); expect(f.q.view()).toMatchObject({ status: 'queued' }); expect(JSON.stringify(f.q.view())).not.toContain('Which format?')
