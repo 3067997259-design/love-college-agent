@@ -1,0 +1,151 @@
+/*
+ * 右页的“工作卡”：命令、回退、她的提问、失败旁白（第三圈新增的工作界面统一到书页上）。
+ * - 需要你决定或正在进行的，停在输入框上面（.dock）：要批准的用亮一点的纸（和代码审批卡同一种），她的提问用她的桃色纸。
+ * - 结束后的回执收进心流工作台（.work-receipt）。
+ * - 证据（命令原文、脚本、指纹、文件清单）用等宽字；需要留意的一句用“！”，靠明度区分，不靠红色。
+ */
+
+/* —— 停靠区：输入框上面，内容多时自己滚，不把输入框挤出去 —— */
+.dock { display: grid; gap: 8px; max-height: 440px; overflow-y: auto; margin-top: 10px; scrollbar-width: thin; }
+.dock:empty { display: none; }
+.dock .flow-approval { margin-top: 0; }
+.dock-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-radius: 10px 7px 11px 6px;
+  box-shadow: var(--shadow-card);
+  animation: dock-in 280ms var(--ease-out) both;
+}
+@keyframes dock-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* 要你批准的：和代码审批卡同一张亮纸 */
+.dock-decision {
+  background: color-mix(in oklab, var(--notice-bg) 22%, var(--paper));
+  border: 1.5px solid color-mix(in oklab, var(--notice-bg) 80%, #8a6a2a);
+}
+.dock-decision[role='status'] { background: color-mix(in oklab, var(--paper-edge) 30%, var(--paper)); border-color: color-mix(in oklab, var(--pencil) 70%, transparent); }
+.dock-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.dock-label { font: 17px var(--font-hand); color: var(--notice-ink); }
+.dock-decision[role='status'] .dock-label { color: var(--ink-her); }
+.dock-actions { align-items: center; flex-wrap: wrap; margin-top: 2px; }
+.dock-line { margin: 0; padding: 4px 2px; font: 15px var(--font-hand); color: var(--ink-her); }
+
+/* —— 证据 —— */
+.flow-code.work-command { max-height: calc(3 * 1.5em + 16px); overflow-y: auto; font-size: 12.5px; word-break: break-all; color: var(--graphite); }
+.work-script summary { cursor: pointer; font-size: var(--fs-xs); color: var(--graphite); }
+.work-script summary:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 2px; border-radius: 4px; }
+.work-script .flow-code { margin-top: 4px; max-height: 180px; }
+.work-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.work-chips li {
+  padding: 0 9px;
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  color: var(--graphite);
+  border: 1px solid color-mix(in oklab, var(--pencil) 80%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--paper) 70%, white);
+  font-variant-numeric: tabular-nums;
+}
+.work-lead { margin: 0; font-size: var(--fs-sm); color: var(--ink-her); }
+.work-files { display: grid; gap: 2px; margin: 0; padding: 6px 10px; list-style: none; background: color-mix(in oklab, var(--paper-edge) 40%, var(--paper)); border-radius: 6px; max-height: 132px; overflow-y: auto; }
+.work-files code { font: 14px / 1.5 var(--font-num); color: var(--ink-her); word-break: break-all; }
+
+/* —— 反馈 —— */
+.work-sending { font-size: var(--fs-xs); color: var(--graphite); }
+.work-sending::after { content: ''; display: inline-block; width: 1.2em; text-align: left; animation: work-dots 1.2s steps(4, end) infinite; }
+@keyframes work-dots { 0% { content: ''; } 25% { content: '·'; } 50% { content: '··'; } 75% { content: '···'; } }
+.work-pulse { display: inline-block; width: 8px; height: 8px; margin-left: 8px; border-radius: 50%; background: var(--peach-mid); animation: work-pulse 1.4s var(--ease-in-out) infinite; }
+@keyframes work-pulse { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+.work-notice { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: var(--fs-sm); line-height: 1.55; color: var(--notice-ink); }
+.work-notice .notice-mark { flex: none; margin: 2px 0 0; cursor: default; }
+.work-status { font-size: var(--fs-xs); color: var(--graphite); white-space: nowrap; }
+.work-status[data-status='completed'] { color: var(--ink-her); }
+.work-status[data-status='failed'] { color: var(--notice-ink); }
+
+/* —— 工作台里的回执 —— */
+.work-receipt, .work-rewind-result { display: grid; gap: 4px; padding-top: 8px; border-top: 1px dashed color-mix(in oklab, var(--pencil) 60%, transparent); }
+.work-receipt-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.work-receipt-head .flow-label { margin: 0; }
+.work-command-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 13px var(--font-num); color: var(--graphite); }
+.work-facts { margin: 0; font-size: var(--fs-sm); color: var(--ink-her); font-variant-numeric: tabular-nums; }
+.work-publication { color: var(--graphite); }
+.work-receipt .link-button { justify-self: start; margin-top: 2px; }
+
+/* —— 她的提问：桃色纸，问题是她的话 —— */
+.dock-question {
+  background: color-mix(in oklab, var(--peach) 28%, var(--paper));
+  border: 1.5px solid color-mix(in oklab, var(--peach-mid) 55%, transparent);
+}
+.question-text { margin: 0; font-size: var(--fs-md); line-height: 1.6; color: var(--ink-her); }
+.question-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice-chip {
+  padding: 2px 12px;
+  font: 15px var(--font-body);
+  color: var(--ink-her);
+  background: color-mix(in oklab, var(--paper) 70%, white);
+  border: 1.5px dashed color-mix(in oklab, var(--peach-mid) 70%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--dur-fast), border-color var(--dur-fast);
+}
+.choice-chip:hover { background: var(--paper); border-style: solid; }
+.choice-chip[aria-pressed='true'] { background: var(--peach); border-style: solid; border-color: var(--peach-mid); }
+.choice-chip:focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 2px; }
+.question-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 52px;
+  max-height: 140px;
+  resize: vertical;
+  padding: 6px 2px;
+  font: var(--fs-sm) / 1.6 var(--font-body);
+  color: var(--graphite);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--pencil);
+  outline: none;
+}
+.question-input:focus { border-bottom-color: var(--peach-mid); }
+.question-input::placeholder { color: var(--pencil); }
+.question-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.question-foot .flow-note { margin: 0; }
+.question-length { flex: none; font-size: var(--fs-xs); color: var(--graphite); font-variant-numeric: tabular-nums; }
+.question-length[data-over='true'] { color: var(--notice-ink); background: color-mix(in oklab, var(--notice-bg) 50%, transparent); padding: 0 6px; border-radius: 4px; }
+
+/* —— 失败旁白：不是她说的话，也不是你的字；是书的旁白，印刷体、藏青色、带“旁白”小签 —— */
+.narration {
+  align-self: stretch;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin: 2px 0;
+  padding: 8px 12px 10px;
+  border-block: 1px dashed color-mix(in oklab, var(--navy) 30%, transparent);
+}
+.narration .msg-narrator { font: var(--fs-sm) / 1.6 var(--font-body); color: color-mix(in oklab, var(--navy) 80%, var(--graphite)); text-align: center; }
+.narrator-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 0 7px;
+  font: 12px / 1.6 var(--font-body);
+  letter-spacing: 0.15em;
+  color: var(--navy);
+  border: 1px solid color-mix(in oklab, var(--navy) 55%, transparent);
+  border-radius: 999px;
+  vertical-align: 0.1em;
+}
+.failure-details { display: grid; justify-items: center; gap: 6px; max-width: 92%; font-size: var(--fs-xs); line-height: 1.6; color: var(--graphite); overflow-wrap: anywhere; }
+.failure-details .work-notice { font-size: var(--fs-xs); }
+.failure-row { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: center; gap: 4px 16px; }
+.failure-row .link-button { margin-top: 0; }
+.failure-why summary { cursor: pointer; color: var(--graphite); }
+.failure-why summary:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 2px; border-radius: 4px; }
+.failure-facts { display: grid; grid-template-columns: auto auto; justify-content: center; gap: 2px 12px; margin: 6px 0 0; }
+.failure-facts dt { color: var(--graphite); }
+.failure-facts dd { margin: 0; color: var(--ink-her); font-variant-numeric: tabular-nums; }
+.failure-facts code { font: 12px var(--font-num); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-card { animation: none; }
+  .work-pulse, .work-sending::after { animation: none; }
+}
