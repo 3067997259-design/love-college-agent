@@ -46,6 +46,17 @@ try {
   assert.ok(!seen.messages.slice(batchIndex, batchIndex + 3).some((m) => m.content.includes('HUMAN_INFORMATION_CANARY')))
   assert.ok(!(await snapshot()).question)
 
+  await script('SYNTHETIC_LENGTH_QUESTION'); await send({ type: 'message.send', text: 'synthetic answer length check' })
+  await waitFor((s) => s.question?.status === 'waiting', 'LENGTH_QUESTION_MISSING')
+  const input = page.getByRole('textbox', { name: '你的回答', exact: true }); const answerButton = page.getByRole('button', { name: '回答', exact: true })
+  for (const char of ['字', '😀']) {
+    await input.fill(char.repeat(1000)); assert.equal(await answerButton.isEnabled(), true); assert.ok((await page.locator('[data-answer-length]').innerText()).includes('1000 / 1000'))
+    await input.fill(char.repeat(1001)); assert.equal(await input.inputValue(), char.repeat(1001)); assert.equal(await answerButton.isEnabled(), false)
+    assert.ok((await page.locator('[data-answer-length]').innerText()).includes('1001 / 1000')); assert.ok((await page.locator('[data-answer-length]').innerText()).includes('请缩短'))
+  }
+  await input.fill('😀'.repeat(1000)); await answerButton.click(); await waitFor((s) => !s.question && s.task?.status === 'completed', 'THOUSAND_EMOJI_ANSWER_FAILED')
+  assert.ok((await records()).some((row) => row.type === 'user/message' && row.text === '😀'.repeat(1000)))
+
   const plan = { label: 'question queue test', plannedCount: 1, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }
   await send({ type: 'pomodoro.plan', plan }); const planId = (await snapshot()).pomodoro.proposal.id
   await send({ type: 'pomodoro.confirm', planId }); await send({ type: 'pomodoro.start', planId })
