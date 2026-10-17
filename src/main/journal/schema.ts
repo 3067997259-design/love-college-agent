@@ -91,7 +91,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('flow/computer-frame'), flowId: id, ref: z.string().regex(/^work-frame:[a-f0-9]{64}$/), asset: binaryAssetSchema.refine((asset) => asset.format === 'png' && asset.byteLength <= 131072), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ type: z.literal('flow/computer-action'), flowId: id, approvalId: id, status: z.enum(['requested', 'denied', 'dispatched', 'failed', 'cancelled']), actionHash: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ type: z.literal('desk/shadow'), changeId: id, status: z.enum(['committed', 'not-git', 'unavailable', 'failed']), commit: z.string().regex(/^[a-f0-9]{40}$/).optional() }).refine((row) => (row.status === 'committed') === !!row.commit),
-  z.strictObject({ type: z.literal('voice/attempt'), id, dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), charCount: z.number().int().min(1).max(1200), source: z.enum(['real', 'fake']) }),
+  z.strictObject({ type: z.literal('voice/attempt'), id, dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), charCount: z.number().int().min(1).max(1200), source: z.enum(['real', 'fake']), resourceReservationId: z.string().uuid().optional() }),
   z.strictObject({ type: z.literal('mail/state'), view: mailboxSchema }),
   z.strictObject({ type: z.literal('mail/processed'), sourceKey: opaqueId, contentHash: z.string().regex(/^[a-f0-9]{64}$/), evidenceRef: opaqueId, result: z.enum(['candidate', 'notice']), candidateId: opaqueId.optional(), facts: mailFactsSchema.optional() }),
   z.strictObject({ type: z.literal('campus/proposed'), candidate: candidateSchema, calendarUid: opaqueId }),
@@ -134,7 +134,7 @@ export const inputSchema = z.discriminatedUnion('type', [
     status: z.enum(['started', 'success', 'failed']), reservedChars: z.number().int().nonnegative(), error: publicError.optional() }),
   z.strictObject({ type: z.literal('model/attempt'), turnId: id, slot: z.enum(['chat', 'background', 'chat_google', 'chat_claude', 'privacy']), attempt: z.number().int().positive(),
     status: z.enum(['started', 'success', 'failed', 'retry']), waitMs: z.number().nonnegative(), httpStatus: z.number().int().optional(),
-    reservedTokens: z.number().int().nonnegative().optional(), bucket: z.enum(['work', 'autonomous']).optional(),
+    reservedTokens: z.number().int().nonnegative().optional(), bucket: z.enum(['work', 'autonomous']).optional(), resourceReservationId: z.string().uuid().optional(),
     error: z.enum(['configuration', 'network', 'timeout', 'upstream', 'quota', 'cancelled', 'invalid-output', 'interrupted']).optional(),
     inputTokens: z.number().int().nonnegative().optional(), outputTokens: z.number().int().nonnegative().optional() }),
 ])

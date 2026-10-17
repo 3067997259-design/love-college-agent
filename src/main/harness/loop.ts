@@ -7,6 +7,7 @@ import type { ContextMessage } from '../journal/schema'
 import { ModelFailure, type ModelClient } from '../model/types'
 import type { HarnessTool } from './tools'
 import { MemoryFailure } from '../memory/model'
+import { ResourceFailure, type ResourceAdmissions } from '../resources/ledger'
 
 class GuardFailure extends Error {
   constructor(readonly reason: 'max-steps' | 'loop' | 'budget', readonly code: PublicErrorCode) { super('EXECUTION_GUARD') }
@@ -19,6 +20,7 @@ function canonical(value: unknown): unknown {
 function errorCode(error: unknown): PublicErrorCode {
   if (error instanceof GuardFailure) return error.code
   if (error instanceof MemoryFailure) return error.code
+  if (error instanceof ResourceFailure) return error.code
   if (!(error instanceof ModelFailure)) return 'internal'
   return ({ configuration: 'configuration-failed', network: 'connection-failed', timeout: 'connection-failed', upstream: 'upstream-busy', quota: 'quota-exhausted',
     cancelled: 'internal', 'invalid-output': 'invalid-model-output', interrupted: 'stream-interrupted' } as const)[error.kind]
@@ -31,6 +33,7 @@ export function createHarness(options: {
   enabled?: () => boolean
   backgroundQuiet?: () => boolean
   limits?: { steps?: number; dailyTokens?: number; autonomousTokens?: number; outputTokens?: number }
+  budget?: ResourceAdmissions
   prepareContext?(turnId: string, signal: AbortSignal): Promise<{ messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }>
   foreground?(): void
   userWork?(): void
@@ -107,13 +110,15 @@ export function createHarness(options: {
           const reservation = Buffer.byteLength(JSON.stringify({ messages, tools: definitions }), 'utf8') + messages.reduce((n, message) => n + (message.imageRefs?.length ?? 0) * 16384, 0) + outputTokens + 1024
           const reply = await model.complete({ messages, tools: definitions, signal: turn.abort.signal, toolsExecuted, maxOutputTokens: outputTokens }, (attempt) => {
             const bucket = trigger === 'user' ? 'work' : 'autonomous'
+            let resourceReservationId: string | undefined
             if (attempt.status === 'started') {
               const reservations = store.records().filter((row) => row.type === 'model/attempt' && row.status === 'started')
               const used = reservations.reduce((sum, row) => sum + (row.type === 'model/attempt' ? row.reservedTokens ?? 0 : 0), 0)
               const autonomous = reservations.reduce((sum, row) => sum + (row.type === 'model/attempt' && row.bucket === 'autonomous' ? row.reservedTokens ?? 0 : 0), 0)
-              if (used + reservation > (options.limits?.dailyTokens ?? 500_000) || (bucket === 'autonomous' && autonomous + reservation > (options.limits?.autonomousTokens ?? 100_000))) throw new GuardFailure('budget', 'budget-exceeded')
+              if ((!options.budget || options.limits?.dailyTokens !== undefined) && used + reservation > (options.limits?.dailyTokens ?? 500_000) || bucket === 'autonomous' && (!options.budget || options.limits?.autonomousTokens !== undefined) && autonomous + reservation > (options.limits?.autonomousTokens ?? 100_000)) throw new GuardFailure('budget', 'budget-exceeded')
+              resourceReservationId = options.budget?.reserveModel(reservation, bucket)
             }
-            record({ type: 'model/attempt', turnId: turn.id, ...attempt, bucket, ...(attempt.status === 'started' ? { reservedTokens: reservation } : {}) })
+            record({ type: 'model/attempt', turnId: turn.id, ...attempt, bucket, ...(attempt.status === 'started' ? { reservedTokens: reservation, ...(resourceReservationId ? { resourceReservationId } : {}) } : {}) })
           })
           turn.abort.signal.throwIfAborted()
           record({ type: 'model/seen', turnId: turn.id, source: model.source, ...seen })

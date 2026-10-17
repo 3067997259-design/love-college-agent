@@ -13,6 +13,7 @@ import { projectMemory } from '../../src/main/memory/projection'
 import { validateMemories } from '../../src/main/memory/model'
 import { createScheduler } from '../../src/main/scheduler'
 import type { AppCommand } from '../../src/shared'
+import { ResourceFailure } from '../../src/main/resources/ledger'
 
 const configs = new Map<ProviderSlot, ProviderConfig>(['chat', 'background', 'privacy'].map((slot) => [slot as ProviderSlot, { base_url: 'http://synthetic.invalid/v1', api_key: 'synthetic-' + slot + '-credential', model: 'synthetic-' + slot + '-model' }]))
 function fixture() {
@@ -25,6 +26,15 @@ function response(value: unknown) {
   return new Response('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: JSON.stringify(value) }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 3 } }) + '\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
 }
 describe('production task model ports without runtime model calls', () => {
+  it('gates background and privacy attempts on durable admission before any HTTP or fallback', async () => {
+    const f = fixture(); let calls = 0; const buckets: string[] = []
+    const ports = createTaskModelPorts(configs, f.clock, f.store, async () => { calls++; return response({}) }, {
+      reserveModel: (_units, bucket) => { buckets.push(bucket); throw new ResourceFailure('budget-exceeded') }, reserveSpeech: () => crypto.randomUUID(),
+    })
+    await expect(ports.lifeWork!.produce({ kind: 'read', step: 1, totalSteps: 3, material: 'synthetic', previous: '' }, new AbortController().signal)).rejects.toMatchObject({ code: 'budget-exceeded' })
+    await expect(ports.mail!.extract({ sourceId: 'synthetic', subject: 'synthetic', body: 'synthetic', sentAtIso: '2026-10-17T08:00:00+08:00' }, new AbortController().signal)).rejects.toMatchObject({ code: 'budget-exceeded' })
+    expect(buckets).toEqual(['autonomous', 'work']); expect(calls).toBe(0); expect(f.rows.some((row) => row.type === 'model/attempt')).toBe(false)
+  })
   it('runs private synthetic desk production only on background with strict JSON and metadata-only attempts', async () => {
     const f = fixture(); let calls = 0; let body: Record<string, unknown> = {}
     const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => {

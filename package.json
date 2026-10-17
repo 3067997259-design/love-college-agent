@@ -65,6 +65,7 @@
     "test:flow-sleep": "pnpm build && node scripts/smoke-flow-sleep.mjs",
     "test:minecraft:images": "pnpm build && node scripts/smoke-minecraft-images.mjs",
     "test:minecraft:mining": "pnpm build && node scripts/smoke-minecraft-mining.mjs",
+    "test:resources": "pnpm build && node scripts/smoke-resource-concurrency.mjs && node scripts/smoke-resources.mjs",
     "test:showcase": "pnpm build && node scripts/smoke-showcase.mjs",
     "test:room": "pnpm build && node scripts/smoke-room.mjs",
     "test:room:upgrade": "pnpm build && node scripts/smoke-room-upgrade.mjs",

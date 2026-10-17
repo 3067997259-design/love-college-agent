@@ -98,6 +98,7 @@ import { migrateLegacyDesk } from './room/legacy-desk'
 import { createMinecraft, type MinecraftService } from './minecraft/service'
 import { createMinecraftChat, type MinecraftChat } from './minecraft/chat'
 import { normalizeGamePixels } from './minecraft/pixels'
+import { createResourceBudget, type ResourceBudget } from './resources/service'
 
 const dataRoot = resolve(process.env.LCA_DATA_DIR ?? (app.isPackaged ? app.getPath('userData') : join(process.cwd(), '.local-data')))
 const prepared = prepareRuntime(dataRoot, systemClock, process.env.LCA_BOOTH === '1')
@@ -142,6 +143,7 @@ let computer: DeskComputer | undefined
 let webFetch: FlowFetch | undefined
 let minecraft: MinecraftService | undefined
 let minecraftChat: MinecraftChat | undefined
+let resourceBudget: ResourceBudget | undefined
 let life: LifeService | undefined
 let sleep: SleepService | undefined
 let diary: DiaryService | undefined
@@ -323,7 +325,10 @@ void app.whenReady().then(async () => {
     controller = createAppController(clock, undefined, store, { booth: prepared.booth })
     const providers = prepared.developer ? new Map() : await readModelProviders(providersFile)
     const privateCredentials = [...(prepared.developer ? [] : await readPrivateCredentialValues(providersFile))]
-    const taskModels = createTaskModelPorts(providers, clock, store)
+    resourceBudget = createResourceBudget({ root: join(prepared.developer ? dataDir : dataRoot, 'runtime-resources'), clock, configurable: prepared.booth })
+    resourceBudget.bootstrap(JSON.stringify([dataDir, owner.userId, owner.characterId]), store.history?.() ?? store.records())
+    controller.attachResources(resourceBudget)
+    const taskModels = createTaskModelPorts(providers, clock, store, undefined, resourceBudget)
     scheduler = createScheduler(clock, () => { console.error('Scheduler stopped: local operation failed.'); app.quit() })
     photos = createHistoryPhotos({ store, clock, assets: binaryAssets, changed: () => controller?.refresh('task'),
       canCapture: () => !!bookWindow && !bookWindow.isDestroyed() && !backup?.isBusy() && controller?.getSnapshot().onboarding?.status === 'completed',
@@ -478,17 +483,17 @@ void app.whenReady().then(async () => {
         }
       },
       changed: () => controller?.refresh('task') })
-    minecraftChat = createMinecraftChat({ root: join(dataDir, 'minecraft'), clock, mainStore: store, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { scope: 'game', resolve: (ref) => minecraftChat!.resolveImage(ref) }), game: () => minecraft!, enabled: () => modelReady, normalizePixels: normalizeGamePixels,
+    minecraftChat = createMinecraftChat({ root: join(dataDir, 'minecraft'), clock, mainStore: store, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { scope: 'game', resolve: (ref) => minecraftChat!.resolveImage(ref) }), game: () => minecraft!, enabled: () => modelReady, normalizePixels: normalizeGamePixels,
       // 游戏一轮每次调用都带人设并按字节计入展位预算：用短人设，不带整份正文
       persona: () => ({ name: controller!.getSnapshot().onboarding?.characterName ?? '桃子', persona: briefPersona(activeCharacter) }), credentials: privateCredentials, changed: () => controller?.refresh('message') })
     controller.attachMinecraft(minecraft, minecraftChat, mcpFixture ? (scenario) => mcpFixture!.game.select(scenario) : undefined)
-    harness = createHarness({ store, clock, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
+    harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
       prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); if (!heartFlow!.active()) return recall!.prepare(id, preparedContext)
         const seen = new Set<string>(); const messages = preparedContext.messages.slice().reverse().map((message) => { if (!message.imageRefs) return message; const imageRefs = message.imageRefs.filter((ref) => { if (seen.has(ref) || seen.size >= 2) return false; seen.add(ref); return true }); return { ...message, imageRefs } }).reverse(); return { ...preparedContext, messages }
       }, foreground: () => { memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, userWork: () => { sleep?.wake(); life?.foreground() },
       settled: () => { heartFlow?.settled(); voice?.observe() }, failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     const voiceConfig = prepared.developer ? null : await readVoiceConfig(providersFile)
-    voice = createVoice({ store, clock, port: prepared.developer ? createFakeVoice(clock) : voiceConfig ? createSpeechPort(voiceConfig) : null,
+    voice = createVoice({ store, clock, budget: resourceBudget, port: prepared.developer ? createFakeVoice(clock) : voiceConfig ? createSpeechPort(voiceConfig) : null,
       blocked: () => { const p = store!.projection(); return p.sleeping || p.lightsOut || p.mode === 'quiet' || p.pomodoro.phase === 'focus' || !!heartFlow?.active() || !!minecraft?.active() || !!backup?.isBusy() || !!bookWindow && !bookWindow.isVisible() },
       changed: () => controller?.refresh('connection'), safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
     controller.attachVoice(voice)
@@ -563,6 +568,6 @@ app.on('before-quit', (event) => {
     scheduler?.dispose()
     const closeGame = (async () => { await minecraft?.close(); await minecraftChat?.end(); await mcp?.close() })()
     // Keep the development clock alive until every service has finished its cancellation/release RPCs.
-    void Promise.all([harness.dispose(), closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), delegates?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); storageClosed = true; app.quit() })
-  } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); storageClosed = true }
+    void Promise.all([harness.dispose(), closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), delegates?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); resourceBudget?.close(); storageClosed = true; app.quit() })
+  } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); resourceBudget?.close(); storageClosed = true }
 })
