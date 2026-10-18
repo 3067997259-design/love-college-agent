@@ -35,3 +35,10 @@ it('keeps witnessed delivery evidence for gifts but does not extract external so
   expect(seenFragments(records)).toHaveLength(4)
   expect(seenFragments(records, true).map((fragment) => fragment.text)).toEqual(['我喜欢安静学习'])
 })
+
+it('retains the scan job locator across turns while retiring its old status and source text', () => {
+  const rows = [{ type: 'tool/call', turnId: 'scan', callId: 'scan-call', templateId: 'student-hub.assistant', atMs: 10 }] as unknown as JournalRecord[]
+  const [message] = retireSourceContext([{ role: 'tool', toolCallId: 'scan-call', content: JSON.stringify({ jobId: 'scan_123', status: 'running', text: 'OLD_SCHOOL_SOURCE' }) }], rows, 'status-turn', [])
+  const result = JSON.parse(message.content)
+  expect(result.jobId).toBe('scan_123'); expect(result.status).toBe('historical-result-retired'); expect(message.content).not.toContain('OLD_SCHOOL_SOURCE')
+})

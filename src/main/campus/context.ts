@@ -11,7 +11,11 @@ export function retireSourceContext(messages: readonly ContextMessage[], records
   const retiredTurns = new Set(calls.filter((row) => isSourceTool(row.templateId) && row.turnId !== turnId && row.atMs <= lastIgnore).map((row) => row.turnId))
   const retiredReplies = new Set(records.flatMap((row) => row.type === 'assistant/message' && (retiredTurns.has(row.turnId) || row.atMs <= lastIgnore && ignoredTitles.some((title) => title.length >= 4 && row.text.includes(title))) ? [row.text] : []))
   return messages.map((message) => {
-    if (message.role === 'tool' && oldCalls.has(message.toolCallId ?? '')) return { ...message, content: JSON.stringify({ status: 'historical-result-retired', instruction: 'Read current source state if needed; this is not current evidence.' }), imageRefs: undefined }
+    if (message.role === 'tool' && oldCalls.has(message.toolCallId ?? '')) {
+      let jobId: string | undefined
+      try { const value = JSON.parse(message.content); if (typeof value?.jobId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value.jobId)) jobId = value.jobId } catch { /* No task locator in an unstructured result. */ }
+      return { ...message, content: JSON.stringify({ status: 'historical-result-retired', ...(jobId ? { jobId } : {}), instruction: 'Read current source state if needed; this is not current evidence. A jobId is only a locator for status or cancellation.' }), imageRefs: undefined }
+    }
     if (message.role === 'assistant' && retiredReplies.has(message.content)) return { ...message, content: '' }
     return message
   })
