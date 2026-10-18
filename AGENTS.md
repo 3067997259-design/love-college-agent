@@ -6,7 +6,7 @@
 
 用户明确隐私“跟随主模型”=关闭隔离，原文可由主模型处理；独立隐私模型失败仍关闭业务，不自动回退。新安装默认跟随；旧独立槽位不静默降级。background 跟随主模型或独立配置，日记、记忆与后台工作都按此路由。模型配置保存立即生效，TTS/Rodin/邮箱仍重启。旧隔离资料不会随切换自动公开；/privacy 关闭时新文件走主模型，旧暂存资料须显式重试。
 
-新增 `pnpm test:model-routing`，验证普通 Electron 的热配置、原文边界、切换、失败和重启。打包后新增 model-routing/model-slots/gifts/room，总计 37 场景；以当次报告为准。礼物自动制作须先 gift.accept；日记未完成尝试在普通日记页可补写，最多每天 3 次。详见 [运行链路审计](docs/engineering/runtime-closeout-audit-20261018.md)。
+新增 `pnpm test:model-routing`，验证普通 Electron 的热配置、原文边界、切换、失败和重启。v0.1.8 打包后新增 model-routing/model-slots/gifts/room，共 37 场景；v0.1.10 加入普通 memory/harness 流程，共 39 场景，以当次报告为准。礼物自动制作须先 gift.accept；日记未完成尝试在普通日记页可补写，最多每天 3 次。详见 [运行链路审计](docs/engineering/runtime-closeout-audit-20261018.md)。
 
 **v0.1.7 发包：** 安装器按 package.json 版本命名，提供桌面／开始菜单快捷方式。`pnpm test:package --unpacked-only` 只检查打包解包版，不安装／卸载，不触碰已有用户安装；报告单独为 `test-results/package-unpacked-report.json`，不得称为实际安装器升级验收。默认 `pnpm test:package` 的已有安装保护不变。见 [发布记录](docs/engineering/release-0.1.7.md)。
 
