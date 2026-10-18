@@ -118,3 +118,5 @@ characterName 进入角色的系统称呼，userName 进入用户档案的“关
 命令错误码 `command-encoding-unsupported` 表示未能建立 UTF-8 约定：非 UTF-8 系统的 Unicode 命令字面量在执行前拒绝，非 UTF-8 子进程输出也不能当正常文本交付或写回；可改用 ASCII 编码的脚本及显式 UTF-8 文件／输出。它不是用户拒绝，也不触发普通进程回退。
 
 `models.routing.set` 为 background／privacy 显式选择 follow-main 或 independent。privacy 的 follow-main 关闭隔离，原文可由主模型处理；independent 缺失或失败仍关闭业务。模型配置热应用，语音／礼物／邮箱仍需重启。路由仅回传枚举，不回传凭据。
+
+`mail.configure.port` 留空时保留已有端口，新连接默认 993；避免只改授权码时把非默认端口覆盖掉。

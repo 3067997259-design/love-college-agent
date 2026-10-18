@@ -77,7 +77,7 @@ export type AppCommand = CommandEnvelope & (
   /** TTS / Rodin service connections; blank fields keep saved values. */
   | { type: 'models.service.save'; service: 'tts' | 'rodin'; baseUrl: string; model: string; apiKey?: string; voice?: string }
   /** Mail connection fields; auth code never returns to the renderer. */
-  | { type: 'mail.configure'; host: string; port: number; user: string; authCode?: string }
+  | { type: 'mail.configure'; host: string; port?: number; user: string; authCode?: string }
   | { type: 'window.mini' }
   /** Expand the book and destroy its companion window; no timer or session change. */
   | { type: 'window.expand' }
