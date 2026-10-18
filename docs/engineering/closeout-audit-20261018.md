@@ -23,6 +23,12 @@
 
 历史但本轮读到的真实报告：`privacy-live-report.json` 为 1 次真实 privacy、实际 Markdown 与基础事实匹配，`broadQualityAccepted=false`；Student Hub 只读扫描 3 artifacts／0 actionable review cases／无外部写入。最新 UI 真实聊天证据见 [测试安排](test-automation-20261018.md)。历史结果与本轮重跑分开。
 
+## 安装包内容与 GitHub Release 核对
+
+用户指出最新 UI／文案可能未进 Release 后，本轮使用 GitHub CLI 只读核对：最新发布仍为 v0.1.6，目标 `0aaebf6…`，资产 SHA `62c5aac8…`；它不是本机 12:03 的新包。
+
+另直接读取新安装 EXE 的 app.asar：SHA `dd54afb52349cf28c573cefd940f4159b7123eeb46d6d3f14d595492fb943d24`，与构建回执相符。主进程 `out/main/index.cjs` 和 renderer `index-CUgmtsF5.js` 均与当前 `out/` 字节一致；安装内检出“给书房添上颜色”“填写模型连接”“模型与声音”“连接与插件”“保存邮箱连接”“添加插件”六项新 UI／文案标记。因此最新改动已进入本机安装包，**尚未进入 GitHub 最新 Release**。本轮不修改远端 Release 或发布状态。
+
 ## 说了但要改口／补交付的内容
 
 | 优先级 | 发现 | 当前事实与收尾决定 |
