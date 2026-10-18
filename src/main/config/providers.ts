@@ -46,3 +46,26 @@ export async function readModelProviders(filename: string): Promise<ReadonlyMap<
     return result
   } catch { return new Map() }
 }
+
+export interface ModelRouting { background: 'follow-main' | 'independent'; privacy: 'follow-main' | 'independent' }
+export function inferModelRouting(value: { providers: Record<string, unknown>; routing?: Partial<ModelRouting> }): ModelRouting {
+  return { background: value.routing?.background ?? (Object.hasOwn(value.providers, 'background') ? 'independent' : 'follow-main'),
+    privacy: value.routing?.privacy ?? (Object.hasOwn(value.providers, 'privacy') ? 'independent' : 'follow-main') }
+}
+export async function readModelRouting(filename: string): Promise<ModelRouting> {
+  try {
+    const value = z.object({ providers: z.record(z.string(), z.unknown()), routing: z.object({ background: z.enum(['follow-main', 'independent']).optional(), privacy: z.enum(['follow-main', 'independent']).optional() }).optional() }).parse(JSON.parse(await readFile(filename, 'utf8')))
+    return inferModelRouting(value)
+  } catch (error) {
+    // A missing fresh-install file defaults to follow-main; malformed existing policy must fail closed.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { background: 'follow-main', privacy: 'follow-main' }
+    return { background: 'independent', privacy: 'independent' }
+  }
+}
+export function resolveModelProviders(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, routing: ModelRouting): Map<ProviderSlot, ProviderConfig> {
+  const resolved = new Map(providers)
+  if (routing.background === 'follow-main') { resolved.delete('background'); const chat = providers.get('chat'); if (chat) resolved.set('background', chat) }
+  // Privacy is a policy, never an alias: trusted-main processing has a separate, explicit port.
+  if (routing.privacy === 'follow-main') resolved.delete('privacy')
+  return resolved
+}

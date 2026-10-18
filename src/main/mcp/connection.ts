@@ -8,7 +8,7 @@ import type { Clock } from '../clock'
 import type { HarnessTool, ToolResult } from '../harness/tools'
 import type { McpServerView } from '../../shared'
 import { createPrivacyFilter, type PrivacyModel } from '../privacy/filter'
-import { redactFixed } from '../privacy/redact'
+import { redactFixed, redactSecrets } from '../privacy/redact'
 import { boundedMcp, McpFailure } from './bounded'
 import { configFingerprint, type McpConfigEntry } from './config'
 
@@ -28,14 +28,14 @@ function safeSchema(input: unknown): Record<string, unknown> {
   if (parameters.type !== 'object') throw new McpFailure('configuration-failed')
   return parameters
 }
-export function createMcpConnection(options: { id: string; config: McpConfigEntry; clock: Clock; privacyModel: PrivacyModel | null; source: 'real' | 'fake'; changed(): void }) {
+export function createMcpConnection(options: { id: string; config: McpConfigEntry; clock: Clock; privacyModel: PrivacyModel | null; privacyEnabled?(): boolean; source: 'real' | 'fake'; changed(): void }) {
   const { id, config, clock } = options
   const view: McpServerView = { id, transport: 'command' in config ? 'stdio' : 'http', status: 'disconnected', source: options.source, fingerprint: configFingerprint(config), privacy: config.privacy, tools: [...config.allowTools] }
   const secrets = ('command' in config ? [...Object.values(config.env), config.command, ...config.args, config.cwd ?? ''] : [...Object.values(config.headers), config.url]).filter((value) => value.length >= 4)
   const privateParts = [...secrets, ...secrets.flatMap((value) => { const bearer = /^Bearer\s+(.+)$/i.exec(value); return bearer ? [bearer[1]] : [] }), ...('url' in config ? [...new URL(config.url).searchParams.values()] : [])].filter((value) => value.length >= 4)
-  const sanitize = (text: string) => redactFixed(privateParts.reduce((value, secret) => value.replaceAll(secret, '[REDACTED]'), text))
+  const sanitize = (text: string) => (options.privacyEnabled?.() === false ? redactSecrets : redactFixed)(privateParts.reduce((value, secret) => value.replaceAll(secret, '[REDACTED]'), text))
   let client: Client | undefined; let transport: Transport | undefined; let active: AbortController | undefined; let tools: HarnessTool[] = []; let closing = false; let generation = 0
-  const calls = new Set<AbortController>(); const filter = createPrivacyFilter(options.privacyModel)
+  const calls = new Set<AbortController>(); const filter = (text: string, signal?: AbortSignal) => createPrivacyFilter(options.privacyModel)(text, signal)
   const approved = new Map<string, { parameters: Record<string, unknown>; validator: ReturnType<typeof z.fromJSONSchema> }>()
   const fail = () => { if (!closing) { view.status = 'failed'; view.error = { code: 'connection-failed', retryable: true }; tools = []; for (const call of calls) call.abort(); active?.abort(); options.changed() } }
   const disconnect = async () => {
@@ -51,13 +51,13 @@ export function createMcpConnection(options: { id: string; config: McpConfigEntr
     const error = (code: string): ToolResult => ({ ok: false, raw: { error: code, execution: 'unknown' }, visible: { error: code, execution: 'unknown' } })
     try {
       if (!client || view.status !== 'ready') return error('connection-failed')
-      if (config.privacy === 'always' && !options.privacyModel) return error('privacy-unavailable')
+      if (config.privacy === 'always' && options.privacyEnabled?.() !== false && !options.privacyModel) return error('privacy-unavailable')
       // Never retry an ambiguous external action. The parent harness owns bounded execution.
       const output = await boundedMcp(clock, abort.signal, (requestSignal) => client!.callTool({ name, arguments: input }, undefined, { signal: requestSignal, timeout: 2_147_000_000 }))
       const parsed = resultSchema.safeParse(output)
       if (!parsed.success || JSON.stringify(output).length > 128_000) return error('mcp-invalid-result')
       const text = sanitize(parsed.data.content.map((item) => item.text).join('\n'))
-      if (config.privacy === 'always') {
+      if (config.privacy === 'always' && options.privacyEnabled?.() !== false) {
         const filtered = await boundedMcp(clock, abort.signal, (signal) => filter(text, signal))
         if (!filtered.ok) return error(filtered.error)
         const visible = { ...filtered.fields, task: sanitize(filtered.fields.task), trust: 'untrusted', source: filtered.source }

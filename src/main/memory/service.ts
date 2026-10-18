@@ -158,7 +158,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   return { maintenance,
     view: (): MemoryView => {
       const state = repository.view(); const valid = state.items.filter((item) => !item.supersededBy)
-      return { status, source: options.model?.source ?? 'none', shortTermCount: valid.filter((item) => item.tier === 'short_term').length, longTermCount: valid.filter((item) => item.tier === 'long_term').length,
+      return { status: !options.model ? 'unconfigured' : status === 'unconfigured' ? 'idle' : status, source: options.model?.source ?? 'none', shortTermCount: valid.filter((item) => item.tier === 'short_term').length, longTermCount: valid.filter((item) => item.tier === 'long_term').length,
         summaryCounts: Object.fromEntries((['day', 'week', 'month'] as const).map((level) => [level, latestSummaries(state.summaries).filter((summary) => summary.level === level).length])) as { day: number; week: number; month: number },
         contextChars: contextChars(), lastExtractedAtMs: state.lastExtractedAtMs, lastCompactedAtMs: state.lastCompactedAtMs,
         items: state.items.slice(-20).map((item) => ({ id: item.id, text: item.text, kind: item.kind, tier: item.tier, reviewStatus: item.reviewStatus, createdAtMs: item.createdAtMs,

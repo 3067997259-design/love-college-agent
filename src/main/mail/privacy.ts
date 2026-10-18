@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { EvidenceView } from '../../shared'
 import type { Clock } from '../clock'
-import { redactFixed } from '../privacy/redact'
+import { redactFixed, redactSecrets } from '../privacy/redact'
 import { groundingVerdict } from '../memory/grounding'
 import type { SourceMail } from './types'
 
@@ -16,7 +16,7 @@ const action = z.strictObject({ kind: z.enum(['deadline', 'event']), task: short
 })
 const schema = z.union([z.strictObject({ kind: z.literal('notice') }), action])
 export interface EmailPrivacyInput { sourceId: string; subject: string; body: string; sentAtIso: string }
-export interface EmailPrivacyModel { readonly source: 'real' | 'fake'; extract(input: EmailPrivacyInput, signal: AbortSignal): Promise<unknown> }
+export interface EmailPrivacyModel { readonly isolated?: boolean; readonly source: 'real' | 'fake'; extract(input: EmailPrivacyInput, signal: AbortSignal): Promise<unknown> }
 export interface CheckedMail {
   kind: 'deadline' | 'event'; title: string; sourceRole: z.infer<typeof action>['sourceRole']; deadlineIso: string | null
   eventStartIso?: string; eventEndIso?: string; locationText?: string
@@ -77,7 +77,7 @@ export async function extractMail(mail: SourceMail, model: EmailPrivacyModel | n
       combined.addEventListener('abort', listener, { once: true }); removeAbort = () => combined.removeEventListener('abort', listener)
       if (combined.aborted) listener()
     })
-    output = await Promise.race([model.extract({ sourceId: `${mail.uidValidity}:${mail.uid}`, subject: redactFixed(mail.subject), body: redactFixed(mail.body), sentAtIso: clock.iso(mail.sentAtMs) }, combined), abort])
+    output = await Promise.race([model.extract({ sourceId: `${mail.uidValidity}:${mail.uid}`, subject: (model.isolated === false ? redactSecrets : redactFixed)(mail.subject), body: (model.isolated === false ? redactSecrets : redactFixed)(mail.body), sentAtIso: clock.iso(mail.sentAtMs) }, combined), abort])
   } catch { return { ok: false, error: 'privacy-unavailable' } }
   finally { cancel(); removeAbort() }
   if (combined.aborted) return { ok: false, error: 'privacy-unavailable' }

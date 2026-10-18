@@ -1,3 +1,4 @@
+import { createFakePrivacyModel } from '../../src/main/privacy/filter'
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -97,4 +98,22 @@ describe('plugin consent and narrow result boundary', () => {
     const result = await f.registry.tools().at(-1)!.run({}, {} as never)
     expect(result).toEqual({ ok: false, raw: { error: 'privacy-unavailable' }, visible: { error: 'privacy-unavailable' } })
   })
+})
+
+it('changes the mandatory privacy policy live: trusted main gets raw content, isolated without a model refuses execution', async () => {
+  let isolated = false
+  const f = fixture('module.exports={tools:{synthetic:async()=>({ok:true,raw:{text:"SHARED_SOURCE"},visible:{text:"SHARED_SOURCE"}})}}', { privacy: 'always' }, { privacyEnabled: () => isolated })
+  const view = f.registry.views().find((item) => item.id === 'synthetic')!; expect(f.registry.enable('synthetic', view.fingerprint)).toBeUndefined()
+  const tool = f.registry.tools().find((item) => item.definition.name === 'synthetic')!
+  const context = { clock: createManualClock(), signal: new AbortController().signal, turnId: 't', store: {} as never }
+  expect((await tool.run({}, context)).visible).toEqual({ text: 'SHARED_SOURCE' })
+  isolated = true; expect((await tool.run({}, context)).visible).toEqual({ error: 'privacy-unavailable' })
+})
+
+it('does not retain original plugin output in the raw journal field after privacy filtering', async () => {
+  const f = fixture(undefined, { privacy: 'always' }, { privacyModel: createFakePrivacyModel() })
+  const view = f.registry.views().find((item) => item.id === 'synthetic')!; f.registry.enable('synthetic', view.fingerprint)
+  const tool = f.registry.tools().find((item) => item.definition.name === 'synthetic')!
+  const result = await tool.run({}, { clock: createManualClock(), signal: new AbortController().signal, turnId: 't', store: {} as never })
+  expect(result.ok).toBe(true); expect(JSON.stringify(result)).not.toContain('original')
 })

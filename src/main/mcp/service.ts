@@ -5,7 +5,7 @@ import type { PrivacyModel } from '../privacy/filter'
 import { createMcpConnection, type McpConnection } from './connection'
 import { readMcpConfig, saveMcpConfig, type McpConfig, type McpConfigEntry } from './config'
 
-export function createMcpService(options: { clock: Clock; configPath: string; source: 'real' | 'fake'; privacyModel: PrivacyModel | null;
+export function createMcpService(options: { clock: Clock; configPath: string; source: 'real' | 'fake'; privacyModel: PrivacyModel | null; privacyEnabled?(): boolean;
   developmentConfig?: McpConfig; chooseConfig(): Promise<string | null>; confirmConnection(id: string, config: McpConfigEntry): Promise<boolean>; changed(): void; canConfigure(): boolean;
   beforeDisconnect?(serverId: string): Promise<void> }) {
   let connections = new Map<string, McpConnection>(); let error: McpView['error']; let enabled = true; let disposed = false; let worker: Promise<void> | undefined
@@ -13,7 +13,7 @@ export function createMcpService(options: { clock: Clock; configPath: string; so
   const jobs = new Set<Promise<void>>()
   const disconnecting = new Set<string>()
   const install = (config: McpConfig) => { privateConfig = config; connections = new Map(Object.entries(config.mcpServers).filter(([, value]) => !value.disabled).map(([id, config]) => [id,
-    createMcpConnection({ id, config, clock: options.clock, source: options.source, privacyModel: options.privacyModel, changed: options.changed })])) }
+    createMcpConnection({ id, config, clock: options.clock, source: options.source, get privacyModel() { return options.privacyModel }, privacyEnabled: options.privacyEnabled, changed: options.changed })])) }
   try { install(options.developmentConfig ?? readMcpConfig(options.configPath)) } catch { error = { code: 'configuration-failed', retryable: true } }
   const disconnect = async () => { await Promise.all([...connections.values()].map((connection) => connection.disconnect())) }
   const track = (promise: Promise<void>) => { jobs.add(promise); void promise.finally(() => jobs.delete(promise)) }

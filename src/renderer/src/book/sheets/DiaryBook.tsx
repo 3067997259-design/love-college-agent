@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { AppBridge, AppSnapshot, DiaryRead } from '../../../../shared'
 import copy from '../../voice/book.zh.json'
 import { sendCommand } from '../command'
+import { SettingsIssue } from '../../tools/SettingsIssue'
 import { dayKeyLabel } from '../life/text'
 
 /**
@@ -61,6 +62,7 @@ export function DiaryBook({ snapshot, bridge, focusId, onOpened }: {
       ) : (
         <div className="sheet-body">
           {status && <p className="sheet-status">{status}</p>}
+          {diary?.status === 'failed' && <button type="button" className="btn btn-ghost btn-small" onClick={() => { void sendCommand(bridge, snapshot.epoch, { type: 'diary.write' }).then((result) => setError(result.ok ? '' : result.code)) }}>{copy.diary.retry}</button>}
           {entries.length === 0 ? <p className="sheet-empty">{copy.diary.empty}</p> : (
             <ul className="diary-list">
               {entries.map((entry) => (
@@ -73,7 +75,7 @@ export function DiaryBook({ snapshot, bridge, focusId, onOpened }: {
               ))}
             </ul>
           )}
-          {error && <p className="sheet-status" role="alert">{error}</p>}
+          {error && (error === copy.diary.readFailed ? <p className="sheet-status" role="alert">{error}</p> : <SettingsIssue code={error} />)}
         </div>
       )}
     </section>

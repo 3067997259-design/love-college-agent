@@ -93,9 +93,9 @@ describe('Rodin MCP lifecycle, provenance, privacy and local assets', () => {
     const service = createGiftService({ ...f, port, source: 'fake', changed: () => {}, open: () => {} }); cleanups.push(service.close); f.scheduler.cancel('gifts.lifecycle')
     const base = { protocolVersion: 1 as const, requestId: 'r', epoch: 'e' }; const proposal = { ...base, type: 'gift.propose' as const, sourceMemoryId: 'mem:proof', objectId: 'leaf' as const, motif: 'plain' as const }
     f.store.append({ type: 'pomodoro/state', view: { ...idleTimer(), phase: 'focus', status: 'running', remainingMs: 60000, endsAtMs: 61000, phaseDurationMs: 60000, focusIndex: 1, plannedCount: 1 }, pauseReason: null, cause: 'started' })
-    service.dispatch(proposal); service.reconcile(); await service.idle(); service.reconcile(); const id = service.view().items[0].id
-    service.dispatch({ ...base, type: 'gift.cancel', giftId: id }); deliver({ state: 'ready', asset }); await service.idle()
-    expect(service.view().items[0].status).toBe('cancelled'); expect(f.assets.owned(asset.sha256)).toBeUndefined()
+    service.dispatch(proposal); service.reconcile(); await service.idle(); expect(service.view().items[0].status).toBe('proposed'); const id = service.view().items[0].id; service.dispatch({ ...base, type: 'gift.accept', giftId: id }); service.reconcile(); await service.idle(); service.reconcile()
+    expect(service.isBusy()).toBe(true); service.dispatch({ ...base, type: 'gift.cancel', giftId: id }); deliver({ state: 'ready', asset }); await service.idle()
+    expect(service.isBusy()).toBe(false); expect(service.view().items[0].status).toBe('cancelled'); expect(f.assets.owned(asset.sha256)).toBeUndefined()
     service.dispatch(proposal); expect(service.dispatch({ ...base, type: 'gift.start', giftId: service.view().items[1].id })).toBe('budget-exceeded')
   })
 })

@@ -1,3 +1,4 @@
+import { resolveModelProviders } from '../../src/main/config/providers'
 import { describe, expect, it } from 'vitest'
 import { createManualClock } from '../../src/main/clock'
 import { createTaskModelPorts } from '../../src/main/model/task-ports'
@@ -120,12 +121,12 @@ describe('production task model ports without runtime model calls', () => {
     await expect(ports.delegate!.read({ task: 'budget', sources: [{ path: 'a.md', sha256: 'a'.repeat(64), text: 'small' }] }, new AbortController().signal)).rejects.toMatchObject({ code: 'budget-exceeded' })
     expect(calls).toBe(0)
   })
-  it('routes subjective diaries to chat with autonomous budget and never persists their prose', async () => {
+  it('routes subjective diaries to the configured background slot with autonomous budget and never persists their prose', async () => {
     const f = fixture(); const models: string[] = []
     const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => { models.push(JSON.parse(String(init.body)).model); return response({ entry: 'SYNTHETIC_SUBJECTIVE_DIARY' }) })
     expect(await ports.diary!.write([{ id: 'seen', text: 'VISIBLE_ONLY' }], new AbortController().signal)).toEqual({ entry: 'SYNTHETIC_SUBJECTIVE_DIARY' })
-    expect(models).toEqual([configs.get('chat')!.model]); expect(JSON.stringify(f.rows)).not.toContain('SYNTHETIC_SUBJECTIVE_DIARY')
-    expect(f.rows.filter((row) => row.type === 'model/attempt' && row.status === 'started')).toMatchObject([{ bucket: 'autonomous', slot: 'chat' }])
+    expect(models).toEqual([configs.get('background')!.model]); expect(JSON.stringify(f.rows)).not.toContain('SYNTHETIC_SUBJECTIVE_DIARY')
+    expect(f.rows.filter((row) => row.type === 'model/attempt' && row.status === 'started')).toMatchObject([{ bucket: 'autonomous', slot: 'background' }])
   })
   it('routes memory to background without tools and preserves scrubbed provenance IDs', async () => {
     const f = fixture(); let model = ''; let auth = ''; let sourceId = ''; let tools: unknown
@@ -164,4 +165,19 @@ describe('production task model ports without runtime model calls', () => {
     const stopped = expect(pending).rejects.toBeDefined(); await ready; parent.abort(); await stopped; expect(aborted).toBe(true)
     expect(JSON.stringify(f.rows)).not.toContain('RAW_ONLY_CANCELLED')
   })
+})
+
+it('routes diary to background/follow-main and keeps trusted-main mail/document content while stripping credentials', async () => {
+  const f = fixture(); const calls: { model: string; messages: { content: string }[] }[] = []
+  const resolved = resolveModelProviders(configs, { background: 'follow-main', privacy: 'follow-main' })
+  const ports = createTaskModelPorts(resolved, f.clock, f.store, async (_url, init) => { calls.push(JSON.parse(String(init.body))); return response({ entry: 'synthetic diary' }) }, undefined, true)
+  await ports.diary!.write([], new AbortController().signal)
+  await ports.mail!.extract({ sourceId: 'synthetic', subject: '学校资料', body: '联系 student@example.edu 13800138000 synthetic-chat-credential', sentAtIso: '2026-10-18T08:00:00+08:00' }, new AbortController().signal)
+  await ports.mainDocument!.organize({ text: '联系 student@example.edu 13800138000', format: 'text', pageCount: null }, new AbortController().signal)
+  expect(calls.map((call) => call.model)).toEqual(Array(3).fill(configs.get('chat')!.model))
+  expect(calls[1].messages[1].content).toContain('student@example.edu'); expect(calls[1].messages[1].content).toContain('13800138000'); expect(calls[1].messages[1].content).not.toContain('synthetic-chat-credential')
+  expect(calls[2].messages[1].content).toContain('student@example.edu'); expect(ports.narrow).toBeNull(); expect(ports.document).toBeNull()
+  expect(JSON.stringify(f.rows)).not.toContain('student@example.edu')
+  const independent = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => { calls.push(JSON.parse(String(init.body))); return response({ entry: 'synthetic diary' }) })
+  await independent.diary!.write([], new AbortController().signal); expect(calls.at(-1)!.model).toBe(configs.get('background')!.model)
 })

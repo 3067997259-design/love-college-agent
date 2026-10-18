@@ -1,3 +1,5 @@
+import { redactSecrets } from './privacy/redact'
+import taskPrompts from './model/task-prompts.json'
 import { app, BrowserWindow, dialog, powerMonitor, protocol, shell, Notification, nativeImage } from 'electron'
 import { join, resolve, parse } from 'node:path'
 import { mkdirSync } from 'node:fs'
@@ -55,7 +57,7 @@ import { probeImap } from './mail/probe'
 import { openSessionStore, resumeSavedSession, type SessionStore } from './store/session'
 import { probeJournal } from './validation/journal'
 import { probeModel } from './validation/model'
-import { readMailCredentials, readModelProviders, readPrivateCredentialValues } from './config/providers'
+import { readMailCredentials, readModelProviders, readPrivateCredentialValues, readModelRouting, resolveModelProviders, type ModelRouting } from './config/providers'
 import { createModelClient } from './model/client'
 import { createHarness } from './harness/loop'
 import { builtinTools } from './harness/tools'
@@ -348,7 +350,11 @@ void app.whenReady().then(async () => {
     }
     if (prepared.scene && store.records().length === 1) store.append({ type: 'companion/mode', mode: prepared.scene.mode, requestId: 'development-scene', commandHash: 'development-scene' })
     controller = createAppController(clock, undefined, store, { booth: prepared.booth })
-    const providers = prepared.developer ? new Map() : await readModelProviders(providersFile)
+    let routing: ModelRouting = prepared.developer ? { background: 'independent', privacy: 'independent' } : await readModelRouting(providersFile)
+    const privacyEnabled = () => prepared.developer || routing.privacy === 'independent'
+    const rawProviders = prepared.developer ? new Map() : await readModelProviders(providersFile)
+    const providers = resolveModelProviders(rawProviders, routing)
+    if (!privacyEnabled()) prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = false })
     const privateCredentials = [...(prepared.developer ? [] : await readPrivateCredentialValues(providersFile))]
     questions = createQuestions({ store, clock, flowId: () => heartFlow?.id() ?? null, changed: () => controller?.refresh('task'),
       safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
@@ -356,7 +362,7 @@ void app.whenReady().then(async () => {
     resourceBudget = createResourceBudget({ root: join(prepared.developer ? dataDir : dataRoot, 'runtime-resources'), clock, configurable: prepared.booth })
     resourceBudget.bootstrap(JSON.stringify([dataDir, owner.userId, owner.characterId]), store.history?.() ?? store.records())
     controller.attachResources(resourceBudget)
-    const taskModels = createTaskModelPorts(providers, clock, store, undefined, resourceBudget)
+    let taskModels = createTaskModelPorts(providers, clock, store, undefined, resourceBudget, !privacyEnabled())
     scheduler = createScheduler(clock, () => { console.error('Scheduler stopped: local operation failed.'); app.quit() })
     photos = createHistoryPhotos({ store, clock, assets: binaryAssets, changed: () => controller?.refresh('task'),
       canCapture: () => !!bookWindow && !bookWindow.isDestroyed() && !backup?.isBusy() && controller?.getSnapshot().onboarding?.status === 'completed',
@@ -373,14 +379,14 @@ void app.whenReady().then(async () => {
     const fakeDocuments = prepared.developer ? createFakeDocumentModel(clock) : undefined
     const artifacts = createArtifactStore(dataDir, store.scope)
     documentVault = openDocumentVault(dataDir, store.scope)
-    documents = createDocumentService({ clock, store, scheduler, settings: prepared.pluginSettings, vault: documentVault, artifacts, model: fakeDocuments?.model ?? taskModels.document, development: fakeDocuments,
+    documents = createDocumentService({ clock, store, scheduler, settings: prepared.pluginSettings, vault: documentVault, artifacts, get model() { return fakeDocuments?.model ?? taskModels.document }, get mainModel() { return prepared.developer ? null : taskModels.mainDocument }, development: fakeDocuments,
       ...(mailAttachmentSource ? { readAttachment: (attachment, signal) => mailAttachmentSource(attachment, signal) } : {}),
       openArtifact: previewArtifact, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('document', text, id) },
       failed: () => { console.error('Document processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachDocuments(documents)
     memoryRepository = openMemoryRepository(dataDir, store)
     const fakeMemory = prepared.developer ? createFakeMemoryModel() : undefined
-    memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, model: fakeMemory?.model ?? taskModels.memory, development: fakeMemory,
+    memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, get model() { return fakeMemory?.model ?? taskModels.memory }, development: fakeMemory,
       includeContextEntries: (seqs) => heartFlow?.normalEntriesAllowed(seqs) ?? new Set(seqs),
       beforeRoll: async () => { if (photos && !photos.photo(store!.scope.sessionId)) { photos.capture('day-end', 'day-end:' + store!.scope.sessionId); await photos.idle() } },
       closingDay: () => { if (!sleep || sleep.set(true, 'day-end')) throw new Error('DAY_END_BUSY') },
@@ -388,7 +394,7 @@ void app.whenReady().then(async () => {
       rolled: () => { controller?.refresh('connection'); harness?.sessionChanged(); pomodoro?.reconcile(); campus?.stateChanged(); documents?.stateChanged() },
       failed: () => { console.error('Memory processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachMemory(memory)
-    campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? realMailbox ?? createBlockedImapSource(), privacy: fakeMailbox?.privacy ?? taskModels.mail,
+    campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? realMailbox ?? createBlockedImapSource(), get privacy() { return fakeMailbox?.privacy ?? taskModels.mail }, followMain: () => !privacyEnabled(),
       canProcess: () => (!life || life.view().locationId === 'room') && !lifeWork?.active() && !minecraft?.active(),
       artifacts, openArtifact: previewArtifact, attachment: (record) => documents!.registerAttachment(record),
       development: fakeMailbox, changed: () => controller?.refresh('task'), emit: (id, text) => { harness?.postEvent('mail', text, id) },
@@ -398,7 +404,7 @@ void app.whenReady().then(async () => {
     pomodoro = createPomodoro({ clock, store, scheduler, changed: () => { life?.reconcile(); questions?.stateChanged(); controller?.refresh('timer') }, stateChanged: () => harness?.stateChanged(),
       emit: (id, text) => { harness?.postEvent('pomodoro', text, id) } })
     const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, clock,
-      privacyModel: prepared.developer ? createFakePrivacyModel() : taskModels.narrow,
+      get privacyModel() { return prepared.developer ? createFakePrivacyModel() : taskModels.narrow }, privacyEnabled, fileFiltering: () => prepared.pluginSettings.read().fileFilteringEnabled,
       onCandidates: (seeds) => { campus?.ingestCandidates(seeds) } })
     plugins.registerBuiltin('core', '时钟与任务计划', [...builtinTools(), questions.tool()])
     plugins.registerBuiltin('pomodoro', '番茄钟', pomodoroTools(pomodoro))
@@ -448,7 +454,7 @@ void app.whenReady().then(async () => {
       safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text), current: (path) => desk.read(path), publish: (id, edit) => heartFlow!.publishCommand(id, edit),
       preview: (id, text) => previewArtifact({ id, artifactId: id, displayName: '命令输出', kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: prepared.developer ? 'fake' : 'real' }, text, '用户专用命令输出 · 进程结果与文件写回分别核实。') })
     heartFlow.attachCommands(deskCommands)
-    delegates = createDelegates({ store, clock, model: prepared.developer ? createFakeDelegateModel() : taskModels.delegate,
+    delegates = createDelegates({ store, clock, get model() { return prepared.developer ? createFakeDelegateModel() : taskModels.delegate },
       flowId: () => heartFlow?.active() ? heartFlow.view().activeId : null, read: (path) => heartFlow!.read(path), changed: () => controller?.refresh('task') })
     heartFlow.attachDelegates(delegates)
     const interactiveWorkAllowed = () => !!heartFlow?.active() && heartFlow.view().mode === 'execute' && !heartFlow.view().operations?.some((op) => op.status === 'running') && !store!.projection().lightsOut && !prepared.booth
@@ -459,7 +465,7 @@ void app.whenReady().then(async () => {
       changed: () => controller?.refresh('task'), safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
     heartFlow.attachWebFetch(webFetch)
     scheduler.schedule('computer.guard', clock.nowMs() + 250, () => computer?.stateChanged(), { everyMs: 250 })
-    lifeWork = createLifeWork({ store, clock, scheduler, desk, developer: prepared.developer, model: prepared.developer ? createFakeLifeWorkModel() : taskModels.lifeWork,
+    lifeWork = createLifeWork({ store, clock, scheduler, desk, developer: prepared.developer, get model() { return prepared.developer ? createFakeLifeWorkModel() : taskModels.lifeWork },
       available: () => {
         const projection = store!.projection(); const timer = projection.pomodoro
         return !projection.sleeping && !backup?.isBusy() && !harness?.isBusy() && !heartFlow?.active() && !minecraft?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing') && diary?.view().status !== 'writing' && !['extracting', 'compacting'].includes(memory?.view().status ?? '')
@@ -473,7 +479,7 @@ void app.whenReady().then(async () => {
     sleep = createSleep({ store, canSleep: () => !harness?.isBusy() && !heartFlow?.occupied() && !lifeWork?.active() && !minecraft?.active() && store!.projection().pomodoro.status !== 'running' && life?.view().locationId === 'room' && controller?.getSnapshot().onboarding?.status === 'completed',
       changed: () => { voice?.interrupt(); lifeWork?.foreground(); controller?.refresh('mode') } })
     controller.attachSleep(sleep)
-    diary = createDiary({ clock, scheduler, store, assets: binaryAssets, model: prepared.developer ? { source: 'fake', write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary, busy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
+    diary = createDiary({ clock, scheduler, store, assets: binaryAssets, get model() { return prepared.developer ? { source: 'fake' as const, write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary }, busy: () => !!harness?.isBusy() || !!heartFlow?.active() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
     controller.attachDiary(diary, { rebuild: () => { lifeWork?.rebuild(); roomProjection.rebuild() }, open: () => { void shell.openPath(roomProjection.root) } })
     optical = createOpticalMemory({ root: dataDir, store, clock, assets: binaryAssets, developer: prepared.developer, render: (text, signal) => renderOpticalPage(text, systemClock, signal),
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入光学解码配置（地址与凭据仅在主进程）', properties: ['openFile'], filters: [{ name: '光学服务配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
@@ -496,10 +502,10 @@ void app.whenReady().then(async () => {
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
     if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])
     plugins.discover()
-    const modelReady = prepared.developer || providers.has('chat')
+    let modelReady = prepared.developer || providers.has('chat')
     if (prepared.developer) mcpFixture = await startMcpFixture(clock)
     mcp = createMcpService({ clock, configPath: process.env.LCA_MCP_CONFIG ?? join(dataDir, 'connections/mcp.json'), source: prepared.developer ? 'fake' : 'real',
-      privacyModel: prepared.developer ? createFakePrivacyModel() : taskModels.narrow, developmentConfig: mcpFixture?.config,
+      get privacyModel() { return prepared.developer ? createFakePrivacyModel() : taskModels.narrow }, privacyEnabled, developmentConfig: mcpFixture?.config,
       chooseConfig: async () => { const selected = await dialog.showOpenDialog({ title: '导入 MCP 配置（配置仅由主进程读取）', properties: ['openFile'], filters: [{ name: 'MCP 配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
       confirmConnection: async (id, config) => {
         // Show the exact launch target only in a native, user-only dialog, never in renderer/debug projections.
@@ -534,6 +540,15 @@ void app.whenReady().then(async () => {
       persona: () => ({ name: controller!.getSnapshot().onboarding?.characterName ?? '桃子', persona: briefPersona(activeCharacter) }), credentials: privateCredentials, changed: () => controller?.refresh('message') })
     controller.attachMinecraft(minecraft, minecraftChat, mcpFixture ? (scenario) => mcpFixture!.game.select(scenario) : undefined)
     harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
+      privateContext: async (signal) => {
+        if (heartFlow?.active()) return []
+        const sources = [...(campus?.mainContext() ?? []), ...(await documents?.mainContext(signal) ?? [])]
+        let remaining = 48000
+        const bounded = sources.reverse().flatMap((source) => { if (remaining <= 0) return []; const text = source.text.slice(0, remaining); remaining -= text.length; return [{ ...source, text, truncated: source.truncated || text.length < source.text.length }] })
+        if (!bounded.length) return []
+        const content = privateCredentials.reduce((text, key) => text.replaceAll(key, '[密钥已遮盖]'), redactSecrets(JSON.stringify(bounded)))
+        return [{ role: 'user', content: taskPrompts.mainSources + '\n' + content }]
+      },
       prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); if (!heartFlow!.active()) return recall!.prepare(id, preparedContext)
         const seen = new Set<string>(); const messages = preparedContext.messages.slice().reverse().map((message) => { if (!message.imageRefs) return message; const imageRefs = message.imageRefs.filter((ref) => { if (seen.has(ref) || seen.size >= 2) return false; seen.add(ref); return true }); return { ...message, imageRefs } }).reverse(); return { ...preparedContext, messages }
       }, foreground: () => { questions?.interrupt(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, afterTools: (turnId, callIds) => questions?.commit(turnId, callIds), turnSettled: (turnId) => questions?.settled(turnId), userWork: () => { sleep?.wake(); life?.foreground() },
@@ -545,12 +560,30 @@ void app.whenReady().then(async () => {
     controller.attachVoice(voice)
     scheduler.schedule('voice.guard', clock.nowMs() + 250, () => voice?.stateChanged(), { everyMs: 250 })
     controller.attachExecution(harness, modelReady)
-    modelSettings = createModelSettings({ root: dataRoot, developer: prepared.developer, slots: [...providers.keys()], clock, budget: resourceBudget, canConfigure: () => !harness?.isBusy() && !backup?.isBusy(),
+    modelSettings = createModelSettings({ root: dataRoot, fallback: prepared.developer ? undefined : providersFile, developer: prepared.developer, slots: [...rawProviders.keys()], clock, budget: resourceBudget,
+      canConfigure: () => !harness?.isBusy() && !backup?.isBusy() && !heartFlow?.active() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
+      apply: async () => {
+        scheduler!.pauseBackground(true)
+        try {
+        memory?.foreground(); diary?.foreground(); lifeWork?.foreground()
+        await Promise.all([memory?.idle(), diary?.idle(), lifeWork?.idle()])
+        const file = providerConfigPath(dataRoot, providersFile)
+        routing = await readModelRouting(file)
+        const loaded = resolveModelProviders(await readModelProviders(file), routing)
+        providers.clear(); for (const [slot, config] of loaded) providers.set(slot, config)
+        for (const key of await readPrivateCredentialValues(file)) if (!privateCredentials.includes(key)) privateCredentials.push(key)
+        taskModels = createTaskModelPorts(providers, clock, store!, undefined, resourceBudget, !privacyEnabled())
+        if (!privacyEnabled()) prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = false })
+        modelReady = prepared.developer || providers.has('chat')
+        controller!.attachExecution(harness!, modelReady)
+        documents?.stateChanged(); campus?.stateChanged()
+        } finally { scheduler!.pauseBackground(store!.projection().lightsOut) }
+      },
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入模型槽位配置（内容仅由主进程读取）', properties: ['openFile'], filters: [{ name: '模型配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null }, changed: () => controller?.refresh('connection') })
     controller.attachModelSettings(modelSettings)
     backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials, onboarding: () => controller!.getSnapshot().onboarding!,
-      canStart: () => !harness!.isBusy() && !heartFlow?.active() && !minecraft?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
-      freeze: async () => { scheduler!.pauseBackground(true); voice?.interrupt(); memory!.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground(); await Promise.all([memory!.idle(), diary?.idle(), photos?.idle(), lifeWork?.idle(), optical?.idle()]); if (harness!.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
+      canStart: () => !harness!.isBusy() && !gifts?.isBusy() && !modelSettings?.isBusy() && !heartFlow?.active() && !minecraft?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
+      freeze: async () => { scheduler!.pauseBackground(true); voice?.interrupt(); memory!.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground(); await Promise.all([memory!.idle(), diary?.idle(), photos?.idle(), lifeWork?.idle(), optical?.idle()]); if (harness!.isBusy() || gifts?.isBusy() || modelSettings?.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
       chooseExport: async (name) => { const selected = await dialog.showSaveDialog({ title: '导出私人存档', defaultPath: name, filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePath ?? null },
       chooseImport: async () => { const selected = await dialog.showOpenDialog({ title: '选择私人存档', properties: ['openFile'], filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
       restart: () => { systemClock.after(100, () => { app.relaunch(); app.quit() }) }, changed: () => controller?.refresh('restore') })

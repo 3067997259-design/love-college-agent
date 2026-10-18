@@ -40,3 +40,23 @@ it('writes once from seen-only materials, locks then unlocks immutable keys, reb
     expect(readFileSync(join(room.root, '运行记录', '2026-10-17.md'), 'utf8')).not.toMatch(/PRIVATE_ORIGINAL|SYNTHETIC_PRIVATE_PROSE|ONLY_SEEN_INPUT/)
   } finally { await diary.close(); scheduler.dispose(); store.close() }
 })
+
+it('keeps an interrupted diary visibly retryable after restart and enforces the daily attempt limit', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'lca-diary-')); cleanups.push(() => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-diary-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })
+  const clock = createManualClock(0); clock.advanceBy(clock.parse('2026-10-16T12:00:00+08:00'))
+  const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
+  const store: SessionStore = { scope: journal.scope, records: journal.records, append: journal.append, projection: () => projectJournal(journal.records()), close: journal.close }
+  store.append({ type: 'model/seen', turnId: 'seen', source: 'fake', messages: [{ role: 'user', content: '一起完成了纸桥。' }], eligibleIndexes: [0] })
+  clock.advanceBy(86400000); const scheduler = createScheduler(clock); const assets = createBinaryAssets(root, store)
+  const base = { store, clock, scheduler, assets, busy: () => false, changed: () => {}, projected: () => {} }
+  const interrupted = createDiary({ ...base, model: { source: 'fake', write: async () => new Promise(() => {}) } }); scheduler.cancel('diary.daily')
+  const pending = interrupted.write(); interrupted.foreground(); await pending
+  expect(interrupted.view().status).toBe('failed'); expect(interrupted.view().entries).toHaveLength(0); await interrupted.close()
+  let calls = 0
+  const reopened = createDiary({ ...base, model: { source: 'fake', write: async () => { calls++; return { entry: '主观日记\n补写完成。' } } } }); scheduler.cancel('diary.daily')
+  try {
+    expect(reopened.view().status).toBe('failed'); await reopened.write(); expect(calls).toBe(0)
+    expect(reopened.canWrite()).toBeUndefined(); await reopened.write(true); expect(calls).toBe(1); expect(reopened.view().status).toBe('idle'); expect(reopened.view().entries).toHaveLength(1)
+    store.append({ type: 'diary/attempt', dayKey: '2026-10-16' }); expect(reopened.canWrite()).toBe('budget-exceeded')
+  } finally { await reopened.close(); scheduler.dispose(); store.close() }
+})

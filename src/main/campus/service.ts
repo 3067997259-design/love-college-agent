@@ -22,7 +22,7 @@ export interface ScanResult { ok: boolean; source: 'real' | 'fake'; newCount?: n
 const boundedChars = (value: string, limit: number) => [...value].slice(0, limit).join('')
 /** External candidate sources such as MCP plugins only provide a short, user-only evidence excerpt. */
 export function createCampusService(options: { clock: Clock; store: SessionStore; scheduler: Scheduler; vault: EvidenceVault; source: MailSource;
-  privacy: EmailPrivacyModel | null; development?: ReturnType<typeof createFakeMailbox>; changed(): void; emit(id: string, text: string): void; failed?(): void;
+  followMain?(): boolean; privacy: EmailPrivacyModel | null; development?: ReturnType<typeof createFakeMailbox>; changed(): void; emit(id: string, text: string): void; failed?(): void;
   artifacts?: ArtifactStore; openArtifact?(view: DeliveryView, content: string): void;
   attachment?(record: AttachmentRecord): void;
   canProcess?(): boolean;
@@ -81,7 +81,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
           let evidenceRef: string
           try { evidenceRef = vault.put(sourceKey, mail, checked?.quotes ?? []) }
           catch { options.failed?.(); throw new CampusStorageFailure() }
-          if (!checked) { repository.append({ type: 'mail/processed', sourceKey, contentHash: hash, evidenceRef, result: 'notice' }); registerAttachments(mail, sourceKey); newCount++; continue }
+          if (!checked) { repository.append({ type: 'mail/processed', sharedWithMain: options.followMain?.() === true, sourceKey, contentHash: hash, evidenceRef, result: 'notice' }); registerAttachments(mail, sourceKey); newCount++; continue }
           const candidateId = 'c:' + digest(JSON.stringify([store.scope.userId, store.scope.characterId, source.source, mail.senderAddress.trim().toLowerCase(), checked.sourceRole, checked.title]))
           const previous = repository.view().items.find((item) => item.current.id === candidateId)
           const roleLabel = { 'teaching-assistant': '课程助教', 'student-club': '社团活动', library: '图书馆', other: '校园信息' }[checked.sourceRole]
@@ -98,7 +98,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
             repository.append({ type: 'campus/proposed', candidate, calendarUid: previous?.calendarUid ?? randomUUID() }); candidateCount++
           }
           const facts = mailFactsSchema.parse({ ...content, candidateId, revision: candidate!.revision, source: source.source, trust: 'untrusted' })
-          repository.append({ type: 'mail/processed', sourceKey, contentHash: hash, evidenceRef, result: 'candidate', candidateId, facts }); newCount++
+          repository.append({ type: 'mail/processed', sharedWithMain: options.followMain?.() === true, sourceKey, contentHash: hash, evidenceRef, result: 'candidate', candidateId, facts }); newCount++
           registerAttachments(mail, sourceKey, candidateId)
           publish()
           } catch (cause) {
@@ -204,6 +204,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
           ...(accepted ? { change: { previousDeadlineIso: accepted.deadlineIso, ...(accepted.eventStartIso ? { previousEventStartIso: accepted.eventStartIso } : {}), previousEvidenceRef: accepted.evidenceRef } } : {}),
         })
         repository.append({ type: 'campus/proposed', candidate, calendarUid: previous?.calendarUid ?? randomUUID() })
+        repository.append({ type: 'mail/processed', sourceKey: 'sh:' + digest(evidenceRef), contentHash: mailContentHash(mail), evidenceRef, result: 'candidate', candidateId, sharedWithMain: options.followMain?.() === true })
         changed++
       } catch (cause) {
         if (cause instanceof CampusStorageFailure) throw cause
@@ -215,6 +216,10 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
   }
   scheduler.schedule('mail.outbox', clock.nowMs() + 1000, flush, { everyMs: 1000 })
   return { view, repository, scanNow, ingestCandidates,
+    privacyMode: () => options.followMain?.() ? 'follow-main' as const : 'isolated' as const,
+    mainContext: () => !enabled || disposed || !options.followMain?.() ? [] : repository.view().processed.filter((entry) => entry.sharedWithMain).slice(-4).flatMap((entry) => {
+      try { const mail = vault.readForModel?.(entry.evidenceRef, store.scope); return mail ? [{ kind: 'mail', ref: entry.evidenceRef, subject: mail.subject, text: mail.body.slice(0, 24000), truncated: mail.body.length > 24000 }] : [] } catch { return [] }
+    }),
     candidates: () => repository.view().items.map((item) => item.current),
     deliveries: () => [...repository.view().artifacts.map((entry) => entry.view), ...repository.view().deliveryFailures],
     privacyStatus: () => !options.privacy ? 'unconfigured' as const : mailbox.error?.code.startsWith('privacy-') ? 'failed' as const : 'ready' as const,

@@ -8,13 +8,13 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'gifts-smoke-' + randomUUID()); let sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19536', LCA_MCP_PORT: '0' }
 let instance; let page; let client
 const errors = []
-async function launch() { instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30000 }); page = await instance.firstWindow(); page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()) }); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
+async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30000 }); page = await instance.firstWindow(); page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()) }); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, requestId: crypto.randomUUID(), epoch: s.epoch, ...body }) }, body)
 async function waitFor(test, code) { for (let i = 0; i < 150; i++) { if (test(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(code) }
@@ -32,6 +32,11 @@ try {
   await waitFor((s) => s.gifts.items[0]?.status === 'proposed', 'GIFT_NOT_PROPOSED')
   await send({ type: 'pomodoro.plan', plan: { label: '礼物合成验收', plannedCount: 1, focusDurationMs: 60000, shortBreakDurationMs: 20000, longBreakDurationMs: 20000, longBreakEvery: 4, timing: 'demo' } })
   const planId = (await snapshot()).pomodoro.proposal.id; await send({ type: 'pomodoro.confirm', planId }); await send({ type: 'pomodoro.start', planId }); await waitFor((s) => s.windows.mode === 'mini', 'GIFT_MINI_NOT_READY'); await send({ type: 'window.expand' }); await waitFor((s) => s.windows.mode === 'book', 'GIFT_BOOK_NOT_READY')
+  await debug('set_clock', { nowMs: (await snapshot()).clock.nowMs + 5000 }); assert.equal((await snapshot()).gifts.items[0].status, 'proposed', 'GIFT_STARTED_WITHOUT_ACCEPTANCE')
+  await tools(); await page.getByRole('navigation', { name: '书签' }).getByRole('button', { name: '礼物', exact: true }).click()
+  await page.getByRole('button', { name: '好', exact: true }).click()
+  await waitFor((s) => s.gifts.items[0].acceptedAtMs !== undefined, 'GIFT_ACCEPTANCE_NOT_RECORDED')
+  await page.getByRole('navigation', { name: '书签' }).locator('button').first().click(); await tools()
   await debug('set_clock', { nowMs: (await snapshot()).clock.nowMs + 5000 }); await waitFor((s) => s.gifts.items[0].status === 'making', 'GIFT_NOT_MAKING')
   await debug('set_clock', { nowMs: (await snapshot()).clock.nowMs + 5000 }); await waitFor((s) => s.gifts.items[0].status === 'ready', 'GIFT_NOT_READY')
   await page.locator('model-viewer').scrollIntoViewIfNeeded(); await page.locator('model-viewer[data-loaded="true"]').waitFor()

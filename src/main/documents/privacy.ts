@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import type { Clock } from '../clock'
-import { redactFixed } from '../privacy/redact'
+import { redactFixed, redactSecrets } from '../privacy/redact'
 import { dateFromQuote } from '../mail/privacy'
 import { DocumentFailure } from './reader'
 import type { DocumentFormat, DocumentScenarioId } from '../../shared'
 
 export interface DocumentPrivacyInput { text: string; format: DocumentFormat; pageCount: number | null }
-export interface DocumentPrivacyModel { readonly source: 'real' | 'fake'; readonly ready: boolean; organize(input: DocumentPrivacyInput, signal: AbortSignal): Promise<unknown> }
+export interface DocumentPrivacyModel { readonly isolated?: boolean; readonly source: 'real' | 'fake'; readonly ready: boolean; organize(input: DocumentPrivacyInput, signal: AbortSignal): Promise<unknown> }
 const outputSchema = z.strictObject({ markdown: z.string().min(1).max(100_000), deadline: z.strictObject({ iso: z.iso.datetime({ offset: true }), quote: z.string().min(1).max(300) }).nullable() })
 /** Long output is user-only. The caller may publish only deadlineIso; never markdown or quotes. */
 export async function organizeDocument(input: DocumentPrivacyInput, model: DocumentPrivacyModel | null, clock: Clock, signal: AbortSignal) {
@@ -19,7 +19,7 @@ export async function organizeDocument(input: DocumentPrivacyInput, model: Docum
       const listener = () => reject(new Error('PRIVACY_STOPPED')); combined.addEventListener('abort', listener, { once: true }); remove = () => combined.removeEventListener('abort', listener)
       if (combined.aborted) listener()
     })
-    result = await Promise.race([model.organize({ ...input, text: redactFixed(input.text) }, combined), aborted])
+    result = await Promise.race([model.organize({ ...input, text: (model.isolated === false ? redactSecrets : redactFixed)(input.text) }, combined), aborted])
   } catch { throw new DocumentFailure('privacy-unavailable') }
   finally { cancel(); remove() }
   if (combined.aborted) throw new DocumentFailure('privacy-unavailable')
@@ -31,7 +31,7 @@ export async function organizeDocument(input: DocumentPrivacyInput, model: Docum
       deadlineIso = dateFromQuote(output.deadline.quote, 0, clock)
       if (clock.parse(deadlineIso) !== clock.parse(output.deadline.iso)) throw new Error('DATE_MISMATCH')
     }
-    const markdown = redactFixed(output.markdown)
+    const markdown = (model.isolated === false ? redactSecrets : redactFixed)(output.markdown)
     if (!markdown.trim() || markdown.includes('\0')) throw new Error('INVALID_DOCUMENT')
     return { markdown, deadlineIso }
   } catch { throw new DocumentFailure('privacy-invalid-output') }

@@ -20,7 +20,7 @@ export function projectDocuments(records: readonly JournalRecord[]) {
       const job = jobs.find((job) => job.view.id === row.documentId)
       if (!job || job.attempt !== row.attempt || job.view.status !== 'processing') throw new Error('DOCUMENT_COMPLETION_INVALID')
       job.view = { ...job.view, status: 'ready', updatedAtMs: row.atMs, pageCount: row.facts.pageCount, deadlineIso: row.facts.deadlineIso }
-      completed.push({ documentId: row.documentId, attempt: row.attempt, artifact: row.artifact, facts: row.facts }); artifacts.push(row.artifact)
+      completed.push({ sharedWithMain: row.sharedWithMain, documentId: row.documentId, attempt: row.attempt, artifact: row.artifact, facts: row.facts }); artifacts.push(row.artifact)
     }
   }
   return structuredClone({ jobs, attachments, completed, artifacts })

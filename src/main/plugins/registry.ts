@@ -41,12 +41,12 @@ function validateParameters(parameters: Record<string, unknown>) {
   return z.fromJSONSchema(parameters)
 }
 
-export function createPluginRegistry(options: { root: string; settings: SettingsStore; clock?: Clock; privacyModel?: PrivacyModel | null; fileFiltering?: () => boolean;
+export function createPluginRegistry(options: { root: string; settings: SettingsStore; clock?: Clock; privacyModel?: PrivacyModel | null; privacyEnabled?(): boolean; fileFiltering?: () => boolean;
   onCandidates?: (seeds: readonly CandidateSeed[], source: { pluginId: string; tool?: string }) => void }) {
   const clock = options.clock ?? systemClock
   const entries = new Map<string, Entry>()
   const services = new Map<string, (enabled: boolean) => void>()
-  const filter = createPrivacyFilter(options.privacyModel ?? null)
+  const filter = (text: string, signal?: AbortSignal) => createPrivacyFilter(options.privacyModel ?? null)(text, signal)
   const takeCandidates = (entry: Entry, result: ToolResult, tool?: string): ToolResult => {
     if (!result.candidates?.length) return result
     if (result.ok) {
@@ -59,14 +59,14 @@ export function createPluginRegistry(options: { root: string; settings: Settings
   const wrap = (entry: Entry, tool: HarnessTool): HarnessTool => ({ ...tool, run: async (input, context): Promise<ToolResult> => {
     if (entry.view.status !== 'enabled') return { ok: false, raw: { error: 'plugin-disabled' }, visible: { error: 'plugin-disabled' } }
     // Fail before invoking even a read operation if its mandatory privacy dependency is absent.
-    const filtering = entry.view.privacy === 'always' || (entry.view.privacy === 'optional' && options.fileFiltering?.())
+    const filtering = options.privacyEnabled?.() !== false && (entry.view.privacy === 'always' || (entry.view.privacy === 'optional' && options.fileFiltering?.()))
     if (filtering && !entry.handlesPrivacy && !options.privacyModel) return { ok: false, raw: { error: 'privacy-unavailable' }, visible: { error: 'privacy-unavailable' } }
     const result = resultSchema.parse(await tool.run(input, context))
     if (JSON.stringify(result).length > 1_000_000) throw new Error('PLUGIN_RESULT_TOO_LARGE')
     if (!filtering || entry.handlesPrivacy) return takeCandidates(entry, result, tool.definition.name)
     const filtered = await filter(JSON.stringify(result.raw), context.signal)
-    return filtered.ok ? { ok: result.ok, raw: result.raw, visible: { ...filtered.fields, trust: filtered.trust }, fields: {} }
-      : { ok: false, raw: result.raw, visible: { error: filtered.error }, fields: {} }
+    return filtered.ok ? { ok: result.ok, raw: filtered.fields, visible: { ...filtered.fields, trust: filtered.trust }, fields: {} }
+      : { ok: false, raw: { error: filtered.error }, visible: { error: filtered.error }, fields: {} }
   } })
   const registerBuiltin = (id: string, name: string, tools: HarnessTool[], policy?: { handlesPrivacy: true; permissions: PluginView['permissions'] }) => {
     if (entries.has(id)) throw new Error('DUPLICATE_PLUGIN')
@@ -138,7 +138,7 @@ export function createPluginRegistry(options: { root: string; settings: Settings
           nowMs: () => clock.nowMs(),
           signal: new AbortController().signal,
           ingestCandidates: (seeds: readonly CandidateSeed[]) => {
-            const filtering = entry.view.privacy === 'always' || (entry.view.privacy === 'optional' && options.fileFiltering?.())
+            const filtering = options.privacyEnabled?.() !== false && (entry.view.privacy === 'always' || (entry.view.privacy === 'optional' && options.fileFiltering?.()))
             if (!filtering || entry.handlesPrivacy) options.onCandidates?.(seeds, { pluginId: entry.view.id })
           },
         }

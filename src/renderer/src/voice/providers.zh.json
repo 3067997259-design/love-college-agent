@@ -1,9 +1,13 @@
 {
   "_说明": "Provider GUI（模型连接）的界面文字。密钥只由主进程保存，界面不回显已保存值；不调用模型。",
   "title": "模型连接",
-  "lead": "填地址、模型和密钥；保存后重启生效。密钥只保存在本机。",
+  "lead": "填好地址、模型和密钥，保存后立即生效。密钥只保存在本机。",
   "noneConfigured": "还没有配置任何模型。",
-  "slots": { "chat": "日常对话", "background": "记忆与日记", "privacy": "隐私滤芯" },
+  "slots": {
+    "chat": "日常对话",
+    "background": "记忆与日记",
+    "privacy": "隐私滤芯"
+  },
   "baseUrl": "接口地址",
   "baseHint": "例如 https://api.deepseek.com/v1",
   "model": "模型",
@@ -12,11 +16,31 @@
   "presetCustom": "自定义 / 手动填写",
   "presetApplied": "已填入模板，请补上密钥后保存。",
   "presets": {
-    "deepseek": { "label": "DeepSeek", "baseUrl": "https://api.deepseek.com/v1", "model": "deepseek-chat" },
-    "openai": { "label": "OpenAI", "baseUrl": "https://api.openai.com/v1", "model": "gpt-4o-mini" },
-    "siliconflow": { "label": "硅基流动", "baseUrl": "https://api.siliconflow.cn/v1", "model": "deepseek-ai/DeepSeek-V3" },
-    "moonshot": { "label": "Moonshot", "baseUrl": "https://api.moonshot.cn/v1", "model": "moonshot-v1-8k" },
-    "ollama": { "label": "本机 Ollama", "baseUrl": "http://127.0.0.1:11434/v1", "model": "llama3.1" }
+    "deepseek": {
+      "label": "DeepSeek",
+      "baseUrl": "https://api.deepseek.com/v1",
+      "model": "deepseek-chat"
+    },
+    "openai": {
+      "label": "OpenAI",
+      "baseUrl": "https://api.openai.com/v1",
+      "model": "gpt-4o-mini"
+    },
+    "siliconflow": {
+      "label": "硅基流动",
+      "baseUrl": "https://api.siliconflow.cn/v1",
+      "model": "deepseek-ai/DeepSeek-V3"
+    },
+    "moonshot": {
+      "label": "Moonshot",
+      "baseUrl": "https://api.moonshot.cn/v1",
+      "model": "moonshot-v1-8k"
+    },
+    "ollama": {
+      "label": "本机 Ollama",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "model": "llama3.1"
+    }
   },
   "apiKey": "API 密钥",
   "keyHint": "粘贴密钥",
@@ -32,11 +56,11 @@
   "edited": "未保存",
   "saveBeforeTest": "先保存当前修改，再测试连接。",
   "remove": "清除",
-  "saved": "已保存，重启后生效。",
+  "saved": "配置已生效。",
   "import": "导入模型配置",
   "importHint": "已有 providers.json 的熟练用户可以直接导入；内容只由主进程读取。",
-  "restart": "模型配置已保存。重启应用后生效。",
-  "restartAction": "应用模型配置并重启",
+  "restart": "语音、礼物或邮箱配置已保存，需要重启生效。模型连接已立即应用。",
+  "restartAction": "重启应用",
   "developer": "开发模式使用独立假模型。",
   "probeFailed": "连接没有成功，请检查地址、模型和密钥。",
   "baseRequired": "先填接口地址。",
@@ -66,5 +90,12 @@
     "configured": "已配置",
     "notConfigured": "未配置",
     "saved": "已保存，重启后生效。"
-  }
+  },
+  "routing": "使用方式",
+  "followMain": "跟随主模型",
+  "independent": "使用独立模型",
+  "mainMissing": "请先配置日常对话",
+  "followPrivacyHint": "隐私隔离已关闭：主模型直接处理新邮件，能看到原文。文件滤芯保持关闭，导入的文件也由主模型整理。切换不会公开以前隔离的资料；已经发送的内容无法撤回。",
+  "isolatedPrivacyHint": "邮件和标记为私密的工具输出先由独立模型过滤，她只看到短字段。滤芯失败就停止。文件需另外开启 /privacy；关闭时由主模型直接整理。",
+  "followBackgroundHint": "记忆、日记和后台工作使用日常对话的连接；修改主模型后一起生效。"
 }

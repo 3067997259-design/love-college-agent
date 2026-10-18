@@ -5,7 +5,7 @@ import { afterEach, expect, it } from 'vitest'
 import { createModelSettings } from '../../src/main/config/model-settings'
 import { createManualClock } from '../../src/main/clock'
 import { readVoiceConfig } from '../../src/main/voice/port'
-import { readModelProviders } from '../../src/main/config/providers'
+import { readModelProviders, readModelRouting, resolveModelProviders } from '../../src/main/config/providers'
 import type { AppCommand } from '../../src/shared'
 const roots: string[] = []; afterEach(() => { for (const root of roots.splice(0)) { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-slot-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) } })
 it('imports explicit TTS fields, preserves mixed chat/privacy slots, and reads the persisted voice configuration after reopen (#23)', async () => {
@@ -40,4 +40,31 @@ it.each(['missing-voice', 'protocol', 'http', 'extra', 'chat-extra'])('rejects i
   if (kind === 'missing-voice') delete tts.voice; if (kind === 'protocol') tts.protocol = 'unrecognized'; if (kind === 'http') tts.base_url = 'http://speech.invalid'; if (kind === 'extra') tts.unknown = 'synthetic-only'
   writeFileSync(file, JSON.stringify({ providers: kind === 'chat-extra' ? { chat: tts } : { tts } })); settings.dispatch({ type: 'models.configure' } as AppCommand); await settings.idle()
   expect(settings.view()).toMatchObject({ status: 'failed', error: { code: 'configuration-failed' } }); expect(readFileSync(path)).toEqual(saved); await settings.close()
+})
+
+it('hot-applies GUI configuration and explicit routes without losing the fallback configuration', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'lca-slot-')); roots.push(root)
+  const fallback = join(root, 'fallback.json'); const chat = { base_url: 'https://chat.invalid/v1', api_key: 'only-synthetic-secret', model: 'synthetic-model' }
+  writeFileSync(fallback, JSON.stringify({ providers: { chat, privacy: { base_url: '', api_key: '', model: '' } } }))
+  const before = readFileSync(fallback); let applied = 0
+  const settings = createModelSettings({ root, fallback, apply: async () => { applied++ }, developer: false, slots: ['chat'], clock: createManualClock(), canConfigure: () => true, choose: async () => null, changed: () => {} })
+  expect(settings.view().routing).toEqual({ background: 'follow-main', privacy: 'independent' })
+  settings.dispatch({ type: 'models.routing.set', slot: 'privacy', mode: 'follow-main' } as AppCommand); await settings.idle()
+  expect(applied).toBe(1); expect(settings.view().restartRequired).toBe(false); expect(readFileSync(fallback)).toEqual(before)
+  const file = join(root, 'connections', 'providers.json'); expect((await readModelProviders(file)).get('chat')).toEqual(chat)
+  const routing = await readModelRouting(file); expect(routing.privacy).toBe('follow-main'); expect(resolveModelProviders(await readModelProviders(file), routing).get('background')).toEqual(chat)
+  settings.dispatch({ type: 'models.routing.set', slot: 'privacy', mode: 'independent' } as AppCommand); await settings.idle()
+  settings.dispatch({ type: 'models.provider.remove', slot: 'privacy' } as AppCommand); await settings.idle()
+  expect((await readModelRouting(file)).privacy).toBe('independent'); expect(resolveModelProviders(await readModelProviders(file), await readModelRouting(file)).has('privacy')).toBe(false)
+  expect(applied).toBe(3); await settings.close()
+})
+
+it('accepts Rodin address/key without a fictitious model and preserves a non-default mail port on credential edits', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'lca-slot-')); roots.push(root)
+  const settings = createModelSettings({ root, developer: false, slots: [], clock: createManualClock(), canConfigure: () => true, choose: async () => null, changed: () => {} })
+  settings.dispatch({ type: 'models.service.save', service: 'rodin', baseUrl: 'https://rodin.invalid', model: '', apiKey: 'synthetic-rodin-key' } as AppCommand); await settings.idle(); expect(settings.view().status).toBe('saved')
+  settings.dispatch({ type: 'mail.configure', host: 'imap.invalid', port: 1993, user: 'synthetic-user', authCode: 'synthetic-old-code' } as AppCommand); await settings.idle()
+  settings.dispatch({ type: 'mail.configure', host: '', user: '', authCode: 'synthetic-new-code' } as AppCommand); await settings.idle()
+  const saved = JSON.parse(readFileSync(join(root, 'connections', 'providers.json'), 'utf8')); expect(saved.mail.port).toBe(1993); expect(saved.mail.auth_code).toBe('synthetic-new-code'); expect(saved.providers.rodin.api_key).toBe('synthetic-rodin-key')
+  await settings.close()
 })

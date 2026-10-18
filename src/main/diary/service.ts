@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
-import type { DiaryRead, DiaryView } from '../../shared'
+import type { DiaryRead, DiaryView, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { Scheduler } from '../scheduler'
 import type { SessionStore } from '../store/session'
@@ -12,6 +12,12 @@ import { decryptDiaryZip, encryptDiaryZip } from './zipcrypto'
 export function createDiary(options: { clock: Clock; scheduler: Scheduler; store: SessionStore; assets: BinaryAssets; model: DiaryModel | null; busy(): boolean; changed(): void; projected(): void }) {
   const { store, clock } = options; const rows = () => store.history?.() ?? store.records(); const entries = () => rows().flatMap((row) => row.type === 'diary/written' ? [row.diary] : [])
   let active: AbortController | undefined; let worker: Promise<void> | undefined; let failed = false
+  const unfinishedAttempt = () => rows().some((row) => row.type === 'diary/attempt' && !entries().some((entry) => entry.dayKey === row.dayKey) && row.dayKey >= sessionDayKey(clock, clock.nowMs() - 3 * 86400000))
+  const canWrite = (): PublicErrorCode | undefined => {
+    if (!options.model) return 'not-configured'
+    if (worker || options.busy() || store.projection().lightsOut) return 'unavailable'
+    if (rows().filter((row) => row.type === 'diary/attempt' && sessionDayKey(clock, row.atMs) === sessionDayKey(clock)).length >= 3) return 'budget-exceeded'
+  }
   const write = (manual = false) => {
     if (worker || !options.model || options.busy() || store.projection().lightsOut) return worker ?? Promise.resolve()
     const pages = new Map(store.pages?.().map((page) => [page.sessionId, page.dayKey]) ?? [])
@@ -38,8 +44,8 @@ export function createDiary(options: { clock: Clock; scheduler: Scheduler; store
     })(); return worker
   }
   options.scheduler.schedule('diary.daily', clock.nowMs() + 10000, () => { void write() }, { everyMs: 60000 })
-  return { write,
-    view: (): DiaryView => ({ status: worker ? 'writing' : failed ? 'failed' : options.model ? 'idle' : 'unconfigured', source: options.model?.source ?? 'none', entries: entries().slice(-100).map((entry) => ({ id: entry.id, dayKey: entry.dayKey, createdAtMs: entry.createdAtMs, unlocked: clock.nowMs() >= entry.unlockAtMs, clue: 'next-bookmark', source: entry.source })) }),
+  return { write, canWrite,
+    view: (): DiaryView => ({ status: worker ? 'writing' : !options.model ? 'unconfigured' : failed || unfinishedAttempt() ? 'failed' : 'idle', source: options.model?.source ?? 'none', entries: entries().slice(-100).map((entry) => ({ id: entry.id, dayKey: entry.dayKey, createdAtMs: entry.createdAtMs, unlocked: clock.nowMs() >= entry.unlockAtMs, clue: 'next-bookmark', source: entry.source })) }),
     read: (id: string): DiaryRead => { const entry = entries().find((diary) => diary.id === id); if (!entry || clock.nowMs() < entry.unlockAtMs) throw new Error('DIARY_LOCKED'); return { id: entry.id, dayKey: entry.dayKey, key: entry.key, text: decryptDiaryZip(options.assets.read(entry.asset), entry.key), subjective: true } },
     foreground: () => active?.abort(), close: async () => { active?.abort(); options.scheduler.cancel('diary.daily'); await worker }, idle: async () => { await worker },
   }

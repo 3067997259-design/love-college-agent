@@ -2,7 +2,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSyn
 import { join, resolve } from 'node:path'
 import { z } from 'zod'
 import type { AppCommand, ModelProviderSlot, ModelSettingsView, PublicErrorCode } from '../../shared'
-import { PROVIDER_SLOTS, readModelProviders, type ProviderSlot } from './providers'
+import { PROVIDER_SLOTS, readModelProviders, inferModelRouting, type ProviderSlot } from './providers'
 import { voiceConfigSchema } from '../voice/port'
 import type { Clock } from '../clock'
 import { createModelClient } from '../model/client'
@@ -12,6 +12,7 @@ import { ResourceFailure } from '../resources/ledger'
 export const providerConfigPath = (root: string, fallback: string) => existsSync(join(root, 'connections/providers.json')) ? join(root, 'connections/providers.json') : fallback
 const entry = z.strictObject({ base_url: z.string().max(4096).default(''), api_key: z.string().max(8192).default(''), model: z.string().max(256).default('') })
 const schema = z.strictObject({ providers: z.record(z.string().regex(/^[A-Za-z0-9_-]{1,40}$/), z.union([entry, voiceConfigSchema])).refine((value) => Object.keys(value).length <= 16 && Object.entries(value).every(([slot, config]) => (slot === 'tts' ? voiceConfigSchema : entry).safeParse(config).success)),
+  routing: z.strictObject({ background: z.enum(['follow-main', 'independent']).optional(), privacy: z.enum(['follow-main', 'independent']).optional() }).optional(),
   mail: z.strictObject({ host: z.string().max(256), port: z.number().int().min(1).max(65535), tls: z.literal(true), user: z.string().max(320), auth_code: z.string().max(8192), folder: z.literal('桃子') }).optional() })
 type Config = z.infer<typeof schema>
 const MODEL_SLOTS = new Set<ModelProviderSlot>(PROVIDER_SLOTS)
@@ -24,11 +25,11 @@ const probeCode = (kind: ModelFailureKind): PublicErrorCode => {
   return 'upstream-busy'
 }
 
-export function createModelSettings(options: { root: string; developer: boolean; slots: readonly ProviderSlot[]; clock: Clock; canConfigure(): boolean; budget?: { reserveModel(units: number, bucket: 'work' | 'autonomous'): void }; choose(): Promise<string | null>; changed(): void }) {
+export function createModelSettings(options: { root: string; fallback?: string; apply?(): Promise<void>; developer: boolean; slots: readonly ProviderSlot[]; clock: Clock; canConfigure(): boolean; budget?: { reserveModel(units: number, bucket: 'work' | 'autonomous'): void }; choose(): Promise<string | null>; changed(): void }) {
   let view: ModelSettingsView = { status: 'idle', configuredSlots: [...options.slots], restartRequired: false }; let worker: Promise<void> | undefined; let disposed = false
   const path = () => join(options.root, 'connections', 'providers.json')
   const readCurrent = (): Config => {
-    const file = path()
+    const file = options.fallback ? providerConfigPath(options.root, options.fallback) : path()
     if (!existsSync(file)) return { providers: {} }
     const stat = lstatSync(file); if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256_000) throw new Error('MODEL_CONFIGURATION_INVALID')
     return schema.parse(JSON.parse(readFileSync(file, 'utf8')))
@@ -41,10 +42,10 @@ export function createModelSettings(options: { root: string; developer: boolean;
     writeFileSync(file + '.tmp', JSON.stringify(parsed), { mode: 0o600 }); renameSync(file + '.tmp', file)
   }
   const presence = (value: Config) => ({ tts: !!value.providers.tts, rodin: !!value.providers.rodin, mail: !!value.mail })
-  try { view = { ...view, services: presence(readCurrent()) } } catch { view = { ...view, services: { tts: false, rodin: false, mail: false } } }
-  const refreshSlots = async () => { const applied = await readModelProviders(path()); const current = readCurrent(); view = { ...view, configuredSlots: [...applied.keys()], services: presence(current) } }
+  try { view = { ...view, services: presence(readCurrent()), routing: inferModelRouting(readCurrent()) } } catch { view = { ...view, services: { tts: false, rodin: false, mail: false } } }
+  const refreshSlots = async () => { const applied = await readModelProviders(path()); const current = readCurrent(); view = { ...view, configuredSlots: [...applied.keys()], services: presence(current), routing: inferModelRouting(current) }; await options.apply?.() }
   const fail = (code: PublicErrorCode) => { view = { ...view, status: 'failed', error: { code, retryable: true } } }
-  return { view: () => structuredClone(view),
+  return { view: () => structuredClone(view), isBusy: () => !!worker,
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       if (options.developer) return 'permission-denied'
       if (disposed || worker || !options.canConfigure()) return 'unavailable'
@@ -59,9 +60,11 @@ export function createModelSettings(options: { root: string; developer: boolean;
           const apiKey = command.apiKey?.trim() || old?.api_key || ''
           if (!baseUrl || !model || !apiKey) throw new Error('MODEL_CONFIGURATION_INVALID')
           const url = new URL(baseUrl); if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('MODEL_CONFIGURATION_INVALID')
+          value.routing = inferModelRouting(value)
           value.providers[command.slot] = { base_url: baseUrl, api_key: apiKey, model }
+          if (command.slot === 'privacy' || command.slot === 'background') value.routing[command.slot] = 'independent'
           writeCurrent(value); await refreshSlots()
-          view = { ...view, status: 'saved', restartRequired: true }
+          view = { ...view, status: 'saved', restartRequired: options.apply ? view.restartRequired : true }
         })().catch(() => fail('configuration-failed')).finally(() => { worker = undefined; options.changed() })
         return
       }
@@ -69,9 +72,18 @@ export function createModelSettings(options: { root: string; developer: boolean;
         if (!MODEL_SLOTS.has(command.slot)) return 'invalid-command'
         view = { ...view, status: 'idle' }; delete view.error; delete view.probe; options.changed()
         worker = (async () => {
-          const value = readCurrent(); delete value.providers[command.slot]
+          const value = readCurrent(); value.routing = inferModelRouting(value); delete value.providers[command.slot]
           writeCurrent(value); await refreshSlots()
-          view = { ...view, status: 'saved', restartRequired: true }
+          view = { ...view, status: 'saved', restartRequired: options.apply ? view.restartRequired : true }
+        })().catch(() => fail('configuration-failed')).finally(() => { worker = undefined; options.changed() })
+        return
+      }
+      if (command.type === 'models.routing.set') {
+        view = { ...view, status: 'idle' }; delete view.error; delete view.probe; options.changed()
+        worker = (async () => {
+          const value = readCurrent(); value.routing = { ...inferModelRouting(value), [command.slot]: command.mode }
+          writeCurrent(value); await refreshSlots()
+          view = { ...view, status: 'saved', restartRequired: options.apply ? view.restartRequired : true }
         })().catch(() => fail('configuration-failed')).finally(() => { worker = undefined; options.changed() })
         return
       }
@@ -85,7 +97,7 @@ export function createModelSettings(options: { root: string; developer: boolean;
           const apiKey = command.apiKey?.trim() || old?.api_key || ''
           const voice = command.voice?.trim() || (existing && 'voice' in existing ? existing.voice : '') || ''
           const url = new URL(baseUrl)
-          if (!baseUrl || !model || !apiKey || !['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('MODEL_CONFIGURATION_INVALID')
+          if (!baseUrl || command.service === 'tts' && !model || !apiKey || !['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('MODEL_CONFIGURATION_INVALID')
           if (command.service === 'tts') {
             if (!voice) throw new Error('MODEL_CONFIGURATION_INVALID')
             value.providers.tts = { protocol: 'openai-speech', base_url: baseUrl, api_key: apiKey, model, voice }
@@ -116,7 +128,7 @@ export function createModelSettings(options: { root: string; developer: boolean;
         worker = (async () => {
           let code: PublicErrorCode | undefined
           try {
-            const value = readCurrent(); const config = value.providers[command.slot]
+            const value = readCurrent(); const routing = inferModelRouting(value); const effective = (command.slot === 'privacy' || command.slot === 'background') && routing[command.slot] === 'follow-main' ? 'chat' : command.slot; const config = value.providers[effective]
             if (!config || !('base_url' in config) || !config.base_url || !config.api_key || !config.model) throw new ModelFailure('configuration')
             // 固定小请求也走资源账本：按保守的 2000 单位预留，失败同样计入尝试。
             options.budget?.reserveModel(2_000, 'work')

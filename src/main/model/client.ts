@@ -65,8 +65,8 @@ async function classifyHttp(response: Response, clock: Clock, signal: AbortSigna
 /** Private configs are captured here; no accessor exposes them to renderer/debug/telemetry. */
 export function createModelClient(configs: ReadonlyMap<ProviderSlot, ProviderConfig>, slots: readonly ProviderSlot[], clock: Clock, fetcher: Fetcher = fetch, images?: ImageResolver): ModelClient {
   const selected = slots.includes('privacy') ? ['privacy'] as const : [...new Set(slots)]
-  const privateValues = [...configs.values()].flatMap((value) => [value.api_key, value.base_url, value.model]).filter(Boolean).sort((a, b) => b.length - a.length)
-  const redact = (text: string) => privateValues.reduce((value, secret) => value.split(secret).join('[redacted]'), text)
+  const privateValues = () => [...configs.values()].flatMap((value) => [value.api_key, value.base_url, value.model]).filter(Boolean).sort((a, b) => b.length - a.length)
+  const redact = (text: string) => privateValues().reduce((value, secret) => value.split(secret).join('[redacted]'), text)
   const once = async (config: ProviderConfig, request: ModelRequest) => {
     const local = new AbortController()
     const signal = AbortSignal.any([request.signal, local.signal])

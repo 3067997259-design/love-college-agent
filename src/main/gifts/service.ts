@@ -44,10 +44,11 @@ export function createGiftService(options: { clock: Clock; scheduler: Scheduler;
     const gifts = read(); const making = gifts.find((gift) => gift.status === 'making')
     if (making) { perform(making, false); return }
     const state = store.projection(); if (state.mode === 'rest' && state.pomodoro.phase !== 'focus') for (const gift of gifts.filter((gift) => gift.status === 'ready')) commit({ ...gift, status: 'given', givenAtMs: clock.nowMs() })
-    if (state.pomodoro.phase === 'focus' && reserved() < 1) { const proposed = gifts.find((gift) => gift.status === 'proposed'); if (proposed) start(proposed) }
+    if (state.pomodoro.phase === 'focus' && reserved() < 1) { const proposed = gifts.find((gift) => gift.status === 'proposed' && gift.acceptedAtMs !== undefined); if (proposed) start(proposed) }
   }
   scheduler.schedule('gifts.lifecycle', clock.nowMs() + 5000, reconcile, { everyMs: 5000 })
   return {
+    isBusy: () => !!worker,
     view: (): GiftsView => ({ configured: !!options.port && enabled, dailyLimit: 1, items: read() }), reconcile,
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       if (disposed || !enabled) return 'unavailable'
@@ -63,7 +64,7 @@ export function createGiftService(options: { clock: Clock; scheduler: Scheduler;
       if (!('giftId' in command)) return 'invalid-command'
       const gift = update(command.giftId); if (!gift) return 'invalid-command'
       if (command.type === 'gift.accept') {
-        if (gift.status !== 'proposed' || gift.acceptedAtMs) return gift.status === 'proposed' ? undefined : 'invalid-command'
+        if (gift.status !== 'proposed' || gift.acceptedAtMs !== undefined) return gift.status === 'proposed' ? undefined : 'invalid-command'
         commit({ ...gift, acceptedAtMs: clock.nowMs() }); return
       }
       if (command.type === 'gift.start') return start(gift)

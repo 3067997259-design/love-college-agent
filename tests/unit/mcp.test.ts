@@ -17,9 +17,9 @@ import type { AppCommand } from '../../src/shared'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
-async function setup(privacy = true) {
+async function setup(privacy = true, privacyEnabled?: () => boolean) {
   const fixture = await startMcpFixture(systemClock); cleanups.push(fixture.close)
-  const connection = createMcpConnection({ id: 'synthetic', config: fixture.config.mcpServers['synthetic-private'], source: 'fake', clock: systemClock, privacyModel: privacy ? createFakePrivacyModel() : null, changed: () => {} })
+  const connection = createMcpConnection({ id: 'synthetic', config: fixture.config.mcpServers['synthetic-private'], source: 'fake', clock: systemClock, privacyEnabled, privacyModel: privacy ? createFakePrivacyModel() : null, changed: () => {} })
   cleanups.push(connection.disconnect); await connection.connect()
   const context = (signal = new AbortController().signal) => ({ clock: systemClock, signal, turnId: 't' } as ToolContext)
   return { fixture, connection, context }
@@ -176,4 +176,13 @@ describe('MCP configuration, transport and private result boundaries', () => {
     expect(await tool.run({}, { signal: new AbortController().signal } as ToolContext)).toMatchObject({ ok: false, visible: { error: 'mcp-invalid-result' } })
     expect(images.view().status).toBe('ready')
   })
+})
+
+it('applies follow-main to an already connected MCP tool and resumes fail-closed isolation without reconnecting', async () => {
+  let isolated = false
+  const f = await setup(false, () => isolated)
+  const tool = f.connection.tools().find((item) => item.definition.description.includes('/synthetic_read'))!
+  const shared = await tool.run({}, f.context()); expect(shared.ok).toBe(true); expect(JSON.stringify(shared.visible)).toContain('RAW_ONLY_MCP_PRIVATE'); expect(JSON.stringify(shared)).not.toContain('sk-synthetic')
+  isolated = true
+  const closed = await tool.run({}, f.context()); expect(closed.ok).toBe(false); expect(JSON.stringify(closed)).not.toContain('RAW_ONLY_MCP_PRIVATE'); expect(closed.visible).toMatchObject({ error: 'privacy-unavailable' })
 })

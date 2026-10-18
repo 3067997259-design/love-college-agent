@@ -1,6 +1,6 @@
 {
   "name": "love-college-agent",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "license": "MIT",
   "description": "Love, College & Agent — Windows desktop agent",
@@ -67,6 +67,7 @@
     "probe:student-hub-live": "node scripts/probe-student-hub-live.mjs",
     "probe:backup": "pnpm build && node scripts/probe-electron.mjs backup",
     "test:backup": "pnpm build && node scripts/smoke-backup.mjs",
+    "test:model-routing": "pnpm build && node scripts/smoke-model-routing.mjs",
     "test:model-slots": "pnpm build && node scripts/smoke-model-slots.mjs",
     "test:mini": "pnpm build && node scripts/smoke-mini.mjs",
     "test:onboarding": "pnpm build && node scripts/smoke-onboarding.mjs",

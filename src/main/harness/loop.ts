@@ -36,6 +36,7 @@ export function createHarness(options: {
   limits?: { steps?: number; dailyTokens?: number; autonomousTokens?: number; outputTokens?: number }
   budget?: ResourceAdmissions
   prepareContext?(turnId: string, signal: AbortSignal): Promise<{ messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }>
+  privateContext?(signal: AbortSignal): Promise<readonly ContextMessage[]>
   foreground?(): void
   userWork?(): void
   settled?(): void
@@ -107,8 +108,10 @@ export function createHarness(options: {
           if (step >= (options.limits?.steps ?? 12)) throw new GuardFailure('max-steps', 'step-limit')
           userEngaged = drain() || userEngaged
           const prepared = options.prepareContext ? await options.prepareContext(turn.id, turn.abort.signal) : undefined
-          const messages = prepared?.messages ?? store.projection().context
-          const seen = { messages: structuredClone([...messages]), eligibleIndexes: prepared ? [...prepared.eligibleIndexes] : messages.flatMap((message, index) => message.role === 'system' ? [] : [index]) }
+          const recordedMessages = prepared?.messages ?? store.projection().context
+          const seen = { messages: structuredClone([...recordedMessages]), eligibleIndexes: prepared ? [...prepared.eligibleIndexes] : recordedMessages.flatMap((message, index) => message.role === 'system' ? [] : [index]) }
+          const supplement = options.privateContext ? await options.privateContext(turn.abort.signal) : []
+          const messages = [...recordedMessages, ...supplement]
           const definitions = [...currentTools().values()].map((tool) => tool.definition)
           const outputTokens = options.limits?.outputTokens ?? 2048
           const reservation = Buffer.byteLength(JSON.stringify({ messages, tools: definitions }), 'utf8') + messages.reduce((n, message) => n + (message.imageRefs?.length ?? 0) * 16384, 0) + outputTokens + 1024

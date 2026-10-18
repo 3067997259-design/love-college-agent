@@ -25,7 +25,7 @@ export function projectCampus(records: readonly JournalRecord[]): CampusProjecti
   for (const row of records) {
     if (row.type === 'mail/state') state.mailbox = row.view
     else if (row.type === 'mail/processed') {
-      if (!state.processed.some((item) => item.sourceKey === row.sourceKey)) state.processed.push({ sourceKey: row.sourceKey, contentHash: row.contentHash, evidenceRef: row.evidenceRef, result: row.result, ...(row.candidateId ? { candidateId: row.candidateId } : {}), ...(row.facts ? { facts: row.facts } : {}) })
+      if (!state.processed.some((item) => item.sourceKey === row.sourceKey)) state.processed.push({ sharedWithMain: row.sharedWithMain, sourceKey: row.sourceKey, contentHash: row.contentHash, evidenceRef: row.evidenceRef, result: row.result, ...(row.candidateId ? { candidateId: row.candidateId } : {}), ...(row.facts ? { facts: row.facts } : {}) })
     } else if (row.type === 'campus/proposed') {
       const existing = state.items.find((item) => item.current.id === row.candidate.id)
       if (existing) {

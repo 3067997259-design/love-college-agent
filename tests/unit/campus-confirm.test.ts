@@ -17,7 +17,7 @@ import { createArtifactStore } from '../../src/main/artifacts/store'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
-async function fixture() {
+async function fixture(followMain?: () => boolean) {
   const root = mkdtempSync(join(tmpdir(), 'lca-campus-'))
   cleanups.push(async () => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-campus-'))) throw new Error('Unsafe cleanup path'); rmSync(root, { recursive: true, force: true }) })
   const clock = createManualClock(0); clock.advanceBy(clock.parse('2026-10-16T19:45:00+08:00'))
@@ -25,10 +25,11 @@ async function fixture() {
   const store: SessionStore = { scope: journal.scope, projection: () => projectJournal(journal.records()), records: journal.records, append: journal.append, close: journal.close }
   const raw = new Map<string, { mail: SourceMail; quotes: CheckedMail['quotes'] }>()
   const vault: EvidenceVault = { put: (key, mail, quotes) => { const ref = 'e:' + digest(key + JSON.stringify(quotes)); raw.set(ref, { mail, quotes }); return ref },
+    readForModel: (ref) => { const data = raw.get(ref); if (!data) throw new Error('EVIDENCE_UNAVAILABLE'); return data.mail },
     read: (ref, scope) => { const data = raw.get(ref); if (!data || scope.userId !== 'u' || scope.characterId !== 'c') throw new Error('EVIDENCE_UNAVAILABLE'); return evidenceView(data.mail, data.quotes) }, cache: () => {}, close: () => {} }
   const scheduler = createScheduler(clock); const fake = createFakeMailbox(clock); const emitted: string[] = []
   const artifacts = createArtifactStore(root, store.scope)
-  const campus = createCampusService({ clock, store, scheduler, vault, artifacts, source: fake.source, privacy: fake.privacy, development: fake, changed: () => {}, emit: (_id, text) => emitted.push(text) })
+  const campus = createCampusService({ clock, store, scheduler, vault, artifacts, followMain, source: fake.source, privacy: fake.privacy, development: fake, changed: () => {}, emit: (_id, text) => emitted.push(text) })
   cleanups.push(async () => { await campus.close(); scheduler.dispose(); store.close() })
   await campus.scanNow()
   const id = campus.candidates().find((item) => item.kind === 'deadline')!.id
@@ -108,4 +109,16 @@ describe('user-only versioned campus confirmation', () => {
     write.mockRestore(); f.campus.exportPending()
     expect(f.campus.deliveries().map((view) => view.status)).toEqual(['ready', 'ready'])
   })
+})
+
+it('only exposes sources processed with explicit follow-main, never historical isolated mail after a later policy change', async () => {
+  let follow = false
+  const f = await fixture(() => follow)
+  expect(f.campus.mainContext()).toEqual([])
+  follow = true; expect(f.campus.mainContext()).toEqual([])
+  f.fake.select('deadline-change'); await f.campus.scanNow()
+  const sources = f.campus.mainContext(); expect(sources).toHaveLength(1)
+  expect(JSON.stringify(sources)).toContain('RAW_ONLY_MAIL_CHANGE')
+  expect(JSON.stringify(f.store.records())).not.toContain('RAW_ONLY_')
+  follow = false; expect(f.campus.mainContext()).toEqual([])
 })

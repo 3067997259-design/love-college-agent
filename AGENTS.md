@@ -1,5 +1,11 @@
 # 项目协作约定
 
+## 2026-10-18 运行审计增补（优先于下文历史实现状态）
+
+用户明确隐私“跟随主模型”=关闭隔离，原文可由主模型处理；独立隐私模型失败仍关闭业务，不自动回退。新安装默认跟随；旧独立槽位不静默降级。background 跟随主模型或独立配置，日记、记忆与后台工作都按此路由。模型配置保存立即生效，TTS/Rodin/邮箱仍重启。旧隔离资料不会随切换自动公开；/privacy 关闭时新文件走主模型，旧暂存资料须显式重试。
+
+新增 `pnpm test:model-routing`，验证普通 Electron 的热配置、原文边界、切换、失败和重启。打包后新增 model-routing/model-slots/gifts/room，总计 37 场景；以当次报告为准。礼物自动制作须先 gift.accept；日记未完成尝试在普通日记页可补写，最多每天 3 次。详见 [运行链路审计](docs/engineering/runtime-closeout-audit-20261018.md)。
+
 **v0.1.7 发包：** 安装器按 package.json 版本命名，提供桌面／开始菜单快捷方式。`pnpm test:package --unpacked-only` 只检查打包解包版，不安装／卸载，不触碰已有用户安装；报告单独为 `test-results/package-unpacked-report.json`，不得称为实际安装器升级验收。默认 `pnpm test:package` 的已有安装保护不变。见 [发布记录](docs/engineering/release-0.1.7.md)。
 
 **2026-10-18 巡场收尾：** 当前操作与事实边界先看 [收尾审计](docs/engineering/closeout-audit-20261018.md)、[评委卡](docs/exhibition/judges.md)、[展位手册](docs/exhibition/booth-runbook.md)。本次撤去 MC 展示；保留历史实现与来源。12:03 临时包不生成快捷方式；v0.1.7 已开启桌面／开始菜单入口，也可运行安装目录 `LoveCollegeAgent.exe`。独立现场入口：`scripts/Start-LcaDemo.ps1 -Mode Judges|Visitors|Rehearsal -AppPath <已安装EXE>`；对应 `Start-LcaJudges.cmd`、`Start-LcaVisitors.cmd`、`Start-LcaRehearsal.cmd` 可双击。脚本不拷个人数据／凭据，三档分开；`-InspectOnly` 只检查。展位不能扫描真实邮箱或安装本地代码插件，真实扫描只在已授权的普通演示档执行；不能给假模型开发档接真模型来掩盖来源。

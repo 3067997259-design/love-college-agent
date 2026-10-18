@@ -43,6 +43,7 @@ export function evidenceView(mail: SourceMail, quotes: CheckedMail['quotes']): E
 export interface EvidenceVault {
   put(sourceKey: string, mail: SourceMail, quotes: CheckedMail['quotes']): string
   read(ref: string, scope: Scope): EvidenceView
+  readForModel?(ref: string, scope: Scope): SourceMail
   cache(state: CampusProjection, count: number): void
   close(): void
 }
@@ -66,6 +67,13 @@ export function openEvidenceVault(root: string, owner: Pick<Scope, 'userId' | 'c
       if (!row) throw new Error('EVIDENCE_UNAVAILABLE')
       if (digest(row.payload) !== row.content_hash || 'e:' + digest(ownerKey + row.source_key + row.content_hash + row.quotes) !== ref) throw new Error('EVIDENCE_UNAVAILABLE')
       return evidenceView(sourceSchema.parse(JSON.parse(row.payload)), quotesSchema.parse(JSON.parse(row.quotes)))
+    },
+    readForModel: (ref, scope) => {
+      if (scope.userId !== owner.userId || scope.characterId !== owner.characterId || !/^e:[a-f0-9]{64}$/.test(ref)) throw new Error('EVIDENCE_UNAVAILABLE')
+      const row = read.get(ownerKey, ref) as { payload: string; quotes: string; content_hash: string; source_key: string } | undefined
+      if (!row) throw new Error('EVIDENCE_UNAVAILABLE')
+      if (digest(row.payload) !== row.content_hash || 'e:' + digest(ownerKey + row.source_key + row.content_hash + row.quotes) !== ref) throw new Error('EVIDENCE_UNAVAILABLE')
+      return sourceSchema.parse(JSON.parse(row.payload))
     },
     cache: (state, count) => { db.prepare('INSERT INTO campus_projections VALUES (?,?,?) ON CONFLICT(owner) DO UPDATE SET record_count=excluded.record_count,state_json=excluded.state_json').run(ownerKey, count, JSON.stringify(state)) },
     close: () => db.close(),

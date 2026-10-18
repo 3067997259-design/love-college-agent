@@ -143,9 +143,10 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('models.configure') }),
   z.strictObject({ ...envelope, type: z.literal('models.provider.save'), slot: z.enum(['chat', 'background', 'chat_google', 'chat_claude', 'privacy']), baseUrl: z.string().max(4096).default(''), model: z.string().max(256).default(''), apiKey: z.string().max(8192).optional() }),
   z.strictObject({ ...envelope, type: z.literal('models.provider.remove'), slot: z.enum(['chat', 'background', 'chat_google', 'chat_claude', 'privacy']) }),
+  z.strictObject({ ...envelope, type: z.literal('models.routing.set'), slot: z.enum(['background', 'privacy']), mode: z.enum(['follow-main', 'independent']) }),
   z.strictObject({ ...envelope, type: z.literal('models.probe'), slot: z.enum(['chat', 'background', 'chat_google', 'chat_claude', 'privacy']) }),
   z.strictObject({ ...envelope, type: z.literal('models.service.save'), service: z.enum(['tts', 'rodin']), baseUrl: z.string().max(4096).default(''), model: z.string().max(256).default(''), apiKey: z.string().max(8192).optional(), voice: z.string().max(256).optional() }),
-  z.strictObject({ ...envelope, type: z.literal('mail.configure'), host: z.string().max(256).default(''), port: z.number().int().min(1).max(65535).default(993), user: z.string().max(320).default(''), authCode: z.string().max(8192).optional() }),
+  z.strictObject({ ...envelope, type: z.literal('mail.configure'), host: z.string().max(256).default(''), port: z.number().int().min(1).max(65535).optional(), user: z.string().max(320).default(''), authCode: z.string().max(8192).optional() }),
   z.strictObject({ ...envelope, type: z.literal('window.mini') }),
   z.strictObject({ ...envelope, type: z.literal('window.expand') }),
   z.strictObject({ ...envelope, type: z.literal('window.book') }),
@@ -263,7 +264,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       snapshot.mailbox = campus.view(); snapshot.candidates = campus.candidates(); snapshot.deliveries = campus.deliveries()
       const status = snapshot.mailbox.status
       snapshot.companion.mailboxUnseen = snapshot.mailbox.pendingReviewCount
-      snapshot.privacy.mode = 'isolated'
+      snapshot.privacy.mode = campus.privacyMode()
       snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'mail' ? { id: 'mail', source: snapshot.mailbox!.source,
         status: status === 'blocked' || status === 'failed' ? 'failed' : status === 'disabled' ? 'unavailable' : 'ready', ...(snapshot.mailbox!.error ? { error: snapshot.mailbox!.error } : {}) }
         : item.id === 'privacy' ? { id: 'privacy', source: campus!.privacyStatus() === 'unconfigured' ? 'none' : snapshot.mailbox!.source, status: campus!.privacyStatus() } : item)
@@ -339,7 +340,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     const signature = commandHash(command)
     const prior = requests.get(command.requestId)
     if (prior) return prior.signature === signature ? structuredClone(prior.ack) : reject(command.requestId, 'invalid-command')
-    if (backup?.isBusy()) return reject(command.requestId, 'unavailable')
+    if (backup?.isBusy() || modelSettings?.isBusy() && !command.type.startsWith('window.') && !['turn.stop', 'lights.set'].includes(command.type)) return reject(command.requestId, 'unavailable')
     if (minecraft?.active() && !['message.send', 'turn.stop', 'lights.set', 'mode.set', 'mcp.disconnect', 'developer.minecraft'].includes(command.type)
       && !command.type.startsWith('minecraft.') && !command.type.startsWith('window.') && !command.type.startsWith('pomodoro.')) return reject(command.requestId, 'unavailable')
     let ack: CommandAck
@@ -451,7 +452,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (notifications && command.type.startsWith('notification.')) {
       const error = notifications.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId)
     } else if (diary && command.type === 'diary.write') {
-      void diary.write(true); ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+      const error = diary.canWrite(); if (!error) void diary.write(true); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (room && (command.type === 'room.open' || command.type === 'room.rebuild')) {
       try { if (command.type === 'room.open') room.open(); else room.rebuild(); ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' } } catch { ack = reject(command.requestId, 'internal') }
     } else if (lifeWork && (command.type.startsWith('life.work.') || command.type === 'developer.life.seed')) {
@@ -552,7 +553,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { return { ...memory.readSession(id), recallableMessageIds: recall?.recallable(id) ?? [], ...(photos?.photo(id) ? { photo: photos.photo(id) } : {}) } } catch { throw new Error('SESSION_UNAVAILABLE') }
     },
     importUserFiles: (input: unknown): FileImportAck => {
-      if (backup?.isBusy()) return { acceptedIds: [], rejectedCount: 1, error: { code: 'unavailable', retryable: true } }
+      if (backup?.isBusy() || modelSettings?.isBusy()) return { acceptedIds: [], rejectedCount: 1, error: { code: 'unavailable', retryable: true } }
       const parsed = z.strictObject({ epoch: z.string().max(128), paths: z.array(z.string().min(1).max(4096)).min(1).max(5) }).safeParse(input)
       if (!parsed.success) return { acceptedIds: [], rejectedCount: 1, error: { code: 'invalid-command', retryable: false } }
       if (parsed.data.epoch !== snapshot.epoch) return { acceptedIds: [], rejectedCount: parsed.data.paths.length, error: { code: 'stale-epoch', retryable: false } }

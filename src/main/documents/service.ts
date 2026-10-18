@@ -19,7 +19,7 @@ const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 const suffix = { pdf: 'pdf', text: 'txt', markdown: 'md' }
 const failureCode = (cause: unknown): PublicErrorCode => cause instanceof DocumentFailure ? cause.code : 'internal'
 export function createDocumentService(options: { clock: Clock; store: SessionStore; scheduler: Scheduler; settings: SettingsStore; vault: DocumentVault; artifacts: ArtifactStore;
-  model: DocumentPrivacyModel | null; development?: ReturnType<typeof createFakeDocumentModel>; readAttachment?(attachment: AttachmentRecord, signal: AbortSignal): Promise<Uint8Array>;
+  model: DocumentPrivacyModel | null; mainModel?: DocumentPrivacyModel | null; development?: ReturnType<typeof createFakeDocumentModel>; readAttachment?(attachment: AttachmentRecord, signal: AbortSignal): Promise<Uint8Array>;
   openArtifact?(view: DeliveryView, text: string): void; changed(): void; emit(id: string, text: string): void; failed?(): void;
 }) {
   const { clock, store, scheduler, settings, vault, artifacts } = options
@@ -27,8 +27,11 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
   let state = projectDocuments(records()); let disposed = false; let pluginEnabled = true
   let active: { id: string; abort: AbortController } | undefined; let worker: Promise<void> | undefined
   const enabled = () => settings.read().fileFilteringEnabled
-  const initialState = (): Pick<DocumentView, 'status' | 'error'> => !enabled() ? { status: 'staged' } : options.model?.ready ? { status: 'queued' } : { status: 'failed', error: { code: 'privacy-unavailable', retryable: true } }
-  const canRun = () => !disposed && pluginEnabled && enabled() && !!options.model?.ready && !store.projection().lightsOut
+  const processingModel = () => enabled() ? options.model : options.mainModel ?? null
+  const shareable = (job: DocumentJob) => enabled() || job.sharedWithMain === true
+  const mainTexts = new Map<string, string>()
+  const initialState = (): Pick<DocumentView, 'status' | 'error'> => !enabled() && !options.mainModel?.ready ? { status: 'staged' } : processingModel()?.ready ? { status: 'queued' } : { status: 'failed', error: { code: 'privacy-unavailable', retryable: true } }
+  const canRun = () => !disposed && pluginEnabled && !!processingModel()?.ready && !store.projection().lightsOut
   const append = (row: JournalInput) => {
     try { store.append(row); state = projectDocuments(records()) }
     catch { options.failed?.(); throw new DocumentFailure('internal') }
@@ -49,7 +52,8 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
   const runNext = async () => {
     if (worker) return worker
     if (!canRun()) return
-    const job = state.jobs.find((job) => job.view.status === 'queued'); if (!job) return
+    const job = state.jobs.find((job) => job.view.status === 'queued' && shareable(job)); if (!job) return
+    const model = processingModel(); const sharedWithMain = !enabled() && job.sharedWithMain === true
     const operation = { id: job.view.id, abort: new AbortController() }; active = operation
     const signal = operation.abort.signal
     let timedOut = false
@@ -75,16 +79,17 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
         const input = vault.read(sourceRef)
         const parsed = await extractDocument(input.bytes, input.format, clock, signal)
         signal.throwIfAborted()
-        const output = await organizeDocument({ ...parsed, format: input.format }, options.model, clock, signal)
+        const output = await organizeDocument({ ...parsed, format: input.format }, model, clock, signal)
         signal.throwIfAborted(); if (!canRun()) throw new DocumentFailure('unavailable')
         const current = state.jobs.find((item) => item.view.id === job.view.id)!
         const facts = documentFactsSchema.parse({ documentId: job.view.id, fileName: '整理-' + job.view.id.slice(-8) + '.md', format: input.format,
-          pageCount: parsed.pageCount, deadlineIso: output.deadlineIso, source: options.model!.source, trust: 'untrusted' })
+          pageCount: parsed.pageCount, deadlineIso: output.deadlineIso, source: model!.source, trust: 'untrusted' })
         let artifact
         try { artifact = artifacts.write({ candidateId: job.view.id, revision: current.attempt, format: 'md', kind: 'document', displayName: facts.fileName,
-          createdAtMs: clock.nowMs(), source: options.model!.source, content: output.markdown }) }
+          createdAtMs: clock.nowMs(), source: model!.source, content: output.markdown }) }
         catch { throw new DocumentFailure('export-failed') }
-        append({ type: 'document/completed', documentId: job.view.id, attempt: current.attempt, artifact, facts }); flush()
+        if (sharedWithMain) mainTexts.set(job.view.id, parsed.text)
+        append({ type: 'document/completed', sharedWithMain, documentId: job.view.id, attempt: current.attempt, artifact, facts }); flush()
       } catch (cause) {
         const current = state.jobs.find((item) => item.view.id === job.view.id)!
         if (current.view.status === 'processing') update(current, timedOut ? { status: 'failed', error: { code: 'connection-failed', retryable: true } } : signal.aborted ? { status: 'staged' } : { status: 'failed', error: { code: failureCode(cause), retryable: true } })
@@ -99,7 +104,7 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
     try { sourceRef = vault.put(bytes, format) } catch (cause) { if (cause instanceof DocumentFailure) throw cause; options.failed?.(); throw new DocumentFailure('internal') }
     const id = 'doc:' + hash(JSON.stringify([store.scope.userId, store.scope.characterId, sourceRef, origin, attachmentId]))
     if (state.jobs.some((job) => job.view.id === id)) return id
-    append({ type: 'document/job', job: { sourceRef, attempt: 0, view: { id, displayName: '资料-' + id.slice(-8) + '.' + suffix[format], format,
+    append({ type: 'document/job', job: { sourceRef, sharedWithMain: !enabled() && !!options.mainModel, attempt: 0, view: { id, displayName: '资料-' + id.slice(-8) + '.' + suffix[format], format,
       origin, source: options.model?.source ?? 'real', byteLength: bytes.length, createdAtMs: clock.nowMs(), updatedAtMs: clock.nowMs(),
       ...initialState(), pageCount: null, deadlineIso: null } } })
     schedule(); return id
@@ -131,7 +136,7 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
     active?.abort.abort(); scheduler.cancel('documents.work')
     for (const job of state.jobs.filter((job) => job.view.status === 'queued' || job.view.status === 'processing')) update(job, { status: 'staged' })
   }
-  const resume = () => { if (canRun()) { for (const job of state.jobs.filter((job) => job.view.status === 'staged')) update(job, { status: 'queued' }); schedule() } }
+  const resume = () => { if (canRun()) { for (const job of state.jobs.filter((job) => job.view.status === 'staged' && shareable(job))) update(job, { status: 'queued' }); schedule() } }
   // Never infer completion or silently rerun a half-completed model request after a crash.
   for (const job of state.jobs.filter((job) => job.view.status === 'processing')) update(job, { status: 'failed', error: { code: 'document-interrupted', retryable: true } })
   if (enabled() && !options.model?.ready) for (const job of state.jobs.filter((job) => job.view.status === 'queued' || job.view.status === 'staged')) update(job, { status: 'failed', error: { code: 'privacy-unavailable', retryable: true } })
@@ -141,6 +146,19 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
     view: (): DocumentsView => ({ jobs: state.jobs.map((job) => structuredClone(job.view)), attachments: state.attachments.map((entry) => structuredClone(entry.view)),
       privacyAvailable: !!options.model?.ready, ...(options.development ? { scenarioId: options.development.scenario() } : {}) }),
     filteringEnabled: enabled,
+    mainContext: async (signal: AbortSignal) => {
+      if (disposed || !pluginEnabled || enabled() || !options.mainModel) return []
+      const result: { kind: string; ref: string; text: string; truncated: boolean }[] = []
+      for (const completed of state.completed.filter((item) => item.sharedWithMain).slice(-4)) {
+        signal.throwIfAborted()
+        try {
+          let text = mainTexts.get(completed.documentId)
+          if (text === undefined) { const job = state.jobs.find((item) => item.view.id === completed.documentId); if (!job?.sourceRef) continue; const input = vault.read(job.sourceRef); text = (await extractDocument(input.bytes, input.format, clock, signal)).text; mainTexts.set(completed.documentId, text) }
+          result.push({ kind: 'document', ref: completed.documentId, text: text.slice(0, 24000), truncated: text.length > 24000 })
+        } catch { signal.throwIfAborted() }
+      }
+      return result
+    },
     deliveries: () => state.artifacts.map((artifact) => artifact.view),
     ownsArtifact: (id: string) => state.artifacts.some((artifact) => artifact.view.artifactId === id),
     openArtifact: (id: string): PublicErrorCode | undefined => {
@@ -155,7 +173,7 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
       if (command.type === 'privacy.set') {
         if (command.enabled && !options.model?.ready) return 'privacy-unavailable'
         settings.update((draft) => { draft.fileFilteringEnabled = command.enabled })
-        if (command.enabled) resume(); else pause(); options.changed(); return
+        pause(); resume(); options.changed(); return
       }
       if (command.type === 'developer.documents') {
         if (!options.development) return 'permission-denied'
@@ -173,14 +191,14 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
         const id = 'doc:' + hash(JSON.stringify([store.scope.userId, store.scope.characterId, record.view.id]))
         if (state.jobs.some((job) => job.view.id === id)) return
         if (state.jobs.length >= 200 || state.jobs.filter((job) => ['staged', 'queued', 'processing'].includes(job.view.status)).length >= 20) return 'budget-exceeded'
-        append({ type: 'document/job', job: { sourceRef: null, attachmentId: record.view.id, attempt: 0, view: { id, displayName: '资料-' + id.slice(-8) + '.' + suffix[record.view.format],
+        append({ type: 'document/job', job: { sourceRef: null, sharedWithMain: !enabled() && !!options.mainModel, attachmentId: record.view.id, attempt: 0, view: { id, displayName: '资料-' + id.slice(-8) + '.' + suffix[record.view.format],
           origin: 'mail-attachment', format: record.view.format, byteLength: record.view.byteLength, source: record.view.source, createdAtMs: clock.nowMs(), updatedAtMs: clock.nowMs(), ...initialState(), pageCount: null, deadlineIso: null } } })
         schedule(); return
       }
       if (command.type === 'document.retry' || command.type === 'document.cancel') {
         const job = state.jobs.find((job) => job.view.id === command.documentId); if (!job || job.view.status === 'ready') return 'invalid-command'
         if (command.type === 'document.cancel') { if (active?.id === job.view.id) active.abort.abort(); update(job, { status: 'cancelled' }) }
-        else { if (active?.id === job.view.id) return 'unavailable'; update(job, initialState()); schedule() }
+        else { if (active?.id === job.view.id) return 'unavailable'; update({ ...job, sharedWithMain: !enabled() && !!options.mainModel }, initialState()); schedule() }
         return
       }
       return 'unavailable'
