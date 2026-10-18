@@ -80,6 +80,8 @@ export interface PluginView {
   id: string
   name: string
   version: string
+  /** One-line manifest description; absent for built-ins without a curated description. */
+  description?: string
   source: 'builtin' | 'folder'
   status: 'enabled' | 'disabled' | 'needs-approval' | 'incompatible' | 'failed'
   tools: readonly string[]
@@ -356,10 +358,15 @@ export interface DiagnosticsView {
   memoryScores: readonly { id: string; score: number; relevance: number; tier: 'short_term' | 'long_term' }[]
   privacy: { mailStatus: string; fileFilteringEnabled: boolean; pendingFiles: number; evidenceAccess: 'user-only' }
 }
+export type ModelProviderSlot = 'chat' | 'background' | 'chat_google' | 'chat_claude' | 'privacy'
 export interface ModelSettingsView {
   status: 'idle' | 'selecting' | 'saved' | 'failed'
-  configuredSlots: readonly ('chat' | 'background' | 'chat_google' | 'chat_claude' | 'privacy')[]
+  configuredSlots: readonly ModelProviderSlot[]
   restartRequired: boolean
+  /** Latest user-requested connectivity probe; never carries URL, model name, key or response text. */
+  probe?: { slot: ModelProviderSlot; status: 'testing' | 'ok' | 'failed'; code?: PublicErrorCode; atMs: number }
+  /** Presence only: never URLs, mail user, voices or keys. */
+  services?: { tts: boolean; rodin: boolean; mail: boolean }
   error?: PublicError
 }
 export interface WindowsView {
@@ -388,6 +395,8 @@ export interface GeneratedGiftView {
   motif: GiftMotif
   status: 'proposed' | 'making' | 'ready' | 'given' | 'failed' | 'cancelled'
   source: 'real' | 'fake'
+  /** User said yes; actual making still waits for focus. Not proof of generation. */
+  acceptedAtMs?: number
   createdAtMs: number
   readyAtMs: number | null
   givenAtMs: number | null

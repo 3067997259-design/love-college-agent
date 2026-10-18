@@ -1,4 +1,4 @@
-import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, MinecraftScope, OpticalTier, PomodoroPlanInput, PublicError, RecallAnchor } from './state'
+import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, MinecraftScope, ModelProviderSlot, OpticalTier, PomodoroPlanInput, PublicError, RecallAnchor } from './state'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -29,6 +29,8 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'onboarding.reset' }
   /** Only an existing, witnessed experience may anchor a generated gift. Object descriptions are enum-derived. */
   | { type: 'gift.propose'; sourceMemoryId: string; objectId: GiftObjectId; motif: GiftMotif }
+  /** User accepts the offer; generation still waits for focus. */
+  | { type: 'gift.accept'; giftId: string }
   | { type: 'gift.start'; giftId: string }
   | { type: 'gift.cancel'; giftId: string }
   | { type: 'gift.open'; giftId: string }
@@ -52,6 +54,8 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'backup.cancel' }
   /** Native file chooser; configuration and credentials never pass through the renderer. */
   | { type: 'mcp.configure' }
+  /** Main reads this local MCP JSON path; contents and credentials never return to the renderer. */
+  | { type: 'mcp.configure.path'; path: string }
   | { type: 'mcp.connect'; serverId: string; fingerprint: string }
   | { type: 'mcp.disconnect'; serverId: string }
   /** Inspect an already human-connected endpoint. ListTools alone never grants game control. */
@@ -64,6 +68,15 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'developer.minecraft'; scenario: 'ready' | 'chat' | 'world-change' | 'unsafe' | 'unreachable' }
   /** Native file chooser. Model URLs, names and credentials stay in main. Restart applies the imported configuration. */
   | { type: 'models.configure' }
+  /** GUI save. Blank fields keep the saved value; credentials never return to the renderer. */
+  | { type: 'models.provider.save'; slot: ModelProviderSlot; baseUrl: string; model: string; apiKey?: string }
+  | { type: 'models.provider.remove'; slot: ModelProviderSlot }
+  /** User-requested fixed-prompt probe of the saved slot; no URL/key/response text returns. */
+  | { type: 'models.probe'; slot: ModelProviderSlot }
+  /** TTS / Rodin service connections; blank fields keep saved values. */
+  | { type: 'models.service.save'; service: 'tts' | 'rodin'; baseUrl: string; model: string; apiKey?: string; voice?: string }
+  /** Mail connection fields; auth code never returns to the renderer. */
+  | { type: 'mail.configure'; host: string; port: number; user: string; authCode?: string }
   | { type: 'window.mini' }
   /** Expand the book and destroy its companion window; no timer or session change. */
   | { type: 'window.expand' }
@@ -166,6 +179,8 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'context.compact' }
   | { type: 'session.rollover' }
   | { type: 'developer.memory'; scenarioId: 'ready' | 'failure' | 'invalid' }
+  /** Main validates and copies a local plugin folder; no renderer file access or execution. */
+  | { type: 'plugin.install'; path: string }
   | { type: 'plugin.enable'; pluginId: string; fingerprint: string }
   | { type: 'plugin.disable'; pluginId: string }
   | { type: 'plugin.privacy.set'; pluginId: string; privacy: 'none' | 'optional' | 'always' }

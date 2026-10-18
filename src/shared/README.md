@@ -68,15 +68,15 @@ characterName 进入角色的系统称呼，userName 进入用户档案的“关
 
 ## 第一圈收尾：MCP 与私人存档
 
-`mcp.configure` 打开原生文件选择器导入标准 mcpServers 配置；配置、启动参数、地址、环境变量和令牌只在主进程。`mcp` 只给服务器 id、传输类型、来源、状态、隐私标记、允许的工具名和配置 fingerprint。连接需要用户确认当前 fingerprint，再由主进程原生对话框展示实际程序／参数／工作目录或服务地址供用户核对，不把这些值传给页面。断开使迟到的确认失效，并立即取消在途调用；工具结果按隐私策略校验后才进入模型投影。
+`mcp.configure` 打开原生文件选择器导入标准 mcpServers 配置，整份替换；`mcp.configure.path` 只接收主进程可读的本地路径（插件中心用），按 server id 合并到现有配置，拒绝页面直接传配置对象。配置、启动参数、地址、环境变量和令牌只在主进程。`mcp` 只给服务器 id、传输类型、来源、状态、隐私标记、允许的工具名和配置 fingerprint。连接需要用户确认当前 fingerprint，再由主进程原生对话框展示实际程序／参数／工作目录或服务地址供用户核对，不把这些值传给页面。断开使迟到的确认失效，并立即取消在途调用；工具结果按隐私策略校验后才进入模型投影。
 
 `backup.export/import` 使用主进程原生对话框；公共命令不接受文件路径。导入先校验并进入 awaiting-confirmation，界面显示 incoming 摘要；只有显式 backup.restore 携带当前 restoreId 才备份现有数据并恢复。`restored` 表示实际恢复完成，动画不能仅根据选中文件播放成功效果。路径、凭据和存档字节不进入快照、事件或调试 MCP。
 
-`quill` 表示首件有工具证据的工作关联的羽毛笔，state=given 后提供书本里的存档入口；未收到时设置页仍可导出。它是预制礼物，不能说成实时 Rodin 生成。
+`quill` 表示首件有工具证据的工作关联的羽毛笔，state=given 后提供书本里的存档入口；未收到时设置页仍可导出。它是预制礼物，不能说成实时 Rodin 生成。`gift.accept` 只记录用户答应（`acceptedAtMs`），实际生成仍要等专注开始；答应不等于已经生成或送出。
 
 `readDiagnostics()` 仅在真实开发模式开放，正常／展位模式拒绝。它读取模型可见投影、有限回合统计、inbox 元数据、调度队列和记忆分数，不返回配置、原始工具输出、邮件或附件。未采集的首字延迟、缓存 token 和费用为 null，界面不能当作零。隐私原文对照仍走单独的用户查阅入口，不进入通用诊断或模型上下文。
 
-`models.configure` 通过原生对话框导入本机 providers JSON，凭据不经过页面。`modelSettings` 仅含已装配的槽位名、保存状态和需要重启的标记，没有模型名、URL 或密钥。开发 profile 拒绝导入真实配置。设置保存不代表连通验证通过。
+`models.configure` 通过原生对话框导入本机 providers JSON，凭据不经过页面。`models.provider.save/remove` 由设置页图形界面按槽位合并或删除配置；空字段沿用已保存值，其他槽位与 mail／tts／rodin 保留。`models.service.save` 保存 `tts`（HTTPS＋`openai-speech`＋音色）或 `rodin`，`mail.configure` 保存 IMAP 主机／端口／用户／授权码；界面不回显原值。`models.probe` 对已保存槽位发固定小句，最多 16 输出 token、20 秒、无工具；发起前按 2000 工作单位预留资源账本，预算不足或账本不可用即失败。结果只回 testing／ok／failed 和闭集错误码。`modelSettings` 仅含已装配的槽位名、保存状态、需要重启的标记、探针状态和 tts／rodin／mail 是否存在的布尔，没有模型名、URL、用户、音色、密钥或供应商响应正文。开发 profile 拒绝导入或 GUI 写入真实配置。设置保存不代表连通验证通过。
 
 `window.mini` 收起书本；`window.expand` 回到书本并销毁小窗，旧 `window.book` 兼容同一行为，不改变计时和任务。迷你渲染入口为 ?view=mini；`window.mini.hover` 携带 `over: boolean`，hover/move 只接受迷你窗口的主 frame，不能由书本伪造。主进程设置置顶和鼠标穿透，透明异常时回退不透明圆角窗；可选的 miniPresentation／miniFallbackReason 仅说明本机显示模式，不含 GPU 或配置细节。主进程夹住拖动坐标、保存 profile 位置。开始新一段专注收起一次；短／长休息、停止和熄灯保留当前窗口，不抢焦点；熄灯暂停计时／后台，点她仍可回书本。重启从书本开始，不自动复原上次小窗。
 
