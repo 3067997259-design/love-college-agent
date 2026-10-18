@@ -1,6 +1,6 @@
 # Love, College & Agent
 
-**10-18 巡场前收尾入口：** 第二台机器按 [安装到第一句聊天](docs/exhibition/first-run.md)；现场用 [三分钟评委操作卡](docs/exhibition/judges.md) 和 [全校展示手册](docs/exhibition/booth-runbook.md)。本次撤去 MC 展示，保留历史实现；真实普通评委档、真实展位访客档与假模型彩排档分开。新包 SHA `E393FA84…` 的本轮四项安装态定向测试通过，第二台人工体验／公开演示档／完整安装回归仍单列；问题与未完成项见 [收尾审计](docs/engineering/closeout-audit-20261018.md)。
+**10-18 巡场前收尾入口：** 第二台机器按 [安装到第一句聊天](docs/exhibition/first-run.md)；现场用 [三分钟评委操作卡](docs/exhibition/judges.md) 和 [全校展示手册](docs/exhibition/booth-runbook.md)。本次撤去 MC 展示，保留历史实现；真实普通评委档、真实展位访客档与假模型彩排档分开。新包 SHA `E393FA84…` 的本轮六项安装态定向测试通过，第二台人工体验／公开演示档／完整安装回归仍单列；问题与未完成项见 [收尾审计](docs/engineering/closeout-audit-20261018.md)。
 
 **10-18 02:00 v0.1.2（Issue 修复）：** 处理 #38–#47 十条 P2 审计 issue（真实 IMAP 空正文附件/超长单封/异步错误/附件重取、标题长度、JSON 歧义、privacy inspect、自定义角色夜景、文档口径）。源码 `1ca152b`，安装器 264,345,755 字节，SHA-256 `06b2487d…`，**26/26** 安装场景、75 文件/**530 单测**通过；Release `https://github.com/3067997259-design/love-college-agent/releases/tag/v0.1.2`（仓库冻结后转 public）。处理记录见[Issue 记录](docs/engineering/issues-20261018.md)。
 

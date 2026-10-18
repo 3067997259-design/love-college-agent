@@ -10,7 +10,7 @@
 
 已额外保全应用源码差分与 21 个未跟踪应用文件：`D:\lca-release-safe\closeout-source-20261018T0424Z.zip`，SHA-256 `25a0b2ed73ba15a93c6bf1185735aab84507ea16130104e1b770d415f0012f26`。包含基线提交、tracked.patch 与逐文件哈希；采集时内容稳定，不含 secrets／运行库／私人存档。它是保全快照，**未验证与安装器逐字节等价**，也不替代最终源码提交。
 
-12:20 前本轮直接指定安装后的 `D:\lca-live-test\app-next\LoveCollegeAgent.exe`，顺序运行四条现有 smoke（无 build、独立测试数据、窗口透明）：
+本轮直接指定安装后的 `D:\lca-live-test\app-next\LoveCollegeAgent.exe`，顺序运行六条现有 smoke（无 build、独立测试数据、窗口透明）：
 
 | 场景 | 本轮结果 | 证据范围 |
 | --- | --- | --- |
@@ -18,6 +18,8 @@
 | `node scripts/smoke-onboarding.mjs` | PASS | 真正向导表单、重启、原生存档导入与恢复 |
 | `node scripts/smoke-documents.mjs` | PASS | 拖入／选择、PDF 子进程、实际 Markdown、原文隔离、失败关闭 |
 | `node scripts/smoke-pomodoro.mjs` | PASS | 计划确认、计时持久化、真实双窗口、重启与回退 |
+| `node scripts/smoke-providers.mjs` | PASS | 新模型 GUI 保存／测试／清除、其他连接卡、密钥不进入快照 |
+| `node scripts/smoke-plugins.mjs` | PASS | 新插件中心、路径导入、指纹确认、设置与输入框快捷入口 |
 
 均为**实际安装 EXE＋合成服务**，不等于新包完整 26/26，也不等于第二台电脑或本次真实网络通过。`test-results/package-report.json` 的 `ok=false/stage=preflight/completedScenarios=[]` 必须保留；旧 v0.1.6 的完整 26 场景通过不能移植给新包。
 
@@ -38,7 +40,7 @@
 | P0 | 展位现场“扫描真实邮箱／安装候选插件” | `index.ts` 只在非开发且非展位创建真实 IMAP；`developer/runtime.ts` 拒绝展位 `plugin.install`。拆为独立普通评委档、独立展位访客档 |
 | P0 | “把通知截图拖进来” | 文件处理可靠入口为文字层 PDF／UTF-8 文本／Markdown；真实 OCR 未验收。公开展示使用随附文本样例 |
 | P0 | “清空本地数据再恢复” | 应用已有自动备份和确认恢复；现场不删文件夹，使用独立公开演示档，确认一次后等重启 |
-| P0 | 用新包替换了旧包，却继续称“最终包 26/26” | 新包回执 dirty，完整安装测试止于保护已有安装的预检。本轮补测四条；仍需源码封存、第二机和选定终包 |
+| P0 | 用新包替换了旧包，却继续称“最终包 26/26” | 新包回执 dirty，完整安装测试止于保护已有安装的预检。本轮补测六条；仍需源码封存、第二机和选定终包 |
 | P1 | “配 privacy 就不发给模型服务商／不出校” | privacy 是指定模型端点，是否校内部署不是槽位名字能证明；只承诺不发普通聊天槽位 |
 | P1 | “她不会忘记你／永久记住所有事” | 保存用户原始记录与模型准确回忆是两件事。改为可追溯、可恢复；不承诺永久完美回忆 |
 | P1 | “任何工具／控制整个电脑” | MCP 白名单与审批；computer use 只在隔离静态书桌预览，命令受范围限制且展位关闭 |
