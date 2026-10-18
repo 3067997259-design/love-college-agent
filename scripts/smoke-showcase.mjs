@@ -107,7 +107,12 @@ try {
   assert.ok(!(await snapshot()).messages.some((message) => message.id === failure.id))
   await chat('工作告一段落，我们回到书页继续聊纸桥。', 'SYNTHETIC_ORDINARY_AFTER_WORK')
   safe(await debug('get_context')); await mark('bounded-failure-narration-stays-in-work')
-  if (!(await snapshot()).history.photos.some((p) => p.sessionId === oldSession)) await accepted({ type: 'history.photo.capture' })
+  // A later automatic gift photo may fail during page transitions even when the day's work photo
+  // already exists. Settle that attempt, then exercise the real manual retry instead of waiting for
+  // an idle status that cannot reappear while this scenario's business clock is frozen.
+  await waitFor((s) => s.history.captureStatus !== 'capturing', 'PHOTO_CAPTURE_BUSY')
+  const photoState = (await snapshot()).history
+  if (!photoState.photos.some((p) => p.sessionId === oldSession) || photoState.captureStatus === 'failed') await accepted({ type: 'history.photo.capture' })
   await waitFor((s) => s.history.photos.some((p) => p.sessionId === oldSession) && s.history.captureStatus === 'idle', 'PHOTO_MISSING')
   const photo = (await snapshot()).history.photos.find((item) => item.sessionId === oldSession)
   await accepted({ type: 'memory.extract' }); await waitFor((s) => !['extracting', 'compacting'].includes(s.memory.status), 'MEMORY_BUSY')
