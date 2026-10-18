@@ -27,9 +27,9 @@ import { ResourceFailure, type ResourceAdmissions } from '../resources/ledger'
 /** Machine JSON tasks only. Persona, diary and dream wording remain on the voice line. */
 export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, clock: Clock, store: SessionStore, fetcher?: Parameters<typeof createModelClient>[3], budget?: ResourceAdmissions, followMain = false) {
   const clients = { background: createModelClient(providers, ['background'], clock, fetcher), privacy: createModelClient(providers, ['privacy'], clock, fetcher), chat: createModelClient(providers, ['chat'], clock, fetcher) }
-  const json = async (slot: keyof typeof clients, prompt: string, input: unknown, parent: AbortSignal, maxOutputTokens: number, preserveSourceIds = false, trustedMain = false, bucket: 'work' | 'autonomous' = slot === 'privacy' ? 'work' : 'autonomous'): Promise<unknown> => {
+  const json = async (slot: keyof typeof clients, prompt: string, input: unknown, parent: AbortSignal, maxOutputTokens: number, preserveSourceIds = false, trustedMain = false, bucket: 'work' | 'autonomous' = slot === 'privacy' ? 'work' : 'autonomous', timeoutMs = 30_000): Promise<unknown> => {
     const abort = new AbortController(); const signal = AbortSignal.any([parent, abort.signal]); signal.throwIfAborted()
-    const stop = clock.after(30_000, () => abort.abort()); const turnId = randomUUID()
+    const stop = clock.after(timeoutMs, () => abort.abort()); const turnId = randomUUID()
     // SeenFragment.text was already scrubbed; its generated provenance IDs must remain exact for validation.
     const serialized = JSON.stringify(input); const content = trustedMain ? [...providers.values()].reduce((text, provider) => text.replaceAll(provider.api_key, '[密钥已遮盖]'), redactSecrets(serialized)) : preserveSourceIds ? serialized : redactFixed(serialized); const reservation = Buffer.byteLength(content) + maxOutputTokens + 2048
     let remove = () => {}
@@ -55,8 +55,8 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
   const memory: MemoryModel | null = providers.has('background') ? { source: 'real', extract: (input, signal) => json('background', prompts.memoryExtract, memoryModelInput(input), signal, 4096, true), summarize: (input, signal) => json('background', prompts.memorySummary, memoryModelInput(input), signal, 4096, true) } : null
   const mailSlot = followMain ? 'chat' : 'privacy'
   const mail: EmailPrivacyModel | null = providers.has(mailSlot) ? { source: 'real', isolated: !followMain, extract: (input, signal) => json(mailSlot, prompts.mail + '\n' + notificationPrompts.mailAddition, input, signal, 2048, false, followMain, 'work') } : null
-  const document: DocumentPrivacyModel | null = providers.has('privacy') ? { source: 'real', ready: true, organize: (input, signal) => json('privacy', prompts.document, input, signal, 8192) } : null
-  const mainDocument: DocumentPrivacyModel | null = providers.has('chat') ? { source: 'real', ready: true, isolated: false, organize: (input, signal) => json('chat', prompts.document, input, signal, 8192, false, true, 'work') } : null
+  const document: DocumentPrivacyModel | null = providers.has('privacy') ? { source: 'real', ready: true, organize: (input, signal) => json('privacy', prompts.document, input, signal, 8192, false, false, 'work', 90_000) } : null
+  const mainDocument: DocumentPrivacyModel | null = providers.has('chat') ? { source: 'real', ready: true, isolated: false, organize: (input, signal) => json('chat', prompts.document, input, signal, 8192, false, true, 'work', 90_000) } : null
   const narrow: PrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (text, signal) => json('privacy', prompts.narrowPrivacy, { text }, signal ?? new AbortController().signal, 512) } : null
   const diary: DiaryModel | null = providers.has('background') ? { source: 'real', write: (input, signal) => { const card = (store.history?.() ?? store.records()).findLast((row) => row.type === 'character/definition'); return json('background', diaryPrompts.system, { character: { name: store.projection().onboarding.characterName, persona: card?.type === 'character/definition' ? card.definition.persona : BUILTIN_CARD.persona }, fragments: input }, signal, 1600, true) } } : null
   const delegate: DelegateModel | null = providers.has('background') ? { source: 'real', read: (input, signal) => json('background', delegatePrompts.system, input, signal, 1600, true) } : null

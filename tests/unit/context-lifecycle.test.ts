@@ -42,3 +42,22 @@ it('retains the scan job locator across turns while retiring its old status and 
   const result = JSON.parse(message.content)
   expect(result.jobId).toBe('scan_123'); expect(result.status).toBe('historical-result-retired'); expect(message.content).not.toContain('OLD_SCHOOL_SOURCE')
 })
+
+it.each([false, true])('keeps a current result when a provider reuses an old call ID (identical bodies: %s)', (identical) => {
+  const current = { value: 'CURRENT_RESULT' }; const old = identical ? current : { value: 'OLD_RESULT' }
+  const rows = [
+    { type: 'tool/call', turnId: 'old', callId: 'reused', templateId: 'memory.recall', atMs: 10 },
+    { type: 'tool/result', turnId: 'old', callId: 'reused', visible: old, atMs: 11 },
+    { type: 'tool/call', turnId: 'current', callId: 'reused', templateId: 'memory.recall', atMs: 20 },
+    { type: 'tool/result', turnId: 'current', callId: 'reused', visible: current, atMs: 21 },
+  ] as unknown as JournalRecord[]
+  const messages: ContextMessage[] = [
+    { role: 'tool', toolCallId: 'reused', content: JSON.stringify(old) },
+    { role: 'tool', toolCallId: 'reused', content: JSON.stringify(current) },
+  ]
+  const output = retireSourceContext(messages, rows, 'current', [])
+  expect(JSON.parse(output[0].content).status).toBe('historical-result-retired')
+  expect(output[1]).toEqual(messages[1])
+  const pending = retireSourceContext(messages.slice(0, 1), rows.slice(0, -1), 'current', [])
+  expect(JSON.parse(pending[0].content).status).toBe('historical-result-retired')
+})

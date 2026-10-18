@@ -7,11 +7,19 @@ export const isSourceTool = (templateId: string) => /^(mail\.|document\.|student
 export function retireSourceContext(messages: readonly ContextMessage[], records: readonly JournalRecord[], turnId: string, ignoredTitles: readonly string[]) {
   const calls = records.flatMap((row) => row.type === 'tool/call' && (isSourceTool(row.templateId) || row.templateId === 'clock.read' || row.templateId === 'pomodoro.get_timer' || row.templateId.startsWith('memory.')) ? [row] : [])
   const oldCalls = new Set(calls.filter((row) => row.turnId !== turnId).map((row) => row.callId))
+  // Providers may reuse a call ID in a later turn. Keep only the latest message matching the
+  // current turn's recorded result; an older result with the same ID (or body) must still retire.
+  const currentIndexes = new Set(records.flatMap((row) => {
+    if (row.type !== 'tool/result' || row.turnId !== turnId) return []
+    const content = JSON.stringify(row.visible)
+    const index = messages.findLastIndex((message) => message.role === 'tool' && message.toolCallId === row.callId && message.content === content)
+    return index < 0 ? [] : [index]
+  }))
   const lastIgnore = records.filter((row) => row.type === 'campus/ignored').at(-1)?.atMs ?? -1
   const retiredTurns = new Set(calls.filter((row) => isSourceTool(row.templateId) && row.turnId !== turnId && row.atMs <= lastIgnore).map((row) => row.turnId))
   const retiredReplies = new Set(records.flatMap((row) => row.type === 'assistant/message' && (retiredTurns.has(row.turnId) || row.atMs <= lastIgnore && ignoredTitles.some((title) => title.length >= 4 && row.text.includes(title))) ? [row.text] : []))
-  return messages.map((message) => {
-    if (message.role === 'tool' && oldCalls.has(message.toolCallId ?? '')) {
+  return messages.map((message, index) => {
+    if (message.role === 'tool' && oldCalls.has(message.toolCallId ?? '') && !currentIndexes.has(index)) {
       let jobId: string | undefined
       try { const value = JSON.parse(message.content); if (typeof value?.jobId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value.jobId)) jobId = value.jobId } catch { /* No task locator in an unstructured result. */ }
       return { ...message, content: JSON.stringify({ status: 'historical-result-retired', ...(jobId ? { jobId } : {}), instruction: 'Read current source state if needed; this is not current evidence. A jobId is only a locator for status or cancellation.' }), imageRefs: undefined }

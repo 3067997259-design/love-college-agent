@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createManualClock } from '../../src/main/clock'
 import { createFakeDocumentModel, organizeDocument, type DocumentPrivacyModel } from '../../src/main/documents/privacy'
 import { extractDocument } from '../../src/main/documents/reader'
+import { ModelFailure, type ModelFailureKind } from '../../src/main/model/types'
 
 const clock = createManualClock(0)
 const input = { text: 'PRIVATE_DOCUMENT_SOURCE\n截止：2026 年 10 月 24 日 23:59\nEmail: fixture@example.invalid\nAPI key: sk-syntheticdocumentkey1234567890', pageCount: 1, format: 'pdf' as const }
@@ -27,10 +28,21 @@ describe('isolated document processing', () => {
   })
   it('stops a hanging dependency through the unified clock and abort signal', async () => {
     const model: DocumentPrivacyModel = { source: 'fake', ready: true, organize: vi.fn(() => new Promise(() => {})) }
-    const pending = organizeDocument(input, model, clock, signal()); clock.advanceBy(30_000)
+    const pending = organizeDocument(input, model, clock, signal()); clock.advanceBy(90_000)
     await expect(pending).rejects.toMatchObject({ code: 'privacy-unavailable' })
     const abort = new AbortController(); const cancelled = organizeDocument(input, model, clock, abort.signal); abort.abort()
-    await expect(cancelled).rejects.toMatchObject({ code: 'privacy-unavailable' }); expect(model.organize).toHaveBeenCalledTimes(2)
+    await expect(cancelled).rejects.toMatchObject({ code: 'operation-cancelled' }); expect(model.organize).toHaveBeenCalledTimes(2)
+  })
+  it('allows a progressing document operation to finish after the former thirty-second limit', async () => {
+    const localClock = createManualClock(0); let finished = false
+    const model: DocumentPrivacyModel = { source: 'fake', ready: true, isolated: false, organize: () => new Promise((resolve) => localClock.after(45_000, () => resolve({ markdown: '整理结果', deadline: null }))) }
+    const pending = organizeDocument(input, model, localClock, signal()).then((result) => { finished = true; return result })
+    localClock.advanceBy(30_000); await Promise.resolve(); expect(finished).toBe(false)
+    localClock.advanceBy(15_000); await expect(pending).resolves.toMatchObject({ markdown: '整理结果' })
+  })
+  it.each([['timeout', 'connection-failed'], ['configuration', 'configuration-failed'], ['quota', 'quota-exhausted'], ['upstream', 'upstream-busy'], ['invalid-output', 'invalid-model-output'], ['content-filtered', 'content-filtered']])('classifies main-model %s without claiming a privacy denial', async (kind, code) => {
+    const model: DocumentPrivacyModel = { source: 'fake', ready: true, isolated: false, organize: async () => { throw new ModelFailure(kind as ModelFailureKind) } }
+    await expect(organizeDocument(input, model, clock, signal())).rejects.toMatchObject({ code })
   })
   it('decodes UTF-8 text strictly and rejects binaries, empty files and bounds violations', async () => {
     expect(await extractDocument(Buffer.from('合成资料\nMarkdown text'), 'text', clock, signal())).toEqual({ text: '合成资料\nMarkdown text', pageCount: null })

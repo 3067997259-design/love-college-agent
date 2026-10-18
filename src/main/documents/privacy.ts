@@ -3,6 +3,8 @@ import type { Clock } from '../clock'
 import { redactFixed, redactSecrets } from '../privacy/redact'
 import { dateFromQuote } from '../mail/privacy'
 import { DocumentFailure } from './reader'
+import { ModelFailure } from '../model/types'
+import { MemoryFailure } from '../memory/model'
 import type { DocumentFormat, DocumentScenarioId } from '../../shared'
 
 export interface DocumentPrivacyInput { text: string; format: DocumentFormat; pageCount: number | null }
@@ -10,8 +12,8 @@ export interface DocumentPrivacyModel { readonly isolated?: boolean; readonly so
 const outputSchema = z.strictObject({ markdown: z.string().min(1).max(100_000), deadline: z.strictObject({ iso: z.iso.datetime({ offset: true }), quote: z.string().min(1).max(300) }).nullable() })
 /** Long output is user-only. The caller may publish only deadlineIso; never markdown or quotes. */
 export async function organizeDocument(input: DocumentPrivacyInput, model: DocumentPrivacyModel | null, clock: Clock, signal: AbortSignal) {
-  if (!model?.ready) throw new DocumentFailure('privacy-unavailable')
-  const local = new AbortController(); const combined = AbortSignal.any([signal, local.signal]); const cancel = clock.after(30_000, () => local.abort())
+  if (!model?.ready) throw new DocumentFailure(model?.isolated === false ? 'not-configured' : 'privacy-unavailable')
+  const local = new AbortController(); const combined = AbortSignal.any([signal, local.signal]); const cancel = clock.after(90_000, () => local.abort())
   let remove = () => {}
   let result: unknown
   try {
@@ -20,9 +22,15 @@ export async function organizeDocument(input: DocumentPrivacyInput, model: Docum
       if (combined.aborted) listener()
     })
     result = await Promise.race([model.organize({ ...input, text: (model.isolated === false ? redactSecrets : redactFixed)(input.text) }, combined), aborted])
-  } catch { throw new DocumentFailure('privacy-unavailable') }
+  } catch (error) {
+    if (signal.aborted) throw new DocumentFailure('operation-cancelled')
+    if (model.isolated !== false) throw new DocumentFailure('privacy-unavailable')
+    if (error instanceof MemoryFailure && error.code === 'budget-exceeded') throw new DocumentFailure('budget-exceeded')
+    const kind = error instanceof ModelFailure ? error.kind : 'network'
+    throw new DocumentFailure(kind === 'configuration' ? 'configuration-failed' : kind === 'quota' ? 'quota-exhausted' : kind === 'upstream' ? 'upstream-busy' : kind === 'invalid-output' ? 'invalid-model-output' : kind === 'content-filtered' ? 'content-filtered' : 'connection-failed')
+  }
   finally { cancel(); remove() }
-  if (combined.aborted) throw new DocumentFailure('privacy-unavailable')
+  if (combined.aborted) throw new DocumentFailure(signal.aborted ? 'operation-cancelled' : model.isolated === false ? 'connection-failed' : 'privacy-unavailable')
   try {
     const output = outputSchema.parse(result)
     let deadlineIso: string | null = null
@@ -34,7 +42,7 @@ export async function organizeDocument(input: DocumentPrivacyInput, model: Docum
     const markdown = (model.isolated === false ? redactSecrets : redactFixed)(output.markdown)
     if (!markdown.trim() || markdown.includes('\0')) throw new Error('INVALID_DOCUMENT')
     return { markdown, deadlineIso }
-  } catch { throw new DocumentFailure('privacy-invalid-output') }
+  } catch { throw new DocumentFailure(model.isolated === false ? 'invalid-model-output' : 'privacy-invalid-output') }
 }
 export function createFakeDocumentModel(clock: Clock) {
   let scenario: DocumentScenarioId = 'ready'

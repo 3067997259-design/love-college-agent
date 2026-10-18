@@ -1,6 +1,6 @@
 # 校园助手
 
-需要 LCA v0.1.9。在插件页安装本目录并启用即可；不再导入 `student-hub/mcp.json` 或安装 `student-hub-candidates`。已装旧版时，新版启用后聊天不再重复提供旧两项工具；可以在插件页关闭旧入口，原有候选和忽略状态保留。
+需要 LCA v0.1.10。在插件页安装本目录并启用即可；不再导入 `student-hub/mcp.json` 或安装 `student-hub-candidates`。已装旧版时，新版启用后聊天不再重复提供旧两项工具；可以在插件页关闭旧入口，原有候选和忽略状态保留。
 
 这个包是 LCA 的完整读取工作流适配器，使用本机已安装、已登录的 Student Hub 后端；不是独立打包的 Python/学校登录环境。默认适配当前电脑路径。其他电脑将 `connection.example.json` 复制为 `connection.json`，填已安装的后端、Python、配置路径；此文件不放账号密码。缺依赖会明确返回不可用，不能冒充空邮箱。
 
