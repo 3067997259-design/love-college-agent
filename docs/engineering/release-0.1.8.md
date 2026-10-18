@@ -19,6 +19,17 @@
 
 ## 构建与交付
 
-封包准备已完成；本条将在构建及打包程序回归完成后补充实际源码、哈希、产物与 Release。此时不能把源码结果称为新安装包验收。
+- 13:44 从干净源码 `4419b20e16bd3a569f7c23ddd6684860224dc680` 构建，`trackedDirty=false`。
+- 安装器 `Love-College-Agent-0.1.8-Setup.exe`：264,368,180 字节，SHA-256 `1684118dbc60b620ef4dfd3f0cf06a814fb414ad1f05f7eee75eebab27922629`，签名状态 `NotSigned`。
+- `app.asar` SHA-256：`1a796e371a6db30bd59321c683260bde7545d2861542076718408a83b8722ede`；包内 package 版本为 0.1.8，主进程与构建输出逐字节一致，检出“跟随主模型”“请她补写”“填写模型连接”“添加插件”。
+- 安装器、blockmap、构建回执已复制到 `D:\lca-release-safe\v0.1.8\`，副本哈希一致。
+- 13:54 `pnpm test:package --unpacked-only` 完成，**37/37 场景通过**；另有 SQLite/日志/番茄/存档/记忆/生活/心流七类原生探针、普通 UI 重启、历史页照片与引用恢复通过。
+- 报告 `test-results/package-unpacked-report.json`：`ok=true`、`executionTarget=unpacked`、`installedProbes=false`、`syntheticServices=true`、`realProviderQualityAccepted=false`。本次一轮通过，不借用旧包报告。
 
 本机已有同名用户安装，打包检查使用 `pnpm test:package --unpacked-only`，不升级或卸载用户安装。它不代替安装器升级和第二台 Windows 人工验收。真实日记文笔、付费礼物质量与耗时、TTS/OCR、长期自主运行仍有独立边界。
+
+## 交付入口
+
+- [GitHub Release v0.1.8](https://github.com/3067997259-design/love-college-agent/releases/tag/v0.1.8)：安装器、blockmap、构建回执、校验和、包内回归报告和 `LCA-Demo-Kit-v0.1.8.zip`。
+- 固定副本 `D:\lca-release-safe\v0.1.8\`，源构建目录 `D:\lca-gpt\release\`。操作卡包含首次配置、评委讲稿、展位方案、公开样例、三种独立启动入口及此次审计全文，不含私人存档或配置。
+- 代码修复已快进 main；本轮不改变仓库可见性，也不提交赛事表单。公开 J0/J1/V0、第二台全片试播和真人计时彩排仍由现场实际完成。

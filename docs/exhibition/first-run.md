@@ -4,7 +4,7 @@
 
 ## 1. 拿对安装包
 
-本次修复目标为 **v0.1.8** 的 `Love-College-Agent-0.1.8-Setup.exe`，产物位于 `D:\lca-gpt\release\`。复制前先核对 [发布记录](../engineering/release-0.1.8.md) 中的实际构建状态、字节数与 SHA-256；构建未完成时不要把旧安装器改名充当新包。
+本次使用 **v0.1.8** 的 `Love-College-Agent-0.1.8-Setup.exe`，产物位于 `D:\lca-gpt\release\`，固定副本在 `D:\lca-release-safe\v0.1.8\`。安装器 264,368,180 字节，SHA-256：`1684118dbc60b620ef4dfd3f0cf06a814fb414ad1f05f7eee75eebab27922629`。复制前核对 [发布记录](../engineering/release-0.1.8.md) 中的回归与交付状态。
 
 v0.1.8 保留新版 UI、文案和插件中心，并修复“测试成功但不能聊天”、模型路由、日记恢复和礼物同意门槛。v0.1.7 有上述已确认问题；先前测试报告不代替本次修复验收，第二台人工体验仍须实际完成。
 

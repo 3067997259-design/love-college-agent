@@ -1,8 +1,8 @@
 # Love, College & Agent
 
-**10-18 再次打包前运行审计：** 已修复模型配置热生效、记忆/日记与隐私的显式“跟随主模型”、礼物同意门槛、日记中断补写、Rodin/邮箱配置和存档竞态。隐私跟随主模型即关闭隔离，主模型可读新原文；独立隐私失败仍停止，旧隔离资料不会因切换自动公开。详细问题、证据和未验收边界见 [运行链路审计](docs/engineering/runtime-closeout-audit-20261018.md)。新增 `pnpm test:model-routing`，打包回归增至 37 场景；新包尚未在这条记录中宣称完成。
+**10-18 13:54 v0.1.8 运行审计收尾：** 修复模型配置热生效、记忆/日记与隐私的显式“跟随主模型”、礼物同意门槛、日记中断补写、隐私插件原文日志、Rodin/邮箱配置和存档竞态。隐私跟随主模型即关闭隔离，主模型可读新原文；独立隐私失败仍停止，旧隔离资料不会因切换自动公开。详细 12 项问题见 [运行链路审计](docs/engineering/runtime-closeout-audit-20261018.md)。干净源码 `4419b20`，类型/lint、551 项单测、11 条源码流程及新包 **37/37** 场景通过；本轮包内 EXE+合成服务，不代替第二台安装或真实生成质量。安装器 SHA `1684118d…`，见 [发布记录](docs/engineering/release-0.1.8.md)、[安装到首聊](docs/exhibition/first-run.md)。
 
-**10-18 v0.1.7 收尾入口：** 新安装器 `Love-College-Agent-0.1.7-Setup.exe` 包含最新版 UI／文案、Provider 表单和插件中心，创建桌面／开始菜单快捷方式；干净源码 `4670183`，SHA `a070613f…`，验证见 [发布记录](docs/engineering/release-0.1.7.md)。第二台机器按 [安装到第一句聊天](docs/exhibition/first-run.md)；现场用 [三分钟评委操作卡](docs/exhibition/judges.md) 和 [全校展示手册](docs/exhibition/booth-runbook.md)。本次撤去 MC 展示，保留历史实现；真实普通评委档、真实展位访客档与假模型彩排档分开。第二台人工体验、公开演示档和赛事提交仍单列；问题与未完成项见 [收尾审计](docs/engineering/closeout-audit-20261018.md)。下方 12:03 临时包等为历史记录。
+**10-18 v0.1.7 历史收尾记录（由 v0.1.8 修复版替代）：** 安装器 `Love-College-Agent-0.1.7-Setup.exe` 包含新版 UI／文案、Provider 表单和插件中心，创建桌面／开始菜单快捷方式；干净源码 `4670183`，SHA `a070613f…`，验证见 [发布记录](docs/engineering/release-0.1.7.md)。现场用 [三分钟评委操作卡](docs/exhibition/judges.md) 和 [全校展示手册](docs/exhibition/booth-runbook.md)。本次撤去 MC 展示，保留历史实现；真实普通评委档、真实展位访客档与假模型彩排档分开。第二台人工体验、公开演示档和赛事提交仍单列；问题与未完成项见 [收尾审计](docs/engineering/closeout-audit-20261018.md)。下方 12:03 临时包等为历史记录。
 
 **10-18 12:12 两处人体瑕疵修正版：** [V8 完整中文字幕母版](film/out/rescue-20261018T005611Z/LCA_MASTER_V8_ZH_FINAL_1080p.mp4) 已导出并检查通过。清除约 01:08 衣架服装内多出的胳膊和手，修正约 01:18 撑伞图的肢体重叠，并同步修正约 01:24 的同图复用；使用两次内置图片编辑及局部视频合成，没有新增 H3 视频请求。保留已认可的全部切点、207.5 秒时长和 45 句中文字幕，音轨载荷与 V7 完全一致；全片 4980 帧解码、修补镜头边界、其他镜头对照通过。V6／V7 保留，当前原生 Resolve 时间线仍为 V6。[修补与生成记录](film/out/rescue-20261018T005611Z/anatomy-v8/README.md)，[交付入口](film/out/rescue-20261018T005611Z/DELIVERY.md)。
 
