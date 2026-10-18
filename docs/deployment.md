@@ -1,6 +1,6 @@
 # Windows 部署与运行入口
 
-2026-10-18 收尾更新：第二台机器先按 [安装到第一句聊天](exhibition/first-run.md) 操作；当前新界面包的哈希和定向安装态结果见 [收尾审计](engineering/closeout-audit-20261018.md)。下文保留源码入口及历史安装记录，不能把旧包完整 26 项结果套到新包。
+2026-10-18 收尾更新：第二台机器先按 [安装到第一句聊天](exhibition/first-run.md) 操作；当前 v0.1.7 包的哈希与验证见 [发布记录](engineering/release-0.1.7.md)，早期定向安装态结果见 [收尾审计](engineering/closeout-audit-20261018.md)。下文保留源码入口及历史安装记录，不能把旧包完整 26 项结果套到新包。
 
 ## 从源码运行
 
@@ -25,7 +25,7 @@ pnpm dev
 
 ## 安装与模型配置
 
-构建 `pnpm package:win`，运行 `release/Love-College-Agent-0.1.0-Setup.exe`。安装不需要系统 Node、Python 或 pnpm；当前 Windows x64、未签名。现有 NSIS 不创建桌面／开始菜单快捷方式，也不自动启动；安装完成后运行安装目录的 `LoveCollegeAgent.exe`。应用数据不写在安装目录，卸载不自动删除用户数据。
+构建 `pnpm package:win`，运行 `release/Love-College-Agent-0.1.7-Setup.exe`（文件名随 package.json 版本变化）。安装不需要系统 Node、Python 或 pnpm；当前 Windows x64、未签名。v0.1.7 创建桌面／开始菜单快捷方式，不自动启动；安装完成后通过快捷方式或安装目录中的 `LoveCollegeAgent.exe` 打开。应用数据不写在安装目录，卸载不自动删除用户数据。
 
 正常模式打开“工具与设置”→“模型连接”，可直接在图形界面填写日常对话／记忆与日记／隐私滤芯的接口地址、模型和密钥，保存后可点“测试连接”，再重启应用生效。也可以选择本机 providers JSON 导入。字段为 `providers.<槽位>.{base_url, api_key, model}`；可用槽位 `chat`、`background`、`chat_google`、`chat_claude`、`privacy`，其他槽位可保存但未必有功能消费者。配置只由主进程读取，保存到数据根 `connections/providers.json`；重启后应用。界面不显示已保存的地址、模型或密钥值；测试成功只表示这次固定小请求连上了，不代表真实回答质量。保存成功不代表连接成功。
 
