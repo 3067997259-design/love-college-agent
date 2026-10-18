@@ -27,6 +27,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
 }) {
   const { clock, store, scheduler, repository } = options
   const records = () => store.history?.() ?? store.records()
+  const retiredSourceIds = () => { const rows = records(); const allowed = new Set(seenFragments(rows, true).map((fragment) => fragment.id)); return new Set(seenFragments(rows).filter((fragment) => !allowed.has(fragment.id)).map((fragment) => fragment.id)) }
   let worker: Promise<void> | undefined; let active: AbortController | undefined; let disposed = false; let enabled = true
   let status: MemoryView['status'] = options.model ? 'idle' : 'unconfigured'
   let error: { code: PublicErrorCode; retryable: boolean } | undefined
@@ -34,7 +35,12 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   const lastUserAt = () => records().reduce((time, row) => row.type === 'user/message' ? Math.max(time, row.atMs) : time, 0)
   const allowed = () => !disposed && enabled && !store.projection().lightsOut
   const backgroundAllowed = () => allowed() && !options.isBusy() && clock.nowMs() - lastUserAt() >= idleMs
-  const normalEntries = () => { const entries = store.projection().contextEntries; const allowed = options.includeContextEntries?.(entries.map((entry) => entry.seq)); return allowed ? entries.filter((entry) => allowed.has(entry.seq)) : entries }
+  const normalEntries = () => {
+    const entries = store.projection().contextEntries; const allowed = options.includeContextEntries?.(entries.map((entry) => entry.seq))
+    const retired = retiredSourceIds()
+    const retiredCompactions = new Set(store.records().flatMap((row) => row.type === 'context/compact' && row.sources?.some((source) => retired.has(source.id)) ? [row.seq] : []))
+    return entries.filter((entry) => (!allowed || allowed.has(entry.seq)) && !retiredCompactions.has(entry.seq))
+  }
   const contextChars = () => JSON.stringify(normalEntries().map((entry) => entry.message)).length
   const dayKey = () => store.dayKey?.() ?? sessionDayKey(clock)
   const pendingDay = () => sessionDayKey(clock) > dayKey()
@@ -66,7 +72,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   }
   const extractCore = async (signal: AbortSignal) => {
     repository.refresh(); const before = repository.view(); const known = new Set(before.keys)
-    const input = inputLimit(seenFragments(records()).filter((source) => !known.has(source.key)).slice(0, 5))
+    const input = inputLimit(seenFragments(records(), true).filter((source) => !known.has(source.key)).slice(0, 5))
     if (!input.length) return
     const entries = await call('extract', input, signal, (output) => validateMemories(output, input, store.scope, before.items))
     signal.throwIfAborted()
@@ -80,7 +86,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     const selected = normalEntries().filter((entry) => entry.seq <= cutoff)
     if (!selected.length) { if (force) throw new MemoryFailure('unavailable'); return }
     const oldSummarySources = new Set(rows.flatMap((row) => row.type === 'context/compact' && row.seq <= cutoff ? (row.sources ?? []).map((source) => source.id) : []))
-    const input = inputLimit(seenFragments(rows).filter((fragment) => oldSummarySources.has(fragment.id) || selected.some((entry) => entry.message.role === fragment.role && redactFixed(entry.message.content).includes(fragment.text))))
+    const input = inputLimit(seenFragments(rows, true).filter((fragment) => oldSummarySources.has(fragment.id) || selected.some((entry) => entry.message.role === fragment.role && redactFixed(entry.message.content).includes(fragment.text))))
     if (!input.length) throw new MemoryFailure('unavailable')
     const summarized = await call('compact', input, signal, (output) => validateSummary(output, input))
     const summary = JSON.stringify({ conversationSummary: summarized.text, reviewStatus: 'unreviewed' })
@@ -91,7 +97,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   const pages = () => store.pages?.() ?? [{ sessionId: store.scope.sessionId, dayKey: dayKey(), records: store.records() }]
   const summarizeDay = async (page: ReturnType<typeof pages>[number], signal: AbortSignal) => {
     if (repository.view().summaries.some((summary) => summary.level === 'day' && summary.sourceSessionIds.includes(page.sessionId))) return
-    const input = inputLimit(seenFragments(page.records).slice(-24))
+    const input = inputLimit(seenFragments(page.records, true).slice(-24))
     if (!input.length) return
     const summarized = await call('day', input, signal, (output) => validateSummary(output, input))
     signal.throwIfAborted()
@@ -146,12 +152,13 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     if (!backgroundAllowed() || worker) return
     if (pendingDay()) { await run('day', rollCore); return }
     if (!options.model) return
-    const old = pages().filter((page) => page.dayKey < dayKey() && seenFragments(page.records).length && !repository.view().summaries.some((summary) => summary.sourceSessionIds.includes(page.sessionId))).at(-1)
+    const old = pages().filter((page) => page.dayKey < dayKey() && seenFragments(page.records, true).length && !repository.view().summaries.some((summary) => summary.sourceSessionIds.includes(page.sessionId))).at(-1)
     await run('extract', async (signal) => { if (old) await summarizeDay(old, signal); await extractCore(signal); await compactCore(signal); await consolidateCore(signal, 1) })
   }
   scheduler.schedule('memory.maintenance', clock.nowMs() + 30_000, () => { void maintenance().catch(() => options.failed?.()) }, { everyMs: 30_000 })
   const search = (query: string, requestId: string) => {
-    const matches = searchMemories(repository.view().items, query.slice(-1200), clock.nowMs())
+    const retired = retiredSourceIds()
+    const matches = searchMemories(repository.view().items.filter((item) => item.sources.every((source) => !retired.has(source.id))), query.slice(-1200), clock.nowMs())
     if (matches.length) repository.append({ type: 'memory/access', ids: matches.map((match) => match.item.id), requestId, sessionId: store.scope.sessionId })
     return matches.map(({ item }) => ({ id: item.id, text: item.text, kind: item.kind, tier: item.tier, atMs: item.lastMentionedAtMs, reviewStatus: item.reviewStatus, sources: item.sources.map((source) => source.id) }))
   }
@@ -194,7 +201,8 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       const opticalReplies = new Set(rows.flatMap((row) => row.type === 'assistant/message' && opticalTurns.has(row.turnId) ? [row.seq] : []))
       const today = base.filter((entry) => !policies.includes(entry))
       const recall = allowed() ? search(today.filter((entry) => entry.message.role === 'user').slice(-3).map((entry) => entry.message.content).join('\n'), turnId) : []
-      const summaries = summaryReferences(allowed() ? validSummaries(repository.view().summaries) : [], store.scope.sessionId, sessionDayKey(clock), clock).map((summary) => ({ level: summary.level, dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
+      const retired = retiredSourceIds()
+      const summaries = summaryReferences(allowed() ? validSummaries(repository.view().summaries).filter((summary) => summary.sources.every((source) => !retired.has(source.id))) : [], store.scope.sessionId, sessionDayKey(clock), clock).map((summary) => ({ level: summary.level, dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
       const messages: ContextMessage[] = [{ role: 'system', content: harnessPolicy.system }, ...policies.map((entry) => entry.message), ...profileContext(store.projection().onboarding)]; const eligibleIndexes: number[] = []
       const character = records().findLast((row) => row.type === 'character/definition')
       // 导入的角色包有自己的定义记录；内置桃子没有，用内置角色卡

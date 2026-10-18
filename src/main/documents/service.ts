@@ -30,6 +30,13 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
   const processingModel = () => enabled() ? options.model : options.mainModel ?? null
   const shareable = (job: DocumentJob) => enabled() || job.sharedWithMain === true
   const mainTexts = new Map<string, string>()
+  const pendingContext = new Set<string>()
+  let contextTurn = ''; const contextIds = new Set<string>()
+  const selectContextTurn = (turnId: string) => {
+    if (contextTurn !== turnId) { contextTurn = turnId; contextIds.clear() }
+    for (const id of pendingContext) contextIds.add(id)
+    pendingContext.clear()
+  }
   const initialState = (): Pick<DocumentView, 'status' | 'error'> => !enabled() && !options.mainModel?.ready ? { status: 'staged' } : processingModel()?.ready ? { status: 'queued' } : { status: 'failed', error: { code: 'privacy-unavailable', retryable: true } }
   const canRun = () => !disposed && pluginEnabled && !!processingModel()?.ready && !store.projection().lightsOut
   const append = (row: JournalInput) => {
@@ -105,6 +112,7 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
     let sourceRef: string
     try { sourceRef = vault.put(bytes, format) } catch (cause) { if (cause instanceof DocumentFailure) throw cause; options.failed?.(); throw new DocumentFailure('internal') }
     const id = 'doc:' + hash(JSON.stringify([store.scope.userId, store.scope.characterId, sourceRef, origin, attachmentId]))
+    pendingContext.add(id)
     if (state.jobs.some((job) => job.view.id === id)) return id
     append({ type: 'document/job', job: { sourceRef, sharedWithMain: !enabled() && !!options.mainModel, attempt: 0, view: { id, displayName: '资料-' + id.slice(-8) + '.' + suffix[format], format,
       origin, source: options.model?.source ?? 'real', byteLength: bytes.length, createdAtMs: clock.nowMs(), updatedAtMs: clock.nowMs(),
@@ -148,10 +156,21 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
     view: (): DocumentsView => ({ jobs: state.jobs.map((job) => structuredClone(job.view)), attachments: state.attachments.map((entry) => structuredClone(entry.view)),
       privacyAvailable: !!options.model?.ready, ...(options.development ? { scenarioId: options.development.scenario() } : {}) }),
     filteringEnabled: enabled,
-    mainContext: async (signal: AbortSignal) => {
+    canReadSource: (id: string) => !disposed && pluginEnabled && !enabled() && !!options.mainModel && state.jobs.some((job) => job.view.id === id && job.sharedWithMain && job.view.status !== 'cancelled'),
+    requestMainSource: (documentId: string, turnId: string): PublicErrorCode | undefined => {
+      const job = state.jobs.find((item) => item.view.id === documentId)
+      if (!job || job.view.status === 'cancelled' || !pluginEnabled || disposed) return 'unavailable'
+      if (enabled() || !job.sharedWithMain || !options.mainModel) return 'permission-denied'
+      selectContextTurn(turnId); contextIds.delete(documentId); contextIds.add(documentId)
+    },
+    mainContext: async (signal: AbortSignal, turnId?: string) => {
+      if (turnId) selectContextTurn(turnId)
       if (disposed || !pluginEnabled || enabled() || !options.mainModel) return []
       const result: { kind: string; ref: string; text: string; truncated: boolean }[] = []
-      for (const job of state.jobs.filter((item) => item.sharedWithMain && item.view.status !== 'cancelled').slice(-4)) {
+      const requested = [...contextIds]
+      const selected = state.jobs.filter((item) => item.sharedWithMain && item.view.status !== 'cancelled' && (!turnId || contextIds.has(item.view.id)))
+      if (turnId) selected.sort((a, b) => requested.indexOf(a.view.id) - requested.indexOf(b.view.id))
+      for (const job of selected.slice(-4)) {
         signal.throwIfAborted()
         try {
           let text = mainTexts.get(job.view.id)

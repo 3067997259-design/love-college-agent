@@ -34,6 +34,14 @@ function echoTool(run = vi.fn(async () => ({ ok: true, raw: { private: 'syntheti
 function aborted(signal: AbortSignal): Promise<ModelReply> { return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new ModelFailure('cancelled')), { once: true })) }
 
 describe('single inbox execution loop', () => {
+  it('discards a reply produced before an ignore or permission change and rebuilds before executing its tools', async () => {
+    const f = fixture(); let version = 'before'; const tool = echoTool()
+    const model = scripted(async (_request, index) => { if (index === 0) { version = 'after'; return reply([{ id: 'stale-call', name: tool.tool.definition.name, arguments: '{}' }], 'STALE_REPLY') } return reply([], 'fresh reply') })
+    const h = start({ ...f, model, tools: [tool.tool], contextVersion: () => version })
+    h.send('请读文件', 'context-change', 'hash'); await h.idle()
+    expect(tool.run).not.toHaveBeenCalled(); expect(JSON.stringify(f.store.records())).not.toContain('STALE_REPLY')
+    expect(f.store.projection().messages.at(-1)?.text).toBe('fresh reply')
+  })
   it('refuses a durable resource admission before model dispatch, independently of the book projection', async () => {
     const f = fixture(); const dispatched = vi.fn(async () => reply([], 'must not dispatch'))
     const reserveModel = vi.fn(() => { throw new ResourceFailure('budget-exceeded') })

@@ -37,6 +37,7 @@ export function createHarness(options: {
   budget?: ResourceAdmissions
   prepareContext?(turnId: string, signal: AbortSignal): Promise<{ messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }>
   privateContext?(signal: AbortSignal): Promise<readonly ContextMessage[]>
+  contextVersion?(): string
   foreground?(): void
   userWork?(): void
   settled?(): void
@@ -110,6 +111,7 @@ export function createHarness(options: {
           const prepared = options.prepareContext ? await options.prepareContext(turn.id, turn.abort.signal) : undefined
           const recordedMessages = prepared?.messages ?? store.projection().context
           const seen = { messages: structuredClone([...recordedMessages]), eligibleIndexes: prepared ? [...prepared.eligibleIndexes] : recordedMessages.flatMap((message, index) => message.role === 'system' ? [] : [index]) }
+          const contextVersion = options.contextVersion?.()
           const supplement = options.privateContext ? await options.privateContext(turn.abort.signal) : []
           const messages = [...recordedMessages, ...supplement]
           const definitions = [...currentTools().values()].map((tool) => tool.definition)
@@ -128,6 +130,7 @@ export function createHarness(options: {
             record({ type: 'model/attempt', turnId: turn.id, ...attempt, bucket, ...(attempt.status === 'started' ? { reservedTokens: reservation, ...(resourceReservationId ? { resourceReservationId } : {}) } : {}) })
           })
           turn.abort.signal.throwIfAborted()
+          if (options.contextVersion?.() !== contextVersion) continue
           record({ type: 'model/seen', turnId: turn.id, source: model.source, ...seen })
           if (new Set(reply.toolCalls.map((call) => call.id)).size !== reply.toolCalls.length || reply.toolCalls.some((call) => callIds.has(call.id))) throw new GuardFailure('loop', 'repeat-limit')
           record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: reply.text, status: 'complete',

@@ -88,7 +88,7 @@ try {
   stage = 'history'
   await run(process.execPath, [join(root, 'scripts/smoke-history.mjs')])
   delete env.LCA_HISTORY_EXECUTABLE
-  const thirdCircleScenarios = ['onboarding', 'life-work', 'sleep', 'flow-sleep', 'flow-drafts', 'desk-shadow', 'delegates', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'computer', 'web-fetch', 'booth', 'mini', 'showcase', 'life-port', 'resources', 'questions', 'desk-command', 'flow-rewind', 'settings', 'failure-narrator', 'privacy-probe', 'providers', 'plugins', 'student-hub-package', 'student-hub-candidates', 'documents', 'campus', 'pomodoro', 'model-routing', 'model-slots', 'gifts', 'room']
+  const thirdCircleScenarios = [...new Set(['model-routing', 'model-slots', 'documents', 'campus', 'memory', 'harness', 'gifts', 'onboarding', 'life-work', 'sleep', 'flow-sleep', 'flow-drafts', 'desk-shadow', 'delegates', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'computer', 'web-fetch', 'booth', 'mini', 'showcase', 'life-port', 'resources', 'questions', 'desk-command', 'flow-rewind', 'settings', 'failure-narrator', 'privacy-probe', 'providers', 'plugins', 'student-hub-package', 'student-hub-candidates', 'documents', 'campus', 'pomodoro', 'model-routing', 'model-slots', 'gifts', 'room'])]
   env.LCA_TEST_EXECUTABLE = exe
   for (const name of thirdCircleScenarios) { stage = 'scenario:' + name; await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs')]); completedScenarios.push(name); console.log(`${unpackedOnly ? 'Unpacked' : 'Installed'} Electron scenario passed: ${name}`); await new Promise((done) => setTimeout(done, 1500)) }
   delete env.LCA_TEST_EXECUTABLE

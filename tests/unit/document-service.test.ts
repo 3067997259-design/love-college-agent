@@ -40,6 +40,10 @@ describe('document task ownership and privacy gate', () => {
     const id = f.documents.stage(Buffer.from('IMMEDIATE_UPLOAD_SOURCE'), 'text', 'drop')
     const signal = new AbortController().signal
     expect(await f.documents.mainContext(signal)).toMatchObject([{ ref: id, text: 'IMMEDIATE_UPLOAD_SOURCE' }])
+    expect(await f.documents.mainContext(signal, 'upload-turn')).toHaveLength(1)
+    expect(await f.documents.mainContext(signal, 'another-turn')).toEqual([])
+    expect(f.documents.requestMainSource(id, 'another-turn')).toBeUndefined()
+    expect(await f.documents.mainContext(signal, 'another-turn')).toHaveLength(1)
     const pending = f.documents.runNext()
     await vi.waitFor(() => expect(main.organize).toHaveBeenCalledOnce())
     expect(f.documents.view().jobs[0].status).toBe('processing')

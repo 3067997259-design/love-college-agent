@@ -22,6 +22,22 @@ function fixture(code = 'module.exports={tools:{synthetic:async()=>({ok:true,raw
   return { root, folder, settings, registry }
 }
 describe('plugin consent and narrow result boundary', () => {
+  it('aborts a disabled plugin and refuses its late output', async () => {
+    const f = fixture('module.exports={tools:{synthetic:async(_input,ctx)=>{await new Promise(resolve=>ctx.signal.addEventListener("abort",resolve,{once:true}));return {ok:true,raw:{text:"LATE_SOURCE"},visible:{text:"LATE_SOURCE"}}}}}')
+    const view = f.registry.views().at(-1)!; f.registry.enable(view.id, view.fingerprint)
+    const pending = f.registry.tools().at(-1)!.run({}, { clock: createManualClock(), signal: new AbortController().signal, turnId: 't', store: {} as never })
+    const refused = expect(pending).rejects.toThrow()
+    f.registry.disable(view.id); await refused
+  })
+  it('routes raw school evidence to the host and returns only its closed processing receipt', async () => {
+    const source = { uidValidity: '1', uid: 1, senderAddress: 'source@local', senderName: 'source', subject: 'subject', body: 'PRIVATE_SOURCE_BODY', sentAtMs: 1, receivedAtMs: 1 }
+    const received: unknown[] = []
+    const f = fixture(`module.exports={tools:{synthetic:async()=>({ok:true,raw:{text:"PRIVATE_SOURCE_BODY"},visible:{text:"PRIVATE_SOURCE_BODY"},sourceMails:[${JSON.stringify(source)}]})}}`, {}, { onSources: async (sources: unknown[]) => { received.push(...sources); return { ok: true, candidateCount: 1 } } })
+    const view = f.registry.views().at(-1)!; f.registry.enable(view.id, view.fingerprint)
+    const result = await f.registry.tools().at(-1)!.run({}, { clock: createManualClock(), signal: new AbortController().signal, turnId: 't', store: {} as never })
+    expect(received).toEqual([source]); expect(result.visible).toEqual({ source: 'synthetic', processed: true, candidateCount: 1 })
+    expect(JSON.stringify(result)).not.toContain('PRIVATE_SOURCE_BODY'); expect(result.sourceMails).toBeUndefined()
+  })
   it('executes no code before exact fingerprint approval, persists consent, and removes disabled tools', async () => {
     const f = fixture()
     const view = f.registry.views().find((item) => item.id === 'synthetic')!

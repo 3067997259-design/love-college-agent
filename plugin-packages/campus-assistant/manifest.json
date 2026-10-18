@@ -1,0 +1,16 @@
+{
+  "apiVersion": 1,
+  "id": "campus-assistant",
+  "name": "校园助手",
+  "version": "0.1.0",
+  "description": "一个入口完成 Student Hub 扫描、进度查询、读取和候选卡导入；确认后由书页导出本地日历或 Markdown。依赖已配置的本机 Student Hub 与 Python，原文交给 LCA 当前隐私策略处理。无需再安装两个旧插件。",
+  "privacy": "none",
+  "permissions": ["local-code", "filesystem", "network"],
+  "entry": "index.cjs",
+  "tools": [{
+    "name": "campus_assistant",
+    "description": "校园助手统一入口。health 检查依赖但不扫描；import 导入已有事项；scan 仅在用户要求检查学校更新时启动一次只读扫描并返回 jobId；status 查询同一 jobId，仍运行时向用户说明等待，不循环轰炸；成功后 collect 读取未整理证据并由 LCA 隐私策略提取成候选卡；cancel 请求取消。失败不能解释为没有更新。候选只由用户在卡片确认或忽略，确认后使用书页导出，不写外部日历。",
+    "parameters": {"type":"object","properties":{"action":{"type":"string","enum":["health","import","scan","status","collect","cancel"]},"jobId":{"type":"string","minLength":1,"maxLength":128},"limit":{"type":"integer","minimum":1,"maximum":20}},"required":["action"],"additionalProperties":false},
+    "templateId": "student-hub.assistant"
+  }]
+}

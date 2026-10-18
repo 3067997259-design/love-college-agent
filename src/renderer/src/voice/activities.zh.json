@@ -29,6 +29,16 @@
     "running": "看一下资料整理到哪了",
     "completed": "看过资料的进度。"
   },
+  "document.read": {
+    "running": "请求读取这份资料",
+    "completed": "已请求读取这份资料。",
+    "failed": "这份资料当前不能读取。"
+  },
+  "student-hub.assistant": {
+    "running": "处理校园信息",
+    "completed": "校园助手返回了处理状态。",
+    "failed": "校园助手这一步未完成。"
+  },
   "clock.read": {
     "running": "看一眼时间",
     "completed": "看过时间。"

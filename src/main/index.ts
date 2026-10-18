@@ -75,7 +75,7 @@ import { createImapSource } from './mail/imap'
 import type { MailSource } from './mail/types'
 import { openEvidenceVault, type EvidenceVault } from './mail/evidence-vault'
 import { createCampusService, type CampusService } from './campus/service'
-import { omitIgnoredMail } from './campus/context'
+import { omitIgnoredMail, retireSourceContext } from './campus/context'
 import { mailTools } from './mail/tools'
 import { probeCampus } from './validation/campus'
 import { createArtifactStore } from './artifacts/store'
@@ -406,7 +406,7 @@ void app.whenReady().then(async () => {
       emit: (id, text) => { harness?.postEvent('pomodoro', text, id) } })
     const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, clock,
       get privacyModel() { return prepared.developer ? createFakePrivacyModel() : taskModels.narrow }, privacyEnabled, fileFiltering: () => prepared.pluginSettings.read().fileFilteringEnabled,
-      onCandidates: (seeds) => { campus?.ingestCandidates(seeds) } })
+      onCandidates: (seeds) => { campus?.ingestCandidates(seeds) }, onSources: (sources, signal) => campus!.ingestSources(sources, signal) })
     plugins.registerBuiltin('core', '时钟与任务计划', [...builtinTools(), questions.tool()])
     plugins.registerBuiltin('pomodoro', '番茄钟', pomodoroTools(pomodoro))
     plugins.registerBuiltin('mail', '邮箱与校园候选', mailTools(campus), { handlesPrivacy: true, permissions: ['network'] })
@@ -540,13 +540,16 @@ void app.whenReady().then(async () => {
       // 游戏一轮每次调用都带人设并按字节计入展位预算：用短人设，不带整份正文
       persona: () => ({ name: controller!.getSnapshot().onboarding?.characterName ?? '桃子', persona: briefPersona(activeCharacter) }), credentials: privateCredentials, changed: () => controller?.refresh('message') })
     controller.attachMinecraft(minecraft, minecraftChat, mcpFixture ? (scenario) => mcpFixture!.game.select(scenario) : undefined)
-    harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools() ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
+    harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !(tool.definition.name === 'import_student_hub_candidates' && plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')) && !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools(plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled') ? ['student-hub'] : []) ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
+      contextVersion: () => JSON.stringify({ candidates: campus?.candidates().map((item) => [item.id, item.revision, item.status]), documents: documents?.view().jobs.map((job) => [job.id, job.status === 'cancelled']), mcp: mcp?.view().servers.map((server) => [server.id, server.status]), privacy: privacyEnabled(), files: documents?.filteringEnabled(), tools: plugins.tools().map((tool) => tool.definition.name) }),
       privateContext: async (signal) => {
         if (heartFlow?.active()) return []
-        const sources = [...(campus?.mainContext() ?? []), ...(await documents?.mainContext(signal) ?? [])]
+        const turnId = store!.projection().task!.id
+        const sources = [...(campus?.mainContext(turnId) ?? []), ...(await documents?.mainContext(signal, turnId) ?? [])]
         let remaining = 48000
         const bounded = sources.reverse().flatMap((source) => { if (remaining <= 0) return []; const text = source.text.slice(0, remaining); remaining -= text.length; return [{ ...source, text, truncated: source.truncated || text.length < source.text.length }] })
         const files = (documents?.view().jobs ?? []).slice(-8).reverse().map((job) => ({ documentId: job.id, status: job.status, origin: job.origin,
+          readableByMain: documents!.canReadSource(job.id),
           sourceAvailableToChat: bounded.some((source) => source.kind === 'document' && source.ref === job.id), ...(job.error ? { error: job.error.code } : {}) }))
         const ignoredCandidateIds = (campus?.candidates() ?? []).filter((candidate) => candidate.status === 'ignored').map((candidate) => candidate.id)
         if (!bounded.length && !files.length && !ignoredCandidateIds.length) return []
@@ -555,7 +558,8 @@ void app.whenReady().then(async () => {
       },
       prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); if (!heartFlow!.active()) {
         const recalled = recall!.prepare(id, preparedContext)
-        return { ...recalled, messages: omitIgnoredMail(recalled.messages, new Set((campus?.candidates() ?? []).filter((candidate) => candidate.status === 'ignored').map((candidate) => candidate.id))) }
+        const ignored = (campus?.candidates() ?? []).filter((candidate) => candidate.status === 'ignored')
+        return { ...recalled, messages: retireSourceContext(omitIgnoredMail(recalled.messages, new Set(ignored.map((candidate) => candidate.id))), store!.history?.() ?? store!.records(), id, ignored.map((candidate) => candidate.title)) }
       }
         const seen = new Set<string>(); const messages = preparedContext.messages.slice().reverse().map((message) => { if (!message.imageRefs) return message; const imageRefs = message.imageRefs.filter((ref) => { if (seen.has(ref) || seen.size >= 2) return false; seen.add(ref); return true }); return { ...message, imageRefs } }).reverse(); return { ...preparedContext, messages }
       }, foreground: () => { questions?.interrupt(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, afterTools: (turnId, callIds) => questions?.commit(turnId, callIds), turnSettled: (turnId) => questions?.settled(turnId), userWork: () => { sleep?.wake(); life?.foreground() },

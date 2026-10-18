@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import type { JournalRecord } from '../journal/schema'
 import { redactFixed } from '../privacy/redact'
 import type { MemorySource } from './schema'
+import { isSourceTool } from '../campus/context'
 
 export const memoryDigest = (text: string) => createHash('sha256').update(text).digest('hex')
 /**
@@ -32,8 +33,18 @@ const EVENT_ORIGIN = new Set<SeenOrigin>(EVENT_ORIGINS)
  * The sole memory input surface: successful model input snapshots, never tool/raw or any private store.
  * Origin comes from the journal record that produced the context entry, not from the message body.
  */
-export function seenFragments(records: readonly JournalRecord[]): SeenFragment[] {
+export function seenFragments(records: readonly JournalRecord[], memoryOnly = false): SeenFragment[] {
   let sessionId = ''; const seen = new Set<string>(); const result: SeenFragment[] = []
+  const externalCalls = records.flatMap((row) => row.type === 'tool/call' && isSourceTool(row.templateId) ? [row] : [])
+  const externalIds = new Set(externalCalls.map((row) => row.callId))
+  const externalTurns = new Set(externalCalls.map((row) => row.turnId))
+  const externalReplies = new Set(records.flatMap((row) => row.type === 'assistant/message' && externalTurns.has(row.turnId) ? [row.text] : []))
+  const ignored = new Set<string>(); const titles = new Map<string, string>()
+  for (const row of records) {
+    if (row.type === 'campus/proposed') { titles.set(row.candidate.id, row.candidate.title); ignored.delete(row.candidate.id) }
+    if (row.type === 'campus/ignored') ignored.add(row.candidateId)
+  }
+  const ignoredTitles = [...ignored].map((id) => titles.get(id) ?? '').filter((title) => title.length >= 4)
   const origins = new Map<string, SeenOrigin>()
   for (const row of records) {
     if (row.type !== 'inbox/event') continue
@@ -45,6 +56,7 @@ export function seenFragments(records: readonly JournalRecord[]): SeenFragment[]
     for (const index of row.eligibleIndexes) {
       const message = row.messages[index]
       if (!message || message.role === 'system' || !message.content.trim()) continue
+      if (memoryOnly && (message.role === 'tool' && externalIds.has(message.toolCallId ?? '') || message.role === 'assistant' && (externalReplies.has(message.content) || ignoredTitles.some((title) => message.content.includes(title))))) continue
       const text = redactFixed(message.content)
       const declared = declaredSource(message.content)
       let origin: SeenOrigin
@@ -53,6 +65,7 @@ export function seenFragments(records: readonly JournalRecord[]): SeenFragment[]
       else if (declared && EVENT_ORIGINS.includes(declared as SeenOrigin)) origin = declared as SeenOrigin
       else if (message.toolCallId) origin = origins.get(message.toolCallId) ?? 'unknown'
       else origin = 'user'
+      if (memoryOnly && (origin === 'mail' || origin === 'document')) continue
       for (let offset = 0; offset < text.length; offset += 2000) {
         const key = memoryDigest(JSON.stringify([sessionId, message.role, text, offset]))
         if (seen.has(key)) continue

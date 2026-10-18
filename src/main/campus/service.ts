@@ -38,6 +38,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
     processedCount: repository.view().processed.length, pendingReviewCount: repository.view().items.filter((item) => ['candidate', 'changed'].includes(item.current.status)).length,
     ...(options.development ? { scenarioId: options.development.scenario() } : {}) })
   const publish = () => options.changed()
+  let contextTurn = ''
   const currentSource = (entry: ReturnType<typeof repository.view>['processed'][number]) => {
     if (!entry.candidateId) return true
     const candidate = repository.view().items.find((item) => item.current.id === entry.candidateId)?.current
@@ -58,7 +59,8 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
     const consumed = new Set(records.flatMap((row) => row.type === 'inbox/drain' || row.type === 'inbox/drop' ? row.ids : []))
     for (const entry of repository.view().processed) if (entry.facts && currentSource(entry) && !consumed.has('mail:' + entry.sourceKey)) options.emit('mail:' + entry.sourceKey, JSON.stringify(entry.facts))
   }
-  const scanNow = (signal?: AbortSignal): Promise<ScanResult> => {
+  const scanNow = (signal?: AbortSignal, inputSource = source): Promise<ScanResult> => {
+    const source = inputSource
     if (worker) return worker
     if (disposed || !enabled || store.projection().lightsOut || options.canProcess?.() === false) return Promise.resolve({ ok: false, source: source.source, error: 'unavailable' })
     if (source.blocked) return Promise.resolve({ ok: false, source: source.source, error: 'source-blocked' })
@@ -87,7 +89,8 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
           try { evidenceRef = vault.put(sourceKey, mail, checked?.quotes ?? []) }
           catch { options.failed?.(); throw new CampusStorageFailure() }
           if (!checked) { repository.append({ type: 'mail/processed', sharedWithMain: options.followMain?.() === true, sourceKey, contentHash: hash, evidenceRef, result: 'notice' }); registerAttachments(mail, sourceKey); newCount++; continue }
-          const candidateId = 'c:' + digest(JSON.stringify([store.scope.userId, store.scope.characterId, source.source, mail.senderAddress.trim().toLowerCase(), checked.sourceRole, checked.title]))
+          const identity = mail.senderName === 'Student Hub' && /^artifact-[a-f0-9]+-\d+@student-hub\.local$/.test(mail.senderAddress) ? [] : [checked.sourceRole, checked.title]
+          const candidateId = 'c:' + digest(JSON.stringify([store.scope.userId, store.scope.characterId, source.source, mail.senderAddress.trim().toLowerCase(), ...identity]))
           const previous = repository.view().items.find((item) => item.current.id === candidateId)
           const roleLabel = { 'teaching-assistant': '课程助教', 'student-club': '社团活动', library: '图书馆', other: '校园信息' }[checked.sourceRole]
           const content = { kind: checked.kind, title: checked.title, deadlineIso: checked.deadlineIso, ...(checked.eventStartIso ? { eventStartIso: checked.eventStartIso } : {}),
@@ -221,8 +224,10 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
   }
   scheduler.schedule('mail.outbox', clock.nowMs() + 1000, flush, { everyMs: 1000 })
   return { view, repository, scanNow, ingestCandidates,
+    ingestSources: (messages: readonly SourceMail[], signal: AbortSignal): Promise<ScanResult> => worker ? Promise.resolve({ ok: false, source: 'real', error: 'unavailable' }) : scanNow(signal, { source: 'real', blocked: false, readUnseen: async () => ({ unseenCount: messages.length, messages }) }),
     privacyMode: () => options.followMain?.() ? 'follow-main' as const : 'isolated' as const,
-    mainContext: () => !enabled || disposed || !options.followMain?.() ? [] : repository.view().processed.filter((entry) => entry.sharedWithMain && currentSource(entry)).slice(-4).flatMap((entry) => {
+    requestContext: (turnId: string) => { contextTurn = turnId },
+    mainContext: (turnId?: string) => !enabled || disposed || !options.followMain?.() || turnId && contextTurn !== turnId ? [] : repository.view().processed.filter((entry) => entry.sharedWithMain && currentSource(entry)).slice(-4).flatMap((entry) => {
       try { const mail = vault.readForModel?.(entry.evidenceRef, store.scope); return mail ? [{ kind: 'mail', ref: entry.evidenceRef, subject: mail.subject, text: mail.body.slice(0, 24000), truncated: mail.body.length > 24000 }] : [] } catch { return [] }
     }),
     candidates: () => repository.view().items.map((item) => item.current),

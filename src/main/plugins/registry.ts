@@ -9,8 +9,9 @@ import type { SettingsStore } from '../config/settings'
 import { createPrivacyFilter, type PrivacyModel } from '../privacy/filter'
 import { systemClock, type Clock } from '../clock'
 import { manifestSchema, type PluginManifest } from './manifest'
+import type { SourceMail } from '../mail/types'
 
-interface Entry { view: PluginView; manifest?: PluginManifest; folder?: string; code?: string; tools: HarnessTool[]; handlesPrivacy?: boolean; activate?: (context: PluginActivationContext) => unknown }
+interface Entry { view: PluginView; manifest?: PluginManifest; folder?: string; code?: string; tools: HarnessTool[]; handlesPrivacy?: boolean; calls?: Set<AbortController>; activate?: (context: PluginActivationContext) => unknown }
 export interface PluginActivationContext {
   nowMs(): number
   signal: AbortSignal
@@ -18,6 +19,8 @@ export interface PluginActivationContext {
   ingestCandidates(seeds: readonly CandidateSeed[]): void
 }
 const resultSchema = z.strictObject({ ok: z.boolean(), raw: z.json(), visible: z.json(),
+  sourceMails: z.array(z.strictObject({ uidValidity: z.string().regex(/^\d{1,20}$/), uid: z.number().int().positive(), senderAddress: z.string().max(320), senderName: z.string().max(256),
+    subject: z.string().max(256), body: z.string().min(1).max(64_000), sentAtMs: z.number().int().nonnegative(), receivedAtMs: z.number().int().nonnegative() })).max(20).optional(),
   imageRefs: z.array(z.string().regex(/^work-frame:[a-f0-9]{64}$/)).max(1).optional(),
   fields: z.record(z.string().max(40), z.union([z.string().max(100), z.number().finite(), z.boolean()])).optional(),
   candidates: z.array(z.strictObject({ externalId: z.string().min(1).max(128), title: z.string().min(1).max(1000), kind: z.enum(['deadline', 'event']),
@@ -42,6 +45,7 @@ function validateParameters(parameters: Record<string, unknown>) {
 }
 
 export function createPluginRegistry(options: { root: string; settings: SettingsStore; clock?: Clock; privacyModel?: PrivacyModel | null; privacyEnabled?(): boolean; fileFiltering?: () => boolean;
+  onSources?(sources: readonly SourceMail[], signal: AbortSignal): Promise<{ ok: boolean; candidateCount?: number; error?: PublicErrorCode }>;
   onCandidates?: (seeds: readonly CandidateSeed[], source: { pluginId: string; tool?: string }) => void }) {
   const clock = options.clock ?? systemClock
   const entries = new Map<string, Entry>()
@@ -61,12 +65,28 @@ export function createPluginRegistry(options: { root: string; settings: Settings
     // Fail before invoking even a read operation if its mandatory privacy dependency is absent.
     const filtering = options.privacyEnabled?.() !== false && (entry.view.privacy === 'always' || (entry.view.privacy === 'optional' && options.fileFiltering?.()))
     if (filtering && !entry.handlesPrivacy && !options.privacyModel) return { ok: false, raw: { error: 'privacy-unavailable' }, visible: { error: 'privacy-unavailable' } }
-    const result = resultSchema.parse(await tool.run(input, context))
+    const call = new AbortController(); (entry.calls ??= new Set()).add(call)
+    const signal = AbortSignal.any([context.signal, call.signal])
+    try {
+    const result = resultSchema.parse(await tool.run(input, { ...context, signal }))
+    signal.throwIfAborted()
+    const currentFiltering = options.privacyEnabled?.() !== false && (entry.view.privacy === 'always' || (entry.view.privacy === 'optional' && options.fileFiltering?.()))
+    if (currentFiltering !== filtering) return { ok: false, raw: { error: 'permission-changed' }, visible: { error: 'permission-changed' } }
     if (JSON.stringify(result).length > 1_000_000) throw new Error('PLUGIN_RESULT_TOO_LARGE')
+    if (result.sourceMails) {
+      // Raw school evidence uses the host's existing extraction/validation pipeline, never a tool journal.
+      const processed = result.ok && options.onSources ? await options.onSources(result.sourceMails, signal) : { ok: false, error: 'unavailable' as const }
+      signal.throwIfAborted()
+      delete result.sourceMails
+      const receipt = { source: entry.view.id, processed: processed.ok, candidateCount: processed.candidateCount ?? 0, ...(processed.error ? { error: processed.error } : {}) }
+      return takeCandidates(entry, { ok: processed.ok, raw: receipt, visible: receipt, candidates: result.candidates }, tool.definition.name)
+    }
     if (!filtering || entry.handlesPrivacy) return takeCandidates(entry, result, tool.definition.name)
-    const filtered = await filter(JSON.stringify(result.raw), context.signal)
+    const filtered = await filter(JSON.stringify(result.raw), signal)
+    signal.throwIfAborted()
     return filtered.ok ? { ok: result.ok, raw: filtered.fields, visible: { ...filtered.fields, trust: filtered.trust }, fields: {} }
       : { ok: false, raw: { error: filtered.error }, visible: { error: filtered.error }, fields: {} }
+    } finally { entry.calls.delete(call) }
   } })
   const registerBuiltin = (id: string, name: string, tools: HarnessTool[], policy?: { handlesPrivacy: true; permissions: PluginView['permissions'] }) => {
     if (entries.has(id)) throw new Error('DUPLICATE_PLUGIN')
@@ -138,6 +158,7 @@ export function createPluginRegistry(options: { root: string; settings: Settings
           nowMs: () => clock.nowMs(),
           signal: new AbortController().signal,
           ingestCandidates: (seeds: readonly CandidateSeed[]) => {
+            if (entry.view.status !== 'enabled') return
             const filtering = options.privacyEnabled?.() !== false && (entry.view.privacy === 'always' || (entry.view.privacy === 'optional' && options.fileFiltering?.()))
             if (!filtering || entry.handlesPrivacy) options.onCandidates?.(seeds, { pluginId: entry.view.id })
           },
@@ -189,11 +210,13 @@ export function createPluginRegistry(options: { root: string; settings: Settings
       const entry = entries.get(id); if (!entry) return 'invalid-command'
       options.settings.update((draft) => { draft.plugins[id] = { enabled: false, fingerprint: entry.view.fingerprint, privacy: entry.view.privacy } })
       entry.view.status = 'disabled'
+      for (const call of entry.calls ?? []) call.abort()
       services.get(id)?.(false)
     },
     setPrivacy: (id: string, privacy: PluginView['privacy']): PublicErrorCode | undefined => {
       const entry = entries.get(id); if (!entry) return 'invalid-command'
       if (entry.view.privacyLocked && privacy !== 'always') return 'permission-denied'
+      for (const call of entry.calls ?? []) call.abort()
       options.settings.update((draft) => { draft.plugins[id] = { enabled: entry.view.status === 'enabled', fingerprint: entry.view.fingerprint, privacy } })
       entry.view.privacy = privacy
     },
