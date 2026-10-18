@@ -13,9 +13,9 @@
     "failed": "这封邮件没读到。"
   },
   "privacy.extract": {
-    "running": "《{fileName}》交给学校的模型整理，原文不经过我",
+    "running": "《{fileName}》已交给隐私滤芯整理，原文不经过我",
     "completed": "《{fileName}》整理好了。",
-    "failed": "学校的模型连不上，这份先放着，没有交给别处。"
+    "failed": "隐私滤芯连不上，这份先放着，没有交给别处。"
   },
   "calendar.write": {
     "running": "排进日程",
@@ -142,9 +142,9 @@
     "failed": "这条提醒没写成。"
   },
   "mcp.call": {
-    "running": "用一下外部工具",
-    "completed": "外部工具有结果了，我再核对。",
-    "failed": "外部工具没用成。"
+    "running": "调用插件工具",
+    "completed": "插件返回了结果，我再核对一下。",
+    "failed": "插件工具没用成。"
   },
   "tool.unavailable": {
     "failed": "这个工具现在用不了。"

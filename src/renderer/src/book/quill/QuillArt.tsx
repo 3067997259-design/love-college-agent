@@ -48,7 +48,7 @@ export function QuillArt({ className, inked = true }: { className?: string; inke
         <path fill="#fffdf9" d="M42 58 L 35 62 L 41.5 66" strokeWidth="0.9" />
         <path fill="#fffdf9" d="M41 92 L 34 95.5 L 40.5 99.5" strokeWidth="0.9" />
         {/* 羽轴 */}
-        <path strokeWidth="1.05" d="M24 8 C 23.4 54, 24.6 104, 24 160" />
+        <path strokeWidth="1.05" d="M24 8 C 27.5 48, 19.5 108, 24 160" />
         {/* 高光：纸面上的一点亮 */}
         <path stroke="#fffdf9" strokeWidth="1.6" opacity="0.7" d="M20.5 22 C 16.5 40, 14.5 66, 15.5 94" />
         {/* 笔尖：金色，中间一道缝，缝头一个呼吸孔；笔端一滴桃色墨 */}

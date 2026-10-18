@@ -7,7 +7,22 @@ import manifest from './tools.json'
 
 export interface ToolContext { clock: Clock; store: SessionStore; turnId: string; callId?: string; signal: AbortSignal }
 type JsonValue = Extract<JournalInput, { type: 'tool/result' }>['raw']
-export interface ToolResult { ok: boolean; raw: JsonValue; visible: JsonValue; imageRefs?: string[]; fields?: Record<string, string | number | boolean> }
+export interface CandidateSeed {
+  /** External source id; stable for revision/idempotency. */
+  externalId: string
+  title: string
+  kind: 'deadline' | 'event'
+  deadlineIso: string | null
+  eventStartIso?: string
+  eventEndIso?: string
+  locationText?: string
+  sourceLabel: string
+  /** Stable source timestamp when the provider has one; keeps evidence idempotent across restarts. */
+  sourceAtMs?: number
+  /** User-only evidence excerpt; never placed in model projection or tool journal. */
+  excerpt: string
+}
+export interface ToolResult { ok: boolean; raw: JsonValue; visible: JsonValue; imageRefs?: string[]; fields?: Record<string, string | number | boolean>; candidates?: readonly CandidateSeed[] }
 export interface HarnessTool {
   definition: ModelTool
   templateId: string

@@ -773,12 +773,85 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 
 /* —— 输入 —— */
 .composer {
+  position: relative;
   display: flex;
   align-items: flex-end;
   gap: 10px;
   padding-top: 14px;
   border-top: 1.5px dashed color-mix(in oklab, var(--pencil) 70%, transparent);
 }
+/* 候选卡的日期先用纸色下划线接住；系统日历仍由原生控件打开。 */
+.planned-picker { position: relative; display: grid; gap: 3px; }
+.planned-picker label { display: grid; gap: 2px; }
+.planned-picker input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px 2px;
+  font: 14px var(--font-body);
+  color: var(--graphite);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid color-mix(in oklab, var(--pencil) 75%, transparent);
+  outline: none;
+}
+.planned-picker input:focus { border-bottom-color: var(--peach-mid); }
+.planned-open { justify-self: start; font-size: 12px; }
+.planned-calendar {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 7px);
+  z-index: 6;
+  box-sizing: border-box;
+  width: 264px;
+  padding: 9px;
+  background: color-mix(in oklab, var(--paper) 90%, white);
+  border: 1.5px solid color-mix(in oklab, var(--pencil) 60%, transparent);
+  border-radius: 13px 8px 14px 7px;
+  box-shadow: 0 14px 30px -18px color-mix(in oklab, var(--lavender-shadow) 95%, transparent), var(--shadow-card);
+}
+.planned-calendar header { display: flex; align-items: center; justify-content: space-between; gap: 5px; margin-bottom: 5px; }
+.planned-calendar header button { padding: 0 6px; font: 18px var(--font-hand); border: none; background: transparent; color: var(--ink-her); cursor: pointer; }
+.planned-calendar header strong { font: 16px var(--font-hand); color: var(--ink-her); }
+.planned-weekdays, .planned-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.planned-weekdays span { padding: 2px 0; text-align: center; font-size: 11px; color: var(--pencil); }
+.planned-days button, .planned-days > span { display: grid; place-items: center; min-height: 25px; padding: 0; font: 12px var(--font-num); color: var(--graphite); background: transparent; border: 1px solid transparent; border-radius: 6px 4px 7px 4px; cursor: pointer; }
+.planned-days button:hover, .planned-days button:focus-visible { color: var(--ink-her); background: color-mix(in oklab, var(--peach) 36%, transparent); border-color: color-mix(in oklab, var(--peach-mid) 55%, transparent); }
+.planned-calendar footer { display: flex; justify-content: space-between; gap: 6px; margin-top: 6px; border-top: 1px dashed color-mix(in oklab, var(--pencil) 45%, transparent); padding-top: 4px; }
+.planned-calendar footer button { font-size: 12px; }
+/* 输入 / 时浮在输入框上方的纸签菜单；只补全，不替用户发送。 */
+.slash-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 4;
+  display: grid;
+  gap: 2px;
+  max-height: 232px;
+  overflow: auto;
+  padding: 6px;
+  background: color-mix(in oklab, var(--paper) 86%, white);
+  border: 1.5px solid color-mix(in oklab, var(--pencil) 65%, transparent);
+  border-radius: 12px 8px 13px 7px;
+  box-shadow: 0 12px 30px -18px color-mix(in oklab, var(--lavender-shadow) 90%, transparent), var(--shadow-card);
+}
+.slash-menu button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 9px;
+  padding: 5px 8px;
+  text-align: left;
+  font: inherit;
+  color: var(--graphite);
+  background: transparent;
+  border: none;
+  border-radius: 8px 5px 9px 5px;
+  cursor: pointer;
+}
+.slash-menu button[data-active='true'], .slash-menu button:hover { background: color-mix(in oklab, var(--peach) 32%, transparent); }
+.slash-menu code { grid-row: span 2; align-self: center; font: 12px/1.4 var(--font-num); color: var(--navy); }
+.slash-menu span { font-size: 13px; line-height: 1.4; color: var(--ink-her); }
+.slash-menu small { font-size: 11px; line-height: 1.4; color: var(--graphite); }
 .composer-input {
   flex: 1;
   min-height: 34px;
@@ -794,6 +867,23 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 }
 .composer-input:focus { border-bottom-color: var(--peach-mid); }
 .composer-input::placeholder { color: var(--pencil); }
+.composer-plugin {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  color: var(--pencil);
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: 8px 6px 9px 6px;
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+.composer-plugin svg { width: 16px; height: 16px; }
+.composer-plugin:hover, .composer-plugin:focus-visible { color: var(--ink-her); border-color: color-mix(in oklab, var(--pencil) 70%, transparent); background: color-mix(in oklab, var(--peach) 28%, transparent); }
 .filter-mark {
   align-self: center;
   padding: 1px 7px;

@@ -1,8 +1,19 @@
 {
-  "title": "工具与设置",
-  "groups": { "campus": "邮箱与资料", "book": "书本与角色", "connections": "工具连接与提醒", "voice": "语音与运行资源", "life": "她的生活与书桌", "memory": "记忆与历史", "experimental": "光学记忆实验", "extensions": "本地扩展", "advanced": "高级与开发", "pomodoro": "专注节奏" },
+  "title": "设置",
+  "groups": { "campus": "邮箱与资料", "book": "书本与角色", "connections": "外部工具连接", "voice": "语音与运行资源", "life": "她的生活与书桌", "memory": "记忆与历史", "experimental": "光学记忆实验", "extensions": "本地扩展", "advanced": "高级与开发", "pomodoro": "专注节奏" },
+  "sections": {
+    "model": { "title": "模型与声音", "note": "日常对话、记忆、隐私滤芯和朗读声音。" },
+    "connections": { "title": "连接与插件", "note": "邮箱、资料、外部工具、提醒和本地扩展。" },
+    "rhythm": { "title": "专注与作息", "note": "番茄钟、休息，以及她自己的生活和书桌。" },
+    "book": { "title": "角色与书本", "note": "角色、存档、记忆和历史会话。" },
+    "usage": { "title": "用量与实验", "note": "运行资源，以及默认关闭的光学记忆实验。" },
+    "developer": { "title": "开发与调试", "note": "独立假数据、测试场景和诊断入口；正式使用时保持关闭。" }
+  },
+  "sectionsNav": "设置分区",
+  "pluginsHint": "插件、技能和外部 MCP 已统一到书房右侧的「插件」书签；这里保留安装与调试的旧入口。",
+  "openPlugins": "打开插件中心",
   "pomodoro": { "title": "番茄钟", "count": "计划个数", "demo": "演示节奏：专注 1 分钟，休息 20 秒", "demoLabel": "演示计划", "label": "专注计划", "demoTime": "演示时长", "realTime": "实际时长", "proposal": "生成待确认计划", "confirm": "确认计划", "discard": "丢弃草案", "start": "开始下一段专注", "pause": "暂停计时", "resume": "继续计时", "stop": "结束计划", "pending": "待确认", "dayCount": "今日共 {count} 个", "seconds": "秒", "progress": "阶段进度", "phase": { "idle": "等待开始", "focus": "专注", "short-break": "短休息", "long-break": "长休息" } },
-  "source": { "fake": "当前含合成服务或演示数据，结果不能当作真实来源的验收。", "booth": "展位模式" },
+  "source": { "fake": "当前有合成服务或演示数据；这里看到的结果不是真实服务验收。", "booth": "展位模式" },
   "developerHint": "开发模式使用另一份独立存档，测试场景、假模型与诊断只在切换后出现。",
   "developerSwitch": "使用独立的假数据与假模型（重启生效）",
   "restart": "重启应用",
@@ -18,5 +29,5 @@
   "none": "暂无",
   "plugin": { "enabled": "已启用", "disabled": "未启用", "enable": "启用", "disable": "停用", "approval": "插件代码授权", "hint": "这个扩展会在主进程运行本地代码，拥有当前用户的权限。请核对来源和下面的版本指纹。", "permissions": "声明的权限：", "confirm": "确认此版本并启用", "cancel": "取消", "privacy": "隐私方式", "off": "关闭", "optional": "跟随文件过滤", "always": "总是过滤" },
   "status": { "idle": "等待操作", "ready": "可用", "failed": "未完成", "disabled": "已停用", "unconfigured": "尚未配置", "unavailable": "暂不可用", "connecting": "正在连接", "disconnected": "未连接", "importing": "正在导入", "exporting": "正在导出", "exported": "已导出", "validating": "正在核对存档", "awaiting-confirmation": "等待你确认", "restoring": "正在恢复", "restored": "已恢复", "writing": "正在写作", "completed": "已完成", "running": "正在进行", "paused": "已暂停", "cancelled": "已取消", "queued": "等待处理", "processing": "正在处理", "extracting": "正在整理记忆", "compacting": "正在收起旧对话", "capturing": "正在保存照片", "native": "系统通知", "in-app": "书内提醒", "unsupported": "系统通知不可用", "denied": "未获允许", "selecting": "正在选择配置" },
-  "errors": { "invalid-command": "当前内容或状态不符合要求，请核对后再试。", "stale-epoch": "书本已经更新，请重新操作。", "unavailable": "当前还有工作未结束，或这项服务尚不可用。", "not-configured": "请先导入这项服务的配置。", "configuration-failed": "配置未能使用，请核对服务地址、模型和凭据。", "connection-failed": "未能连接服务，请检查网络后重试。", "privacy-unavailable": "隐私滤芯尚不可用，资料会保留等待，不交给对话模型。", "privacy-invalid-output": "隐私滤芯的结果未通过校验，请保留原资料后重试。", "upstream-busy": "服务目前繁忙，请稍后再试。", "quota-exhausted": "服务额度不足，请核对额度。", "budget-exceeded": "本日的运行预算已到上限。", "permission-denied": "当前模式不允许这项操作。", "backup-invalid": "这份存档未通过检查，当前书本保留。", "backup-scope-mismatch": "这份存档属于另一个用户或角色，请先切换到对应身份。", "restore-failed": "恢复未完成，请检查当前书本与自动备份。", "unsupported-file": "这份文件的格式暂不支持。", "file-too-large": "文件超过处理上限，请拆成较小的文件。", "file-unreadable": "文件暂时无法读取，请检查文件是否可用。", "document-parse-failed": "这份资料未能解析，请核对是否有文字层。", "document-interrupted": "资料处理已中断，可以保留原文件后重试。", "operation-cancelled": "这次操作已取消。", "export-failed": "文件未能导出，请检查目标位置。", "source-blocked": "来源连接受阻，不能据此判断没有更新。", "stream-interrupted": "回复途中断开，已收到的文字仍保留。", "invalid-model-output": "模型返回的内容未通过检查。" }
+  "errors": { "invalid-command": "当前内容或状态不符合要求，请核对后再试。", "stale-epoch": "页面刚刚刷新过，请再点一次。", "unavailable": "当前还有工作未结束，或这项服务尚不可用。", "not-configured": "请先导入这项服务的配置。", "configuration-failed": "配置未能使用，请核对服务地址、模型和凭据。", "connection-failed": "未能连接服务，请检查网络后重试。", "privacy-unavailable": "隐私滤芯还没接通，资料先替你收好，不会外传。", "privacy-invalid-output": "隐私滤芯的结果未通过校验，请保留原资料后重试。", "upstream-busy": "服务目前繁忙，请稍后再试。", "quota-exhausted": "服务额度不足，请核对额度。", "budget-exceeded": "本日的运行预算已到上限。", "permission-denied": "当前模式不允许这项操作。", "backup-invalid": "这份存档未通过检查，当前书本保留。", "backup-scope-mismatch": "这份存档属于另一个用户或角色，请先切换到对应身份。", "restore-failed": "恢复未完成，请检查当前书本与自动备份。", "unsupported-file": "这份文件的格式暂不支持。", "file-too-large": "文件超过处理上限，请拆成较小的文件。", "file-unreadable": "文件暂时无法读取，请检查文件是否可用。", "document-parse-failed": "这份资料未能解析，请核对是否有文字层。", "document-interrupted": "资料处理已中断，可以保留原文件后重试。", "operation-cancelled": "这次操作已取消。", "export-failed": "文件未能导出，请检查目标位置。", "source-blocked": "暂时连不上邮箱，还不清楚有没有新邮件。", "stream-interrupted": "回复途中断开，已收到的文字仍保留。", "invalid-model-output": "模型返回的内容未通过检查。" }
 }

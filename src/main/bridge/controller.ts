@@ -116,6 +116,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('onboarding.complete') }),
   z.strictObject({ ...envelope, type: z.literal('onboarding.reset') }),
   z.strictObject({ ...envelope, type: z.literal('gift.propose'), ...giftSpecSchema.shape }),
+  z.strictObject({ ...envelope, type: z.literal('gift.accept'), giftId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('gift.start'), giftId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('gift.cancel'), giftId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('gift.open'), giftId: z.string().uuid() }),
@@ -136,9 +137,15 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('backup.restore'), restoreId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('backup.cancel') }),
   z.strictObject({ ...envelope, type: z.literal('mcp.configure') }),
+  z.strictObject({ ...envelope, type: z.literal('mcp.configure.path'), path: z.string().min(1).max(4096) }),
   z.strictObject({ ...envelope, type: z.literal('mcp.connect'), serverId: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ ...envelope, type: z.literal('mcp.disconnect'), serverId: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/) }),
   z.strictObject({ ...envelope, type: z.literal('models.configure') }),
+  z.strictObject({ ...envelope, type: z.literal('models.provider.save'), slot: z.enum(['chat', 'background', 'chat_google', 'chat_claude', 'privacy']), baseUrl: z.string().max(4096).default(''), model: z.string().max(256).default(''), apiKey: z.string().max(8192).optional() }),
+  z.strictObject({ ...envelope, type: z.literal('models.provider.remove'), slot: z.enum(['chat', 'background', 'chat_google', 'chat_claude', 'privacy']) }),
+  z.strictObject({ ...envelope, type: z.literal('models.probe'), slot: z.enum(['chat', 'background', 'chat_google', 'chat_claude', 'privacy']) }),
+  z.strictObject({ ...envelope, type: z.literal('models.service.save'), service: z.enum(['tts', 'rodin']), baseUrl: z.string().max(4096).default(''), model: z.string().max(256).default(''), apiKey: z.string().max(8192).optional(), voice: z.string().max(256).optional() }),
+  z.strictObject({ ...envelope, type: z.literal('mail.configure'), host: z.string().max(256).default(''), port: z.number().int().min(1).max(65535).default(993), user: z.string().max(320).default(''), authCode: z.string().max(8192).optional() }),
   z.strictObject({ ...envelope, type: z.literal('window.mini') }),
   z.strictObject({ ...envelope, type: z.literal('window.expand') }),
   z.strictObject({ ...envelope, type: z.literal('window.book') }),
@@ -157,6 +164,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('context.compact') }),
   z.strictObject({ ...envelope, type: z.literal('session.rollover') }),
   z.strictObject({ ...envelope, type: z.literal('developer.memory'), scenarioId: z.enum(['ready', 'failure', 'invalid']) }),
+  z.strictObject({ ...envelope, type: z.literal('plugin.install'), path: z.string().min(1).max(4096) }),
   z.strictObject({ ...envelope, type: z.literal('plugin.enable'), pluginId: z.string().min(1).max(64), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ ...envelope, type: z.literal('plugin.disable'), pluginId: z.string().min(1).max(64) }),
   z.strictObject({ ...envelope, type: z.literal('plugin.privacy.set'), pluginId: z.string().min(1).max(64), privacy: z.enum(['none', 'optional', 'always']) }),
@@ -458,7 +466,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (windows && command.type.startsWith('window.')) {
       try { const error = windows.dispatch(command, surface); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('mode', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
-    } else if (modelSettings && command.type === 'models.configure') {
+    } else if (modelSettings && (command.type.startsWith('models.') || command.type === 'mail.configure')) {
       try { const error = modelSettings.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (backup && command.type.startsWith('backup.')) {

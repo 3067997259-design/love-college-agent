@@ -6,10 +6,14 @@ const OFFSET_MS = 8 * 3600_000
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
 /** Sakamoto 算法：公历日期 → 星期（0 = 周日） */
-function weekday(y: number, m: number, d: number): number {
+export function weekdayIndex(y: number, m: number, d: number): number {
   const t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
   if (m < 3) y -= 1
   return (y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) + t[m - 1] + d) % 7
+}
+export function daysInMonth(y: number, m: number): number {
+  if (m === 2) return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 29 : 28
+  return [31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1] ?? 0
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -21,7 +25,7 @@ export function parseIso(iso: string): DateParts | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(\+08:00)$/.exec(iso)
   if (!m) return null
   const [year, month, day, hour, minute] = m.slice(1, 6).map(Number)
-  return { year, month, day, hour, minute, weekday: WEEKDAYS[weekday(year, month, day)] }
+  return { year, month, day, hour, minute, weekday: WEEKDAYS[weekdayIndex(year, month, day)] }
 }
 
 /** 10月26日 周一 23:59 */

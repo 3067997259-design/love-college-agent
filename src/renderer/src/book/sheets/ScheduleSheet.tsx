@@ -4,6 +4,8 @@ import copy from '../../voice/book.zh.json'
 import { sendCommand, type CommandBody } from '../command'
 import { formatClock, formatIso } from '../format'
 import { fill } from '../life/text'
+import { SettingsIssue } from '../../tools/SettingsIssue'
+import { PomodoroSettings } from '../../tools/PomodoroSettings'
 import { visibleWorks } from './schedule'
 
 /**
@@ -12,9 +14,16 @@ import { visibleWorks } from './schedule'
  * 候选只列已确认的。作品只有元数据，正文要看就点“看看”走原生预览，不在这里读。
  */
 export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: AppBridge }) {
-  const { pomodoro, life } = snapshot
+  const { pomodoro, life, mailbox } = snapshot
   const [failed, setFailed] = useState(false)
+  const [mailError, setMailError] = useState('')
   const command = async (body: CommandBody) => setFailed(!(await sendCommand(bridge, snapshot.epoch, body)).ok)
+  const mail = async (body: CommandBody) => {
+    const result = await sendCommand(bridge, snapshot.epoch, body)
+    setMailError(result.ok ? '' : result.code)
+  }
+  const mailStatus = mailbox ? (copy.schedule.mail as Record<string, string>)[mailbox.status] : ''
+  const mailBlocked = !mailbox || snapshot.companion.lightsOut || ['blocked', 'disabled', 'scanning'].includes(mailbox.status)
   const plan = pomodoro.plan && pomodoro.plan.status !== 'proposed' ? pomodoro.plan : null
   const done = pomodoro.completedCount ?? Math.max(0, pomodoro.focusIndex - (pomodoro.phase === 'focus' ? 1 : 0))
   // 她今天：作息里的安排，加上今天的外出和还没结束的（提议中、在外面），按时刻排
@@ -24,6 +33,7 @@ export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bri
       .map((outing) => ({ key: outing.id, at: outing.startsAtMs, state: outing.status as string, text: fill(copy.schedule.outing[outing.status], { place: copy.places[outing.place], time: formatClock(outing.returnsAtMs) }), note: '' })),
   ].sort((a, b) => a.at - b.at)
   const work = life?.work
+  const proposedOuting = life?.outings.findLast((outing) => outing.status === 'proposed')
   const jobs = visibleWorks(life)
   const next = snapshot.candidates.filter((candidate) => candidate.status === 'confirmed').map((candidate) => ({ candidate, iso: whenOf(candidate) }))
     .sort((a, b) => (a.iso ?? '9').localeCompare(b.iso ?? '9'))
@@ -35,6 +45,7 @@ export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bri
         {life && <span className="sheet-lead">{copy.schedule.routine[life.userSchedule]}</span>}
       </header>
       <div className="sheet-body">
+        <div className="schedule-pomodoro"><PomodoroSettings bridge={bridge} snapshot={snapshot} /></div>
         <h2 className="sheet-section">{copy.schedule.today}</h2>
         {plan ? (
           <div className="schedule-plan">
@@ -55,16 +66,20 @@ export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bri
             ))}
           </ul>
         )}
+        {life && <div className="card-actions schedule-life-actions">
+          <button type="button" className="btn btn-ghost btn-small" disabled={snapshot.companion.lightsOut}
+            onClick={() => void command({ type: 'life.propose', place: 'coast' })}>{copy.schedule.life.proposeCoast}</button>
+          <button type="button" className="btn btn-ghost btn-small" disabled={snapshot.companion.lightsOut}
+            onClick={() => void command({ type: 'life.propose', place: 'swing' })}>{copy.schedule.life.proposeSwing}</button>
+          {proposedOuting && <button type="button" className="btn btn-ghost btn-small" disabled={snapshot.companion.lightsOut}
+            onClick={() => void command({ type: 'life.depart', outingId: proposedOuting.id })}>{copy.schedule.life.depart}</button>}
+          {life.locationId !== 'room' && <button type="button" className="btn btn-ghost btn-small"
+            onClick={() => void command({ type: 'life.return' })}>{copy.schedule.life.return}</button>}
+        </div>}
         {work?.enabled && (
           <>
             {jobs.length > 0 && <ul className="schedule-works">{jobs.map((job) => <WorkRow key={job.id} job={job} work={work} onCommand={(body) => { void command(body) }} />)}</ul>}
-            <div className="card-actions">
-              {(['read', 'write'] as const).filter((kind) => !jobs.some((job) => job.kind === kind)).map((kind) => (
-                <button key={kind} type="button" className="btn btn-ghost btn-small" disabled={work.attemptsToday >= work.dailyAttemptLimit}
-                  onClick={() => { void command({ type: 'life.work.start', kind }) }}>{kind === 'read' ? copy.schedule.works.startRead : copy.schedule.works.startWrite}</button>
-              ))}
-              {failed && <span className="notice-mark" title="没办成，稍后再试">！</span>}
-            </div>
+            {failed && <span className="notice-mark" title="没办成，稍后再试">！</span>}
           </>
         )}
 
@@ -80,6 +95,24 @@ export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bri
             ))}
           </ul>
         )}
+
+        {mailbox && <>
+          <h2 className="sheet-section">{copy.schedule.mail.title}</h2>
+          <div className="schedule-mail" data-source={mailbox.source} data-status={mailbox.status}>
+            <p className="schedule-line"><strong>{mailbox.folderLabel}</strong><span>{mailStatus}</span></p>
+            {mailbox.status === 'blocked' && <p className="flow-note">{copy.schedule.mail.blocked}</p>}
+            {mailbox.status === 'failed' && <p className="flow-note">{copy.schedule.mail.failed}</p>}
+            {mailbox.status === 'disabled' && <p className="flow-note">{copy.schedule.mail.disabled}</p>}
+            <div className="card-actions">
+              <button type="button" className="btn btn-ghost btn-small" disabled={mailBlocked}
+                onClick={() => void mail({ type: 'mail.scan' })}>{mailbox.source === 'fake' ? copy.schedule.mail.scanFake : copy.schedule.mail.scan}</button>
+              <button type="button" className="btn btn-ghost btn-small" disabled={!snapshot.candidates.some((item) => item.status === 'confirmed')}
+                onClick={() => void mail({ type: 'campus.export' })}>{copy.schedule.mail.export}</button>
+            </div>
+            <p className="flow-note">{copy.schedule.mail.hint}</p>
+            <SettingsIssue code={mailError} />
+          </div>
+        </>}
       </div>
     </section>
   )

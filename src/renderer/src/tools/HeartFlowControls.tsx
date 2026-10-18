@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot } from '../../../shared'
+import copy from '../voice/book.zh.json'
 import { ComputerControls } from './ComputerControls'
 import { WebFetchControls } from './WebFetchControls'
 export function HeartFlowControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
   const [code, setCode] = useState('return 6 * 7'); const [goalText, setGoalText] = useState(''); const [error, setError] = useState(''); const flow = snapshot.heartFlow
   if (!flow) return null
   const send = async (body: Record<string, unknown>) => { try { const result = await bridge.dispatch({ ...body, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() } as AppCommand); setError(result.status === 'rejected' ? result.error.code : '') } catch { setError('connection-failed') } }
+  const currentGoal = flow.goals?.find((goal) => goal.id === flow.goalId)
   return <section className="flow-work" aria-label="书桌心流"><h2>书桌心流</h2>
     <p>仅她的书桌 · JavaScript 沙箱 · 每次运行都审批 · {flow.mode === 'plan' ? '只读计划' : '可写执行'}</p>
     {!flow.activeId ? <button onClick={() => void send({ type: 'flow.enter' })}>进入心流</button> : <>
@@ -30,13 +32,18 @@ export function HeartFlowControls({ bridge, snapshot }: { bridge: AppBridge; sna
     <section aria-label="跨次工作目标"><h3>工作目标</h3><p>跨次保留；目标状态由你标记，文件和运行结果另有实际记录。</p>
       <label>工作长期目标<input aria-label="工作长期目标" value={goalText} maxLength={200} onChange={(event) => setGoalText(event.target.value)} /></label>
       <button disabled={!goalText.trim()} onClick={() => void send({ type: 'flow.goal.set', text: goalText })}>新建工作目标</button>
-      <button disabled={!goalText.trim() || !flow.goalId} onClick={() => void send({ type: 'flow.goal.set', goalId: flow.goalId!, text: goalText })}>更新所选目标</button>
-      <ul>{(flow.goals ?? []).map((goal) => <li key={goal.id} data-goal-id={goal.id}>{goal.text} · {goal.status === 'active' ? '进行中' : goal.status === 'completed' ? '用户标记完成' : '用户取消'} · {goal.flowIds.length} 次心流{flow.goalId === goal.id && ' · 当前所选'}
-        <button disabled={goal.status !== 'active'} onClick={() => { setGoalText(goal.text); void send({ type: 'flow.goal.select', goalId: goal.id }) }}>选为工作目标</button>
-        <button disabled={goal.status === 'completed'} onClick={() => void send({ type: 'flow.goal.status', goalId: goal.id, status: 'completed' })}>标记目标完成</button>
-        <button disabled={goal.status === 'cancelled'} onClick={() => void send({ type: 'flow.goal.status', goalId: goal.id, status: 'cancelled' })}>取消这个目标</button>
-        <button disabled={goal.status === 'active'} onClick={() => void send({ type: 'flow.goal.status', goalId: goal.id, status: 'active' })}>重新打开目标</button>
-      </li>)}</ul>
+      {currentGoal && <div className="flow-current-goal" data-goal-id={currentGoal.id}>
+        <span>{currentGoal.text} · {currentGoal.status === 'active' ? '进行中' : currentGoal.status === 'completed' ? '用户标记完成' : '用户取消'} · {currentGoal.flowIds.length} 次心流</span>
+        <button disabled={currentGoal.status === 'completed'} onClick={() => void send({ type: 'flow.goal.status', goalId: currentGoal.id, status: 'completed' })}>标记目标完成</button>
+      </div>}
+      {!!flow.goals?.length && <details className="flow-goals-manage"><summary>{copy.flow.goalManage}</summary>
+        <button disabled={!goalText.trim() || !flow.goalId} onClick={() => void send({ type: 'flow.goal.set', goalId: flow.goalId!, text: goalText })}>更新所选目标</button>
+        <ul>{(flow.goals ?? []).map((goal) => <li key={goal.id}>{goal.text} · {goal.status === 'active' ? '进行中' : goal.status === 'completed' ? '用户标记完成' : '用户取消'} · {goal.flowIds.length} 次心流{flow.goalId === goal.id && ' · 当前所选'}
+          <button disabled={goal.status !== 'active'} onClick={() => { setGoalText(goal.text); void send({ type: 'flow.goal.select', goalId: goal.id }) }}>选为工作目标</button>
+          <button disabled={goal.status === 'cancelled'} onClick={() => void send({ type: 'flow.goal.status', goalId: goal.id, status: 'cancelled' })}>取消这个目标</button>
+          <button disabled={goal.status === 'active'} onClick={() => void send({ type: 'flow.goal.status', goalId: goal.id, status: 'active' })}>重新打开目标</button>
+        </li>)}</ul>
+      </details>}
     </section>
     <details><summary>历次心流</summary><ol>{flow.sessions.map((session) => <li key={session.id}>{session.id.slice(0, 8)} · {session.endedAtMs === null ? '进行中' : '已结束'}
       <button onClick={() => void send({ type: 'flow.inspect', section: 'status', flowId: session.id })}>查阅状态</button><button onClick={() => void send({ type: 'flow.inspect', section: 'diff', flowId: session.id })}>查阅差异</button>

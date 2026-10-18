@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, openSettingsGroup } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `pomodoro-smoke-${randomUUID()}`)
@@ -80,8 +80,7 @@ try {
       focusElapsedMs, breakElapsedMs, durableDeadlineAnchors: true, noAutomaticNext: true }))
   } else {
   await send({ type: 'developer.clock', frozen: true })
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click()
-  await openSettingsGroup(page, '专注节奏')
+  await page.getByRole('button', { name: '日程', exact: true }).click()
   await page.getByRole('checkbox', { name: /演示节奏/ }).check()
   await page.getByRole('button', { name: '生成待确认计划', exact: true }).click()
   let state = await snapshot(); let planId = state.pomodoro.proposal.id

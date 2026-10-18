@@ -1,6 +1,40 @@
-.file-intake { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 7px 0; font-size: 12px; }
-.file-hint { color: var(--pencil); }
-.file-notice { width: 100%; color: var(--graphite); }
+/* 资料入口收成一枚回形针；只有悬停／键盘聚焦时才浮出说明，不再常驻一条上传栏。 */
+.file-intake { position: relative; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 1px 0 0; font-size: 12px; }
+.file-clip {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  padding: 0;
+  color: var(--pencil);
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: 8px 6px 9px 6px;
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+.file-clip svg { width: 16px; height: 16px; }
+.file-clip:hover, .file-clip:focus-visible { color: var(--ink-her); border-color: color-mix(in oklab, var(--pencil) 70%, transparent); background: color-mix(in oklab, var(--peach) 28%, transparent); }
+.file-hint {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 3;
+  padding: 3px 8px;
+  color: var(--graphite);
+  background: color-mix(in oklab, var(--paper) 88%, white);
+  border: 1px solid color-mix(in oklab, var(--pencil) 55%, transparent);
+  border-radius: 7px 5px 8px 5px;
+  box-shadow: var(--shadow-card);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(2px);
+  transition: opacity var(--dur-fast), transform var(--dur-fast);
+}
+.file-intake:hover .file-hint, .file-intake:focus-within .file-hint { opacity: 1; transform: translateY(0); }
+.file-notice { flex-basis: 100%; color: var(--graphite); }
 .document-list { padding-left: 18px; }
 .document-job, .document-attachment { margin-block: 7px; overflow-wrap: anywhere; }
 .document-job span[role="alert"] { display: block; }

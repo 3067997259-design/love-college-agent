@@ -28,17 +28,22 @@ async function waitFor(predicate, message) {
 }
 async function openTools() { await page.getByRole('button', { name: '工具与设置', exact: true }).click() }
 async function closeTools() { await page.getByRole('button', { name: '关闭', exact: true }).click() }
+const openChat = () => page.locator('.bookmarks').getByRole('button', { name: /^对话/ }).click()
 async function scan(scenario = 'initial') {
   await openTools()
   await page.getByLabel('合成邮件场景').selectOption(scenario)
   await waitFor((s) => s.mailbox.scenarioId === scenario, 'SCENARIO_NOT_SELECTED')
+  await closeTools()
+  await page.getByRole('button', { name: '日程', exact: true }).click()
   await page.getByRole('button', { name: '扫描合成邮件', exact: true }).click()
   await waitFor((s) => ['ready', 'failed'].includes(s.mailbox.status), 'SCAN_NOT_FINISHED')
-  await closeTools()
+  await openChat()
 }
 async function exportNew(count) {
-  await openTools(); await page.getByRole('button', { name: '导出新确认事项', exact: true }).click()
-  await waitFor((s) => s.deliveries.length === count, 'EXPORT_NOT_FINISHED'); await closeTools()
+  await page.getByRole('button', { name: '日程', exact: true }).click()
+  await page.getByRole('button', { name: '导出新确认事项', exact: true }).click()
+  await waitFor((s) => s.deliveries.length === count, 'EXPORT_NOT_FINISHED')
+  await openChat()
 }
 const safe = (value) => {
   const text = JSON.stringify(value)

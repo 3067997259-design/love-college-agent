@@ -4,6 +4,7 @@ import { activityText } from '../voice/activity-text'
 import { CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
 import { sourceText } from './life/text'
 import book from '../voice/book.zh.json'
+import slash from '../voice/slash.zh.json'
 import { QuoteChip, type Quote } from './history/OldPage'
 import { sendCommand, type CommandBody } from './command'
 import { civilFromDays, formatClock } from './format'
@@ -48,12 +49,13 @@ function useEnteringIds(snapshot: AppSnapshot): Set<string> {
   return fresh
 }
 
-export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTurnBack, quote = null, onClearQuote, onRestoreQuote }: {
+export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpenPlugins, onTurnBack, quote = null, onClearQuote, onRestoreQuote }: {
   snapshot: AppSnapshot
   bridge: AppBridge
   /** 翻到别的书签时这一页留着（草稿和滚动位置都在），只是不显示 */
   hidden?: boolean
   onOpenShelf?: () => void
+  onOpenPlugins?: () => void
   /** 有前几天的页才能往回翻 */
   onTurnBack?: () => void
   /** 从旧页引用来的一段：发送时连同问题交给主进程回忆（history.recall），不当普通消息发 */
@@ -72,6 +74,8 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [commandError, setCommandError] = useState('')
+  const [slashIndex, setSlashIndex] = useState(0)
+  const [slashHidden, setSlashHidden] = useState(false)
   const composerState = useRef({ draft, quote, epoch: snapshot.epoch }); composerState.current = { draft, quote, epoch: snapshot.epoch }
   const restoring = useRef(false)
   async function restoreRequest(source: MessageView, failure: ModelFailureView) {
@@ -152,6 +156,12 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
     } finally { setSending(false) }
   }
   const recalling = recall?.status === 'recalling'
+  const slashMatches = slash.items.filter((item) => item.value.startsWith(draft))
+  const slashOpen = draft.startsWith('/') && !draft.includes('\n') && !slashHidden && slashMatches.length > 0
+  const activeSlash = Math.min(slashIndex, Math.max(0, slashMatches.length - 1))
+  const chooseSlash = (value: string) => {
+    setDraft(value); setSlashHidden(true); setSlashIndex(0); inputRef.current?.focus()
+  }
 
   return (
     <section className="page page-right" aria-label="你的页面" hidden={hidden}>
@@ -221,14 +231,31 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onTur
       </div>
       <FileIntake snapshot={snapshot} bridge={bridge} />
       <footer className="composer">
+        {slashOpen && <div className="slash-menu" role="listbox" aria-label={slash.label}>
+          {slashMatches.map((item, index) => <button key={item.value} type="button" role="option" aria-selected={index === activeSlash}
+            data-active={index === activeSlash} onMouseDown={(event) => { event.preventDefault(); chooseSlash(item.value) }}>
+            <code>{item.value.trim()}</code><span>{item.label}</span><small>{item.hint}</small>
+          </button>)}
+        </div>}
         {quote && <QuoteChip quote={quote} onClear={() => onClearQuote?.()} />}
         {commandError && <span className="notice-mark" title={commandError} aria-hidden>！</span>}
+        {onOpenPlugins && <button type="button" className="composer-plugin" aria-label="插件" title="插件" onClick={onOpenPlugins}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h4v2.2a2 2 0 1 0 0 4V12h3.8a2 2 0 1 1 0 4H13v4H9v-4H6.2a2 2 0 1 1 0-4H9V8.2A2 2 0 1 0 9 4Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+        </button>}
         {privacy.fileFilteringEnabled && <span className="filter-mark" title="/privacy 开着：附件和拖进来的文件只交给隐私模型">滤芯</span>}
         <textarea
           ref={inputRef}
           className="composer-input" rows={1} value={draft} placeholder={quote ? book.history.placeholder : '写点什么……'}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send() } }}
+          onChange={(e) => { setDraft(e.target.value); setSlashHidden(false); setSlashIndex(0) }}
+          onKeyDown={(e) => {
+            if (slashOpen) {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setSlashIndex((value) => (value + 1) % slashMatches.length); return }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setSlashIndex((value) => (value - 1 + slashMatches.length) % slashMatches.length); return }
+              if (e.key === 'Escape') { e.preventDefault(); setSlashHidden(true); return }
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); chooseSlash(slashMatches[activeSlash].value); return }
+            }
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send() }
+          }}
         />
         {task && (task.status === 'running' || task.status === 'queued' || task.status === 'waiting-user')
           ? <button className="btn btn-ghost" onClick={() => { void dispatch({ type: 'turn.stop', taskId: task.id }) }}>停止</button>

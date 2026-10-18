@@ -2,6 +2,30 @@
 
 **10-18 巡场前收尾入口：** 第二台机器按 [安装到第一句聊天](docs/exhibition/first-run.md)；现场用 [三分钟评委操作卡](docs/exhibition/judges.md) 和 [全校展示手册](docs/exhibition/booth-runbook.md)。本次撤去 MC 展示，保留历史实现；真实普通评委档、真实展位访客档与假模型彩排档分开。新包 SHA `E393FA84…` 的本轮六项安装态定向测试通过，第二台人工体验／公开演示档／完整安装回归仍单列；问题与未完成项见 [收尾审计](docs/engineering/closeout-audit-20261018.md)。
 
+**10-18 12:12 两处人体瑕疵修正版：** [V8 完整中文字幕母版](film/out/rescue-20261018T005611Z/LCA_MASTER_V8_ZH_FINAL_1080p.mp4) 已导出并检查通过。清除约 01:08 衣架服装内多出的胳膊和手，修正约 01:18 撑伞图的肢体重叠，并同步修正约 01:24 的同图复用；使用两次内置图片编辑及局部视频合成，没有新增 H3 视频请求。保留已认可的全部切点、207.5 秒时长和 45 句中文字幕，音轨载荷与 V7 完全一致；全片 4980 帧解码、修补镜头边界、其他镜头对照通过。V6／V7 保留，当前原生 Resolve 时间线仍为 V6。[修补与生成记录](film/out/rescue-20261018T005611Z/anatomy-v8/README.md)，[交付入口](film/out/rescue-20261018T005611Z/DELIVERY.md)。
+
+**10-18 完整歌词字幕版：** [V7 中文字幕播放文件](film/out/rescue-20261018T005611Z/LCA_MASTER_V7_ZH_1080p.mp4) 已完成，1080p／24 fps／207.5 秒，45 句中文字幕已压入画面，现场无需另外加载字幕。全片 4980 帧及音频解码通过，45 句字幕中点均检出；AAC 音频载荷与 V6 完全相同。[独立 SRT](film/out/rescue-20261018T005611Z/subtitles-zh/LCA_FULL_V6_zh-CN.srt) 和逐句对照表保留。当前 Resolve 原生时间线仍为 V6；V7 是从 V6 离线合成的字幕播放版。用户已肯定 V6 画面质量；Resolve 耳机监听另行排查，不能据此否认导出文件中的正常音轨。详见 [当前交付记录](film/out/rescue-20261018T005611Z/DELIVERY.md)。
+
+**10-18 11:12 完整短片母版救援：** 已在原生 Resolve 中建立并保存 `LCA_FULL_MASTER_V6_20261018`，导出 [现场播放母版](film/out/rescue-20261018T005611Z/LCA_MASTER_V6_FINAL_1080p.mp4) 与 [工程备份](film/out/rescue-20261018T005611Z/LCA_MASTER_V6_FINAL.drp)：1080p／24 fps／207.5 秒。修复 18 个缺画面合成，恢复开场 WebGL 书页；H3 重画 7C、8A、14A，补齐接笔后起风、颜色卷走和缩回书页的衔接；18 镜改为纸纤维渗墨、线条先长、色彩随后恢复。全片音视频解码、4980 帧与 51 段源素材对位检查通过，唯一近白连续段是片尾预定淡出的最后半秒。五次 H3 共扣 2880 积分，采用三条、弃用两条，余额 4970；用户审美复核仍单列。现场版沿用本地参考曲，未制作网络发布换曲版。原工程与 V4／V5 保留，详见 [交付和检查记录](film/out/rescue-20261018T005611Z/DELIVERY.md)。
+
+**10-18 透明窗口测试与真实模型：** 自动化测试可在不显示窗口、不抢焦点的情况下运行（`LCA_TEST_SILENT=1` 使窗口透明且 `showInactive`）；新增 `pnpm test:real-model`：显式要求 `LCA_REAL_MODEL=1` 和授权的 `LCA_PROVIDERS_FILE`，用临时 profile 顺序跑真实 chat 流式、真实模型工具回合、正常模式真实 UI 回复，报告只含布尔值／计数，不打印回复或密钥。2026-10-18 三项均通过（约 16–18 秒）；`pnpm probe:privacy` 也用真实 privacy 槽位和合成文件通过。真实模型不可用时失败，不回退 fake。分层、节奏与已知边界见 [测试安排](docs/engineering/test-automation-20261018.md)。Student Hub 候选插件已透明窗口安装到 `D:\lca-live-test\data-live-2`，当前导入 3 张带日期候选卡。新包已构建并静默安装到 `D:\lca-live-test\app-next`（安装包在 `D:\lca-live-test\Love-College-Agent-0.1.0-Setup-new.exe`，SHA-256 `E393FA84…`）；新安装 EXE 通过候选插件和真实模型 UI 场景。`pnpm test:package` 因已有同名用户安装按设计拒绝自动升级，完整 26 场景未跑。
+
+**10-18 Student Hub 候选卡插件：** 新增本地代码插件 `plugin-packages/student-hub-candidates`，不再把 Student Hub 的每条业务都做成 MCP 工具。插件只读打开本机 Student Hub 的 SQLite（`mode=ro` + `query_only`），把 `needs_review`／`confirmed`／`synced` 且带日期的事项映射成桃子的候选卡；启用时自动导入一次，之后可调用 `import_student_hub_candidates` 刷新。新增通用插件候选出口：候选片段通过 `PluginActivationContext.ingestCandidates` 或工具结果进入 LCA 的候选／证据库，随后即从模型可见结果和普通日志中剥离；证据只走用户专用读取。`pnpm test:student-hub-candidates` 用合成 Student Hub 库在真实 Electron 中验证安装、启用、候选卡、看原文、快照不含摘录与重启幂等。该插件不扫描邮箱、不写 Student Hub／日历／Todoist；Student Hub 已确认不等于 LCA 已确认，卡片仍需在书页确认。详见 [体验审计](docs/engineering/ux-audit-20261018.md) §18。
+
+**10-18 05:0x Student Hub MCP 插件包：** 不再写 Student Hub 专用适配层；把它打包为标准 `mcpServers` 插件 `plugin-packages/student-hub/mcp.json`，包含只读／扫描轮询白名单和 `privacy: always`。插件中心现有的“添加自定义 MCP 服务器”即可导入；导入后显示 `Student Hub`／“校园邮箱、日程与资料”，默认关闭，首次连接仍核对 fingerprint。`mcp.configure.path` 改为按 server id 合并，新增插件不会抹掉已有 mcpfabric 等服务器。`pnpm test:student-hub` 验证导入、默认关闭、privacy 和零进程启动。关闭 TUN／全局代理后，真实只读扫描成功：MCP 握手／18 工具／白名单／临时库 dashboard 通过，Coremail 扫描约 24 秒完成，3 条 artifacts、0 条 actionable review cases、健康来源 1，无外部写入；报告只含状态和计数，临时 DB 已清理。详见 [体验审计](docs/engineering/ux-audit-20261018.md) §17。
+
+**10-18 04:5x 日常动作与剩余收口：** 番茄计划／确认／开始／暂停／结束移到日程页；生活提议、同意外出、提前回来也在日程页；记忆抽取／归并／压缩只在开发者面板。设置不再放这些日常动作。候选卡换成纸色手绘月历，文本仍可直接输入 ISO 时间；心流目标收成“当前目标 + 管理目标”。Provider 增加语音合成／礼物生成／邮箱三个图形连接卡，语音用 HTTPS 协议、邮箱授权码只在主进程；测试连接按保守 2000 单位走资源账本。开发者平铺面板的 MCP 列表删除，MCP 只从插件中心连接。`pnpm typecheck`、`pnpm test` 76／539、`test:providers`、`test:mcp`、`test:minecraft`、`test:minecraft:mining`、`test:pomodoro`、`test:heart-flow`、`smoke-campus` 通过。真实 mcpfabric／Provider、重打包和安装版验收仍未做。详见 [体验审计](docs/engineering/ux-audit-20261018.md) §16。
+
+**10-18 04:2x 插件与 Provider 收口：** 插件中心改由开关先弹出“MCP 连接确认”，核对 fingerprint 后才连接；输入框新增插件图标，和设置里的快捷入口一样只切到第 6 书签。设置移除重复的本地插件列表和旧 MCP 列表，正常／展位只从插件中心连接；后来开发者平铺 MCP 入口也删除（见上一条）。邮箱扫描与“导出新确认事项”移到日程页，设置只留来源、合成场景和附件整理。Provider 三个槽位增加 DeepSeek／OpenAI／硅基流动／Moonshot／本机 Ollama 预设，只预填地址和模型，仍要填密钥并测试。`pnpm typecheck`、`pnpm test` 76／539、`test:plugins`、`test:providers`、`test:settings`、`test:mcp`、`test:minecraft:images`、`smoke-campus`、`smoke-documents`、`smoke-memory` 通过。真实 mcpfabric／Provider、TTS／Rodin／邮箱 GUI、排番茄／生活提议／记忆抽取迁出、开发者 MCP 入口收进插件中心和重打包当时仍未做；前三项和后一项已在后续完成，真实验收仍暂缓。详见 [体验审计](docs/engineering/ux-audit-20261018.md) §15。
+
+**10-18 04:1x 设置六板块与交互：** 设置页改为六个分区（模型与声音／连接与插件／专注与作息／角色与书本／用量与实验／开发与调试），顶部可跳转；正常模式的「开发与调试」独立在底部，连接分区可直达插件中心。候选卡去掉空计划行并统一纸色日期控件；左页对话页不再重复右页字幕；资料入口收成回形针；输入 `/` 浮出补全菜单；礼物“好”在非专注时也可答应，实际生成仍等专注；日程页移除手动“请她读／写”；羽毛笔方签改为 hover 提示，位置上移、羽轴加弯弧。`pnpm test` 76 文件／539 项、`test:settings`、`test:providers`、`test:plugins`、`test:gifts`、`smoke-documents`、`test:developer`、`test:onboarding` 通过。邮箱扫描／导出、番茄计划、生活提议、记忆抽取、自定义日历、心流目标折叠和开发者 MCP 入口已在后续完成；真实 mcpfabric／Provider 与重打包仍暂缓，羽毛笔位置／羽轴观感仍待真人验收。详见 [体验审计](docs/engineering/ux-audit-20261018.md) §14。
+
+**10-18 04:0x Provider GUI：** 设置顶部的“模型连接”改为图形化三槽位（日常对话／记忆与日记／隐私滤芯），可直接填接口地址、模型和密钥，保存、测试连接、清除；新手指引第 2 步也有“填写模型连接”直达。密钥只在主进程，快照不含地址／模型／密钥。新增 `models.provider.save`／`models.provider.remove`／`models.probe`，保留旧 `导入模型配置`。`pnpm test:providers` 用本机合成 HTTP 走通保存／测试／清除；76 文件／536 单测、`test:settings` 通过。真实供应商质量未验收。详见 [体验审计](docs/engineering/ux-audit-20261018.md) §13。
+
+**10-18 03:4x 插件中心第一版：** 书页新增第 6 枚「插件」书签，按用户参考做成“左侧自定义导航（插件／技能／已安装）+ 右侧已安装列表 + 一个添加导入框”；已安装插件一行显示名字、说明和开关，没装的不出现，不写“未安装”。新增 `plugin.install`（本地插件目录）与 `mcp.configure.path`（本地 MCP JSON），路径由主进程读取，插件仍保留指纹确认，MCP 仍核对启动目标。`pnpm test:plugins`、`pnpm test:electron` 与 76 文件／535 单测通过；本地合成插件和 MCP 配置，不含真实 mcpfabric。详见 [体验审计](docs/engineering/ux-audit-20261018.md) §12。
+
+**10-18 03:2x 体验 P0（文案与模型导入）：** 新手指引按用户要求全量重写，去掉“她醒了／她注意到你了”的惊悚叙事，改为“给书房添上颜色／初次见面”；连接成功文案统一为“已经连接”；设置、书页、活动说明中一批工程腔／免责腔改为自然中文。模型导入后 `configuredSlots` 即时更新，新手指引不再卡在“接好了”，但仍提示重启生效。`pnpm typecheck`、76 文件／533 单测、`test:onboarding`、`smoke-settings`、`smoke-model-slots` 通过（合成服务，未重打包）；设置页六板块、插件中心（已安装列表 + 添加导入框；MC 按外部插件 mcpfabric 设计）与 Provider GUI 仍为 P2。见 [体验审计](docs/engineering/ux-audit-20261018.md)。
+
 **10-18 02:00 v0.1.2（Issue 修复）：** 处理 #38–#47 十条 P2 审计 issue（真实 IMAP 空正文附件/超长单封/异步错误/附件重取、标题长度、JSON 歧义、privacy inspect、自定义角色夜景、文档口径）。源码 `1ca152b`，安装器 264,345,755 字节，SHA-256 `06b2487d…`，**26/26** 安装场景、75 文件/**530 单测**通过；Release `https://github.com/3067997259-design/love-college-agent/releases/tag/v0.1.2`（仓库冻结后转 public）。处理记录见[Issue 记录](docs/engineering/issues-20261018.md)。
 
 **10-18 00:05 v0.1.1（真实 IMAP）：** 已实现只读真实 IMAP source（只读“桃子”文件夹、不写已读、不写邮箱），应用可直接扫描真实未读邮件；真实邮箱本机走通“邮件→privacy→候选→确认→.ics/.md 交付→真实模型看到→羽毛笔→恢复”。源码 `4392b49`，安装器 264,344,481 字节，SHA-256 `770554c2…`，整轮 **26/26** 安装场景通过；Release：`https://github.com/3067997259-design/love-college-agent/releases/tag/v0.1.1`（仓库冻结后转 public）。演示存档 `demo-mail.lca-save`（474,880 字节，SHA-256 `2a1ab072…`）已在新 profile 恢复验证。详见[真实使用验证](docs/engineering/live-use-20261017.md)。
@@ -456,6 +480,9 @@ pnpm dev
 | `pnpm test:package` | 第一圈新包 D 盘安装／SQLite／日志／计时／私人存档／界面重启／测试卸载通过 |
 | `pnpm probe:imap` | 主进程只读探针已实现，真实连接仍被 `ECONNRESET` 阻塞 |
 | `pnpm test:mcp` / `pnpm probe:mcp:student-hub` | 合成 HTTP 的原生目标确认／取消、白名单、隐私隔离与断开通过；实际 Student Hub stdio 只查全新空库完整性，不扫描学校 |
+| `pnpm test:student-hub-candidates` | 合成 Student Hub SQLite：真实 Electron 安装／启用本地候选插件、自动导入、候选卡与用户原文、快照不含摘录、重启幂等 |
+| `pnpm install:student-hub-candidates "D:\...\data"` | 透明窗口向已有 profile 安装／启用候选插件；先备份设置，安装后报告候选数量变化 |
+| `pnpm test:real-model` | 显式真实 Provider：chat 流式、真实工具回合、正常模式 UI 回复；临时 profile、透明窗口、只写布尔报告；需 `LCA_REAL_MODEL=1` 与 `LCA_PROVIDERS_FILE` |
 | `pnpm probe:backup` / `pnpm test:backup` | 实际 SQLite backup／ZIP、哈希／作用域拒绝、安全备份、回滚、空白 profile 恢复、计时重锚通过 |
 | `pnpm test:model-slots` | 正常模式原生配置／重启＋本机合成 HTTP：background／privacy 专用路由和失败不回退通过 |
 | `pnpm test:mini` | 实际 280×350 内容区／点穿调用／物理像素拖动限位、位置持久化与失效归位、纸片返回、无重启残留，以及独立诊断入口／安全刷新／只读权限通过；真人 OS 穿透待验收 |
@@ -503,4 +530,3 @@ GPT 开发端口默认 5273，其他 checkout 默认 5173，可用 `LCA_RENDERER
 心流目标入口：设置中的“工作目标”，或 `/goal 一句话`（更新当前活动目标，没有时新建）。目标跨日／跨次保留，只有用户标记状态；不进入普通记忆，也不自动批准脚本。现有 `pnpm probe:heart-flow`、`pnpm test:heart-flow`、`pnpm test:backup` 覆盖它的范围和恢复边界。
 `pnpm test:notifications`：急件合并、规则操作、重启去重（开发模式合成投递，不弹系统通知）。
 `pnpm test:characters`：静态角色包原生导入／导出、素材回退、角色隔离与切回原关系。
-

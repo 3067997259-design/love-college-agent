@@ -62,6 +62,10 @@ export function createGiftService(options: { clock: Clock; scheduler: Scheduler;
       }
       if (!('giftId' in command)) return 'invalid-command'
       const gift = update(command.giftId); if (!gift) return 'invalid-command'
+      if (command.type === 'gift.accept') {
+        if (gift.status !== 'proposed' || gift.acceptedAtMs) return gift.status === 'proposed' ? undefined : 'invalid-command'
+        commit({ ...gift, acceptedAtMs: clock.nowMs() }); return
+      }
       if (command.type === 'gift.start') return start(gift)
       if (command.type === 'gift.cancel') { if (!['proposed', 'making'].includes(gift.status)) return 'invalid-command'; active?.abort(); commit({ ...gift, status: 'cancelled' }); return }
       if (command.type === 'gift.open') { if (!gift.assetRef || !['ready', 'given'].includes(gift.status)) return 'unavailable'; options.open(gift.assetRef); return }

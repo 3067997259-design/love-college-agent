@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import type { AppCommand, McpView, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { PrivacyModel } from '../privacy/filter'
@@ -31,6 +32,18 @@ export function createMcpService(options: { clock: Clock; configPath: string; so
         worker = (async () => {
           const path = await options.chooseConfig(); if (!path || disposed) return
           const config = readMcpConfig(path); await disconnect(); if (disposed) return
+          saveMcpConfig(options.configPath, config); install(config); error = undefined
+        })().catch(() => { error = { code: 'configuration-failed', retryable: true } }).finally(() => { worker = undefined; options.changed() }); return
+      }
+      if (command.type === 'mcp.configure.path') {
+        if (options.developmentConfig || worker || approving.size || disconnecting.size || !options.canConfigure()) return 'unavailable'
+        worker = (async () => {
+          if (!existsSync(command.path)) throw new Error('MCP_CONFIGURATION_INVALID')
+          const incoming = readMcpConfig(command.path)
+          // 插件中心的一次“添加”只增/替换同名服务器，不抹掉已有的 mcpfabric／Student Hub。
+          const current = readMcpConfig(options.configPath)
+          const config = { mcpServers: { ...current.mcpServers, ...incoming.mcpServers } }
+          await disconnect(); if (disposed) return
           saveMcpConfig(options.configPath, config); install(config); error = undefined
         })().catch(() => { error = { code: 'configuration-failed', retryable: true } }).finally(() => { worker = undefined; options.changed() }); return
       }

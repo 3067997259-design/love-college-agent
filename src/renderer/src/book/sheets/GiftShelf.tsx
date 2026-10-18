@@ -89,9 +89,8 @@ function Showcase({ entry, snapshot, failed, onCommand }: { entry: Entry; snapsh
   const { gift } = entry
   const name = giftName(gift)
   const from = sourceText(snapshot, gift.sourceMemoryId)
-  const focusing = snapshot.pomodoro.phase === 'focus' && snapshot.pomodoro.status === 'running'
   const status = {
-    proposed: fill(copy.shelf.proposed, { object: name, measure: copy.measures[gift.objectId] }),
+    proposed: gift.acceptedAtMs ? copy.shelf.accepted : fill(copy.shelf.proposed, { object: name, measure: copy.measures[gift.objectId] }),
     making: fill(copy.shelf.making, { object: name, measure: copy.measures[gift.objectId] }),
     ready: copy.shelf.ready,
     given: fill(copy.shelf.givenOn, { date: dateLabel(gift.givenAtMs ?? gift.createdAtMs) }),
@@ -110,8 +109,8 @@ function Showcase({ entry, snapshot, failed, onCommand }: { entry: Entry; snapsh
         <p className="showcase-from">{from ? fill(copy.shelf.from, { text: from }) : copy.shelf.fromUnknown}</p>
         {gift.status === 'proposed' && (
           <div className="card-actions">
-            <button type="button" className="btn btn-primary btn-small" disabled={!focusing} title={focusing ? undefined : copy.shelf.startHint}
-              onClick={() => onCommand({ type: 'gift.start', giftId: gift.id })}>{copy.shelf.start}</button>
+            {!gift.acceptedAtMs && <button type="button" className="btn btn-primary btn-small"
+              onClick={() => onCommand({ type: 'gift.accept', giftId: gift.id })}>{copy.shelf.start}</button>}
             <button type="button" className="btn btn-ghost btn-small" onClick={() => onCommand({ type: 'gift.cancel', giftId: gift.id })}>{copy.shelf.decline}</button>
           </div>
         )}

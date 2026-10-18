@@ -2,12 +2,22 @@
   "_说明": "书签页（日程、礼物、日记）、对话里的礼物卡和窗台小物的文案（体验设计 §2 书签）。代码引用，不调用模型。草稿，待用户把关。",
   "tabs": {
     "chat": "对话",
+    "plugins": "插件",
     "schedule": "日程",
     "gifts": "礼物",
     "diary": "日记",
     "settings": "设置"
   },
   "chatUnread": "对话里有新的东西",
+  "calendar": {
+    "weekdays": ["一", "二", "三", "四", "五", "六", "日"],
+    "choose": "选日期",
+    "clear": "清除日期",
+    "close": "合上",
+    "previous": "上个月",
+    "next": "下个月",
+    "title": "选一个打算完成的日子"
+  },
   "objects": {
     "cup": "杯子",
     "paper-bridge": "纸桥",
@@ -43,6 +53,7 @@
     "from": "来自：{text}",
     "fromUnknown": "来自你们一起经历过的一件事",
     "proposed": "她想做一{measure}{object}送给你。",
+    "accepted": "你答应了，等下次专注时她就动手做。",
     "making": "她在书桌上做这{measure}{object}……",
     "ready": "做好了，等休息的时候她会拿给你。",
     "failed": "这一件没做成。",
@@ -104,6 +115,12 @@
       "cancelled": "没去成{place}"
     },
     "herEmpty": "她今天还没有安排。",
+    "life": {
+      "proposeCoast": "提议去海岸",
+      "proposeSwing": "提议去秋千",
+      "depart": "同意这次外出",
+      "return": "请她提前回来"
+    },
     "works": {
       "read": "读 {name}",
       "write": "照着 {name} 写一篇",
@@ -136,6 +153,19 @@
     "kinds": {
       "deadline": "截止",
       "event": "活动"
+    },
+    "mail": {
+      "title": "邮箱",
+      "idle": "等待扫描",
+      "scanning": "正在扫描",
+      "ready": "扫描完成",
+      "blocked": "暂时连不上邮箱，还不清楚有没有新邮件。",
+      "failed": "部分内容没能处理，可以再试一次。",
+      "disabled": "邮箱工具已停用。",
+      "scanFake": "扫描合成邮件",
+      "scan": "扫描邮箱",
+      "export": "导出新确认事项",
+      "hint": "扫描只找线索，不会替你确认，也不会改邮箱已读。"
     }
   },
   "note": {
@@ -180,12 +210,12 @@
     "init": "生成项目说明草稿",
     "review": "审查本次改动草稿",
     "drafts": "工作草稿",
-    "draftNote": "草稿写好了不表示审查通过或测试通过。",
+    "draftNote": "这是她拟好的初稿，供你查阅把关。",
     "draftOpen": "查阅工作草稿",
     "draftKinds": { "init": "项目说明", "review": "改动审查" },
     "draftStatus": { "running": "在写", "ready": "写好了", "failed": "没写成", "cancelled": "不写了" },
     "goals": "工作目标",
-    "goalNote": "跨次保留；目标做没做完由你标记，文件和运行结果另有实际记录。",
+    "goalNote": "目标会跨天保留，何时算完成由你标记。",
     "goalInput": "工作长期目标",
     "goalNew": "新建工作目标",
     "goalUpdate": "更新所选目标",
@@ -195,6 +225,7 @@
     "goalReopen": "重新打开目标",
     "goalStatus": { "active": "进行中", "completed": "你标记完成", "cancelled": "你取消了" },
     "goalCurrent": "当前所选",
+    "goalManage": "管理目标",
     "otherApproval": "还有一件事等你批准，在上面的工作台里。",
     "goSee": "去看看",
     "devRun": "试运行（开发者模式）",
@@ -243,7 +274,7 @@
       "back": "回到原话",
       "pages": "这一页封成了 {n} 张",
       "page": "第 {i}／{n} 张",
-      "note": "这是她对这一页的印象，没有审核过；只留下能对上原话的几行，细节以原话为准。",
+      "note": "这是她对那天对话留下的模糊印象，具体细节请以原话为准。",
       "rejected": "另有 {n} 行对不上原话，没有采用。",
       "empty": "这一档没有留下能对上原话的行。",
       "loading": "正在取那张封页……",

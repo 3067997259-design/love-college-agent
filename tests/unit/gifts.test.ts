@@ -71,6 +71,8 @@ describe('Rodin MCP lifecycle, provenance, privacy and local assets', () => {
     const base = { protocolVersion: 1 as const, requestId: 'r', epoch: 'e' }; const propose = { ...base, type: 'gift.propose' as const, sourceMemoryId: 'mem:proof', objectId: 'cup' as const, motif: 'plain' as const }
     expect(service.dispatch({ ...propose, sourceMemoryId: 'unseen' })).toBe('evidence-unavailable'); expect(service.view().items).toHaveLength(0)
     expect(service.dispatch(propose)).toBeUndefined(); const id = service.view().items[0].id
+    expect(service.dispatch({ ...base, type: 'gift.accept', giftId: id })).toBeUndefined()
+    expect(service.view().items[0].acceptedAtMs).toEqual(expect.any(Number)); expect(service.dispatch({ ...base, type: 'gift.accept', giftId: id })).toBeUndefined()
     expect(service.dispatch({ ...base, type: 'gift.start', giftId: id })).toBe('unavailable')
     const focus = () => f.store.append({ type: 'pomodoro/state', view: { ...idleTimer(), phase: 'focus', status: 'running', remainingMs: 60000, endsAtMs: 61000, plannedCount: 1, focusIndex: 1, phaseDurationMs: 60000 }, pauseReason: null, cause: 'started' })
     focus(); service.reconcile(); await service.idle(); expect(submits).toBe(1); expect(service.view().items[0].status).toBe('making')

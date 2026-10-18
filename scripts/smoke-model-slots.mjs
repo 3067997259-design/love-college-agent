@@ -41,7 +41,7 @@ try {
   await launch(); assert.equal((await snapshot()).memory.status, 'unconfigured')
   await instance.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, file)
   await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '导入模型配置', exact: true }).click()
-  await waitFor((s) => s.modelSettings.status === 'saved' && s.modelSettings.restartRequired, 'PRIVATE_CONFIG_NOT_SAVED'); safe(await snapshot())
+  await waitFor((s) => s.modelSettings.status === 'saved' && s.modelSettings.restartRequired, 'PRIVATE_CONFIG_NOT_SAVED'); assert.deepEqual((await snapshot()).modelSettings.configuredSlots, ['chat', 'background', 'privacy']); safe(await snapshot())
   assert.deepEqual(JSON.parse(await readFile(join(data, 'connections', 'providers.json'), 'utf8')).providers.tts, providers.providers.tts)
   const savedConfig = await readFile(join(data, 'connections', 'providers.json')); const badFile = join(data, 'invalid-speech.json'); const invalid = structuredClone(providers); delete invalid.providers.tts.voice; await writeFile(badFile, JSON.stringify(invalid))
   await instance.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, badFile)

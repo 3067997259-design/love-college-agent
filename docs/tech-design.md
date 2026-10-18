@@ -15,7 +15,7 @@
 | 脚手架 | electron-vite | 默认 |
 | 包管理 | pnpm，依赖锁定精确版本 | 默认 |
 | 前端状态 | Zustand | 默认 |
-| 设置页组件 | Tailwind CSS + shadcn/ui；书本主界面自绘 | 默认 |
+| 设置页组件 | 沿用书页 CSS token 与现有 React 组件，不引入 Tailwind／shadcn；书本主界面自绘 | 已确定（2026-10-18） |
 | 业务存储 | SQLite（better-sqlite3，主进程） | 默认 |
 | 对话与执行记录 | 每个会话一条 append-only JSONL 日志（§3.2） | 已确定 |
 | 模型接入 | OpenAI 兼容协议，按槽位配置（主对话、后台整理），可切换 | 已确定 |

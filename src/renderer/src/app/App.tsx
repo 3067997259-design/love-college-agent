@@ -11,6 +11,7 @@ export function App({ bridge, fake }: { bridge: AppBridge; fake: FakeBridge | nu
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null)
   const [failed, setFailed] = useState(false)
   const [toolsOpen, setToolsOpen] = useState(false)
+  const [pluginRequest, setPluginRequest] = useState(0)
   useEffect(() => connectBridge(bridge, (next) => { setFailed(false); setSnapshot(next) }, () => setFailed(true)), [bridge])
 
   if (!snapshot) return <div className="boot" role="status"><h1 className="visually-hidden">Love, College &amp; Agent</h1>{failed ? '接口连接失败' : ''}</div>
@@ -19,8 +20,9 @@ export function App({ bridge, fake }: { bridge: AppBridge; fake: FakeBridge | nu
   return (
     <>
       {!fake && <VoiceAudio bridge={bridge} snapshot={snapshot} />}
-      <Stage snapshot={snapshot} bridge={bridge} onOpenTools={tools ? () => setToolsOpen(true) : undefined} />
-      {!fake && <ToolsPanel bridge={bridge} snapshot={snapshot} open={toolsOpen} onOpenChange={setToolsOpen} />}
+      <Stage snapshot={snapshot} bridge={bridge} onOpenTools={tools ? () => setToolsOpen(true) : undefined} pluginRequest={pluginRequest} />
+      {!fake && <ToolsPanel bridge={bridge} snapshot={snapshot} open={toolsOpen} onOpenChange={setToolsOpen}
+        onOpenPlugins={tools ? () => { setToolsOpen(false); setPluginRequest((value) => value + 1) } : undefined} />}
       {fake && <ScenarioSwitcher fake={fake} />}
     </>
   )

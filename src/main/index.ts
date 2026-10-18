@@ -397,7 +397,9 @@ void app.whenReady().then(async () => {
     bridge = registerAppBridge(controller, async (ref, scope) => vault!.read(ref, scope))
     pomodoro = createPomodoro({ clock, store, scheduler, changed: () => { life?.reconcile(); questions?.stateChanged(); controller?.refresh('timer') }, stateChanged: () => harness?.stateChanged(),
       emit: (id, text) => { harness?.postEvent('pomodoro', text, id) } })
-    const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, privacyModel: prepared.developer ? createFakePrivacyModel() : taskModels.narrow })
+    const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, clock,
+      privacyModel: prepared.developer ? createFakePrivacyModel() : taskModels.narrow,
+      onCandidates: (seeds) => { campus?.ingestCandidates(seeds) } })
     plugins.registerBuiltin('core', '时钟与任务计划', [...builtinTools(), questions.tool()])
     plugins.registerBuiltin('pomodoro', '番茄钟', pomodoroTools(pomodoro))
     plugins.registerBuiltin('mail', '邮箱与校园候选', mailTools(campus), { handlesPrivacy: true, permissions: ['network'] })
@@ -543,7 +545,7 @@ void app.whenReady().then(async () => {
     controller.attachVoice(voice)
     scheduler.schedule('voice.guard', clock.nowMs() + 250, () => voice?.stateChanged(), { everyMs: 250 })
     controller.attachExecution(harness, modelReady)
-    modelSettings = createModelSettings({ root: dataRoot, developer: prepared.developer, slots: [...providers.keys()], canConfigure: () => !harness?.isBusy() && !backup?.isBusy(),
+    modelSettings = createModelSettings({ root: dataRoot, developer: prepared.developer, slots: [...providers.keys()], clock, budget: resourceBudget, canConfigure: () => !harness?.isBusy() && !backup?.isBusy(),
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入模型槽位配置（内容仅由主进程读取）', properties: ['openFile'], filters: [{ name: '模型配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null }, changed: () => controller?.refresh('connection') })
     controller.attachModelSettings(modelSettings)
     backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials, onboarding: () => controller!.getSnapshot().onboarding!,

@@ -20,7 +20,9 @@ export function FileIntake({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
   }, [bridge, snapshot.epoch])
   if (!bridge.importFiles || !snapshot.documents) return null
   return <div className="file-intake">
-    <button type="button" className="btn btn-ghost" onClick={() => input.current?.click()}>选择资料</button>
+    <button type="button" className="file-clip" aria-label="递给她一份资料" title="递给她一份资料" onClick={() => input.current?.click()}>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 11.8l5.9-5.9a3.4 3.4 0 014.8 4.8l-7.6 7.6a5.1 5.1 0 01-7.2-7.2l7.3-7.3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+    </button>
     <input ref={input} className="visually-hidden" type="file" multiple accept=".pdf,.txt,.md" aria-label="选择资料文件" onChange={(event) => {
       const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ''
       if (files.length) void bridge.importFiles!(files, snapshot.epoch).then((ack) => { setError(!!ack.error); setNotice(ack.error ? `文件未全部接收：${ack.error.code}` : `已接收 ${ack.acceptedIds.length} 份资料`) }, () => { setError(true); setNotice('文件接收失败') })

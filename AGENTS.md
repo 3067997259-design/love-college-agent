@@ -101,7 +101,14 @@ Node 24.14.0、pnpm 11.24.0；在各自 worktree 运行。每个 checkout 各装
 | `pnpm test:harness` | 合成 HTTP＋真实 Electron 的发送／工具／停止／重启场景 |
 | `pnpm test:questions` | 真实 SQLite 延迟日切／作用域额度；有界 ask_user、书本回答、专注到休息、心流隔离、合成 HTTP、停止／重启／私人恢复 |
 | `pnpm test:flow-rewind` | 实际多文件步骤回退、书页预览／确认、版本冲突前拒绝、取消、重启／私人恢复不重放；fake 工作模型 |
-| `pnpm test:settings` | 正常／展位分组设置、原生配置失败详情、私人导出、隐私锁、重启后独立开发模式及诊断隔离 |
+| `pnpm test:settings` | 正常／展位分组设置、原生配置失败详情、私人导出、插件中心快捷入口、重启后独立开发模式及诊断隔离 |
+| `pnpm test:plugins` | 书页插件中心：本地插件目录安装／指纹确认、技能分栏、本地 MCP 配置导入与连接确认、设置／输入框入口；合成插件与 MCP，不含真实 mcpfabric |
+| `pnpm test:student-hub` | 标准 MCP 插件包导入：`plugin-packages/student-hub/mcp.json` 出现在已安装列表，默认关闭、privacy=always，不启动 Python；不扫描学校 |
+| `pnpm test:student-hub-candidates` | 合成 Student Hub SQLite：真实 Electron 安装／启用 `plugin-packages/student-hub-candidates`，自动形成 LCA 候选卡、用户原文可读，快照不含摘录；不扫描真实邮箱 |
+| `pnpm install:student-hub-candidates "D:\...\data"` | 透明窗口向已有 profile 安装／启用候选插件，备份设置并报告候选数量变化 |
+| `pnpm test:real-model` | 显式 `LCA_REAL_MODEL=1`＋授权 `LCA_PROVIDERS_FILE`：真实 chat 流式、真实工具回合、正常模式 UI 回复；临时 profile、透明窗口、只写布尔报告，不回退 fake |
+| `pnpm probe:student-hub-live` | 真实只读 Coremail 扫描；必须显式设置 `LCA_STUDENT_HUB_LIVE=1`，使用临时 DB、仅 mail、limit 3／日期报告，不碰 portals、附件、提交或外部写入 |
+| `pnpm test:providers` | Provider GUI：图形化保存／测试／清除模型槽位、服务商预设、TTS／Rodin／邮箱连接卡；本机合成 HTTP；密钥不进入快照，探针按预算准入 |
 | `pnpm test:failure-narrator` | 合成 HTTP 失败分类／明确拦截／半截回复、用户草稿检查后重发、工具证据提示、普通／工作隔离、重启及私人恢复 |
 | `pnpm probe:live-readiness` | 主进程只读本机装配状态、独立新 profile、零模型／语音／礼物请求；不做连接或质量验收 |
 | `pnpm probe:desk-command:runtime` | Windows 原生隔离／中文或明确拒绝／外部文件及网络拒绝／上限／取消／子进程退出；真实主进程协议 |

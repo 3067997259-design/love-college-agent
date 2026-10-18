@@ -56,6 +56,12 @@ export async function attachRuntime(options: {
   }
   const port: RuntimePort = { view, clockView: p.adjusted?.view,
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
+      if (command.type === 'plugin.install') {
+        if (p.booth) return 'permission-denied'
+        const error = plugins.install(command.path)
+        if (!error) controller.refresh('connection')
+        return error
+      }
       if (command.type === 'plugin.enable') return plugins.enable(command.pluginId, command.fingerprint)
       if (command.type === 'plugin.disable') return plugins.disable(command.pluginId)
       if (command.type === 'plugin.privacy.set') return plugins.setPrivacy(command.pluginId, command.privacy)

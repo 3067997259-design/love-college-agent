@@ -15,7 +15,7 @@ async function launch(booth = false) { instance = await _electron.launch({ ...el
 async function close() { await instance?.close(); instance = undefined }
 async function group(name) { const element = page.locator('.settings-group').filter({ has: page.locator('summary', { hasText: name }) }).first(); if (!(await element.evaluate((node) => node.open))) await element.locator(':scope > summary').click(); return element }
 try {
-  await mkdir(data, { recursive: true }); await launch(); assert.equal((await snapshot()).runtime.developer.mode, 'normal')
+  await mkdir(data, { recursive: true }); await launch(); await page.screenshot({ path: join(root, 'test-results', 'settings-providers.png') }); assert.equal((await snapshot()).runtime.developer.mode, 'normal')
   const personalSessionId = (await snapshot()).scope.sessionId
   assert.equal(await page.locator('[data-settings="user"]').count(), 1)
   for (const name of ['冻结时钟', '快进一分钟', '刷新安全诊断', '暂存合成文本', '扫描合成邮件']) assert.equal(await page.getByRole('button', { name, exact: true }).count(), 0)
@@ -32,8 +32,8 @@ try {
   const book = await group('书本与角色'); const archive = join(data, 'settings.lca-save')
   await instance.evaluate(({ dialog }, path) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: path }) }, archive)
   await book.getByRole('button', { name: '导出私人存档', exact: true }).click(); await waitFor((s) => s.backup.status === 'exported', 'USER_EXPORT_FAILED'); assert.ok((await stat(archive)).size > 1000)
-  const extensions = await group('本地扩展'); const locked = (await snapshot()).runtime.plugins.find((plugin) => plugin.privacyLocked)
-  if (locked) assert.equal(await extensions.locator('section').filter({ has: page.getByText(locked.name, { exact: true }) }).getByRole('combobox').isDisabled(), true)
+  // 本地插件列表已收进插件中心；设置只留快捷入口，不再复制第二套卡片。
+  assert.equal(await page.getByRole('button', { name: '打开插件中心', exact: true }).isVisible(), true)
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results/settings-user.png') })
   await group('高级与开发'); await page.getByRole('checkbox', { name: '使用独立的假数据与假模型（重启生效）', exact: true }).click()
   await waitFor((s) => s.runtime.developer.restartRequired && s.runtime.developer.requestedEnabled, 'DEV_SWITCH_NOT_SAVED'); assert.equal((await snapshot()).runtime.developer.mode, 'normal'); assert.equal(await page.getByRole('checkbox', { name: '使用独立的假数据与假模型（重启生效）', exact: true }).isChecked(), true)
@@ -44,5 +44,5 @@ try {
   await group('高级与开发'); assert.equal(await page.getByRole('checkbox', { name: '使用独立的假数据与假模型（重启生效）', exact: true }).isDisabled(), true)
   assert.equal(await page.getByRole('button', { name: '冻结时钟', exact: true }).count(), 0); assert.equal(await page.getByRole('button', { name: '刷新安全诊断', exact: true }).count(), 0)
   if ((await snapshot()).capabilities.some((capability) => capability.source === 'fake')) assert.equal(await page.locator('[data-synthetic-source]').isVisible(), true)
-  console.log(JSON.stringify({ ok: true, probe: 'settings', nativeSQLite: true, userGroups: true, nativeConfigRefusal: true, privateExport: true, fixedDiagnosticDetails: true, noConfigValues: true, privacyLock: true, separateDeveloperRestart: true, boothControls: true, noRealProviders: true }))
+  console.log(JSON.stringify({ ok: true, probe: 'settings', nativeSQLite: true, userGroups: true, nativeConfigRefusal: true, privateExport: true, fixedDiagnosticDetails: true, noConfigValues: true, pluginCenterShortcut: true, separateDeveloperRestart: true, boothControls: true, noRealProviders: true }))
 } finally { await close() }

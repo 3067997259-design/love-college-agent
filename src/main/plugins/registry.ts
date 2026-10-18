@@ -1,18 +1,29 @@
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { isAbsolute, relative, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import { z } from 'zod'
 import type { PluginView, PublicErrorCode } from '../../shared'
-import type { HarnessTool, ToolResult } from '../harness/tools'
+import type { CandidateSeed, HarnessTool, ToolResult } from '../harness/tools'
 import type { SettingsStore } from '../config/settings'
 import { createPrivacyFilter, type PrivacyModel } from '../privacy/filter'
+import { systemClock, type Clock } from '../clock'
 import { manifestSchema, type PluginManifest } from './manifest'
 
-interface Entry { view: PluginView; manifest?: PluginManifest; folder?: string; code?: string; tools: HarnessTool[]; handlesPrivacy?: boolean }
+interface Entry { view: PluginView; manifest?: PluginManifest; folder?: string; code?: string; tools: HarnessTool[]; handlesPrivacy?: boolean; activate?: (context: PluginActivationContext) => unknown }
+export interface PluginActivationContext {
+  nowMs(): number
+  signal: AbortSignal
+  /** Narrow user-only sink; candidate excerpts never enter the model context or tool journal. */
+  ingestCandidates(seeds: readonly CandidateSeed[]): void
+}
 const resultSchema = z.strictObject({ ok: z.boolean(), raw: z.json(), visible: z.json(),
   imageRefs: z.array(z.string().regex(/^work-frame:[a-f0-9]{64}$/)).max(1).optional(),
-  fields: z.record(z.string().max(40), z.union([z.string().max(100), z.number().finite(), z.boolean()])).optional() })
+  fields: z.record(z.string().max(40), z.union([z.string().max(100), z.number().finite(), z.boolean()])).optional(),
+  candidates: z.array(z.strictObject({ externalId: z.string().min(1).max(128), title: z.string().min(1).max(1000), kind: z.enum(['deadline', 'event']),
+    deadlineIso: z.string().max(64).nullable(), eventStartIso: z.string().max(64).optional(), eventEndIso: z.string().max(64).optional(),
+    locationText: z.string().max(1000).optional(), sourceLabel: z.string().min(1).max(1000), sourceAtMs: z.number().int().nonnegative().optional(),
+    excerpt: z.string().min(1).max(64_000) })).max(32).optional() })
 const hash = (text: string) => createHash('sha256').update(text).digest('hex')
 function contained(root: string, file: string) {
   const path = realpathSync(resolve(root, file)); const rel = relative(realpathSync(root), path)
@@ -30,10 +41,21 @@ function validateParameters(parameters: Record<string, unknown>) {
   return z.fromJSONSchema(parameters)
 }
 
-export function createPluginRegistry(options: { root: string; settings: SettingsStore; privacyModel?: PrivacyModel | null; fileFiltering?: () => boolean }) {
+export function createPluginRegistry(options: { root: string; settings: SettingsStore; clock?: Clock; privacyModel?: PrivacyModel | null; fileFiltering?: () => boolean;
+  onCandidates?: (seeds: readonly CandidateSeed[], source: { pluginId: string; tool?: string }) => void }) {
+  const clock = options.clock ?? systemClock
   const entries = new Map<string, Entry>()
   const services = new Map<string, (enabled: boolean) => void>()
   const filter = createPrivacyFilter(options.privacyModel ?? null)
+  const takeCandidates = (entry: Entry, result: ToolResult, tool?: string): ToolResult => {
+    if (!result.candidates?.length) return result
+    if (result.ok) {
+      try { options.onCandidates?.(result.candidates, { pluginId: entry.view.id, ...(tool ? { tool } : {}) }) } catch { /* Candidate storage failure is reported by the host sink. */ }
+    }
+    const observable = { ...result }
+    delete observable.candidates
+    return observable
+  }
   const wrap = (entry: Entry, tool: HarnessTool): HarnessTool => ({ ...tool, run: async (input, context): Promise<ToolResult> => {
     if (entry.view.status !== 'enabled') return { ok: false, raw: { error: 'plugin-disabled' }, visible: { error: 'plugin-disabled' } }
     // Fail before invoking even a read operation if its mandatory privacy dependency is absent.
@@ -41,7 +63,7 @@ export function createPluginRegistry(options: { root: string; settings: Settings
     if (filtering && !entry.handlesPrivacy && !options.privacyModel) return { ok: false, raw: { error: 'privacy-unavailable' }, visible: { error: 'privacy-unavailable' } }
     const result = resultSchema.parse(await tool.run(input, context))
     if (JSON.stringify(result).length > 1_000_000) throw new Error('PLUGIN_RESULT_TOO_LARGE')
-    if (!filtering || entry.handlesPrivacy) return result
+    if (!filtering || entry.handlesPrivacy) return takeCandidates(entry, result, tool.definition.name)
     const filtered = await filter(JSON.stringify(result.raw), context.signal)
     return filtered.ok ? { ok: result.ok, raw: result.raw, visible: { ...filtered.fields, trust: filtered.trust }, fields: {} }
       : { ok: false, raw: result.raw, visible: { error: filtered.error }, fields: {} }
@@ -72,7 +94,7 @@ export function createPluginRegistry(options: { root: string; settings: Settings
         const conflict = manifest.tools.some((tool) => [...entries.values()].some((entry) => entry.view.tools.includes(tool.name)))
         const status = manifest.apiVersion !== 1 || conflict ? 'incompatible' : !manifest.entry ? (saved?.enabled === false ? 'disabled' : 'enabled')
           : saved?.fingerprint !== fingerprint ? 'needs-approval' : 'disabled'
-        const entry: Entry = { view: { id: manifest.id, name: manifest.name, version: manifest.version, source: 'folder', status,
+        const entry: Entry = { view: { id: manifest.id, name: manifest.name, version: manifest.version, description: manifest.description, source: 'folder', status,
           privacy: saved?.privacy ?? manifest.privacy, permissions: manifest.permissions, tools: manifest.tools.map((tool) => tool.name), fingerprint },
           manifest, folder: root, code, tools: [] }
         entries.set(manifest.id, entry)
@@ -105,13 +127,56 @@ export function createPluginRegistry(options: { root: string; settings: Settings
             // No store, credentials, or internal loop hooks are passed to external implementations.
             run: async (input, context) => fn(input, { nowMs: () => context.clock.nowMs(), signal: context.signal, turnId: context.turnId }) as Promise<ToolResult> })
         })
+        const activate = 'activate' in exported ? exported.activate : undefined
+        entry.activate = typeof activate === 'function' ? (activate as (context: PluginActivationContext) => unknown) : undefined
       }
       options.settings.update((draft) => { draft.plugins[id] = { enabled: true, fingerprint, privacy: entry.view.privacy } })
       entry.view.status = 'enabled'
       services.get(id)?.(true)
+      if (entry.activate) {
+        const activation = {
+          nowMs: () => clock.nowMs(),
+          signal: new AbortController().signal,
+          ingestCandidates: (seeds: readonly CandidateSeed[]) => {
+            const filtering = entry.view.privacy === 'always' || (entry.view.privacy === 'optional' && options.fileFiltering?.())
+            if (!filtering || entry.handlesPrivacy) options.onCandidates?.(seeds, { pluginId: entry.view.id })
+          },
+        }
+        // Activation is best effort; a source outage must not make the plugin permanently failed.
+        void Promise.resolve(entry.activate(activation)).catch(() => {})
+      }
     } catch { entry.view.status = 'failed'; return 'internal' }
   }
-  return { registerBuiltin, discover, enable,
+  const install = (source: string): PublicErrorCode | undefined => {
+    let target: string | undefined
+    try {
+      const sourceRoot = realpathSync(resolve(source))
+      if (!statSync(sourceRoot).isDirectory()) return 'configuration-failed'
+      const manifestText = bounded(contained(sourceRoot, 'manifest.json'), 64_000)
+      const manifest = manifestSchema.parse(JSON.parse(manifestText))
+      if (entries.has(manifest.id)) return 'invalid-command'
+      target = join(options.root, manifest.id)
+      if (existsSync(target)) return 'invalid-command'
+      // Validate every referenced file before copying; copying never follows symlinks.
+      if (manifest.entry) bounded(contained(sourceRoot, manifest.entry), 512_000)
+      for (const asset of manifest.furniture) contained(sourceRoot, asset.image)
+      mkdirSync(options.root, { recursive: true })
+      let total = 0
+      cpSync(sourceRoot, target, { recursive: true, dereference: false, errorOnExist: true, force: false,
+        filter: (path) => {
+          const stat = lstatSync(path); if (stat.isSymbolicLink()) return false
+          if (stat.isFile()) { total += stat.size; if (stat.size > 5_000_000 || total > 20_000_000) return false }
+          return true
+        } })
+      discover()
+      if (!entries.has(manifest.id)) throw new Error('PLUGIN_INSTALL_FAILED')
+      return
+    } catch {
+      if (target) { try { rmSync(target, { recursive: true, force: true }) } catch { /* best effort */ } }
+      return 'configuration-failed'
+    }
+  }
+  return { registerBuiltin, discover, enable, install,
     mountService: (id: string, changed: (enabled: boolean) => void) => {
       const entry = entries.get(id)
       if (!entry || entry.view.source !== 'builtin') throw new Error('SERVICE_PLUGIN_REQUIRED')

@@ -114,29 +114,39 @@ function Drafts({ flow, busy, send }: { flow: HeartFlowView; busy: boolean; send
 /** 跨次的工作目标：只有你能新建、选定、标记完成或取消；她不能自己把目标标成完成 */
 function Goals({ flow, send }: { flow: HeartFlowView; send: (body: CommandBody) => void }) {
   const [text, setText] = useState('')
+  const currentGoal = flow.goals?.find((goal) => goal.id === flow.goalId)
   return (
     <div className="flow-goals">
       <span className="flow-label">{copy.flow.goals}</span>
       <div className="flow-goal-input">
         <input className="flow-input" aria-label={copy.flow.goalInput} value={text} maxLength={200} placeholder={copy.flow.goalInput} onChange={(event) => setText(event.target.value)} />
         <button type="button" className="link-button" disabled={!text.trim()} onClick={() => send({ type: 'flow.goal.set', text })}>{copy.flow.goalNew}</button>
-        <button type="button" className="link-button" disabled={!text.trim() || !flow.goalId} onClick={() => send({ type: 'flow.goal.set', goalId: flow.goalId!, text })}>{copy.flow.goalUpdate}</button>
       </div>
+      {currentGoal && <div className="flow-current-goal" data-goal-id={currentGoal.id}>
+        <span>{currentGoal.text}</span>
+        <small>{copy.flow.goalStatus[currentGoal.status]} · {currentGoal.flowIds.length} 次心流</small>
+        <button type="button" className="link-button" disabled={currentGoal.status === 'completed'} onClick={() => send({ type: 'flow.goal.status', goalId: currentGoal.id, status: 'completed' })}>{copy.flow.goalDone}</button>
+      </div>}
       {!!flow.goals?.length && (
-        <ul>
-          {flow.goals.map((goal) => (
-            <li key={goal.id} data-goal-id={goal.id} data-current={flow.goalId === goal.id}>
-              <span>{goal.text}</span>
-              <small>{copy.flow.goalStatus[goal.status]}{flow.goalId === goal.id && ` · ${copy.flow.goalCurrent}`}</small>
-              <span className="flow-links">
-                <button type="button" className="link-button" disabled={goal.status !== 'active'} onClick={() => { setText(goal.text); send({ type: 'flow.goal.select', goalId: goal.id }) }}>{copy.flow.goalSelect}</button>
-                <button type="button" className="link-button" disabled={goal.status === 'completed'} onClick={() => send({ type: 'flow.goal.status', goalId: goal.id, status: 'completed' })}>{copy.flow.goalDone}</button>
-                <button type="button" className="link-button" disabled={goal.status === 'cancelled'} onClick={() => send({ type: 'flow.goal.status', goalId: goal.id, status: 'cancelled' })}>{copy.flow.goalCancel}</button>
-                <button type="button" className="link-button" disabled={goal.status === 'active'} onClick={() => send({ type: 'flow.goal.status', goalId: goal.id, status: 'active' })}>{copy.flow.goalReopen}</button>
-              </span>
-            </li>
-          ))}
-        </ul>
+        <details className="flow-goals-manage">
+          <summary>{copy.flow.goalManage}</summary>
+          <div className="flow-goal-update">
+            <button type="button" className="link-button" disabled={!text.trim() || !flow.goalId} onClick={() => send({ type: 'flow.goal.set', goalId: flow.goalId!, text })}>{copy.flow.goalUpdate}</button>
+          </div>
+          <ul>
+            {flow.goals.map((goal) => (
+              <li key={goal.id} data-current={flow.goalId === goal.id}>
+                <span>{goal.text}</span>
+                <small>{copy.flow.goalStatus[goal.status]}{flow.goalId === goal.id && ` · ${copy.flow.goalCurrent}`}</small>
+                <span className="flow-links">
+                  <button type="button" className="link-button" disabled={goal.status !== 'active'} onClick={() => { setText(goal.text); send({ type: 'flow.goal.select', goalId: goal.id }) }}>{copy.flow.goalSelect}</button>
+                  <button type="button" className="link-button" disabled={goal.status === 'cancelled'} onClick={() => send({ type: 'flow.goal.status', goalId: goal.id, status: 'cancelled' })}>{copy.flow.goalCancel}</button>
+                  <button type="button" className="link-button" disabled={goal.status === 'active'} onClick={() => send({ type: 'flow.goal.status', goalId: goal.id, status: 'active' })}>{copy.flow.goalReopen}</button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
       <p className="flow-note">{copy.flow.goalNote}</p>
     </div>

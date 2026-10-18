@@ -57,8 +57,11 @@ try {
   await waitFor((s) => s.memory.items.length === 3, 'VISIBLE_EXPERIENCE_NOT_EXTRACTED')
   assert.equal((await snapshot()).memory.items.filter((item) => item.supersededBy).length, 1)
   assert.equal(await page.locator('.memory-item[data-superseded="true"]').count(), 1)
+  await closeTools()
+  await page.getByRole('button', { name: '日程', exact: true }).click()
   await page.getByRole('button', { name: '扫描合成邮件', exact: true }).click()
-  await waitFor((s) => s.mailbox.status === 'ready', 'SYNTHETIC_MAIL_NOT_READY'); await closeTools()
+  await waitFor((s) => s.mailbox.status === 'ready', 'SYNTHETIC_MAIL_NOT_READY')
+  await page.locator('.bookmarks').getByRole('button', { name: /^对话/ }).click()
   await send({ type: 'privacy.set', enabled: true }); await send({ type: 'developer.document.import', fixtureId: 'notes-text' })
   await waitFor((s) => s.documents.jobs.at(-1)?.status === 'ready', 'SYNTHETIC_DOCUMENT_NOT_READY')
   await mcp('set_fake_model', { script: [

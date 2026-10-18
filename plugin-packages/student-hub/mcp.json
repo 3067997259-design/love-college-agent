@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "student-hub": {
+      "type": "stdio",
+      "command": "C:\\Users\\86130\\anaconda3.0\\python.exe",
+      "args": [
+        "-B",
+        "-m",
+        "student_hub.mcp_server",
+        "--config",
+        "D:\\student-hub\\config\\sources.toml"
+      ],
+      "env": {
+        "PYTHONPATH": "D:\\student-hub\\src",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "allowTools": [
+        "integrity_check",
+        "get_dashboard",
+        "list_review_cases",
+        "list_courses",
+        "scan_school_updates",
+        "get_school_update_scan",
+        "get_school_update_scan_result",
+        "cancel_school_update_scan"
+      ],
+      "privacy": "always"
+    }
+  }
+}

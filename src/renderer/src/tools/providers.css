@@ -1,0 +1,70 @@
+/* Provider GUI：设置里唯一需要填密钥的地方，保持纸色、下划线和手写小标题。 */
+.provider-controls { display: grid; gap: 8px; margin-bottom: 14px; }
+.provider-summary { margin: 0; font-size: 13px; color: var(--graphite); }
+.provider-services { display: grid; gap: 6px; margin-top: 12px; padding-top: 8px; border-top: 1px dashed color-mix(in oklab, var(--pencil) 55%, transparent); }
+.provider-services .provider-card { margin: 0; }
+.provider-list { display: grid; gap: 8px; }
+.provider-card {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  background: color-mix(in oklab, var(--paper) 82%, white 18%);
+  border: 1.5px solid color-mix(in oklab, var(--pencil) 72%, transparent);
+  border-radius: 11px 8px 12px 7px;
+  box-shadow: var(--shadow-card);
+}
+.provider-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.provider-head strong { font: normal 18px var(--font-hand); color: var(--ink-her); }
+.provider-state { flex: none; font-size: 12px; color: var(--graphite); }
+.provider-state[data-ok='true'] { color: var(--ink-her); }
+.provider-hint, .provider-note { margin: 0; font-size: 12px; line-height: 1.55; color: var(--graphite); }
+.provider-field { display: grid; gap: 1px; font-size: 12px; color: var(--graphite); }
+.provider-field select {
+  width: 100%;
+  padding: 2px 0;
+  font: 14px var(--font-body);
+  color: var(--graphite);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid color-mix(in oklab, var(--pencil) 80%, transparent);
+  outline: none;
+}
+.provider-field select:focus { border-bottom-color: var(--peach-mid); }
+.provider-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 2px;
+  font: 14px var(--font-body);
+  color: var(--graphite);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid color-mix(in oklab, var(--pencil) 80%, transparent);
+  outline: none;
+}
+.provider-field input:focus { border-bottom-color: var(--peach-mid); }
+.provider-field input::placeholder { color: var(--pencil); }
+.provider-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.provider-actions .link-button { margin: 0; }
+.provider-import {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px dashed color-mix(in oklab, var(--pencil) 55%, transparent);
+  font-size: 12px;
+  color: var(--graphite);
+}
+.provider-import .link-button { flex: none; margin: 0; }
+.provider-restart {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: color-mix(in oklab, var(--peach) 25%, var(--paper));
+  border: 1.5px dashed color-mix(in oklab, var(--peach-mid) 65%, transparent);
+  border-radius: 9px 6px 10px 6px;
+}
+.provider-restart p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-her); }
+.provider-probe-failed { display: grid; gap: 3px; }

@@ -34,7 +34,7 @@ const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
 const INTRO_ART = { key: 'desk-writing_calm', lighting: 'ambient' } as const
 const GREET_ART = { key: 'facing-user_smile', lighting: 'ambient' } as const
 
-export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiary, historyPhoto = null }: {
+export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiary, historyPhoto = null, showSpeech = true }: {
   snapshot: AppSnapshot
   bridge: AppBridge
   intro?: IntroStep | null
@@ -44,6 +44,8 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   onOpenDiary?: (dayKey: string) => void
   /** 往回翻或回忆时，那天拍下的照片盖在房间上面 */
   historyPhoto?: PhotoOverlay | null
+  /** 对话页右页已经有整段话，左页不再重复字幕；声波和“停下这句”仍保留 */
+  showSpeech?: boolean
 }) {
   const { companion, pomodoro, messages, capabilities } = snapshot
   const [commandFailed, setCommandFailed] = useState(false)
@@ -146,7 +148,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
       {!intro && historyPhoto && <HistoryPhoto view={historyPhoto} />}
 
       {!intro && lastLine && historyPhoto?.mode !== 'page' && <VoiceMark snapshot={snapshot} bridge={bridge} messageId={lastLine.id} />}
-      {!intro && lastLine && historyPhoto?.mode !== 'page' && (
+      {!intro && showSpeech && lastLine && historyPhoto?.mode !== 'page' && (
         <p className="speech" data-status={lastLine.status} data-absent={away || pose === 'sleeping' || undefined}>
           {lastLine.text}
           {lastLine.status === 'streaming' && <span className="speech-caret" />}

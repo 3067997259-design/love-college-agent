@@ -22,7 +22,7 @@ export function QuillDock({ snapshot, onExport }: { snapshot: AppSnapshot; onExp
       <button type="button" className="quill-button" aria-label="羽毛笔 · 导出存档" title="羽毛笔：从这里导出私人存档" disabled={busy} onClick={onExport}>
         <QuillArt className="quill-svg" />
       </button>
-      <span className="quill-tag" aria-hidden>{busy ? '存档…' : '存档'}</span>
+      <span className="quill-tag" aria-hidden>{busy ? '正在写…' : '记下此刻（导出存档）'}</span>
       {note && (
         <span className="quill-note" data-failed={status === 'failed'}>
           {status === 'failed' && <span className="notice-mark" title={backup?.error?.detailsId ? `诊断编号 ${backup.error.detailsId}` : undefined}>！</span>}

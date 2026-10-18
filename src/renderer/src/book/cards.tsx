@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { AppBridge, BackupView, CandidateView, DeliveryView, EvidenceView, GeneratedGiftView, PlanStep, PomodoroPlanItem, PomodoroPlanView, PomodoroView, TaskView, ActivityView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
 import book from '../voice/book.zh.json'
-import { formatDateTime, formatIso } from './format'
+import { daysInMonth, formatDateTime, formatIso, weekdayIndex } from './format'
 import { momentSrc } from './Character'
 import { GiftModel } from './life/GiftModel'
 import { ObjectSketch } from './life/objects'
@@ -43,11 +43,11 @@ export function CandidateCard({ view, bridge, onCommand, entering }: {
         {view.kind === 'event' && view.eventStartIso && <><dt>活动时间</dt><dd>{formatIso(view.eventStartIso)}{view.eventEndIso ? ` — ${formatIso(view.eventEndIso)}` : ''}</dd></>}
         {view.locationText && <><dt>地点</dt><dd>{view.locationText}</dd></>}
         <dt>{view.kind === 'event' ? '报名截止' : '原始截止'}</dt><dd className="time-deadline">{formatIso(view.deadlineIso)}</dd>
-        <dt>计划完成</dt><dd className="time-planned">{formatIso(view.plannedCompletionIso)}</dd>
+        {view.plannedCompletionIso && <><dt>打算完成</dt><dd className="time-planned">{formatIso(view.plannedCompletionIso)}</dd></>}
       </dl>
-      {view.status === 'changed' && <div className="card-note"><p>变更待确认；已接受的截止仍为 {formatIso(view.change?.previousDeadlineIso ?? null)}。</p>
+      {view.status === 'changed' && <div className="card-note"><p>这封邮件改了时间，还没确认。原来的截止仍然是 {formatIso(view.change?.previousDeadlineIso ?? null)}。</p>
         {view.change?.previousEventStartIso && <p>原活动时间：{formatIso(view.change.previousEventStartIso)}</p>}
-        <p>确认后导出同 UID 的新版本；若日历重复添加，请手动删除旧项。</p>
+        <p>确认后会导出更新后的日程文件；如果日历里多出一条旧的，删掉旧的那条就好。</p>
         {view.change && <button type="button" className="link-button" onClick={() => {
           const id = ++previousRequest.current
           if (previousEvidence) { setPreviousEvidence(null); return }
@@ -67,7 +67,7 @@ export function CandidateCard({ view, bridge, onCommand, entering }: {
           ? <p className="card-stamp card-stamp-muted">已忽略</p>
           : (
             <footer className="card-actions">
-              <label>计划完成时间（上海，可留空）<input type="datetime-local" aria-label="计划完成时间" value={planned} onChange={(event) => setPlanned(event.target.value)} /></label>
+              <PlannedPicker view={view} planned={planned} setPlanned={setPlanned} />
               <button className="btn btn-primary" onClick={() => onCommand('candidate.confirm', view.id, view.revision ?? 1, planned ? planned + (planned.length === 16 ? ':00' : '') + '+08:00' : undefined)}>确认</button>
               <button className="btn btn-ghost" onClick={() => onCommand('candidate.ignore', view.id, view.revision ?? 1)}>忽略</button>
             </footer>
@@ -76,9 +76,50 @@ export function CandidateCard({ view, bridge, onCommand, entering }: {
   )
 }
 
+/** 日期选择器：纸色手绘月历，不调用原生 datetime 日历；文本仍可直接输入。 */
+function PlannedPicker({ view, planned, setPlanned }: { view: CandidateView; planned: string; setPlanned: (value: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const anchor = planned || view.eventStartIso || view.deadlineIso || '2026-01-01T00:00'
+  const [month, setMonth] = useState(anchor.slice(0, 7))
+  const [year, monthNumber] = month.split('-').map(Number)
+  const startOffset = (weekdayIndex(year, monthNumber, 1) + 6) % 7
+  const dayCount = daysInMonth(year, monthNumber)
+  const time = planned.includes('T') ? planned.slice(11, 16) : '20:00'
+  const move = (delta: number) => {
+    let nextMonth = monthNumber + delta; let nextYear = year
+    if (nextMonth < 1) { nextMonth = 12; nextYear -= 1 }
+    if (nextMonth > 12) { nextMonth = 1; nextYear += 1 }
+    setMonth(`${nextYear}-${String(nextMonth).padStart(2, '0')}`)
+  }
+  const choose = (day: number) => {
+    setPlanned(`${month}-${String(day).padStart(2, '0')}T${time}`)
+    setOpen(false)
+  }
+  return <div className="planned-picker">
+    <label>打算什么时候做？（选填）<input type="text" inputMode="numeric" aria-label="计划完成时间" placeholder="2026-10-23T20:00" value={planned} onChange={(event) => setPlanned(event.target.value)} /></label>
+    <button type="button" className="link-button planned-open" aria-expanded={open} onClick={() => setOpen(!open)}>{book.calendar.choose}</button>
+    {open && <div className="planned-calendar" role="dialog" aria-label={book.calendar.title}>
+      <header>
+        <button type="button" aria-label={book.calendar.previous} onClick={() => move(-1)}>‹</button>
+        <strong>{year} 年 {monthNumber} 月</strong>
+        <button type="button" aria-label={book.calendar.next} onClick={() => move(1)}>›</button>
+      </header>
+      <div className="planned-weekdays" aria-hidden>{book.calendar.weekdays.map((day) => <span key={day}>{day}</span>)}</div>
+      <div className="planned-days">
+        {Array.from({ length: startOffset }, (_, index) => <span key={`blank-${index}`} aria-hidden />)}
+        {Array.from({ length: dayCount }, (_, index) => <button key={index + 1} type="button" onClick={() => choose(index + 1)}>{index + 1}</button>)}
+      </div>
+      <footer>
+        <button type="button" className="link-button" onClick={() => { setPlanned(''); setOpen(false) }}>{book.calendar.clear}</button>
+        <button type="button" className="link-button" onClick={() => setOpen(false)}>{book.calendar.close}</button>
+      </footer>
+    </div>}
+  </div>
+}
+
 function Evidence({ state }: { state: EvidenceView | 'loading' | 'failed' | null }) {
   if (state === 'loading' || state === null) return <div className="evidence evidence-loading">取原文……</div>
-  if (state === 'failed') return <div className="evidence"><span className="notice-mark">！</span>原文取不到。卡片上的时间先别当真。</div>
+  if (state === 'failed') return <div className="evidence"><span className="notice-mark">！</span>没能读到原邮件，上面的时间请先核对。</div>
   // 高亮是 excerpt 的 UTF-16 半开区间；按起点排序后切片
   const parts: { text: string; mark: boolean }[] = []
   let cursor = 0

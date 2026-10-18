@@ -20,7 +20,7 @@ const VISUAL: Record<OnboardingStep, IntroStep> = {
 }
 export const introStepOf = (step: OnboardingStep) => VISUAL[step]
 
-export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone }: {
+export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone, onOpenProvider }: {
   snapshot: AppSnapshot
   bridge: AppBridge
   step: OnboardingStep
@@ -28,13 +28,15 @@ export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone
   painted: readonly string[]
   onStep: (step: OnboardingStep) => void
   onDone: (names: { userName: string; characterName: string }) => void
+  /** 打开设置里的 Provider GUI；浏览器预览没有 */
+  onOpenProvider?: () => void
 }) {
   const [userName, setUserName] = useState(snapshot.onboarding?.userName ?? '')
   const [characterName, setCharacterName] = useState(snapshot.onboarding?.characterName ?? '')
   const [error, setError] = useState('')
   const send = async (body: CommandBody) => {
     const result = await sendCommand(bridge, snapshot.epoch, body)
-    setError(result.ok ? '' : '没有完成，请稍后重试。')
+    setError(result.ok ? '' : copy.error)
     return result.ok
   }
   // 上色放完就转到“她注意到你”：计时用 requestAnimationFrame，不用 setTimeout
@@ -75,9 +77,10 @@ export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone
           <>
             <h2 className="onboarding-title">{copy.model.title}</h2>
             <p className="onboarding-lead">{copy.model.lead}</p>
-            {models && models.configuredSlots.length > 0 && <p className="onboarding-note">{copy.model.configured.replace('{slots}', models.configuredSlots.join('、'))}</p>}
+            {models && models.configuredSlots.length > 0 && <p className="onboarding-note">{copy.model.configured.replace('{slots}', models.configuredSlots.map((slot) => (copy.slots as Record<string, string>)[slot] ?? slot).join('、'))}</p>}
             {models?.restartRequired && <p className="onboarding-note">{copy.model.restart}</p>}
             <div className="onboarding-actions">
+              {onOpenProvider && <button type="button" className="btn btn-primary" onClick={onOpenProvider}>{copy.model.chooseGui}</button>}
               <button type="button" className="btn btn-ghost" disabled={!models || models.status === 'selecting'} onClick={() => { void send({ type: 'models.configure' }) }}>{copy.model.choose}</button>
               <button type="button" className="btn btn-primary" disabled={!models?.configuredSlots.length} onClick={() => onStep('call')}>{copy.model.next}</button>
             </div>

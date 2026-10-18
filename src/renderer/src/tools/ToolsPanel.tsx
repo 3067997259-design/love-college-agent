@@ -4,7 +4,6 @@ import './tools.css'
 import { MailboxControls } from './MailboxControls'
 import { DocumentControls } from './DocumentControls'
 import { MemoryControls } from './MemoryControls'
-import { McpControls } from './McpControls'
 import { BackupControls } from './BackupControls'
 import { DiagnosticsControls } from './DiagnosticsControls'
 import { ModelControls } from './ModelControls'
@@ -23,7 +22,7 @@ import { PomodoroSettings } from './PomodoroSettings'
 
 type Action = AppCommand extends infer Command ? Command extends AppCommand ? Omit<Command, 'epoch' | 'protocolVersion' | 'requestId'> : never : never
 
-export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: { bridge: AppBridge; snapshot: AppSnapshot; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange, onOpenPlugins }: { bridge: AppBridge; snapshot: AppSnapshot; open?: boolean; onOpenChange?: (open: boolean) => void; onOpenPlugins?: () => void }) {
   // 书本的“设置”书签也能打开这里：开关由 App 持有时听 App 的
   const [ownOpen, setOwnOpen] = useState(false)
   const open = openProp ?? ownOpen
@@ -39,11 +38,11 @@ export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: {
   }
   if (!snapshot.runtime) return null
   if (snapshot.runtime.developer.mode !== 'developer') return <aside className="tools-panel" data-settings="user">
-    <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}>工具与设置</button>
-    {open && <section aria-label="工具与设置"><UserSettings bridge={bridge} snapshot={snapshot} onClose={() => setOpen(false)} /></section>}
+    <button type="button" aria-label="工具与设置" onClick={() => setOpen(!open)} aria-expanded={open}>设置</button>
+    {open && <section aria-label="工具与设置"><UserSettings bridge={bridge} snapshot={snapshot} onClose={() => setOpen(false)} onOpenPlugins={onOpenPlugins} /></section>}
   </aside>
   return <aside className="tools-panel">
-    <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}>工具与设置</button>
+    <button type="button" aria-label="工具与设置" onClick={() => setOpen(!open)} aria-expanded={open}>设置</button>
     {open && <section aria-label="工具与设置">
       <button type="button" onClick={() => setOpen(false)}>关闭</button>
       {snapshot.windows && <button type="button" onClick={() => void send({ type: 'window.mini' })}>收起为迷你窗</button>}
@@ -52,7 +51,6 @@ export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: {
       <MemoryControls bridge={bridge} snapshot={snapshot} />
       <OpticalControls bridge={bridge} snapshot={snapshot} />
       <BackupControls bridge={bridge} snapshot={snapshot} />
-      <McpControls bridge={bridge} snapshot={snapshot} />
       <MinecraftControls bridge={bridge} snapshot={snapshot} />
       <VoiceControls bridge={bridge} snapshot={snapshot} />
       <ResourceControls bridge={bridge} snapshot={snapshot} />

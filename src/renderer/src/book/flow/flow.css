@@ -77,6 +77,11 @@ textarea.flow-code { width: 100%; box-sizing: border-box; resize: vertical; bord
 .flow-drafts li, .flow-goals li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: var(--fs-sm); color: var(--ink-her); overflow-wrap: anywhere; }
 .flow-drafts small, .flow-goals small { color: var(--graphite); }
 .flow-goals li[data-current='true'] > span:first-child { text-decoration: underline 1.5px color-mix(in oklab, var(--peach-mid) 70%, transparent); text-underline-offset: 4px; }
+.flow-current-goal { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 7px 10px; background: color-mix(in oklab, var(--peach) 20%, var(--paper)); border: 1px dashed color-mix(in oklab, var(--peach-mid) 55%, transparent); border-radius: 9px 6px 10px 6px; font-size: var(--fs-sm); color: var(--ink-her); }
+.flow-current-goal span { flex: 1; min-width: 12em; }
+.flow-goals-manage { margin: 4px 0; font-size: var(--fs-sm); }
+.flow-goals-manage summary { cursor: pointer; color: var(--graphite); }
+.flow-goals-manage ul { margin-top: 5px; }
 .flow-goal-input { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .flow-input { flex: 1; min-width: 160px; font: var(--fs-sm) var(--font-body); color: var(--graphite); background: transparent; border: none; border-bottom: 1.5px solid var(--pencil); outline: none; }
 .flow-input:focus { border-bottom-color: var(--peach-mid); }

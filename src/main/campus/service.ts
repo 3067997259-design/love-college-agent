@@ -16,8 +16,11 @@ import type { ArtifactStore } from '../artifacts/store'
 import type { DeliveryView } from '../../shared'
 import type { SourceMail } from '../mail/types'
 import type { AttachmentRecord } from '../documents/schema'
+import type { CandidateSeed } from '../harness/tools'
 
 export interface ScanResult { ok: boolean; source: 'real' | 'fake'; newCount?: number; candidateCount?: number; error?: PublicErrorCode }
+const boundedChars = (value: string, limit: number) => [...value].slice(0, limit).join('')
+/** External candidate sources such as MCP plugins only provide a short, user-only evidence excerpt. */
 export function createCampusService(options: { clock: Clock; store: SessionStore; scheduler: Scheduler; vault: EvidenceVault; source: MailSource;
   privacy: EmailPrivacyModel | null; development?: ReturnType<typeof createFakeMailbox>; changed(): void; emit(id: string, text: string): void; failed?(): void;
   artifacts?: ArtifactStore; openArtifact?(view: DeliveryView, content: string): void;
@@ -132,8 +135,86 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
       publish()
     }
   }
+  /**
+   * A plugin may contribute already-triaged candidate cards. It cannot address the
+   * journal, evidence vault, or campus repository directly; this narrow sink validates
+   * the bounded fields, stores only the supplied excerpt as user-only evidence, and
+   * creates the same projection-backed cards used by the mailbox path.
+   */
+  const ingestCandidates = (seeds: readonly CandidateSeed[]): number => {
+    if (disposed || store.projection().lightsOut) return 0
+    let changed = 0
+    for (const seed of seeds.slice(0, 32)) {
+      try {
+        const title = boundedChars(seed.title.trim(), 20)
+        const sourceLabel = boundedChars(seed.sourceLabel.trim(), 60)
+        const excerpt = boundedChars(seed.excerpt.trim(), 64_000)
+        if (!title || !sourceLabel || !excerpt) continue
+        const toIso = (value: string | null | undefined): string | null => {
+          if (value === null || value === undefined || value === '') return null
+          const parsed = clock.parse(value)
+          return Number.isFinite(parsed) && parsed >= 0 ? clock.iso(parsed) : null
+        }
+        const deadlineIso = toIso(seed.deadlineIso)
+        const eventStartIso = toIso(seed.eventStartIso)
+        const eventEndIso = toIso(seed.eventEndIso)
+        if (seed.deadlineIso && !deadlineIso) continue
+        if (seed.eventStartIso && !eventStartIso) continue
+        if (seed.eventEndIso && !eventEndIso) continue
+        const scopeKey = JSON.stringify([store.scope.userId, store.scope.characterId])
+        const sourceKey = 'sh:' + digest(JSON.stringify([scopeKey, seed.externalId]))
+        const candidateId = 'sh:' + digest(JSON.stringify([scopeKey, seed.externalId]))
+        const sourceAtMs = seed.sourceAtMs !== undefined && Number.isSafeInteger(seed.sourceAtMs) ? seed.sourceAtMs : clock.nowMs()
+        const createdAtMs = clock.nowMs()
+        const mail: SourceMail = {
+          uidValidity: '0',
+          uid: Math.max(1, Number.parseInt(digest(sourceKey).slice(0, 8), 16) || 1),
+          senderAddress: 'student-hub@local',
+          senderName: 'Student Hub',
+          subject: boundedChars(seed.title, 256),
+          body: excerpt,
+          sentAtMs: sourceAtMs,
+          receivedAtMs: sourceAtMs,
+        }
+        let evidenceRef: string
+        try { evidenceRef = vault.put(sourceKey, mail, []) } catch { continue }
+        const previous = repository.view().items.find((item) => item.current.id === candidateId)
+        const content = {
+          kind: seed.kind,
+          title,
+          deadlineIso,
+          ...(eventStartIso ? { eventStartIso } : {}),
+          ...(eventEndIso ? { eventEndIso } : {}),
+          ...(seed.locationText?.trim() ? { locationText: boundedChars(seed.locationText.trim(), 40) } : {}),
+          sourceLabel,
+        }
+        const keys = ['kind', 'title', 'deadlineIso', 'eventStartIso', 'eventEndIso', 'locationText', 'sourceLabel'] as const
+        const same = previous && keys.every((key) => previous.current[key] === content[key])
+        if (same) continue
+        const accepted = previous?.accepted
+        const candidate = candidateSchema.parse({
+          ...content,
+          id: candidateId,
+          revision: (previous?.current.revision ?? 0) + 1,
+          source: 'real',
+          createdAtMs,
+          status: accepted ? 'changed' : 'candidate',
+          plannedCompletionIso: previous?.current.plannedCompletionIso ?? null,
+          evidenceRef,
+          ...(accepted ? { change: { previousDeadlineIso: accepted.deadlineIso, ...(accepted.eventStartIso ? { previousEventStartIso: accepted.eventStartIso } : {}), previousEvidenceRef: accepted.evidenceRef } } : {}),
+        })
+        repository.append({ type: 'campus/proposed', candidate, calendarUid: previous?.calendarUid ?? randomUUID() })
+        changed++
+      } catch (cause) {
+        if (cause instanceof CampusStorageFailure) throw cause
+        // A malformed or oversized external row is skipped; the rest of the batch remains usable.
+      }
+    }
+    if (changed) publish()
+    return changed
+  }
   scheduler.schedule('mail.outbox', clock.nowMs() + 1000, flush, { everyMs: 1000 })
-  return { view, repository, scanNow,
+  return { view, repository, scanNow, ingestCandidates,
     candidates: () => repository.view().items.map((item) => item.current),
     deliveries: () => [...repository.view().artifacts.map((entry) => entry.view), ...repository.view().deliveryFailures],
     privacyStatus: () => !options.privacy ? 'unconfigured' as const : mailbox.error?.code.startsWith('privacy-') ? 'failed' as const : 'ready' as const,

@@ -60,6 +60,33 @@ describe('MCP configuration, transport and private result boundaries', () => {
     connect(); answer(true); await service.idle(); expect(service.view().servers[0].status).toBe('ready')
     expect(JSON.stringify(service.view())).not.toContain('http://127.0.0.1:')
   })
+  it('imports a local MCP configuration path without projecting its values', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'lca-mcp-')); const source = join(root, 'incoming.json'); const target = join(root, 'connections', 'mcp.json')
+    const cleanup = () => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-mcp-'))) throw new Error('Unsafe cleanup'); rmSync(root, { recursive: true, force: true }) }
+    try {
+      saveMcpConfig(source, mcpConfigSchema.parse({ mcpServers: { local: { command: 'node', args: ['server.js'], env: { PRIVATE_KEY: 'SYNTHETIC_PATH_VALUE' } } } }))
+      const service = createMcpService({ clock: systemClock, configPath: target, source: 'fake', privacyModel: null, chooseConfig: async () => null, confirmConnection: async () => true, canConfigure: () => true, changed: () => {} })
+      expect(service.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'path', type: 'mcp.configure.path', path: source } as AppCommand)).toBeUndefined()
+      await service.idle()
+      expect(service.view().servers.map((server) => server.id)).toEqual(['local'])
+      expect(readMcpConfig(target).mcpServers.local).toBeDefined()
+      expect(JSON.stringify(service.view())).not.toContain('SYNTHETIC_PATH_VALUE')
+      await service.close()
+    } finally { cleanup() }
+  })
+  it('merges an imported MCP plugin package into existing servers instead of deleting them', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'lca-mcp-')); const source = join(root, 'incoming.json'); const target = join(root, 'connections', 'mcp.json')
+    const cleanup = () => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-mcp-'))) throw new Error('Unsafe cleanup'); rmSync(root, { recursive: true, force: true }) }
+    try {
+      saveMcpConfig(target, mcpConfigSchema.parse({ mcpServers: { existing: { command: 'node', args: ['existing.js'] } } }))
+      saveMcpConfig(source, mcpConfigSchema.parse({ mcpServers: { incoming: { command: 'node', args: ['plugin.js'] } } }))
+      const service = createMcpService({ clock: systemClock, configPath: target, source: 'fake', privacyModel: null, chooseConfig: async () => null, confirmConnection: async () => true, canConfigure: () => true, changed: () => {} })
+      expect(service.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'path', type: 'mcp.configure.path', path: source } as AppCommand)).toBeUndefined()
+      await service.idle()
+      expect(Object.keys(readMcpConfig(target).mcpServers).sort()).toEqual(['existing', 'incoming'])
+      await service.close()
+    } finally { cleanup() }
+  })
   it('reads standard stdio/http configurations privately with explicit tool selection', () => {
     const root = mkdtempSync(join(tmpdir(), 'lca-mcp-'))
     const cleanup = () => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-mcp-'))) throw new Error('Unsafe cleanup'); rmSync(root, { recursive: true, force: true }) }

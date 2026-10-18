@@ -1,0 +1,22 @@
+{
+  "apiVersion": 1,
+  "id": "student-hub-candidates",
+  "name": "Student Hub 候选卡",
+  "version": "0.1.0",
+  "description": "把 Student Hub 已整理或待确认的校园事项，导入为桃子书页上的候选卡。只读本地 Student Hub 数据库，不连接邮箱、不写外部系统。",
+  "privacy": "none",
+  "permissions": ["local-code", "filesystem"],
+  "entry": "index.cjs",
+  "tools": [
+    {
+      "name": "import_student_hub_candidates",
+      "description": "读取本机 Student Hub 中当前未完成的事项，把带日期的事项补充为桃子的候选卡。只读本地数据库；不会扫描邮箱或修改 Student Hub。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "templateId": "student-hub.candidates"
+    }
+  ]
+}

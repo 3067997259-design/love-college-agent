@@ -72,6 +72,17 @@ describe('user-only versioned campus confirmation', () => {
     expect(f.campus.dispatch(f.command({ type: 'candidate.confirm', expectedRevision: 1 }))).toBe('evidence-unavailable')
     expect(f.campus.candidates().find((item) => item.id === f.id)?.status).toBe('candidate')
   })
+  it('ingests a plugin candidate once, keeps its excerpt out of the journal, and exposes it as user-only evidence', async () => {
+    const f = await fixture()
+    const seed = { externalId: 'item:test', title: '提交课程作业', kind: 'deadline' as const, deadlineIso: '2026-11-03T23:00:00+08:00',
+      sourceLabel: 'Student Hub · 课程', excerpt: 'PRIVATE_EXCERPT from Student Hub' }
+    expect(f.campus.ingestCandidates([seed])).toBe(1)
+    const card = f.campus.candidates().find((item) => item.id.startsWith('sh:'))!
+    expect(card).toMatchObject({ title: '提交课程作业', kind: 'deadline', deadlineIso: '2026-11-03T15:00:00.000Z', sourceLabel: 'Student Hub · 课程', status: 'candidate' })
+    expect(f.vault.read(card.evidenceRef, f.store.scope).excerpt).toContain('PRIVATE_EXCERPT')
+    expect(JSON.stringify(f.store.records())).not.toContain('PRIVATE_EXCERPT')
+    expect(f.campus.ingestCandidates([seed])).toBe(0)
+  })
   it('exports only confirmed revisions and updates the same calendar UID exactly once after change confirmation', async () => {
     const f = await fixture(); f.campus.exportPending(); expect(f.campus.deliveries()).toHaveLength(0)
     f.campus.dispatch(f.command({ type: 'candidate.confirm', expectedRevision: 1 })); f.campus.exportPending(); f.campus.exportPending()

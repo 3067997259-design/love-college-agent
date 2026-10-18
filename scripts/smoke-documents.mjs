@@ -20,7 +20,7 @@ const send = (body) => page.evaluate(async (body) => { const s = await window.lc
 const openTools = () => page.getByRole('button', { name: '工具与设置', exact: true }).click()
 const closeTools = () => page.getByRole('button', { name: '关闭', exact: true }).click()
 const safe = (value) => { const text = JSON.stringify(value); for (const marker of ['RAW_ONLY_', 'USER_ONLY_DOCUMENT_RESULT', 'PRIVATE_ORIGINAL_NAME', 'sk-synthetic', 'PRIVATE_FAULT_']) assert.ok(!text.includes(marker), 'PRIVATE_DOCUMENT_LEAK') }
-async function slash(value) { await page.locator('textarea').fill(value); await page.getByRole('button', { name: '发送', exact: true }).click() }
+async function slash(value) { await page.locator('textarea').fill(value); if (value.startsWith('/')) { assert.equal(await page.getByRole('listbox', { name: '可用指令', exact: true }).isVisible(), true); if (value === '/privacy') await page.screenshot({ path: join(root, 'test-results', 'slash-menu.png') }) } await page.getByRole('button', { name: '发送', exact: true }).click() }
 async function drop(path) {
   // Native file backing is retained when placed into DataTransfer. A JS-created File is refused.
   await page.evaluate(() => { const input = document.createElement('input'); input.type = 'file'; input.id = 'native-drop-carrier'; input.hidden = true; document.body.append(input) })
@@ -32,6 +32,7 @@ try {
   const source = join(data, 'PRIVATE_ORIGINAL_NAME.txt')
   await writeFile(source, 'SYNTHETIC_USER_FILE\nRAW_ONLY_DROPPED_FILE\nDeadline: 2026-10-24 23:59\nAPI key: sk-syntheticdroppedcredential1234567890\n')
   await launch()
+  await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results', 'composer-paperclip.png') })
   assert.equal((await snapshot()).mailbox.status, 'blocked')
   assert.equal((await send({ type: 'privacy.set', enabled: true })).error.code, 'privacy-unavailable')
   const forged = await page.evaluate(async () => { const s = await window.lca.getSnapshot(); return window.lca.importFiles([new File(['synthetic'], 'forged.txt')], s.epoch) })
@@ -49,9 +50,11 @@ try {
   await drop(source)
   await waitFor((s) => s.documents.jobs.length === 1, 'NATIVE_DROP_NOT_ACCEPTED')
   assert.equal((await snapshot()).documents.jobs[0].status, 'staged')
-  await openTools(); await page.getByRole('button', { name: '扫描合成邮件', exact: true }).click()
+  await page.getByRole('button', { name: '日程', exact: true }).click()
+  await page.getByRole('button', { name: '扫描合成邮件', exact: true }).click()
   await waitFor((s) => s.mailbox.status === 'ready' && s.documents.attachments.length === 1, 'ATTACHMENT_NOT_DISCOVERED')
-  await page.locator('.document-attachment').getByRole('button', { name: '整理附件', exact: true }).click()
+  await page.locator('.bookmarks').getByRole('button', { name: /^对话/ }).click()
+  await openTools(); await page.locator('.document-attachment').getByRole('button', { name: '整理附件', exact: true }).click()
   await waitFor((s) => s.documents.jobs.length === 2, 'ATTACHMENT_NOT_STAGED')
   assert.equal((await snapshot()).documents.jobs.find((job) => job.origin === 'mail-attachment').status, 'staged')
   assert.equal((await snapshot()).deliveries.length, 0); await closeTools()

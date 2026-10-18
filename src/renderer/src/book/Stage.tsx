@@ -15,13 +15,14 @@ import { useHistoryPhoto, useOldPages } from './history/useHistory'
 import { DiaryBook, RibbonKey } from './sheets/DiaryBook'
 import { GiftShelf } from './sheets/GiftShelf'
 import { ScheduleSheet } from './sheets/ScheduleSheet'
+import { PluginCenter } from '../plugins/PluginCenter'
 import './book.css'
 import './sheets/sheets.css'
 
 const STAGE_W = 1600
 const STAGE_H = 1000
-type Tab = 'chat' | 'schedule' | 'gifts' | 'diary'
-const TABS: readonly (Tab | 'settings')[] = ['chat', 'schedule', 'gifts', 'diary', 'settings']
+type Tab = 'chat' | 'plugins' | 'schedule' | 'gifts' | 'diary'
+const TABS: readonly (Tab | 'settings')[] = ['chat', 'plugins', 'schedule', 'gifts', 'diary', 'settings']
 
 /** 书按固定的设计尺寸排版，整体缩放到窗口；书外露出的是书桌（美术规格 §6.1） */
 function useFitScale() {
@@ -40,7 +41,7 @@ function useFitScale() {
   return { ref, scale }
 }
 
-export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot; bridge: AppBridge; onOpenTools?: () => void }) {
+export function Stage({ snapshot, bridge, onOpenTools, pluginRequest = 0 }: { snapshot: AppSnapshot; bridge: AppBridge; onOpenTools?: () => void; pluginRequest?: number }) {
   const { ref, scale } = useFitScale()
   const { companion } = snapshot
   useRootAmbience(companion)
@@ -62,6 +63,8 @@ export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot
   // 她进入心流时，工作视图在对话页上（体验设计 §2）：不让它藏在别的书签后面
   const flowing = !!snapshot.heartFlow?.activeId
   useEffect(() => { if (flowing) { old.close(); setTab('chat') } }, [flowing])
+  // 设置里的“打开插件中心”只发一个递增请求：舞台自己切书签，设置不直接改书页状态。
+  useEffect(() => { if (pluginRequest > 0) { old.close(); setTab('plugins') } }, [pluginRequest])
   const historyPhoto = useHistoryPhoto(snapshot, tab === 'chat' ? old.view : null)
   const unread = useChatUnread(snapshot, tab === 'chat')
   const openDiary = (id: string) => { turnTab('diary'); setDiaryFocus(id) }
@@ -85,13 +88,13 @@ export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot
           <LeftPage snapshot={snapshot} bridge={bridge} intro={onboarding ? introStepOf(onboarding) : null}
             furniture={onboarding === 'alive' ? { painted, onPaint: (id) => setPainted((list) => list.includes(id) ? list : [...list, id]) } : undefined}
             onOpenDiary={(dayKey) => { const entry = snapshot.diary?.entries.find((item) => item.dayKey === dayKey); if (entry) openDiary(entry.id) }}
-            historyPhoto={onboarding ? null : historyPhoto} />
+            historyPhoto={onboarding ? null : historyPhoto} showSpeech={tab !== 'chat'} />
           <div className="gutter" aria-hidden />
           {onboarding
             ? <OnboardingPage snapshot={snapshot} bridge={bridge} step={onboarding} painted={painted.map((id) => FURNITURE.find((f) => f.id === id)?.name ?? id)}
-              onStep={setStep} onDone={() => setPreviewDone(true)} />
+              onStep={setStep} onDone={() => setPreviewDone(true)} onOpenProvider={onOpenTools} />
             : <>
-              <RightPage snapshot={snapshot} bridge={bridge} hidden={tab !== 'chat' || !!old.view} onOpenShelf={() => turnTab('gifts')}
+              <RightPage snapshot={snapshot} bridge={bridge} hidden={tab !== 'chat' || !!old.view} onOpenShelf={() => turnTab('gifts')} onOpenPlugins={() => turnTab('plugins')}
                 onTurnBack={old.past.length ? () => old.open(old.past.at(-1)!.sessionId) : undefined}
                 quote={quote} onClearQuote={() => setQuote(null)} onRestoreQuote={setQuote} />
               {tab === 'chat' && old.view && (
@@ -101,6 +104,7 @@ export function Stage({ snapshot, bridge, onOpenTools }: { snapshot: AppSnapshot
                     : null}
                   onTurn={old.open} onToday={old.close} onQuote={(next) => { setQuote(next); old.close() }} />
               )}
+              {tab === 'plugins' && <PluginCenter snapshot={snapshot} bridge={bridge} />}
               {tab === 'gifts' && <GiftShelf snapshot={snapshot} bridge={bridge} />}
               {tab === 'diary' && <DiaryBook snapshot={snapshot} bridge={bridge} focusId={diaryFocus} onOpened={(id) => { markOpened(id); setDiaryFocus(null) }} />}
               {tab === 'schedule' && <ScheduleSheet snapshot={snapshot} bridge={bridge} />}
