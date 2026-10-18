@@ -1,6 +1,6 @@
 # Windows 部署与运行入口
 
-适用 2026-10-17 晚源码／终包（源码 `ba9aedc`）。最新安装包的版本、哈希和验收记录见 [Windows 安装包](engineering/package-third-circle.md)；本文描述实际入口与已知边界。
+2026-10-18 收尾更新：第二台机器先按 [安装到第一句聊天](exhibition/first-run.md) 操作；当前新界面包的哈希和定向安装态结果见 [收尾审计](engineering/closeout-audit-20261018.md)。下文保留源码入口及历史安装记录，不能把旧包完整 26 项结果套到新包。
 
 ## 从源码运行
 
@@ -25,17 +25,17 @@ pnpm dev
 
 ## 安装与模型配置
 
-构建 `pnpm package:win`，运行 `release/Love-College-Agent-0.1.0-Setup.exe`。安装不需要系统 Node 或 pnpm；当前 Windows x64、未签名、默认图标。应用数据不写在安装目录，卸载不自动删除用户数据。
+构建 `pnpm package:win`，运行 `release/Love-College-Agent-0.1.0-Setup.exe`。安装不需要系统 Node、Python 或 pnpm；当前 Windows x64、未签名。现有 NSIS 不创建桌面／开始菜单快捷方式，也不自动启动；安装完成后运行安装目录的 `LoveCollegeAgent.exe`。应用数据不写在安装目录，卸载不自动删除用户数据。
 
 正常模式打开“工具与设置”→“模型连接”，可直接在图形界面填写日常对话／记忆与日记／隐私滤芯的接口地址、模型和密钥，保存后可点“测试连接”，再重启应用生效。也可以选择本机 providers JSON 导入。字段为 `providers.<槽位>.{base_url, api_key, model}`；可用槽位 `chat`、`background`、`chat_google`、`chat_claude`、`privacy`，其他槽位可保存但未必有功能消费者。配置只由主进程读取，保存到数据根 `connections/providers.json`；重启后应用。界面不显示已保存的地址、模型或密钥值；测试成功只表示这次固定小请求连上了，不代表真实回答质量。保存成功不代表连接成功。
 
-聊天使用 chat；记忆／摘要使用 background；隔离邮件、资料与私有插件结果使用 privacy。缺少 privacy 或调用失败就停止相关隔离处理，不借用 chat。12:24 复核时 privacy 能装配，但一份合成资料的真实调用遇网络失败，学校端点身份与质量仍未确认，见 [连接复核](engineering/live-readiness.md)。顶层 mail 配置可保存，真实邮箱仍明确阻塞，不会因导入而开始扫描。
+聊天使用 chat；记忆／摘要使用 background；隔离邮件、资料与私有插件结果使用 privacy。缺少 privacy 或调用失败就停止相关隔离处理，不借用 chat。10-18 已有真实 privacy 合成文件探针与真实 IMAP 邮件到交付的历史证据；第二机仍须验证实际网络和模型。真实邮箱仅在普通模式配置后可用，展位模式关闭扫描，导入配置不等于扫描。
 
 源码也可用 `LCA_PROVIDERS_FILE` 指向获授权的本机 JSON。已导入的数据根配置优先于此 fallback。不要将密钥写入 renderer、命令参数、错误输出、测试报告或公开仓库；不要为演示复制参考项目的认证和运行数据。
 
 ## 开发演练
 
-“工具与设置”→“高级与开发”打开开发模式并重启，进入 `<数据根>/developer/<sceneId>/`。它不读取真实 providers 内容，所有 fake 来源明确标记。展位设置 `LCA_BOOTH=1` 禁止启用调试；准备正式演示时应使用真实依赖，不能把 fake 当实际模型运行。正常设置里的存档／重置在“书本与角色”，MCP 在“工具连接与提醒”，手动番茄计划在“专注节奏”。
+“工具与设置”→“开发与调试”打开开发模式并重启，进入 `<数据根>/developer/<sceneId>/`。它不读取真实 providers 内容，所有 fake 来源明确标记。展位设置 `LCA_BOOTH=1` 禁止启用调试；准备正式演示时应使用真实依赖，不能把 fake 当实际模型运行。正常设置里的存档在“角色与书本”；MCP 连接在插件书签；番茄计划和邮箱扫描在日程页。
 
 1. 扫描合成邮件，在候选卡查原文、确认，再导出新确认事项；交付卡打开实际 `.ics` 与 Markdown。
 2. 从合成邮件取附件，或原生选择／拖入 UTF-8 文本、Markdown、文字层 PDF；`/privacy on` 后隔离整理，成品只给用户。关闭滤芯时暂存。
@@ -71,7 +71,7 @@ pnpm test:package
 `test:package` 检查 ASAR，运行解包和实际安装后的 SQLite／日志／番茄钟／存档探针，再检查界面重启，最后卸载自己刚建的 D 盘测试实例。发现已有同名用户安装会拒绝覆盖。测试用合成输入或不存在的供应商文件，不执行真实邮箱或模型调用。不要把这些结果当另一台干净机器的验收；该项仍需队友实际复现。
 
 CDP 仅开发模式：GPT 9527／其他 9427；鉴权 MCP：5275／5175。多实例用 `LCA_CDP_PORT`、`LCA_MCP_PORT` 分开。令牌留在开发 profile `debug-connection.json`，不打印或发给模型。安全诊断显示已采集的值，未采集的费用和缓存等显示未提供。
-## 最新安装验收（2026-10-18 02:00）
+## 历史完整安装验收（2026-10-18 04:26，v0.1.6）
 
 最新 NSIS 于 2026-10-18 04:26 基于源码 `0aaebf6`（#38–#51 全部修复，含 #39/#42 重开边界）完成实际安装验收，发布到 GitHub Release `v0.1.6`（下载 `https://github.com/3067997259-design/love-college-agent/releases/tag/v0.1.6`），**264,347,349 字节**；SHA-256 `62c5aac8d918a004476979ea0adc4d01d8fa052c2ce699939df71ba36eb47e6d`，实际签名 NotSigned。解包版／安装版七类探针、普通界面重启、历史照片／引用／恢复及全部 **26 项安装版原生场景**均通过（报告 ok=true，静默模式）；真实 providers + 真实邮箱复测候选/交付/羽毛笔通过；真实 04:00 跨日旧页验证通过（两页、照片/消息/交付/羽毛笔）。构建回执 sourceRevision `0aaebf6…`，trackedDirty=false。跨日存档 `demo-mail-day2.lca-save` 仅本机保留（含个人邮件证据，未上传公开）。
 
@@ -79,3 +79,8 @@ CDP 仅开发模式：GPT 9527／其他 9427；鉴权 MCP：5275／5175。多实
 
 
 
+
+
+## 独立现场入口
+
+`scripts/Start-LcaDemo.ps1` 启动已安装程序，提供 Judges／Visitors／Rehearsal 三种独立目录，不复制个人资料或凭据。具体参数见 [展位手册](exhibition/booth-runbook.md)。它不是安装器，也不内置演示存档。

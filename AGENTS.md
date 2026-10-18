@@ -1,5 +1,7 @@
 # 项目协作约定
 
+**2026-10-18 巡场收尾：** 当前操作与事实边界先看 [收尾审计](docs/engineering/closeout-audit-20261018.md)、[评委卡](docs/exhibition/judges.md)、[展位手册](docs/exhibition/booth-runbook.md)。本次撤去 MC 展示；保留历史实现与来源。现有安装包不生成快捷方式，运行安装目录 `LoveCollegeAgent.exe`。独立现场入口：`scripts/Start-LcaDemo.ps1 -Mode Judges|Visitors|Rehearsal -AppPath <已安装EXE>`；对应 `Start-LcaJudges.cmd`、`Start-LcaVisitors.cmd`、`Start-LcaRehearsal.cmd` 可双击。脚本不拷个人数据／凭据，三档分开；`-InspectOnly` 只检查。展位不能扫描真实邮箱或安装本地代码插件，真实扫描只在已授权的普通演示档执行；不能给假模型开发档接真模型来掩盖来源。
+
 本文件是 Love, College & Agent 的协作与开发约定，也是 OpenCode 自动加载的项目说明（V2 只自动加载 `AGENTS.md`；Claude Code 经 [CLAUDE.md](CLAUDE.md) 转交到此）。原 `AGENT.md`（单数）已于 2026-10-12 并入本文件，不再单独维护。
 
 ## 先读什么
