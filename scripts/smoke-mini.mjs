@@ -13,7 +13,18 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data 
 const profile = join(data, 'developer', sceneId)
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-config.json'), LCA_CDP_PORT: '19534', LCA_MCP_PORT: '0' }
 let instance; let book; let mini; let client
-async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 }); book = await instance.firstWindow(); await initializeTestBook(book); await book.locator('[data-mode][data-pose]').waitFor() }
+async function launch() {
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 })
+  book = await instance.firstWindow(); book.setDefaultTimeout(15_000)
+  // This harness deliberately injects commands into the hidden book. Chromium can
+  // suspend that renderer after opening mini + diagnostics, leaving CDP evaluate
+  // pending indefinitely. Keep this test-owned window active; production keeps
+  // its normal throttling and all business work still runs in the main process.
+  await instance.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows().find((window) => !window.webContents.getURL().includes('view='))?.webContents.setBackgroundThrottling(false)
+  })
+  await initializeTestBook(book); await book.locator('[data-mode][data-pose]').waitFor()
+}
 const snapshot = () => book.evaluate(() => window.lca.getSnapshot())
 async function waitFor(predicate, error) { for (let i = 0; i < 100; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(error) }
 const send = (body, page = book) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) }, body)
