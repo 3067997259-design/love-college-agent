@@ -9,9 +9,11 @@ import { _electron } from 'playwright'
 import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const { version: appVersion } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
+const unpackedOnly = process.argv.includes('--unpacked-only')
 const release = join(root, 'release')
-const installer = join(release, 'Love-College-Agent-0.1.0-Setup.exe')
-const reportPath = join(root, 'test-results/package-report.json')
+const installer = join(release, `Love-College-Agent-${appVersion}-Setup.exe`)
+const reportPath = join(root, `test-results/package${unpackedOnly ? '-unpacked' : ''}-report.json`)
 await mkdir(dirname(reportPath), { recursive: true })
 await writeFile(reportPath, JSON.stringify({ ok: false, status: 'not-completed', attemptStartedAtIso: new Date().toISOString(), installer }, null, 2))
 const buildReceipt = JSON.parse(await readFile(join(release, 'build-receipt.json'), 'utf8'))
@@ -55,17 +57,20 @@ let instance
 let installed = false
 let stage = 'preflight'; const completedScenarios = []
 try {
-  if (process.platform === 'win32') {
+  if (process.platform === 'win32' && !unpackedOnly) {
     const occupied = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "$found = Get-ChildItem -LiteralPath 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall' -ErrorAction SilentlyContinue | Get-ItemProperty | Where-Object { $_.DisplayName -like 'Love College Agent*' }; if ($found) { 'occupied' } else { 'free' }"], { capture: true })
     assert.equal(occupied.trim(), 'free', 'Existing user installation detected; test refuses to upgrade or uninstall it.')
   }
   const unpacked = join(release, 'win-unpacked/LoveCollegeAgent.exe')
   for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'heart-flow']) { stage = 'unpacked-probe:' + name; await probe(unpacked, name) }
-  stage = 'install'
-  await run(installer, ['/S', '/currentuser', `/D=${installDir}`]); installed = true
-  const exe = join(installDir, 'LoveCollegeAgent.exe'); assert.ok((await stat(exe)).isFile())
-  for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'heart-flow']) { stage = 'installed-probe:' + name; await probe(exe, name) }
-  stage = 'installed-ui-restart'
+  const exe = unpackedOnly ? unpacked : join(installDir, 'LoveCollegeAgent.exe')
+  if (!unpackedOnly) {
+    stage = 'install'
+    await run(installer, ['/S', '/currentuser', `/D=${installDir}`]); installed = true
+    assert.ok((await stat(exe)).isFile())
+    for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'heart-flow']) { stage = 'installed-probe:' + name; await probe(exe, name) }
+  }
+  stage = unpackedOnly ? 'unpacked-ui-restart' : 'installed-ui-restart'
   env.LCA_DATA_DIR = join(root, '.local-data', `installed-ui-${randomUUID()}`)
   env.LCA_PROVIDERS_FILE = join(env.LCA_DATA_DIR, 'absent-test-providers.json')
   const launch = () => _electron.launch({ executablePath: exe, args: [], env, timeout: 30_000 })
@@ -83,18 +88,19 @@ try {
   stage = 'history'
   await run(process.execPath, [join(root, 'scripts/smoke-history.mjs')])
   delete env.LCA_HISTORY_EXECUTABLE
-  const thirdCircleScenarios = ['onboarding', 'life-work', 'sleep', 'flow-sleep', 'flow-drafts', 'desk-shadow', 'delegates', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'computer', 'web-fetch', 'booth', 'mini', 'showcase', 'life-port', 'resources', 'questions', 'desk-command', 'flow-rewind', 'settings', 'failure-narrator', 'privacy-probe']
+  const thirdCircleScenarios = ['onboarding', 'life-work', 'sleep', 'flow-sleep', 'flow-drafts', 'desk-shadow', 'delegates', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'computer', 'web-fetch', 'booth', 'mini', 'showcase', 'life-port', 'resources', 'questions', 'desk-command', 'flow-rewind', 'settings', 'failure-narrator', 'privacy-probe', 'providers', 'plugins', 'student-hub-package', 'student-hub-candidates', 'documents', 'campus', 'pomodoro']
   env.LCA_TEST_EXECUTABLE = exe
-  for (const name of thirdCircleScenarios) { stage = 'scenario:' + name; await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs')]); completedScenarios.push(name); console.log('Installed Electron scenario passed: ' + name); await new Promise((done) => setTimeout(done, 1500)) }
+  for (const name of thirdCircleScenarios) { stage = 'scenario:' + name; await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs')]); completedScenarios.push(name); console.log(`${unpackedOnly ? 'Unpacked' : 'Installed'} Electron scenario passed: ${name}`); await new Promise((done) => setTimeout(done, 1500)) }
   delete env.LCA_TEST_EXECUTABLE
   const bytes = await readFile(installer)
   const report = { ok: true, status: 'passed', atIso: new Date().toISOString(), installer, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
-    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: true, privateSaveProbe: true, installedUiRestart: true, historyQuoteAndPhoto: true, secondCircleProbes: ['memory', 'life', 'heart-flow'], buildReceipt, thirdCircleScenarios,
+    executionTarget: unpackedOnly ? 'unpacked' : 'installed', appVersion,
+    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: !unpackedOnly, privateSaveProbe: true, installedUiRestart: !unpackedOnly, unpackedUiRestart: unpackedOnly, historyQuoteAndPhoto: true, secondCircleProbes: ['memory', 'life', 'heart-flow'], buildReceipt, thirdCircleScenarios,
     syntheticServices: true, realProviderQualityAccepted: false }
   await writeFile(reportPath, JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report))
 } catch (error) {
-  await writeFile(reportPath, JSON.stringify({ ok: false, status: 'failed', atIso: new Date().toISOString(), installer, buildReceipt, stage, completedScenarios }, null, 2))
+  await writeFile(reportPath, JSON.stringify({ ok: false, status: 'failed', executionTarget: unpackedOnly ? 'unpacked' : 'installed', appVersion, atIso: new Date().toISOString(), installer, buildReceipt, stage, completedScenarios }, null, 2))
   throw error
 } finally {
   await instance?.close()

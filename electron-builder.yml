@@ -28,8 +28,8 @@ nsis:
   perMachine: false
   allowElevation: false
   allowToChangeInstallationDirectory: true
-  createDesktopShortcut: false
-  createStartMenuShortcut: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
   runAfterFinish: false
   deleteAppDataOnUninstall: false
 publish: null
