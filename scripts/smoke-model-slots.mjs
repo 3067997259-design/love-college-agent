@@ -29,6 +29,9 @@ const server = createServer((request, response) => {
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 const providers = { providers: Object.fromEntries(['chat', 'background', 'privacy'].map((slot) => [slot, { base_url: 'http://127.0.0.1:' + server.address().port + '/v1', api_key: 'synthetic-' + slot + '-credential', model: 'slot-' + slot }])) }
 providers.providers.tts = { protocol: 'openai-speech', base_url: 'https://speech.invalid/v1', api_key: 'synthetic-speech-credential', model: 'synthetic-speech-model', voice: 'synthetic-stock-voice' }
+const expectedTts = structuredClone(providers.providers.tts)
+providers.description = 'Synthetic legacy bootstrap configuration annotation'
+for (const entry of Object.values(providers.providers)) entry.description = 'Synthetic provider annotation'
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-config.json') }
 let instance; let page
 async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 }); page = await instance.firstWindow(); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
@@ -37,12 +40,13 @@ async function waitFor(predicate, error) { for (let i = 0; i < 150; i++) { if (p
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) }, body)
 const safe = (value) => { const text = JSON.stringify(value); for (const marker of ['RAW_ONLY_SLOT_CONTENT', 'USER_ONLY_SLOT_OUTPUT', 'synthetic-chat-credential', 'synthetic-background-credential', 'synthetic-privacy-credential', 'synthetic-speech-credential', 'synthetic-stock-voice', 'speech.invalid']) assert.ok(!text.includes(marker), 'SLOT_PRIVATE_LEAK') }
 try {
-  await mkdir(data, { recursive: true }); const file = join(data, 'synthetic-models.json'); await writeFile(file, JSON.stringify(providers))
+  await mkdir(data, { recursive: true }); const file = join(data, 'synthetic-models.json'); await writeFile(file, '\uFEFF' + JSON.stringify(providers))
   await launch(); assert.equal((await snapshot()).memory.status, 'unconfigured')
   await instance.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, file)
   await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '导入模型配置', exact: true }).click()
   await waitFor((s) => s.modelSettings.status === 'saved' && s.modelSettings.restartRequired, 'PRIVATE_CONFIG_NOT_SAVED'); assert.deepEqual((await snapshot()).modelSettings.configuredSlots, ['chat', 'background', 'privacy']); safe(await snapshot())
-  assert.deepEqual(JSON.parse(await readFile(join(data, 'connections', 'providers.json'), 'utf8')).providers.tts, providers.providers.tts)
+  const persisted = JSON.parse(await readFile(join(data, 'connections', 'providers.json'), 'utf8'))
+  assert.deepEqual(persisted.providers.tts, expectedTts); assert.equal(persisted.description, undefined); assert.equal(persisted.providers.chat.description, undefined)
   const savedConfig = await readFile(join(data, 'connections', 'providers.json')); const badFile = join(data, 'invalid-speech.json'); const invalid = structuredClone(providers); delete invalid.providers.tts.voice; await writeFile(badFile, JSON.stringify(invalid))
   await instance.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, badFile)
   await page.getByRole('button', { name: '导入模型配置', exact: true }).click(); await waitFor((s) => s.modelSettings.status === 'failed', 'BAD_VOICE_ACCEPTED'); assert.deepEqual(await readFile(join(data, 'connections', 'providers.json')), savedConfig)

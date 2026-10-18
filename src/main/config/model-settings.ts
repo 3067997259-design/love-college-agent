@@ -15,6 +15,18 @@ const schema = z.strictObject({ providers: z.record(z.string().regex(/^[A-Za-z0-
   routing: z.strictObject({ background: z.enum(['follow-main', 'independent']).optional(), privacy: z.enum(['follow-main', 'independent']).optional() }).optional(),
   mail: z.strictObject({ host: z.string().max(256), port: z.number().int().min(1).max(65535), tls: z.literal(true), user: z.string().max(320), auth_code: z.string().max(8192), folder: z.literal('桃子') }).optional() })
 type Config = z.infer<typeof schema>
+// Bootstrap readers historically accept annotated configs. Import and GUI edits must
+// accept the same known fields, while persisting only the application's strict shape.
+// Keep routing unmodified so a misspelled privacy policy is still rejected.
+const fields = (value: unknown, allowed: readonly string[]): unknown => value && typeof value === 'object' && !Array.isArray(value)
+  ? Object.fromEntries(allowed.filter((key) => Object.hasOwn(value, key)).map((key) => [key, (value as Record<string, unknown>)[key]])) : value
+const parseConfig = (text: string): Config => {
+  const raw = z.object({ providers: z.record(z.string(), z.unknown()), mail: z.unknown().optional(), routing: z.unknown().optional() }).parse(JSON.parse(text.replace(/^\uFEFF/, '')))
+  return schema.parse({ ...raw,
+    providers: Object.fromEntries(Object.entries(raw.providers).map(([slot, value]) => [slot, fields(value, slot === 'tts' ? ['base_url', 'api_key', 'model', 'protocol', 'voice'] : ['base_url', 'api_key', 'model'])])),
+    ...(Object.hasOwn(raw, 'mail') ? { mail: fields(raw.mail, ['host', 'port', 'tls', 'user', 'auth_code', 'folder']) } : {}),
+  })
+}
 const MODEL_SLOTS = new Set<ModelProviderSlot>(PROVIDER_SLOTS)
 const probeCode = (kind: ModelFailureKind): PublicErrorCode => {
   if (kind === 'configuration') return 'configuration-failed'
@@ -32,7 +44,7 @@ export function createModelSettings(options: { root: string; fallback?: string; 
     const file = options.fallback ? providerConfigPath(options.root, options.fallback) : path()
     if (!existsSync(file)) return { providers: {} }
     const stat = lstatSync(file); if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256_000) throw new Error('MODEL_CONFIGURATION_INVALID')
-    return schema.parse(JSON.parse(readFileSync(file, 'utf8')))
+    return parseConfig(readFileSync(file, 'utf8'))
   }
   const writeCurrent = (value: Config) => {
     const parsed = schema.parse(value)
@@ -147,7 +159,7 @@ export function createModelSettings(options: { root: string; fallback?: string; 
       worker = (async () => {
         const file = await options.choose(); if (!file || disposed) { view.status = 'idle'; return }
         const stat = lstatSync(file); if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 256_000) throw new Error('MODEL_CONFIGURATION_INVALID')
-        const value = schema.parse(JSON.parse(readFileSync(file, 'utf8')))
+        const value = parseConfig(readFileSync(file, 'utf8'))
         for (const config of Object.values(value.providers)) if (config.base_url) { const url = new URL(config.base_url); if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('MODEL_CONFIGURATION_INVALID') }
         writeCurrent(value); await refreshSlots()
         view = { ...view, status: 'saved', restartRequired: true }

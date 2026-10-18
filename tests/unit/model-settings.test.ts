@@ -33,19 +33,19 @@ it('saves and removes one GUI provider while preserving mail/tts and keeping val
   expect(settings.dispatch({ type: 'models.provider.remove', slot: 'chat' } as AppCommand)).toBeUndefined(); await settings.idle()
   saved = JSON.parse(readFileSync(file, 'utf8')); expect(settings.view().configuredSlots).toEqual([]); expect(saved.providers.tts).toEqual(tts); expect(saved.mail).toEqual(mail); expect(saved.providers.chat).toBeUndefined(); await settings.close()
 })
-it.each(['missing-voice', 'protocol', 'http', 'extra', 'chat-extra'])('rejects invalid %s atomically without replacing a saved configuration (#23)', async (kind) => {
-  const root = mkdtempSync(join(tmpdir(), 'lca-slot-')); roots.push(root); const file = join(root, 'input.json'); const tts: Record<string, string> = { protocol: 'openai-speech', base_url: 'https://speech.invalid/v1', api_key: 'synthetic-only', model: 'synthetic-model', voice: 'synthetic-voice' }
+it.each(['missing-voice', 'protocol', 'http', 'model-type', 'routing'])('rejects invalid %s atomically without replacing a saved configuration (#23)', async (kind) => {
+  const root = mkdtempSync(join(tmpdir(), 'lca-slot-')); roots.push(root); const file = join(root, 'input.json'); const tts: Record<string, unknown> = { protocol: 'openai-speech', base_url: 'https://speech.invalid/v1', api_key: 'synthetic-only', model: 'synthetic-model', voice: 'synthetic-voice' }
   const options = { root, developer: false, slots: [] as const, clock: createManualClock(), canConfigure: () => true, choose: async () => file, changed: () => {} }; const settings = createModelSettings(options)
   writeFileSync(file, JSON.stringify({ providers: { tts } })); settings.dispatch({ type: 'models.configure' } as AppCommand); await settings.idle(); const path = join(root, 'connections', 'providers.json'); const saved = readFileSync(path)
-  if (kind === 'missing-voice') delete tts.voice; if (kind === 'protocol') tts.protocol = 'unrecognized'; if (kind === 'http') tts.base_url = 'http://speech.invalid'; if (kind === 'extra') tts.unknown = 'synthetic-only'
-  writeFileSync(file, JSON.stringify({ providers: kind === 'chat-extra' ? { chat: tts } : { tts } })); settings.dispatch({ type: 'models.configure' } as AppCommand); await settings.idle()
+  if (kind === 'missing-voice') delete tts.voice; if (kind === 'protocol') tts.protocol = 'unrecognized'; if (kind === 'http') tts.base_url = 'http://speech.invalid'; if (kind === 'model-type') tts.model = 42
+  writeFileSync(file, JSON.stringify({ providers: { tts }, ...(kind === 'routing' ? { routing: { privacy: 'automatic' } } : {}) })); settings.dispatch({ type: 'models.configure' } as AppCommand); await settings.idle()
   expect(settings.view()).toMatchObject({ status: 'failed', error: { code: 'configuration-failed' } }); expect(readFileSync(path)).toEqual(saved); await settings.close()
 })
 
 it('hot-applies GUI configuration and explicit routes without losing the fallback configuration', async () => {
   const root = mkdtempSync(join(tmpdir(), 'lca-slot-')); roots.push(root)
   const fallback = join(root, 'fallback.json'); const chat = { base_url: 'https://chat.invalid/v1', api_key: 'only-synthetic-secret', model: 'synthetic-model' }
-  writeFileSync(fallback, JSON.stringify({ providers: { chat, privacy: { base_url: '', api_key: '', model: '' } } }))
+  writeFileSync(fallback, JSON.stringify({ description: 'synthetic legacy annotation', providers: { chat: { ...chat, description: 'synthetic slot annotation' }, privacy: { base_url: '', api_key: '', model: '' } } }))
   const before = readFileSync(fallback); let applied = 0
   const settings = createModelSettings({ root, fallback, apply: async () => { applied++ }, developer: false, slots: ['chat'], clock: createManualClock(), canConfigure: () => true, choose: async () => null, changed: () => {} })
   expect(settings.view().routing).toEqual({ background: 'follow-main', privacy: 'independent' })
@@ -57,6 +57,25 @@ it('hot-applies GUI configuration and explicit routes without losing the fallbac
   settings.dispatch({ type: 'models.provider.remove', slot: 'privacy' } as AppCommand); await settings.idle()
   expect((await readModelRouting(file)).privacy).toBe('independent'); expect(resolveModelProviders(await readModelProviders(file), await readModelRouting(file)).has('privacy')).toBe(false)
   expect(applied).toBe(3); await settings.close()
+})
+
+it('imports annotated bootstrap configuration and a UTF-8 BOM without changing credentials, services or privacy policy', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'lca-slot-')); roots.push(root); const file = join(root, 'annotated.json')
+  const chat = { base_url: 'https://chat.invalid/v1', api_key: 'synthetic-chat-secret', model: 'synthetic-chat-model' }
+  const privacy = { base_url: '', api_key: '', model: '' }
+  const tts = { protocol: 'openai-speech', base_url: 'https://speech.invalid/v1', api_key: 'synthetic-speech-secret', model: 'synthetic-speech', voice: 'synthetic-voice' }
+  const mail = { host: 'imap.invalid', port: 1993, tls: true, user: 'synthetic-user', auth_code: 'synthetic-mail-secret', folder: '桃子' }
+  const routing = { background: 'follow-main', privacy: 'independent' }
+  writeFileSync(file, '\uFEFF' + JSON.stringify({ notes: 'synthetic root annotation', providers: { chat: { ...chat, description: 'synthetic provider annotation' }, privacy, tts: { ...tts, description: 'synthetic voice annotation' } }, mail: { ...mail, description: 'synthetic mail annotation' }, routing }))
+  const before = readFileSync(file)
+  const settings = createModelSettings({ root, developer: false, slots: [], clock: createManualClock(), canConfigure: () => true, choose: async () => file, changed: () => {} })
+  settings.dispatch({ type: 'models.configure' } as AppCommand); await settings.idle()
+  expect(settings.view()).toMatchObject({ status: 'saved', configuredSlots: ['chat'], routing, services: { mail: true, tts: true } })
+  const saved = join(root, 'connections', 'providers.json')
+  expect(JSON.parse(readFileSync(saved, 'utf8'))).toEqual({ providers: { chat, privacy, tts }, mail, routing })
+  expect(readFileSync(file)).toEqual(before); expect(JSON.stringify(settings.view())).not.toContain('synthetic-')
+  expect(await readVoiceConfig(saved)).toEqual(tts); expect((await readModelRouting(saved)).privacy).toBe('independent')
+  await settings.close()
 })
 
 it('accepts Rodin address/key without a fictitious model and preserves a non-default mail port on credential edits', async () => {
