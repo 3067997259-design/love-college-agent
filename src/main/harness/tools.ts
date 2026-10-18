@@ -4,6 +4,7 @@ import type { SessionStore } from '../store/session'
 import type { ModelTool } from '../model/types'
 import type { JournalInput } from '../journal/schema'
 import manifest from './tools.json'
+import type { SourceMail } from '../mail/types'
 
 export interface ToolContext { clock: Clock; store: SessionStore; turnId: string; callId?: string; signal: AbortSignal }
 type JsonValue = Extract<JournalInput, { type: 'tool/result' }>['raw']
@@ -22,7 +23,7 @@ export interface CandidateSeed {
   /** User-only evidence excerpt; never placed in model projection or tool journal. */
   excerpt: string
 }
-export interface ToolResult { ok: boolean; raw: JsonValue; visible: JsonValue; imageRefs?: string[]; fields?: Record<string, string | number | boolean>; candidates?: readonly CandidateSeed[] }
+export interface ToolResult { ok: boolean; raw: JsonValue; visible: JsonValue; imageRefs?: string[]; fields?: Record<string, string | number | boolean>; candidates?: readonly CandidateSeed[]; sourceMails?: readonly SourceMail[] }
 export interface HarnessTool {
   definition: ModelTool
   templateId: string
