@@ -359,7 +359,9 @@ export interface DiagnosticsView {
   privacy: { mailStatus: string; fileFilteringEnabled: boolean; pendingFiles: number; evidenceAccess: 'user-only' }
 }
 export type ModelProviderSlot = 'chat' | 'background' | 'chat_google' | 'chat_claude' | 'privacy'
+export interface ModelRouting { background: 'follow-main' | 'independent'; privacy: 'follow-main' | 'independent' }
 export interface ModelSettingsView {
+  routing?: ModelRouting
   status: 'idle' | 'selecting' | 'saved' | 'failed'
   configuredSlots: readonly ModelProviderSlot[]
   restartRequired: boolean

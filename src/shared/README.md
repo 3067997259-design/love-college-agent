@@ -116,3 +116,5 @@ characterName 进入角色的系统称呼，userName 进入用户档案的“关
 实际命令接口：`heartFlow.commandExecution` 独立于旧 `execution`（JavaScript worker）；缺字段或 unavailable 时不能当作 shell 可用。`flow.command.run {command,timeoutMs?}` 只准备不可变的一次性书桌副本，产生 awaiting-approval 后由书本 `flow.command.approve {commandId,allow}` 逐次决定；`flow.command.cancel` 只取消对应 ID。展位禁止运行，计划模式也不执行，不恢复旧审批。固定后端 cmd／AppContainer、命令单行至多 6000 UTF-16 字符、默认 5 秒／最多 30 秒；无网络，无隔离失败回退。`heartFlow.command` 只含命令、输入指纹及进程／写回收据，不含 stdout／stderr；`flow.command.open` 走用户专用原生预览。工具 `run_command` 的结果只在工作上下文内，不能把 exitCode=0 当成文件已写回；publication 和 appliedFiles 由实际版本检查、文件写入与日志决定。
 
 命令错误码 `command-encoding-unsupported` 表示未能建立 UTF-8 约定：非 UTF-8 系统的 Unicode 命令字面量在执行前拒绝，非 UTF-8 子进程输出也不能当正常文本交付或写回；可改用 ASCII 编码的脚本及显式 UTF-8 文件／输出。它不是用户拒绝，也不触发普通进程回退。
+
+`models.routing.set` 为 background／privacy 显式选择 follow-main 或 independent。privacy 的 follow-main 关闭隔离，原文可由主模型处理；independent 缺失或失败仍关闭业务。模型配置热应用，语音／礼物／邮箱仍需重启。路由仅回传枚举，不回传凭据。

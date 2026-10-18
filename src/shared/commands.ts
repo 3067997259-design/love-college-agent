@@ -71,6 +71,7 @@ export type AppCommand = CommandEnvelope & (
   /** GUI save. Blank fields keep the saved value; credentials never return to the renderer. */
   | { type: 'models.provider.save'; slot: ModelProviderSlot; baseUrl: string; model: string; apiKey?: string }
   | { type: 'models.provider.remove'; slot: ModelProviderSlot }
+  | { type: 'models.routing.set'; slot: 'background' | 'privacy'; mode: 'follow-main' | 'independent' }
   /** User-requested fixed-prompt probe of the saved slot; no URL/key/response text returns. */
   | { type: 'models.probe'; slot: ModelProviderSlot }
   /** TTS / Rodin service connections; blank fields keep saved values. */
