@@ -18,7 +18,7 @@ import { createAppController } from '../../src/main/bridge/controller'
 
 const cleanup: (() => Promise<void>)[] = []
 afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn() })
-function fixture(model?: DocumentPrivacyModel | null) {
+function fixture(model?: DocumentPrivacyModel | null, mainModel?: DocumentPrivacyModel) {
   const root = mkdtempSync(join(tmpdir(), 'lca-document-'))
   cleanup.push(async () => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-document-'))) throw new Error('Unsafe cleanup'); rmSync(root, { recursive: true, force: true }) })
   const clock = createManualClock(1000); const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
@@ -27,13 +27,32 @@ function fixture(model?: DocumentPrivacyModel | null) {
   const raw = new Map<string, { bytes: Uint8Array; format: DocumentFormat }>()
   const vault: DocumentVault = { put: (bytes, format) => { const ref = 'f:' + createHash('sha256').update(bytes).update(format).digest('hex'); raw.set(ref, { bytes, format }); return ref }, read: (ref) => { const result = raw.get(ref); if (!result) throw new Error('PRIVATE_VAULT_ERROR'); return result }, close: () => {} }
   const fake = createFakeDocumentModel(clock); const emitted: string[] = []; const readAttachment = vi.fn(async () => Buffer.from('PRIVATE_ATTACHMENT_TEXT'))
-  const documents = createDocumentService({ clock, store, scheduler, settings, vault, artifacts, model: model === undefined ? fake.model : model, development: fake,
+  const documents = createDocumentService({ clock, store, scheduler, settings, vault, artifacts, mainModel, model: model === undefined ? fake.model : model, development: fake,
     readAttachment, changed: () => {}, emit: (_id, text) => { emitted.push(text) } })
   cleanup.push(async () => { await documents.close(); scheduler.dispose(); store.close() })
   const command = (body: Record<string, unknown>) => ({ ...body, protocolVersion: 1, epoch: 'test', requestId: String(store.records().length) } as AppCommand)
   return { root, clock, store, settings, fake, documents, artifacts, raw, emitted, command, readAttachment }
 }
 describe('document task ownership and privacy gate', () => {
+  it('makes an authorized upload readable before organization completes, but excludes cancellation and isolated imports', async () => {
+    const main: DocumentPrivacyModel = { source: 'fake', ready: true, organize: vi.fn(() => new Promise(() => {})) }
+    const f = fixture(undefined, main)
+    const id = f.documents.stage(Buffer.from('IMMEDIATE_UPLOAD_SOURCE'), 'text', 'drop')
+    const signal = new AbortController().signal
+    expect(await f.documents.mainContext(signal)).toMatchObject([{ ref: id, text: 'IMMEDIATE_UPLOAD_SOURCE' }])
+    const pending = f.documents.runNext()
+    await vi.waitFor(() => expect(main.organize).toHaveBeenCalledOnce())
+    expect(f.documents.view().jobs[0].status).toBe('processing')
+    expect(await f.documents.mainContext(signal)).toHaveLength(1)
+    f.documents.dispatch(f.command({ type: 'document.cancel', documentId: id })); await pending
+    expect(await f.documents.mainContext(signal)).toEqual([])
+    f.documents.dispatch(f.command({ type: 'privacy.set', enabled: true }))
+    f.documents.stage(Buffer.from('ISOLATED_UPLOAD_SOURCE'), 'text', 'drop')
+    expect(await f.documents.mainContext(signal)).toEqual([])
+    f.documents.dispatch(f.command({ type: 'privacy.set', enabled: false }))
+    expect(await f.documents.mainContext(signal)).toEqual([])
+    expect(JSON.stringify(f.store.records())).not.toContain('UPLOAD_SOURCE')
+  })
   it('stages while off, persists the setting, publishes only metadata and delivers a real private file', async () => {
     const f = fixture(); const id = f.documents.stage(Buffer.from('PRIVATE_SOURCE_DOCUMENT\n2026-10-24 23:59'), 'text', 'drop')
     await f.documents.runNext(); expect(f.documents.view().jobs[0].status).toBe('staged')

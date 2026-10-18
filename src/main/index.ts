@@ -75,6 +75,7 @@ import { createImapSource } from './mail/imap'
 import type { MailSource } from './mail/types'
 import { openEvidenceVault, type EvidenceVault } from './mail/evidence-vault'
 import { createCampusService, type CampusService } from './campus/service'
+import { omitIgnoredMail } from './campus/context'
 import { mailTools } from './mail/tools'
 import { probeCampus } from './validation/campus'
 import { createArtifactStore } from './artifacts/store'
@@ -545,11 +546,17 @@ void app.whenReady().then(async () => {
         const sources = [...(campus?.mainContext() ?? []), ...(await documents?.mainContext(signal) ?? [])]
         let remaining = 48000
         const bounded = sources.reverse().flatMap((source) => { if (remaining <= 0) return []; const text = source.text.slice(0, remaining); remaining -= text.length; return [{ ...source, text, truncated: source.truncated || text.length < source.text.length }] })
-        if (!bounded.length) return []
-        const content = privateCredentials.reduce((text, key) => text.replaceAll(key, '[密钥已遮盖]'), redactSecrets(JSON.stringify(bounded)))
-        return [{ role: 'user', content: taskPrompts.mainSources + '\n' + content }]
+        const files = (documents?.view().jobs ?? []).slice(-8).reverse().map((job) => ({ documentId: job.id, status: job.status, origin: job.origin,
+          sourceAvailableToChat: bounded.some((source) => source.kind === 'document' && source.ref === job.id), ...(job.error ? { error: job.error.code } : {}) }))
+        const ignoredCandidateIds = (campus?.candidates() ?? []).filter((candidate) => candidate.status === 'ignored').map((candidate) => candidate.id)
+        if (!bounded.length && !files.length && !ignoredCandidateIds.length) return []
+        const content = privateCredentials.reduce((text, key) => text.replaceAll(key, '[密钥已遮盖]'), redactSecrets(JSON.stringify({ files, ignoredCandidateIds, sources: bounded })))
+        return [{ role: 'system', content: taskPrompts.mainSources }, { role: 'user', content }]
       },
-      prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); if (!heartFlow!.active()) return recall!.prepare(id, preparedContext)
+      prepareContext: async (id, signal) => { const preparedContext = await heartFlow!.prepareContext(id, signal); if (!heartFlow!.active()) {
+        const recalled = recall!.prepare(id, preparedContext)
+        return { ...recalled, messages: omitIgnoredMail(recalled.messages, new Set((campus?.candidates() ?? []).filter((candidate) => candidate.status === 'ignored').map((candidate) => candidate.id))) }
+      }
         const seen = new Set<string>(); const messages = preparedContext.messages.slice().reverse().map((message) => { if (!message.imageRefs) return message; const imageRefs = message.imageRefs.filter((ref) => { if (seen.has(ref) || seen.size >= 2) return false; seen.add(ref); return true }); return { ...message, imageRefs } }).reverse(); return { ...preparedContext, messages }
       }, foreground: () => { questions?.interrupt(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, afterTools: (turnId, callIds) => questions?.commit(turnId, callIds), turnSettled: (turnId) => questions?.settled(turnId), userWork: () => { sleep?.wake(); life?.foreground() },
       settled: () => { heartFlow?.settled(); voice?.observe() }, failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })

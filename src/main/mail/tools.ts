@@ -14,7 +14,7 @@ export function mailTools(service: CampusService): HarnessTool[] {
         const value = JSON.parse(JSON.stringify(result)) as Record<string, never>
         return { ok: result.ok, raw: value, visible: value, fields: result.ok ? { newCount: result.newCount ?? 0 } : {} }
       }
-      const items = service.candidates().map((candidate) => ({ ...mailFactsSchema.parse({ candidateId: candidate.id, revision: candidate.revision,
+      const items = service.candidates().filter((candidate) => candidate.status !== 'ignored').map((candidate) => ({ ...mailFactsSchema.parse({ candidateId: candidate.id, revision: candidate.revision,
         title: candidate.title, kind: candidate.kind, deadlineIso: candidate.deadlineIso, eventStartIso: candidate.eventStartIso, eventEndIso: candidate.eventEndIso,
         locationText: candidate.locationText, sourceLabel: candidate.sourceLabel, source: candidate.source, trust: 'untrusted' }), status: candidate.status }))
       const value = JSON.parse(JSON.stringify({ items })) as Record<string, never>

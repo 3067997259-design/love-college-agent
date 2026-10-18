@@ -38,6 +38,11 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
     processedCount: repository.view().processed.length, pendingReviewCount: repository.view().items.filter((item) => ['candidate', 'changed'].includes(item.current.status)).length,
     ...(options.development ? { scenarioId: options.development.scenario() } : {}) })
   const publish = () => options.changed()
+  const currentSource = (entry: ReturnType<typeof repository.view>['processed'][number]) => {
+    if (!entry.candidateId) return true
+    const candidate = repository.view().items.find((item) => item.current.id === entry.candidateId)?.current
+    return !!candidate && candidate.status !== 'ignored' && candidate.evidenceRef === entry.evidenceRef
+  }
   const registerAttachments = (mail: SourceMail, sourceKey: string, candidateId?: string) => {
     for (const part of mail.attachments ?? []) {
       const id = 'att:' + digest(sourceKey + ':' + part.partId)
@@ -51,7 +56,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
     if (!enabled || disposed || store.projection().lightsOut || options.canProcess?.() === false) return
     const records = store.history?.() ?? store.records()
     const consumed = new Set(records.flatMap((row) => row.type === 'inbox/drain' || row.type === 'inbox/drop' ? row.ids : []))
-    for (const entry of repository.view().processed) if (entry.facts && !consumed.has('mail:' + entry.sourceKey)) options.emit('mail:' + entry.sourceKey, JSON.stringify(entry.facts))
+    for (const entry of repository.view().processed) if (entry.facts && currentSource(entry) && !consumed.has('mail:' + entry.sourceKey)) options.emit('mail:' + entry.sourceKey, JSON.stringify(entry.facts))
   }
   const scanNow = (signal?: AbortSignal): Promise<ScanResult> => {
     if (worker) return worker
@@ -217,7 +222,7 @@ export function createCampusService(options: { clock: Clock; store: SessionStore
   scheduler.schedule('mail.outbox', clock.nowMs() + 1000, flush, { everyMs: 1000 })
   return { view, repository, scanNow, ingestCandidates,
     privacyMode: () => options.followMain?.() ? 'follow-main' as const : 'isolated' as const,
-    mainContext: () => !enabled || disposed || !options.followMain?.() ? [] : repository.view().processed.filter((entry) => entry.sharedWithMain).slice(-4).flatMap((entry) => {
+    mainContext: () => !enabled || disposed || !options.followMain?.() ? [] : repository.view().processed.filter((entry) => entry.sharedWithMain && currentSource(entry)).slice(-4).flatMap((entry) => {
       try { const mail = vault.readForModel?.(entry.evidenceRef, store.scope); return mail ? [{ kind: 'mail', ref: entry.evidenceRef, subject: mail.subject, text: mail.body.slice(0, 24000), truncated: mail.body.length > 24000 }] : [] } catch { return [] }
     }),
     candidates: () => repository.view().items.map((item) => item.current),

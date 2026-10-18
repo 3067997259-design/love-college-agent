@@ -14,6 +14,8 @@ import { digest, evidenceView, type EvidenceVault } from '../../src/main/mail/ev
 import type { SourceMail } from '../../src/main/mail/types'
 import type { CheckedMail } from '../../src/main/mail/privacy'
 import { createArtifactStore } from '../../src/main/artifacts/store'
+import { mailTools } from '../../src/main/mail/tools'
+import { omitIgnoredMail } from '../../src/main/campus/context'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
@@ -37,6 +39,21 @@ async function fixture(followMain?: () => boolean) {
   return { campus, fake, vault, raw, id, store, clock, emitted, command, artifacts }
 }
 describe('user-only versioned campus confirmation', () => {
+  it('excludes ignored mail from raw context, outbox, current tools and historical generated model context', async () => {
+    const f = await fixture(() => true)
+    for (const candidate of f.campus.candidates()) f.campus.dispatch({ protocolVersion: 1, epoch: 'test', requestId: candidate.id, type: 'candidate.ignore', expectedRevision: candidate.revision, candidateId: candidate.id })
+    expect(f.campus.mainContext().every((source) => !f.campus.candidates().some((candidate) => candidate.evidenceRef === source.ref))).toBe(true)
+    f.emitted.length = 0; f.campus.flush(); expect(f.emitted).toEqual([])
+    const tool = mailTools(f.campus)[1]
+    const result = await tool.run({}, { signal: new AbortController().signal, turnId: 'test', callId: 'test', clock: f.clock, store: f.store })
+    expect(result.visible).toEqual({ items: [] })
+    const original = [{ role: 'user' as const, content: JSON.stringify({ source: 'mail', facts: JSON.stringify({ candidateId: f.id, title: 'STALE_MAIL' }) }) },
+      { role: 'tool' as const, toolCallId: 'test', content: JSON.stringify({ items: [{ candidateId: f.id, title: 'STALE_MAIL' }] }) },
+      { role: 'user' as const, content: '请帮我读刚上传的文件' }]
+    const cleaned = omitIgnoredMail(original, new Set([f.id]))
+    expect(JSON.stringify(cleaned)).not.toContain('STALE_MAIL'); expect(cleaned[2]).toEqual(original[2])
+    expect(JSON.stringify(original)).toContain('STALE_MAIL')
+  })
   it('rejects stale/missing versions and confirms idempotently while preserving the original deadline', async () => {
     const f = await fixture()
     expect(f.campus.dispatch(f.command({ type: 'candidate.confirm' }))).toBe('stale-candidate')

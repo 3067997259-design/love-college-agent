@@ -6,6 +6,7 @@ export function FileIntake({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
   const input = useRef<HTMLInputElement>(null)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState(false)
+  const [acceptedIds, setAcceptedIds] = useState<readonly string[]>([])
   useEffect(() => {
     if (!bridge.importFiles) return
     const dragover = (event: DragEvent) => { if (event.dataTransfer?.types.includes('Files')) event.preventDefault() }
@@ -13,21 +14,28 @@ export function FileIntake({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
       const files = Array.from(event.dataTransfer?.files ?? [])
       if (!files.length) return
       event.preventDefault(); event.stopPropagation()
-      void bridge.importFiles!(files, snapshot.epoch).then((ack) => { setError(!!ack.error); setNotice(ack.error ? `文件未全部接收：${ack.error.code}` : `已接收 ${ack.acceptedIds.length} 份资料`) }, () => { setError(true); setNotice('文件接收失败') })
+      void bridge.importFiles!(files, snapshot.epoch).then((ack) => { setAcceptedIds(ack.acceptedIds); setError(!!ack.error); setNotice(ack.error ? `文件未全部接收：${ack.error.code}` : '') }, () => { setAcceptedIds([]); setError(true); setNotice('文件接收失败') })
     }
     window.addEventListener('dragover', dragover); window.addEventListener('drop', drop)
     return () => { window.removeEventListener('dragover', dragover); window.removeEventListener('drop', drop) }
   }, [bridge, snapshot.epoch])
   if (!bridge.importFiles || !snapshot.documents) return null
+  const jobs = snapshot.documents.jobs.filter((job) => acceptedIds.includes(job.id))
+  const failed = jobs.find((job) => job.status === 'failed')
+  const progress = !acceptedIds.length ? '' : failed ? `资料整理失败：${failed.error?.code ?? '未知原因'}，请在资料卡重试`
+    : jobs.some((job) => job.status === 'staged') ? '资料已暂存，等待模型连接或恢复处理'
+    : jobs.some((job) => job.status === 'cancelled') ? '资料处理已取消'
+    : jobs.length === acceptedIds.length && jobs.every((job) => job.status === 'ready') ? `已整理 ${jobs.length} 份资料，可在交付卡查看`
+    : `已接收 ${acceptedIds.length} 份资料，正在整理`
   return <div className="file-intake">
     <button type="button" className="file-clip" aria-label="递给她一份资料" title="递给她一份资料" onClick={() => input.current?.click()}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 11.8l5.9-5.9a3.4 3.4 0 014.8 4.8l-7.6 7.6a5.1 5.1 0 01-7.2-7.2l7.3-7.3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
     </button>
     <input ref={input} className="visually-hidden" type="file" multiple accept=".pdf,.txt,.md" aria-label="选择资料文件" onChange={(event) => {
       const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ''
-      if (files.length) void bridge.importFiles!(files, snapshot.epoch).then((ack) => { setError(!!ack.error); setNotice(ack.error ? `文件未全部接收：${ack.error.code}` : `已接收 ${ack.acceptedIds.length} 份资料`) }, () => { setError(true); setNotice('文件接收失败') })
+      if (files.length) void bridge.importFiles!(files, snapshot.epoch).then((ack) => { setAcceptedIds(ack.acceptedIds); setError(!!ack.error); setNotice(ack.error ? `文件未全部接收：${ack.error.code}` : '') }, () => { setAcceptedIds([]); setError(true); setNotice('文件接收失败') })
     }} />
     <span className="file-hint">可拖入 PDF／文本 · {snapshot.privacy.fileFilteringEnabled ? '滤芯整理' : snapshot.runtime?.developer.mode === 'developer' ? '暂存，等待开启 /privacy' : snapshot.modelSettings?.configuredSlots.includes('chat') ? '主模型直接整理' : '暂存，等待模型连接'}</span>
-    {notice && <span role={error ? 'alert' : 'status'} className="file-notice">{notice}</span>}
+    {(notice || progress) && <span role={error || failed ? 'alert' : 'status'} className="file-notice">{[notice, progress].filter(Boolean).join('；')}</span>}
   </div>
 }

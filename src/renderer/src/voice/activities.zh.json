@@ -7,10 +7,10 @@
     "failed": "邮箱登不上，有没有新邮件还不知道。"
   },
   "mail.read": {
-    "running": "读一封邮件",
-    "completed": "读过了这封邮件。",
-    "completed:zero": "读过了这封邮件。",
-    "failed": "这封邮件没读到。"
+    "running": "查看校园事项",
+    "completed": "查看了当前校园事项。",
+    "completed:zero": "查看了当前校园事项。",
+    "failed": "校园事项暂时没查到。"
   },
   "privacy.extract": {
     "running": "《{fileName}》已交给隐私滤芯整理，原文不经过我",

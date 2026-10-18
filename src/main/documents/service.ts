@@ -79,6 +79,8 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
         const input = vault.read(sourceRef)
         const parsed = await extractDocument(input.bytes, input.format, clock, signal)
         signal.throwIfAborted()
+        // Reading a user's source must not wait for the separate organization request.
+        if (sharedWithMain) mainTexts.set(job.view.id, parsed.text)
         const output = await organizeDocument({ ...parsed, format: input.format }, model, clock, signal)
         signal.throwIfAborted(); if (!canRun()) throw new DocumentFailure('unavailable')
         const current = state.jobs.find((item) => item.view.id === job.view.id)!
@@ -149,12 +151,14 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
     mainContext: async (signal: AbortSignal) => {
       if (disposed || !pluginEnabled || enabled() || !options.mainModel) return []
       const result: { kind: string; ref: string; text: string; truncated: boolean }[] = []
-      for (const completed of state.completed.filter((item) => item.sharedWithMain).slice(-4)) {
+      for (const job of state.jobs.filter((item) => item.sharedWithMain && item.view.status !== 'cancelled').slice(-4)) {
         signal.throwIfAborted()
         try {
-          let text = mainTexts.get(completed.documentId)
-          if (text === undefined) { const job = state.jobs.find((item) => item.view.id === completed.documentId); if (!job?.sourceRef) continue; const input = vault.read(job.sourceRef); text = (await extractDocument(input.bytes, input.format, clock, signal)).text; mainTexts.set(completed.documentId, text) }
-          result.push({ kind: 'document', ref: completed.documentId, text: text.slice(0, 24000), truncated: text.length > 24000 })
+          let text = mainTexts.get(job.view.id)
+          if (text === undefined) { if (!job.sourceRef) continue; const input = vault.read(job.sourceRef); text = (await extractDocument(input.bytes, input.format, clock, signal)).text; mainTexts.set(job.view.id, text) }
+          if (disposed || !pluginEnabled || enabled()) return []
+          if (state.jobs.find((item) => item.view.id === job.view.id)?.view.status === 'cancelled') continue
+          result.push({ kind: 'document', ref: job.view.id, text: text.slice(0, 24000), truncated: text.length > 24000 })
         } catch { signal.throwIfAborted() }
       }
       return result

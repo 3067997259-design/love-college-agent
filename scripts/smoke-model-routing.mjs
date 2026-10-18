@@ -6,22 +6,29 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
+import Database from 'better-sqlite3'
 import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', 'routing-smoke-' + randomUUID())
-const calls = []; let denyPrivacy = false
+const calls = []; let denyPrivacy = false; let holdOrganization = false; let releaseOrganization
+const hub = join(data, 'hub'); const dbPath = join(hub, 'var', 'student_hub.sqlite3')
 const server = createServer((request, response) => { void (async () => {
   let text = ''; for await (const chunk of request) text += chunk
   const body = JSON.parse(text); calls.push(body)
   if (denyPrivacy && body.model === 'synthetic-privacy') { response.writeHead(401).end(); return }
   const prompt = body.messages[0].content
+  if (holdOrganization && prompt.includes('Organize the provided document')) await new Promise((resolve) => { releaseOrganization = resolve })
+  const readIndex = body.messages.findLastIndex((message) => message.content === '立即读这份刚上传的文件。')
+  if (body.tools?.length && readIndex >= 0 && !body.messages.slice(readIndex + 1).some((message) => message.role === 'tool')) {
+    response.writeHead(200, { 'Content-Type': 'text/event-stream' }).end('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'ignored-mail-read', type: 'function', function: { name: 'get_campus_items', arguments: '{}' } }] }, finish_reason: 'tool_calls' }] }) + '\n\ndata: [DONE]\n\n'); return
+  }
   const output = prompt.includes('Organize the provided document') ? JSON.stringify({ markdown: '# 已整理\n\n合成资料产物。', deadline: null })
     : prompt.includes('sourceId,quote,kind') ? JSON.stringify({ items: [] }) : '合成回复已收到。'
   response.writeHead(200, { 'Content-Type': 'text/event-stream' }).end('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: output }, finish_reason: 'stop' }] }) + '\n\ndata: [DONE]\n\n')
 })().catch(() => { response.writeHead(500).end() }) })
 await new Promise((done) => server.listen(0, '127.0.0.1', done))
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json') }
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_STUDENT_HUB_ROOT: hub, LCA_STUDENT_HUB_DB: dbPath }
 let instance; let page
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) }, body)
@@ -43,11 +50,41 @@ async function file(name, content, status = 'ready') {
   await waitFor((s) => s.documents.jobs.at(-1)?.status === status, 'DOCUMENT_' + status.toUpperCase())
 }
 try {
-  await mkdir(data, { recursive: true }); await launch()
+  await mkdir(join(hub, 'var'), { recursive: true }); await mkdir(join(hub, 'config'), { recursive: true })
+  await writeFile(join(hub, 'config', 'sources.toml'), '[database]\npath = "var/student_hub.sqlite3"\n')
+  const db = new Database(dbPath)
+  db.exec(`CREATE TABLE items (id TEXT PRIMARY KEY, item_type TEXT NOT NULL, title TEXT NOT NULL, course TEXT, status TEXT NOT NULL, deadline_at TEXT, event_start TEXT, event_end TEXT, calendar_role TEXT, source_summary TEXT, created_at TEXT NOT NULL);
+    CREATE TABLE item_evidence (item_id TEXT NOT NULL, artifact_id INTEGER NOT NULL); CREATE TABLE raw_artifacts (id INTEGER PRIMARY KEY, subject TEXT, payload_json TEXT NOT NULL);`)
+  for (let i = 0; i < 3; i++) db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?,?,?,?,?)').run('ignored-' + i, 'deadline', '待忽略邮件' + i, '测试课程', 'confirmed', '2027-01-05T23:00:00+08:00', null, null, null, 'IGNORED_MAIL_SOURCE_' + i, '2026-10-18T00:00:00+08:00')
+  db.close(); await launch()
   assert.deepEqual((await snapshot()).modelSettings.routing, { background: 'follow-main', privacy: 'follow-main' })
   await configure('chat'); assert.equal((await snapshot()).modelSettings.restartRequired, false)
   await send({ type: 'mode.set', mode: 'quiet' })
   await chat('第一次配置后立即聊天。')
+  await page.locator('.bookmarks').getByRole('button', { name: '插件', exact: true }).click()
+  const center = page.getByRole('region', { name: '插件', exact: true })
+  await center.getByRole('button', { name: '+ 添加插件', exact: true }).click()
+  await center.getByRole('menuitem', { name: '安装本地插件', exact: true }).click()
+  const dialog = center.getByRole('dialog', { name: '添加插件', exact: true })
+  await dialog.getByLabel('安装本地插件', { exact: true }).fill(join(root, 'plugin-packages', 'student-hub-candidates'))
+  await dialog.getByRole('button', { name: '安装', exact: true }).click()
+  const row = center.locator('.plugin-row[data-plugin-id="student-hub-candidates"]')
+  await row.getByRole('switch').click()
+  await row.getByRole('alertdialog', { name: '确认并启用', exact: true }).getByRole('button', { name: '确认并启用', exact: true }).click()
+  await waitFor((s) => s.candidates.length === 3, 'THREE_CANDIDATES_MISSING')
+  for (const candidate of (await snapshot()).candidates) assert.equal((await send({ type: 'candidate.ignore', candidateId: candidate.id, expectedRevision: candidate.revision })).status, 'accepted')
+  await page.locator('.bookmarks').getByRole('button', { name: /^对话/ }).click()
+  holdOrganization = true
+  await file('immediate', 'IMMEDIATE_UPLOAD_SOURCE 这份文件介绍图书馆志愿活动。', 'processing')
+  await page.locator('.file-notice').filter({ hasText: '正在整理' }).waitFor()
+  const immediate = await chat('立即读这份刚上传的文件。')
+  assert.ok(JSON.stringify(immediate).includes('IMMEDIATE_UPLOAD_SOURCE'), 'UPLOAD_NOT_READABLE_DURING_ORGANIZATION')
+  assert.ok(!JSON.stringify(immediate).includes('IGNORED_MAIL_SOURCE'), 'IGNORED_MAIL_RETURNED')
+  assert.deepEqual(JSON.parse(immediate.messages.findLast((message) => message.role === 'tool').content), { items: [] })
+  assert.equal((await snapshot()).documents.jobs.at(-1).status, 'processing')
+  holdOrganization = false; releaseOrganization?.()
+  await waitFor((s) => s.documents.jobs.at(-1)?.status === 'ready', 'HELD_ORGANIZATION_NOT_FINISHED')
+  await page.locator('.file-notice').filter({ hasText: '已整理' }).waitFor()
   assert.equal((await snapshot()).memory.status, 'idle'); assert.equal((await snapshot()).diary.status, 'idle')
   assert.equal((await send({ type: 'privacy.set', enabled: true })).status, 'rejected')
   await file('public', 'FOLLOW_MAIN_SOURCE student@example.edu 13800138000 API key: sk-syntheticinputcredential12345678')
@@ -76,7 +113,7 @@ try {
   assert.equal((await snapshot()).privacy.mode, 'follow-main')
   for (const folder of await readdir(join(data, 'journals'))) for (const name of await readdir(join(data, 'journals', folder))) if (name.endsWith('.jsonl')) {
     const journal = await readFile(join(data, 'journals', folder, name), 'utf8')
-    for (const marker of ['FOLLOW_MAIN_SOURCE', 'ISOLATED_SOURCE', 'FAILED_PRIVATE_SOURCE', 'synthetic-routing-secret']) assert.ok(!journal.includes(marker), 'RAW_SOURCE_IN_JOURNAL')
+    for (const marker of ['IMMEDIATE_UPLOAD_SOURCE', 'IGNORED_MAIL_SOURCE', 'FOLLOW_MAIN_SOURCE', 'ISOLATED_SOURCE', 'FAILED_PRIVATE_SOURCE', 'synthetic-routing-secret']) assert.ok(!journal.includes(marker), 'RAW_SOURCE_IN_JOURNAL')
   }
-  console.log(JSON.stringify({ ok: true, probe: 'model-routing', hotChat: true, followsMainRaw: true, isolatedNoRaw: true, failedClosed: true, historicalIsolation: true, restart: true, noRawSourceJournal: true, syntheticOnly: true }))
-} finally { await instance?.close().catch(() => {}); server.closeAllConnections(); await new Promise((done) => server.close(done)) }
+  console.log(JSON.stringify({ ok: true, probe: 'model-routing', ignoredMailThenImmediateUpload: true, processingSourceReadable: true, progressVisible: true, hotChat: true, followsMainRaw: true, isolatedNoRaw: true, failedClosed: true, historicalIsolation: true, restart: true, noRawSourceJournal: true, syntheticOnly: true }))
+} finally { releaseOrganization?.(); await instance?.close().catch(() => {}); server.closeAllConnections(); await new Promise((done) => server.close(done)) }
