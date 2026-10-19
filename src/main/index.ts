@@ -483,6 +483,13 @@ void app.whenReady().then(async () => {
         const insertion = Math.max(0, preparedContext.messages.findLastIndex((message) => message.role === 'user')); const messages = [...preparedContext.messages.slice(0, insertion), facts, ...preparedContext.messages.slice(insertion)]
         return { messages, eligibleIndexes: [...preparedContext.eligibleIndexes.map((index) => index >= insertion ? index + 1 : index), insertion] } }, entered: () => { lifeWork?.foreground(); life?.foreground() }, emit: (id, summary) => { harness?.postEvent('autonomous', summary, id) }, run: (code, signal) => runIsolatedJavaScript(code, systemClock, signal) })
     controller.attachHeartFlow(heartFlow)
+    // D2: the heart-flow entry is retired. A carried open flow from an older release must not hijack
+    // the normal tool list forever; close it once at startup and keep its history read-only.
+    if (heartFlow.view().activeId) {
+      try { heartFlow.dispatch({ type: 'flow.exit' } as never) } catch { /* fall through to a direct close */ }
+      const stillOpen = heartFlow.view().activeId
+      if (stillOpen) store.append({ type: 'flow/close', id: stillOpen, summary: JSON.stringify({ kind: 'legacy-flow-retired', atMs: clock.nowMs() }) })
+    }
     // Legacy system shells/.NET still impose MAX_PATH. 77-char scratch roots keep every permitted 180-char desk path below 260.
     const commandDrive = /^[a-z]:\\$/i.test(parse(app.getPath('temp')).root) ? parse(app.getPath('temp')).root : parse(app.getPath('exe')).root
     const commandCache = join(commandDrive, '.lca-cmd', contentHash(JSON.stringify([dataRoot, dataDir, ownerRoom])).slice(0, 16))
