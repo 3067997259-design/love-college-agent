@@ -40,6 +40,7 @@ describe('D4 handoff checkpoint', () => {
   it('validates user decisions, attaches code evidence and becomes the latest task checkpoint', () => {
     const f = setup(); const taskId = f.approved()
     f.append({ type: 'user/message', id: 'user-1', text: '用 JSON 写，不要用 YAML', requestId: 'r1', commandHash: 'h1' })
+    f.append({ type: 'turn/start', turnId: 'handoff-turn', trigger: 'pomodoro' })
     f.append({ type: 'desk/change', id: 'change-1', taskId, path: 'answer.js', before: null, after: 'return 42', pending: true })
     f.append({ type: 'desk/settled', id: 'change-1', status: 'applied' })
     const result = f.handoff.submit({ completed: ['写了 answer.js'], decisions: [{ messageId: 'user-1', text: '用 JSON 写' }], unresolved: ['还没检查'], next: ['运行检查'] }, 'handoff-turn')
@@ -54,6 +55,7 @@ describe('D4 handoff checkpoint', () => {
   it('rejects paraphrased decisions, empty checkpoints and unauthorized submissions', () => {
     const f = setup(); const taskId = f.approved()
     f.append({ type: 'user/message', id: 'user-1', text: '用 JSON 写，不要用 YAML', requestId: 'r1', commandHash: 'h1' })
+    f.append({ type: 'turn/start', turnId: 't', trigger: 'pomodoro' })
     expect(f.handoff.submit({ completed: ['写了 answer.js'], decisions: [{ messageId: 'user-1', text: '她同意用 JSON' }], unresolved: [], next: [] }, 't')).toEqual({ ok: false, error: 'invalid-decision' })
     expect(f.handoff.submit({ completed: [], decisions: [], unresolved: [], next: [] }, 't')).toEqual({ ok: false, error: 'invalid-content' })
     expect(f.store.records().some((row) => row.type === 'task/handoff')).toBe(false)
