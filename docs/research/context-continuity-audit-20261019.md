@@ -12,7 +12,7 @@
 | 动态核对 | 新增合成探针执行实际 memory / flow 上下文构造、harness 循环、HTTP 请求序列化与 SSE 解析，复现 33 项现状。 |
 | 替身与边界 | 日志和书桌在内存；fetch 为替身，不发 HTTP。`index.ts` 的世界事实插入、工具选择和安静事件门控为带源码断言的组合镜像，没有启动真实 Electron。 |
 | 已有回归 | 4 个相关单测文件、44 项通过；新增脚本的 scoped ESLint 通过。 |
-| 未验证 | 没有读取真实聊天或凭据、调用真实模型、测量供应商缓存命中或角色表现，也没有接入 DSH。缓存字段的解析与记录已在此后由 M1（2026-10-19）补上，真实命中仍未测量。 |
+| 未验证 | 没有读取真实聊天或凭据、调用真实模型、测量供应商缓存命中或角色表现，也没有接入 DSH。缓存字段的解析与记录已在此后由 M1（2026-10-19）补上；同日授权真实调用已验证 DeepSeek 原生字段与真实命中，OpenAI 兼容独立形状仍待可用端点。 |
 
 探针：[scripts/probe-context-continuity.mjs](../../scripts/probe-context-continuity.mjs)。运行：
 
@@ -77,9 +77,9 @@ harness 在每次采样前调用 `prepareContext(turnId, signal)`，收到工具
 
 1. **已证明稳定的局部**：同一 flow 的人格 / 系统摘要 prefix 在合成的两次实际 harness 请求中保持一致。
 2. **会重写后续前缀的内容**：目标、草稿操作、回退信息都插在工作历史之前；改变目标会使整个请求不再是旧请求的纯追加。普通聊天的召回、跨日引用、世界快照也会重新构造。模式切换还改变工具声明，实际影响须看供应商的请求处理。
-3. **缺失的观测**：SSE parser 只保留总输入 / 输出 token，不保留 DeepSeek 的 `prompt_cache_hit_tokens` 或 `prompt_tokens_details.cached_tokens`。合成 SSE 明确带入这两个字段，最终 attempt 记录仍丢失它们。后续（M1，2026-10-19，main）：parser 已把两种字段归一为 `cachedInputTokens` / `uncachedInputTokens` 写入 `model/attempt`，连续性探针改为验证已记录；真实命中率仍未测量。
+3. **缺失的观测**：SSE parser 只保留总输入 / 输出 token，不保留 DeepSeek 的 `prompt_cache_hit_tokens` 或 `prompt_tokens_details.cached_tokens`。合成 SSE 明确带入这两个字段，最终 attempt 记录仍丢失它们。后续（M1，2026-10-19，main）：parser 已把两种字段归一为 `cachedInputTokens` / `uncachedInputTokens` 写入 `model/attempt`，连续性探针改为验证已记录。真实验收（同日，授权调用）：DeepSeek 官方真实 SSE 的命中 / 未命中与记录逐字段一致（相同合成前缀第二次命中 1,408、未命中 146；首次显式 0 保留），journal 重启可读；中转 Gemini / Claude 不回报缓存字段，记录保持缺失。OpenAI 兼容 `cached_tokens` 的独立形状仍未在真实 payload 中单独取得（GPT 中转 429），该分支目前只有合成单测。
 
-因此不能从“prefix 冻结”推出“已经获得较高命中率”，也不能把没有统计解释为完全没有命中。本轮没有真实供应商计费或缓存测量；M1 之后字段可记录，但仍不构成真实命中证据。
+因此不能从“prefix 冻结”推出“已经获得较高命中率”，也不能把没有统计解释为完全没有命中。本轮没有真实供应商计费或缓存测量；M1 之后字段可记录，且已用一次授权真实调用验证了 DeepSeek 原生字段与真实命中，但仍不构成命中率 / 成本结论。
 
 来源：[工作请求顺序](../../src/main/heart-flow/service.ts#L122)、[普通请求顺序](../../src/main/memory/service.ts#L206)、[wire 序列化](../../src/main/model/client.ts#L82)、[usage 解析](../../src/main/model/stream.ts#L11)、[usage 类型](../../src/main/model/types.ts#L11)。
 

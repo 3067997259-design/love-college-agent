@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
  * Opt-in real-provider suite. Run only after `pnpm build`.
  * It uses temporary profiles and silent windows, makes bounded requests, and records
  * booleans/counts only. Model text and credentials never enter the report.
+ * The cache-usage probe additionally reports token counts from synthetic prompts.
  */
 assert.equal(process.env.LCA_REAL_MODEL, '1', 'Set LCA_REAL_MODEL=1 to allow real provider requests.')
 assert.ok(process.env.LCA_PROVIDERS_FILE, 'Set LCA_PROVIDERS_FILE to an authorized provider config.')
@@ -46,6 +47,10 @@ try {
   report.probes.harness = { ok: harness.ok === true, realModel: harness.realModel === true, completed: harness.completed === true, toolVerified: harness.toolVerified === true }
   assert.equal(report.probes.harness.ok, true, 'HARNESS_PROBE_NOT_OK')
 
+  const cache = probeLine((await run('CACHE_PROBE', join(root, 'scripts/probe-electron.mjs'), ['cache-usage'])).stdout)
+  report.probes.cache = { ok: cache.ok === true, shapes: cache.shapes, pairs: cache.pairs, checks: cache.checks, journalReopened: cache.journalReopened, budget: cache.budget, failures: cache.failures }
+  assert.equal(report.probes.cache.ok, true, 'CACHE_PROBE_NOT_OK')
+
   const ui = JSON.parse((await run('REAL_MODEL_UI', join(root, 'scripts/smoke-real-model.mjs'), [])).stdout.trim().split(/\r?\n/).at(-1))
   report.probes.ui = { ok: ui.ok === true, silentWindows: ui.silentWindows === true, assistantReply: ui.assistantReply === true, replyChars: ui.replyChars }
   assert.equal(report.probes.ui.ok, true, 'REAL_MODEL_UI_NOT_OK')
@@ -55,7 +60,7 @@ try {
   const target = join(root, 'test-results', `real-model-report-${Date.now()}.json`)
   await mkdir(dirname(target), { recursive: true })
   await writeFile(target, JSON.stringify(report, null, 2))
-  console.log(JSON.stringify({ ok: true, report: target, model: report.probes.model, harness: report.probes.harness, ui: report.probes.ui, durationMs: report.durationMs }))
+  console.log(JSON.stringify({ ok: true, report: target, model: report.probes.model, harness: report.probes.harness, cache: report.probes.cache.ok, ui: report.probes.ui, durationMs: report.durationMs }))
 } catch (error) {
   report.error = error instanceof Error ? error.message : 'REAL_MODEL_SUITE_FAILED'
   report.durationMs = Date.now() - started

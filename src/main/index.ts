@@ -57,6 +57,7 @@ import { probeImap } from './mail/probe'
 import { openSessionStore, resumeSavedSession, type SessionStore } from './store/session'
 import { probeJournal } from './validation/journal'
 import { probeModel } from './validation/model'
+import { probeCacheUsage } from './validation/cache-usage'
 import { readMailCredentials, readModelProviders, readPrivateCredentialValues, readModelRouting, resolveModelProviders, type ModelRouting } from './config/providers'
 import { createModelClient } from './model/client'
 import { createHarness } from './harness/loop'
@@ -282,6 +283,12 @@ void app.whenReady().then(async () => {
   }
   if (process.argv.includes('--lca-probe=model')) {
     const report = await probeModel(providersFile, systemClock)
+    console.log('LCA_PROBE:' + JSON.stringify(report))
+    app.exit(report.ok ? 0 : 1)
+    return
+  }
+  if (process.argv.includes('--lca-probe=cache-usage')) {
+    const report = await probeCacheUsage(dataDir, providersFile, systemClock)
     console.log('LCA_PROBE:' + JSON.stringify(report))
     app.exit(report.ok ? 0 : 1)
     return
