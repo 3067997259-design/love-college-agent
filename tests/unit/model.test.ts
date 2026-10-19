@@ -8,6 +8,7 @@ const config: ProviderConfig = { base_url: 'https://synthetic.invalid/v1', api_k
 const configs = new Map<ProviderSlot, ProviderConfig>([['chat', config], ['chat_google', { ...config, base_url: 'https://backup.invalid/v1' }]])
 const request = (signal = new AbortController().signal): ModelRequest => ({ messages: [{ role: 'user', content: 'synthetic input' }], tools: [], signal, toolsExecuted: false })
 const frame = (delta: unknown, finish_reason: string | null = null) => `data: ${JSON.stringify({ choices: [{ index: 0, delta, finish_reason }] })}\r\n\r\n`
+const usageFrame = (usage: unknown) => `data: ${JSON.stringify({ choices: [], usage })}\r\n\r\n`
 function stream(text = 'test reply') { return new Response(frame({ content: text, reasoning_content: 'must not surface' }, 'stop') + 'data: [DONE]\n\n') }
 
 describe('private compatible model client', () => {
@@ -54,6 +55,72 @@ describe('private compatible model client', () => {
     expect(reply.toolCalls).toEqual([{ id: 'c1', name: 'get_timer', arguments: '{"n":1}' }])
     expect(reply.usage).toEqual({ inputTokens: 4, outputTokens: 8 })
     expect(JSON.stringify(attempts)).not.toMatch(/synthetic-private|synthetic-config|https:/)
+  })
+  it('records DeepSeek prompt cache hit and miss tokens on the reply and attempt', async () => {
+    // 250 is deliberately not 1000 - 700, so removing the miss parser and falling back to derivation would fail.
+    const fetcher = vi.fn(async () => new Response(frame({ content: 'cached reply' }, 'stop')
+      + usageFrame({ prompt_tokens: 1000, completion_tokens: 12, prompt_cache_hit_tokens: 700, prompt_cache_miss_tokens: 250 }) + 'data: [DONE]\n\n'))
+    const attempts: ModelAttempt[] = []
+    const reply = await createModelClient(configs, ['chat'], createManualClock(), fetcher).complete(request(), (attempt) => attempts.push(attempt))
+    expect(reply.usage).toEqual({ inputTokens: 1000, outputTokens: 12, cachedInputTokens: 700, uncachedInputTokens: 250 })
+    expect(attempts.find((attempt) => attempt.status === 'success')).toMatchObject({ inputTokens: 1000, outputTokens: 12, cachedInputTokens: 700, uncachedInputTokens: 250 })
+  })
+  it('keeps a cache observation when a later usage frame only repeats totals', async () => {
+    const fetcher = vi.fn(async () => new Response(frame({ content: 'split usage' }, 'stop')
+      + usageFrame({ prompt_tokens: 1000, completion_tokens: 12, prompt_cache_hit_tokens: 768 })
+      + usageFrame({ prompt_tokens: 1000, completion_tokens: 12 }) + 'data: [DONE]\n\n'))
+    const attempts: ModelAttempt[] = []
+    const reply = await createModelClient(configs, ['chat'], createManualClock(), fetcher).complete(request(), (attempt) => attempts.push(attempt))
+    expect(reply.usage).toEqual({ inputTokens: 1000, outputTokens: 12, cachedInputTokens: 768, uncachedInputTokens: 232 })
+    expect(attempts.find((attempt) => attempt.status === 'success')).toMatchObject({ cachedInputTokens: 768, uncachedInputTokens: 232 })
+  })
+  it('derives uncached input from OpenAI-compatible prompt_tokens_details.cached_tokens', async () => {
+    const fetcher = vi.fn(async () => new Response(frame({ content: 'cached reply' }, 'stop')
+      + usageFrame({ prompt_tokens: 1000, completion_tokens: 12, prompt_tokens_details: { cached_tokens: 768 } }) + 'data: [DONE]\n\n'))
+    const attempts: ModelAttempt[] = []
+    const reply = await createModelClient(configs, ['chat'], createManualClock(), fetcher).complete(request(), (attempt) => attempts.push(attempt))
+    expect(reply.usage).toEqual({ inputTokens: 1000, outputTokens: 12, cachedInputTokens: 768, uncachedInputTokens: 232 })
+    expect(attempts.find((attempt) => attempt.status === 'success')).toMatchObject({ inputTokens: 1000, outputTokens: 12, cachedInputTokens: 768, uncachedInputTokens: 232 })
+  })
+  it('keeps cache fields absent when the provider reports none', async () => {
+    const fetcher = vi.fn(async () => new Response(frame({ content: 'no cache detail' }, 'stop')
+      + usageFrame({ prompt_tokens: 30, completion_tokens: 3 }) + 'data: [DONE]\n\n'))
+    const attempts: ModelAttempt[] = []
+    const reply = await createModelClient(configs, ['chat'], createManualClock(), fetcher).complete(request(), (attempt) => attempts.push(attempt))
+    const success = attempts.find((attempt) => attempt.status === 'success')
+    expect(reply.usage).toStrictEqual({ inputTokens: 30, outputTokens: 3 })
+    expect(success).toMatchObject({ inputTokens: 30, outputTokens: 3 })
+    // Object.entries also catches own keys written with an undefined value; the contract is "not reported at all".
+    expect(Object.entries(success ?? {}).filter(([key]) => /cached/i.test(key))).toEqual([])
+  })
+  it('keeps a reported zero cache hit distinct from a missing field', async () => {
+    const fetcher = vi.fn(async () => new Response(frame({ content: 'no cache hit' }, 'stop')
+      + usageFrame({ prompt_tokens: 30, completion_tokens: 3, prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 30 }) + 'data: [DONE]\n\n'))
+    const attempts: ModelAttempt[] = []
+    const reply = await createModelClient(configs, ['chat'], createManualClock(), fetcher).complete(request(), (attempt) => attempts.push(attempt))
+    expect(reply.usage).toEqual({ inputTokens: 30, outputTokens: 3, cachedInputTokens: 0, uncachedInputTokens: 30 })
+    expect(attempts.find((attempt) => attempt.status === 'success')).toMatchObject({ cachedInputTokens: 0, uncachedInputTokens: 30 })
+  })
+  it('ignores malformed cache observations without failing the reply', async () => {
+    const fetcher = vi.fn(async () => new Response(frame({ content: 'malformed cache' }, 'stop')
+      + usageFrame({ prompt_tokens: 1000, completion_tokens: 12, prompt_cache_hit_tokens: -5, prompt_tokens_details: 'unexpected' }) + 'data: [DONE]\n\n'))
+    const attempts: ModelAttempt[] = []
+    const reply = await createModelClient(configs, ['chat'], createManualClock(), fetcher).complete(request(), (attempt) => attempts.push(attempt))
+    expect(reply.text).toBe('malformed cache')
+    expect(reply.usage).toStrictEqual({ inputTokens: 1000, outputTokens: 12 })
+    expect(Object.entries(attempts.find((attempt) => attempt.status === 'success') ?? {}).filter(([key]) => /cached/i.test(key))).toEqual([])
+  })
+  it('drops cache observations that contradict the prompt token count', async () => {
+    const fetcher = vi.fn(async () => new Response(frame({ content: 'inconsistent cache' }, 'stop')
+      + usageFrame({ prompt_tokens: 10, completion_tokens: 1, prompt_cache_hit_tokens: 12 }) + 'data: [DONE]\n\n'))
+    const reply = await createModelClient(configs, ['chat'], createManualClock(), fetcher).complete(request(), () => {})
+    expect(reply.usage).toStrictEqual({ inputTokens: 10, outputTokens: 1 })
+  })
+  it('derives the cached side when only the miss count is reported', async () => {
+    const fetcher = vi.fn(async () => new Response(frame({ content: 'miss only' }, 'stop')
+      + usageFrame({ prompt_tokens: 1000, completion_tokens: 5, prompt_cache_miss_tokens: 200 }) + 'data: [DONE]\n\n'))
+    const reply = await createModelClient(configs, ['chat'], createManualClock(), fetcher).complete(request(), () => {})
+    expect(reply.usage).toEqual({ inputTokens: 1000, outputTokens: 5, cachedInputTokens: 800, uncachedInputTokens: 200 })
   })
   it('rereads Retry-After for each 429 and uses injected time', async () => {
     const clock = createManualClock()

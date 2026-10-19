@@ -4,7 +4,8 @@
 
 - main 转为 AfterRain 个人长期维护主线，重整使用、开发、设计、隐私、测试和维护文档。
 - 初始交付保存在 `Hackathon` 分支与 `hackathon-2026-final` 标签；竞赛专用材料退出当前目录，来源与历史入口保留。
-- 本轮不改变应用业务、数据格式或版本号，不重打安装器。
+- 文档重整轮次不改变应用业务、数据格式或版本号，不重打安装器。
+- 模型缓存观测：解析 DeepSeek 的 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens` 与 OpenAI 兼容的 `prompt_tokens_details.cached_tokens`，归一为 `model/attempt` 的可选字段 `cachedInputTokens` / `uncachedInputTokens`；旧日志继续可读，本轮未运行真实模型测试。
 
 ## 0.1.10 — 2026-10-18
 

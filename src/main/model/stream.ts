@@ -1,13 +1,20 @@
 import { z } from 'zod'
-import { ModelFailure, type ModelReply } from './types'
+import { ModelFailure, type ModelReply, type ModelUsage } from './types'
 
+// Cache fields are pure observations: a malformed value must not fail an otherwise valid reply, so it is treated as unreported.
+const cacheCount = z.number().int().nonnegative().nullable().optional().catch(undefined)
 const chunkSchema = z.object({
   choices: z.array(z.object({ index: z.number().int(), finish_reason: z.string().nullable().optional(), delta: z.object({
     content: z.string().nullable().optional(), refusal: z.string().nullable().optional(),
     tool_calls: z.array(z.object({ index: z.number().int().min(0).max(15), id: z.string().optional(), type: z.string().optional(),
       function: z.object({ name: z.string().optional(), arguments: z.string().optional() }).optional() })).optional(),
   }) })),
-  usage: z.object({ prompt_tokens: z.number().int().nonnegative(), completion_tokens: z.number().int().nonnegative() }).nullable().optional(),
+  // DeepSeek reports prompt_cache_hit_tokens/prompt_cache_miss_tokens; OpenAI-compatible usage reports cached_tokens only.
+  usage: z.object({ prompt_tokens: z.number().int().nonnegative(), completion_tokens: z.number().int().nonnegative(),
+    prompt_cache_hit_tokens: cacheCount,
+    prompt_cache_miss_tokens: cacheCount,
+    prompt_tokens_details: z.object({ cached_tokens: cacheCount }).nullable().optional().catch(undefined),
+  }).nullable().optional(),
 })
 
 /** Only content/refusal and function deltas are consumed; reasoning/metadata are ignored. */
@@ -16,15 +23,31 @@ export async function readCompletionStream(response: Response, signal: AbortSign
   const reader = response.body.getReader()
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let buffer = ''; let text = ''; let totalBytes = 0; let finished = false
-  let usage = { inputTokens: 0, outputTokens: 0 }
+  let usage: ModelUsage = { inputTokens: 0, outputTokens: 0 }
   const calls = new Map<number, { id: string; name: string; arguments: string }>()
   const visible = () => /<\/?(?:think|thinking|analysis|reasoning)\b|^(?:analysis|reasoning|思考过程|推理过程)\s*[:：]/im.test(text) ? '' : redact(text)
+  // The latest usage frame wins for totals; a cache observation survives a later frame that omits it.
+  // Observations that contradict prompt_tokens are treated as unreported, and the missing side of a
+  // reported hit/miss pair is derived so the recorded pair stays consistent with the prompt count.
+  const applyUsage = (next: NonNullable<z.infer<typeof chunkSchema>['usage']>) => {
+    const prompt = next.prompt_tokens
+    const reportedHit = next.prompt_cache_hit_tokens ?? next.prompt_tokens_details?.cached_tokens ?? undefined
+    const reportedMiss = next.prompt_cache_miss_tokens ?? undefined
+    const earlierHit = usage.cachedInputTokens !== undefined && usage.cachedInputTokens <= prompt ? usage.cachedInputTokens : undefined
+    const earlierMiss = usage.uncachedInputTokens !== undefined && usage.uncachedInputTokens <= prompt ? usage.uncachedInputTokens : undefined
+    const cached = reportedHit !== undefined ? (reportedHit <= prompt ? reportedHit : earlierHit)
+      : earlierHit ?? (reportedMiss !== undefined && reportedMiss <= prompt ? prompt - reportedMiss : undefined)
+    const miss = reportedMiss !== undefined && reportedMiss <= prompt ? reportedMiss : (cached === undefined ? earlierMiss : prompt - cached)
+    usage = { inputTokens: prompt, outputTokens: next.completion_tokens,
+      ...(cached === undefined ? {} : { cachedInputTokens: cached }),
+      ...(miss === undefined ? {} : { uncachedInputTokens: miss }) }
+  }
   const frame = (value: string) => {
     const data = value.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trimStart()).join('\n')
     if (!data || data === '[DONE]') return
     let chunk: z.infer<typeof chunkSchema>
     try { chunk = chunkSchema.parse(JSON.parse(data)) } catch { throw new ModelFailure('invalid-output') }
-    if (chunk.usage) usage = { inputTokens: chunk.usage.prompt_tokens, outputTokens: chunk.usage.completion_tokens }
+    if (chunk.usage) applyUsage(chunk.usage)
     for (const choice of chunk.choices) {
       if (choice.index !== 0) continue
       text += choice.delta.content ?? choice.delta.refusal ?? ''

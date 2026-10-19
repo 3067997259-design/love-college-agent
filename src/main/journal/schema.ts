@@ -147,7 +147,8 @@ export const inputSchema = z.discriminatedUnion('type', [
     status: z.enum(['started', 'success', 'failed', 'retry']), waitMs: z.number().nonnegative(), httpStatus: z.number().int().optional(),
     reservedTokens: z.number().int().nonnegative().optional(), bucket: z.enum(['work', 'autonomous']).optional(), resourceReservationId: z.string().uuid().optional(),
     error: z.enum(['configuration', 'network', 'timeout', 'upstream', 'quota', 'cancelled', 'invalid-output', 'interrupted', 'content-filtered']).optional(),
-    inputTokens: z.number().int().nonnegative().optional(), outputTokens: z.number().int().nonnegative().optional() }),
+    inputTokens: z.number().int().nonnegative().optional(), outputTokens: z.number().int().nonnegative().optional(),
+    cachedInputTokens: z.number().int().nonnegative().optional(), uncachedInputTokens: z.number().int().nonnegative().optional() }),
 ])
 export type JournalInput = z.infer<typeof inputSchema>
 export type JournalRecord = JournalInput & { version: 1; seq: number; atMs: number }

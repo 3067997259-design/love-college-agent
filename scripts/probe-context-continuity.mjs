@@ -1,4 +1,6 @@
 // Characterization probe for the 2026-10-19 context audit, not desired-behavior acceptance.
+// M1 (2026-10-19) now records provider cache usage; that single check verifies the implemented
+// recording, while real provider cache hits remain unmeasured.
 // Real context builders, harness and HTTP serializer; synthetic in-memory journal/desk/fetch only.
 // The index.ts composition is mirrored below and guarded by source assertions; no Electron launch.
 // No credentials, private profiles, network, model requests or production data are used.
@@ -172,7 +174,10 @@ try {
   check('work-hides-world-and-timer-events', /AUDIT_WORLD_EVENT|AUDIT_TIMER_EVENT|AUDIT_WORLD_CHANGED/.test(text(requests[1].messages)), false)
   check('work-has-no-timer-or-memory-or-campus-tools', requests[1].tools.some((tool) => /audit_tool_[456]/.test(tool.function.name)), false)
   check('work-inputs-ineligible-for-experience-extraction', f.rows.filter((row) => row.type === 'model/seen').every((row) => row.eligibleIndexes.length === 0), true)
-  check('synthetic-cache-usage-discarded-by-parser', attempts.some((attempt) => 'cachedTokens' in attempt || 'prompt_cache_hit_tokens' in attempt), false)
+  // Synthetic usage carries prompt_cache_hit_tokens (800) and prompt_tokens_details.cached_tokens (800),
+  // so the missing DeepSeek miss field must be derived as 1000 - 800.
+  check('synthetic-cache-usage-recorded-by-parser', attempts.some((attempt) => attempt.status === 'success' && attempt.cachedInputTokens === 800 && attempt.uncachedInputTokens === 200)
+    && f.rows.some((row) => row.type === 'model/attempt' && row.status === 'success' && row.cachedInputTokens === 800 && row.uncachedInputTokens === 200), true)
   check('work-user-visible-while-active', f.flow.messages().some((message) => message.text.includes('AUDIT_WORK_USER_DECISION')), true)
   assert.equal(f.dispatch({ type: 'flow.exit' }), undefined)
   await harness.idle()
@@ -213,7 +218,8 @@ try {
   check('resume-does-not-see-current-chat-or-updated-policy', /AUDIT_UPDATED_POLICY|AUDIT_CHAT_AFTER_WORK/.test(text((await r.flow.prepareContext('resumed', signal())).messages)), false)
 } finally { await r.close() }
 
-const report = { baseline: 'b4b3d9cd2e986ea4925beef4ccb27b1f79da1d0a', scope: 'synthetic characterization, not desired continuity acceptance or live provider cache measurement',
+const report = { baseline: 'b4b3d9cd2e986ea4925beef4ccb27b1f79da1d0a',
+  scope: 'synthetic characterization, not desired continuity acceptance; provider cache fields are now recorded (M1), real cache hits remain unmeasured',
   adapters: ['in-memory journal and desk', 'index.ts composition mirror with source assertions', 'fake fetch; real serializer/parser; no HTTP requests'], observations }
 const folder = new URL('../test-results/', import.meta.url)
 mkdirSync(folder, { recursive: true })

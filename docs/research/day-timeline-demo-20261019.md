@@ -9,6 +9,7 @@
 | 源码基线 | `af54834`；已有 `art/gen-log.jsonl` 修改保留，不属于本计划。 |
 | 审计 | 源码阅读与静态统计；引用同日[上下文连续性审计](context-continuity-audit-20261019.md)的 33 项合成现状。 |
 | 设计 | 建议，未实现。 |
+| M1（main） | 已实现（2026-10-19）：缓存字段归一后写入 `model/attempt`；typecheck、单元测试、scoped ESLint 与连续性探针通过，真实模型命中未测量。 |
 | demo | 未开始；真实模型测试需要另行授权和预算。 |
 
 ## 1. 审计
@@ -54,9 +55,9 @@
 
 ### 1.5 成本观测缺口
 
-- 流式解析只保留总输入与输出 token，丢弃缓存命中字段（[解析](../../src/main/model/stream.ts#L10)、[类型](../../src/main/model/types.ts#L14)、[日志 schema](../../src/main/journal/schema.ts#L146)）。
+- 流式解析已解析并记录缓存命中字段（M1，2026-10-19）：DeepSeek 的 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens` 与 OpenAI 兼容的 `prompt_tokens_details.cached_tokens` 归一为 `cachedInputTokens` / `uncachedInputTokens` 写入 `model/attempt`（[解析](../../src/main/model/stream.ts#L11)、[类型](../../src/main/model/types.ts#L11)、[日志 schema](../../src/main/journal/schema.ts#L146)）。真实命中率仍待测量。
 - 切换心流会换掉工具列表（[工具选择](../../src/main/index.ts#L543)），进入或恢复心流会新建一段前缀；世界事实和召回插在最后一条用户消息之前。
-- 因此现在既不能证明新设计更省，也不能证明现设计更费。执行计划先补测量（§4 M1）。
+- 因此现在既不能证明新设计更省，也不能证明现设计更费。M1 已补记录，成本测量（D0、R1）仍需真实模型授权与预算。
 
 ### 1.6 她自己的生活与工作
 

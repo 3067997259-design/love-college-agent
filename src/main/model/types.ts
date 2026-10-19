@@ -8,10 +8,17 @@ export class ModelFailure extends Error {
   }
 }
 export interface ModelTool { name: string; description: string; parameters: Record<string, unknown> }
+/** Cache fields stay absent when the provider did not report them, so a reported zero remains distinguishable. */
+export interface ModelUsage {
+  inputTokens: number
+  outputTokens: number
+  cachedInputTokens?: number
+  uncachedInputTokens?: number
+}
 export interface ModelReply {
   text: string
   toolCalls: { id: string; name: string; arguments: string }[]
-  usage: { inputTokens: number; outputTokens: number }
+  usage: ModelUsage
 }
 export interface ModelRequest {
   messages: readonly ContextMessage[]
@@ -23,6 +30,7 @@ export interface ModelRequest {
 export interface ModelAttempt {
   slot: ProviderSlot; attempt: number; status: 'started' | 'success' | 'failed' | 'retry'; waitMs: number
   httpStatus?: number; error?: ModelFailureKind; inputTokens?: number; outputTokens?: number
+  cachedInputTokens?: number; uncachedInputTokens?: number
 }
 export interface ModelClient {
   readonly source: 'real' | 'fake'

@@ -105,7 +105,10 @@ export function createModelClient(configs: ReadonlyMap<ProviderSlot, ProviderCon
         onAttempt({ slot, attempt, status: 'started', waitMs: 0 })
         try {
           const reply = await once(config, request)
-          onAttempt({ slot, attempt, status: 'success', waitMs: 0, inputTokens: reply.usage.inputTokens, outputTokens: reply.usage.outputTokens })
+          const { usage } = reply
+          onAttempt({ slot, attempt, status: 'success', waitMs: 0, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens,
+            ...(usage.cachedInputTokens === undefined ? {} : { cachedInputTokens: usage.cachedInputTokens }),
+            ...(usage.uncachedInputTokens === undefined ? {} : { uncachedInputTokens: usage.uncachedInputTokens }) })
           return reply
         } catch (error) {
           last = error instanceof ModelFailure ? error : new ModelFailure('network')
