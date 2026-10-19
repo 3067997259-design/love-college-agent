@@ -1,6 +1,6 @@
 # 项目历史与归档
 
-Love, College & Agent 起源于上海科技大学 Techathon 2026。最初由 LECA 团队完成：杨西北负责主力开发与视频制作，任泓竹参与创意。项目随后由 AfterRain 个人长期维护，main 保存当前产品与后续开发。
+Love, College & Agent 起源于 Techathon 2026，随后由 AfterRain 个人长期维护。main 保存当前产品与后续开发；公开文档使用网名，不列出成员真名。
 
 ## 冻结版本
 

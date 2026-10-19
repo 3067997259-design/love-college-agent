@@ -64,7 +64,7 @@ pnpm dev
 
 ## 起源、致谢与许可
 
-项目起源于上海科技大学 Techathon 2026，最初由杨西北与任泓竹组成的 LECA 团队完成。比赛终版保存在 [Hackathon 分支](https://github.com/3067997259-design/love-college-agent/tree/Hackathon) 与 [冻结标签](https://github.com/3067997259-design/love-college-agent/tree/hackathon-2026-final)，main 持续维护。历史材料入口见 [项目历史](docs/history.md)。
+项目起源于 Techathon 2026。比赛终版保存在 [Hackathon 分支](https://github.com/3067997259-design/love-college-agent/tree/Hackathon) 与 [冻结标签](https://github.com/3067997259-design/love-college-agent/tree/hackathon-2026-final)，main 持续维护。历史材料入口见 [项目历史](docs/history.md)。
 
 感谢相关开源项目、工具与创作者。设计参考和素材来源见 [参考与来源](docs/reference-research.md)、[第三方说明](THIRD_PARTY_NOTICES.md)。
 
