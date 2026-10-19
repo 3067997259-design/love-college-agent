@@ -75,7 +75,8 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('flow/close'), id, summary: z.string().max(2000) }),
   z.strictObject({ type: z.literal('flow/compact'), id, throughSeq: z.number().int().positive(), summary: z.string().max(6000), focus: z.string().max(500).optional(),
     retained: z.strictObject({ turnId: id, messages: z.array(contextMessageSchema).max(200) }).optional() }),
-  z.strictObject({ type: z.literal('desk/change'), id, flowId: id, path: z.string().max(180), before: z.string().max(64000).nullable(), after: z.string().max(64000).nullable(), undoes: id.optional(), pending: z.boolean().optional(), commandId: z.string().uuid().optional(), rewindId: z.string().uuid().optional(), rewinds: z.array(id).max(500).optional() }),
+  z.strictObject({ type: z.literal('desk/change'), id, flowId: id.optional(), taskId: id.optional(), path: z.string().max(180), before: z.string().max(64000).nullable(), after: z.string().max(64000).nullable(), undoes: id.optional(), pending: z.boolean().optional(), commandId: z.string().uuid().optional(), rewindId: z.string().uuid().optional(), rewinds: z.array(id).max(500).optional() })
+    .refine((row) => !!row.flowId !== !!row.taskId, { message: 'DESK_CHANGE_OWNER_REQUIRED' }),
   rewindSchema.extend({ type: z.literal('flow/rewind') }),
   z.strictObject({ type: z.literal('desk/settled'), id, status: z.enum(['applied', 'failed']) }),
   z.strictObject({ type: z.literal('flow/run'), id, flowId: id, status: z.enum(['requested', 'approved', 'denied', 'completed', 'failed', 'interrupted']), codeHash: z.string().regex(/^[a-f0-9]{64}$/) }),
@@ -129,6 +130,11 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('inbox/drain'), ids: z.array(id).max(32) }),
   z.strictObject({ type: z.literal('inbox/drop'), ids: z.array(id).max(32) }),
   z.strictObject({ type: z.literal('turn/start'), turnId: id, trigger: z.enum(['user', 'pomodoro', 'mail', 'document', 'autonomous']) }),
+  // D2: this turn's request contained third-party originals or their raw tool results. The fact marks
+  // the turn, not the content; source text never enters this record.
+  z.strictObject({ type: z.literal('turn/degraded'), turnId: id, sources: z.array(z.enum(['mail', 'document', 'web', 'mcp', 'plugin'])).min(1).max(8) }),
+  // D2: the user explicitly asked for one original in the immediately following turn. One-shot grant.
+  z.strictObject({ type: z.literal('context/reveal'), id, source: z.enum(['mail']), ref: opaqueId, requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('turn/cancelling'), turnId: id }),
   z.strictObject({ type: z.literal('turn/paused'), turnId: id }),
   z.strictObject({ type: z.literal('turn/resumed'), turnId: id }),

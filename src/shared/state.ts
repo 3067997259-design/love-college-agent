@@ -116,6 +116,8 @@ export type TaskCardStatus = 'proposed' | 'approved' | 'active' | 'completed' | 
 export interface TaskPlanView { version: number; source: 'model' | 'user'; steps: readonly PlanStep[] }
 export interface TaskApprovalView { planVersion: number; scope: { writes: 'desk'; commands: 'each' }; approvedAtMs: number }
 export interface TaskCheckpointView { id: string; summary: string; createdAtMs: number; source: 'model' | 'code'; evidenceSeqs?: readonly number[] }
+/** D2 safety state for the currently running turn: third-party originals were part of its request. */
+export interface DegradedView { active: boolean; turnId: string; sources: readonly ('mail' | 'document' | 'web' | 'mcp' | 'plugin')[] }
 export interface TaskCardView {
   id: string
   title: string
@@ -445,6 +447,8 @@ export interface AppSnapshot {
   tasks?: readonly TaskCardView[]
   /** The single task currently in hand, if any. */
   activeTaskId?: string | null
+  /** D2: present while the running turn's request contains third-party originals. */
+  degraded?: DegradedView
   messages: readonly MessageView[]
   activities: readonly ActivityView[]
   candidates: readonly CandidateView[]
