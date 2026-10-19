@@ -25,6 +25,7 @@ pnpm test
 | `test:pomodoro`、`test:mini`、`test:resources` | 计时、双窗口、显示器边界与资源准入 |
 | `test:heart-flow`、`test:desk-command`、`test:flow-rewind` | 工作范围、逐次审批、版本和撤销 |
 | `test:task-object`、`test:timeline-safety` | 任务对象剧本（提议/批准/推进/结束）与 D2 一条时间线/安全剧本（固定工具列表、未授权写入、降级轮、一次性原文） |
+| `test:attention-flow` | D3 注意力剧本：任务等待时她的读写推进、专注续跑时让位、上限后从书签续跑、左页姿势 |
 | `probe:desk-command:runtime` | Windows 原生进程、网络 / 文件拒绝、编码、上限与取消 |
 | `test:life-port`、`test:life-work`、`test:sleep`、`test:room` | 生活状态、实际产物、日记与重启 |
 | `test:gifts`、`test:backup`、`test:characters` | 礼物同意、存档与角色作用域 |
