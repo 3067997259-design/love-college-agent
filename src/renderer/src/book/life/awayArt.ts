@@ -4,7 +4,7 @@ import type { AppSnapshot } from '../../../../shared'
  * 外出时左页的那一页：她在外面，穿出门那套衣服（体验设计 §3“外出”）。
  * 2026-10-17 晚接入：复用视频冻结包（art/film-frozen/2026-10-17-v1）里已经画好的外景，
  * 不再只显示空房间＋纸条。素材映射与来源见同目录 away/manifest.json 和
- * docs/engineering/away-third-circle.md。
+ * 当前素材契约见 docs/art-spec.md；原始接入记录见冻结归档。
  *
  * 边界：
  * - 秋千夜景有画内夜光的整图，用 baked-night，不再叠加调色；

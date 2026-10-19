@@ -1,0 +1,14 @@
+# 研究与实验
+
+保留可复现的实验装置与反例，生产能力以实际集成和对应测试为准。以下历史结果没有在文档整理时重新运行。
+
+| 入口 | 研究问题 | 已知边界与历史记录 |
+| --- | --- | --- |
+| `pnpm probe:deeptech-audit` | 结构守卫、来源权限与依赖新鲜性 | 只读代码结构检查，不调用模型。[原审计](https://github.com/3067997259-design/love-college-agent/blob/hackathon-2026-final/docs/research/deeptech-memory-audit-20261017.md) |
+| `pnpm experiment:deeptech-memory` | 多种摘要 / 记忆产物之间的过期引用 | 冻结样例上的一致性对照，不代表真实模型质量。[记录](https://github.com/3067997259-design/love-college-agent/blob/hackathon-2026-final/docs/research/deeptech-memory-experiment-20261017.md) |
+| `pnpm experiment:deeptech-grounding` | 逐字包含与语义接地的差别 | 可枚举作用域规则和合成句对照，不外推为通用中文蕴含。[记录](https://github.com/3067997259-design/love-college-agent/blob/hackathon-2026-final/docs/research/deeptech-grounding-experiment-20261017.md) |
+| `pnpm experiment:deeptech-flow-undo` | 保留后续修改的非尾步选择性撤销 | 脚本自带参照实现，生产集成已撤回；不能宣称产品已有此能力。[反例与结果](https://github.com/3067997259-design/love-college-agent/blob/hackathon-2026-final/docs/research/deeptech-flow-undo-experiment-20261017.md) |
+
+光学记忆实验主要检查主线、细节、错误确信与线索回忆；OCR 字符准确率不等于可靠遗忘体验。先导实验出现编号误认和无依据断言，默认产品仍使用文字分层记忆。完整材料见 [冻结研究目录](https://github.com/3067997259-design/love-college-agent/tree/hackathon-2026-final/docs/research)。
+
+历史冻结记录留在归档引用，当前研究进展可继续在本目录维护。新实验先记录问题、基线、数据划分、预算与停止条件，再执行；外部服务调用需要独立授权。

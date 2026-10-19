@@ -12,8 +12,9 @@ references/hackathon official/
 # 私人素材：用户的原角色卡（含私人信息），只留在本机
 /ReLU.zip
 
-# 依赖与构建产物（开赛后）
+# 依赖与构建产物
 node_modules/
+.pnpm-store/
 out/
 dist/
 release/
@@ -33,3 +34,17 @@ playwright-report/
 # 短片：生成和渲染的中间产物只在本机，用户审过的关键帧另行挑出
 film/gen/
 film/out/
+
+# 视频模型生成的短片原片（本机素材，不入库；片段表见 film/clips.json）
+film/clips/
+
+# 本机制作工程、候选和参考资料；正式采用的运行时素材仍单独入库
+film/
+promo/
+references/
+art/retouch/
+art/film-frozen/
+
+# 本机协作状态与日志
+.ai-bridge/
+debug.log

@@ -1,7 +1,7 @@
 /**
  * 纯浏览器预览用的假 bridge：没有 preload 时才启用，Electron 里一律走真实接口。
  * 切换场景时换一个 epoch，connectBridge 会按约定重新取快照。
- * 番茄钟照主进程的规则粗略模拟（技术方案 §3.5、docs/engineering/pomodoro.md），只为在浏览器里点得通；
+ * 番茄钟照主进程的规则粗略模拟（docs/experience-design.md），只为在浏览器里点得通；
  * 真正的计时、落盘和阶段事件都在主进程，这里点通不代表真实运行通过。
  */
 import type { AppBridge, AppCommand, AppEvent, AppSnapshot, CommandAck, HistoryPhotoView, LifeView, OutingPlace, OutingView, PomodoroView, PublicErrorCode } from '../../../shared'

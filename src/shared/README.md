@@ -1,122 +1,54 @@
-# 界面接口 v0
+# 共享接口契约
 
-展位 MC 完整子集增补：`minecraft.features` 仅列出已批准端点并经 schema 核对的 inventory／scene／look／screenshot／mining。`MinecraftScope.allowScreenshots` 与 `allowMining` 是逐轮显式同意，省略均为 false；不是 MCP 首次连接批准的延续，也不复用上一轮。截图只来自她的客户端；挖掘只允许近身 survival 原生动作，不放开管理员／world_write。`lastAction.kind` 增加 look／mine；started／dispatch 不能直接当作成功。背包与眼前射线是结构化观察，不代替模型实际收到截图。观察正文和像素只留游戏上下文，不回普通记忆或私人存档。
+本目录是主进程与界面共用的契约入口，不依赖 Electron、Node 或主进程实现。具体字段与命令以 TypeScript 类型为准；架构与来源边界见 [技术方案](../../docs/tech-design.md)。
 
-第三圈睡眠：`companion.sleeping` 是主进程持久状态，缺省视为醒着；`pose='sleeping'` 由它投影，熄灯仍单独表示暂停，不能从夜晚或关灯推断睡着。书本窗口可发 `companion.sleep { sleeping: boolean }`；睡眠要求没有执行／心流／进行中的番茄／外出，忙时拒绝。默认在凌晨四点后既有的安全翻页点入睡（用户闲置两分钟且没有工作）；聊天／心流中途不翻页。明确唤醒、开始交流或用户工作使她醒来。睡眠保留到重启／私人恢复，期间不生产作品、不出门，不补算离线工作。Claude 可直接沿用现有睡姿素材映射；朴素入口在“她的生活”。
+## 状态、命令与订阅
 
-`memory.summaryCounts` 提供有效日／周／月摘要数量；同一周期来源不变不重复调用。`memory.consolidate` 只归并已关闭周期的已有日摘要，不读取原始邮件或附件。晚到的来源追加新版本，旧记录保留；给模型的层级参考不重复覆盖同一来源会话，也不参与新的经历抽取。
+- `state.ts`：安全快照、时钟、角色、任务、消息、活动、候选与交付。
+- `commands.ts`：白名单命令与回执；accepted 只表示接收，完成由后续状态与证据确定。
+- `events.ts`：主进程发布投影事件，revision / epoch 与原始日志序号分开。
+- `bridge.ts`：preload 与显式假适配共同实现 `getSnapshot / subscribe / dispatch` 等入口，renderer 使用 `window.lca`。
 
-第二圈礼物：`gifts` 是真实生成生命周期，和预制羽毛笔 quill 分开。gift.propose 必须绑定已见经历；物件和装饰取共享枚举，发往 Rodin 的描述由代码映射，不发送姓名、邮件或记忆原文。专注开始制作，工具取得并校验本地 GLB 后才 ready，休息才 given；取消停止本地后续处理，不承诺上游撤单或退款。每天最多一次提交，失败也占提交预算。assetUrl 仅本地受限资源，未配置时 configured=false，不能假装开始了。上游凭据、任务订阅 key 与签名下载 URL 永不进快照、日志或调试接口。
+接线先订阅并缓冲，再获取快照。同代次中丢弃 revision 不高于快照的事件；断线、缺口或 epoch 改变时重新取快照，清除旧代次缓冲和请求。组件卸载时退订，不在 renderer 再维护一份业务事实 reducer。
 
-此目录是两条编码线唯一共用的契约入口，不依赖 Electron、Node 或主进程模块。
+字段保持可序列化。文件使用 opaque id，普通命令不接受任意磁盘路径。安全快照不含密钥、连接配置值、原始工具结果、异常正文和私有资料。用户专用 `readEvidence`、历史页、文件预览等读取不能被复用为通用调试出口；模型原文走独立的当回合授权链路。
 
-新手流程：真实快照提供 `onboarding`（旧 fixture 可省略）。新 profile 为 needed，userName=null、characterName="桃子"、completedAtMs=null；booth 始终投影 completed。正式界面据 status 决定是否显示向导，不从查询参数或本地存储决定入口。
+capabilities 的 fake 仅用于明确标记的合成场景，不代表真实调用成功。未知或未实现的命令明确拒绝，不返回占位成功。共享接口变更先单独提交，再更新消费方。
 
-`onboarding.profile` 只修改提供的名字字段：userName 最多 20 个 Unicode code points，characterName 最多 12 个；拒绝换行／控制字符，trim 后空白分别设为 null／桃子；至少提供一项。不改变完成状态，写后重启仍在。`onboarding.complete` 标为 completed，用统一时钟记录 completedAtMs，重复完成保留原时间。`onboarding.reset` 清完成标记并重新进入向导，保留名字、聊天和业务数据；展位拒绝 reset。三条命令只能由书本主窗口发送。
+## 显示与时间
 
-characterName 进入角色的系统称呼，userName 进入用户档案的“关于你”；二者都是用户配置，不是共同经历，不从配置事件生成聊天或记忆。私人存档携带以上字段，恢复已完成存档直接回书本。开头的“我已经有一本书了”复用 backup.import → awaiting-confirmation → backup.restore，不把选中文件当恢复成功。
+表情 / 姿势枚举及默认值由共享导出提供，角色包缺素材时回退；时段、睡眠、外出与计时由主进程投影，界面不独立推断。
 
-- `state.ts`：安全快照、时钟、角色状态、任务、消息、活动、候选与交付卡。
-- `commands.ts`：白名单命令与回执。accepted 只表示接收；完成必须看后续快照里的任务终态。
-- `events.ts`：先用完整快照事件，状态归主进程所有，避免前端再维护业务 reducer。水位与原始 journal seq 分开。
-- `bridge.ts`：真 preload 与假适配共同实现 `getSnapshot / subscribe / dispatch / readEvidence`；全局入口为 `window.lca`。
+消息、候选和交付按实际时间排序。首次快照、重启和恢复只挂载已有卡片，只有后续新 id 播放入场，不靠“时间很近”判定。
 
-接线先订阅并缓冲，再获取快照。丢弃同代次中 revision 不高于快照的事件；断线、缺口或 epoch 改变时重新取快照，清掉旧代次的缓冲与请求。订阅卸载时必须退订。
+`pomodoro.plan` 提议、`pomodoro.confirm` 用户确认、`pomodoro.start` 开始。plannedCount 属于生效计划，草案不重置当前进度；resume 继续暂停阶段。加速或演示计时明确标记。睡眠与熄灯分开，不能由夜色推断睡眠，忙时睡眠请求可拒绝。
 
-首版字段均为可序列化数据。槽位名交给角色包回退；文件用 artifactId，不允许渲染层传任意路径。候选证据单独通过受限的用户查阅接口读取，不进通用快照，也不能复用到模型上下文。禁止在此添加密钥、配置原文、工具原始结果、异常原文或隐私模型输入。
+## 来源、候选与文件
 
-未实现的命令由主进程明确拒绝；capabilities 的 fake 状态只能用于明确标记的开发场景，不代表真实调用通过。新增字段由 GPT 单独提交接口，Claude 合入后再消费。
+mailbox 仅提供健康与计数，`unseenCount: null` 表示未观察，不能显示成“没有邮件”。sourceLabel 必须是校验过的短字段，不直接使用原始主题。
 
-2026-10-16 Claude 审阅补充：
+候选确认 / 忽略携带画面上的 `expectedRevision`，过期拒绝。原始截止和用户计划时间分别保存，变更保留旧安排及证据。`campus.export` 只导出当前确认版本，改期沿用 UID 并增加 SEQUENCE；本地文件不代表外部平台写入。
 
-- 已知表情由 `EXPRESSION_IDS` 导出，默认 `DEFAULT_EXPRESSION = calm`；姿势由 `POSE_IDS` 导出。快照仍用 string，允许角色包缺素材回退。
-- `companion.daypart` 只由主进程计算；当前默认 06/12/17/20 时分段，可由主进程作息所有者提供另一组边界，界面不自行推时段。完整作息调度尚未实现。
-- 消息与候选、交付卡按 `createdAtMs` 排序。首次快照、重启和恢复只挂载已有卡片，不重播入场；后续新 id 才入场，不能只靠“时间很近”判断。
-- `sourceLabel` 必须由采集层校验成短字段，不能直接塞原始邮件主题。`mailboxUnseen` 只有 mail capability 为 ready 时才有效，连接失败不能显示成“0 封新邮件”。
-- `readEvidence` 是用户查阅通道，按主进程的用户／角色作用域查 opaque ref；不存在或未接入时明确拒绝。返回值不可进入快照、展示事件或模型上下文。高亮是 excerpt 的 UTF-16 半开区间，对应字段名 `deadlineIso / eventStartIso / locationText / title`。
-- 阶段空闲时 `phaseDurationMs` 为 0；`plannedCount` 是当前生效计划的当天总数，没有生效计划才为 0，待确认草案不改变它。主进程提供本段时长、当天总数和完成数，界面不从草案重新起算。
+`importFiles` 由原生 File 入口解析路径；资料视图只含通用标签、元数据与处理状态。`document.retry/cancel` 显式控制任务。文件正文按回合与路由授权读取，不能把旧工具正文永久混入快照或历史模型投影。
 
-执行底座补充：`PUBLIC_ERROR_CODES` 导出统一枚举，新增模型配置、上游繁忙、额度、断流、非法输出，以及步数／重复调用／预算上限。任务失败看 `task.error.code`，不要把这些失败展示成工作完成；错误里仍只有固定分类与 opaque detailsId，不含供应商报错或配置值。
+`models.routing.set` 为 background / privacy 选择 follow-main 或 independent。privacy 跟随表示关闭隔离，独立失败停止；旧隔离资料不自动公开。模型保存热生效，语音 / 礼物 / 邮箱按提示重启，路由只回传枚举。
 
-第零圈补充：`runtime` 为可选安全视图，包含插件状态、权限类别和开发模式状态，不包含路径、代码、配置值或调试令牌。旧假场景可以暂时省略；真实主进程提供它。启用代码插件必须提交当前 fingerprint，变更后重新确认。开发模式在独立测试数据中运行且不加载真实供应商，展位模式拒绝开启。
+## 记忆、历史与存档
 
-番茄计划由 `pomodoro.plan` 提议、`pomodoro.confirm` 用户确认、`pomodoro.start` 开始；模型不能代替用户确认。`pomodoro.resume` 仅继续暂停的当前阶段；下一个专注仍需 start。`plan.timing=demo` 必须在界面明确标注。新入口未接通前仍由主进程拒绝，不给占位成功。
-# 邮箱与候选确认（第一圈）
+memory 的摘要计数、来源与纠正归主进程维护，consolidate 只归并已关闭周期的合法摘要；召回不重复作为新经历。压缩只改完整旧回合的模型投影。翻页仍通过时间、空闲和计时检查，不能中途切掉执行。
 
-`AppSnapshot.mailbox` 只含来源、健康状态和计数；`unseenCount: null` 表示未能观察，不能当作没有邮件。开发邮件、候选和交付均标记 `source: fake`。`mail.scan` 只启动扫描，不确认事项。正常 IMAP 仍为 blocked，不会因开发场景而变为可用。
+旧页与照片是用户回看入口；照片不进入模型上下文，回忆不从用户独占原文接口补取资料。历史回复、日记与当前现实事实分别管理。
 
-真实候选包含递增 `revision`；`candidate.confirm`／`candidate.ignore` 必须携带画面上的 `expectedRevision`，省略或过期均拒绝。确认可另外提交用户计划完成时间，绝不改写原始截止时间。变更卡通过 `change` 保留旧时间和旧证据入口，活动可提供结束时间；原文仍只走 `readEvidence`，不进快照、事件、模型上下文或调试上下文。
+backup.import 先校验并显示 incoming 概要；backup.restore 必须携带当前 restoreId，自动备份后才实际恢复。动画不能把选中文件当作成功。凭据、路径和存档字节不进通用快照。
 
-确认与本地交付分开：`campus.export` 仅导出新确认／重新确认的版本，生成日历与 Markdown 交付卡。改期沿用 UID 并递增 SEQUENCE。导出文件不代表写入任何外部日历。`developer.mailbox` 只在独立开发 profile 切换合成场景（初始、改期、恶意、滤芯失败、空邮箱）。邮箱固定走隔离路径的隐私标记显示 `privacyLocked`，不允许设置页悄悄关闭。
+onboarding 的状态与名字归主进程；修改名字不是共同经历。reset 保留名字、聊天和业务数据；恢复已完成的存档不强迫重新走向导。
 
+## 扩展、工作与礼物
 
-## 附件与文件处理
+MCP 视图只暴露服务器身份、状态、工具白名单和 fingerprint；实际启动命令、环境或地址由原生对话框核对。路径导入按 server id 合并，重启不自动连接，断开使迟到确认失效。
 
-`documents` 只包含通用文件标签、来源类型、进度、页数和经代码校验的截止时间；原文、源路径、真实文件名和整理成品均不进入快照或模型上下文。`document.attachment` 按 opaque id 暂存邮件附件；`importFiles(File[], epoch)` 仅供用户拖入／选择，preload 用 native File 解析路径并直接传主进程。没有接受任意路径的公共命令。
+心流使用独立执行上下文。命令逐次批准，真实进程结果与 publication / appliedFiles 分开；stdout / stderr 不进普通快照和记忆。编码无法满足 UTF-8 约定时明确拒绝，不回退普通进程。重启、停止和恢复不能复用旧批准。
 
-`/privacy` 是本地控制指令，等同 `privacy.set`，不发给模型；开关在设置中持久化。当前仅实现隔离整理：关闭时暂存，开启且隔离依赖可用时处理；关闭、熄灯或取消停止在途处理，失败不回退主模型。完成后只给用户交付卡，模型最多收到通用文件名、类型、页数和校验过的截止时间。
+羽毛笔与实时生成 gifts 分开。提议绑定已见经历，`gift.accept` 只记录同意，实际制作仍等条件和预算；未配置服务不能假装生成。订阅 key、签名 URL 与凭据不进入快照，取消不承诺上游退款。
 
-`document.retry/cancel` 控制资料任务。`developer.documents` 和 `developer.document.import` 仅在独立开发 profile 提供合成 fixture／故障场景，不代表真实模型、真实附件或 IMAP 已接通。旧 UI fixture 可以省略新视图和导入方法；真实 preload 提供它们。
-
-## 记忆、日会话与压缩
-
-`memory` 提供当前后台状态、计数和最多一小页未审核记忆；记忆只能来自实际模型输入记录，不能扫描证据库、文件库或交付成品。`session` 提供当前上海时间 04:00 起算的日键、待翻页状态和已有页元数据。`readSession(sessionId)` 只给用户看历史聊天，不返回工具原文或执行日志，也不注入模型。
-
-`memory.extract`、`context.compact` 分别请求批量抽取和完整旧回合压缩；压缩只改模型投影，用户聊天原文保留。`/compact` 是同一项本地控制，不发送给聊天模型。`session.rollover` 也必须通过时间、回合空闲和熄灯检查，不能强行切掉执行中的回合。自动翻页与抽取遵守相同边界。
-
-`developer.memory` 只切换独立开发 profile 的 fake 后台模型。normal 未接后台模型时显示 unconfigured，不暗中调用聊天模型。来源、作用域、纠正链和晋升由主进程维护；界面不自己推导它们。
-
-## 第一圈收尾：MCP 与私人存档
-
-`mcp.configure` 打开原生文件选择器导入标准 mcpServers 配置，整份替换；`mcp.configure.path` 只接收主进程可读的本地路径（插件中心用），按 server id 合并到现有配置，拒绝页面直接传配置对象。配置、启动参数、地址、环境变量和令牌只在主进程。`mcp` 只给服务器 id、传输类型、来源、状态、隐私标记、允许的工具名和配置 fingerprint。连接需要用户确认当前 fingerprint，再由主进程原生对话框展示实际程序／参数／工作目录或服务地址供用户核对，不把这些值传给页面。断开使迟到的确认失效，并立即取消在途调用；工具结果按隐私策略校验后才进入模型投影。
-
-`backup.export/import` 使用主进程原生对话框；公共命令不接受文件路径。导入先校验并进入 awaiting-confirmation，界面显示 incoming 摘要；只有显式 backup.restore 携带当前 restoreId 才备份现有数据并恢复。`restored` 表示实际恢复完成，动画不能仅根据选中文件播放成功效果。路径、凭据和存档字节不进入快照、事件或调试 MCP。
-
-`quill` 表示首件有工具证据的工作关联的羽毛笔，state=given 后提供书本里的存档入口；未收到时设置页仍可导出。它是预制礼物，不能说成实时 Rodin 生成。`gift.accept` 只记录用户答应（`acceptedAtMs`），实际生成仍要等专注开始；答应不等于已经生成或送出。
-
-`readDiagnostics()` 仅在真实开发模式开放，正常／展位模式拒绝。它读取模型可见投影、有限回合统计、inbox 元数据、调度队列和记忆分数，不返回配置、原始工具输出、邮件或附件。未采集的首字延迟、缓存 token 和费用为 null，界面不能当作零。隐私原文对照仍走单独的用户查阅入口，不进入通用诊断或模型上下文。
-
-`models.configure` 通过原生对话框导入本机 providers JSON，凭据不经过页面。`models.provider.save/remove` 由设置页图形界面按槽位合并或删除配置；空字段沿用已保存值，其他槽位与 mail／tts／rodin 保留。`models.service.save` 保存 `tts`（HTTPS＋`openai-speech`＋音色）或 `rodin`，`mail.configure` 保存 IMAP 主机／端口／用户／授权码；界面不回显原值。`models.probe` 对已保存槽位发固定小句，最多 16 输出 token、20 秒、无工具；发起前按 2000 工作单位预留资源账本，预算不足或账本不可用即失败。结果只回 testing／ok／failed 和闭集错误码。`modelSettings` 仅含已装配的槽位名、保存状态、需要重启的标记、探针状态和 tts／rodin／mail 是否存在的布尔，没有模型名、URL、用户、音色、密钥或供应商响应正文。开发 profile 拒绝导入或 GUI 写入真实配置。设置保存不代表连通验证通过。
-
-`window.mini` 收起书本；`window.expand` 回到书本并销毁小窗，旧 `window.book` 兼容同一行为，不改变计时和任务。迷你渲染入口为 ?view=mini；`window.mini.hover` 携带 `over: boolean`，hover/move 只接受迷你窗口的主 frame，不能由书本伪造。主进程设置置顶和鼠标穿透，透明异常时回退不透明圆角窗；可选的 miniPresentation／miniFallbackReason 仅说明本机显示模式，不含 GPU 或配置细节。主进程夹住拖动坐标、保存 profile 位置。开始新一段专注收起一次；短／长休息、停止和熄灯保留当前窗口，不抢焦点；熄灯暂停计时／后台，点她仍可回书本。重启从书本开始，不自动复原上次小窗。
-
-`PomodoroPlanInput.items` 可省略；提供时每条为 `{ text, count, assist }`，text 是非空单行短文本（最多 40 Unicode code points），count 为正整数，全部 count 之和必须等于 plannedCount，assist 为必填布尔。工具 plan_pomodoros 使用同一校验，非法输入不写日志、不创建计划。PomodoroPlanView 保留通过校验的原始条目，不补造条目或改变 assist。
-
-计划条目与草案的完整契约（取代早期的 plan.status=proposed 接法）：`pomodoro.plan`／plan_pomodoros 只写 `pomodoro.proposal`，草案只能是 proposed；`pomodoro.plan` 字段只放 confirmed／finished 的生效计划。提议可发生在专注／休息／暂停／空闲中，已有草案就替换草案，不动生效计划、focusIndex、阶段、截止点或暂停原因。
-
-迷你窗最新接线：`window.expand`（回书本并销毁小窗）、`window.mini.hover { over: boolean }`、`window.mini.moveBy { dx: integer, dy: integer }`。moveBy 使用物理屏幕像素，主进程按当前显示器 scaleFactor 换算为窗口 DIP，并在当前显示器 workArea 内夹限；渲染层每帧最多发送一次。CSS screenX/Y 的差值需先乘当前 devicePixelRatio（默认页面缩放为 1），再累积取整数，不能直接把 DIP 当物理像素。旧 window.book／window.mini.move 暂兼容，后者仍按 DIP。
-
-主进程加载 `?view=mini`，新小窗为 280×350 DIP；首次在主屏工作区右下角留 24 DIP 边距。有位置偏好则按 profile 和显示器恢复，越界／显示器缺失归位；应用重启只开书本。`window.diagnostics.open` 仅开发模式开放独立诊断窗，normal／booth 拒绝；diagnosticsOpen 表示它是否存在。诊断窗只读安全快照和 readDiagnostics，不获文件／原文入口或业务命令权限。
-
-`pomodoro.confirm(planId)` 只确认当前 proposal，任何阶段可确认；plannedCount 是今天的总数，包含已完成和正在进行的那个，少于 focusIndex 时拒绝。确认保留当前阶段、剩余时长、截止点、已完成进度，更新生效计划及总数，清 proposal；新时长从下一阶段使用。`pomodoro.discard(planId)` 只丢弃匹配的 proposal；`pomodoro.stop` 只结束生效计划，不再丢草案。完成数由主进程提供 completedCount（旧 fixture 可省略），正在进行／暂停的专注不计已完成；get_timer 返回它供模型排当天总数。渲染层不要从新草案重新起算进度。
-# 心流
-
-`heartFlow` 是书桌工作的安全投影。`flow.enter` 冻结前缀；`flow.mode` 切换只读计划／执行；`flow.compact` 仅压工作层；`flow.exit` 追加有证据的工作摘要。`flow.run` 申请执行 JavaScript，`flow.approve` 仅书本窗口能发，审批不持久复用；展位禁止运行。没有 shell／Node 权限。`flow.undo` 只撤回最新的匹配文件版本，追加事件，不删除历史。
-
-# 世界泡
-
-`life` 的出返、地点、拾取时刻和物品由主进程确定。`life.schedule` 是用户今天作息的明确输入；`life.propose` 仅提议，用户在时用 `life.depart` 同意出发，`life.return` 提前结束。离线事实带 offline=true，只结算最近三天的虚构外出；恢复私人存档直接校准 settledUntilMs，不补空档。桌面最多三件，其余入抽屉。素材缺失时界面用文字回退。
-
-# 日记与房间
-
-`diary` 只投影日期、锁状态和来源。`readDiary(id)` 是用户独占入口，主进程检查解锁后返回主观正文和既定钥匙；禁止喂回模型、记忆或调试 MCP。`diary.write` 尝试为已结束的一天写一次；已有篇章永不覆写。`room.open/rebuild` 只打开／重建程序自己的投影目录，不接受任意路径。正文为带密码 ZIP；运行记录只含类型、时间和成败。
-
-# 急件提醒
-
-仅近 24 小时截止、可核对的固定紧急枚举、用户批准的规则，以及专注中待人工审批可发系统通知。通知只含代码模板、计数和截止时刻；15 秒合并、每小时最多三次、按事项版本去重，熄灯暂停。规则作用于隐私校验后的短标题和来源类别，不获取正文；模型只能提议，用户确认后生效。开发／展位使用 synthetic 投递，不弹真实系统通知。
-
-# 静态角色包
-
-`character.import/export` 走原生文件选择器，格式是版本化 `.lca-character` ZIP，首版只接名字、人设和具名 PNG。包中不允许代码、URL、私人档案或未声明文件。`character.select` 保存选择，重启后开独立角色日志、记忆、资料和房间；从不复制共同经历。`characterPack.images` 只返回当前角色自己的本地资源 URL，缺姿势回退同姿势 calm、正面 calm，最后内置场景。私人存档恢复仍要求同用户／同角色：新机器先导入同一角色包并切换，再恢复对应存档。
-
-资源接口：`snapshot.resources` 是本机数据根的守卫投影，不属于私人书本，不随存档恢复或展位／个人切换回退。模型按 04:00 分日的保守预留单位，语音按自然日的字符／尝试数分别显示；状态不可用时计数为 null，不虚报零。`resources.configure` 仅展位书本操作员可发，设置总日 10000..5000000、自主日 0..总日的整数上限；不改旧消耗，不展示币种或未知单价。
-
-澄清接口：`snapshot.question` 是单个当前问题。`queued` 只有 id／taskId／createdAtMs／context（conversation 或 work），不含问题正文；`waiting` 才有 question、最多三个 choices 和主进程的 expiresAtMs。专注／安静先排队，休息才显示；十分钟只计可见等待时间。书本 `question.answer {questionId,answer}`（最多 1000 字，可多行）或 `question.dismiss {questionId}`，均不能替代执行审批。停止／熄灯／关闭／新用户要求取消旧等待，重启不复活；心流问题和回答留在工作上下文。
-
-实际命令接口：`heartFlow.commandExecution` 独立于旧 `execution`（JavaScript worker）；缺字段或 unavailable 时不能当作 shell 可用。`flow.command.run {command,timeoutMs?}` 只准备不可变的一次性书桌副本，产生 awaiting-approval 后由书本 `flow.command.approve {commandId,allow}` 逐次决定；`flow.command.cancel` 只取消对应 ID。展位禁止运行，计划模式也不执行，不恢复旧审批。固定后端 cmd／AppContainer、命令单行至多 6000 UTF-16 字符、默认 5 秒／最多 30 秒；无网络，无隔离失败回退。`heartFlow.command` 只含命令、输入指纹及进程／写回收据，不含 stdout／stderr；`flow.command.open` 走用户专用原生预览。工具 `run_command` 的结果只在工作上下文内，不能把 exitCode=0 当成文件已写回；publication 和 appliedFiles 由实际版本检查、文件写入与日志决定。
-
-命令错误码 `command-encoding-unsupported` 表示未能建立 UTF-8 约定：非 UTF-8 系统的 Unicode 命令字面量在执行前拒绝，非 UTF-8 子进程输出也不能当正常文本交付或写回；可改用 ASCII 编码的脚本及显式 UTF-8 文件／输出。它不是用户拒绝，也不触发普通进程回退。
-
-`models.routing.set` 为 background／privacy 显式选择 follow-main 或 independent。privacy 的 follow-main 关闭隔离，原文可由主模型处理；independent 缺失或失败仍关闭业务。模型配置热应用，语音／礼物／邮箱仍需重启。路由仅回传枚举，不回传凭据。
-
-`mail.configure.port` 留空时保留已有端口，新连接默认 993；避免只改授权码时把非默认端口覆盖掉。
+保留的 Minecraft 研究能力只投影已批准端点；截图 / 挖掘须逐轮授权，不继承首次 MCP 连接批准。观察与像素只留游戏上下文，不混入普通记忆或私人存档，也不代表真实桥和模型质量已经通过。
