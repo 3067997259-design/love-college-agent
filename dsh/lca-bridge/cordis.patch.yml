@@ -1,0 +1,50 @@
+# LCA layer over dsh-base: DSH runs her chat and work turns inside Love, College & Agent.
+# The LCA main process owns the window, the book UI, credentials and every approval answer.
+# Sandbox and approval stay on dsh-base defaults (workspace-write + ask).
+
+# She is the persona; LCA registers it per agent in `deployment:persona-prefix`.
+- id: system-prompt
+  config:
+    includeHarnessIdentity: false
+    personaPrefix: ''
+
+# The model route comes from LCA's own connection settings at launch: DeepSeek's official API through
+# dsh-llm-deepseek, or LCA's OpenAI-compatible endpoint as the `lca-chat` pi-ai route. Keys stay in
+# the launch environment (credentials store disabled below).
+- id: llm-pi-ai
+  config:
+    providers: !!js "process.env.LCA_CHAT_BASE_URL ? { 'lca-chat': { displayName: 'LCA', apiKeyEnv: 'LCA_CHAT_API_KEY', api: 'openai-completions', baseURL: process.env.LCA_CHAT_BASE_URL, models: [{ id: process.env.LCA_CHAT_MODEL }] } } : {}"
+
+- id: agent-default-model
+  config:
+    provider: !!js "process.env.LCA_CHAT_BASE_URL ? 'lca-chat' : 'deepseek-official'"
+    model: !!js "process.env.LCA_CHAT_BASE_URL ? process.env.LCA_CHAT_MODEL : (process.env.LCA_DSH_MODEL ?? 'deepseek-flash')"
+
+# Launch-time credentials, no account login, no telemetry, no extra title calls, no HMR.
+- id: credentials
+  disabled: true
+
+- id: authorization
+  disabled: true
+
+- id: deepseek-account
+  disabled: true
+
+- id: llm-deepseek-account
+  disabled: true
+
+- id: otel
+  disabled: true
+
+- id: session-telemetry-otel
+  disabled: true
+
+- id: session-title-llm
+  disabled: true
+
+- id: hmr
+  disabled: true
+
+- insert:
+    - id: lca-bridge
+      name: '@lca/dsh-bridge'

@@ -159,6 +159,51 @@
   "tool.unavailable": {
     "failed": "这个工具现在用不了。"
   },
+  "dsh.read": {
+    "running": "翻看项目里的文件",
+    "completed": "看过文件了。",
+    "failed": "这份文件没打开。"
+  },
+  "dsh.write": {
+    "running": "写文件",
+    "completed": "文件写好了。",
+    "failed": "文件没写成。"
+  },
+  "dsh.edit": {
+    "running": "改文件",
+    "completed": "文件改好了。",
+    "failed": "这处没改成。"
+  },
+  "dsh.search": {
+    "running": "在项目里找",
+    "completed": "找过了。",
+    "failed": "没找成。"
+  },
+  "dsh.shell": {
+    "running": "运行命令",
+    "completed": "命令跑完了。",
+    "failed": "命令没跑成。"
+  },
+  "dsh.web": {
+    "running": "上网查资料",
+    "completed": "查过资料了。",
+    "failed": "资料没查到。"
+  },
+  "dsh.plan": {
+    "running": "理一下步骤",
+    "completed": "步骤理好了。",
+    "failed": "步骤没理成。"
+  },
+  "dsh.skill": {
+    "running": "翻看操作手册",
+    "completed": "看过手册了。",
+    "failed": "手册没打开。"
+  },
+  "dsh.agent": {
+    "running": "请帮手一起做",
+    "completed": "帮手那边做完了。",
+    "failed": "帮手那边没做成。"
+  },
   "_fallback": {
     "running": "在做这一步",
     "completed": "这一步做完了。",

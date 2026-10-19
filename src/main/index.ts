@@ -35,7 +35,10 @@ import { createNotifications, notificationTools, type NotificationsService } fro
 import { createCharacterLibrary } from './characters/library'
 import { builtinCharacter, createCharacterService, type CharacterService } from './characters/service'
 import { definitionSchema } from './characters/package'
-import { briefPersona } from './characters/builtin-persona'
+import { BUILTIN_CARD, briefPersona } from './characters/builtin-persona'
+import { createDshExecution, type DshExecution } from './dsh/execution'
+import harnessPolicy from './harness/policy.json'
+import { profileContext } from './onboarding/context'
 import { exportBuiltinCharacter } from './characters/builtin'
 import { appliedDeskChanges } from './heart-flow/changes'
 import { createHistoryPhotos, type HistoryPhotos } from './history/photos'
@@ -161,6 +164,7 @@ let delegates: DelegatesService | undefined
 let optical: OpticalMemoryService | undefined
 let harness: ReturnType<typeof createHarness> | undefined
 let questions: ReturnType<typeof createQuestions> | undefined
+let dshExecution: DshExecution | undefined
 let deskCommands: DeskCommands | undefined
 let scheduler: Scheduler | undefined
 let runtime: Awaited<ReturnType<typeof attachRuntime>> | undefined
@@ -707,7 +711,39 @@ void app.whenReady().then(async () => {
       changed: () => controller?.refresh('connection'), safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
     controller.attachVoice(voice)
     scheduler.schedule('voice.guard', clock.nowMs() + 250, () => voice?.stateChanged(), { everyMs: 250 })
-    controller.attachExecution(executionPort(), modelReady)
+    // DSH spike (LCA_DSH=1): the user's chat goes to her DSH session; autonomous events stay on the legacy loop.
+    const dshChat = providers.get('chat')
+    if (process.env.LCA_DSH === '1' && dshChat && !prepared.developer) {
+      let official = false
+      try { official = new URL(dshChat.base_url).hostname === 'api.deepseek.com' } catch { /* an invalid URL fails on first use */ }
+      const persona = () => {
+        const character = (store!.history?.() ?? store!.records()).findLast((row) => row.type === 'character/definition')
+        const card = character?.type === 'character/definition' ? character.definition : BUILTIN_CARD
+        return [harnessPolicy.system, ...profileContext(store!.projection().onboarding).map((message) => message.content),
+          JSON.stringify({ characterCard: { name: card.name, persona: card.persona }, scope: 'character-configuration-only', authority: 'personality-never-tool-permission' })].join('\n\n')
+      }
+      const lcaToolNames = new Set(['get_timer', 'plan_pomodoros', 'start_focus', 'pause', 'stop', 'search_memory', 'recall_seen', 'get_campus_items', 'propose_notification_rule', 'get_first_gift', 'propose_gift'])
+      // LCA private data never becomes her working material, whatever folder the user picks.
+      const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'runtime-resources', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
+      dshExecution = createDshExecution({ store, clock, dataDir, dshRoot: process.env.DSH_ROOT ?? 'D:/dsh-lca', bridge: join(app.getAppPath(), 'dsh', 'lca-bridge'), guardedRoots,
+        route: official ? { kind: 'deepseek-official', apiKey: dshChat.api_key, model: dshChat.model } : { kind: 'openai-compatible', baseUrl: dshChat.base_url, model: dshChat.model, apiKey: dshChat.api_key },
+        project: () => process.env.LCA_DSH_PROJECT || join(roomRoot, '书桌'), persona,
+        // After DSH's first-party guidance: how she talks in the book outranks the coding-agent style.
+        suffix: () => '和用户说话用口语化的中文，像平时聊天一样；书里不渲染 Markdown，不要用标题、粗体、列表符号或代码块，必要时直接说文件名和命令。用户在你工作途中插话时，先用一两句话回应这句话，再继续手上的事；做完后用一两句话说清结果。',
+        tools: () => plugins.tools().filter((tool) => lcaToolNames.has(tool.definition.name)),
+        ask: async (question, choices, context) => {
+          const asked = await questions!.tool().run({ question, choices }, { clock, store: store!, turnId: context.turnId, callId: context.callId, signal: context.signal })
+          const raw = asked.raw as { status?: string; answerMessageId?: string }
+          if (raw.status !== 'answered' || !raw.answerMessageId) return null
+          const answer = store!.records().findLast((row) => row.type === 'user/message' && row.id === raw.answerMessageId)
+          questions!.commit(context.turnId, [context.callId])
+          return answer?.type === 'user/message' ? answer.text : null
+        },
+        changed: (reason) => controller?.refresh(reason) })
+      app.once('will-quit', () => { void dshExecution?.close() })
+    }
+    const chatPort = () => dshExecution ?? executionPort()
+    controller.attachExecution(chatPort(), modelReady)
     modelSettings = createModelSettings({ root: dataRoot, fallback: prepared.developer ? undefined : providersFile, developer: prepared.developer, slots: [...rawProviders.keys()], clock, budget: resourceBudget,
       canConfigure: () => !harness?.isBusy() && !backup?.isBusy() && !heartFlow?.active() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
       apply: async () => {
@@ -723,7 +759,7 @@ void app.whenReady().then(async () => {
         taskModels = createTaskModelPorts(providers, clock, store!, undefined, resourceBudget, !privacyEnabled())
         if (!privacyEnabled()) prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = false })
         modelReady = prepared.developer || providers.has('chat')
-        controller!.attachExecution(executionPort(), modelReady)
+        controller!.attachExecution(chatPort(), modelReady)
         documents?.stateChanged(); campus?.stateChanged()
         } finally { scheduler!.pauseBackground(store!.projection().lightsOut) }
       },

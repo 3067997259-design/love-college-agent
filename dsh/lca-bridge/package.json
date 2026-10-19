@@ -1,0 +1,25 @@
+{
+  "name": "@lca/dsh-bridge",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Out-of-tree DSH plugin and bundle that lets Love, College & Agent drive DSH agents over Node IPC.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-agent": "*",
+    "@deepseek-ai/dsh-brand": "*",
+    "@deepseek-ai/dsh-llm": "*"
+  }
+}
