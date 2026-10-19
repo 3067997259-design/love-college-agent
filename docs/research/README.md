@@ -10,6 +10,8 @@
 
 D1 任务对象：[任务对象契约与实施清单](day-timeline-d1-task-20261019.md)（2026-10-19，demo 分支）。日志记录、共享视图与投影已落地并有重启测试；模型提议工具、任务卡与剧本场景按切片推进。
 
+D2 安全清单：[一条时间线与安全的实施清单](day-timeline-d2-20261019.md)（2026-10-19，demo 分支）。待维护者确认 D-3、心流入口去留与降级持续期后施工。
+
 | 入口 | 研究问题 | 已知边界与历史记录 |
 | --- | --- | --- |
 | `pnpm probe:deeptech-audit` | 结构守卫、来源权限与依赖新鲜性 | 只读代码结构检查，不调用模型。[原审计](https://github.com/3067997259-design/love-college-agent/blob/hackathon-2026-final/docs/research/deeptech-memory-audit-20261017.md) |
