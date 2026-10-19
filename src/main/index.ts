@@ -68,6 +68,7 @@ import { openSessionStore, resumeSavedSession, type SessionStore } from './store
 import { probeJournal } from './validation/journal'
 import { probeModel } from './validation/model'
 import { probeCacheUsage } from './validation/cache-usage'
+import { probeDshSpike } from './validation/dsh-spike'
 import { readMailCredentials, readModelProviders, readPrivateCredentialValues, readModelRouting, resolveModelProviders, type ModelRouting } from './config/providers'
 import { createModelClient } from './model/client'
 import { createHarness } from './harness/loop'
@@ -307,6 +308,12 @@ void app.whenReady().then(async () => {
   }
   if (process.argv.includes('--lca-probe=cache-usage')) {
     const report = await probeCacheUsage(dataDir, providersFile, systemClock)
+    console.log('LCA_PROBE:' + JSON.stringify(report))
+    app.exit(report.ok ? 0 : 1)
+    return
+  }
+  if (process.argv.includes('--lca-probe=dsh-spike')) {
+    const report = await probeDshSpike(dataDir, providersFile, app.getAppPath(), systemClock)
     console.log('LCA_PROBE:' + JSON.stringify(report))
     app.exit(report.ok ? 0 : 1)
     return
