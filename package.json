@@ -96,6 +96,7 @@
     "test:heart-flow": "pnpm build && node scripts/smoke-heart-flow.mjs",
     "test:task-object": "pnpm build && node scripts/smoke-task-object.mjs",
     "test:timeline-safety": "pnpm build && node scripts/smoke-timeline-safety.mjs",
+    "test:attention-flow": "pnpm build && node scripts/smoke-attention-flow.mjs",
     "test:desk-command": "pnpm build && node scripts/smoke-desk-command.mjs",
     "test:flow-drafts": "pnpm build && node scripts/smoke-flow-drafts.mjs",
     "test:voice": "pnpm build && node scripts/smoke-voice.mjs",
