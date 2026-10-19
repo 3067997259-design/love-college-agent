@@ -95,3 +95,28 @@
 1. D-3 按建议执行：follow-main 只是"读取请求用主模型"，原文默认不进主对话？
 2. D2 是否移除心流面板入口（推荐：隐藏入口，保留旧记录只读查看），还是先只隐藏对话流里的面板？
 3. 降级持续期先按"本轮 + 未退役第三方结果在上下文期间"实现，检查点收口留 D4，可以吗？
+
+## 7. 实施进度（2026-10-19，维护者已确认全部按建议）
+
+| 项 | 状态 |
+| --- | --- |
+| D-3 语义 | 已按建议：原文默认不附主对话，只有用户点"把原文放进这一轮"才 attach 一次 |
+| 心流入口 | 已隐藏：对话流不再渲染 FlowPanel，设置里的进入/模式/运行按钮移除，只保留旧记录只读查阅 |
+| 降级持续期 | 已按建议：本轮 + 上下文里未退役的第三方结果；检查点收口留 D4 |
+
+已完成：
+
+- 日志与视图：`turn/degraded`、`context/reveal`；`desk/change` 支持 `taskId`（flow/task 二选一）；`AppSnapshot.degraded`。
+- 一条时间线：普通 prepare 不再按 flow 区间过滤（`includeContextEntries` 恒为全量）；聊天投影不再被心流消息顶替。
+- 全天固定工具列表：普通回合固定包含任务书桌工具（`desk_read/write/edit/find/grep`，经任务授权）与 `task_propose`，不再按 `heartFlow.active()` 切换；`backgroundQuiet` 去掉心流项。
+- 任务书桌门禁：读允许；写/改/删要求 `authorizedActiveTask()` 且非降级轮；写前落 `desk/change{taskId,pending}`，成功落 `desk/settled`。
+- 降级门禁：本轮出现第三方原文（reveal）或未退役 mail/document/web/MCP/来源插件工具结果时写 `turn/degraded`；降级轮拒绝 `task.approve`，书桌写入返回 `DEGRADED_SOURCE_REQUIRES_APPROVAL`。
+- 记忆：`seenFragments(memoryOnly)` 排除 desk/工作工具结果及该回合她的复述。
+- 单测：`tests/unit/d2-safety.test.ts`（未授权写成拒、降级轮拒绝写入与授权、重启/投影降级清空、工作输出不进记忆）。
+- 回归：`smoke-task-object` 仍通过（旧心流命令路径保留给历史场景，产品 UI 已不可进入）。
+
+待完成（D2 收尾）：
+
+- Q4 剧本 `pnpm test:timeline-safety`：固定工具列表请求捕获、未授权写入被拦、合成注入材料下默认请求不含原文、reveal 只生效一轮。
+- 旧心流场景脚本（`smoke-heart-flow` 等 8+ 个）改为任务授权路径或标记为历史脚本；连续性 33 项探针按设计反转，另立 `probe-timeline-safety`。
+- 收尾证据 `test-results/d2-*/` 与执行计划 §D2 结果摘要。
