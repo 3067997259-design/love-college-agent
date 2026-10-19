@@ -53,9 +53,9 @@
 ## 6. 验收
 
 - 单测：投影 / 重启（`tests/unit/task-projection.test.ts`）；任务服务与命令（`tests/unit/task-service.test.ts`）覆盖提议占用、错误版本拒绝、步骤仅限已批准手上任务、用户关闭、重启后旧批准不复活、重复 `task.approve` 请求不重复写授权。
-- 剧本（开发者模式、剧本模型，可重复）：聊天提出"帮我写完作业二" → 模型 `task_propose` 生成任务卡 → 用户批准 → 任务回合两步 desk 写入 → 完成步骤 → 用户结束；断言 journal 记录齐全、重启后卡片一致、审批次数 = 1、卡片出现在对话流。**待 D1-C。**
-- 真实模型（授权后）：同剧本跑一次，记录 token 与缓存，留作 R1 对照；报告只含数字、哈希与枚举。**待 D1-C。**
-- 证据存本机 `test-results/d1-*/`，摘要回写[执行计划](day-timeline-demo-20261019.md)。
+- 剧本 S0（`pnpm test:task-object`，开发者剧本模型，无真实调用）已通过：聊天提出 → 模型 `task_propose` 生成任务卡 → 用户点按批准 → 心流 execute 下 `desk_write` + `task_step` 推进 → 用户点按结束 → 重启后状态一致。结果见 §9。
+- 真实模型（授权后）：同剧本跑一次，记录 token 与缓存，留作 R1 对照；报告只含数字、哈希与枚举。**待 D5。**
+- 证据存本机 `test-results/d1-task-object/`，摘要见 §9 并回写[执行计划](day-timeline-demo-20261019.md)。
 
 ## 7. 实施切片与提交
 
@@ -63,7 +63,7 @@
 | --- | --- | --- |
 | D1-A | 日志记录、共享视图、投影、快照接入、投影/重启单测 | 已完成（2026-10-19） |
 | D1-B | 共享命令契约、任务服务（提议/批准/步骤/关闭/授权查询）、`task_propose` / `task_step` 工具、controller 派发与命令重放、单测 | 已完成（2026-10-19） |
-| D1-C | 任务卡 UI（对话流）、剧本脚本与运行证据 | 未开始 |
+| D1-C | 任务卡 UI（对话流）、剧本脚本与运行证据 | 已完成（2026-10-19） |
 
 提交顺序：先接口（共享命令/视图），再消费方接入；每步跑 typecheck / lint / test。
 
@@ -73,3 +73,20 @@
 - 任务卡位置：消息流内卡片（拟采用）还是常驻顶部；先做消息流卡片，避免变成另一个面板。
 - 旧心流数据不迁移、不改写；合并前再按执行计划 §6 把旧区间投影为历史任务。
 - 授权范围目前只有书桌写入 + 命令逐次；真实项目工作区按 [harness 调研](harness-workspaces-20261019.md) 另行推进，不在 D1 混测。
+
+## 9. D1 验收结果（2026-10-19）
+
+剧本 S0：`pnpm test:task-object`（Electron 开发者 profile + 剧本模型；不调用真实模型、不联网）。固定步骤：聊天提出"写完作业二，先给计划" → 模型 `task_propose` 提议 → 用户点任务卡"批准这份计划" → 进入心流并批准 execute（现有安全墙）→ 剧本模型 `desk_write` 写 `answer.js` 并 `task_step` 完成第一步 → 退出心流 → 用户点任务卡"标记完成" → 关闭重开验证重启投影。
+
+| 项目 | 结果 |
+| --- | --- |
+| 提议 | `proposed`；planVersion 1；3 步均为 pending；任务卡在对话流可见 |
+| 批准 | 用户点按后 `active`，`activeTaskId` 命中；授权绑定 planVersion 1，scope 为书桌写入 + 命令逐次批准 |
+| 推进 | 心流 execute 下 `desk_write` 命中 `answer.js`，`task_step` 把第 1 步置 done；任务回合 completed |
+| 结束 | 用户点按后 `completed`，`activeTaskId` 清空；模型没有关闭任务的工具 |
+| 重启 | 卡片仍可见；status `completed`、授权 planVersion 1、步骤 `done/pending/pending` 与关闭前一致 |
+| journal | 63 行；`task/open`、`task/plan`、`task/approve`、`task/focus`、`task/step`、`task/close` 各 1；`flow/mode` execute 1；`tool/call` desk_write 1；`desk/change` 1；`flow/open`、`flow/close` 各 1 |
+| 审批 | 任务审批 **1 次**；另有现有心流的"批准计划并允许书桌写入" 1 次（D2 去掉心流墙后合并） |
+
+证据在本机 `test-results/d1-task-object/scenario.json`（只含计数、布尔与状态，无正文或密钥）。D1 完成依据（投影/重启单测 + 剧本场景）已满足；下一阶段 D2 去掉心流区间过滤与全天固定工具列表，并把 desk 写入门禁切到任务授权。
+
