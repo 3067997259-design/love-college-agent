@@ -12,6 +12,8 @@ D1 任务对象：[任务对象契约与实施清单](day-timeline-d1-task-20261
 
 D2 安全清单：[一条时间线与安全的实施清单](day-timeline-d2-20261019.md)（2026-10-19，demo 分支）。已完成：一条时间线、固定工具列表、任务书桌授权、降级回合与一次性原文；`test:timeline-safety` 剧本与单测通过。
 
+D3 接收与注意力：[接收、唤醒与注意力的实施清单与进度](day-timeline-d3-20261019.md)（2026-10-19，demo 分支）。第一批已完成：回合内全量接收事件、专注续跑上限与停止条件；attention 调度点与 Q7 待做。
+
 | 入口 | 研究问题 | 已知边界与历史记录 |
 | --- | --- | --- |
 | `pnpm probe:deeptech-audit` | 结构守卫、来源权限与依赖新鲜性 | 只读代码结构检查，不调用模型。[原审计](https://github.com/3067997259-design/love-college-agent/blob/hackathon-2026-final/docs/research/deeptech-memory-audit-20261017.md) |
