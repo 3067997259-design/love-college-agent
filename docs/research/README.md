@@ -8,6 +8,8 @@
 
 执行计划：[一天一条时间线：审计与 demo 执行计划](day-timeline-demo-20261019.md)（2026-10-19）。审计困惑入口、任务缺位、安全分隔、邮件入口、缓存观测和她自己的生活，把设计写成七个待验证的问题，先在分支上做可复现的 demo；设计为建议，尚未实现。
 
+D1 任务对象：[任务对象契约与实施清单](day-timeline-d1-task-20261019.md)（2026-10-19，demo 分支）。日志记录、共享视图与投影已落地并有重启测试；模型提议工具、任务卡与剧本场景按切片推进。
+
 | 入口 | 研究问题 | 已知边界与历史记录 |
 | --- | --- | --- |
 | `pnpm probe:deeptech-audit` | 结构守卫、来源权限与依赖新鲜性 | 只读代码结构检查，不调用模型。[原审计](https://github.com/3067997259-design/love-college-agent/blob/hackathon-2026-final/docs/research/deeptech-memory-audit-20261017.md) |
