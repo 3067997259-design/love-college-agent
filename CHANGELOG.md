@@ -6,7 +6,7 @@
 - 初始交付保存在 `Hackathon` 分支与 `hackathon-2026-final` 标签；竞赛专用材料退出当前目录，来源与历史入口保留。
 - 文档重整轮次不改变应用业务、数据格式或版本号，不重打安装器。
 - 模型缓存观测：解析 DeepSeek 的 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens` 与 OpenAI 兼容的 `prompt_tokens_details.cached_tokens`，归一为 `model/attempt` 的可选字段 `cachedInputTokens` / `uncachedInputTokens`；旧日志继续可读。
-- M1 缓存观测真实验收：授权真实调用确认 DeepSeek 原生命中 / 未命中按原始 usage 写入 `model/attempt`（相同前缀第二次命中 1,408 token，journal 重启可读），不回报缓存字段的供应商保持未记录；OpenAI 兼容独立分支待可用端点补测。
+- M1 缓存观测真实验收：授权真实调用确认两种缓存 usage 形状都按原始值写入 `model/attempt`（DeepSeek 命中 1,280 / 未命中 244；OpenAI 兼容 `cached_tokens` 命中 4,224 / 未命中 1,445；首次显式 0 保留），journal 重启可读，不回报缓存字段的供应商保持未记录。命中率与成本结论仍留 D0 / R1。
 
 ## 0.1.10 — 2026-10-18
 

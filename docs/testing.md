@@ -38,7 +38,7 @@ pnpm test
 真实请求必须属于当前获授权任务，配置可用不等于授权调用。普通文档、单测或合成回归不会自动升级成以下探针：
 
 - `test:real-model` 要求显式 `LCA_REAL_MODEL=1` 与授权 providers 文件；检查流式、工具往返、普通 UI 与 `probe:cache-live` 缓存 usage 对账，结果不打印正文或密钥。
-- `probe:cache-live`（M1 缓存观测）使用合成提示词与独立临时 profile，最多 6 次调用 / 20,000 输入 token / 90 秒单次超时；报告只含数字、布尔与槽位别名，验证供应商原始 usage 与 `model/attempt`、重启后 journal 三方一致。`LCA_CACHE_PROBE_PAIR_SLOTS` 可指定做相同前缀两次的槽位，`LCA_CACHE_PROBE_REPORT` 写本地证据。OpenAI 兼容 `prompt_tokens_details.cached_tokens` 的独立分支需要能单独回报该字段的端点。
+- `probe:cache-live`（M1 缓存观测）使用合成提示词与独立临时 profile，最多 6 次调用 / 20,000 输入 token / 90 秒单次超时；报告只含数字、布尔与槽位别名，验证供应商原始 usage 与 `model/attempt`、重启后 journal 三方一致。`LCA_CACHE_PROBE_PAIR_SLOTS` 可指定做相同前缀两次的槽位，`LCA_CACHE_PROBE_REPORT` 写本地证据。两种供应商形状已于 2026-10-19 用授权端点完成真实 payload 验证；换端点后重跑即可复验。
 - `probe:privacy` / `probe:model` / `probe:harness` 可能调用已配置模型。失败不回退 fake，真实质量与连通分别评价。
 - `probe:student-hub-live` 要求显式 `LCA_STUDENT_HUB_LIVE=1`，使用临时库的只读邮件范围；不扩大到课程提交或外部写入。
 - `probe:imap` 读取获授权文件夹；`probe:rodin` 会提交真实生成任务并可能收费。旧任务的预算不作为新任务的通行证。

@@ -9,7 +9,7 @@
 | 源码基线 | `af54834`；已有 `art/gen-log.jsonl` 修改保留，不属于本计划。 |
 | 审计 | 源码阅读与静态统计；引用同日[上下文连续性审计](context-continuity-audit-20261019.md)的 33 项合成现状。 |
 | 设计 | 建议，未实现。 |
-| M1（main） | 已实现并真实验收（2026-10-19）：缓存字段归一后写入 `model/attempt`；typecheck、单元测试、scoped ESLint 与连续性探针通过。授权真实调用 6 轮 / 27 次 / 12,842 输入 token：DeepSeek 原生形状逐字段一致（相同前缀第二次命中 1,408、未命中 146），journal 重启可读；不回报缓存字段的中转供应商保持未记录。OpenAI 兼容 `prompt_tokens_details.cached_tokens` 的独立分支仍只有合成单测（GPT 中转 429、Gemini / Claude 中转不回报），留待 D0 用可用端点补测。 |
+| M1（main） | 已实现并完成真实验收（2026-10-19）：缓存字段归一后写入 `model/attempt`；typecheck、单元测试、scoped ESLint 与连续性探针通过。授权真实调用共 7 轮 / 33 次 / 31,676 输入 token：DeepSeek 原生形状（命中 1,280 / 未命中 244）与 OpenAI 兼容 `prompt_tokens_details.cached_tokens` 形状（命中 4,224 / 未命中 1,445）都与原始 usage、attempt 及重启后的 journal 逐字段一致；首次显式 0 保留，不回报缓存字段的供应商保持未记录。真实命中率与成本结论仍归 D0 / R1。 |
 | demo | 未开始；真实模型测试需要另行授权和预算。 |
 
 ## 1. 审计
@@ -56,7 +56,8 @@
 ### 1.5 成本观测缺口
 
 - 流式解析已解析并记录缓存命中字段（M1，2026-10-19）：DeepSeek 的 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens` 与 OpenAI 兼容的 `prompt_tokens_details.cached_tokens` 归一为 `cachedInputTokens` / `uncachedInputTokens` 写入 `model/attempt`（[解析](../../src/main/model/stream.ts#L11)、[类型](../../src/main/model/types.ts#L11)、[日志 schema](../../src/main/journal/schema.ts#L146)）。
-- 真实验收（2026-10-19，授权 `LCA_REAL_MODEL=1`）：DeepSeek 官方真实 SSE 同时回报命中 / 未命中与 `cached_tokens`，记录值、`model/attempt` 与重启后的 journal 逐字段一致；相同合成前缀第二次调用命中 1,408、未命中 146，第一次显式 0 也被记录。中转 Gemini / Claude 的 usage 不带缓存字段，记录保持缺失而不是 0。OpenAI 兼容独立分支仍待能单独回报 `cached_tokens` 的端点（GPT 中转 429）。
+- 真实验收（2026-10-19，授权 `LCA_REAL_MODEL=1`）：DeepSeek 官方真实 SSE 同时回报命中 / 未命中与 `cached_tokens`，记录值、`model/attempt` 与重启后的 journal 逐字段一致；相同合成前缀第二次调用命中 1,280、未命中 244，第一次显式 0 也被记录。换过分区的文本 GPT 端点单独回报 `prompt_tokens_details.cached_tokens`（命中 4,224 / 未命中 1,445），OpenAI 兼容分支也已完成真实验证；中转 Gemini / Claude 的 usage 不带缓存字段时记录保持缺失而不是 0。
+- 计量注意：该 GPT 端点对一条几十 token 的短请求回报 4,403 prompt token（其中 4,224 命中），说明中转会注入并在请求间复用一段较大的隐藏前缀；D0 / R1 记录成本时必须把这类供应商侧前缀与 LCA 自身上下文分开，不能直接当作本项目上下文开销。
 - 切换心流会换掉工具列表（[工具选择](../../src/main/index.ts#L543)），进入或恢复心流会新建一段前缀；世界事实和召回插在最后一条用户消息之前。
 - 因此现在既不能证明新设计更省，也不能证明现设计更费。M1 已补记录并完成真实验收；成本测量（D0、R1）仍需真实模型授权与预算。
 

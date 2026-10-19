@@ -16,7 +16,7 @@ import { openSessionStore } from '../store/session'
  */
 const MAX_CALLS = 6
 const MAX_TOTAL_INPUT_TOKENS = 20_000
-const OUTPUT_TOKENS = 64
+const OUTPUT_TOKENS = 256
 const CALL_TIMEOUT_MS = Math.min(90_000, Math.max(5_000, Number(process.env.LCA_CACHE_PROBE_TIMEOUT_MS) || 20_000))
 
 type Shape = 'deepseek' | 'openai-compatible' | 'none' | 'unreported'
