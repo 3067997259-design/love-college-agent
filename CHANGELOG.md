@@ -1,5 +1,12 @@
 # 更新记录
 
+## 0.2.1 — 2026-10-19
+
+- 修复：普通回合工具列表不再出现旧心流的 `update_plan`、`run_javascript`、`run_command` 与旧书桌工具；任务计划统一走 `task_propose` 和任务卡，避免出现没有批准按钮的旧计划清单。
+- 修复：批准任务计划后自动开始一个工作回合（专注中仍由 D3 续跑接管），不再出现“口头批准后写入仍被拒”的错位。
+
+[版本详情与验证范围](docs/releases/0.2.1.md) · [全部 Releases](https://github.com/3067997259-design/love-college-agent/releases)
+
 ## 0.2.0 — 2026-10-19
 
 - main 转为 AfterRain 个人长期维护主线，重整使用、开发、设计、隐私、测试和维护文档。
