@@ -77,6 +77,8 @@ try {
   let rows = await journalRows()
   const toolsBaseline = seenTools(rows).at(-1)
   assert.ok(toolsBaseline?.includes('desk_write') && toolsBaseline.includes('task_propose'), 'FIXED_TOOL_LIST_INCOMPLETE')
+  assert.ok(!toolsBaseline.includes('update_plan') && !toolsBaseline.includes('run_javascript') && !toolsBaseline.includes('run_command'), 'LEGACY_FLOW_TOOLS_VISIBLE')
+  report.legacyToolsHidden = true
   // Unapproved write is refused and leaves no desk change.
   await setScript([{ text: '', toolCalls: [{ id: 'write-1', name: 'desk_write', arguments: JSON.stringify({ path: 'answer.js', text: 'return 42' }) }], delayMs: 0 }, { text: '先需要批准。', toolCalls: [], delayMs: 0 }])
   await send('先写写看')
@@ -91,18 +93,20 @@ try {
   await waitFor((state) => (state.tasks?.length ?? 0) === 1, 'TASK_PROPOSAL_MISSING')
   let state = await snapshot()
   const task = state.tasks[0]
-  assert.equal((await dispatch({ type: 'task.approve', taskId: task.id, planVersion: 1 })).status, 'accepted')
-  await waitFor((current) => current.tasks?.[0]?.status === 'active', 'TASK_APPROVE_FAILED')
-  // Approved write runs without entering any heart flow; tool list stays identical.
+  // Approval itself starts one work turn; the model script is installed before the click.
   await setScript([{ text: '', toolCalls: [
     { id: 'write-2', name: 'desk_write', arguments: JSON.stringify({ path: 'answer.js', text: 'return 42' }) },
     { id: 'step-2', name: 'task_step', arguments: JSON.stringify({ stepId: 'step-1', status: 'done' }) },
   ], delayMs: 0 }, { text: '写好了。', toolCalls: [], delayMs: 0 }])
-  await send('开始做吧')
+  assert.equal((await dispatch({ type: 'task.approve', taskId: task.id, planVersion: 1 })).status, 'accepted')
+  await waitFor((current) => current.tasks?.[0]?.status === 'active', 'TASK_APPROVE_FAILED')
   await waitFor((current) => current.heartFlow?.files.some((file) => file.path === 'answer.js') && current.tasks?.[0]?.plan?.steps[0]?.status === 'done', 'APPROVED_WRITE_FAILED')
   rows = await journalRows()
   const toolsWork = seenTools(rows).at(-1)
-  report.flowlessWork = { deskWrite: rows.some((row) => row.type === 'desk/change' && row.path === 'answer.js'), taskId: rows.find((row) => row.type === 'desk/change')?.taskId ?? null, flowOpen: rows.filter((row) => row.type === 'flow/open').length, toolsEqual: JSON.stringify(toolsBaseline) === JSON.stringify(toolsWork) }
+  report.flowlessWork = { autoStarted: rows.filter((row) => row.type === 'turn/start' && row.trigger === 'autonomous').length >= 1,
+    deskWrite: rows.some((row) => row.type === 'desk/change' && row.path === 'answer.js'), taskId: rows.find((row) => row.type === 'desk/change')?.taskId ?? null,
+    flowOpen: rows.filter((row) => row.type === 'flow/open').length, toolsEqual: JSON.stringify(toolsBaseline) === JSON.stringify(toolsWork) }
+  assert.equal(report.flowlessWork.autoStarted, true)
   assert.equal(report.flowlessWork.deskWrite, true)
   assert.equal(report.flowlessWork.taskId, task.id)
   assert.equal(report.flowlessWork.flowOpen, 0)
