@@ -39,6 +39,11 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
   const externalIds = new Set(externalCalls.map((row) => row.callId))
   const externalTurns = new Set(externalCalls.map((row) => row.turnId))
   const externalReplies = new Set(records.flatMap((row) => row.type === 'assistant/message' && externalTurns.has(row.turnId) ? [row.text] : []))
+  // D2: workspace tool results (legacy flow desk tools and task desk tools) are work data, never experience memory.
+  const workspaceCalls = records.flatMap((row) => row.type === 'tool/call' && (row.templateId.startsWith('desk_') || row.templateId.startsWith('desk.')) ? [row] : [])
+  const workspaceIds = new Set(workspaceCalls.map((row) => row.callId))
+  const workspaceTurns = new Set(workspaceCalls.map((row) => row.turnId))
+  const workspaceReplies = new Set(records.flatMap((row) => row.type === 'assistant/message' && workspaceTurns.has(row.turnId) ? [row.text] : []))
   const ignored = new Set<string>(); const titles = new Map<string, string>()
   for (const row of records) {
     if (row.type === 'campus/proposed') { titles.set(row.candidate.id, row.candidate.title); ignored.delete(row.candidate.id) }
@@ -57,6 +62,8 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
       const message = row.messages[index]
       if (!message || message.role === 'system' || !message.content.trim()) continue
       if (memoryOnly && (message.role === 'tool' && externalIds.has(message.toolCallId ?? '') || message.role === 'assistant' && (externalReplies.has(message.content) || ignoredTitles.some((title) => message.content.includes(title))))) continue
+      if (memoryOnly && (message.role === 'tool' && workspaceIds.has(message.toolCallId ?? '') || message.role === 'assistant' && workspaceReplies.has(message.content))) continue
+      if (memoryOnly && message.role === 'assistant' && workspaceTurns.has(row.turnId)) continue
       const text = redactFixed(message.content)
       const declared = declaredSource(message.content)
       let origin: SeenOrigin

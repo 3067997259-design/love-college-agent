@@ -1,4 +1,4 @@
-import type { ActivityView, InteractionMode, MessageView, OnboardingView, PomodoroView, Scope, TaskCardView, TaskView } from '../../shared'
+import type { ActivityView, DegradedView, InteractionMode, MessageView, OnboardingView, PomodoroView, Scope, TaskCardView, TaskView } from '../../shared'
 import { initialOnboarding } from '../onboarding/schema'
 import { idleTimer, normalizePomodoro } from '../pomodoro/schema'
 import type { ContextMessage, JournalRecord } from './schema'
@@ -20,6 +20,8 @@ export interface SessionProjection {
   /** D1 task objects and the single task currently in hand. */
   tasks: TaskCardView[]
   activeTaskId: string | null
+  /** D2: non-null while the running turn contained third-party originals. */
+  degraded: DegradedView | null
   evidenceSeqs: number[]
   context: ContextMessage[]
   contextEntries: { seq: number; message: ContextMessage }[]
@@ -36,7 +38,7 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
   const header = records[0]
   if (!header || header.type !== 'session/header') throw new Error('JOURNAL_HEADER_REQUIRED')
   const result: SessionProjection = { scope: { userId: header.userId, characterId: header.characterId, sessionId: header.sessionId },
-    lastSeq: 0, mode: 'rest', lightsOut: false, sleeping: false, onboarding: initialOnboarding(), messages: [], activities: [], task: null, tasks: [], activeTaskId: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [], pendingEvents: [] }
+    lastSeq: 0, mode: 'rest', lightsOut: false, sleeping: false, onboarding: initialOnboarding(), messages: [], activities: [], task: null, tasks: [], activeTaskId: null, degraded: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [], pendingEvents: [] }
   const context: { seq: number; order?: number; message: ContextMessage }[] = []
   const compacted = records.filter((record) => record.type === 'context/compact')
   const inbox = new Map<string, ContextMessage>()
@@ -138,10 +140,12 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
         break
       }
       case 'turn/start': result.task = { id: record.turnId, status: 'running', steps: [] }; break
+      case 'turn/degraded': result.degraded = { active: true, turnId: record.turnId, sources: record.sources }; break
       case 'turn/cancelling': if (result.task?.id === record.turnId) result.task.status = 'cancelling'; break
       case 'turn/paused': if (result.task?.id === record.turnId) result.task.status = 'waiting-user'; break
       case 'turn/resumed': if (result.task?.id === record.turnId) result.task.status = 'running'; break
       case 'turn/end':
+        if (result.degraded?.turnId === record.turnId) result.degraded = null
         if (result.task?.id === record.turnId) result.task = { ...result.task,
           status: record.reason === 'completed' ? 'completed' : record.reason === 'aborted' ? 'aborted' : 'failed', ...(record.error ? { error: record.error } : {}) }
         for (const activity of result.activities) if (activity.taskId === record.turnId && activity.status === 'running') activity.status = record.reason === 'aborted' ? 'cancelled' : 'unknown'

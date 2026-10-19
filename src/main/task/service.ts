@@ -56,6 +56,8 @@ export function createTaskService(options: { store: SessionStore; changed?: () =
       const task = view.tasks.find((item) => item.id === command.taskId)
       if (!task || terminal(task)) return 'invalid-command'
       if (command.type === 'task.approve') {
+        // D2: a degraded turn may not create or expand authorization.
+        if (store.projection().degraded?.active) return 'permission-denied'
         if (!task.plan || task.plan.version !== command.planVersion) return 'invalid-command'
         if (task.approval?.planVersion === command.planVersion) return 'invalid-command'
         if (view.activeTaskId !== null && view.activeTaskId !== task.id) return 'unavailable'

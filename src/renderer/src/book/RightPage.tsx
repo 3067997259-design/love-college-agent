@@ -12,7 +12,7 @@ import { civilFromDays, formatClock } from './format'
 import { rhythmText, tomatoStates } from './plan'
 import { useCountdown } from './useCountdown'
 import { FileIntake } from '../tools/FileIntake'
-import { FlowApproval, FlowPanel } from './flow/FlowPanel'
+import { FlowApproval } from './flow/FlowPanel'
 import { QuestionControls } from './QuestionControls'
 import { CommandDock, Notice } from './CommandControls'
 import { RewindDock } from './RewindControls'
@@ -177,7 +177,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
       </header>
 
       <div className="stream" ref={streamRef} {...streamEvents}>
-        <FlowPanel bridge={bridge} snapshot={snapshot} />
+        {snapshot.degraded?.active && <p className="msg msg-narrator degraded-note" role="status">本轮含第三方原文：写文件、执行命令、外发和付费都会逐次批准，且不能新建或扩大授权。</p>}
         {items.map((item) => {
           switch (item.kind) {
             case 'message': {
@@ -200,6 +200,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
             )
             case 'candidate': return (
               <CandidateCard key={`${item.id}:${item.view.revision ?? 0}`} view={item.view} bridge={bridge} entering={entering.has(item.id)}
+                onReveal={() => { void dispatch({ type: 'context.reveal', source: 'mail', ref: item.view.evidenceRef }) }}
                 onCommand={(type, candidateId, expectedRevision, plannedCompletionIso) => { void dispatch(type === 'candidate.confirm' ? { type, candidateId, expectedRevision, plannedCompletionIso } : { type, candidateId, expectedRevision }) }} />
             )
             case 'delivery': return (
