@@ -14,7 +14,7 @@ asarUnpack:
   - 'out/native/**'
 npmRebuild: false
 electronDist: node_modules/electron/dist
-electronVersion: 44.7.2
+electronVersion: 44.7.0
 win:
   executableName: LoveCollegeAgent
   signAndEditExecutable: false
