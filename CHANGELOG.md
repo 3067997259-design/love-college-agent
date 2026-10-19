@@ -1,5 +1,11 @@
 # 更新记录
 
+## 0.2.2 — 2026-10-19
+
+- 修复：升级前遗留且未关闭的旧心流会在启动时自动关闭（历史只读）。此前它会一直让普通回合走旧心流工具列表，导致任务卡不出现、`desk_write` / `run_javascript` 持续 `tool-failed`、口头批准无效。
+
+[版本详情与验证范围](docs/releases/0.2.2.md) · [全部 Releases](https://github.com/3067997259-design/love-college-agent/releases)
+
 ## 0.2.1 — 2026-10-19
 
 - 修复：普通回合工具列表不再出现旧心流的 `update_plan`、`run_javascript`、`run_command` 与旧书桌工具；任务计划统一走 `task_propose` 和任务卡，避免出现没有批准按钮的旧计划清单。
