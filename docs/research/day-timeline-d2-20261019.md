@@ -117,6 +117,25 @@
 
 待完成（D2 收尾）：
 
-- Q4 剧本 `pnpm test:timeline-safety`：固定工具列表请求捕获、未授权写入被拦、合成注入材料下默认请求不含原文、reveal 只生效一轮。
-- 旧心流场景脚本（`smoke-heart-flow` 等 8+ 个）改为任务授权路径或标记为历史脚本；连续性 33 项探针按设计反转，另立 `probe-timeline-safety`。
-- 收尾证据 `test-results/d2-*/` 与执行计划 §D2 结果摘要。
+- 旧心流场景脚本标记为历史回归（D3 迁移或清理）；连续性 33 项探针标记为历史证据；当前验收改由 `probe:timeline-safety` 剧本承担。
+
+## 8. D2 验收结果（2026-10-19）
+
+剧本：`pnpm test:timeline-safety`（Electron 开发者 profile + 剧本模型，不调用真实模型、不联网）。步骤：普通聊天基准 → 未批准时尝试书桌写入 → 聊天提议任务并批准计划 → 不进入任何心流直接写入 + `task_step` → 合成邮件候选 → `context.reveal` 一次性查看原文并尝试写入 → 下一轮验证不再降级。
+
+| 项目 | 结果 |
+| --- | --- |
+| 未授权写入 | 拒绝，错误 `TASK_NOT_APPROVED`，无 `desk/change` |
+| 工具列表 | 普通聊天、批准后工作、降级轮三次 `model/seen.tools` 完全一致（含 `desk_write`、`task_propose`、`task_step`） |
+| 无心得工作 | 批准后 `desk_write` 成功，`desk/change` 带 `taskId`；`flow/open` = 0 |
+| 降级轮 | `context/reveal` 1 条，`turn/degraded` 1 条且 sources `['mail']`；同轮写入被拒 `DEGRADED_SOURCE_REQUIRES_APPROVAL`，无 desk 变更 |
+| 一次性 | 下一轮不再产生 `turn/degraded`，工具列表仍一致 |
+| 记录安全 | journal 与 `model/seen` 中无合成原文哨兵（`RAW_ONLY_`），无真实提供商或密钥 |
+| 其他 | `flowlessWork.toolsEqual = true`；journal 123 行、`model/seen` 12、`task/approve` 1、`desk/change` 1 |
+
+证据在本机 `test-results/d2-timeline-safety/scenario.json`（只含计数、工具名、布尔与状态）。D2 完成依据（Q4 剧本、固定工具列表、未降级请求不含第三方原文、typecheck/lint/test）已满足；旧心流场景与审计探针已标记历史，D3 迁移或清理。
+
+## 9. 提交与遗留
+
+- 接口：`turn/degraded`、`context/reveal`、`desk/change.taskId`、`model/seen.tools`、`AppSnapshot.degraded`。
+- 遗留（已知，不是阻塞）：旧 `flow.*` 命令路径仍在 main 代码里供历史脚本回归，产品 UI 已不可进入；D3 统一接收/注意力时移除。真实模型未跑（D5）。降级"持续到检查点"由 D4 收口。

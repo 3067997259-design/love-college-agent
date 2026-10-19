@@ -1,4 +1,7 @@
 // Characterization probe for the 2026-10-19 context audit, not desired-behavior acceptance.
+// HISTORICAL AFTER D2 (2026-10-19): the demo branch intentionally reverses several checks here
+// (one timeline, fixed tools, defaults no longer attach originals). Keep this file as the dated audit
+// record; current acceptance is `pnpm test:timeline-safety` plus `tests/unit/d2-safety.test.ts`.
 // M1 (2026-10-19) now records provider cache usage; that single check verifies the implemented
 // recording, while real provider cache hits remain unmeasured.
 // Real context builders, harness and HTTP serializer; synthetic in-memory journal/desk/fetch only.
