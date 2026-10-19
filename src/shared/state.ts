@@ -111,6 +111,24 @@ export interface TaskView {
   steps: readonly PlanStep[]
   error?: PublicError
 }
+/** D1 task object view. Proposals and plans are not authorization; approval binds one plan version. */
+export type TaskCardStatus = 'proposed' | 'approved' | 'active' | 'completed' | 'abandoned' | 'failed'
+export interface TaskPlanView { version: number; source: 'model' | 'user'; steps: readonly PlanStep[] }
+export interface TaskApprovalView { planVersion: number; scope: { writes: 'desk'; commands: 'each' }; approvedAtMs: number }
+export interface TaskCheckpointView { id: string; summary: string; createdAtMs: number; source: 'model' | 'code'; evidenceSeqs?: readonly number[] }
+export interface TaskCardView {
+  id: string
+  title: string
+  goalId?: string
+  workspace: 'desk'
+  status: TaskCardStatus
+  plan?: TaskPlanView
+  approval?: TaskApprovalView
+  checkpoints: readonly TaskCheckpointView[]
+  createdAtMs: number
+  updatedAtMs: number
+  closedAtMs: number | null
+}
 export interface MessageView {
   id: string
   role: 'user' | 'assistant' | 'narrator'
@@ -423,6 +441,10 @@ export interface AppSnapshot {
   companion: CompanionView
   pomodoro: PomodoroView
   task: TaskView | null
+  /** D1 task objects. Optional so older renderer fixtures and pre-D1 snapshots stay valid. */
+  tasks?: readonly TaskCardView[]
+  /** The single task currently in hand, if any. */
+  activeTaskId?: string | null
   messages: readonly MessageView[]
   activities: readonly ActivityView[]
   candidates: readonly CandidateView[]
