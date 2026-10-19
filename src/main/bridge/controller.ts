@@ -22,6 +22,7 @@ import { characterNameInput, initialOnboarding, onboardingView, userNameInput } 
 import { giftSpecSchema } from '../gifts/schema'
 import type { GiftService } from '../gifts/service'
 import type { HeartFlowService } from '../heart-flow/service'
+import type { TaskService } from '../task/service'
 import type { VoiceService } from '../voice/service'
 import type { LifeService } from '../life/service'
 import type { SleepService } from '../life/sleep'
@@ -108,6 +109,8 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('flow.rewind.cancel'), rewindId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('flow.run'), code: z.string().min(1).max(10000) }),
   z.strictObject({ ...envelope, type: z.literal('flow.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('task.approve'), taskId: z.string().min(1).max(128), planVersion: z.number().int().positive().max(1000) }),
+  z.strictObject({ ...envelope, type: z.literal('task.close'), taskId: z.string().min(1).max(128), status: z.enum(['completed', 'abandoned']), summary: z.string().trim().min(1).max(2000).optional() }),
   z.strictObject({ ...envelope, type: z.literal('message.send'), text: z.string().trim().min(1).max(20_000) }),
   z.strictObject({ ...envelope, type: z.literal('turn.stop'), taskId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('mode.set'), mode: z.enum(['work', 'quiet', 'rest']) }),
@@ -195,6 +198,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let windows: CompanionWindows | undefined
   let gifts: GiftService | undefined
   let heartFlow: HeartFlowService | undefined
+  let taskService: TaskService | undefined
   let voice: VoiceService | undefined
   let resources: ResourceBudget | undefined
   let questions: QuestionService | undefined
@@ -328,6 +332,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (surface === 'diagnostics' || (command.type === 'window.mini.hover' || command.type === 'window.mini.move' || command.type === 'window.mini.moveBy') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('flow.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('task.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('voice.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('resources.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('question.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -446,6 +451,11 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       catch { ack = reject(command.requestId, 'internal') }
     } else if (heartFlow && command.type.startsWith('flow.')) {
       const error = heartFlow.dispatch(command, signature); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+    } else if (taskService && command.type.startsWith('task.')) {
+      const error = taskService.dispatch(command as Extract<AppCommand, { type: 'task.approve' | 'task.close' }>, signature)
+      readProjection()
+      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+      publish('task', command.requestId)
     } else if (recall && command.type === 'history.recall') {
       const error = recall.request(command.anchor, command.question, command.requestId, signature); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (photos && command.type === 'history.photo.capture') {
@@ -533,6 +543,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachQuill: (port: QuillService) => { quill = port; publish('connection') },
     attachGifts: (port: GiftService) => { gifts = port; publish('connection') },
     attachHeartFlow: (port: HeartFlowService) => { heartFlow = port; publish('connection') },
+    attachTask: (port: TaskService) => { taskService = port; readProjection(); publish('connection') },
     attachVoice: (port: VoiceService) => { voice = port; publish('connection') },
     readVoice: (input: unknown) => { if (!voice || backup?.isBusy()) throw new Error('VOICE_UNAVAILABLE'); return voice.read(input) },
     attachLife: (port: LifeService) => { life = port; publish('mode') },

@@ -51,6 +51,8 @@ import { createFlowFetch, type FlowFetch } from './web-fetch/service'
 protocol.registerSchemesAsPrivileged([{ scheme: 'lca-media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 import { createAppController } from './bridge/controller'
 import { registerAppBridge } from './bridge/ipc'
+import { createTaskService } from './task/service'
+import { taskTools } from './task/tools'
 import { probeSqlite } from './validation/sqlite'
 import { probeRodin } from './validation/rodin'
 import { probeImap } from './mail/probe'
@@ -140,6 +142,7 @@ if (silentTestWindows) {
   })
 }
 let controller: ReturnType<typeof createAppController> | undefined
+let taskService: ReturnType<typeof createTaskService> | undefined
 let bridge: ReturnType<typeof registerAppBridge> | undefined
 let store: SessionStore | undefined
 let lifeWork: LifeWorkService | undefined
@@ -358,6 +361,9 @@ void app.whenReady().then(async () => {
     }
     if (prepared.scene && store.records().length === 1) store.append({ type: 'companion/mode', mode: prepared.scene.mode, requestId: 'development-scene', commandHash: 'development-scene' })
     controller = createAppController(clock, undefined, store, { booth: prepared.booth })
+    taskService = createTaskService({ store, changed: () => controller?.refresh('task') })
+    controller.attachTask(taskService)
+    const taskToolset = taskTools(taskService)
     let routing: ModelRouting = prepared.developer ? { background: 'independent', privacy: 'independent' } : await readModelRouting(providersFile)
     const privacyEnabled = () => prepared.developer || routing.privacy === 'independent'
     const rawProviders = prepared.developer ? new Map() : await readModelProviders(providersFile)
@@ -547,8 +553,8 @@ void app.whenReady().then(async () => {
       // 游戏一轮每次调用都带人设并按字节计入展位预算：用短人设，不带整份正文
       persona: () => ({ name: controller!.getSnapshot().onboarding?.characterName ?? '桃子', persona: briefPersona(activeCharacter) }), credentials: privateCredentials, changed: () => controller?.refresh('message') })
     controller.attachMinecraft(minecraft, minecraftChat, mcpFixture ? (scenario) => mcpFixture!.game.select(scenario) : undefined)
-    harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')) : [...plugins.tools().filter((tool) => !(tool.definition.name === 'import_student_hub_candidates' && plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')) && !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools(plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled') ? ['student-hub'] : []) ?? [])], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
-      contextVersion: () => JSON.stringify({ candidates: campus?.candidates().map((item) => [item.id, item.revision, item.status]), documents: documents?.view().jobs.map((job) => [job.id, job.status === 'cancelled']), mcp: mcp?.view().servers.map((server) => [server.id, server.status]), privacy: privacyEnabled(), files: documents?.filteringEnabled(), tools: plugins.tools().map((tool) => tool.definition.name) }),
+    harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? [...plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')), taskToolset.step] : [...plugins.tools().filter((tool) => !(tool.definition.name === 'import_student_hub_candidates' && plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')) && !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools(plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled') ? ['student-hub'] : []) ?? []), taskToolset.propose], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!heartFlow?.active() || !!minecraft?.active(),
+      contextVersion: () => JSON.stringify({ candidates: campus?.candidates().map((item) => [item.id, item.revision, item.status]), documents: documents?.view().jobs.map((job) => [job.id, job.status === 'cancelled']), mcp: mcp?.view().servers.map((server) => [server.id, server.status]), privacy: privacyEnabled(), files: documents?.filteringEnabled(), tools: [...plugins.tools().map((tool) => tool.definition.name), taskToolset.propose.definition.name, taskToolset.step.definition.name] }),
       privateContext: async (signal) => {
         if (heartFlow?.active()) return []
         const turnId = store!.projection().task!.id
