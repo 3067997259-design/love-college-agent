@@ -131,7 +131,7 @@ export function createHarness(options: {
           })
           turn.abort.signal.throwIfAborted()
           if (options.contextVersion?.() !== contextVersion) continue
-          record({ type: 'model/seen', turnId: turn.id, source: model.source, ...seen })
+          record({ type: 'model/seen', turnId: turn.id, source: model.source, ...seen, tools: definitions.map((tool) => tool.name) })
           if (new Set(reply.toolCalls.map((call) => call.id)).size !== reply.toolCalls.length || reply.toolCalls.some((call) => callIds.has(call.id))) throw new GuardFailure('loop', 'repeat-limit')
           record({ type: 'assistant/message', turnId: turn.id, id: randomUUID(), text: reply.text, status: 'complete',
             ...delivery(), ...(reply.toolCalls.length ? { toolCalls: reply.toolCalls } : {}) })
