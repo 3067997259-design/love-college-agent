@@ -234,6 +234,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     snapshot.messages = saved.messages
     snapshot.activities = saved.activities
     snapshot.task = saved.task
+    snapshot.tasks = saved.tasks
+    snapshot.activeTaskId = saved.activeTaskId
     snapshot.pomodoro = saved.pomodoro
     for (const request of saved.requests.slice(-1000)) requests.set(request.requestId, { signature: request.commandHash,
       ack: { protocolVersion: PROTOCOL_VERSION, requestId: request.requestId, epoch: snapshot.epoch, status: 'accepted' } })
@@ -253,6 +255,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     snapshot.companion.mode = view.mode; snapshot.companion.lightsOut = view.lightsOut; snapshot.companion.sleeping = view.sleeping
     snapshot.onboarding = onboardingView(view.onboarding, !!options.booth)
     snapshot.messages = view.messages; snapshot.activities = view.activities; snapshot.task = view.task
+    snapshot.tasks = view.tasks; snapshot.activeTaskId = view.activeTaskId
     snapshot.pomodoro = pomodoro?.read() ?? view.pomodoro
     updatePose()
   }

@@ -1,8 +1,11 @@
-import type { ActivityView, InteractionMode, MessageView, OnboardingView, PomodoroView, Scope, TaskView } from '../../shared'
+import type { ActivityView, InteractionMode, MessageView, OnboardingView, PomodoroView, Scope, TaskCardView, TaskView } from '../../shared'
 import { initialOnboarding } from '../onboarding/schema'
 import { idleTimer, normalizePomodoro } from '../pomodoro/schema'
 import type { ContextMessage, JournalRecord } from './schema'
 import { projectFailure } from '../harness/failure'
+
+/** Projection mutates checkpoints while replaying; the public view exposes them as readonly. */
+type DraftTaskCard = Omit<TaskCardView, 'checkpoints'> & { checkpoints: TaskCardView['checkpoints'][number][] }
 
 export interface SessionProjection {
   scope: Scope
@@ -14,6 +17,9 @@ export interface SessionProjection {
   messages: MessageView[]
   activities: ActivityView[]
   task: TaskView | null
+  /** D1 task objects and the single task currently in hand. */
+  tasks: TaskCardView[]
+  activeTaskId: string | null
   evidenceSeqs: number[]
   context: ContextMessage[]
   contextEntries: { seq: number; message: ContextMessage }[]
@@ -30,12 +36,14 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
   const header = records[0]
   if (!header || header.type !== 'session/header') throw new Error('JOURNAL_HEADER_REQUIRED')
   const result: SessionProjection = { scope: { userId: header.userId, characterId: header.characterId, sessionId: header.sessionId },
-    lastSeq: 0, mode: 'rest', lightsOut: false, sleeping: false, onboarding: initialOnboarding(), messages: [], activities: [], task: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [], pendingEvents: [] }
+    lastSeq: 0, mode: 'rest', lightsOut: false, sleeping: false, onboarding: initialOnboarding(), messages: [], activities: [], task: null, tasks: [], activeTaskId: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [], pendingEvents: [] }
   const context: { seq: number; order?: number; message: ContextMessage }[] = []
   const compacted = records.filter((record) => record.type === 'context/compact')
   const inbox = new Map<string, ContextMessage>()
   const pendingEvents = new Map<string, SessionProjection['pendingEvents'][number]>()
   const heldMessages: MessageView[] = []
+  const tasks = new Map<string, DraftTaskCard>()
+  const closedTasks = new Map<string, 'completed' | 'abandoned' | 'failed'>()
   const quiet = () => result.mode === 'quiet' || result.pomodoro.phase === 'focus' || result.lightsOut || result.sleeping
   const release = () => { if (!quiet()) { result.messages.push(...heldMessages.splice(0)); result.messages.sort((a, b) => a.createdAtMs - b.createdAtMs) } }
   for (const record of records) {
@@ -86,6 +94,49 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
           else if (record.status !== 'preparing' && result.task.status === 'waiting-user') result.task.status = 'running'
         }
         break
+      case 'task/open':
+        tasks.set(record.id, { id: record.id, title: record.title, ...(record.goalId ? { goalId: record.goalId } : {}), workspace: record.workspace,
+          status: 'proposed', checkpoints: [], createdAtMs: record.atMs, updatedAtMs: record.atMs, closedAtMs: null })
+        break
+      case 'task/plan': {
+        const target = tasks.get(record.taskId); if (!target) break
+        // A new plan version always needs a new approval; stale approvals never carry over.
+        target.plan = { version: record.planVersion, source: record.source, steps: record.steps.map((step) => ({ id: step.id, text: step.text, status: 'pending' as const })) }
+        if (target.approval?.planVersion !== record.planVersion) delete target.approval
+        target.updatedAtMs = record.atMs
+        break
+      }
+      case 'task/approve': {
+        const target = tasks.get(record.taskId); if (!target) break
+        target.approval = { planVersion: record.planVersion, scope: record.scope, approvedAtMs: record.atMs }
+        target.updatedAtMs = record.atMs
+        break
+      }
+      case 'task/focus':
+        result.activeTaskId = record.taskId
+        if (record.taskId) { const target = tasks.get(record.taskId); if (target) target.updatedAtMs = record.atMs }
+        break
+      case 'task/step': {
+        const target = tasks.get(record.taskId); if (!target) break
+        const step = target.plan?.steps.find((item) => item.id === record.stepId)
+        if (step) step.status = record.status
+        target.updatedAtMs = record.atMs
+        break
+      }
+      case 'task/checkpoint': {
+        const target = tasks.get(record.taskId); if (!target) break
+        target.checkpoints.push({ id: record.id, summary: record.summary, createdAtMs: record.atMs, source: record.source, ...(record.evidenceSeqs?.length ? { evidenceSeqs: record.evidenceSeqs } : {}) })
+        target.updatedAtMs = record.atMs
+        break
+      }
+      case 'task/close': {
+        const target = tasks.get(record.taskId); if (!target) break
+        closedTasks.set(record.taskId, record.status)
+        target.closedAtMs = record.atMs
+        target.updatedAtMs = record.atMs
+        if (result.activeTaskId === record.taskId) result.activeTaskId = null
+        break
+      }
       case 'turn/start': result.task = { id: record.turnId, status: 'running', steps: [] }; break
       case 'turn/cancelling': if (result.task?.id === record.turnId) result.task.status = 'cancelling'; break
       case 'turn/paused': if (result.task?.id === record.turnId) result.task.status = 'waiting-user'; break
@@ -112,6 +163,9 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
       case 'model/seen': result.lastModelContext = record.messages; break
     }
   }
+  // Task status is derived: terminal state wins, then the task in hand, then plan approval.
+  for (const card of tasks.values()) card.status = closedTasks.get(card.id) ?? (result.activeTaskId === card.id ? 'active' : card.approval ? 'approved' : 'proposed')
+  result.tasks = [...tasks.values()].sort((a, b) => a.createdAtMs - b.createdAtMs)
   // Compact changes only model context. Chat history and all source events remain intact.
   result.contextEntries = context.filter((entry) => !compacted.some((range) => entry.seq >= range.fromSeq && entry.seq <= range.toSeq)).sort((a, b) => (a.order ?? a.seq) - (b.order ?? b.seq)).map(({ seq, message }) => ({ seq, message }))
   result.context = result.contextEntries.map((entry) => entry.message)
