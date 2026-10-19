@@ -77,7 +77,7 @@ harness 在每次采样前调用 `prepareContext(turnId, signal)`，收到工具
 
 1. **已证明稳定的局部**：同一 flow 的人格 / 系统摘要 prefix 在合成的两次实际 harness 请求中保持一致。
 2. **会重写后续前缀的内容**：目标、草稿操作、回退信息都插在工作历史之前；改变目标会使整个请求不再是旧请求的纯追加。普通聊天的召回、跨日引用、世界快照也会重新构造。模式切换还改变工具声明，实际影响须看供应商的请求处理。
-3. **缺失的观测**：SSE parser 只保留总输入 / 输出 token，不保留 DeepSeek 的 `prompt_cache_hit_tokens` 或 `prompt_tokens_details.cached_tokens`。合成 SSE 明确带入这两个字段，最终 attempt 记录仍丢失它们。后续（M1，2026-10-19，main）：parser 已把两种字段归一为 `cachedInputTokens` / `uncachedInputTokens` 写入 `model/attempt`，连续性探针改为验证已记录。真实验收（同日，授权调用）：DeepSeek 官方真实 SSE 的命中 / 未命中与记录逐字段一致（相同合成前缀第二次命中 1,280、未命中 244；首次显式 0 保留）；换过分区的文本 GPT 端点单独回报 `prompt_tokens_details.cached_tokens`（命中 4,224 / 未命中 1,445），两种形状均已在真实 payload 中验证；中转 Gemini / Claude 不回报缓存字段，记录保持缺失。该 GPT 端点还会注入一段约 4 千 token 的隐藏前缀并命中其缓存，供应商侧开销要和 LCA 自身上下文分开计量。
+3. **缺失的观测**：SSE parser 只保留总输入 / 输出 token，不保留 DeepSeek 的 `prompt_cache_hit_tokens` 或 `prompt_tokens_details.cached_tokens`。合成 SSE 明确带入这两个字段，最终 attempt 记录仍丢失它们。后续（M1，2026-10-19，main）：parser 已把两种字段归一为 `cachedInputTokens` / `uncachedInputTokens` 写入 `model/attempt`，连续性探针改为验证已记录。真实验收（同日，授权调用）：DeepSeek 官方真实 SSE 的命中 / 未命中与记录逐字段一致（相同合成前缀第二次命中 1,280、未命中 244；首次显式 0 保留）；换过分区的文本 GPT 端点单独回报 `prompt_tokens_details.cached_tokens`（命中 4,224 / 未命中 1,445），两种形状均已在真实 payload 中验证；中转 Gemini / Claude 不回报缓存字段，记录保持缺失。中转号池反代可能注入隐藏前缀（已知行为），记录成本时把供应商侧开销与 LCA 自身上下文分开即可。
 
 因此不能从“prefix 冻结”推出“已经获得较高命中率”，也不能把没有统计解释为完全没有命中。本轮没有真实供应商计费或缓存测量；M1 之后字段可记录，且已用授权真实调用验证了两种缓存形状与真实命中，但仍不构成命中率 / 成本结论。
 

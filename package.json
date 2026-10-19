@@ -31,6 +31,7 @@
     "probe:journal": "pnpm build && node scripts/probe-electron.mjs journal",
     "probe:model": "pnpm build && node scripts/probe-electron.mjs model",
     "probe:cache-live": "pnpm build && node scripts/probe-electron.mjs cache-usage",
+    "probe:baseline-flow": "pnpm build && node scripts/probe-baseline-flow-live.mjs",
     "preview:ui": "node scripts/ui-preview.mjs",
     "shot:ui": "node scripts/ui-shot.mjs",
     "probe:harness": "pnpm build && node scripts/probe-electron.mjs harness",
