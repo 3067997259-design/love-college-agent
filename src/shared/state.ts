@@ -125,6 +125,23 @@ export type TaskCardStatus = 'proposed' | 'approved' | 'active' | 'completed' | 
 export interface TaskPlanView { version: number; source: 'model' | 'user'; steps: readonly PlanStep[] }
 export interface TaskApprovalView { planVersion: number; scope: { writes: 'desk'; commands: 'each' }; approvedAtMs: number }
 export interface TaskCheckpointView { id: string; summary: string; createdAtMs: number; source: 'model' | 'code'; evidenceSeqs?: readonly number[] }
+/** D4 handoff checkpoint. Evidence is code-collected; decisions quote real user messages only. */
+export interface TaskHandoffView {
+  id: string
+  taskId: string
+  planVersion: number
+  source: 'model' | 'fallback'
+  createdAtMs: number
+  completed: readonly string[]
+  decisions: readonly { messageId: string; text: string }[]
+  unresolved: readonly string[]
+  next: readonly string[]
+  evidence: {
+    changes: readonly { path: string; sha256: string }[]
+    commands: readonly { id: string; status: 'completed' | 'failed' | 'unknown' }[]
+    lifeWork: readonly { id: string; path: string; sha256: string }[]
+  }
+}
 /** D2 safety state for the currently running turn: third-party originals were part of its request. */
 export interface DegradedView { active: boolean; turnId: string; sources: readonly ('mail' | 'document' | 'web' | 'mcp' | 'plugin')[] }
 export interface TaskCardView {
@@ -135,6 +152,8 @@ export interface TaskCardView {
   status: TaskCardStatus
   plan?: TaskPlanView
   approval?: TaskApprovalView
+  /** Latest D4 handoff checkpoint for this task; it becomes the B segment of later requests. */
+  latestHandoff?: TaskHandoffView
   checkpoints: readonly TaskCheckpointView[]
   createdAtMs: number
   updatedAtMs: number

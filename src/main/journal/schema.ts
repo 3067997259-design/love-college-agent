@@ -93,6 +93,18 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('task/step'), taskId: id, stepId: id, status: z.enum(['pending', 'active', 'done', 'failed']), turnId: id.optional() }),
   z.strictObject({ type: z.literal('task/checkpoint'), id, taskId: id, source: z.enum(['model', 'code']), summary: z.string().min(1).max(6000),
     evidenceSeqs: z.array(z.number().int().positive()).max(500).optional() }),
+  // D4 handoff: structured checkpoint submitted by the model and validated by code, or a code-only
+  // fallback that carries evidence but no model prose. Decisions must quote real user messages.
+  z.strictObject({ type: z.literal('task/handoff'), id, taskId: id, planVersion: z.number().int().positive().max(1000), source: z.enum(['model', 'fallback']), turnId: id.optional(),
+    completed: z.array(z.string().min(1).max(300)).max(20),
+    decisions: z.array(z.strictObject({ messageId: id, text: z.string().min(1).max(300) })).max(10),
+    unresolved: z.array(z.string().min(1).max(300)).max(10),
+    next: z.array(z.string().min(1).max(300)).max(10),
+    evidence: z.strictObject({
+      changes: z.array(z.strictObject({ path: z.string().min(1).max(180), sha256: z.string().regex(/^[a-f0-9]{64}$/) })).max(50),
+      commands: z.array(z.strictObject({ id, status: z.enum(['completed', 'failed', 'unknown']) })).max(10),
+      lifeWork: z.array(z.strictObject({ id, path: z.string().min(1).max(180), sha256: z.string().regex(/^[a-f0-9]{64}$/) })).max(10),
+    }) }),
   z.strictObject({ type: z.literal('task/close'), taskId: id, status: z.enum(['completed', 'abandoned', 'failed']), summary: z.string().max(2000).optional(),
     requestId: id.optional(), commandHash: id.optional() }),
   z.strictObject({ type: z.literal('session/header'), userId: id, characterId: id, sessionId: id }),
