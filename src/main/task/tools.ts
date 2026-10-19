@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { HarnessTool, ToolResult } from '../harness/tools'
+import type { HandoffService } from './handoff'
 import type { TaskService } from './service'
 
 const proposeSchema = z.strictObject({
@@ -70,6 +71,53 @@ export function taskTools(service: TaskService): { propose: HarnessTool; step: H
         const visible: ToolResult['visible'] = { ...raw }
         return { ok: result.ok, raw, visible }
       },
+    },
+  }
+}
+
+const handoffSchema = z.strictObject({
+  completed: z.array(z.string().trim().min(1).max(300)).max(20),
+  decisions: z.array(z.strictObject({ messageId: z.string().min(1).max(128), text: z.string().trim().min(1).max(300) })).max(10),
+  unresolved: z.array(z.string().trim().min(1).max(300)).max(10),
+  next: z.array(z.string().trim().min(1).max(300)).max(10),
+})
+
+/**
+ * D4 handoff tool. The model supplies only summaries and verbatim user decisions; the service
+ * validates decisions against real user messages and attaches evidence itself. A rejected submission
+ * is reported back to the model, and code writes an evidence-only fallback if the turn fails.
+ */
+export function taskHandoffTool(handoff: HandoffService): HarnessTool {
+  return {
+    definition: {
+      name: 'task_handoff',
+      description: 'Submit the focus-end handoff for the in-hand approved task: completed items, decisions quoted verbatim from real user messages, unresolved questions and the next step. Code validates decisions and attaches file/command/work evidence; do not claim external completion.',
+      parameters: {
+        type: 'object',
+        properties: {
+          completed: { type: 'array', items: { type: 'string' }, description: 'Finished items, at most 300 characters each.' },
+          decisions: { type: 'array', items: { type: 'object', properties: { messageId: { type: 'string' }, text: { type: 'string' } }, required: ['messageId', 'text'] }, description: 'User decisions quoted verbatim with the real user message id.' },
+          unresolved: { type: 'array', items: { type: 'string' } },
+          next: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['completed', 'decisions', 'unresolved', 'next'],
+        additionalProperties: false,
+      },
+    },
+    templateId: 'task.handoff',
+    validate: (input) => handoffSchema.safeParse(input).success,
+    run: async (input, { turnId, signal }): Promise<ToolResult> => {
+      signal.throwIfAborted()
+      const result = handoff.submit(handoffSchema.parse(input), turnId)
+      if (!result.ok) {
+        const raw: ToolResult['raw'] = { error: result.error }
+        return { ok: false, raw, visible: { error: result.error } }
+      }
+      const raw: ToolResult['raw'] = { checkpointId: result.handoff.id, decisions: result.handoff.decisions.length,
+        evidence: { changes: result.handoff.evidence.changes.map(({ path, sha256 }) => ({ path, sha256 })),
+          commands: result.handoff.evidence.commands.map(({ id, status }) => ({ id, status })),
+          lifeWork: result.handoff.evidence.lifeWork.map(({ id, path, sha256 }) => ({ id, path, sha256 })) } }
+      return { ok: true, raw, visible: raw }
     },
   }
 }

@@ -53,8 +53,9 @@ import { createAppController } from './bridge/controller'
 import { registerAppBridge } from './bridge/ipc'
 import type { ContextMessage } from './journal/schema'
 import { createTaskService } from './task/service'
-import { taskTools } from './task/tools'
+import { taskTools, taskHandoffTool } from './task/tools'
 import { taskDeskTools } from './task/desk-tools'
+import { createHandoffService } from './task/handoff'
 import { createAttention, type AttentionService } from './attention/service'
 import { probeSqlite } from './validation/sqlite'
 import { probeRodin } from './validation/rodin'
@@ -149,6 +150,9 @@ let taskService: ReturnType<typeof createTaskService> | undefined
 let attention: AttentionService | undefined
 /** D2 one-shot user reveal. In memory by design: it never survives restart and grants only the next turn. */
 let pendingReveal: { source: 'mail'; ref: string } | undefined
+/** D4: a focus-end event is waiting for its handoff turn; the turn id is tracked to guarantee a fallback. */
+let handoffPending = false
+let handoffTurnId: string | undefined
 let bridge: ReturnType<typeof registerAppBridge> | undefined
 let store: SessionStore | undefined
 let lifeWork: LifeWorkService | undefined
@@ -370,6 +374,8 @@ void app.whenReady().then(async () => {
     taskService = createTaskService({ store, changed: () => controller?.refresh('task') })
     controller.attachTask(taskService)
     const taskToolset = taskTools(taskService)
+    const handoffService = createHandoffService({ store, tasks: taskService })
+    const handoffTool = taskHandoffTool(handoffService)
     controller.attachContextReveal((command, signature) => {
       if (harness?.isBusy()) return 'unavailable'
       try { vault!.readForModel?.(command.ref, store!.scope) } catch { return 'invalid-command' }
@@ -430,7 +436,7 @@ void app.whenReady().then(async () => {
     controller.attachCampus(campus)
     bridge = registerAppBridge(controller, async (ref, scope) => vault!.read(ref, scope))
     pomodoro = createPomodoro({ clock, store, scheduler, changed: () => { life?.reconcile(); questions?.stateChanged(); controller?.refresh('timer') }, stateChanged: () => harness?.stateChanged(),
-      emit: (id, text) => { harness?.postEvent('pomodoro', text, id) } })
+      emit: (id, text) => { try { if (JSON.parse(text)?.kind === 'focus-ended') handoffPending = true } catch { /* pomodoro facts are JSON; ignore anything else */ } harness?.postEvent('pomodoro', text, id) } })
     const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, clock,
       get privacyModel() { return prepared.developer ? createFakePrivacyModel() : taskModels.narrow }, privacyEnabled, fileFiltering: () => prepared.pluginSettings.read().fileFilteringEnabled,
       onCandidates: (seeds) => { campus?.ingestCandidates(seeds) }, onSources: (sources, signal) => campus!.ingestSources(sources, signal) })
@@ -604,11 +610,11 @@ void app.whenReady().then(async () => {
       if (store!.records().some((row) => row.type === 'turn/degraded' && row.turnId === turnId)) return
       store!.append({ type: 'turn/degraded', turnId, sources })
     }
-    harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? [...plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')), taskToolset.step] : [...plugins.tools().filter((tool) => !(tool.definition.name === 'import_student_hub_candidates' && plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')) && !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...taskDeskToolset, ...(mcp?.tools(plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled') ? ['student-hub'] : []) ?? []), taskToolset.propose, taskToolset.step], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!minecraft?.active(),
+    harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? [...plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')), taskToolset.step] : [...plugins.tools().filter((tool) => !(tool.definition.name === 'import_student_hub_candidates' && plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')) && !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...taskDeskToolset, handoffTool, ...(mcp?.tools(plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled') ? ['student-hub'] : []) ?? []), taskToolset.propose, taskToolset.step], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!minecraft?.active(),
       // D3: while a focus is running, the approved in-hand task may continue on its own under caps.
       taskRun: { available: () => { const timer = store!.projection().pomodoro; return timer.phase === 'focus' && timer.status === 'running' && !!taskService?.authorizedActiveTask() },
         focusKey: () => { const timer = store!.projection().pomodoro; return (timer.plan?.id ?? '') + ':' + timer.focusIndex }, steps: 6, tokens: 40_000, turns: 4 },
-      contextVersion: () => JSON.stringify({ candidates: campus?.candidates().map((item) => [item.id, item.revision, item.status]), documents: documents?.view().jobs.map((job) => [job.id, job.status === 'cancelled']), mcp: mcp?.view().servers.map((server) => [server.id, server.status]), privacy: privacyEnabled(), files: documents?.filteringEnabled(), tools: [...plugins.tools().map((tool) => tool.definition.name), ...taskDeskToolset.map((tool) => tool.definition.name), taskToolset.propose.definition.name, taskToolset.step.definition.name] }),
+      contextVersion: () => JSON.stringify({ candidates: campus?.candidates().map((item) => [item.id, item.revision, item.status]), documents: documents?.view().jobs.map((job) => [job.id, job.status === 'cancelled']), mcp: mcp?.view().servers.map((server) => [server.id, server.status]), privacy: privacyEnabled(), files: documents?.filteringEnabled(), tools: [...plugins.tools().map((tool) => tool.definition.name), ...taskDeskToolset.map((tool) => tool.definition.name), taskToolset.propose.definition.name, taskToolset.step.definition.name, handoffTool.definition.name] }),
       privateContext: async (signal) => {
         if (heartFlow?.active()) { pendingReveal = undefined; return [] }
         signal.throwIfAborted()
@@ -649,8 +655,31 @@ void app.whenReady().then(async () => {
             result = { messages: [...result.messages, taskContext], eligibleIndexes: result.eligibleIndexes }
           }
         }
+        // D4 focus end: one handoff turn asks for a structured checkpoint; the fallback is code-only.
+        const turnTrigger = store!.records().flatMap((row) => row.type === 'turn/start' && row.turnId === id ? [row.trigger] : []).at(-1)
+        if (turnTrigger === 'pomodoro' && handoffPending && taskService?.authorizedActiveTask()) {
+          handoffPending = false; handoffTurnId = id
+          result = { messages: [...result.messages, { role: 'user', content: JSON.stringify({ handoffRequest: { instruction: '专注刚结束。用 task_handoff 提交交班：完成项、逐字引用真实用户消息的决定、未决问题、下一步。不要声称外部完成；提交后可以简短回复。' } }) }], eligibleIndexes: result.eligibleIndexes }
+        }
+        // D4: the latest validated checkpoint becomes the B segment of every later request.
+        const contextTask = taskService?.authorizedActiveTask() ?? store!.projection().tasks.findLast((task) => task.closedAtMs === null)
+        const checkpoint = contextTask ? handoffService.latest(contextTask.id) : undefined
+        if (checkpoint) {
+          const messages = [...result.messages]
+          const insertion = messages.findIndex((message) => message.role !== 'system')
+          const at = insertion < 0 ? messages.length : insertion
+          messages.splice(at, 0, { role: 'user', content: JSON.stringify({ handoffCheckpoint: checkpoint, instruction: '这是上一段工作的交班检查点，作为本段起始；旧授权不延续，执行仍按当前已批准的计划。' }) })
+          result = { messages, eligibleIndexes: result.eligibleIndexes.map((index) => index >= at ? index + 1 : index) }
+        }
         return result
-      }, foreground: () => { questions?.interrupt(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, afterTools: (turnId, callIds) => questions?.commit(turnId, callIds), turnSettled: (turnId) => questions?.settled(turnId), userWork: () => { sleep?.wake(); life?.foreground() },
+      }, foreground: () => { questions?.interrupt(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, afterTools: (turnId, callIds) => questions?.commit(turnId, callIds), turnSettled: (turnId) => {
+        questions?.settled(turnId)
+        if (handoffTurnId === turnId) {
+          if (!store!.records().some((row) => row.type === 'task/handoff' && row.turnId === turnId)) handoffService.fallback(turnId)
+          handoffTurnId = undefined
+          controller?.refresh('task')
+        }
+      }, userWork: () => { sleep?.wake(); life?.foreground() },
       settled: () => { heartFlow?.settled(); voice?.observe() }, failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     const voiceConfig = prepared.developer ? null : await readVoiceConfig(providersFile)
     voice = createVoice({ store, clock, budget: resourceBudget, port: prepared.developer ? createFakeVoice(clock) : voiceConfig ? createSpeechPort(voiceConfig) : null,

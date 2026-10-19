@@ -1,4 +1,4 @@
-import type { ActivityView, DegradedView, InteractionMode, MessageView, OnboardingView, PomodoroView, Scope, TaskCardView, TaskView } from '../../shared'
+import type { ActivityView, DegradedView, InteractionMode, MessageView, OnboardingView, PomodoroView, Scope, TaskCardView, TaskHandoffView, TaskView } from '../../shared'
 import { initialOnboarding } from '../onboarding/schema'
 import { idleTimer, normalizePomodoro } from '../pomodoro/schema'
 import type { ContextMessage, JournalRecord } from './schema'
@@ -128,6 +128,14 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
       case 'task/checkpoint': {
         const target = tasks.get(record.taskId); if (!target) break
         target.checkpoints.push({ id: record.id, summary: record.summary, createdAtMs: record.atMs, source: record.source, ...(record.evidenceSeqs?.length ? { evidenceSeqs: record.evidenceSeqs } : {}) })
+        target.updatedAtMs = record.atMs
+        break
+      }
+      case 'task/handoff': {
+        const target = tasks.get(record.taskId); if (!target) break
+        const handoff: TaskHandoffView = { id: record.id, taskId: record.taskId, planVersion: record.planVersion, source: record.source, createdAtMs: record.atMs,
+          completed: record.completed, decisions: record.decisions, unresolved: record.unresolved, next: record.next, evidence: record.evidence }
+        target.latestHandoff = handoff
         target.updatedAtMs = record.atMs
         break
       }
