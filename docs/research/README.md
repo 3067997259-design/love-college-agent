@@ -14,6 +14,8 @@ D2 安全清单：[一条时间线与安全的实施清单](day-timeline-d2-2026
 
 D3 接收与注意力：[接收、唤醒与注意力的实施清单与进度](day-timeline-d3-20261019.md)（2026-10-19，demo 分支）。已完成：回合内全量接收、专注续跑上限与停止条件、attention 调度点与生活作品让位；Q7 前半剧本通过，休息交班随 D4。
 
+D4 交班：[交班实施清单与进度](day-timeline-d4-20261019.md)（2026-10-19，demo 分支）。第一批已完成：`task/handoff` 记录与校验、`task_handoff` 工具、focus-ended 触发、失败兜底、B 段接入与单测；跨天恢复、重新授权与 Q5 剧本待做。
+
 | 入口 | 研究问题 | 已知边界与历史记录 |
 | --- | --- | --- |
 | `pnpm probe:deeptech-audit` | 结构守卫、来源权限与依赖新鲜性 | 只读代码结构检查，不调用模型。[原审计](https://github.com/3067997259-design/love-college-agent/blob/hackathon-2026-final/docs/research/deeptech-memory-audit-20261017.md) |
