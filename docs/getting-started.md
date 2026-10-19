@@ -1,10 +1,10 @@
 # 开始使用
 
-当前发布基线为 v0.1.10，支持 Windows x64。模型服务由使用者自行配置；开始聊天与整理公开资料不需要学校账号、Python、语音或礼物生成服务。
+当前发布基线为 v0.2.0（demo 验收版），支持 Windows x64。模型服务由使用者自行配置；开始聊天与整理公开资料不需要学校账号、Python、语音或礼物生成服务。
 
 ## 安装与首次聊天
 
-1. 从 [官方 Releases](https://github.com/3067997259-design/love-college-agent/releases/latest) 下载安装器。v0.1.10 文件名为 `Love-College-Agent-0.1.10-Setup.exe`，校验值见 [版本记录](releases/0.1.10.md)。安装器当前未签名，运行前核对来源。
+1. 从 [官方 Releases](https://github.com/3067997259-design/love-college-agent/releases/latest) 下载安装器。v0.2.0 文件名为 `Love-College-Agent-0.2.0-Setup.exe`，校验值见 [版本记录](releases/0.2.0.md)。安装器当前未签名，运行前核对来源。
 2. 按安装器选择当前用户安装。安装后通过桌面、开始菜单快捷方式或安装目录的 `LoveCollegeAgent.exe` 启动；安装结束不会自动打开应用。
 3. 按向导填写昵称，在“填写模型连接”中配置“日常对话”的接口地址、模型和 API 密钥。地址填写 API 根地址，不把完整 `/chat/completions` 请求路径当作根地址。
 4. 保存后点击“测试连接”。“已配置”表示已保存，“已经连接”表示本次小请求成功。模型保存即时生效。
