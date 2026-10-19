@@ -72,4 +72,8 @@ pnpm test:package --unpacked-only
 
 `--unpacked-only` 只运行包内 EXE，不安装或卸载，报告为 `test-results/package-unpacked-report.json`。`pnpm test:package` 则还会创建、验证并卸载自己的测试安装；发现已有同名用户安装时拒绝覆盖。不要把包内验证写成用户升级验收。
 
-发布应从已提交的确定源码构建，核对构建回执、安装器 SHA、对应包内结果和版本说明。另一台机器安装、真实配置和连续使用分别记录，不复用旧包结论。当前发布基线见 [v0.1.10](releases/0.1.10.md)。
+发布应从已提交的确定源码构建，核对构建回执、安装器 SHA、对应包内结果和版本说明。另一台机器安装、真实配置和连续使用分别记录，不复用旧包结论。当前发布基线见 [v0.2.0](releases/0.2.0.md)。
+
+### 含特殊字符的仓库路径
+
+2026-10-19 实测：仓库位于 `D:\love, college&agent`（路径含逗号与 `&`）时，从该路径直接运行 `release/win-unpacked` 的打包版会以 `STATUS_BREAKPOINT` 退出，NSIS 安装器的静默安装也会挂起；开发模式 Electron 不受影响。构建时把 electron-builder 输出指向无 `,`/`&` 的路径（例如 `--config.directories.output=D:/lca-release-out`），并从干净路径运行安装器；安装到干净路径后的包内探针正常。验收安装版时不要复用仓库路径下的 `win-unpacked`。
