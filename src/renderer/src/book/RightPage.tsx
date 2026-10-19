@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanView, QuillView } from '../../../shared'
+import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanView, QuillView, TaskCardView } from '../../../shared'
 import { activityText } from '../voice/activity-text'
 import { CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
+import { TaskObjectCard } from './task/ObjectCard'
 import { sourceText } from './life/text'
 import book from '../voice/book.zh.json'
 import slash from '../voice/slash.zh.json'
@@ -27,6 +28,7 @@ type Item =
   | { kind: 'gift'; at: number; id: string; view: QuillView }
   | { kind: 'made'; at: number; id: string; view: GeneratedGiftView }
   | { kind: 'task'; at: number; id: string }
+  | { kind: 'task-object'; at: number; id: string; view: TaskCardView }
 
 /** 送出了的礼物（主进程判定 given 才算）：在送出的那一刻进对话 */
 const givenGifts = (snapshot: AppSnapshot) => (snapshot.gifts?.items ?? []).filter((gift) => gift.status === 'given' && gift.givenAtMs !== null)
@@ -113,6 +115,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
     ...(quill?.state === 'given' && quill.givenAtMs !== null ? [{ kind: 'gift' as const, at: quill.givenAtMs, id: quill.id, view: quill }] : []),
     ...givenGifts(snapshot).map((view) => ({ kind: 'made' as const, at: view.givenAtMs!, id: view.id, view })),
     ...(task ? [{ kind: 'task' as const, at: lastUserAt + 0.5, id: task.id }] : []),
+    ...(snapshot.tasks ?? []).map((view) => ({ kind: 'task-object' as const, at: view.createdAtMs, id: 'task-object:' + view.id, view })),
   ].sort((a, b) => a.at - b.at)
   const orphanActivities = activities.filter((a) => a.taskId !== task?.id)
 
@@ -190,6 +193,11 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
               )
             }
             case 'task': return task && <TaskCard key={item.id} task={task} activities={activities} />
+            case 'task-object': return (
+              <TaskObjectCard key={item.id} view={item.view}
+                onApprove={(taskId, planVersion) => { void dispatch({ type: 'task.approve', taskId, planVersion }) }}
+                onClose={(taskId, status) => { void dispatch({ type: 'task.close', taskId, status }) }} />
+            )
             case 'candidate': return (
               <CandidateCard key={`${item.id}:${item.view.revision ?? 0}`} view={item.view} bridge={bridge} entering={entering.has(item.id)}
                 onCommand={(type, candidateId, expectedRevision, plannedCompletionIso) => { void dispatch(type === 'candidate.confirm' ? { type, candidateId, expectedRevision, plannedCompletionIso } : { type, candidateId, expectedRevision }) }} />
