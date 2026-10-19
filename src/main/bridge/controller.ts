@@ -251,7 +251,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   }
   const updatePose = () => { snapshot.companion.pose = attention?.view().pose ?? (snapshot.companion.sleeping ? 'sleeping' : { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode]) }
   updatePose()
-  let execution: { source: 'real' | 'fake'; send(text: string, requestId: string, hash: string): void; stop(id: string): boolean; stateChanged(): void } | undefined
+  let execution: { source: 'real' | 'fake'; send(text: string, requestId: string, hash: string): void; stop(id: string): boolean; stateChanged(): void; taskApproved?(): void } | undefined
   let executionReady = false
   let runtime: RuntimePort | undefined
   let pomodoro: PomodoroService | undefined
@@ -464,7 +464,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       readProjection()
       ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
       // D3: a fresh approval may let the focused task continue without any new user message.
-      if (!error) execution?.stateChanged()
+      // Outside a focus the approval starts one work turn explicitly, matching the task proposal's promise.
+      if (!error) { execution?.stateChanged(); if (command.type === 'task.approve') execution?.taskApproved?.() }
       publish('task', command.requestId)
     } else if (revealContext && command.type === 'context.reveal') {
       const error = revealContext(command, signature)

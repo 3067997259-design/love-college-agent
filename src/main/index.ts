@@ -613,7 +613,14 @@ void app.whenReady().then(async () => {
       if (store!.records().some((row) => row.type === 'turn/degraded' && row.turnId === turnId)) return
       store!.append({ type: 'turn/degraded', turnId, sources })
     }
-    harness = createHarness({ store, clock, budget: prepared.scripted ? undefined : resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? [...plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')), taskToolset.step] : [...plugins.tools().filter((tool) => !(tool.definition.name === 'import_student_hub_candidates' && plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')) && !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...taskDeskToolset, handoffTool, ...(mcp?.tools(plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled') ? ['student-hub'] : []) ?? []), taskToolset.propose, taskToolset.step], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!minecraft?.active(),
+    // D2/D5: normal turns must not see the legacy heart-flow tools (plan.update, run_javascript,
+    // run_command, flow desk tools). They are registered by the coding plugin and only valid inside a flow.
+    const codingToolNames = () => new Set(plugins.views().find((plugin) => plugin.id === 'coding')?.tools ?? [])
+    const executionPort = () => ({ source: harness!.source,
+      send: (text: string, requestId: string, hash: string) => harness!.send(text, requestId, hash),
+      stop: (id: string) => harness!.stop(id), stateChanged: () => harness!.stateChanged(),
+      taskApproved: () => { const timer = store!.projection().pomodoro; if (timer.phase === 'focus' && timer.status === 'running') return; harness!.postEvent('autonomous', JSON.stringify({ kind: 'task-approved' })) } })
+    harness = createHarness({ store, clock, budget: prepared.scripted ? undefined : resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? [...plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')), taskToolset.step] : [...plugins.tools().filter((tool) => !codingToolNames().has(tool.definition.name) && tool.templateId !== 'plan.update' && !(tool.definition.name === 'import_student_hub_candidates' && plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')) && !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...taskDeskToolset, handoffTool, ...(mcp?.tools(plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled') ? ['student-hub'] : []) ?? []), taskToolset.propose, taskToolset.step], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!minecraft?.active(),
       // Developer scenes use scripted zero-token replies; their reservations must not trip the real budget
       // while exercising long synthetic timelines. Production defaults stay untouched.
       ...(prepared.developer ? { limits: { dailyTokens: 5_000_000, autonomousTokens: 2_000_000 } } : {}),
@@ -657,7 +664,7 @@ void app.whenReady().then(async () => {
         if (store!.records().flatMap((row) => row.type === 'turn/start' && row.turnId === id ? [row.trigger] : []).at(-1) === 'autonomous') {
           const continuing = taskService?.authorizedActiveTask()
           if (continuing) {
-            const taskContext: ContextMessage = { role: 'user', content: JSON.stringify({ continuingTask: { id: continuing.id, title: continuing.title, planVersion: continuing.plan?.version, steps: continuing.plan?.steps.map((step) => ({ id: step.id, text: step.text, status: step.status })), authorization: continuing.approval?.scope ?? null }, instruction: '专注中自主推进手上任务：每次推进一至两步，用 desk 工具只做已批准范围内的写入，用 task_step 更新步骤；不要声称任务完成，需要用户决定或批准时停下。' }) }
+            const taskContext: ContextMessage = { role: 'user', content: JSON.stringify({ continuingTask: { id: continuing.id, title: continuing.title, planVersion: continuing.plan?.version, steps: continuing.plan?.steps.map((step) => ({ id: step.id, text: step.text, status: step.status })), authorization: continuing.approval?.scope ?? null }, instruction: '推进手上的已批准任务：每次一至两步，用 desk 工具只做已批准范围内的写入，用 task_step 更新步骤；不要声称任务完成，需要用户决定或批准时停下。' }) }
             result = { messages: [...result.messages, taskContext], eligibleIndexes: result.eligibleIndexes }
           }
         }
@@ -693,7 +700,7 @@ void app.whenReady().then(async () => {
       changed: () => controller?.refresh('connection'), safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
     controller.attachVoice(voice)
     scheduler.schedule('voice.guard', clock.nowMs() + 250, () => voice?.stateChanged(), { everyMs: 250 })
-    controller.attachExecution(harness, modelReady)
+    controller.attachExecution(executionPort(), modelReady)
     modelSettings = createModelSettings({ root: dataRoot, fallback: prepared.developer ? undefined : providersFile, developer: prepared.developer, slots: [...rawProviders.keys()], clock, budget: resourceBudget,
       canConfigure: () => !harness?.isBusy() && !backup?.isBusy() && !heartFlow?.active() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
       apply: async () => {
@@ -709,7 +716,7 @@ void app.whenReady().then(async () => {
         taskModels = createTaskModelPorts(providers, clock, store!, undefined, resourceBudget, !privacyEnabled())
         if (!privacyEnabled()) prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = false })
         modelReady = prepared.developer || providers.has('chat')
-        controller!.attachExecution(harness!, modelReady)
+        controller!.attachExecution(executionPort(), modelReady)
         documents?.stateChanged(); campus?.stateChanged()
         } finally { scheduler!.pauseBackground(store!.projection().lightsOut) }
       },
