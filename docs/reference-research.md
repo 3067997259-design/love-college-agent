@@ -4,7 +4,7 @@
 
 | 来源 | 对本项目的帮助与边界 |
 | --- | --- |
-| [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) | 回合、步骤、收件箱和插件装配的机制参考；LCA 的执行循环与业务在本工程实现。 |
+| [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) | 回合、步骤、收件箱和插件装配的机制参考；实验开关下以 fork 作为工作与对话的执行运行时，LCA 行为写成外部插件，见 [DSH 接入 spike](research/dsh-fork-spike-20261019.md)。 |
 | [AIRI 与维护者 fork](https://github.com/3067997259-design/airi) | 记忆抽取、纠正、晋升、持续执行和界面信息分组的参考；记忆设计亦受 Neko DevLog 启发。参考结果不作为 LCA 的运行验收。 |
 | Student Hub | 维护者独立开发的校园后端，通过插件适配；后端、Python、登录与个人数据库不内置到应用。 |
 | [mcpfabric 上游](https://github.com/Etoryx/mcpfabric) 与 [维护者 fork](https://github.com/3067997259-design/mcpfabric) | 标准 MCP 游戏联动研究，保留实验实现，不作为普通使用或校园主线的前置依赖。 |

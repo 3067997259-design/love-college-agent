@@ -69,4 +69,6 @@ pnpm dev
 
 感谢相关开源项目、工具与创作者。设计参考和素材来源见 [参考与来源](docs/reference-research.md)、[第三方说明](THIRD_PARTY_NOTICES.md)。
 
+实验中的工作与对话执行基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH，MIT）构建，感谢 DeepSeek 团队开源。接入进展见 [DSH fork 接入 spike](docs/research/dsh-fork-spike-20261019.md)。
+
 本项目以 [MIT 许可证](LICENSE) 开源，Copyright (c) 2026 AfterRain。第三方依赖、字体和引用素材遵循各自许可证。
