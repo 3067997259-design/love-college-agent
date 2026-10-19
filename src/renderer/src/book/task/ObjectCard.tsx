@@ -36,6 +36,14 @@ export function TaskObjectCard({ view, onApprove, onClose }: {
         ? <p className="card-note task-object-scope">{words.approvedScope}</p>
         : <p className="card-note task-object-wait">{words.waitingApproval}</p>}
       {view.checkpoints.length > 0 && <p className="task-object-checkpoints">{words.checkpoints.replace('{n}', String(view.checkpoints.length))}</p>}
+      {view.latestHandoff && <div className="task-object-handoff" data-handoff-id={view.latestHandoff.id}>
+        <p className="task-object-version">交班检查点 · {view.latestHandoff.source === 'fallback' ? '代码兜底' : '她整理'}</p>
+        {view.latestHandoff.completed.length > 0 && <p className="task-object-handoff-line">完成：{view.latestHandoff.completed.join('；')}</p>}
+        {view.latestHandoff.decisions.length > 0 && <p className="task-object-handoff-line">你当时的决定：{view.latestHandoff.decisions.map((decision) => decision.text).join('；')}</p>}
+        {view.latestHandoff.unresolved.length > 0 && <p className="task-object-handoff-line">未决：{view.latestHandoff.unresolved.join('；')}</p>}
+        {view.latestHandoff.next.length > 0 && <p className="task-object-handoff-line">下一步：{view.latestHandoff.next.join('；')}</p>}
+        <p className="task-object-checkpoints">证据：文件 {view.latestHandoff.evidence.changes.length} · 命令 {view.latestHandoff.evidence.commands.length} · 作品 {view.latestHandoff.evidence.lifeWork.length}</p>
+      </div>}
       <div className="card-actions task-object-actions">
         {view.status === 'proposed' && plan && (
           <button type="button" className="btn btn-primary btn-small" onClick={() => onApprove(view.id, plan.version)}>{words.approve}</button>

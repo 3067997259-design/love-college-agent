@@ -919,4 +919,6 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 .task-object-step-mark { color: var(--graphite); }
 .task-object-wait { opacity: 0.8; }
 .task-object-checkpoints { margin: 0; font-size: 14px; color: var(--graphite); }
+.task-object-handoff { display: grid; gap: 2px; padding: 8px 10px; border-radius: 8px; background: color-mix(in oklab, var(--peach) 45%, transparent); }
+.task-object-handoff-line { margin: 0; font-size: 15px; color: var(--ink-her); overflow-wrap: anywhere; }
 .task-object-actions { margin-top: 2px; }
