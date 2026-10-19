@@ -13,7 +13,7 @@ export interface HandoffSubmit {
   unresolved: readonly string[]
   next: readonly string[]
 }
-export type HandoffResult = { ok: true; handoff: TaskHandoffView } | { ok: false; error: 'no-authorized-task' | 'invalid-decision' | 'invalid-content' }
+export type HandoffResult = { ok: true; handoff: TaskHandoffView } | { ok: false; error: 'no-authorized-task' | 'invalid-decision' | 'invalid-content' | 'invalid-turn' }
 
 /**
  * D4 handoff. The model may summarize, but code validates every decision against a real user message,
@@ -43,6 +43,8 @@ export function createHandoffService(options: { store: SessionStore; tasks: Task
     submit(submit: HandoffSubmit, turnId?: string): HandoffResult {
       const task = options.tasks.authorizedActiveTask()
       if (!task?.plan) return { ok: false, error: 'no-authorized-task' }
+      // D4: handoff belongs to the focus-end turn, never to an ordinary or autonomous work step.
+      if (turnId && !rows().some((row) => row.type === 'turn/start' && row.turnId === turnId && row.trigger === 'pomodoro')) return { ok: false, error: 'invalid-turn' }
       if (!submit.completed.length && !submit.unresolved.length && !submit.next.length) return { ok: false, error: 'invalid-content' }
       const users = new Map(rows().flatMap((row) => row.type === 'user/message' ? [[row.id, row.text] as const] : []))
       for (const decision of submit.decisions) {

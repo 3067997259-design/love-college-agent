@@ -56,6 +56,7 @@ import { createTaskService } from './task/service'
 import { taskTools, taskHandoffTool } from './task/tools'
 import { taskDeskTools } from './task/desk-tools'
 import { createHandoffService } from './task/handoff'
+import { carryOpenTask } from './task/carry'
 import { createAttention, type AttentionService } from './attention/service'
 import { probeSqlite } from './validation/sqlite'
 import { probeRodin } from './validation/rodin'
@@ -348,6 +349,8 @@ void app.whenReady().then(async () => {
       resumeSavedSession(dataDir, restoreReceipt.manifest.owner, restoreReceipt.manifest.activeDayKey, restoreReceipt.manifest.activeSessionId)
     }
     store = openSessionStore(dataDir, owner, clock)
+    // D4: a previous-day task with a handoff checkpoint returns as a fresh proposal; approval is required again.
+    try { carryOpenTask(store) } catch { /* Carrying is a projection convenience; never block startup. */ }
     const binaryAssets = createBinaryAssets(dataDir, store)
     if (activeCharacter.id !== 'default-character') {
       if (!store.history!().some((row) => row.type === 'onboarding/state')) store.append({ type: 'onboarding/state', view: { ...initialOnboarding(), characterName: activeCharacter.name }, cause: 'profile', requestId: 'character-profile:' + activeCharacter.id, commandHash: contentHash(activeCharacter.id) })
@@ -610,7 +613,10 @@ void app.whenReady().then(async () => {
       if (store!.records().some((row) => row.type === 'turn/degraded' && row.turnId === turnId)) return
       store!.append({ type: 'turn/degraded', turnId, sources })
     }
-    harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? [...plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')), taskToolset.step] : [...plugins.tools().filter((tool) => !(tool.definition.name === 'import_student_hub_candidates' && plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')) && !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...taskDeskToolset, handoffTool, ...(mcp?.tools(plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled') ? ['student-hub'] : []) ?? []), taskToolset.propose, taskToolset.step], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!minecraft?.active(),
+    harness = createHarness({ store, clock, budget: prepared.scripted ? undefined : resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? [...plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')), taskToolset.step] : [...plugins.tools().filter((tool) => !(tool.definition.name === 'import_student_hub_candidates' && plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')) && !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...taskDeskToolset, handoffTool, ...(mcp?.tools(plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled') ? ['student-hub'] : []) ?? []), taskToolset.propose, taskToolset.step], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!minecraft?.active(),
+      // Developer scenes use scripted zero-token replies; their reservations must not trip the real budget
+      // while exercising long synthetic timelines. Production defaults stay untouched.
+      ...(prepared.developer ? { limits: { dailyTokens: 5_000_000, autonomousTokens: 2_000_000 } } : {}),
       // D3: while a focus is running, the approved in-hand task may continue on its own under caps.
       taskRun: { available: () => { const timer = store!.projection().pomodoro; return timer.phase === 'focus' && timer.status === 'running' && !!taskService?.authorizedActiveTask() },
         focusKey: () => { const timer = store!.projection().pomodoro; return (timer.plan?.id ?? '') + ':' + timer.focusIndex }, steps: 6, tokens: 40_000, turns: 4 },
