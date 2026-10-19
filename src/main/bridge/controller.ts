@@ -23,6 +23,7 @@ import { giftSpecSchema } from '../gifts/schema'
 import type { GiftService } from '../gifts/service'
 import type { HeartFlowService } from '../heart-flow/service'
 import type { TaskService } from '../task/service'
+import type { AttentionService } from '../attention/service'
 import type { VoiceService } from '../voice/service'
 import type { LifeService } from '../life/service'
 import type { SleepService } from '../life/sleep'
@@ -200,6 +201,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let gifts: GiftService | undefined
   let heartFlow: HeartFlowService | undefined
   let taskService: TaskService | undefined
+  let attention: AttentionService | undefined
   let revealContext: ((command: Extract<AppCommand, { type: 'context.reveal' }>, signature: string) => PublicErrorCode | undefined) | undefined
   let voice: VoiceService | undefined
   let resources: ResourceBudget | undefined
@@ -247,7 +249,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     for (const request of saved.requests.slice(-1000)) requests.set(request.requestId, { signature: request.commandHash,
       ack: { protocolVersion: PROTOCOL_VERSION, requestId: request.requestId, epoch: snapshot.epoch, status: 'accepted' } })
   }
-  const updatePose = () => { snapshot.companion.pose = snapshot.companion.sleeping ? 'sleeping' : { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode] }
+  const updatePose = () => { snapshot.companion.pose = attention?.view().pose ?? (snapshot.companion.sleeping ? 'sleeping' : { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode]) }
   updatePose()
   let execution: { source: 'real' | 'fake'; send(text: string, requestId: string, hash: string): void; stop(id: string): boolean; stateChanged(): void } | undefined
   let executionReady = false
@@ -270,6 +272,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   const publish = (reason: AppEvent['reason'], requestId?: string) => {
     snapshot.revision++
     snapshot.clock.nowMs = clock.nowMs()
+    if (attention) { snapshot.attention = attention.view(); updatePose() }
     if (runtime) { snapshot.runtime = runtime.view(); Object.assign(snapshot.clock, runtime.clockView?.()) }
     if (campus) {
       snapshot.mailbox = campus.view(); snapshot.candidates = campus.candidates(); snapshot.deliveries = campus.deliveries()
@@ -460,6 +463,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       const error = taskService.dispatch(command as Extract<AppCommand, { type: 'task.approve' | 'task.close' }>, signature)
       readProjection()
       ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+      // D3: a fresh approval may let the focused task continue without any new user message.
+      if (!error) execution?.stateChanged()
       publish('task', command.requestId)
     } else if (revealContext && command.type === 'context.reveal') {
       const error = revealContext(command, signature)
@@ -553,6 +558,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachGifts: (port: GiftService) => { gifts = port; publish('connection') },
     attachHeartFlow: (port: HeartFlowService) => { heartFlow = port; publish('connection') },
     attachTask: (port: TaskService) => { taskService = port; readProjection(); publish('connection') },
+    attachAttention: (port: AttentionService) => { attention = port; snapshot.attention = attention.view(); updatePose(); publish('mode') },
     attachContextReveal: (port: NonNullable<typeof revealContext>) => { revealContext = port },
     attachVoice: (port: VoiceService) => { voice = port; publish('connection') },
     readVoice: (input: unknown) => { if (!voice || backup?.isBusy()) throw new Error('VOICE_UNAVAILABLE'); return voice.read(input) },

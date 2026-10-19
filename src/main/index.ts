@@ -55,6 +55,7 @@ import type { ContextMessage } from './journal/schema'
 import { createTaskService } from './task/service'
 import { taskTools } from './task/tools'
 import { taskDeskTools } from './task/desk-tools'
+import { createAttention, type AttentionService } from './attention/service'
 import { probeSqlite } from './validation/sqlite'
 import { probeRodin } from './validation/rodin'
 import { probeImap } from './mail/probe'
@@ -145,6 +146,7 @@ if (silentTestWindows) {
 }
 let controller: ReturnType<typeof createAppController> | undefined
 let taskService: ReturnType<typeof createTaskService> | undefined
+let attention: AttentionService | undefined
 /** D2 one-shot user reveal. In memory by design: it never survives restart and grants only the next turn. */
 let pendingReveal: { source: 'mail'; ref: string } | undefined
 let bridge: ReturnType<typeof registerAppBridge> | undefined
@@ -493,10 +495,22 @@ void app.whenReady().then(async () => {
       changed: () => controller?.refresh('task'), safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
     heartFlow.attachWebFetch(webFetch)
     scheduler.schedule('computer.guard', clock.nowMs() + 250, () => computer?.stateChanged(), { everyMs: 250 })
+    // D3: one place decides what she has in hand. Consumers ask this instead of inspecting each other.
+    attention = createAttention({ inputs: () => {
+      const projection = store!.projection(); const runningId = projection.task?.id
+      const trigger = runningId ? store!.records().flatMap((row) => row.type === 'turn/start' && row.turnId === runningId ? [row.trigger] : []).at(-1) ?? null : null
+      const lastQuestion = store!.records().findLast((row) => row.type === 'question/requested' || row.type === 'question/answered' || row.type === 'question/closed' || row.type === 'question/committed')
+      return { mode: projection.mode, lightsOut: projection.lightsOut, sleeping: projection.sleeping,
+        userTurn: !!harness?.isBusy() && trigger === 'user', taskComputing: !!harness?.isBusy() && trigger === 'autonomous',
+        taskWaiting: !!taskService?.authorizedActiveTask() && !harness?.isBusy() && (projection.task?.status === 'waiting-user' || lastQuestion?.type === 'question/requested'),
+        giftMaking: !!gifts?.view().items.some((gift) => gift.status === 'making'), lifeActive: !!lifeWork?.active(),
+        focusRunning: projection.pomodoro.phase === 'focus' && projection.pomodoro.status === 'running' }
+    } })
+    controller.attachAttention(attention)
     lifeWork = createLifeWork({ store, clock, scheduler, desk, developer: prepared.developer, get model() { return prepared.developer ? createFakeLifeWorkModel() : taskModels.lifeWork },
       available: () => {
         const projection = store!.projection(); const timer = projection.pomodoro
-        return !projection.sleeping && !backup?.isBusy() && !harness?.isBusy() && !heartFlow?.active() && !minecraft?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing') && diary?.view().status !== 'writing' && !['extracting', 'compacting'].includes(memory?.view().status ?? '')
+        return attention?.lifeAllowed() === true && !backup?.isBusy() && !minecraft?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing') && diary?.view().status !== 'writing' && !['extracting', 'compacting'].includes(memory?.view().status ?? '')
           && controller?.getSnapshot().onboarding?.status === 'completed' && life?.view().locationId === 'room'
           && (timer.phase === 'focus' && timer.status === 'running' || !['short-break', 'long-break'].includes(timer.phase) && (life?.view().userSchedule === 'work' || projection.mode !== 'rest'))
       }, changed: () => controller?.refresh('task'), projected: () => { life?.reconcile(); roomProjection.rebuild() },
