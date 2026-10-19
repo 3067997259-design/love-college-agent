@@ -175,6 +175,12 @@ export type AppCommand = CommandEnvelope & (
   /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
   | { type: 'flow.run'; code: string }
   | { type: 'flow.approve'; approvalId: string; allow: boolean }
+  /** D1 task object: approve one concrete plan version. This is the authorization; a proposal alone grants nothing. */
+  | { type: 'task.approve'; taskId: string; planVersion: number }
+  /** D1 task object: the user decides the terminal state. Model text cannot complete a task. */
+  | { type: 'task.close'; taskId: string; status: 'completed' | 'abandoned'; summary?: string }
+  /** D2: user asks for one original in the next turn. One-shot; never a standing grant. */
+  | { type: 'context.reveal'; source: 'mail'; ref: string }
   /** Consolidate closed calendar periods from grounded day summaries; repeated identical inputs are no-ops. */
   | { type: 'memory.consolidate' }
   | { type: 'context.compact' }

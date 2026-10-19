@@ -75,12 +75,38 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('flow/close'), id, summary: z.string().max(2000) }),
   z.strictObject({ type: z.literal('flow/compact'), id, throughSeq: z.number().int().positive(), summary: z.string().max(6000), focus: z.string().max(500).optional(),
     retained: z.strictObject({ turnId: id, messages: z.array(contextMessageSchema).max(200) }).optional() }),
-  z.strictObject({ type: z.literal('desk/change'), id, flowId: id, path: z.string().max(180), before: z.string().max(64000).nullable(), after: z.string().max(64000).nullable(), undoes: id.optional(), pending: z.boolean().optional(), commandId: z.string().uuid().optional(), rewindId: z.string().uuid().optional(), rewinds: z.array(id).max(500).optional() }),
+  z.strictObject({ type: z.literal('desk/change'), id, flowId: id.optional(), taskId: id.optional(), path: z.string().max(180), before: z.string().max(64000).nullable(), after: z.string().max(64000).nullable(), undoes: id.optional(), pending: z.boolean().optional(), commandId: z.string().uuid().optional(), rewindId: z.string().uuid().optional(), rewinds: z.array(id).max(500).optional() })
+    .refine((row) => !!row.flowId !== !!row.taskId, { message: 'DESK_CHANGE_OWNER_REQUIRED' }),
   rewindSchema.extend({ type: z.literal('flow/rewind') }),
   z.strictObject({ type: z.literal('desk/settled'), id, status: z.enum(['applied', 'failed']) }),
   z.strictObject({ type: z.literal('flow/run'), id, flowId: id, status: z.enum(['requested', 'approved', 'denied', 'completed', 'failed', 'interrupted']), codeHash: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ type: z.literal('flow/command'), id: z.string().uuid(), flowId: id, turnId: id.optional(), status: z.enum(['preparing', 'awaiting-approval', 'approved', 'denied', 'running', 'completed', 'failed', 'cancelled', 'interrupted']),
     executionHash: z.string().regex(/^[a-f0-9]{64}$/), timeoutMs: z.number().int().min(500).max(30000), fileCount: z.number().int().min(0).max(300), snapshotHash: z.string().regex(/^[a-f0-9]{64}$/).optional(), outcome: commandOutcome.optional(), requestId: id.optional(), commandHash: id.optional() }),
+  // D1 task object: a cross-turn unit that holds a goal, versioned plan, plan-bound authorization,
+  // the task currently in hand, checkpoints and a terminal state. Proposals never authorize anything.
+  z.strictObject({ type: z.literal('task/open'), id, title: z.string().min(1).max(200), goalId: id.optional(), workspace: z.literal('desk'), source: z.enum(['model', 'user']), turnId: id.optional() }),
+  z.strictObject({ type: z.literal('task/plan'), taskId: id, planVersion: z.number().int().positive().max(1000), source: z.enum(['model', 'user']), turnId: id.optional(),
+    steps: z.array(z.strictObject({ id, text: z.string().min(1).max(500) })).min(1).max(30) }),
+  z.strictObject({ type: z.literal('task/approve'), taskId: id, planVersion: z.number().int().positive().max(1000),
+    scope: z.strictObject({ writes: z.literal('desk'), commands: z.literal('each') }), requestId: id.optional(), commandHash: id.optional() }),
+  z.strictObject({ type: z.literal('task/focus'), taskId: id.nullable() }),
+  z.strictObject({ type: z.literal('task/step'), taskId: id, stepId: id, status: z.enum(['pending', 'active', 'done', 'failed']), turnId: id.optional() }),
+  z.strictObject({ type: z.literal('task/checkpoint'), id, taskId: id, source: z.enum(['model', 'code']), summary: z.string().min(1).max(6000),
+    evidenceSeqs: z.array(z.number().int().positive()).max(500).optional() }),
+  // D4 handoff: structured checkpoint submitted by the model and validated by code, or a code-only
+  // fallback that carries evidence but no model prose. Decisions must quote real user messages.
+  z.strictObject({ type: z.literal('task/handoff'), id, taskId: id, planVersion: z.number().int().positive().max(1000), source: z.enum(['model', 'fallback']), turnId: id.optional(),
+    completed: z.array(z.string().min(1).max(300)).max(20),
+    decisions: z.array(z.strictObject({ messageId: id, text: z.string().min(1).max(300) })).max(10),
+    unresolved: z.array(z.string().min(1).max(300)).max(10),
+    next: z.array(z.string().min(1).max(300)).max(10),
+    evidence: z.strictObject({
+      changes: z.array(z.strictObject({ path: z.string().min(1).max(180), sha256: z.string().regex(/^[a-f0-9]{64}$/) })).max(50),
+      commands: z.array(z.strictObject({ id, status: z.enum(['completed', 'failed', 'unknown']) })).max(10),
+      lifeWork: z.array(z.strictObject({ id, path: z.string().min(1).max(180), sha256: z.string().regex(/^[a-f0-9]{64}$/) })).max(10),
+    }) }),
+  z.strictObject({ type: z.literal('task/close'), taskId: id, status: z.enum(['completed', 'abandoned', 'failed']), summary: z.string().max(2000).optional(),
+    requestId: id.optional(), commandHash: id.optional() }),
   z.strictObject({ type: z.literal('session/header'), userId: id, characterId: id, sessionId: id }),
   z.strictObject({ type: z.literal('asset/stored'), asset: binaryAssetSchema }),
   z.strictObject({ type: z.literal('gift/state'), gift: giftSchema }),
@@ -116,6 +142,11 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('inbox/drain'), ids: z.array(id).max(32) }),
   z.strictObject({ type: z.literal('inbox/drop'), ids: z.array(id).max(32) }),
   z.strictObject({ type: z.literal('turn/start'), turnId: id, trigger: z.enum(['user', 'pomodoro', 'mail', 'document', 'autonomous']) }),
+  // D2: this turn's request contained third-party originals or their raw tool results. The fact marks
+  // the turn, not the content; source text never enters this record.
+  z.strictObject({ type: z.literal('turn/degraded'), turnId: id, sources: z.array(z.enum(['mail', 'document', 'web', 'mcp', 'plugin'])).min(1).max(8) }),
+  // D2: the user explicitly asked for one original in the immediately following turn. One-shot grant.
+  z.strictObject({ type: z.literal('context/reveal'), id, source: z.enum(['mail']), ref: opaqueId, requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('turn/cancelling'), turnId: id }),
   z.strictObject({ type: z.literal('turn/paused'), turnId: id }),
   z.strictObject({ type: z.literal('turn/resumed'), turnId: id }),
@@ -134,7 +165,9 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('context/inject'), source: z.enum(['policy', 'memory', 'scheduler']), text }),
   z.strictObject({ type: z.literal('context/compact'), fromSeq: z.number().int().positive(), toSeq: z.number().int().positive(), summary: text, sources: z.array(memorySourceSchema).max(128).optional() }),
   z.strictObject({ type: z.literal('model/seen'), turnId: id, source: z.enum(['real', 'fake']), messages: z.array(contextMessageSchema).max(1024),
-    eligibleIndexes: z.array(z.number().int().nonnegative()).max(1024) }).refine((value) => new Set(value.eligibleIndexes).size === value.eligibleIndexes.length && value.eligibleIndexes.every((index) => index < value.messages.length && value.messages[index].role !== 'system')),
+    eligibleIndexes: z.array(z.number().int().nonnegative()).max(1024),
+    /** D2 request capture: tool names the model saw, never parameters or results. */
+    tools: z.array(z.string().min(1).max(64)).max(256).optional() }).refine((value) => new Set(value.eligibleIndexes).size === value.eligibleIndexes.length && value.eligibleIndexes.every((index) => index < value.messages.length && value.messages[index].role !== 'system')),
   z.strictObject({ type: z.literal('memory/batch'), ...memoryBatchSchema.shape }),
   z.strictObject({ type: z.literal('memory/access'), ids: z.array(id).max(10), requestId: id, sessionId: id }),
   z.strictObject({ type: z.literal('memory/summary'), summary: memorySummarySchema }),

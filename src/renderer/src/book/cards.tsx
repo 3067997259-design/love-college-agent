@@ -10,11 +10,13 @@ import { fill, giftName } from './life/text'
 import { formatSpan, planSpanMs, rhythmText, tomatoStates, type TomatoState } from './plan'
 
 /* —— 候选卡：证据 → 候选 → 确认，要让评委亲眼看到（体验设计 §2） —— */
-export function CandidateCard({ view, bridge, onCommand, entering }: {
+export function CandidateCard({ view, bridge, onCommand, entering, onReveal }: {
   view: CandidateView
   bridge: AppBridge
   onCommand: (type: 'candidate.confirm' | 'candidate.ignore', id: string, revision: number, plannedCompletionIso?: string | null) => void
   entering: boolean
+  /** D2: one-shot user request to put this original into the next turn. Never a standing grant. */
+  onReveal?: () => void
 }) {
   const [evidence, setEvidence] = useState<EvidenceView | 'loading' | 'failed' | null>(null)
   const [previousEvidence, setPreviousEvidence] = useState<EvidenceView | 'loading' | 'failed' | null>(null)
@@ -59,6 +61,11 @@ export function CandidateCard({ view, bridge, onCommand, entering }: {
       <button className="link-button" onClick={() => void toggleEvidence()} aria-expanded={open}>
         {open ? '收起原文' : '看原文'}
       </button>
+      {onReveal && view.status !== 'ignored' && (
+        <button className="link-button" onClick={onReveal}>
+          把原文放进这一轮
+        </button>
+      )}
       {open && <Evidence state={evidence} />}
 
       {view.status === 'confirmed'

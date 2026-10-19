@@ -10,7 +10,7 @@ import { CharacterControls } from './CharacterControls'
 import { NotificationControls } from './NotificationControls'
 import { VoiceControls } from './VoiceControls'
 import { ResourceControls } from './ResourceControls'
-import { HeartFlowControls } from './HeartFlowControls'
+import { LegacyFlowRecords } from './LegacyFlowRecords'
 import { LifeControls } from './LifeControls'
 import { DiaryControls } from './DiaryControls'
 import { OpticalControls } from './OpticalControls'
@@ -68,7 +68,7 @@ export function UserSettings({ bridge, snapshot, onClose, onOpenPlugins }: { bri
       {booth && <Group name="Minecraft"><MinecraftControls {...props} /></Group>}
     </Section>
     <Section id="rhythm">
-      <Group name={words.groups.life}><LifeControls {...props} /><DiaryControls {...props} />{!snapshot.heartFlow?.activeId && <HeartFlowControls {...props} />}</Group>
+      <Group name={words.groups.life}><LifeControls {...props} /><DiaryControls {...props} /><LegacyFlowRecords bridge={bridge} snapshot={snapshot} /></Group>
     </Section>
     <Section id="book">
       <Group name={words.groups.book}><BackupControls {...props} /><CharacterControls {...props} /><button disabled={booth} onClick={() => void send({ type: 'onboarding.reset' })}>{words.reset}</button></Group>

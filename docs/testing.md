@@ -24,12 +24,17 @@ pnpm test
 | `test:memory`、`test:history`、`test:optical` | 来源、摘要、旧页、可选光学守卫和恢复 |
 | `test:pomodoro`、`test:mini`、`test:resources` | 计时、双窗口、显示器边界与资源准入 |
 | `test:heart-flow`、`test:desk-command`、`test:flow-rewind` | 工作范围、逐次审批、版本和撤销 |
+| `test:task-object`、`test:timeline-safety` | 任务对象剧本（提议/批准/推进/结束）与 D2 一条时间线/安全剧本（固定工具列表、未授权写入、降级轮、一次性原文） |
+| `test:attention-flow` | D3 注意力剧本：任务等待时她的读写推进、专注续跑时让位、上限后从书签续跑、左页姿势 |
+| `test:handoff-flow` | D4 交班剧本：专注结束结构化交班、证据与卡片、跨天从检查点恢复、旧授权不复活、重新批准 |
 | `probe:desk-command:runtime` | Windows 原生进程、网络 / 文件拒绝、编码、上限与取消 |
 | `test:life-port`、`test:life-work`、`test:sleep`、`test:room` | 生活状态、实际产物、日记与重启 |
 | `test:gifts`、`test:backup`、`test:characters` | 礼物同意、存档与角色作用域 |
 | `test:package --unpacked-only` | 构建回执、包内 EXE 和独立测试数据 |
 
 表中省略 `pnpm` 前缀。多数 Electron 脚本自带 build；复用构建或指定安装 EXE 时先读对应脚本，不能随意绕过前置检查。
+
+D2（demo 分支，2026-10-19）起，心流面板入口退役：`test:heart-flow`、`test:flow-sleep`、`test:flow-drafts`、`test:flow-rewind`、`test:desk-command`、`test:computer`、`test:web-fetch` 与 `probe:heart-flow` 仍能通过旧 `flow.*` 命令路径运行，但不再代表产品入口；产品工作路径以 `test:task-object` 与 `test:timeline-safety` 为准，旧脚本在 D3 清理或迁移。审计探针 `scripts/probe-context-continuity.mjs` 记录的是分离现状，D2 后按设计反转，保留为历史证据，不再作为当前验收。
 
 测试窗口默认透明并使用 `showInactive`，不抢焦点；需要目视验收时设置 `LCA_TEST_SILENT=0`。不另装 Playwright 浏览器。开发与测试使用合成来源和独立 profile，不借参考项目的真实数据填样例。
 

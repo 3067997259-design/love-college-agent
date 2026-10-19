@@ -25,6 +25,15 @@ export interface PublicError {
 
 export interface Scope { userId: string; characterId: string; sessionId: string }
 export interface ClockView { nowMs: number; timeZone: string; rate: number; frozen: boolean }
+/** D3 attention: the single place that decides what she currently has in hand. */
+export type AttentionKind = 'rest' | 'user' | 'task' | 'gift' | 'life' | 'idle'
+export interface AttentionView {
+  kind: AttentionKind
+  pose: 'sleeping' | 'facing-user' | 'desk-computer' | 'desk-writing'
+  /** A task exists and is waiting for the user; it does not occupy her time. */
+  taskWaiting: boolean
+  focusRunning: boolean
+}
 export interface CompanionView {
   mode: InteractionMode
   lightsOut: boolean
@@ -110,6 +119,45 @@ export interface TaskView {
   status: TaskStatus
   steps: readonly PlanStep[]
   error?: PublicError
+}
+/** D1 task object view. Proposals and plans are not authorization; approval binds one plan version. */
+export type TaskCardStatus = 'proposed' | 'approved' | 'active' | 'completed' | 'abandoned' | 'failed'
+export interface TaskPlanView { version: number; source: 'model' | 'user'; steps: readonly PlanStep[] }
+export interface TaskApprovalView { planVersion: number; scope: { writes: 'desk'; commands: 'each' }; approvedAtMs: number }
+export interface TaskCheckpointView { id: string; summary: string; createdAtMs: number; source: 'model' | 'code'; evidenceSeqs?: readonly number[] }
+/** D4 handoff checkpoint. Evidence is code-collected; decisions quote real user messages only. */
+export interface TaskHandoffView {
+  id: string
+  taskId: string
+  planVersion: number
+  source: 'model' | 'fallback'
+  createdAtMs: number
+  completed: readonly string[]
+  decisions: readonly { messageId: string; text: string }[]
+  unresolved: readonly string[]
+  next: readonly string[]
+  evidence: {
+    changes: readonly { path: string; sha256: string }[]
+    commands: readonly { id: string; status: 'completed' | 'failed' | 'unknown' }[]
+    lifeWork: readonly { id: string; path: string; sha256: string }[]
+  }
+}
+/** D2 safety state for the currently running turn: third-party originals were part of its request. */
+export interface DegradedView { active: boolean; turnId: string; sources: readonly ('mail' | 'document' | 'web' | 'mcp' | 'plugin')[] }
+export interface TaskCardView {
+  id: string
+  title: string
+  goalId?: string
+  workspace: 'desk'
+  status: TaskCardStatus
+  plan?: TaskPlanView
+  approval?: TaskApprovalView
+  /** Latest D4 handoff checkpoint for this task; it becomes the B segment of later requests. */
+  latestHandoff?: TaskHandoffView
+  checkpoints: readonly TaskCheckpointView[]
+  createdAtMs: number
+  updatedAtMs: number
+  closedAtMs: number | null
 }
 export interface MessageView {
   id: string
@@ -423,6 +471,14 @@ export interface AppSnapshot {
   companion: CompanionView
   pomodoro: PomodoroView
   task: TaskView | null
+  /** D1 task objects. Optional so older renderer fixtures and pre-D1 snapshots stay valid. */
+  tasks?: readonly TaskCardView[]
+  /** The single task currently in hand, if any. */
+  activeTaskId?: string | null
+  /** D2: present while the running turn's request contains third-party originals. */
+  degraded?: DegradedView
+  /** D3: what she currently has in hand; derived in main, never a permission grant. */
+  attention?: AttentionView
   messages: readonly MessageView[]
   activities: readonly ActivityView[]
   candidates: readonly CandidateView[]

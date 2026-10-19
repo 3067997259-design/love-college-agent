@@ -233,6 +233,26 @@
     "devCode": "心流 JavaScript",
     "devSubmit": "申请执行"
   },
+  "legacyFlow": {
+    "_说明": "D2 起心流面板退役；这里只保留旧心流记录的只读查阅，不再提供进入、模式切换、执行或写入按钮。",
+    "title": "旧心流记录（只读）",
+    "note": "工作已经并入同一天的对话与任务卡；这些是历史记录，只能查阅，不能从这里继续工作。",
+    "open": "进行中（旧记录）",
+    "status": "查阅状态",
+    "diff": "查阅差异"
+  },
+  "taskObject": {
+    "_说明": "D1 任务卡（跨回合任务，出现在对话流里）。状态由主进程投影决定；批准和结束只能由用户点按触发，模型不能替用户批准或完成。",
+    "label": "任务",
+    "status": { "proposed": "待你批准计划", "approved": "计划已批准", "active": "正在做", "completed": "已完成", "abandoned": "已放弃", "failed": "未完成" },
+    "planVersion": "第 {version} 版计划",
+    "waitingApproval": "计划只是提议，批准前不会动书桌。",
+    "approvedScope": "已批准：书桌写入 · 命令逐次批准",
+    "approve": "批准这份计划",
+    "complete": "标记完成",
+    "abandon": "放弃任务",
+    "checkpoints": "检查点 {n} 个"
+  },
   "deskTools": {
     "_说明": "工作台里书桌预览和网页读取的状态文字（界面文字，不是她说的话）。按钮名保持原样，测试依赖。",
     "computerStatus": { "closed": "没有打开", "opening": "正在打开", "ready": "已打开", "waiting-approval": "等你批准一个动作", "acting": "正在操作", "failed": "这次没成功" },

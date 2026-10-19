@@ -904,3 +904,21 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
   .room-tint, .room-lamp { transition: none; }
   .away-note[data-writing='true'] .away-note-line { animation: none; }
 }
+
+/* —— D1 任务卡：跨回合任务，出现在对话流里；批准和结束都只是用户动作 —— */
+.task-object { display: grid; gap: 8px; border-color: color-mix(in oklab, var(--ink-her) 45%, transparent); }
+.task-object-status { font: 14px var(--font-hand); color: var(--graphite); }
+.task-object-status[data-status='active'] { color: var(--ink-her); }
+.task-object-title { margin: 0; }
+.task-object-version { margin: 0; font-size: 14px; color: var(--graphite); }
+.task-object-steps { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: 16px; color: var(--ink-her); }
+.task-object-steps li { display: grid; grid-template-columns: 18px 1fr; align-items: baseline; }
+.task-object-steps li[data-step-status='done'] { color: color-mix(in oklab, var(--ink-her) 60%, var(--graphite)); }
+.task-object-steps li[data-step-status='done'] .task-object-step-mark { text-decoration: none; }
+.task-object-steps li[data-step-status='failed'] .task-object-step-mark { color: var(--peach-mid); }
+.task-object-step-mark { color: var(--graphite); }
+.task-object-wait { opacity: 0.8; }
+.task-object-checkpoints { margin: 0; font-size: 14px; color: var(--graphite); }
+.task-object-handoff { display: grid; gap: 2px; padding: 8px 10px; border-radius: 8px; background: color-mix(in oklab, var(--peach) 45%, transparent); }
+.task-object-handoff-line { margin: 0; font-size: 15px; color: var(--ink-her); overflow-wrap: anywhere; }
+.task-object-actions { margin-top: 2px; }

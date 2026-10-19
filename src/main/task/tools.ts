@@ -1,0 +1,123 @@
+import { z } from 'zod'
+import type { HarnessTool, ToolResult } from '../harness/tools'
+import type { HandoffService } from './handoff'
+import type { TaskService } from './service'
+
+const proposeSchema = z.strictObject({
+  title: z.string().trim().min(1).max(200),
+  steps: z.array(z.string().trim().min(1).max(500)).min(1).max(30),
+  goalId: z.string().min(1).max(128).optional(),
+})
+const stepSchema = z.strictObject({ stepId: z.string().min(1).max(128), status: z.enum(['pending', 'active', 'done', 'failed']) })
+
+/**
+ * Model-facing D1 task tools. `task_propose` only creates a proposal plus a plan version; it never
+ * grants a scope. `task_step` can update the approved in-hand plan only. Both expose fixed error
+ * codes back to the model and never echo journal internals.
+ */
+export function taskTools(service: TaskService): { propose: HarnessTool; step: HarnessTool } {
+  return {
+    propose: {
+      definition: {
+        name: 'task_propose',
+        description: 'Propose one cross-turn task with a versioned plan. This is a proposal, not authorization: the user must approve the plan version before desk writes or commands are allowed. Refused while another task is open.',
+        parameters: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'Short task title.' },
+            steps: { type: 'array', items: { type: 'string' }, description: 'Ordered plan steps, one concrete action each.' },
+            goalId: { type: 'string', description: 'Optional existing work-goal id.' },
+          },
+          required: ['title', 'steps'],
+          additionalProperties: false,
+        },
+      },
+      templateId: 'task.propose',
+      validate: (input) => proposeSchema.safeParse(input).success,
+      run: async (input, { turnId, signal }): Promise<ToolResult> => {
+        signal.throwIfAborted()
+        const result = service.propose(proposeSchema.parse(input), turnId)
+        if (!result.ok) {
+          const raw: ToolResult['raw'] = { error: result.error }
+          const visible: ToolResult['visible'] = { error: result.error, requirement: 'Close the current task before proposing a new one.' }
+          return { ok: false, raw, visible }
+        }
+        const raw: ToolResult['raw'] = { taskId: result.task.id, planVersion: result.task.plan?.version ?? 1 }
+        const visible: ToolResult['visible'] = { taskId: result.task.id, title: result.task.title, planVersion: result.task.plan?.version ?? 1,
+          steps: result.task.plan?.steps.map((step) => step.text) ?? [] }
+        return { ok: true, raw, visible }
+      },
+    },
+    step: {
+      definition: {
+        name: 'task_step',
+        description: 'Update one step of the in-hand task plan after the user approved its current plan version. Refused when no task is in hand or the plan version is not approved.',
+        parameters: {
+          type: 'object',
+          properties: {
+            stepId: { type: 'string', description: 'Plan step id from the approved proposal.' },
+            status: { type: 'string', enum: ['pending', 'active', 'done', 'failed'] },
+          },
+          required: ['stepId', 'status'],
+          additionalProperties: false,
+        },
+      },
+      templateId: 'task.step',
+      validate: (input) => stepSchema.safeParse(input).success,
+      run: async (input, { turnId, signal }): Promise<ToolResult> => {
+        signal.throwIfAborted()
+        const result = service.updateStep(stepSchema.parse(input), turnId)
+        const raw: ToolResult['raw'] = result.ok ? { updated: true } : { error: result.error }
+        const visible: ToolResult['visible'] = { ...raw }
+        return { ok: result.ok, raw, visible }
+      },
+    },
+  }
+}
+
+const handoffSchema = z.strictObject({
+  completed: z.array(z.string().trim().min(1).max(300)).max(20),
+  decisions: z.array(z.strictObject({ messageId: z.string().min(1).max(128), text: z.string().trim().min(1).max(300) })).max(10),
+  unresolved: z.array(z.string().trim().min(1).max(300)).max(10),
+  next: z.array(z.string().trim().min(1).max(300)).max(10),
+})
+
+/**
+ * D4 handoff tool. The model supplies only summaries and verbatim user decisions; the service
+ * validates decisions against real user messages and attaches evidence itself. A rejected submission
+ * is reported back to the model, and code writes an evidence-only fallback if the turn fails.
+ */
+export function taskHandoffTool(handoff: HandoffService): HarnessTool {
+  return {
+    definition: {
+      name: 'task_handoff',
+      description: 'Submit the focus-end handoff for the in-hand approved task: completed items, decisions quoted verbatim from real user messages, unresolved questions and the next step. Code validates decisions and attaches file/command/work evidence; do not claim external completion.',
+      parameters: {
+        type: 'object',
+        properties: {
+          completed: { type: 'array', items: { type: 'string' }, description: 'Finished items, at most 300 characters each.' },
+          decisions: { type: 'array', items: { type: 'object', properties: { messageId: { type: 'string' }, text: { type: 'string' } }, required: ['messageId', 'text'] }, description: 'User decisions quoted verbatim with the real user message id.' },
+          unresolved: { type: 'array', items: { type: 'string' } },
+          next: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['completed', 'decisions', 'unresolved', 'next'],
+        additionalProperties: false,
+      },
+    },
+    templateId: 'task.handoff',
+    validate: (input) => handoffSchema.safeParse(input).success,
+    run: async (input, { turnId, signal }): Promise<ToolResult> => {
+      signal.throwIfAborted()
+      const result = handoff.submit(handoffSchema.parse(input), turnId)
+      if (!result.ok) {
+        const raw: ToolResult['raw'] = { error: result.error }
+        return { ok: false, raw, visible: { error: result.error } }
+      }
+      const raw: ToolResult['raw'] = { checkpointId: result.handoff.id, decisions: result.handoff.decisions.length,
+        evidence: { changes: result.handoff.evidence.changes.map(({ path, sha256 }) => ({ path, sha256 })),
+          commands: result.handoff.evidence.commands.map(({ id, status }) => ({ id, status })),
+          lifeWork: result.handoff.evidence.lifeWork.map(({ id, path, sha256 }) => ({ id, path, sha256 })) } }
+      return { ok: true, raw, visible: raw }
+    },
+  }
+}

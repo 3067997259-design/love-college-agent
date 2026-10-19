@@ -138,14 +138,15 @@ describe('single inbox execution loop', () => {
     expect(f.store.projection().task?.status).toBe('completed')
     expect(f.store.records().filter((row) => row.type === 'turn/start')).toHaveLength(1)
   })
-  it('buffers scheduler events during quiet mode, while user turns still run', async () => {
+  it('does not wake on quiet events alone, but a running user turn receives them', async () => {
     const f = fixture(); const complete = vi.fn(async () => reply([], 'done'))
     f.store.append({ type: 'companion/mode', mode: 'quiet', requestId: 'quiet', commandHash: 'quiet' })
     const harness = start({ ...f, tools: [], model: scripted(complete) })
     harness.postEvent('pomodoro', 'synthetic phase event'); await harness.idle(); expect(complete).not.toHaveBeenCalled()
     harness.send('user-initiated', 'r', 'h'); await harness.idle(); expect(complete).toHaveBeenCalledTimes(1)
+    expect(f.store.records().some((row) => row.type === 'inbox/drain' && JSON.stringify(row.ids).includes('synthetic phase event') === false)).toBe(true)
     f.store.append({ type: 'companion/mode', mode: 'rest', requestId: 'rest', commandHash: 'rest' }); harness.stateChanged(); await harness.idle()
-    expect(complete).toHaveBeenCalledTimes(2)
+    expect(complete).toHaveBeenCalledTimes(1)
   })
   it('updates a checklist through the validated plan tool', async () => {
     const f = fixture()
