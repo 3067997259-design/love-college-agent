@@ -591,6 +591,9 @@ void app.whenReady().then(async () => {
       store!.append({ type: 'turn/degraded', turnId, sources })
     }
     harness = createHarness({ store, clock, budget: resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? [...plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')), taskToolset.step] : [...plugins.tools().filter((tool) => !(tool.definition.name === 'import_student_hub_candidates' && plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')) && !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...taskDeskToolset, ...(mcp?.tools(plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled') ? ['student-hub'] : []) ?? []), taskToolset.propose, taskToolset.step], enabled: () => modelReady, changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!minecraft?.active(),
+      // D3: while a focus is running, the approved in-hand task may continue on its own under caps.
+      taskRun: { available: () => { const timer = store!.projection().pomodoro; return timer.phase === 'focus' && timer.status === 'running' && !!taskService?.authorizedActiveTask() },
+        focusKey: () => { const timer = store!.projection().pomodoro; return (timer.plan?.id ?? '') + ':' + timer.focusIndex }, steps: 6, tokens: 40_000, turns: 4 },
       contextVersion: () => JSON.stringify({ candidates: campus?.candidates().map((item) => [item.id, item.revision, item.status]), documents: documents?.view().jobs.map((job) => [job.id, job.status === 'cancelled']), mcp: mcp?.view().servers.map((server) => [server.id, server.status]), privacy: privacyEnabled(), files: documents?.filteringEnabled(), tools: [...plugins.tools().map((tool) => tool.definition.name), ...taskDeskToolset.map((tool) => tool.definition.name), taskToolset.propose.definition.name, taskToolset.step.definition.name] }),
       privateContext: async (signal) => {
         if (heartFlow?.active()) { pendingReveal = undefined; return [] }
@@ -623,6 +626,15 @@ void app.whenReady().then(async () => {
           const seen = new Set<string>(); const messages = preparedContext.messages.slice().reverse().map((message) => { if (!message.imageRefs) return message; const imageRefs = message.imageRefs.filter((ref) => { if (seen.has(ref) || seen.size >= 2) return false; seen.add(ref); return true }); return { ...message, imageRefs } }).reverse(); result = { ...preparedContext, messages }
         }
         markDegradedTurn(id)
+        // D3: an autonomous turn continues the in-hand approved task. The task state is the D-segment
+        // at the end of the request; it is not chat history and never becomes experience memory.
+        if (store!.records().flatMap((row) => row.type === 'turn/start' && row.turnId === id ? [row.trigger] : []).at(-1) === 'autonomous') {
+          const continuing = taskService?.authorizedActiveTask()
+          if (continuing) {
+            const taskContext: ContextMessage = { role: 'user', content: JSON.stringify({ continuingTask: { id: continuing.id, title: continuing.title, planVersion: continuing.plan?.version, steps: continuing.plan?.steps.map((step) => ({ id: step.id, text: step.text, status: step.status })), authorization: continuing.approval?.scope ?? null }, instruction: '专注中自主推进手上任务：每次推进一至两步，用 desk 工具只做已批准范围内的写入，用 task_step 更新步骤；不要声称任务完成，需要用户决定或批准时停下。' }) }
+            result = { messages: [...result.messages, taskContext], eligibleIndexes: result.eligibleIndexes }
+          }
+        }
         return result
       }, foreground: () => { questions?.interrupt(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, afterTools: (turnId, callIds) => questions?.commit(turnId, callIds), turnSettled: (turnId) => questions?.settled(turnId), userWork: () => { sleep?.wake(); life?.foreground() },
       settled: () => { heartFlow?.settled(); voice?.observe() }, failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })

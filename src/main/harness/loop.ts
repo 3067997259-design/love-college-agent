@@ -34,6 +34,8 @@ export function createHarness(options: {
   enabled?: () => boolean
   backgroundQuiet?: () => boolean
   limits?: { steps?: number; dailyTokens?: number; autonomousTokens?: number; outputTokens?: number }
+  /** D3: during focus, the in-hand approved task may continue on its own under per-focus caps. */
+  taskRun?: { available(): boolean; focusKey(): string; steps?: number; tokens?: number; turns?: number }
   budget?: ResourceAdmissions
   prepareContext?(turnId: string, signal: AbortSignal): Promise<{ messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }>
   privateContext?(signal: AbortSignal): Promise<readonly ContextMessage[]>
@@ -60,14 +62,39 @@ export function createHarness(options: {
   const record = (input: JournalInput) => { store.append(input); if (input.type !== 'model/attempt') options.changed?.(input.type === 'user/message' || input.type === 'assistant/message' || input.type === 'narrator/failure' ? 'message' : 'task') }
   const quiet = () => { const view = store.projection(); return options.backgroundQuiet?.() || view.sleeping || view.mode === 'quiet' || view.pomodoro.phase === 'focus' }
   const eligible = () => !disposed && (options.enabled?.() ?? true) && !store.projection().lightsOut && inbox.some((entry) => entry.source === 'user' || !quiet())
+  // D3: a running turn receives every pending event; the focus/quiet beat only decides whether an
+  // event may wake an idle harness. Delivery wording may still be held for rest by projection.
   const drain = () => {
-    const entries = inbox.filter((entry) => entry.source === 'user' || !quiet())
+    const entries = [...inbox]
     for (const entry of entries) inbox.splice(inbox.indexOf(entry), 1)
     if (entries.length) record({ type: 'inbox/drain', ids: entries.map((entry) => entry.id) })
     return entries.some((entry) => entry.source === 'user')
   }
-  const finishOpenCalls = (turnId: string) => {
-    const rows = store.records()
+  // D3 continuation accounting: caps are per focus segment and derived from durable facts, so a
+  // restart inside the same focus cannot reset the budget invisibly.
+  let focusKey = ''
+  let focusStartSeq = 0
+  const syncFocus = () => { const key = options.taskRun?.focusKey() ?? ''; if (key === focusKey) return; focusKey = key; focusStartSeq = store.records().length }
+  const focusUsage = () => {
+    const rows = store.records().slice(focusStartSeq)
+    const attempts = rows.flatMap((row) => row.type === 'model/attempt' && row.status === 'success' ? [row] : [])
+    return { tokens: attempts.reduce((sum, row) => sum + (row.inputTokens ?? 0) + (row.outputTokens ?? 0), 0),
+      turns: rows.filter((row) => row.type === 'turn/start' && row.trigger === 'autonomous').length }
+  }
+  const continuation = () => {
+    const port = options.taskRun
+    if (!port || disposed || store.projection().lightsOut) return false
+    syncFocus()
+    if (!port.available() || store.projection().task?.status === 'waiting-user') return false
+    // A question awaiting the user blocks autonomous continuation even after its turn ended.
+    const lastQuestion = store.records().findLast((row) => row.type === 'question/requested' || row.type === 'question/answered' || row.type === 'question/closed' || row.type === 'question/committed')
+    if (lastQuestion?.type === 'question/requested') return false
+    const lastEnd = store.records().findLast((row) => row.type === 'turn/end')
+    if (lastEnd && lastEnd.reason !== 'completed') return false
+    const used = focusUsage()
+    return used.tokens < (port.tokens ?? 40_000) && used.turns < (port.turns ?? 4)
+  }
+  const finishOpenCalls = (turnId: string) => {    const rows = store.records()
     const results = new Set(rows.filter((row) => row.type === 'tool/result' && row.turnId === turnId).map((row) => row.type === 'tool/result' ? row.callId : ''))
     const started = new Set(rows.filter((row) => row.type === 'tool/call' && row.turnId === turnId).map((row) => row.type === 'tool/call' ? row.callId : ''))
     for (const row of rows) if (row.type === 'assistant/message' && row.turnId === turnId) for (const call of row.toolCalls ?? []) if (!results.has(call.id)) {
@@ -106,7 +133,7 @@ export function createHarness(options: {
       for (let step = 0; ; step++) {
         try {
           turn.abort.signal.throwIfAborted()
-          if (step >= (options.limits?.steps ?? 12)) throw new GuardFailure('max-steps', 'step-limit')
+          if (step >= (trigger === 'autonomous' ? (options.taskRun?.steps ?? 6) : (options.limits?.steps ?? 12))) throw new GuardFailure('max-steps', 'step-limit')
           userEngaged = drain() || userEngaged
           const prepared = options.prepareContext ? await options.prepareContext(turn.id, turn.abort.signal) : undefined
           const recordedMessages = prepared?.messages ?? store.projection().context
@@ -191,14 +218,16 @@ export function createHarness(options: {
     }
   }
   const kick = () => {
-    if (worker || !eligible()) return
+    if (worker || (!eligible() && !continuation())) return
     options.foreground?.()
     worker = (async () => {
       while (eligible()) {
         const trigger = inbox.find((entry) => entry.source === 'user')?.source ?? inbox[0].source
         await run(trigger)
       }
-    })().catch(() => { disposed = true; options.failed?.() /* Never print private exceptions. */ }).finally(() => { worker = undefined; options.settled?.(); if (eligible()) kick() })
+      // D3: focused work on the in-hand task continues until the per-focus cap, a user decision or a failure.
+      while (continuation()) await run('autonomous')
+    })().catch(() => { disposed = true; options.failed?.() /* Never print private exceptions. */ }).finally(() => { worker = undefined; options.settled?.(); if (eligible() || continuation()) kick() })
   }
   return {
     source: model.source,
