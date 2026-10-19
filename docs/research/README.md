@@ -2,6 +2,8 @@
 
 保留可复现的实验装置与反例，生产能力以实际集成和对应测试为准。以下历史结果没有在文档整理时重新运行。
 
+当前架构研究：[真实项目工作区与 DeepSeek Harness 对照](harness-workspaces-20261019.md)（2026-10-19）。覆盖原地项目访问、权限与审批、工具闭环、长任务，以及官方 SDK 作为独立执行后端的实际缺口；目前为源码研究，未运行或接入新后端。
+
 | 入口 | 研究问题 | 已知边界与历史记录 |
 | --- | --- | --- |
 | `pnpm probe:deeptech-audit` | 结构守卫、来源权限与依赖新鲜性 | 只读代码结构检查，不调用模型。[原审计](https://github.com/3067997259-design/love-college-agent/blob/hackathon-2026-final/docs/research/deeptech-memory-audit-20261017.md) |
