@@ -153,7 +153,9 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('context/inject'), source: z.enum(['policy', 'memory', 'scheduler']), text }),
   z.strictObject({ type: z.literal('context/compact'), fromSeq: z.number().int().positive(), toSeq: z.number().int().positive(), summary: text, sources: z.array(memorySourceSchema).max(128).optional() }),
   z.strictObject({ type: z.literal('model/seen'), turnId: id, source: z.enum(['real', 'fake']), messages: z.array(contextMessageSchema).max(1024),
-    eligibleIndexes: z.array(z.number().int().nonnegative()).max(1024) }).refine((value) => new Set(value.eligibleIndexes).size === value.eligibleIndexes.length && value.eligibleIndexes.every((index) => index < value.messages.length && value.messages[index].role !== 'system')),
+    eligibleIndexes: z.array(z.number().int().nonnegative()).max(1024),
+    /** D2 request capture: tool names the model saw, never parameters or results. */
+    tools: z.array(z.string().min(1).max(64)).max(256).optional() }).refine((value) => new Set(value.eligibleIndexes).size === value.eligibleIndexes.length && value.eligibleIndexes.every((index) => index < value.messages.length && value.messages[index].role !== 'system')),
   z.strictObject({ type: z.literal('memory/batch'), ...memoryBatchSchema.shape }),
   z.strictObject({ type: z.literal('memory/access'), ids: z.array(id).max(10), requestId: id, sessionId: id }),
   z.strictObject({ type: z.literal('memory/summary'), summary: memorySummarySchema }),
