@@ -25,6 +25,15 @@ export interface PublicError {
 
 export interface Scope { userId: string; characterId: string; sessionId: string }
 export interface ClockView { nowMs: number; timeZone: string; rate: number; frozen: boolean }
+/** D3 attention: the single place that decides what she currently has in hand. */
+export type AttentionKind = 'rest' | 'user' | 'task' | 'gift' | 'life' | 'idle'
+export interface AttentionView {
+  kind: AttentionKind
+  pose: 'sleeping' | 'facing-user' | 'desk-computer' | 'desk-writing'
+  /** A task exists and is waiting for the user; it does not occupy her time. */
+  taskWaiting: boolean
+  focusRunning: boolean
+}
 export interface CompanionView {
   mode: InteractionMode
   lightsOut: boolean
@@ -449,6 +458,8 @@ export interface AppSnapshot {
   activeTaskId?: string | null
   /** D2: present while the running turn's request contains third-party originals. */
   degraded?: DegradedView
+  /** D3: what she currently has in hand; derived in main, never a permission grant. */
+  attention?: AttentionView
   messages: readonly MessageView[]
   activities: readonly ActivityView[]
   candidates: readonly CandidateView[]
