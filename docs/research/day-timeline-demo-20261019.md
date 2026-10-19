@@ -11,7 +11,7 @@
 | 设计 | 建议，未实现。 |
 | M1（main） | 已实现并完成真实验收（2026-10-19）：缓存字段归一后写入 `model/attempt`；typecheck、单元测试、scoped ESLint 与连续性探针通过。授权真实调用共 7 轮 / 33 次 / 31,676 输入 token：DeepSeek 原生形状（命中 1,280 / 未命中 244）与 OpenAI 兼容 `prompt_tokens_details.cached_tokens` 形状（命中 4,224 / 未命中 1,445）都与原始 usage、attempt 及重启后的 journal 逐字段一致；首次显式 0 保留，不回报缓存字段的供应商保持未记录。真实命中率与成本结论仍归 D0 / R1。 |
 | D0（main） | 已完成（2026-10-19）：固定剧本 S0 跑现有心流；连续性探针 33 项通过；真实模型回合完成（2/2 请求成功，输入 9,996 = 命中 4,992 + 未命中 5,004，输出 247），审批 1 次。证据在本机 `test-results/d0-baseline-20261019/`，见 §4.3。 |
-| D1（demo 分支） | 进行中（2026-10-19 开 `codex/day-timeline-demo`）：任务日志记录、共享视图与投影已实现并有重启单测；模型提议工具、任务卡与剧本场景待做，见 [D1 契约](day-timeline-d1-task-20261019.md)。 |
+| D1（demo 分支） | 进行中（2026-10-19 开 `codex/day-timeline-demo`）：D1-A 任务日志/共享视图/投影/重启测试与 D1-B 任务命令、任务服务、`task_propose`/`task_step` 工具、授权查询均已完成并有单测；任务卡 UI 与剧本场景（D1-C）待做，见 [D1 契约](day-timeline-d1-task-20261019.md)。 |
 | demo | 未开始；真实模型测试需要另行授权和预算。 |
 
 ## 1. 审计
