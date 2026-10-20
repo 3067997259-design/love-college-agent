@@ -518,6 +518,12 @@ export const SCENARIOS = {
     question: { id: 'q1', taskId: 'turn-2', createdAtMs: T.sat1420 + 5 * MIN, context: 'work', status: 'waiting', kind: 'approval',
       question: '她想在「palindromes」里运行命令：node test.js，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。',
       choices: ['信任这个项目', '先不要'], expiresAtMs: T.sat1420 + 15 * MIN },
+    work: {
+      current: { path: String.raw`D:\code\palindromes`, name: 'palindromes', desk: false, trusted: false },
+      desk: { path: String.raw`C:\Users\demo\Documents\桃子的房间\demo\书桌`, name: '书桌', desk: true, trusted: false },
+      recent: [{ path: String.raw`D:\code\course-site`, name: 'course-site', desk: false, trusted: true }],
+      status: 'idle',
+    },
   })),
 } satisfies Record<string, AppSnapshot>
 
