@@ -40,6 +40,15 @@ pnpm start
 
 已导入的 `<数据根>/connections/providers.json` 优先于 `LCA_PROVIDERS_FILE` fallback；配置只由主进程读写。不要用 shell 打印其内容。正常的配置入口见 [开始使用](getting-started.md)。
 
+`providers.json` 的模型部分（1.0.1 起）：
+
+- `providers.chat`：聊天模型。
+- `providers.work`：工作模型。
+- `routing.work`：`follow-main` 表示工作时用聊天模型（默认），`independent` 表示用 `providers.work`。
+- `efforts.chat` / `efforts.work`：思考强度，取 `off`、`minimal`、`low`、`medium`、`high`、`xhigh`、`max` 之一；不写就是服务商默认。换了模型，那个角色的思考强度就清掉。
+
+主进程按接口地址识别服务商（`src/main/config/vendors.ts`），据此给 DSH 生成路由（`src/main/dsh/routes.ts`）。密钥只放进启动 DSH 的环境变量，不写进路由。
+
 不设 `LCA_DATA_DIR` 的普通安装使用系统“文档”中的“桃子的房间”投影目录；独立数据根使用自己的房间。房间目录包含作用域和数据根身份，不能靠复制另一份房间来迁移数据库。
 
 ## 隔离开发模式
@@ -74,7 +83,7 @@ pnpm test:package --unpacked-only
 
 `--unpacked-only` 只运行包内 EXE，不安装或卸载，报告为 `test-results/package-unpacked-report.json`。`pnpm test:package` 则还会创建、验证并卸载自己的测试安装；发现已有同名用户安装时拒绝覆盖。不要把包内验证写成用户升级验收。
 
-发布应从已提交的确定源码构建，核对构建回执、安装器 SHA、对应包内结果和版本说明。另一台机器安装、真实配置和连续使用分别记录，不复用旧包结论。当前版本见 [v1.0.0](releases/1.0.0.md)。
+发布应从已提交的确定源码构建，核对构建回执、安装器 SHA、对应包内结果和版本说明。另一台机器安装、真实配置和连续使用分别记录，不复用旧包结论。当前版本见 [v1.0.1](releases/1.0.1.md)。
 
 ### 含特殊字符的仓库路径
 

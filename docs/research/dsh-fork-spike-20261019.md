@@ -220,3 +220,41 @@ LCA_DATA_DIR=<独立数据目录> node_modules/electron/dist/electron.exe .
 ```
 
 真实模型探针和界面测试会调用付费模型，需要相应任务的明确授权。
+
+## 11. 聊天模型与工作模型（10-20，1.0.1）
+
+维护者的判断：现在很少有聊天和写代码都强的模型。擅长聊天的如 Gemini 3.x flash，擅长写代码的如 DeepSeek、GLM、Kimi、GPT-6.x，所以把主模型拆成聊天模型和工作模型。
+
+**不改 DSH 源码。** 上游目前不收 PR 和 issue，所以用的全是插件层已经开放的接口：
+
+- **模型选择**（`installModelSelection`）：一个可变对象，每一步请求前读取；切换在下一步生效。换了模型时，DSH 会在上下文里留一句说明，只改思考强度时不留。
+- **模型信息**（`ctx.llm.resolveModelInfo`）：给出一个模型支持的思考强度。pi-ai 随附的目录覆盖 Google、OpenAI、Anthropic、DeepSeek、智谱、Kimi 等；DeepSeek 官方接口由 dsh-llm-deepseek 给出档位。
+- **子代理**：继承派它的那次请求的模型和思考强度。
+
+**切换规则**（`dsh/lca-bridge/policy.js`）：
+
+- 每一轮由聊天模型开头。
+- 根会话第一次写文件、改文件、运行命令或派子代理时，这一步不执行，bridge 把这一轮换到工作模型，由它重新判断并动手。这样代码出自工作模型，而不是聊天模型写进第一个工具调用里的那份。
+- 只读的一步照常执行，同时换模型。
+- 被换下的那一步在 journal 里记为 `handed-off`，书里不显示。
+
+**路由**（`src/main/dsh/routes.ts`）：
+
+- 认得的服务商走 pi-ai 目录里的路由。Google、OpenAI、Anthropic 等用原生接口；Kimi、智谱等保留填写的地址，只取目录里的模型资料。
+- DeepSeek 官方走 DSH 自带的适配器。
+- 其他地址各自走一条 OpenAI 兼容路由。
+- 密钥只放进环境变量。
+
+**代价：**
+
+- 工作模型第一次接手时，要读一遍当天的上下文，这一次缓存命中不了。
+- 干活途中你插话时，接话的是工作模型。
+
+**验证：**
+
+- `node scripts/dsh-bridge-check.mjs`：
+  - `handoff`：聊天模型的写入被换下，工作模型自己写出文件，下一轮回到聊天模型。
+  - `levels`：用占位密钥，从目录读出 Gemini 3.8 flash 的 low/medium/high 和 DeepSeek v4 pro 的档位，没有请求出本机。
+  - 原有的 `degrade`、`trust`、`decline` 都通过。
+- 单测覆盖路由、厂商识别、思考强度设置与 bridge 策略。
+- Electron 冒烟 `smoke-providers` 通过：保存聊天模型后不重启就能聊。
