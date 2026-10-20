@@ -31,6 +31,11 @@ const EVENT_ORIGINS: readonly SeenOrigin[] = ['user', 'mail', 'document', 'pomod
 const EVENT_ORIGIN = new Set<SeenOrigin>(EVENT_ORIGINS)
 const DSH_WORKSPACE = new Set(['dsh.read', 'dsh.write', 'dsh.edit', 'dsh.search', 'dsh.shell', 'dsh.agent'])
 /**
+ * D-4 (maintainer, 2026-10-20): in a work turn your decisions and reasons may become memory, file contents and tool
+ * output never. Her replies there keep their words but lose code blocks and inline code, where file excerpts live.
+ */
+export const withoutCode = (text: string) => text.replace(/```[\s\S]*?(```|$)/g, ' ').replace(/`[^`\n]*`/g, ' ').replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim()
+/**
  * The sole memory input surface: successful model input snapshots, never tool/raw or any private store.
  * Origin comes from the journal record that produced the context entry, not from the message body.
  */
@@ -46,8 +51,10 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
   // D2: workspace tool results (legacy flow desk tools and task desk tools) are work data, never experience memory.
   const workspaceCalls = records.flatMap((row) => row.type === 'tool/call' && (row.templateId.startsWith('desk_') || row.templateId.startsWith('desk.')) ? [row] : [])
   const workspaceIds = new Set(workspaceCalls.map((row) => row.callId))
-  const workspaceTurns = new Set([...workspaceCalls.map((row) => row.turnId), ...records.flatMap((row) => row.type === 'work/activity' && DSH_WORKSPACE.has(row.templateId) ? [row.turnId] : [])])
+  const workspaceTurns = new Set(workspaceCalls.map((row) => row.turnId))
   const workspaceReplies = new Set(records.flatMap((row) => row.type === 'assistant/message' && workspaceTurns.has(row.turnId) ? [row.text] : []))
+  // DSH work turns follow D-4 instead: her replies stay, without code (withoutCode).
+  const dshWorkTurns = new Set(records.flatMap((row) => row.type === 'work/activity' && DSH_WORKSPACE.has(row.templateId) && dshTurns.has(row.turnId) ? [row.turnId] : []))
   const ignored = new Set<string>(); const titles = new Map<string, string>()
   for (const row of records) {
     if (row.type === 'campus/proposed') { titles.set(row.candidate.id, row.candidate.title); ignored.delete(row.candidate.id) }
@@ -68,7 +75,8 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
       if (memoryOnly && (message.role === 'tool' && externalIds.has(message.toolCallId ?? '') || message.role === 'assistant' && (externalReplies.has(message.content) || ignoredTitles.some((title) => message.content.includes(title))))) continue
       if (memoryOnly && (message.role === 'tool' && workspaceIds.has(message.toolCallId ?? '') || message.role === 'assistant' && workspaceReplies.has(message.content))) continue
       if (memoryOnly && message.role === 'assistant' && workspaceTurns.has(row.turnId)) continue
-      const text = redactFixed(message.content)
+      const text = redactFixed(memoryOnly && message.role === 'assistant' && dshWorkTurns.has(row.turnId) ? withoutCode(message.content) : message.content)
+      if (!text) continue
       const declared = declaredSource(message.content)
       let origin: SeenOrigin
       if (message.role === 'assistant') origin = 'model'

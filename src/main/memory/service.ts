@@ -162,7 +162,24 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     if (matches.length) repository.append({ type: 'memory/access', ids: matches.map((match) => match.item.id), requestId, sessionId: store.scope.sessionId })
     return matches.map(({ item }) => ({ id: item.id, text: item.text, kind: item.kind, tier: item.tier, atMs: item.lastMentionedAtMs, reviewStatus: item.reviewStatus, sources: item.sources.map((source) => source.id) }))
   }
+  /** Earlier days' summaries she may refer to: unreviewed references, never facts or instructions. */
+  const previousDays = () => {
+    const retired = retiredSourceIds()
+    return summaryReferences(allowed() ? validSummaries(repository.view().summaries).filter((summary) => summary.sources.every((source) => !retired.has(source.id))) : [], store.scope.sessionId, sessionDayKey(clock), clock)
+      .map((summary) => ({ level: summary.level, dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
+  }
   return { maintenance,
+    /**
+     * For a DSH session, which has no LCA context assembly: the same references the legacy loop gives every
+     * request. Earlier days with the first message of a day's session, memories matching your latest lines each time.
+     */
+    reference: (query: string, requestId: string, firstOfSession: boolean) => {
+      if (!allowed()) return null
+      const days = firstOfSession ? previousDays() : []
+      const recall = search(query, requestId)
+      if (!days.length && !recall.length) return null
+      return { ...(days.length ? { previousDaysReference: days } : {}), ...(recall.length ? { memoryReference: recall, trust: 'unreviewed-reference' as const } : {}) }
+    },
     view: (): MemoryView => {
       const state = repository.view(); const valid = state.items.filter((item) => !item.supersededBy)
       return { status: !options.model ? 'unconfigured' : status === 'unconfigured' ? 'idle' : status, source: options.model?.source ?? 'none', shortTermCount: valid.filter((item) => item.tier === 'short_term').length, longTermCount: valid.filter((item) => item.tier === 'long_term').length,
@@ -201,8 +218,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       const opticalReplies = new Set(rows.flatMap((row) => row.type === 'assistant/message' && opticalTurns.has(row.turnId) ? [row.seq] : []))
       const today = base.filter((entry) => !policies.includes(entry))
       const recall = allowed() ? search(today.filter((entry) => entry.message.role === 'user').slice(-3).map((entry) => entry.message.content).join('\n'), turnId) : []
-      const retired = retiredSourceIds()
-      const summaries = summaryReferences(allowed() ? validSummaries(repository.view().summaries).filter((summary) => summary.sources.every((source) => !retired.has(source.id))) : [], store.scope.sessionId, sessionDayKey(clock), clock).map((summary) => ({ level: summary.level, dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
+      const summaries = previousDays()
       const messages: ContextMessage[] = [{ role: 'system', content: harnessPolicy.system }, ...policies.map((entry) => entry.message), ...profileContext(store.projection().onboarding)]; const eligibleIndexes: number[] = []
       const character = records().findLast((row) => row.type === 'character/definition')
       // 导入的角色包有自己的定义记录；内置桃子没有，用内置角色卡

@@ -7,6 +7,7 @@ import { createDshExecution } from '../../src/main/dsh/execution'
 import type { DshApproval, DshEvent, DshHostOptions, startDshHost } from '../../src/main/dsh/host'
 import type { HarnessTool } from '../../src/main/harness/tools'
 import { openJournal } from '../../src/main/journal/file'
+import { witnessedPage } from '../../src/main/history/seen'
 import { projectJournal } from '../../src/main/journal/projection'
 import { seenFragments } from '../../src/main/memory/seen'
 import type { SessionStore } from '../../src/main/store/session'
@@ -27,19 +28,21 @@ function setup(dataDir?: string) {
   const store: SessionStore = { scope: journal.scope, records: journal.records, projection: () => projectJournal(journal.records()), append: journal.append, close: journal.close }
   const asked: { question: string; choices: string[] }[] = []
   let answer: (choices: string[]) => string | null = (choices) => choices[0]
-  const host = { options: undefined as DshHostOptions | undefined, opened: [] as unknown[][], sent: [] as string[], trusted: [] as string[] }
+  const host = { options: undefined as DshHostOptions | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], trusted: [] as string[] }
+  const referenceAsks: boolean[] = []
   const launch = ((options: DshHostOptions) => {
     host.options = options
     return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); return 'dsh-1' }, trust: (id: string) => { host.trusted.push(id) },
-      send: (_id: string, text: string) => { host.sent.push(text) }, cancel: () => {}, close: async () => null }
+      send: (_id: string, text: string, _mode?: string, reference: string | null = null) => { host.sent.push(text); host.references.push(reference) }, cancel: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
   const execution = createDshExecution({ store, clock, dataDir: root, dshRoot: 'unused', bridge: 'unused', routes: { env: {}, chat: { provider: 'deepseek-official', model: 'deepseek-flash' }, work: { provider: 'deepseek-official', model: 'deepseek-flash' } }, guardedRoots: [],
     project: () => join(root, 'project'), persona: () => '', suffix: () => '', tools: () => [mailTool],
-    ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch })
+    ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch,
+    reference: ({ firstOfSession }) => { referenceAsks.push(firstOfSession); return JSON.stringify({ memoryReference: [{ text: '你喜欢用 TypeScript' }], ...(firstOfSession ? { previousDaysReference: [{ text: '昨天一起写了质数脚本' }] } : {}) }) } })
   const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: 'dsh-1', ...event } as DshEvent)
   const approval = (patch: Partial<DshApproval>) => host.options!.onApproval({ sessionId: 'dsh-1', toolName: 'pwsh', callId: 'call-x', reason: null, kind: 'escalation', command: 'node a.js', subject: 'node a.js', degraded: null, ...patch })
   const opened = async () => { for (let i = 0; i < 20 && !host.sent.length; i++) await Promise.resolve() }
-  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, setAnswer: (next: typeof answer) => { answer = next } }
+  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, referenceAsks, setAnswer: (next: typeof answer) => { answer = next } }
 }
 
 async function workTurn(f: ReturnType<typeof setup>) {
@@ -87,15 +90,52 @@ describe('DSH work in the LCA journal', () => {
     f.journal.close()
   })
 
-  it('applies the D2 memory rules to DSH work and third-party turns', async () => {
+  it('records what she saw in a DSH turn: your lines and her replies, never tool traffic', async () => {
     const f = setup()
     await workTurn(f)
-    const workTurnId = (f.store.records().find((row) => row.type === 'work/turn') as { turnId: string }).turnId
-    f.store.append({ type: 'turn/degraded', turnId: workTurnId, sources: ['web'] })
-    // A later legacy turn (e.g. autonomous) sees the conversation projected from the journal.
-    f.store.append({ type: 'model/seen', turnId: 'later', source: 'fake', messages: f.store.projection().context.map((message) => ({ ...message })), eligibleIndexes: [0, 1, 2] })
-    const memory = seenFragments(f.store.records(), true)
-    expect(memory.map((fragment) => fragment.text)).toEqual(['帮我跑一下 count.js'])
+    const turnId = (f.store.records().find((row) => row.type === 'work/turn') as { turnId: string }).turnId
+    const seen = f.store.records().filter((row) => row.type === 'model/seen')
+    expect(seen).toHaveLength(1)
+    expect(seen[0]).toMatchObject({ turnId, source: 'real', messages: [{ role: 'user', content: '帮我跑一下 count.js' }, { role: 'assistant', content: '我先跑一下看看。' }, { role: 'assistant', content: '跑出来了，一共 1229 个。' }], eligibleIndexes: [0, 1, 2] })
+    // Old pages can quote DSH lines again: a later frame shows she saw them.
+    expect(witnessedPage(f.store, f.store.scope.sessionId).map((message) => message.text)).toEqual(['帮我跑一下 count.js', '我先跑一下看看。', '跑出来了，一共 1229 个。'])
+    f.journal.close()
+  })
+
+  it('sends memory references beside your words: earlier days only with the first message of a fresh session', async () => {
+    const f = setup()
+    await workTurn(f)
+    f.execution.send('再加个测试', 'r-2', 'h-2')
+    for (let i = 0; i < 20 && f.host.sent.length < 2; i++) await Promise.resolve()
+    expect(f.referenceAsks).toEqual([true, false])
+    expect(JSON.parse(f.host.references[0]!)).toHaveProperty('previousDaysReference')
+    expect(JSON.parse(f.host.references[1]!)).not.toHaveProperty('previousDaysReference')
+    expect(f.host.sent).toEqual(['帮我跑一下 count.js', '再加个测试'])
+    // The references are not your words: the journal and what she saw keep only your lines.
+    expect(JSON.stringify(f.store.records())).not.toContain('memoryReference')
+    f.journal.close()
+  })
+
+  it('applies D-4 to DSH work turns and D2 to third-party turns in memory', async () => {
+    const f = setup()
+    f.execution.send('就用 TypeScript 写，别动 config 目录', 'r-1', 'h-1')
+    await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    f.emit({ t: 'tool-call', callId: 'call-1', name: 'write', args: JSON.stringify({ file_path: 'a.ts', content: 'x' }) })
+    f.emit({ t: 'tool-result', callId: 'call-1', isError: false })
+    f.emit({ t: 'message', text: ['好，按你说的用 TypeScript，写在 `src/a.ts`：', '', '```ts', 'export const secretLooking = 42', '```', '', 'config 目录没动。'].join('\n'), toolCalls: [] })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
+    // D-4: your decisions and reasons stay; her reply keeps its words without code or file excerpts.
+    expect(seenFragments(f.store.records(), true).map((fragment) => fragment.text)).toEqual(['就用 TypeScript 写，别动 config 目录', ['好，按你说的用 TypeScript，写在 ：', 'config 目录没动。'].join('\n')])
+    // D2: in a turn that read third-party content, only your own words become memory.
+    f.execution.send('帮我查一下这个网页说了什么', 'r-2', 'h-2')
+    f.emit({ t: 'turn-start', turn: 2, preset: 'workspace-write' })
+    f.emit({ t: 'degraded', sources: ['web'] })
+    f.emit({ t: 'message', text: '网页上说明天停课。', toolCalls: [] })
+    f.emit({ t: 'turn-end', turn: 2, reason: { kind: 'completed' } })
+    const memory = seenFragments(f.store.records(), true).map((fragment) => fragment.text)
+    expect(memory).toContain('帮我查一下这个网页说了什么')
+    expect(memory).not.toContain('网页上说明天停课。')
     f.journal.close()
   })
 

@@ -287,7 +287,9 @@ export function apply(ctx) {
         case 'open': send({ t: 'session', ref: message.ref, ...(await open(message)) }); break
         case 'send': {
           const agent = agentOf(message.sessionId)
-          const input = createUserMessage({ content: [{ type: 'text', text: message.text }], source: { kind: 'user' } })
+          // LCA's memory references (earlier days, recalled memories) ride in their own block before your words.
+          const reference = typeof message.reference === 'string' && message.reference ? [{ type: 'text', text: message.reference }] : []
+          const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: 'user' } })
           if (message.mode === 'steer') agent.steer(input); else if (message.mode === 'inject') agent.inject(input); else agent.followup(input)
           break
         }

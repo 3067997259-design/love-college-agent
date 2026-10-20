@@ -10,7 +10,8 @@ import type { SessionStore } from '../store/session'
 import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost, type DshSource } from './host'
 import type { DshRoutes } from './routes'
 
-type Turn = { lcaTurnId: string; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController }
+/** `seen`: the conversation of this turn, in order, as she saw it: your lines and her replies, never tool traffic. */
+type Turn = { lcaTurnId: string; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController; seen: { role: 'user' | 'assistant'; content: string }[] }
 type Rule = { project: string; tool: string; prefix: string | null }
 /** One DSH session per LCA day; `degraded` survives a restart that came before the bridge retired third-party results. */
 type Saved = Record<string, { id: string; cwd: string; degraded?: DshSource[] }>
@@ -46,6 +47,11 @@ export function createDshExecution(options: {
   store: SessionStore; clock: Clock; dataDir: string; dshRoot: string; bridge: string; routes: DshRoutes; guardedRoots: readonly string[]
   project(): string; persona(): string; suffix(): string; tools(): readonly HarnessTool[]
   ask(question: string, choices: string[], context: { turnId: string; callId: string; signal: AbortSignal }): Promise<string | null>
+  /**
+   * References that go with your message (memory/service.ts reference): earlier days' summaries with the first message
+   * of a new session, memories matching your latest lines. Sent beside your text, never recorded as your words.
+   */
+  reference?(input: { requestId: string; firstOfSession: boolean }): string | null
   changed(reason: AppEvent['reason']): void
   /** Test seam; production launches the DSH child process. */
   launch?: typeof startDshHost
@@ -57,9 +63,10 @@ export function createDshExecution(options: {
   const record = (input: JournalInput) => store.append(input)
   const lcaTools = () => new Map(options.tools().map((tool) => [LCA_PREFIX + tool.definition.name, tool]))
   let host: DshHost | undefined
-  let session: { id: string; cwd: string; day: string } | undefined
+  let session: { id: string; cwd: string; day: string; fresh?: boolean } | undefined
   let turn: Turn | undefined
   let pending: string[] = []
+  const pendingText = new Map<string, string>()
   // The book shows one question at a time; concurrent approvals wait their turn instead of failing.
   let asking: Promise<unknown> = Promise.resolve()
   const ask: typeof options.ask = (question, choices, context) => {
@@ -68,10 +75,27 @@ export function createDshExecution(options: {
     return next
   }
 
-  const drain = () => { if (pending.length) { record({ type: 'inbox/drain', ids: pending }); pending = [] } }
+  const drain = () => {
+    if (!pending.length) return
+    record({ type: 'inbox/drain', ids: pending })
+    for (const id of pending) { const text = pendingText.get(id); if (turn && text) turn.seen.push({ role: 'user', content: text }); pendingText.delete(id) }
+    pending = []
+  }
+  /**
+   * What she saw in this DSH turn, for LCA's own readers (memory, day summaries, the diary, old-page quotes).
+   * DSH keeps the full request in its own log; LCA records only the conversation (record-where-used).
+   * Memory then applies D-4 and D2 to it (memory/seen.ts).
+   */
+  const recordSeen = (current: Turn) => {
+    if (!current.seen.some((message) => message.role === 'assistant')) return
+    const messages = current.seen.slice(-1024).map((message) => ({ role: message.role, content: clip(message.content, 200_000) }))
+    record({ type: 'model/seen', turnId: current.lcaTurnId, source: 'real', messages, eligibleIndexes: messages.map((_, index) => index) })
+  }
   const fail = (code: PublicErrorCode) => {
     const lcaTurnId = turn?.lcaTurnId ?? randomUUID()
     if (!turn) { record({ type: 'turn/start', turnId: lcaTurnId, trigger: 'user' }); drain() }
+    // She answered before the failure: what she saw up to then still happened.
+    if (turn) recordSeen(turn)
     turn?.asks.abort()
     record({ type: 'turn/end', turnId: lcaTurnId, reason: 'error', error: { code, retryable: code === 'connection-failed' || code === 'upstream-busy' } })
     record(failureNarration(store, lcaTurnId, code, turn?.toolsExecuted ?? false))
@@ -136,7 +160,7 @@ export function createDshExecution(options: {
     if (!session || (event.sessionId && event.sessionId !== session.id)) return
     switch (event.t) {
       case 'turn-start': {
-        turn = { lcaTurnId: randomUUID(), toolsExecuted: false, calls: new Map(), asks: new AbortController() }
+        turn = { lcaTurnId: randomUUID(), toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [] }
         record({ type: 'turn/start', turnId: turn.lcaTurnId, trigger: 'user' }); drain()
         const preset = typeof event.preset === 'string' && event.preset.length <= 64 ? event.preset : null
         record({ type: 'work/turn', turnId: turn.lcaTurnId, engine: 'dsh', sessionId: session.id, preset })
@@ -149,6 +173,7 @@ export function createDshExecution(options: {
         const text = typeof event.text === 'string' ? event.text : ''
         if (!text.trim()) break
         record({ type: 'assistant/message', id: randomUUID(), turnId: turn.lcaTurnId, text, status: 'complete' })
+        turn.seen.push({ role: 'assistant', content: text })
         options.changed('message'); break
       }
       case 'tool-call': {
@@ -189,6 +214,7 @@ export function createDshExecution(options: {
         const reason = event.reason as { kind?: string } | null
         if (reason?.kind === 'error') { fail(failureCode(reason)); break }
         turn.asks.abort()
+        recordSeen(turn)
         record({ type: 'turn/end', turnId: turn.lcaTurnId, reason: reason?.kind === 'cancelled' ? 'aborted' : 'completed' })
         turn = undefined; options.changed('task'); break
       }
@@ -199,7 +225,7 @@ export function createDshExecution(options: {
   const ensureHost = (cwd: string) => host ??= (options.launch ?? startDshHost)({ clock, dshRoot: options.dshRoot, dataDir: options.dataDir, bridge: options.bridge, workspace: cwd, routes: options.routes, guardedRoots: options.guardedRoots,
     persona: options.persona(), suffix: options.suffix(), tools: [...lcaTools()].map(([name, tool]) => ({ name, description: tool.definition.description, parameters: tool.definition.parameters as Record<string, unknown> })),
     onEvent, onCall: call, onApproval: approve })
-  let opening: Promise<{ id: string; cwd: string; day: string }> | undefined
+  let opening: Promise<{ id: string; cwd: string; day: string; fresh?: boolean }> | undefined
   const ensureSession = () => {
     const day = store.scope.sessionId; const cwd = resolve(options.project())
     if (session?.id && session.day === day && session.cwd === cwd) return Promise.resolve(session)
@@ -215,10 +241,12 @@ export function createDshExecution(options: {
     const running = ensureHost(cwd)
     const saved = read<Saved>(sessionsFile, {})
     const known = saved[day]?.cwd === cwd ? saved[day] : undefined
-    const current = { id: '', cwd, day }
+    const current: { id: string; cwd: string; day: string; fresh?: boolean } = { id: '', cwd, day }
     session = current
     const trusted = read<Rule[]>(rulesFile, []).some((rule) => rule.project === cwd && rule.prefix === null)
     current.id = await running.open(cwd, known?.id, trusted, dshSources(known?.degraded))
+    // A session DSH did not resume starts without the earlier days: the first message brings them.
+    if (known?.id !== current.id) session.fresh = true
     const degraded = known?.id === current.id ? dshSources(known.degraded) : []
     writeFileSync(sessionsFile, JSON.stringify({ ...saved, [day]: { id: current.id, cwd, ...(degraded.length ? { degraded } : {}) } }, null, 2))
     return current
@@ -228,9 +256,13 @@ export function createDshExecution(options: {
     source: 'real' as const,
     send: (text: string, requestId: string, commandHash: string) => {
       const id = randomUUID()
-      record({ type: 'user/message', id, text, requestId, commandHash }); pending.push(id); options.changed('message')
+      record({ type: 'user/message', id, text, requestId, commandHash }); pending.push(id); pendingText.set(id, text); options.changed('message')
       // A session that cannot open is LCA's own failure (runtime, profile, link), not the user's model setup.
-      void ensureSession().then((current) => host!.send(current.id, text, turn ? 'steer' : 'followup'), (error: unknown) => {
+      void ensureSession().then((current) => {
+        const reference = options.reference?.({ requestId, firstOfSession: !!current.fresh }) ?? null
+        current.fresh = false
+        host!.send(current.id, text, turn ? 'steer' : 'followup', reference)
+      }, (error: unknown) => {
         console.error('DSH_SESSION_FAILED', (error as { code?: unknown } | null)?.code ?? (error instanceof Error ? error.message.slice(0, 40) : 'unknown'))
         fail('internal')
       })

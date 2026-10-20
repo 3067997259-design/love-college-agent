@@ -11,7 +11,8 @@
 //   but handed to the work model, which writes the file itself. Turn 2 is back on the chat model.
 // - levels: catalog routes (Gemini for chat, DeepSeek's first-party adapter for work, placeholder keys)
 //   report each model's thinking levels from DSH's installed catalog; no request leaves the machine.
-// Usage: node scripts/dsh-bridge-check.mjs [degrade|trust|decline|handoff|levels ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
+// - reference: LCA's memory references ride in their own block before your words in the model request.
+// Usage: node scripts/dsh-bridge-check.mjs [degrade|trust|decline|handoff|levels|reference ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync } from 'node:fs'
@@ -28,6 +29,19 @@ const resultOf = (seen, id) => seen.results.find((result) => result.callId === i
 const write = (id, content) => ({ tool: 'write', id, args: { file_path: 'note.txt', content } })
 
 const SCENARIOS = {
+  reference: {
+    trusted: true, answer: 'allowed-once', turns: ['[[T1]] what did we do yesterday'], reference: '{"previousDaysReference":[{"text":"LCA_REFERENCE_PROBE"}]}',
+    script({ messages, notes }) {
+      // DSH may add its own reminders after your message; take the one carrying your words.
+      const user = messages.findLast((message) => message.role === 'user' && textOf(message.content).includes('[[T1]]'))
+      notes.userText = textOf(user?.content)
+      return { text: 'we wrote a prime counter' }
+    },
+    check: (seen, notes) => ({
+      turnsCompleted: seen.turnEnds.length === 1 && seen.turnEnds[0] === 'completed',
+      referenceBeforeWords: notes.userText.indexOf('LCA_REFERENCE_PROBE') >= 0 && notes.userText.indexOf('LCA_REFERENCE_PROBE') < notes.userText.indexOf('[[T1]]'),
+    }),
+  },
   levels: {
     trusted: true, turns: [], describe: true,
     routes: () => ({ LCA_CHAT_API_KEY: 'placeholder', DEEPSEEK_API_KEY: 'placeholder', LCA_DSH_ROUTES: JSON.stringify({
@@ -164,7 +178,7 @@ async function run(name) {
         else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted })
         break
       case 'described': seen.described = { chat: message.chat, work: message.work }; child.send({ t: 'shutdown' }); break
-      case 'session': sessionId = message.sessionId; child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup' }); break
+      case 'session': sessionId = message.sessionId; child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', ...(scenario.reference ? { reference: scenario.reference } : {}) }); break
       case 'approval':
         seen.approvals.push({ turn, kind: message.kind, toolName: message.toolName, degraded: message.degraded })
         child.send({ t: 'approval-answer', id: message.id, outcome: scenario.answer }); break
