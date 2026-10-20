@@ -65,7 +65,8 @@ describe('DSH work in the LCA journal', () => {
     const view = f.store.projection()
     expect(view.context.map((message) => [message.role, message.content])).toEqual([['user', '帮我跑一下 count.js'], ['assistant', '我先跑一下看看。'], ['assistant', '跑出来了，一共 1229 个。']])
     expect(view.context.some((message) => message.role === 'tool' || message.toolCalls)).toBe(false)
-    expect(view.activities).toEqual([{ id: 'call-1', taskId: turnId, toolCallId: 'call-1', templateId: 'dsh.shell', status: 'completed', fields: {} }])
+    const started = (records.find((row) => row.type === 'work/activity') as { atMs: number }).atMs
+    expect(view.activities).toEqual([{ id: 'call-1', taskId: turnId, toolCallId: 'call-1', templateId: 'dsh.shell', status: 'completed', fields: {}, startedAtMs: started }])
     expect(view.evidenceSeqs).toEqual([])
     expect(view.task).toMatchObject({ id: turnId, status: 'completed' })
     f.journal.close()

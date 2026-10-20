@@ -123,3 +123,18 @@ it('allows only book answers and preserves command idempotency', async () => {
   expect(c.dispatch(command, 'mini')).toMatchObject({ status: 'rejected', error: { code: 'permission-denied' } }); expect(c.dispatch(command)).toMatchObject({ status: 'accepted' }); expect(c.dispatch(command)).toMatchObject({ status: 'accepted' })
   await p; expect(f.store.records().filter((row) => row.type === 'question/answered')).toHaveLength(1); c.dispose()
 })
+it('asks approvals without the question budget and accepts only their choices', async () => {
+  const f = fixture(); f.start()
+  const approve = () => f.q.approve({ question: 'Run node a.js here?', choices: ['允许这一次', '拒绝'] }, { store: f.store, clock: f.clock, signal: f.abort.signal, turnId: 'turn', callId: randomUUID() })
+  for (let i = 0; i < 4; i++) {
+    const pending = approve()
+    expect(f.q.view()).toMatchObject({ status: 'waiting', kind: 'approval', choices: ['允许这一次', '拒绝'] })
+    expect(f.answer('let me think')).toBe('invalid-command')
+    expect(f.answer(i % 2 ? '拒绝' : '允许这一次')).toBeUndefined()
+    expect((await pending).raw).toMatchObject({ status: 'answered' })
+  }
+  // A fourth ask_user in the same turn is still refused: approvals did not use the questions' budget, and
+  // the three questions after them do.
+  for (let i = 0; i < 3; i++) { const pending = f.ask(); expect(f.q.view()).not.toHaveProperty('kind'); f.answer(); await pending }
+  expect((await f.ask()).raw).toMatchObject({ status: 'question-limit' })
+})

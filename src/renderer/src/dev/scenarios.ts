@@ -491,6 +491,34 @@ export const SCENARIOS = {
       })),
     },
   })),
+
+  /** DSH 写代码：上一轮的活动收成一行留在原位，她的回复带列表和代码；这一轮只露出最近几步，审批卡点一下就定 */
+  'dsh-work': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1420 + 6 * MIN },
+    companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'think' },
+    task: { id: 'turn-2', status: 'waiting-user', steps: [] },
+    messages: [
+      msg('d1', 'user', '帮我写个小脚本，数一下 1 到 5000 里有多少个回文数，存成文件再运行一下给我看结果', T.sat1420 - 4 * MIN),
+      msg('d2', 'assistant', '我先写个脚本。', T.sat1420 - 4 * MIN + 6_000),
+      msg('d3', 'assistant', '写好了，存在 `count_palindromes.js` 里，跑出来一共 **148** 个：\n\n- 一位数 9 个\n- 两位数 9 个\n- 三位数 90 个\n- 四位数里 1000 到 4999 有 40 个\n\n核心就一行：\n\n```js\nconst isPal = (n) => String(n) === [...String(n)].reverse().join(\'\')\n```', T.sat1420 - 3 * MIN),
+      msg('d4', 'user', '再加个测试，跑一下', T.sat1420 + 4 * MIN),
+      msg('d5', 'assistant', '好，我写个 test.js 对一下。', T.sat1420 + 4 * MIN + 5_000),
+      msg('q1', 'assistant', '她想在「palindromes」里运行命令：node test.js，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。', T.sat1420 + 5 * MIN),
+    ],
+    activities: [
+      act('p1', 'dsh.write', 'completed', {}, { taskId: 'turn-1', startedAtMs: T.sat1420 - 4 * MIN + 8_000 }),
+      act('p2', 'dsh.shell', 'failed', {}, { taskId: 'turn-1', startedAtMs: T.sat1420 - 4 * MIN + 12_000 }),
+      act('p3', 'dsh.shell', 'completed', {}, { taskId: 'turn-1', startedAtMs: T.sat1420 - 4 * MIN + 30_000 }),
+      act('c1', 'dsh.read', 'completed', {}, { taskId: 'turn-2', startedAtMs: T.sat1420 + 4 * MIN + 8_000 }),
+      act('c2', 'dsh.search', 'completed', {}, { taskId: 'turn-2', startedAtMs: T.sat1420 + 4 * MIN + 10_000 }),
+      act('c3', 'dsh.write', 'completed', {}, { taskId: 'turn-2', startedAtMs: T.sat1420 + 4 * MIN + 14_000 }),
+      act('c4', 'dsh.edit', 'completed', {}, { taskId: 'turn-2', startedAtMs: T.sat1420 + 4 * MIN + 20_000 }),
+      act('c5', 'dsh.shell', 'running', {}, { taskId: 'turn-2', startedAtMs: T.sat1420 + 4 * MIN + 30_000 }),
+    ],
+    question: { id: 'q1', taskId: 'turn-2', createdAtMs: T.sat1420 + 5 * MIN, context: 'work', status: 'waiting', kind: 'approval',
+      question: '她想在「palindromes」里运行命令：node test.js，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。',
+      choices: ['信任这个项目', '先不要'], expiresAtMs: T.sat1420 + 15 * MIN },
+  })),
 } satisfies Record<string, AppSnapshot>
 
 export type ScenarioId = keyof typeof SCENARIOS

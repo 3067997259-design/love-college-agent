@@ -35,7 +35,6 @@ try {
   await launch(); await debug('set_clock', { frozen: true })
   await script('SYNTHETIC_FORMAT_QUESTION'); await send({ type: 'message.send', text: 'synthetic task needing format' })
   await waitFor((s) => s.question?.status === 'waiting', 'QUESTION_MISSING'); const turn = (await snapshot()).task.id
-  await page.locator('[data-question="waiting"]').getByRole('button', { name: 'Markdown', exact: true }).click()
   await page.getByRole('textbox', { name: '你的回答', exact: true }).fill('Markdown\nHUMAN_INFORMATION_CANARY')
   await page.getByRole('button', { name: '回答', exact: true }).click()
   await waitFor((s) => s.task?.id === turn && s.task.status === 'completed' && !s.question, 'ANSWER_NOT_COMPLETED')
@@ -45,6 +44,14 @@ try {
   assert.ok(batchIndex >= 0 && answerIndex > batchIndex + 2); assert.deepEqual(seen.messages.slice(batchIndex, batchIndex + 3).map((m) => m.role), ['assistant', 'tool', 'tool']); assert.ok(seen.eligibleIndexes.includes(answerIndex))
   assert.ok(!seen.messages.slice(batchIndex, batchIndex + 3).some((m) => m.content.includes('HUMAN_INFORMATION_CANARY')))
   assert.ok(!(await snapshot()).question)
+
+  // 点选项就直接回答，不用再点“回答”
+  await script('SYNTHETIC_CHIP_QUESTION'); await send({ type: 'message.send', text: 'synthetic one-click choice' })
+  await waitFor((s) => s.question?.status === 'waiting', 'CHIP_QUESTION_MISSING'); const chipTurn = (await snapshot()).task.id
+  await page.locator('[data-question="waiting"]').getByRole('button', { name: 'Text', exact: true }).click()
+  await waitFor((s) => s.task?.id === chipTurn && s.task.status === 'completed' && !s.question, 'CHIP_ANSWER_NOT_COMPLETED')
+  rows = await records()
+  assert.ok(rows.filter((row) => row.type === 'model/seen' && row.turnId === chipTurn).at(-1).messages.some((m) => m.role === 'user' && m.content === 'Text'))
 
   await script('SYNTHETIC_LENGTH_QUESTION'); await send({ type: 'message.send', text: 'synthetic answer length check' })
   await waitFor((s) => s.question?.status === 'waiting', 'LENGTH_QUESTION_MISSING')
