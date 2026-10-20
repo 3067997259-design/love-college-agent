@@ -73,12 +73,16 @@ export function createDshExecution(options: {
     if (!current) return 'rejected'
     // DSH escalations carry the model's own justification after the mode; it reads better than a raw path.
     const justification = request.reason?.match(/^escalate sandbox to [\w-]+:\s*([\s\S]+)$/)?.[1]
-    const subject = justification ? `：${clip(justification.replace(/\s+/g, ' '), 120)}` : command ? `：${clip(command.replace(/\s+/g, ' '), 100)}` : ''
+    const subject = justification ? `：${clip(justification.replace(/\s+/g, ' ').replace(/[。．.！!\s]+$/, ''), 120)}` : command ? `：${clip(command.replace(/\s+/g, ' '), 100)}` : ''
     const question = request.kind === 'risky' ? `这条命令可能有风险${subject}。要让她执行吗？` : `她想在「${basename(project)}」里直接运行命令${subject}。可以吗？`
     const always = request.kind === 'risky' ? `以后都允许「${clip(prefix ?? '', 24)}」` : '这个项目以后都允许'
     const choices = ['允许这一次', always, '拒绝']
     const answer = await options.ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
-    if (answer === always) writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix }], null, 2))
+    if (answer === always) {
+      writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix }], null, 2))
+      // A project-wide grant is the user's choice of same-user trust: later commands skip the sandbox detour.
+      if (prefix === null && session?.id && session.cwd === project) host?.trust(session.id)
+    }
     return answer === choices[0] || answer === always ? 'allowed-once' : 'rejected'
   }
 
@@ -150,7 +154,8 @@ export function createDshExecution(options: {
     const known = saved[day]?.cwd === cwd ? saved[day].id : undefined
     const current = { id: '', cwd, day }
     session = current
-    current.id = await host.open(cwd, known)
+    const trusted = read<Rule[]>(rulesFile, []).some((rule) => rule.project === cwd && rule.prefix === null)
+    current.id = await host.open(cwd, known, trusted)
     writeFileSync(sessionsFile, JSON.stringify({ ...saved, [day]: { id: current.id, cwd } }, null, 2))
     return current
   }

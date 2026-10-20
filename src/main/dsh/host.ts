@@ -80,7 +80,9 @@ export function startDshHost(options: DshHostOptions) {
   const request = (command: Record<string, unknown>) => new Promise<Record<string, unknown>>((done, fail) => { const ref = randomUUID(); waiting.set(ref, { done, fail }); child.send({ ...command, ref }) })
   return {
     started,
-    open: async (cwd: string, sessionId?: string) => { await started; return String((await request({ t: 'open', cwd, ...(sessionId ? { sessionId } : {}) })).sessionId) },
+    open: async (cwd: string, sessionId?: string, trusted = false) => { await started; return String((await request({ t: 'open', cwd, trusted, ...(sessionId ? { sessionId } : {}) })).sessionId) },
+    /** Switch a live session to the `lca-trusted` preset after the user granted its project. */
+    trust: (sessionId: string) => child.send({ t: 'trust', sessionId }),
     send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup') => child.send({ t: 'send', sessionId, text, mode }),
     cancel: (sessionId: string) => child.send({ t: 'cancel', sessionId }),
     close: async () => { if (child.connected) child.send({ t: 'shutdown' }); const stop = options.clock.after(10_000, () => child.kill()); try { return await exited } finally { stop() } },

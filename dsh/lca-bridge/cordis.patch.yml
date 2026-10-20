@@ -1,6 +1,28 @@
 # LCA layer over dsh-base: DSH runs her chat and work turns inside Love, College & Agent.
 # The LCA main process owns the window, the book UI, credentials and every approval answer.
-# Sandbox and approval stay on dsh-base defaults (workspace-write + ask).
+# New sessions keep dsh-base defaults (workspace-write + ask).
+
+# `lca-trusted` is applied per session only after the user grants a project in the book ("这个项目以后
+# 都允许"; maintainer decision 2026-10-19): same-user trust with no OS sandbox, approvals still asked.
+# lca-bridge keeps asking before risky commands and refuses LCA's private data in every mode. On Windows
+# the ACL sandbox cannot grant on drives that withhold WRITE_DAC, so trust is per project.
+- id: permission
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+      lca-trusted:
+        sandbox: danger-full-access
+        approval: ask
+        name: 项目内信任
+        description: 在你选定的项目里像你一样读写文件、运行命令；危险操作先问你，LCA 私有数据不碰。
 
 # She is the persona; LCA registers it per agent in `deployment:persona-prefix`.
 - id: system-prompt

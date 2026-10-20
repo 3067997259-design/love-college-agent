@@ -56,7 +56,14 @@ export function apply(ctx) {
     }))
   }
 
-  const open = async ({ sessionId, cwd }) => {
+  // Only LCA decides trust, and only for a project the user granted in the book.
+  const trust = (session) => {
+    const presets = ctx.get('permissionPresets')
+    if (!presets) throw new Error('lca-bridge: permission presets unavailable')
+    presets.set(session, 'lca-trusted')
+  }
+
+  const open = async ({ sessionId, cwd, trusted }) => {
     await ctx.get('loader')?.await()
     const selection = ctx.agentDefaultModel.currentSelection()
     const id = brandString(sessionId ?? `session-${randomUUID()}`)
@@ -70,7 +77,8 @@ export function apply(ctx) {
       ? await ctx.agents.resume({ resumeSessionId: id, agentOptions, setup }).catch(() => ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup }))
       : await ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup })
     live.set(String(id), { handle, cwd })
-    return { sessionId: String(id), cwd, provider: selection.provider, model: selection.model }
+    if (trusted === true) trust(handle.agent.session)
+    return { sessionId: String(id), cwd, provider: selection.provider, model: selection.model, preset: ctx.get('permissionPresets')?.current(handle.agent.session) ?? null }
   }
 
   const agentOf = (sessionId) => {
@@ -161,6 +169,7 @@ export function apply(ctx) {
           break
         }
         case 'cancel': agentOf(message.sessionId).cancel({ kind: 'user' }); break
+        case 'trust': { const session = agentOf(message.sessionId).session; trust(session); send({ t: 'trusted', sessionId: message.sessionId, preset: ctx.get('permissionPresets')?.current(session) ?? null }); break }
         case 'approval-answer': { const settle = approvals.get(message.id); if (settle) { approvals.delete(message.id); settle(message.outcome) } break }
         case 'lca-result': {
           const call = calls.get(message.id)
