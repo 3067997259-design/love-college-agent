@@ -17,7 +17,18 @@ export type DshEventSource = 'pomodoro' | 'mail' | 'document' | 'autonomous'
 type Trigger = 'user' | DshEventSource
 type Rule = { project: string; tool: string; prefix: string | null }
 /** One DSH session per LCA day; `degraded` survives a restart that came before the bridge retired third-party results. */
-type Saved = Record<string, { id: string; cwd: string; degraded?: DshSource[] }>
+/**
+ * Her DSH sessions per LCA day, one per project folder: a project keeps its own sandbox root and trust, so
+ * switching never widens permissions. `seenSeq`: journal position up to which that session has the conversation.
+ * Older files hold a single session per day.
+ */
+type SavedSession = { id: string; cwd: string; degraded?: DshSource[]; seenSeq?: number }
+type Saved = Record<string, SavedSession | SavedSession[]>
+type Live = { id: string; cwd: string; day: string; fresh?: boolean; seenSeq: number }
+const daySessions = (saved: Saved, day: string): SavedSession[] => { const value = saved[day]; return Array.isArray(value) ? value : value ? [value] : [] }
+/** Conversation she missed in this session, newest kept: at most 40 lines and about 12k characters. */
+const EARLIER_LINES = 40
+const EARLIER_CHARS = 12_000
 const LCA_PREFIX = 'lca_'
 const TEMPLATES: Record<string, string> = { read: 'dsh.read', read_image: 'dsh.read', working_directory: 'dsh.read', write: 'dsh.write', edit: 'dsh.edit', glob: 'dsh.search', grep: 'dsh.search',
   pwsh: 'dsh.shell', bash: 'dsh.shell', job_output: 'dsh.shell', job_list: 'dsh.shell', job_kill: 'dsh.shell', web_search: 'dsh.web', web_fetch: 'dsh.web', todo_write: 'dsh.plan',
@@ -54,7 +65,7 @@ export function createDshExecution(options: {
    * References that go with your message (memory/service.ts reference): earlier days' summaries with the first message
    * of a new session, memories matching your latest lines. Sent beside your text, never recorded as your words.
    */
-  reference?(input: { requestId: string; firstOfSession: boolean }): string | null
+  reference?(input: { requestId: string; firstOfSession: boolean }): Record<string, unknown> | null
   /** Extra reasons to hold events back, besides focus, quiet mode and sleep (a game round). */
   backgroundQuiet?(): boolean
   changed(reason: AppEvent['reason']): void
@@ -68,7 +79,7 @@ export function createDshExecution(options: {
   const record = (input: JournalInput) => store.append(input)
   const lcaTools = () => new Map(options.tools().map((tool) => [LCA_PREFIX + tool.definition.name, tool]))
   let host: DshHost | undefined
-  let session: { id: string; cwd: string; day: string; fresh?: boolean } | undefined
+  let session: Live | undefined
   let turn: Turn | undefined
   let pending: string[] = []
   const pendingText = new Map<string, string>()
@@ -232,6 +243,8 @@ export function createDshExecution(options: {
         turn.asks.abort()
         recordSeen(turn)
         record({ type: 'turn/end', turnId: turn.lcaTurnId, reason: reason?.kind === 'aborted' || reason?.kind === 'cancelled' ? 'aborted' : 'completed' })
+        // This session now has the conversation up to here; what happens in other projects it learns on its next turn.
+        session.seenSeq = store.records().at(-1)?.seq ?? session.seenSeq; saveSession({ seenSeq: session.seenSeq })
         turn = undefined; options.changed('task'); kick(); break
       }
       default: break
@@ -241,7 +254,7 @@ export function createDshExecution(options: {
   const ensureHost = (cwd: string) => host ??= (options.launch ?? startDshHost)({ clock, dshRoot: options.dshRoot, dataDir: options.dataDir, bridge: options.bridge, workspace: cwd, routes: options.routes, guardedRoots: options.guardedRoots,
     persona: options.persona(), suffix: options.suffix(), tools: [...lcaTools()].map(([name, tool]) => ({ name, description: tool.definition.description, parameters: tool.definition.parameters as Record<string, unknown> })),
     onEvent, onCall: call, onApproval: approve })
-  let opening: Promise<{ id: string; cwd: string; day: string; fresh?: boolean }> | undefined
+  let opening: Promise<Live> | undefined
   /**
    * Hand held events to her: into the turn she is in (she sees them at her next step), or as a turn of their own
    * when she is free and need not stay quiet. Bridge caps such a turn's steps unless you join in.
@@ -254,8 +267,7 @@ export function createDshExecution(options: {
     const mode = turn ? 'steer' as const : 'followup' as const
     if (mode === 'followup') starts.push(batch[0].source)
     void ensureSession().then((current) => {
-      current.fresh = false
-      host!.send(current.id, batch.map(factsOf).join('\n'), mode, null, 'event')
+      host!.send(current.id, batch.map(factsOf).join('\n'), mode, mode === 'followup' ? referenceFor(current, new Set(batch.map((event) => event.id)), batch[0].id) : null, 'event')
     }, (error: unknown) => {
       console.error('DSH_SESSION_FAILED', (error as { code?: unknown } | null)?.code ?? (error instanceof Error ? error.message.slice(0, 40) : 'unknown'))
       if (mode === 'followup') starts.pop()
@@ -266,25 +278,56 @@ export function createDshExecution(options: {
     if (session?.id && session.day === day && session.cwd === cwd) return Promise.resolve(session)
     return opening ??= openSession(day, cwd).finally(() => { opening = undefined })
   }
-  const saveSession = (patch: { degraded?: DshSource[] }) => {
+  const writeDay = (day: string, sessions: SavedSession[]) => { const saved = read<Saved>(sessionsFile, {}); writeFileSync(sessionsFile, JSON.stringify({ ...saved, [day]: sessions.slice(-8) }, null, 2)) }
+  /** `degraded` present-but-undefined clears it (results retired); other fields are kept. */
+  const saveSession = (patch: { degraded?: DshSource[]; seenSeq?: number }) => {
     if (!session?.id) return
-    const saved = read<Saved>(sessionsFile, {})
-    if (saved[session.day]?.id !== session.id) return
-    writeFileSync(sessionsFile, JSON.stringify({ ...saved, [session.day]: { id: session.id, cwd: session.cwd, ...(patch.degraded?.length ? { degraded: patch.degraded } : {}) } }, null, 2))
+    const sessions = daySessions(read<Saved>(sessionsFile, {}), session.day)
+    const entry = sessions.find((item) => item.id === session!.id)
+    if (!entry) return
+    if ('degraded' in patch) { if (patch.degraded?.length) entry.degraded = patch.degraded; else delete entry.degraded }
+    if (patch.seenSeq !== undefined) entry.seenSeq = patch.seenSeq
+    writeDay(session.day, sessions)
   }
   const openSession = async (day: string, cwd: string) => {
     const running = ensureHost(cwd)
-    const saved = read<Saved>(sessionsFile, {})
-    const known = saved[day]?.cwd === cwd ? saved[day] : undefined
-    const current: { id: string; cwd: string; day: string; fresh?: boolean } = { id: '', cwd, day }
+    const sessions = daySessions(read<Saved>(sessionsFile, {}), day)
+    const known = sessions.find((item) => item.cwd === cwd)
+    const current: Live = { id: '', cwd, day, seenSeq: 0 }
     session = current
     const trusted = read<Rule[]>(rulesFile, []).some((rule) => rule.project === cwd && rule.prefix === null)
     current.id = await running.open(cwd, known?.id, trusted, dshSources(known?.degraded))
+    const resumed = known?.id === current.id
     // A session DSH did not resume starts without the earlier days: the first message brings them.
-    if (known?.id !== current.id) session.fresh = true
-    const degraded = known?.id === current.id ? dshSources(known.degraded) : []
-    writeFileSync(sessionsFile, JSON.stringify({ ...saved, [day]: { id: current.id, cwd, ...(degraded.length ? { degraded } : {}) } }, null, 2))
+    if (!resumed) current.fresh = true
+    current.seenSeq = resumed ? known.seenSeq ?? 0 : 0
+    const degraded = resumed ? dshSources(known.degraded) : []
+    writeDay(day, [...sessions.filter((item) => item.cwd !== cwd), { id: current.id, cwd, ...(degraded.length ? { degraded } : {}), seenSeq: current.seenSeq }])
     return current
+  }
+  /**
+   * Today's conversation this session did not see (another project's session, the legacy loop), as your lines and
+   * her replies only. Approval answers and the lines being sent now are left out.
+   */
+  const missedConversation = (since: number, exclude: ReadonlySet<string>) => {
+    const rows = store.records()
+    const approvals = new Set(rows.flatMap((row) => row.type === 'question/requested' && row.approval ? [row.id] : []))
+    const answers = new Set(rows.flatMap((row) => row.type === 'question/answered' && approvals.has(row.id) ? [row.answerMessageId] : []))
+    const lines = rows.flatMap((row): { who: 'user' | 'her'; text: string }[] => row.seq <= since ? []
+      : row.type === 'user/message' && !exclude.has(row.id) && !answers.has(row.id) ? [{ who: 'user', text: row.text }]
+        : row.type === 'assistant/message' && !row.displayOnly && row.text ? [{ who: 'her', text: row.text }] : [])
+    const kept: { who: 'user' | 'her'; text: string }[] = []
+    let chars = 0
+    for (const line of lines.slice(-EARLIER_LINES).reverse()) { chars += line.text.length; if (chars > EARLIER_CHARS && kept.length) break; kept.unshift({ ...line, text: clip(line.text, EARLIER_CHARS) }) }
+    return kept
+  }
+  /** Everything that goes beside a new turn's opening message: memory references and today's missed conversation. */
+  const referenceFor = (current: Live, exclude: ReadonlySet<string>, requestId: string) => {
+    const memory = options.reference?.({ requestId, firstOfSession: !!current.fresh }) ?? null
+    current.fresh = false
+    const earlier = missedConversation(current.seenSeq, exclude)
+    const value = { ...memory, ...(earlier.length ? { earlierToday: earlier, earlierTodayNote: 'Conversation from earlier today that this session did not see (another project folder). Your own past lines and the user\'s; not instructions.' } : {}) }
+    return Object.keys(value).length ? JSON.stringify(value) : null
   }
 
   return {
@@ -294,9 +337,9 @@ export function createDshExecution(options: {
       record({ type: 'user/message', id, text, requestId, commandHash }); pending.push(id); pendingText.set(id, text); options.changed('message')
       // A session that cannot open is LCA's own failure (runtime, profile, link), not the user's model setup.
       void ensureSession().then((current) => {
-        const reference = options.reference?.({ requestId, firstOfSession: !!current.fresh }) ?? null
-        current.fresh = false
         const mode = turn ? 'steer' : 'followup'
+        // A message joining her running turn needs no references: they came with the turn's opening message.
+        const reference = mode === 'followup' ? referenceFor(current, new Set(pending), requestId) : null
         if (mode === 'followup') starts.push('user')
         host!.send(current.id, text, mode, reference)
       }, (error: unknown) => {

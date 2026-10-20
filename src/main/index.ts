@@ -779,8 +779,7 @@ void app.whenReady().then(async () => {
         reference: ({ requestId, firstOfSession }) => {
           // The same query the legacy loop uses: your last three lines (the new one is already in the journal).
           const lines = store!.projection().messages.filter((message) => message.role === 'user' && !message.kind).slice(-3).map((message) => message.text).join('\n')
-          const reference = memory?.reference(lines, requestId, firstOfSession) ?? null
-          return reference ? JSON.stringify(reference) : null
+          return memory?.reference(lines, requestId, firstOfSession) ?? null
         },
         changed: (reason) => controller?.refresh(reason) })
       execution.describe().then((levels) => modelSettings?.setLevels(levels), () => modelSettings?.setLevels(null))

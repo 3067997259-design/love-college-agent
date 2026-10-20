@@ -27,22 +27,23 @@ function setup(dataDir?: string) {
   const journal = openJournal(join(root, 'journal'), { userId: 'u', characterId: 'c' }, clock)
   const store: SessionStore = { scope: journal.scope, records: journal.records, projection: () => projectJournal(journal.records()), append: journal.append, close: journal.close }
   const asked: { question: string; choices: string[] }[] = []
+  let project = join(root, 'project')
   let answer: (choices: string[]) => string | null = (choices) => choices[0]
-  const host = { options: undefined as DshHostOptions | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], trusted: [] as string[] }
+  const host = { options: undefined as DshHostOptions | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], trusted: [] as string[], current: 'dsh-1' }
   const referenceAsks: boolean[] = []
   const launch = ((options: DshHostOptions) => {
     host.options = options
-    return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); return 'dsh-1' }, trust: (id: string) => { host.trusted.push(id) },
+    return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
       send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user') => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin) }, cancel: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
   const execution = createDshExecution({ store, clock, dataDir: root, dshRoot: 'unused', bridge: 'unused', routes: { env: {}, chat: { provider: 'deepseek-official', model: 'deepseek-flash' }, work: { provider: 'deepseek-official', model: 'deepseek-flash' } }, guardedRoots: [],
-    project: () => join(root, 'project'), persona: () => '', suffix: () => '', tools: () => [mailTool],
+    project: () => project, persona: () => '', suffix: () => '', tools: () => [mailTool],
     ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch,
-    reference: ({ firstOfSession }) => { referenceAsks.push(firstOfSession); return JSON.stringify({ memoryReference: [{ text: '你喜欢用 TypeScript' }], ...(firstOfSession ? { previousDaysReference: [{ text: '昨天一起写了质数脚本' }] } : {}) }) } })
-  const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: 'dsh-1', ...event } as DshEvent)
+    reference: ({ firstOfSession }) => { referenceAsks.push(firstOfSession); return { memoryReference: [{ text: '你喜欢用 TypeScript' }], ...(firstOfSession ? { previousDaysReference: [{ text: '昨天一起写了质数脚本' }] } : {}) } } })
+  const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: host.current, ...event } as DshEvent)
   const approval = (patch: Partial<DshApproval>) => host.options!.onApproval({ sessionId: 'dsh-1', toolName: 'pwsh', callId: 'call-x', reason: null, kind: 'escalation', command: 'node a.js', subject: 'node a.js', degraded: null, ...patch })
   const opened = async () => { for (let i = 0; i < 20 && !host.sent.length; i++) await Promise.resolve() }
-  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, referenceAsks, setAnswer: (next: typeof answer) => { answer = next } }
+  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, referenceAsks, setProject: (next: string) => { project = next }, setAnswer: (next: typeof answer) => { answer = next } }
 }
 
 async function workTurn(f: ReturnType<typeof setup>) {
@@ -160,6 +161,31 @@ describe('DSH work in the LCA journal', () => {
     f.journal.close()
   })
 
+  it('keeps one session per project and brings the missed conversation of today to the other one', async () => {
+    const f = setup()
+    const settle = async (count: number) => { for (let i = 0; i < 30 && f.host.sent.length < count; i++) await Promise.resolve() }
+    await workTurn(f)
+    // Another project: its own session (own sandbox root and trust), told what was said before.
+    f.setProject(join(f.root, 'course-site'))
+    f.execution.send('换个项目，看看这个网站', 'r-2', 'h-2')
+    await settle(2)
+    expect(f.host.opened.map((args) => [args[0], args[1]])).toEqual([[join(f.root, 'project'), undefined], [join(f.root, 'course-site'), undefined]])
+    const earlier = JSON.parse(f.host.references[1]!).earlierToday
+    expect(earlier).toEqual([{ who: 'user', text: '帮我跑一下 count.js' }, { who: 'her', text: '我先跑一下看看。' }, { who: 'her', text: '跑出来了，一共 1229 个。' }])
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    f.emit({ t: 'message', text: '这是一个课程网站。', toolCalls: [] })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
+    // Back to the first project: its own session resumes and hears only what it missed.
+    f.setProject(join(f.root, 'project'))
+    f.execution.send('回到刚才那个', 'r-3', 'h-3')
+    await settle(3)
+    expect(f.host.opened.at(-1)?.slice(0, 2)).toEqual([join(f.root, 'project'), 'dsh-1'])
+    expect(JSON.parse(f.host.references[2]!).earlierToday).toEqual([{ who: 'user', text: '换个项目，看看这个网站' }, { who: 'her', text: '这是一个课程网站。' }])
+    const saved = JSON.parse(readFileSync(join(f.root, 'dsh-sessions.json'), 'utf8'))
+    expect(Object.values(saved)[0]).toHaveLength(2)
+    f.journal.close()
+  })
+
   it('applies D-4 to DSH work turns and D2 to third-party turns in memory', async () => {
     const f = setup()
     f.execution.send('就用 TypeScript 写，别动 config 目录', 'r-1', 'h-1')
@@ -194,7 +220,7 @@ describe('DSH work in the LCA journal', () => {
     f.emit({ t: 'degraded', sources: ['web'] })
     const turnId = (f.store.records().find((row) => row.type === 'turn/start') as { turnId: string }).turnId
     expect(f.store.projection().degraded).toMatchObject({ active: true, turnId, sources: ['web'] })
-    expect(JSON.parse(readFileSync(join(f.root, 'dsh-sessions.json'), 'utf8'))[f.store.scope.sessionId]).toMatchObject({ id: 'dsh-1', degraded: ['web'] })
+    expect(JSON.parse(readFileSync(join(f.root, 'dsh-sessions.json'), 'utf8'))[f.store.scope.sessionId][0]).toMatchObject({ id: 'dsh-1', degraded: ['web'] })
     expect(await f.approval({ kind: 'degraded', degraded: ['web'] })).toBe('allowed-once')
     expect(f.asked.at(-1)).toEqual({ question: '这一轮她读过网页，运行命令要先问你：node a.js。可以吗？', choices: ['允许这一次', '拒绝'] })
     f.setAnswer(() => '拒绝')
@@ -202,7 +228,7 @@ describe('DSH work in the LCA journal', () => {
     expect(f.asked.at(-1)?.choices).toEqual(['允许这一次', '拒绝'])
     expect(f.host.trusted).toEqual([])
     f.emit({ t: 'retired', count: 1 })
-    expect(JSON.parse(readFileSync(join(f.root, 'dsh-sessions.json'), 'utf8'))[f.store.scope.sessionId].degraded).toBeUndefined()
+    expect(JSON.parse(readFileSync(join(f.root, 'dsh-sessions.json'), 'utf8'))[f.store.scope.sessionId][0].degraded).toBeUndefined()
     f.journal.close()
   })
 
@@ -253,6 +279,18 @@ describe('DSH work in the LCA journal', () => {
     await again.opened()
     expect(again.host.opened[0]?.[1]).toBe('dsh-1')
     expect(again.host.opened[0]?.[3]).toEqual(['web'])
+    again.journal.close()
+  })
+
+  it('reads the single-session-per-day file written by 1.0.x', async () => {
+    const f = setup()
+    f.journal.close()
+    const day = f.store.scope.sessionId
+    writeFileSync(join(f.root, 'dsh-sessions.json'), JSON.stringify({ [day]: { id: 'dsh-old', cwd: join(f.root, 'project'), degraded: ['web'] } }))
+    const again = setup(f.root)
+    again.execution.send('继续', 'r-2', 'h-2')
+    await again.opened()
+    expect(again.host.opened[0]?.slice(1, 4)).toEqual(['dsh-old', false, ['web']])
     again.journal.close()
   })
 })
