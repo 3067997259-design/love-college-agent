@@ -28,12 +28,12 @@ function setup(dataDir?: string) {
   const store: SessionStore = { scope: journal.scope, records: journal.records, projection: () => projectJournal(journal.records()), append: journal.append, close: journal.close }
   const asked: { question: string; choices: string[] }[] = []
   let answer: (choices: string[]) => string | null = (choices) => choices[0]
-  const host = { options: undefined as DshHostOptions | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], trusted: [] as string[] }
+  const host = { options: undefined as DshHostOptions | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], trusted: [] as string[] }
   const referenceAsks: boolean[] = []
   const launch = ((options: DshHostOptions) => {
     host.options = options
     return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); return 'dsh-1' }, trust: (id: string) => { host.trusted.push(id) },
-      send: (_id: string, text: string, _mode?: string, reference: string | null = null) => { host.sent.push(text); host.references.push(reference) }, cancel: () => {}, close: async () => null }
+      send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user') => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin) }, cancel: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
   const execution = createDshExecution({ store, clock, dataDir: root, dshRoot: 'unused', bridge: 'unused', routes: { env: {}, chat: { provider: 'deepseek-official', model: 'deepseek-flash' }, work: { provider: 'deepseek-official', model: 'deepseek-flash' } }, guardedRoots: [],
     project: () => join(root, 'project'), persona: () => '', suffix: () => '', tools: () => [mailTool],
@@ -113,6 +113,50 @@ describe('DSH work in the LCA journal', () => {
     expect(f.host.sent).toEqual(['帮我跑一下 count.js', '再加个测试'])
     // The references are not your words: the journal and what she saw keep only your lines.
     expect(JSON.stringify(f.store.records())).not.toContain('memoryReference')
+    f.journal.close()
+  })
+
+  it('gives events to the same session: a turn of their own when free, held while quiet, steered into a running turn', async () => {
+    const f = setup()
+    const settle = async (count: number) => { for (let i = 0; i < 30 && f.host.sent.length < count; i++) await Promise.resolve() }
+    // Free and not quiet: the event opens a turn of its own.
+    expect(f.execution.postEvent('pomodoro', '{"kind":"focus-ended"}', 'ev-1')).toBe(true)
+    expect(f.execution.postEvent('pomodoro', '{"kind":"focus-ended"}', 'ev-1')).toBe(false)
+    await settle(1)
+    expect([f.host.modes[0], f.host.origins[0]]).toEqual(['followup', 'event'])
+    expect(JSON.parse(f.host.sent[0])).toEqual({ source: 'pomodoro', facts: '{"kind":"focus-ended"}' })
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    f.emit({ t: 'message', text: '专注结束啦，休息一下吧。', toolCalls: [] })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
+    expect(f.store.records().find((row) => row.type === 'turn/start')).toMatchObject({ trigger: 'pomodoro' })
+    expect(f.store.projection().messages.at(-1)).toMatchObject({ text: '专注结束啦，休息一下吧。' })
+    // Memory sees it as a pomodoro fact, not as your words.
+    expect(seenFragments(f.store.records(), true).find((fragment) => fragment.role === 'user')).toMatchObject({ origin: 'pomodoro' })
+    // Quiet: held until the beat allows it.
+    f.store.append({ type: 'companion/mode', mode: 'quiet', requestId: 'm-1', commandHash: 'h-m1' })
+    f.execution.postEvent('autonomous', '她读完了一章书', 'ev-2')
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    expect(f.host.sent).toHaveLength(1)
+    f.store.append({ type: 'companion/mode', mode: 'rest', requestId: 'm-2', commandHash: 'h-m2' })
+    f.execution.stateChanged()
+    await settle(2)
+    expect([f.host.modes[1], f.host.origins[1]]).toEqual(['followup', 'event'])
+    f.emit({ t: 'turn-start', turn: 2, preset: 'workspace-write' })
+    // While she is in a turn, a new event joins it at her next step.
+    f.execution.postEvent('mail', '一封来自教务处的新邮件', 'ev-3')
+    await settle(3)
+    expect([f.host.modes[2], f.host.origins[2]]).toEqual(['steer', 'event'])
+    f.emit({ t: 'turn-end', turn: 2, reason: { kind: 'completed' } })
+    f.journal.close()
+  })
+
+  it('records a turn DSH aborted (your stop, an event cap) as aborted, not completed', async () => {
+    const f = setup()
+    f.execution.send('写个很长的东西', 'r-1', 'h-1')
+    await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'aborted' } })
+    expect(f.store.records().find((row) => row.type === 'turn/end')).toMatchObject({ reason: 'aborted' })
     f.journal.close()
   })
 

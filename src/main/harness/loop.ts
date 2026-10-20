@@ -32,6 +32,8 @@ export function createHarness(options: {
   changed?: (reason: AppEvent['reason']) => void
   failed?: () => void
   enabled?: () => boolean
+  /** false while her DSH session takes events (one timeline): pending events are left to it, not re-adopted here. */
+  adoptEvents?: boolean
   backgroundQuiet?: () => boolean
   limits?: { steps?: number; dailyTokens?: number; autonomousTokens?: number; outputTokens?: number }
   /** D3: during focus, the in-hand approved task may continue on its own under per-focus caps. */
@@ -112,8 +114,10 @@ export function createHarness(options: {
   const consumed = new Set(store.records().flatMap((row) => row.type === 'inbox/drain' || row.type === 'inbox/drop' ? row.ids : []))
   const pending = store.records().filter((row) => (row.type === 'user/message' || row.type === 'inbox/event') && !consumed.has(row.id))
   // Deterministic phase facts survive restart; interrupted user work still requires resubmission.
-  for (const row of pending) if (row.type === 'inbox/event' && (row.source === 'pomodoro' || row.source === 'mail' || row.source === 'document')) inbox.push({ id: row.id, source: row.source })
-  for (const event of store.projection().pendingEvents) if (!inbox.some((entry) => entry.id === event.id)) inbox.push({ id: event.id, source: event.source })
+  if (options.adoptEvents ?? true) {
+    for (const row of pending) if (row.type === 'inbox/event' && (row.source === 'pomodoro' || row.source === 'mail' || row.source === 'document')) inbox.push({ id: row.id, source: row.source })
+    for (const event of store.projection().pendingEvents) if (!inbox.some((entry) => entry.id === event.id)) inbox.push({ id: event.id, source: event.source })
+  }
   const undelivered = pending.filter((row) => row.type !== 'inbox/event' || (row.source !== 'pomodoro' && row.source !== 'mail' && row.source !== 'document')).map((row) => 'id' in row ? row.id : '')
   for (let index = 0; index < undelivered.length; index += 32) record({ type: 'inbox/drop', ids: undelivered.slice(index, index + 32) })
 

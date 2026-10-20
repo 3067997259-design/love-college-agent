@@ -25,6 +25,10 @@ export function apply(ctx) {
   const subjects = new Map() // callId -> short subject for an approval card (approval requests carry no arguments)
   const tainted = new Set() // root-level callIds whose results carry third-party content
   const turns = new Map() // root session id -> current DSH turn number
+  // A turn LCA opened for an event (pomodoro, mail, her life) is short: capped at EVENT_STEPS unless you join in.
+  const EVENT_STEPS = 6
+  const eventStarts = new Map() // root session id -> event turns DSH has yet to begin
+  const eventTurns = new Map() // root session id -> DSH turn number opened by an event
   // LCA's private data (journals, connection settings) and the DSH home are never her working material.
   const guarded = (process.env.LCA_GUARDED_ROOTS ?? '').split(';').filter(Boolean).map((root) => resolve(root).toLowerCase())
   const lineage = createLineage((id) => live.has(id))
@@ -208,6 +212,10 @@ export function apply(ctx) {
   // degraded. If they cannot be retired, the new turn stays degraded too.
   ctx.on('agent/pre-step', async (payload, next) => {
     const root = lineage.sid(payload.agent)
+    if (live.has(root) && eventTurns.get(root) === payload.turn && payload.step > EVENT_STEPS) {
+      eventTurns.delete(root)
+      queueMicrotask(() => payload.agent.cancel({ kind: 'user' }))
+    }
     const due = live.has(root) ? degradation.due(root, payload.turn) : null
     if (due) {
       let retired = false
@@ -255,7 +263,12 @@ export function apply(ctx) {
     if (event.surfaceOp?.op === 'replace') return
     switch (event.type) {
       // Every turn starts on the chat model; she reaches the work model by starting to work.
-      case 'turn/start': turns.set(sessionId, data.turn); choose(sessionId, 'chat'); send({ t: 'turn-start', sessionId, turn: data.turn, preset: presetOf(session) }); break
+      case 'turn/start': {
+        turns.set(sessionId, data.turn); choose(sessionId, 'chat')
+        const queued = eventStarts.get(sessionId) ?? 0
+        if (queued > 0) { eventStarts.set(sessionId, queued - 1); eventTurns.set(sessionId, data.turn) } else eventTurns.delete(sessionId)
+        send({ t: 'turn-start', sessionId, turn: data.turn, preset: presetOf(session) }); break
+      }
       case 'user/message': send({ t: 'user-message', sessionId, kind: data.source?.kind ?? null, chars: texts(data.content).length }); break
       case 'turn/end': send({ t: 'turn-end', sessionId, turn: data.turn, reason: plain(data.reason) }); break
       case 'assistant/message': {
@@ -289,7 +302,11 @@ export function apply(ctx) {
           const agent = agentOf(message.sessionId)
           // LCA's memory references (earlier days, recalled memories) ride in their own block before your words.
           const reference = typeof message.reference === 'string' && message.reference ? [{ type: 'text', text: message.reference }] : []
-          const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: 'user' } })
+          const event = message.origin === 'event'
+          const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: event ? 'lca-event' : 'user' } })
+          if (event && message.mode === 'followup') eventStarts.set(message.sessionId, (eventStarts.get(message.sessionId) ?? 0) + 1)
+          // You joined in: the turn is yours, no event cap.
+          if (!event) eventTurns.delete(message.sessionId)
           if (message.mode === 'steer') agent.steer(input); else if (message.mode === 'inject') agent.inject(input); else agent.followup(input)
           break
         }

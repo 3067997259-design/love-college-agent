@@ -11,7 +11,10 @@ import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost
 import type { DshRoutes } from './routes'
 
 /** `seen`: the conversation of this turn, in order, as she saw it: your lines and her replies, never tool traffic. */
-type Turn = { lcaTurnId: string; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController; seen: { role: 'user' | 'assistant'; content: string }[] }
+type Turn = { lcaTurnId: string; trigger: Trigger; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController; seen: { role: 'user' | 'assistant'; content: string }[] }
+/** Things that happened that she may speak about (pomodoro, mail, documents, her own life): the legacy loop's inbox events. */
+export type DshEventSource = 'pomodoro' | 'mail' | 'document' | 'autonomous'
+type Trigger = 'user' | DshEventSource
 type Rule = { project: string; tool: string; prefix: string | null }
 /** One DSH session per LCA day; `degraded` survives a restart that came before the bridge retired third-party results. */
 type Saved = Record<string, { id: string; cwd: string; degraded?: DshSource[] }>
@@ -52,6 +55,8 @@ export function createDshExecution(options: {
    * of a new session, memories matching your latest lines. Sent beside your text, never recorded as your words.
    */
   reference?(input: { requestId: string; firstOfSession: boolean }): string | null
+  /** Extra reasons to hold events back, besides focus, quiet mode and sleep (a game round). */
+  backgroundQuiet?(): boolean
   changed(reason: AppEvent['reason']): void
   /** Test seam; production launches the DSH child process. */
   launch?: typeof startDshHost
@@ -67,6 +72,15 @@ export function createDshExecution(options: {
   let turn: Turn | undefined
   let pending: string[] = []
   const pendingText = new Map<string, string>()
+  // Events wait here while she must stay quiet; `starts` says who opened each turn DSH has yet to begin.
+  const held: { id: string; source: DshEventSource; text: string }[] = []
+  const starts: Trigger[] = []
+  const eventIds = new Set<string>()
+  // Same beat as the legacy loop: focus, quiet mode and sleep hold events back; your own message never waits.
+  const quiet = () => { const view = store.projection(); return !!options.backgroundQuiet?.() || view.sleeping || view.mode === 'quiet' || view.pomodoro.phase === 'focus' }
+  // Events recorded before a restart (or a model change) and not yet given to her wait here again.
+  for (const event of store.projection().pendingEvents) held.push({ id: event.id, source: event.source, text: event.text })
+  const factsOf = (event: { source: DshEventSource; text: string }) => JSON.stringify({ source: event.source, facts: event.text })
   // The book shows one question at a time; concurrent approvals wait their turn instead of failing.
   let asking: Promise<unknown> = Promise.resolve()
   const ask: typeof options.ask = (question, choices, context) => {
@@ -78,7 +92,7 @@ export function createDshExecution(options: {
   const drain = () => {
     if (!pending.length) return
     record({ type: 'inbox/drain', ids: pending })
-    for (const id of pending) { const text = pendingText.get(id); if (turn && text) turn.seen.push({ role: 'user', content: text }); pendingText.delete(id) }
+    for (const id of pending) { const text = pendingText.get(id); if (turn && text) turn.seen.push({ role: 'user', content: text }); pendingText.delete(id); eventIds.delete(id) }
     pending = []
   }
   /**
@@ -93,7 +107,7 @@ export function createDshExecution(options: {
   }
   const fail = (code: PublicErrorCode) => {
     const lcaTurnId = turn?.lcaTurnId ?? randomUUID()
-    if (!turn) { record({ type: 'turn/start', turnId: lcaTurnId, trigger: 'user' }); drain() }
+    if (!turn) { record({ type: 'turn/start', turnId: lcaTurnId, trigger: starts.shift() ?? 'user' }); drain() }
     // She answered before the failure: what she saw up to then still happened.
     if (turn) recordSeen(turn)
     turn?.asks.abort()
@@ -160,19 +174,21 @@ export function createDshExecution(options: {
     if (!session || (event.sessionId && event.sessionId !== session.id)) return
     switch (event.t) {
       case 'turn-start': {
-        turn = { lcaTurnId: randomUUID(), toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [] }
-        record({ type: 'turn/start', turnId: turn.lcaTurnId, trigger: 'user' }); drain()
+        turn = { lcaTurnId: randomUUID(), trigger: starts.shift() ?? 'user', toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [] }
+        record({ type: 'turn/start', turnId: turn.lcaTurnId, trigger: turn.trigger }); drain()
         const preset = typeof event.preset === 'string' && event.preset.length <= 64 ? event.preset : null
         record({ type: 'work/turn', turnId: turn.lcaTurnId, engine: 'dsh', sessionId: session.id, preset })
         options.changed('task'); break
       }
-      case 'user-message': if (turn) drain(); break
+      // A message you send while she speaks about an event makes the turn yours: no longer held for rest.
+      case 'user-message': if (turn) { if (pending.some((id) => !eventIds.has(id))) turn.trigger = 'user'; drain() } break
       // Her words are conversation and stay in the journal; the tool calls beside them are DSH's.
       case 'message': {
         if (!turn) break
         const text = typeof event.text === 'string' ? event.text : ''
         if (!text.trim()) break
-        record({ type: 'assistant/message', id: randomUUID(), turnId: turn.lcaTurnId, text, status: 'complete' })
+        // What she says about an event while you are focusing or asked for quiet waits for your break (legacy delivery rule).
+        record({ type: 'assistant/message', id: randomUUID(), turnId: turn.lcaTurnId, text, status: 'complete', ...(turn.trigger !== 'user' && (quiet() || store.projection().lightsOut) ? { delivery: 'rest' as const } : {}) })
         turn.seen.push({ role: 'assistant', content: text })
         options.changed('message'); break
       }
@@ -215,8 +231,8 @@ export function createDshExecution(options: {
         if (reason?.kind === 'error') { fail(failureCode(reason)); break }
         turn.asks.abort()
         recordSeen(turn)
-        record({ type: 'turn/end', turnId: turn.lcaTurnId, reason: reason?.kind === 'cancelled' ? 'aborted' : 'completed' })
-        turn = undefined; options.changed('task'); break
+        record({ type: 'turn/end', turnId: turn.lcaTurnId, reason: reason?.kind === 'aborted' || reason?.kind === 'cancelled' ? 'aborted' : 'completed' })
+        turn = undefined; options.changed('task'); kick(); break
       }
       default: break
     }
@@ -226,6 +242,25 @@ export function createDshExecution(options: {
     persona: options.persona(), suffix: options.suffix(), tools: [...lcaTools()].map(([name, tool]) => ({ name, description: tool.definition.description, parameters: tool.definition.parameters as Record<string, unknown> })),
     onEvent, onCall: call, onApproval: approve })
   let opening: Promise<{ id: string; cwd: string; day: string; fresh?: boolean }> | undefined
+  /**
+   * Hand held events to her: into the turn she is in (she sees them at her next step), or as a turn of their own
+   * when she is free and need not stay quiet. Bridge caps such a turn's steps unless you join in.
+   */
+  const kick = () => {
+    if (!held.length || store.projection().lightsOut || opening) return
+    if (!turn && quiet()) return
+    const batch = held.splice(0)
+    for (const event of batch) { pending.push(event.id); pendingText.set(event.id, factsOf(event)); eventIds.add(event.id) }
+    const mode = turn ? 'steer' as const : 'followup' as const
+    if (mode === 'followup') starts.push(batch[0].source)
+    void ensureSession().then((current) => {
+      current.fresh = false
+      host!.send(current.id, batch.map(factsOf).join('\n'), mode, null, 'event')
+    }, (error: unknown) => {
+      console.error('DSH_SESSION_FAILED', (error as { code?: unknown } | null)?.code ?? (error instanceof Error ? error.message.slice(0, 40) : 'unknown'))
+      if (mode === 'followup') starts.pop()
+    })
+  }
   const ensureSession = () => {
     const day = store.scope.sessionId; const cwd = resolve(options.project())
     if (session?.id && session.day === day && session.cwd === cwd) return Promise.resolve(session)
@@ -261,7 +296,9 @@ export function createDshExecution(options: {
       void ensureSession().then((current) => {
         const reference = options.reference?.({ requestId, firstOfSession: !!current.fresh }) ?? null
         current.fresh = false
-        host!.send(current.id, text, turn ? 'steer' : 'followup', reference)
+        const mode = turn ? 'steer' : 'followup'
+        if (mode === 'followup') starts.push('user')
+        host!.send(current.id, text, mode, reference)
       }, (error: unknown) => {
         console.error('DSH_SESSION_FAILED', (error as { code?: unknown } | null)?.code ?? (error instanceof Error ? error.message.slice(0, 40) : 'unknown'))
         fail('internal')
@@ -271,7 +308,17 @@ export function createDshExecution(options: {
       if (!turn || !session || turn.lcaTurnId !== taskId) return false
       turn.asks.abort(); host?.cancel(session.id); return true
     },
-    stateChanged: () => { if (store.projection().lightsOut && turn && session) host?.cancel(session.id) },
+    stateChanged: () => { if (store.projection().lightsOut && turn && session) host?.cancel(session.id); kick() },
+    /**
+     * An event she may speak about (legacy loop postEvent): recorded like there, then given to her DSH session.
+     * Duplicates (same id) and a full queue are refused, as in the legacy loop.
+     */
+    postEvent: (source: DshEventSource, text: string, eventId: string = randomUUID()) => {
+      if (store.records().some((row) => row.type === 'inbox/event' && row.id === eventId || row.type === 'session/carry' && row.pendingEvents?.some((event) => event.id === eventId))) return false
+      if (held.length >= 32) return false
+      record({ type: 'inbox/event', id: eventId, source, text })
+      held.push({ id: eventId, source, text }); kick(); return true
+    },
     /** A DSH turn is running; the work folder must not change under it. */
     busy: () => !!turn || !!opening,
     trusted: (project: string) => read<Rule[]>(rulesFile, []).some((rule) => rule.project === resolve(project) && rule.prefix === null),
@@ -282,6 +329,8 @@ export function createDshExecution(options: {
       if (session?.id && session.cwd === target) host?.untrust(session.id)
     },
     taskApproved: () => {},
+    /** Deliver events left from before a restart once LCA is ready (onboarding, model) — the same moment the legacy loop would. */
+    resume: () => kick(),
     /** Thinking levels her chat and work models offer, for the settings; starts DSH when it is not running yet. */
     describe: () => ensureHost(resolve(options.project())).describe(),
     /** New thinking levels apply from the next step; no restart. */

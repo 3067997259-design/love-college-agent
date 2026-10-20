@@ -108,7 +108,8 @@ export function startDshHost(options: DshHostOptions) {
     /** Back to the default sandbox preset after the user withdrew trust. */
     untrust: (sessionId: string) => child.send({ t: 'untrust', sessionId }),
     /** `reference`: LCA's memory references, sent as their own block before your text. */
-    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null) => child.send({ t: 'send', sessionId, text, mode, ...(reference ? { reference } : {}) }),
+    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user') =>
+      child.send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}) }),
     cancel: (sessionId: string) => child.send({ t: 'cancel', sessionId }),
     /** Thinking levels DSH can send for each role's model; null where it cannot tell. */
     describe: async () => {

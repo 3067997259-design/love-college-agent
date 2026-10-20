@@ -12,7 +12,8 @@
 // - levels: catalog routes (Gemini for chat, DeepSeek's first-party adapter for work, placeholder keys)
 //   report each model's thinking levels from DSH's installed catalog; no request leaves the machine.
 // - reference: LCA's memory references ride in their own block before your words in the model request.
-// Usage: node scripts/dsh-bridge-check.mjs [degrade|trust|decline|handoff|levels|reference ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
+// - event-cap: a turn LCA opened for an event (pomodoro, mail, her life) stops after its step cap.
+// Usage: node scripts/dsh-bridge-check.mjs [degrade|trust|decline|handoff|levels|reference|event-cap ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync } from 'node:fs'
@@ -29,6 +30,15 @@ const resultOf = (seen, id) => seen.results.find((result) => result.callId === i
 const write = (id, content) => ({ tool: 'write', id, args: { file_path: 'note.txt', content } })
 
 const SCENARIOS = {
+  'event-cap': {
+    trusted: true, answer: 'allowed-once', origin: 'event', turns: ['[[T1]] {"source":"pomodoro","facts":"{\\"kind\\":\\"focus-ended\\"}"}'],
+    // A model that never stops looking around: only the cap ends the turn.
+    script({ notes }) { notes.steps = (notes.steps ?? 0) + 1; return { tool: 'glob', id: `call_glob_${notes.steps}`, args: { pattern: `nothing-${notes.steps}-*.none` } } },
+    check: (seen, notes) => ({
+      cancelledByCap: seen.turnEnds.length === 1 && seen.turnEnds[0] === 'aborted',
+      stoppedNearCap: notes.steps >= 6 && notes.steps <= 7,
+    }),
+  },
   reference: {
     trusted: true, answer: 'allowed-once', turns: ['[[T1]] what did we do yesterday'], reference: '{"previousDaysReference":[{"text":"LCA_REFERENCE_PROBE"}]}',
     script({ messages, notes }) {
@@ -178,7 +188,7 @@ async function run(name) {
         else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted })
         break
       case 'described': seen.described = { chat: message.chat, work: message.work }; child.send({ t: 'shutdown' }); break
-      case 'session': sessionId = message.sessionId; child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', ...(scenario.reference ? { reference: scenario.reference } : {}) }); break
+      case 'session': sessionId = message.sessionId; child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', ...(scenario.reference ? { reference: scenario.reference } : {}), ...(scenario.origin ? { origin: scenario.origin } : {}) }); break
       case 'approval':
         seen.approvals.push({ turn, kind: message.kind, toolName: message.toolName, degraded: message.degraded })
         child.send({ t: 'approval-answer', id: message.id, outcome: scenario.answer }); break
