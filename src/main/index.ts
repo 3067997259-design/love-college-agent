@@ -71,7 +71,8 @@ import { probeJournal } from './validation/journal'
 import { probeModel } from './validation/model'
 import { probeCacheUsage } from './validation/cache-usage'
 import { probeDshSpike } from './validation/dsh-spike'
-import { readMailCredentials, readModelProviders, readPrivateCredentialValues, readModelRouting, resolveModelProviders, type ModelRouting } from './config/providers'
+import { readMailCredentials, readModelEfforts, readModelProviders, readPrivateCredentialValues, readModelRouting, resolveModelProviders, type ModelEfforts, type ModelRouting } from './config/providers'
+import { dshRoutes } from './dsh/routes'
 import { createModelClient } from './model/client'
 import { createHarness } from './harness/loop'
 import { builtinTools } from './harness/tools'
@@ -400,7 +401,8 @@ void app.whenReady().then(async () => {
       controller?.refresh('task')
       return undefined
     })
-    let routing: ModelRouting = prepared.developer ? { background: 'independent', privacy: 'independent' } : await readModelRouting(providersFile)
+    let routing: ModelRouting = prepared.developer ? { background: 'independent', privacy: 'independent', work: 'follow-main' } : await readModelRouting(providersFile)
+    let efforts: ModelEfforts = prepared.developer ? {} : await readModelEfforts(providersFile)
     const privacyEnabled = () => prepared.developer || routing.privacy === 'independent'
     const rawProviders = prepared.developer ? new Map() : await readModelProviders(providersFile)
     const providers = resolveModelProviders(rawProviders, routing)
@@ -742,14 +744,15 @@ void app.whenReady().then(async () => {
         JSON.stringify({ characterCard: { name: card.name, persona: card.persona }, scope: 'character-configuration-only', authority: 'personality-never-tool-permission' })].join('\n\n')
     }
     const lcaToolNames = new Set(['get_timer', 'plan_pomodoros', 'start_focus', 'pause', 'stop', 'search_memory', 'recall_seen', 'get_campus_items', 'propose_notification_rule', 'get_first_gift', 'propose_gift'])
-    /** Built at start-up and again whenever the chat model changes: the route is fixed for a DSH process. */
+    /**
+     * Built at start-up and again whenever a model connection changes: routes are fixed for a DSH process
+     * (thinking levels are not). Asking DSH for the levels its models offer also warms it for her first reply.
+     */
     const createDsh = () => {
       const chat = providers.get('chat')
       if (!dshAvailable || !chat) return undefined
-      let official = false
-      try { official = new URL(chat.base_url).hostname === 'api.deepseek.com' } catch { /* an invalid URL fails on first use */ }
-      return createDshExecution({ store: store!, clock, dataDir, dshRoot, bridge: dshBridge, guardedRoots,
-        route: official ? { kind: 'deepseek-official', apiKey: chat.api_key, model: chat.model } : { kind: 'openai-compatible', baseUrl: chat.base_url, model: chat.model, apiKey: chat.api_key },
+      const execution = createDshExecution({ store: store!, clock, dataDir, dshRoot, bridge: dshBridge, guardedRoots,
+        routes: dshRoutes(chat, providers.get('work') ?? chat, efforts),
         project: () => projects.current(), persona,
         // After DSH's first-party guidance: how she talks in the book outranks the coding-agent style.
         suffix: () => '和用户说话用口语化的中文，像平时聊天一样。书里能显示简单的 Markdown：文件名、命令和代码用代码格式，步骤多时可以用列表，但不要写成带标题的报告。用户在你工作途中插话时，先用一两句话回应这句话，再继续手上的事；做完后用一两句话说清结果。',
@@ -765,6 +768,8 @@ void app.whenReady().then(async () => {
           return answer?.type === 'user/message' ? answer.text : null
         },
         changed: (reason) => controller?.refresh(reason) })
+      execution.describe().then((levels) => modelSettings?.setLevels(levels), () => modelSettings?.setLevels(null))
+      return execution
     }
     dshExecution = createDsh()
     if (dshAvailable) controller.attachProjects(projects)
@@ -780,6 +785,7 @@ void app.whenReady().then(async () => {
         await Promise.all([memory?.idle(), diary?.idle(), lifeWork?.idle()])
         const file = providerConfigPath(dataRoot, providersFile)
         routing = await readModelRouting(file)
+        efforts = await readModelEfforts(file)
         const loaded = resolveModelProviders(await readModelProviders(file), routing)
         providers.clear(); for (const [slot, config] of loaded) providers.set(slot, config)
         for (const key of await readPrivateCredentialValues(file)) if (!privateCredentials.includes(key)) privateCredentials.push(key)
@@ -787,12 +793,16 @@ void app.whenReady().then(async () => {
         if (!privacyEnabled()) prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = false })
         modelReady = prepared.developer || providers.has('chat')
         await dshExecution?.close(); dshExecution = createDsh()
+        if (!dshExecution) modelSettings?.setLevels(null)
         controller!.attachExecution(chatPort(), modelReady)
         documents?.stateChanged(); campus?.stateChanged()
         } finally { scheduler!.pauseBackground(store!.projection().lightsOut) }
       },
+      effortsChanged: (next) => { efforts = next; dshExecution?.efforts(next) },
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入模型槽位配置（内容仅由主进程读取）', properties: ['openFile'], filters: [{ name: '模型配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null }, changed: () => controller?.refresh('connection') })
     controller.attachModelSettings(modelSettings)
+    // Without DSH nothing sends a thinking level; the settings say the provider decides.
+    if (!dshExecution) modelSettings.setLevels(null)
     backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials, onboarding: () => controller!.getSnapshot().onboarding!,
       canStart: () => !harness!.isBusy() && !gifts?.isBusy() && !modelSettings?.isBusy() && !heartFlow?.active() && !minecraft?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
       freeze: async () => { scheduler!.pauseBackground(true); voice?.interrupt(); memory!.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground(); await Promise.all([memory!.idle(), diary?.idle(), photos?.idle(), lifeWork?.idle(), optical?.idle()]); if (harness!.isBusy() || gifts?.isBusy() || modelSettings?.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },

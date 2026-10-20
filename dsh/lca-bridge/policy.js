@@ -20,6 +20,24 @@ export const gatedWhileDegraded = (name) => GATED.has(name) || name.startsWith('
 // A helper's answer can carry what it read, so a delegation result in a degraded turn retires too.
 export const DELEGATION = new Set(['subagent', 'subagent_fork', 'workflow'])
 
+// Her chat and work models (LCA settings). A turn starts on the chat model. Her first hands-on step
+// moves the turn to the work model: a step that changes things is not run but decided again by the
+// work model, so the code it writes is the work model's own; a step that only looks runs as asked.
+// Helpers inherit the model of the request that spawned them, so they run on the work model too.
+const HANDS_ON = new Set(['write', 'edit', 'pwsh', 'bash', 'todo_write', 'create_goal', 'subagent', 'subagent_fork', 'workflow', 'send_message'])
+const LOOKING = new Set(['read', 'read_image', 'glob', 'grep', 'working_directory'])
+export const handoffOf = (name) => HANDS_ON.has(name) ? 'redo' : LOOKING.has(name) ? 'switch' : null
+export const HANDOFF_FEEDBACK = 'Not run: the work model takes over this turn from here. Decide this step again yourself, then carry on with the work.'
+export const sameModel = (a, b) => a.provider === b.provider && a.model === b.model && (a.effort ?? null) === (b.effort ?? null)
+/** LCA's routes from the launch environment (src/main/dsh/routes.ts); null keeps DSH's default model. */
+export const parseRoutes = (text) => {
+  try {
+    const value = JSON.parse(text ?? '')
+    const valid = (route) => typeof route?.provider === 'string' && typeof route?.model === 'string'
+    return valid(value?.chat) && valid(value?.work) ? { chat: value.chat, work: value.work } : null
+  } catch { return null }
+}
+
 // DSH's Windows ACL sandbox needs permission to change the workspace's permissions. Where the folder
 // does not allow that (seen on a D: root without WRITE_DAC), every sandboxed command fails like this.
 const SANDBOX_DENIED = /SetNamedSecurityInfoW failed \(Win32 5\)|\bgrantWrite\(/

@@ -168,6 +168,8 @@ export interface MessageView {
   emotion?: string
   /** Code-owned failure narration. No exception body, provider config or model reasoning. */
   failure?: ModelFailureView
+  /** An approval LCA asked on her behalf (DSH permissions), and the user's chosen answer: not her words or a typed line. */
+  kind?: 'approval' | 'approval-answer'
 }
 export interface ModelFailureView {
   turnId: string
@@ -408,10 +410,19 @@ export interface DiagnosticsView {
   memoryScores: readonly { id: string; score: number; relevance: number; tier: 'short_term' | 'long_term' }[]
   privacy: { mailStatus: string; fileFilteringEnabled: boolean; pendingFiles: number; evidenceAccess: 'user-only' }
 }
-export type ModelProviderSlot = 'chat' | 'background' | 'chat_google' | 'chat_claude' | 'privacy'
-export interface ModelRouting { background: 'follow-main' | 'independent'; privacy: 'follow-main' | 'independent' }
+export type ModelProviderSlot = 'chat' | 'work' | 'background' | 'chat_google' | 'chat_claude' | 'privacy'
+export interface ModelRouting { background: 'follow-main' | 'independent'; privacy: 'follow-main' | 'independent'; work: 'follow-main' | 'independent' }
+/** Thinking levels in escalation order (DSH / pi-ai). A model offers some of them; none means the provider decides. */
+export type ReasoningEffort = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+/** What the book may show about a configured slot: a known vendor's name or a masked host, and the model id. Never the URL path or key. */
+export interface ModelSlotDetail { vendor: string | null; host: string; model: string }
 export interface ModelSettingsView {
   routing?: ModelRouting
+  details?: Partial<Record<ModelProviderSlot, ModelSlotDetail>>
+  /** Chosen thinking level per role; absent means the provider's default. Work keeps its own level when it follows the chat model. */
+  efforts?: { chat?: ReasoningEffort; work?: ReasoningEffort }
+  /** Levels DSH can send for the role's model; absent while unknown (DSH not running) or when the model offers none. */
+  levels?: { chat?: readonly ReasoningEffort[]; work?: readonly ReasoningEffort[] }
   status: 'idle' | 'selecting' | 'saved' | 'failed'
   configuredSlots: readonly ModelProviderSlot[]
   restartRequired: boolean

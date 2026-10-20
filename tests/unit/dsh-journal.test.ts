@@ -33,7 +33,7 @@ function setup(dataDir?: string) {
     return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); return 'dsh-1' }, trust: (id: string) => { host.trusted.push(id) },
       send: (_id: string, text: string) => { host.sent.push(text) }, cancel: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
-  const execution = createDshExecution({ store, clock, dataDir: root, dshRoot: 'unused', bridge: 'unused', route: { kind: 'deepseek-official', apiKey: 'synthetic' }, guardedRoots: [],
+  const execution = createDshExecution({ store, clock, dataDir: root, dshRoot: 'unused', bridge: 'unused', routes: { env: {}, chat: { provider: 'deepseek-official', model: 'deepseek-flash' }, work: { provider: 'deepseek-official', model: 'deepseek-flash' } }, guardedRoots: [],
     project: () => join(root, 'project'), persona: () => '', suffix: () => '', tools: () => [mailTool],
     ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch })
   const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: 'dsh-1', ...event } as DshEvent)
@@ -69,6 +69,21 @@ describe('DSH work in the LCA journal', () => {
     expect(view.activities).toEqual([{ id: 'call-1', taskId: turnId, toolCallId: 'call-1', templateId: 'dsh.shell', status: 'completed', fields: {}, startedAtMs: started }])
     expect(view.evidenceSeqs).toEqual([])
     expect(view.task).toMatchObject({ id: turnId, status: 'completed' })
+    f.journal.close()
+  })
+
+  it('drops the step handed to the work model from the book and keeps the step the work model ran', async () => {
+    const f = setup()
+    f.execution.send('写个脚本', 'r-1', 'h-1')
+    await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    f.emit({ t: 'tool-call', callId: 'call-chat', name: 'write', args: JSON.stringify({ file_path: 'a.js', content: 'x' }) })
+    f.emit({ t: 'handoff', callId: 'call-chat' })
+    f.emit({ t: 'tool-result', callId: 'call-chat', isError: true })
+    f.emit({ t: 'tool-call', callId: 'call-work', name: 'write', args: JSON.stringify({ file_path: 'a.js', content: 'y' }) })
+    f.emit({ t: 'tool-result', callId: 'call-work', isError: false })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
+    expect(f.store.projection().activities.map((activity) => [activity.toolCallId, activity.status])).toEqual([['call-work', 'completed']])
     f.journal.close()
   })
 

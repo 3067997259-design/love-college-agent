@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `providers-smoke-${randomUUID()}`)
@@ -32,12 +32,12 @@ try {
   await mkdir(data, { recursive: true })
   instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env })
   page = await instance.firstWindow(); await initializeTestBook(page)
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettings(page)
   const card = page.locator('.provider-card[data-slot="chat"]')
   await card.waitFor()
   await card.getByLabel('服务商模板', { exact: true }).selectOption('deepseek')
   assert.equal(await card.getByLabel('接口地址', { exact: true }).inputValue(), 'https://api.deepseek.com/v1')
-  assert.equal(await card.getByLabel('模型', { exact: true }).inputValue(), 'deepseek-chat')
+  assert.equal(await card.getByLabel('模型', { exact: true }).inputValue(), 'deepseek-flash')
   await card.getByLabel('接口地址', { exact: true }).fill(`http://127.0.0.1:${server.address().port}/v1`)
   await card.getByLabel('模型', { exact: true }).fill('synthetic-chat')
   await card.getByLabel('API 密钥', { exact: true }).fill('synthetic-provider-secret')
@@ -57,7 +57,8 @@ try {
   assert.equal(sent.status, 'accepted')
   await waitFor(async () => (await snapshot()).task?.status === 'completed', 'FIRST_CHAT_WITHOUT_RESTART_FAILED')
   assert.ok(requests.some((body) => body.messages.some((message) => message.content === '第一次见面，你好。')))
-  await card.getByRole('button', { name: '清除', exact: true }).click()
+  // 配好的卡把地址和密钥收起来了：清除在“修改连接”里
+  await card.getByRole('button', { name: '修改连接', exact: true }).click(); await card.getByRole('button', { name: '清除', exact: true }).click()
   await waitFor(async () => !(await snapshot()).modelSettings.configuredSlots.includes('chat'), 'PROVIDER_NOT_REMOVED')
   await page.waitForTimeout(150)
   const local = `http://127.0.0.1:${server.address().port}/v1`

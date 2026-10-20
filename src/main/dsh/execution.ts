@@ -7,7 +7,8 @@ import { failureNarration } from '../harness/failure'
 import type { HarnessTool } from '../harness/tools'
 import type { JournalInput } from '../journal/schema'
 import type { SessionStore } from '../store/session'
-import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost, type DshRoute, type DshSource } from './host'
+import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost, type DshSource } from './host'
+import type { DshRoutes } from './routes'
 
 type Turn = { lcaTurnId: string; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController }
 type Rule = { project: string; tool: string; prefix: string | null }
@@ -42,7 +43,7 @@ const failureCode = (reason: unknown): PublicErrorCode => {
  * per command prefix for risky ones), except while third-party content is in her context (D2).
  */
 export function createDshExecution(options: {
-  store: SessionStore; clock: Clock; dataDir: string; dshRoot: string; bridge: string; route: DshRoute; guardedRoots: readonly string[]
+  store: SessionStore; clock: Clock; dataDir: string; dshRoot: string; bridge: string; routes: DshRoutes; guardedRoots: readonly string[]
   project(): string; persona(): string; suffix(): string; tools(): readonly HarnessTool[]
   ask(question: string, choices: string[], context: { turnId: string; callId: string; signal: AbortSignal }): Promise<string | null>
   changed(reason: AppEvent['reason']): void
@@ -158,9 +159,17 @@ export function createDshExecution(options: {
         record({ type: 'work/activity', turnId: turn.lcaTurnId, callId, templateId, status: 'running' })
         options.changed('task'); break
       }
+      // The chat model's first hands-on step, not run: the work model decides it again (lca-bridge).
+      case 'handoff': {
+        if (!turn) break
+        const callId = String(event.callId)
+        record({ type: 'work/activity', turnId: turn.lcaTurnId, callId, templateId: turn.calls.get(callId)?.templateId ?? 'dsh.other', status: 'handed-off' })
+        turn.calls.delete(callId); options.changed('task'); break
+      }
       case 'tool-result': {
         if (!turn) break
         const callId = String(event.callId)
+        if (!turn.calls.has(callId)) break
         record({ type: 'work/activity', turnId: turn.lcaTurnId, callId, templateId: turn.calls.get(callId)?.templateId ?? 'dsh.other', status: event.isError ? 'failed' : 'completed' })
         options.changed('task'); break
       }
@@ -187,6 +196,9 @@ export function createDshExecution(options: {
     }
   }
 
+  const ensureHost = (cwd: string) => host ??= (options.launch ?? startDshHost)({ clock, dshRoot: options.dshRoot, dataDir: options.dataDir, bridge: options.bridge, workspace: cwd, routes: options.routes, guardedRoots: options.guardedRoots,
+    persona: options.persona(), suffix: options.suffix(), tools: [...lcaTools()].map(([name, tool]) => ({ name, description: tool.definition.description, parameters: tool.definition.parameters as Record<string, unknown> })),
+    onEvent, onCall: call, onApproval: approve })
   let opening: Promise<{ id: string; cwd: string; day: string }> | undefined
   const ensureSession = () => {
     const day = store.scope.sessionId; const cwd = resolve(options.project())
@@ -200,15 +212,13 @@ export function createDshExecution(options: {
     writeFileSync(sessionsFile, JSON.stringify({ ...saved, [session.day]: { id: session.id, cwd: session.cwd, ...(patch.degraded?.length ? { degraded: patch.degraded } : {}) } }, null, 2))
   }
   const openSession = async (day: string, cwd: string) => {
-    host ??= (options.launch ?? startDshHost)({ clock, dshRoot: options.dshRoot, dataDir: options.dataDir, bridge: options.bridge, workspace: cwd, route: options.route, guardedRoots: options.guardedRoots,
-      persona: options.persona(), suffix: options.suffix(), tools: [...lcaTools()].map(([name, tool]) => ({ name, description: tool.definition.description, parameters: tool.definition.parameters as Record<string, unknown> })),
-      onEvent, onCall: call, onApproval: approve })
+    const running = ensureHost(cwd)
     const saved = read<Saved>(sessionsFile, {})
     const known = saved[day]?.cwd === cwd ? saved[day] : undefined
     const current = { id: '', cwd, day }
     session = current
     const trusted = read<Rule[]>(rulesFile, []).some((rule) => rule.project === cwd && rule.prefix === null)
-    current.id = await host.open(cwd, known?.id, trusted, dshSources(known?.degraded))
+    current.id = await running.open(cwd, known?.id, trusted, dshSources(known?.degraded))
     const degraded = known?.id === current.id ? dshSources(known.degraded) : []
     writeFileSync(sessionsFile, JSON.stringify({ ...saved, [day]: { id: current.id, cwd, ...(degraded.length ? { degraded } : {}) } }, null, 2))
     return current
@@ -240,6 +250,10 @@ export function createDshExecution(options: {
       if (session?.id && session.cwd === target) host?.untrust(session.id)
     },
     taskApproved: () => {},
+    /** Thinking levels her chat and work models offer, for the settings; starts DSH when it is not running yet. */
+    describe: () => ensureHost(resolve(options.project())).describe(),
+    /** New thinking levels apply from the next step; no restart. */
+    efforts: (efforts: { chat?: string; work?: string }) => { host?.efforts(efforts) },
     close: async () => { await host?.close() },
   }
 }

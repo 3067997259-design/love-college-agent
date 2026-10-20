@@ -1,17 +1,18 @@
 {
-  "_说明": "Provider GUI（模型连接）的界面文字。密钥只由主进程保存，界面不回显已保存值；不调用模型。",
+  "_说明": "Provider GUI（模型连接）的界面文字。界面只显示服务商名或打码后的域名和模型名，密钥只由主进程保存、从不回显；不调用模型。",
   "title": "模型连接",
-  "lead": "填好地址、模型和密钥，保存后立即生效。密钥只保存在本机。",
+  "lead": "她聊天和干活可以用不同的模型：聊天要自然，干活要能写代码。只配聊天模型也行，干活时跟着用它。密钥只保存在本机。",
   "noneConfigured": "还没有配置任何模型。",
   "slots": {
-    "chat": "日常对话",
+    "chat": "聊天模型",
+    "work": "工作模型",
     "background": "记忆与日记",
     "privacy": "隐私滤芯"
   },
   "baseUrl": "接口地址",
   "baseHint": "例如 https://api.deepseek.com/v1",
   "model": "模型",
-  "modelHint": "例如 deepseek-chat",
+  "modelHint": "例如 deepseek-flash",
   "preset": "服务商模板",
   "presetCustom": "自定义 / 手动填写",
   "presetApplied": "已填入模板，请补上密钥后保存。",
@@ -19,22 +20,34 @@
     "deepseek": {
       "label": "DeepSeek",
       "baseUrl": "https://api.deepseek.com/v1",
-      "model": "deepseek-chat"
+      "model": "deepseek-flash",
+      "workModel": "deepseek-v4-pro"
+    },
+    "google": {
+      "label": "Google Gemini",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai/",
+      "model": "gemini-3.8-flash",
+      "workModel": "gemini-4-argon"
     },
     "openai": {
       "label": "OpenAI",
       "baseUrl": "https://api.openai.com/v1",
-      "model": "gpt-4o-mini"
+      "model": "gpt-6.1-sol"
+    },
+    "kimi": {
+      "label": "Kimi（月之暗面）",
+      "baseUrl": "https://api.moonshot.cn/v1",
+      "model": "kimi-k3"
+    },
+    "zhipu": {
+      "label": "智谱 GLM",
+      "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "glm-5.3"
     },
     "siliconflow": {
       "label": "硅基流动",
       "baseUrl": "https://api.siliconflow.cn/v1",
       "model": "deepseek-ai/DeepSeek-V3"
-    },
-    "moonshot": {
-      "label": "Moonshot",
-      "baseUrl": "https://api.moonshot.cn/v1",
-      "model": "moonshot-v1-8k"
     },
     "ollama": {
       "label": "本机 Ollama",
@@ -92,10 +105,36 @@
     "saved": "已保存，重启后生效。"
   },
   "routing": "使用方式",
-  "followMain": "跟随主模型",
+  "followMain": "跟随聊天模型",
   "independent": "使用独立模型",
-  "mainMissing": "请先配置日常对话",
-  "followPrivacyHint": "隐私隔离已关闭：主模型直接处理新邮件，能看到原文。文件滤芯保持关闭，导入的文件也由主模型整理。切换不会公开以前隔离的资料；已经发送的内容无法撤回。",
-  "isolatedPrivacyHint": "邮件和标记为私密的工具输出先由独立模型过滤，她只看到短字段。滤芯失败就停止。文件需另外开启 /privacy；关闭时由主模型直接整理。",
-  "followBackgroundHint": "记忆、日记和后台工作使用日常对话的连接；修改主模型后一起生效。"
+  "mainMissing": "请先配置聊天模型",
+  "followPrivacyHint": "隐私隔离已关闭：聊天模型直接处理新邮件，能看到原文。文件滤芯保持关闭，导入的文件也由聊天模型整理。切换不会公开以前隔离的资料；已经发送的内容无法撤回。",
+  "isolatedPrivacyHint": "邮件和标记为私密的工具输出先由独立模型过滤，她只看到短字段。滤芯失败就停止。文件需另外开启 /privacy；关闭时由聊天模型直接整理。",
+  "followBackgroundHint": "记忆、日记和后台工作使用聊天模型的连接；修改聊天模型后一起生效。",
+  "vendor": "服务商",
+  "customVendor": "自定义（{host}）",
+  "edit": "修改连接",
+  "editDone": "收起",
+  "effort": "思考强度",
+  "effortDefault": "服务商默认",
+  "efforts": {
+    "off": "不思考",
+    "minimal": "最少",
+    "low": "低",
+    "medium": "中",
+    "high": "高",
+    "xhigh": "很高",
+    "max": "最高"
+  },
+  "effortHint": {
+    "chat": "聊天一般选低：回得快，也更像平时说话。",
+    "work": "写代码、改文件时可以调高：想得更周全，但更慢、更费额度。"
+  },
+  "effortUnknown": "这个模型的思考强度由服务商决定。",
+  "effortWaiting": "正在查这个模型支持的思考强度……",
+  "followChat": "跟随聊天模型",
+  "followChatModel": "跟随聊天模型：{model}",
+  "independentWork": "单独配置",
+  "followWorkHint": "干活时用聊天模型；思考强度可以单独调高。",
+  "independentWorkHint": "她开始写文件、运行命令时，这一轮剩下的部分交给工作模型；下一句话再回到聊天模型。"
 }

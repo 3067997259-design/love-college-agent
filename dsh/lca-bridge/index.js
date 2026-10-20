@@ -6,11 +6,11 @@ import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import { DELEGATION, TRUST_FEEDBACK, createDegradation, createLineage, gatedWhileDegraded, isRisky, retireResults, sandboxDenied, sourceOf, subjectOf } from './policy.js'
+import { ReasoningEffortId, createUserMessage } from '@deepseek-ai/dsh-llm'
+import { DELEGATION, HANDOFF_FEEDBACK, TRUST_FEEDBACK, createDegradation, createLineage, gatedWhileDegraded, handoffOf, isRisky, parseRoutes, retireResults, sameModel, sandboxDenied, sourceOf, subjectOf } from './policy.js'
 
 export const name = 'lca-bridge'
-export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval']
+export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm']
 
 const CLIP = 4000
 const SOURCES = new Set(['mail', 'document', 'web', 'mcp', 'plugin'])
@@ -29,6 +29,30 @@ export function apply(ctx) {
   const guarded = (process.env.LCA_GUARDED_ROOTS ?? '').split(';').filter(Boolean).map((root) => resolve(root).toLowerCase())
   const lineage = createLineage((id) => live.has(id))
   const degradation = createDegradation()
+  // Chat and work models; a thinking level the model does not offer is dropped (DSH would refuse the request).
+  const routes = parseRoutes(process.env.LCA_DSH_ROUTES)
+  const levels = new Map() // `${provider}/${model}` -> Promise<string[] | null>
+  const levelsOf = (route) => {
+    const key = `${route.provider}/${route.model}`
+    if (!levels.has(key)) levels.set(key, ctx.llm.resolveModelInfo(route.provider, route.model).then((info) => info.reasoning?.efforts.map((effort) => String(effort.id)) ?? null, () => null))
+    return levels.get(key)
+  }
+  const usable = async (route) => {
+    const offered = route.effort ? await levelsOf(route) : null
+    return { provider: route.provider, model: route.model, ...(route.effort && offered?.includes(route.effort) ? { effort: route.effort } : {}) }
+  }
+  // Checked once before sessions open (and after each level change), so a switch is synchronous: DSH
+  // reads the selection when it assembles the next step, right after the tool call that switched it.
+  let picked = null
+  const pick = async () => { if (routes) picked = { chat: await usable(routes.chat), work: await usable(routes.work) } }
+  const selectionOf = (route) => ({ provider: route.provider, model: route.model, ...(route.effort ? { reasoningEffort: ReasoningEffortId(route.effort) } : {}) })
+  const models = new Map() // root session id -> { selection, role: 'chat' | 'work' }
+  const choose = (sessionId, role) => {
+    const entry = models.get(sessionId)
+    if (!entry || !picked) return
+    entry.role = role
+    entry.selection.current = selectionOf(picked[role])
+  }
   let persona = ''
   let suffix = ''
   let toolDisposers = []
@@ -71,22 +95,25 @@ export function apply(ctx) {
 
   const open = async ({ sessionId, cwd, trusted, degraded }) => {
     await ctx.get('loader')?.await()
-    const selection = ctx.agentDefaultModel.currentSelection()
+    if (routes && !picked) await pick()
+    const chat = picked ? selectionOf(picked.chat) : ctx.agentDefaultModel.currentSelection()
+    const selection = { current: chat, assembled: undefined }
     const id = brandString(sessionId ?? `session-${randomUUID()}`)
     const setup = (agentCtx) => {
-      installModelSelection(agentCtx, { current: selection, assembled: undefined })
+      installModelSelection(agentCtx, selection)
       if (persona) agentCtx.systemPrompt.section({ name: 'deployment:persona-prefix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX'), text: persona, interpolate: false })
       if (suffix) agentCtx.systemPrompt.section({ name: 'deployment:persona-suffix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX'), text: suffix, interpolate: false })
     }
-    const agentOptions = { provider: selection.provider, model: selection.model }
+    const agentOptions = { provider: chat.provider, model: chat.model }
     const handle = sessionId && ctx.get('sessionQuery')
       ? await ctx.agents.resume({ resumeSessionId: id, agentOptions, setup }).catch(() => ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup }))
       : await ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup })
     live.set(String(id), { handle, cwd })
+    models.set(String(id), { selection, role: 'chat' })
     if (trusted === true) trust(handle.agent.session)
     // Third-party content LCA could not retire before a restart: keep the session degraded.
     if (Array.isArray(degraded)) degradation.restore(String(id), degraded.filter((source) => SOURCES.has(source)))
-    return { sessionId: String(id), cwd, provider: selection.provider, model: selection.model, preset: presetOf(handle.agent.session) }
+    return { sessionId: String(id), cwd, provider: chat.provider, model: chat.model, preset: presetOf(handle.agent.session) }
   }
 
   const agentOf = (sessionId) => {
@@ -111,6 +138,13 @@ export function apply(ctx) {
     if (!root) return next()
     const args = JSON.stringify(exec.arguments ?? {}).toLowerCase().replaceAll('\\\\', '\\')
     if (guarded.some((path) => args.includes(path) || args.includes(path.replaceAll('\\', '/')))) return { kind: 'deny', reason: 'This path is LCA private data; she does not work on it.' }
+    const model = models.get(root)
+    const handoff = picked && model?.role === 'chat' && isRoot(exec.agent) && !sameModel(picked.chat, picked.work) ? handoffOf(String(exec.name)) : null
+    if (handoff) {
+      choose(root, 'work')
+      send({ t: 'model', sessionId: root, role: 'work' })
+      if (handoff === 'redo') { send({ t: 'handoff', sessionId: root, callId: String(exec.callId) }); return { kind: 'deny', reason: HANDOFF_FEEDBACK } }
+    }
     const command = typeof exec.arguments?.command === 'string' ? exec.arguments.command : ''
     if (subjects.size > 512) subjects.clear()
     subjects.set(String(exec.callId), subjectOf(exec.arguments))
@@ -220,7 +254,8 @@ export function apply(ctx) {
     // Surface replacements (compaction, pruning, retirement) rewrite history; they are not new activity.
     if (event.surfaceOp?.op === 'replace') return
     switch (event.type) {
-      case 'turn/start': turns.set(sessionId, data.turn); send({ t: 'turn-start', sessionId, turn: data.turn, preset: presetOf(session) }); break
+      // Every turn starts on the chat model; she reaches the work model by starting to work.
+      case 'turn/start': turns.set(sessionId, data.turn); choose(sessionId, 'chat'); send({ t: 'turn-start', sessionId, turn: data.turn, preset: presetOf(session) }); break
       case 'user/message': send({ t: 'user-message', sessionId, kind: data.source?.kind ?? null, chars: texts(data.content).length }); break
       case 'turn/end': send({ t: 'turn-end', sessionId, turn: data.turn, reason: plain(data.reason) }); break
       case 'assistant/message': {
@@ -265,6 +300,19 @@ export function apply(ctx) {
           if (!call) break
           calls.delete(message.id)
           if (message.ok) call.done(message.value ?? null, message.source ?? null); else call.fail(new Error(message.error ?? 'LCA tool failed'))
+          break
+        }
+        // The thinking levels each role's model offers, for the book's settings; null when DSH cannot tell.
+        case 'describe': send({ t: 'described', ref: message.ref, chat: routes ? await levelsOf(routes.chat) : null, work: routes ? await levelsOf(routes.work) : null }); break
+        // A new thinking level from the settings: the next step of every session uses it.
+        case 'efforts': {
+          if (!routes) break
+          for (const role of ['chat', 'work']) {
+            const effort = message.efforts?.[role]
+            routes[role] = { provider: routes[role].provider, model: routes[role].model, ...(typeof effort === 'string' ? { effort } : {}) }
+          }
+          await pick()
+          for (const [sessionId, entry] of models) choose(sessionId, entry.role)
           break
         }
         case 'shutdown': await shutdown(); break

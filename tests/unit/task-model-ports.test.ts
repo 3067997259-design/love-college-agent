@@ -169,7 +169,7 @@ describe('production task model ports without runtime model calls', () => {
 
 it('routes diary to background/follow-main and keeps trusted-main mail/document content while stripping credentials', async () => {
   const f = fixture(); const calls: { model: string; messages: { content: string }[] }[] = []
-  const resolved = resolveModelProviders(configs, { background: 'follow-main', privacy: 'follow-main' })
+  const resolved = resolveModelProviders(configs, { background: 'follow-main', privacy: 'follow-main', work: 'follow-main' })
   const ports = createTaskModelPorts(resolved, f.clock, f.store, async (_url, init) => { calls.push(JSON.parse(String(init.body))); return response({ entry: 'synthetic diary' }) }, undefined, true)
   await ports.diary!.write([], new AbortController().signal)
   await ports.mail!.extract({ sourceId: 'synthetic', subject: '学校资料', body: '联系 student@example.edu 13800138000 synthetic-chat-credential', sentAtIso: '2026-10-18T08:00:00+08:00' }, new AbortController().signal)

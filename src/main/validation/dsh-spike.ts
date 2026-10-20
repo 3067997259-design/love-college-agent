@@ -2,8 +2,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join } from 'node:path'
 import type { Clock } from '../clock'
 import { readModelProviders } from '../config/providers'
-import { startDshHost, type DshEvent, type DshRoute } from '../dsh/host'
+import { startDshHost, type DshEvent } from '../dsh/host'
 import { dshLocations } from '../dsh/locations'
+import { dshRoutes } from '../dsh/routes'
 
 /**
  * DSH spike probe: her chat and work turns on the forked DSH runtime, driven from LCA's main process.
@@ -30,7 +31,7 @@ async function bootOnly(dataDir: string, appPath: string, clock: Clock) {
   const events: string[] = []
   const workspace = join(dataDir, 'dsh-work', 'boot')
   const host = startDshHost({ clock, dshRoot: dshLocations().root, dataDir, bridge: dshLocations().bridge, workspace,
-    route: null, guardedRoots: [join(dataDir, 'dsh-home')], persona: PERSONA, tools: [], onEvent: (event) => { events.push(event.t) },
+    routes: null, guardedRoots: [join(dataDir, 'dsh-home')], persona: PERSONA, tools: [], onEvent: (event) => { events.push(event.t) },
     onCall: async () => { throw new Error('UNUSED') }, onApproval: async () => 'rejected' })
   try {
     await host.started
@@ -46,16 +47,16 @@ async function bootOnly(dataDir: string, appPath: string, clock: Clock) {
 
 export async function probeDshSpike(dataDir: string, providersFile: string, appPath: string, clock: Clock) {
   const errors: string[] = []
-  const report = { ok: false, probe: 'dsh-spike', route: 'none' as DshRoute['kind'] | 'none', hostStartMs: 0, turns: 0, steps: 0, toolCalls: {} as Record<string, number>,
+  const report = { ok: false, probe: 'dsh-spike', route: 'none' as 'deepseek-official' | 'catalog' | 'openai-compatible' | 'none', hostStartMs: 0, turns: 0, steps: 0, toolCalls: {} as Record<string, number>,
     toolErrors: 0, approvals: 0, lcaCalls: 0, steerSent: false, steerUserMessages: 0, primesAnswered: false, timerAnswered: false,
     scriptFiles: 0, readmeCjk: false, inputTokens: 0, cacheReadTokens: 0, outputTokens: 0, budgetStopped: false, errors }
   if (process.env.LCA_REAL_MODEL !== '1') return await bootOnly(dataDir, appPath, clock)
   const chat = (await readModelProviders(providersFile)).get('chat')
   if (!chat) return { ...report, errors: ['CHAT_PROVIDER_MISSING'] }
-  let official: boolean
-  try { official = new URL(chat.base_url).hostname === 'api.deepseek.com' } catch { return { ...report, errors: ['CHAT_PROVIDER_INVALID'] } }
-  const route: DshRoute = official ? { kind: 'deepseek-official', apiKey: chat.api_key, model: chat.model } : { kind: 'openai-compatible', baseUrl: chat.base_url, model: chat.model, apiKey: chat.api_key }
-  report.route = route.kind
+  try { new URL(chat.base_url) } catch { return { ...report, errors: ['CHAT_PROVIDER_INVALID'] } }
+  // The probe runs one model for chat and work, as a user who configured only one would.
+  const routes = dshRoutes(chat, chat, {})
+  report.route = routes.chat.provider === 'deepseek-official' ? 'deepseek-official' : routes.chat.provider.startsWith('lca-') ? 'openai-compatible' : 'catalog'
 
   const workspace = join(dataDir, 'dsh-work', 'newbie')
   const transcript: DshEvent[] = []
@@ -67,7 +68,7 @@ export async function probeDshSpike(dataDir: string, providersFile: string, appP
   const started = clock.nowMs()
   const host = startDshHost({
     clock, dshRoot: dshLocations().root, dataDir, bridge: dshLocations().bridge, workspace,
-    route, guardedRoots: [join(dataDir, 'dsh-home'), join(dataDir, 'journals'), join(dataDir, 'connections')], persona: PERSONA,
+    routes, guardedRoots: [join(dataDir, 'dsh-home'), join(dataDir, 'journals'), join(dataDir, 'connections')], persona: PERSONA,
     tools: [{ name: 'lca_get_timer', description: 'Read the pomodoro timer of the LCA book: phase and minutes left.', parameters: { type: 'object', properties: {}, additionalProperties: false } }],
     onCall: async (name) => { report.lcaCalls++; if (name !== 'lca_get_timer') throw new Error('UNKNOWN_LCA_TOOL'); return { value: { phase: 'focus', remainingMinutes: 12, focusIndex: 2 }, source: null } },
     onApproval: async (request) => { report.approvals++; transcript.push({ t: 'approval-asked', toolName: request.toolName, reason: request.reason?.slice(0, 160) ?? null }); return 'rejected' },

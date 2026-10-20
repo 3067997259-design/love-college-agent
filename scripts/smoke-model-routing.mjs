@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
 import Database from 'better-sqlite3'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', 'routing-smoke-' + randomUUID())
@@ -81,7 +81,7 @@ class StudentHubAssistant:
     CREATE TABLE item_evidence (item_id TEXT NOT NULL, artifact_id INTEGER NOT NULL); CREATE TABLE raw_artifacts (id INTEGER PRIMARY KEY, subject TEXT, payload_json TEXT NOT NULL);`)
   for (let i = 0; i < 3; i++) db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?,?,?,?,?)').run('ignored-' + i, 'deadline', '待忽略邮件' + i, '测试课程', 'confirmed', '2027-01-05T23:00:00+08:00', null, null, null, 'IGNORED_MAIL_SOURCE_' + i, '2026-10-18T00:00:00+08:00')
   db.close(); await launch()
-  assert.deepEqual((await snapshot()).modelSettings.routing, { background: 'follow-main', privacy: 'follow-main' })
+  assert.deepEqual((await snapshot()).modelSettings.routing, { background: 'follow-main', privacy: 'follow-main', work: 'follow-main' })
   await configure('chat'); assert.equal((await snapshot()).modelSettings.restartRequired, false)
   await send({ type: 'mode.set', mode: 'quiet' })
   await chat('第一次配置后立即聊天。')
@@ -135,7 +135,7 @@ class StudentHubAssistant:
   denyPrivacy = true; const before = calls.filter((call) => call.model === 'synthetic-chat').length
   await file('failed-private', 'FAILED_PRIVATE_SOURCE', 'failed')
   assert.equal(calls.filter((call) => call.model === 'synthetic-chat').length, before)
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettings(page)
   await page.locator('.provider-card[data-slot="privacy"]').getByLabel('使用方式', { exact: true }).selectOption('follow-main')
   await waitFor((s) => s.modelSettings.status === 'saved' && s.privacy.mode === 'follow-main', 'FOLLOW_MAIN_NOT_APPLIED')
   assert.equal((await snapshot()).privacy.fileFilteringEnabled, false)

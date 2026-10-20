@@ -44,6 +44,8 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
   const inbox = new Map<string, ContextMessage>()
   const pendingEvents = new Map<string, SessionProjection['pendingEvents'][number]>()
   const heldMessages: MessageView[] = []
+  // Approvals are LCA asking on her behalf (DSH permissions): the book shows them, and the chosen answer, apart from speech.
+  const approvals = new Set<string>()
   const tasks = new Map<string, DraftTaskCard>()
   const closedTasks = new Map<string, 'completed' | 'abandoned' | 'failed'>()
   const quiet = () => result.mode === 'quiet' || result.pomodoro.phase === 'focus' || result.lightsOut || result.sleeping
@@ -83,12 +85,18 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
         for (const id of record.ids) { inbox.delete(id); pendingEvents.delete(id); const message = result.messages.find((item) => item.id === id); if (message) message.status = 'undelivered' }
         break
       case 'assistant/message':
-        if (record.text) (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'assistant', text: record.text, createdAtMs: record.atMs, status: record.status })
+        if (record.text) (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'assistant', text: record.text, createdAtMs: record.atMs, status: record.status, ...(record.displayOnly && approvals.has(record.id) ? { kind: 'approval' as const } : {}) })
         if (!record.displayOnly) context.push({ seq: record.seq, message: { role: 'assistant', content: record.text, ...(record.toolCalls?.length ? { toolCalls: record.toolCalls } : {}) } }); break
       case 'narrator/failure':
         (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'narrator', text: record.text, createdAtMs: record.atMs, status: 'complete', failure: projectFailure(records, record.failure, record.seq) }); break
-      case 'question/requested': if (result.task?.id === record.turnId && result.task.status === 'running') result.task.status = 'waiting-user'; break
-      case 'question/answered':
+      case 'question/requested':
+        if (record.approval) approvals.add(record.id)
+        if (result.task?.id === record.turnId && result.task.status === 'running') result.task.status = 'waiting-user'; break
+      case 'question/answered': {
+        const answer = approvals.has(record.id) ? result.messages.find((message) => message.id === record.answerMessageId) : undefined
+        if (answer) answer.kind = 'approval-answer'
+      }
+      // falls through
       case 'question/closed': if (result.task?.id === record.turnId && result.task.status === 'waiting-user') result.task.status = 'running'; break
       case 'flow/command':
         if (record.turnId && result.task?.id === record.turnId) {
@@ -163,7 +171,9 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
       // DSH work rows are display only: results stay in DSH's session, never in LCA's model context.
       case 'work/activity': {
         const activity = result.activities.find((item) => item.toolCallId === record.callId && item.taskId === record.turnId)
-        if (activity) activity.status = record.status
+        // A step handed to the work model never ran: it leaves the book's activity rows.
+        if (record.status === 'handed-off') { if (activity) result.activities.splice(result.activities.indexOf(activity), 1) }
+        else if (activity) activity.status = record.status
         else result.activities.push({ id: record.callId, taskId: record.turnId, toolCallId: record.callId, templateId: record.templateId, status: record.status, fields: {}, startedAtMs: record.atMs })
         break
       }

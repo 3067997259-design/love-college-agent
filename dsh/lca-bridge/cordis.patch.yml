@@ -30,17 +30,19 @@
     includeHarnessIdentity: false
     personaPrefix: ''
 
-# The model route comes from LCA's own connection settings at launch: DeepSeek's official API through
-# dsh-llm-deepseek, or LCA's OpenAI-compatible endpoint as the `lca-chat` pi-ai route. Keys stay in
-# the launch environment (credentials store disabled below).
+# Her chat and work models come from LCA's own connection settings at launch, as `LCA_DSH_ROUTES`
+# (src/main/dsh/routes.ts): a vendor route from pi-ai's installed catalog where LCA recognises the
+# host (DSH then knows the model's thinking levels), DeepSeek's official API through dsh-llm-deepseek,
+# or an OpenAI-compatible `lca-*` route. Keys stay in the launch environment (credentials store
+# disabled below). The default model is the chat one; lca-bridge moves a turn to the work model.
 - id: llm-pi-ai
   config:
-    providers: !!js "process.env.LCA_CHAT_BASE_URL ? { 'lca-chat': { displayName: 'LCA', apiKeyEnv: 'LCA_CHAT_API_KEY', api: 'openai-completions', baseURL: process.env.LCA_CHAT_BASE_URL, models: [{ id: process.env.LCA_CHAT_MODEL }] } } : {}"
+    providers: !!js "JSON.parse(process.env.LCA_DSH_ROUTES || '{}').providers || {}"
 
 - id: agent-default-model
   config:
-    provider: !!js "process.env.LCA_CHAT_BASE_URL ? 'lca-chat' : 'deepseek-official'"
-    model: !!js "process.env.LCA_CHAT_BASE_URL ? process.env.LCA_CHAT_MODEL : (process.env.LCA_DSH_MODEL ?? 'deepseek-flash')"
+    provider: !!js "(JSON.parse(process.env.LCA_DSH_ROUTES || '{}').chat || {}).provider || 'deepseek-official'"
+    model: !!js "(JSON.parse(process.env.LCA_DSH_ROUTES || '{}').chat || {}).model || 'deepseek-flash'"
 
 # Launch-time credentials, no account login, no telemetry, no extra title calls, no HMR.
 - id: credentials

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import type { Clock } from '../clock'
+import type { DshRoutes } from './routes'
 
 /**
  * DSH host launcher (spike). Runs the forked DSH runtime as an Electron-Node child with LCA's `lca`
@@ -20,10 +21,10 @@ export const dshSources = (value: unknown): DshSource[] => Array.isArray(value) 
  * `trust`: the OS sandbox cannot run commands in her project; asks whether to trust the project instead.
  */
 export type DshApproval = { sessionId: string; toolName: string; callId: string | null; reason: string | null; kind: 'risky' | 'escalation' | 'degraded' | 'trust'; command: string | null; subject: string | null; degraded: DshSource[] | null }
-export type DshRoute = { kind: 'deepseek-official'; apiKey: string; model?: string } | { kind: 'openai-compatible'; baseUrl: string; model: string; apiKey: string }
 export interface DshHostOptions {
   clock: Clock; dshRoot: string; dataDir: string; bridge: string; workspace: string
-  route: DshRoute | null; guardedRoots: readonly string[]
+  /** Her chat and work models (routes.ts); null keeps DSH's own default model. */
+  routes: DshRoutes | null; guardedRoots: readonly string[]
   persona: string; suffix?: string; tools: readonly DshTool[]
   onEvent(event: DshEvent): void
   /** `source` marks a result carrying third-party content; the bridge then degrades the turn. */
@@ -71,10 +72,7 @@ export function startDshHost(options: DshHostOptions) {
   // DSH's native runtime hooks accept exact Electron builds only; LCA pins 44.7.0 to match. A system
   // Node can still host DSH for diagnosis (LCA_DSH_NODE).
   const runtime = process.env.LCA_DSH_NODE || process.execPath
-  const route = options.route
-  Object.assign(env, { DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1', LCA_GUARDED_ROOTS: options.guardedRoots.join(';'),
-    ...(route?.kind === 'deepseek-official' ? { DEEPSEEK_API_KEY: route.apiKey, ...(route.model ? { LCA_DSH_MODEL: route.model } : {}) } : {}),
-    ...(route?.kind === 'openai-compatible' ? { LCA_CHAT_BASE_URL: route.baseUrl, LCA_CHAT_MODEL: route.model, LCA_CHAT_API_KEY: route.apiKey } : {}),
+  Object.assign(env, { DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1', LCA_GUARDED_ROOTS: options.guardedRoots.join(';'), ...options.routes?.env,
     ...(process.env.LCA_DSH_NODE ? {} : { ELECTRON_RUN_AS_NODE: '1' }) })
   const child = spawn(runtime, [cli, '--profile', 'lca'], { cwd: options.workspace, env, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe', 'ipc'] })
   // Never echo the child's stderr: provider errors can quote request details.
@@ -94,9 +92,9 @@ export function startDshHost(options: DshHostOptions) {
       kind: message.kind === 'risky' || message.kind === 'degraded' || message.kind === 'trust' ? message.kind : 'escalation', command: (message.command as string | null) ?? null, subject: typeof message.subject === 'string' ? message.subject : null,
       degraded: Array.isArray(message.degraded) ? dshSources(message.degraded) : null })
       .then((outcome) => child.send({ t: 'approval-answer', id: message.id, outcome }), () => child.send({ t: 'approval-answer', id: message.id, outcome: 'rejected' }))
-    else if ((message.t === 'session' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
+    else if ((message.t === 'session' || message.t === 'described' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
       const entry = waiting.get(message.ref)!; waiting.delete(message.ref)
-      if (message.t === 'session') entry.done(message); else entry.fail(new Error(String(message.message)))
+      if (message.t === 'error') entry.fail(new Error(String(message.message))); else entry.done(message)
     }
     options.onEvent(message)
   })
@@ -111,6 +109,15 @@ export function startDshHost(options: DshHostOptions) {
     untrust: (sessionId: string) => child.send({ t: 'untrust', sessionId }),
     send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup') => child.send({ t: 'send', sessionId, text, mode }),
     cancel: (sessionId: string) => child.send({ t: 'cancel', sessionId }),
+    /** Thinking levels DSH can send for each role's model; null where it cannot tell. */
+    describe: async () => {
+      await started
+      const answer = await request({ t: 'describe' })
+      const levels = (value: unknown) => Array.isArray(value) ? value.filter((level): level is string => typeof level === 'string') : null
+      return { chat: levels(answer.chat), work: levels(answer.work) }
+    },
+    /** New thinking levels from the settings; they apply from each session's next step. */
+    efforts: (efforts: { chat?: string; work?: string }) => child.send({ t: 'efforts', efforts }),
     close: async () => { if (child.connected) child.send({ t: 'shutdown' }); const stop = options.clock.after(10_000, () => child.kill()); try { return await exited } finally { stop() } },
   }
 }

@@ -1,10 +1,23 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error -- plain ESM plugin module loaded by the DSH runtime; no type declarations.
-import { RETIRED, TRUST_FEEDBACK, createDegradation, createLineage, gatedWhileDegraded, isRisky, retireResults, sandboxDenied, sourceOf, subjectOf } from '../../dsh/lca-bridge/policy.js'
+import { HANDOFF_FEEDBACK, RETIRED, TRUST_FEEDBACK, createDegradation, createLineage, gatedWhileDegraded, handoffOf, isRisky, parseRoutes, retireResults, sameModel, sandboxDenied, sourceOf, subjectOf } from '../../dsh/lca-bridge/policy.js'
 
 const agent = (id: string, parentSession?: string) => ({ session: { id, header: parentSession ? { parentSession, origin: 'subagent' } : {} } })
 
 describe('lca-bridge policy', () => {
+  it('hands her first hands-on step to the work model: changes are decided again, looking runs', () => {
+    for (const name of ['write', 'edit', 'pwsh', 'bash', 'subagent', 'workflow']) expect(handoffOf(name)).toBe('redo')
+    for (const name of ['read', 'glob', 'grep']) expect(handoffOf(name)).toBe('switch')
+    for (const name of ['lca_get_timer', 'web_search', 'ask_user']) expect(handoffOf(name)).toBeNull()
+    expect(HANDOFF_FEEDBACK).toContain('work model takes over')
+    expect(sameModel({ provider: 'p', model: 'm' }, { provider: 'p', model: 'm' })).toBe(true)
+    // One model with a higher level for work is still a switch: the step is decided again at that level.
+    expect(sameModel({ provider: 'p', model: 'm', effort: 'low' }, { provider: 'p', model: 'm', effort: 'max' })).toBe(false)
+    expect(parseRoutes(JSON.stringify({ providers: {}, chat: { provider: 'google', model: 'g' }, work: { provider: 'deepseek-official', model: 'd', effort: 'max' } })))
+      .toEqual({ chat: { provider: 'google', model: 'g' }, work: { provider: 'deepseek-official', model: 'd', effort: 'max' } })
+    for (const text of [undefined, '', 'not json', JSON.stringify({ chat: { provider: 'p' } })]) expect(parseRoutes(text)).toBeNull()
+  })
+
   it('places subagents and their children under the root session', () => {
     const lineage = createLineage((id: string) => id === 'root')
     expect(lineage.rootOf(agent('root'))).toBe('root')

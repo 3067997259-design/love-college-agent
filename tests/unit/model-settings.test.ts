@@ -16,7 +16,9 @@ it('imports explicit TTS fields, preserves mixed chat/privacy slots, and reads t
   const settings = createModelSettings(options); expect(settings.dispatch({ type: 'models.configure' } as AppCommand)).toBeUndefined(); await settings.idle(); expect(settings.view()).toMatchObject({ status: 'saved', restartRequired: true, configuredSlots: ['chat'] })
   const saved = join(root, 'connections', 'providers.json'); expect(JSON.parse(readFileSync(saved, 'utf8'))).toEqual(config); await settings.close()
   const reopened = createModelSettings(options); expect(await readVoiceConfig(saved)).toEqual(tts); expect((await readModelProviders(saved)).has('chat')).toBe(true); expect((await readModelProviders(saved)).has('privacy')).toBe(false)
-  expect(JSON.stringify(reopened.view())).not.toContain('synthetic-'); await reopened.close()
+  const shown = JSON.stringify(reopened.view())
+  for (const secret of ['synthetic-chat-only', 'synthetic-speech-only', 'chat.invalid', 'speech.invalid', 'synthetic-stock-voice']) expect(shown).not.toContain(secret)
+  expect(reopened.view().details?.chat).toEqual({ vendor: null, host: 'cha•••.invalid', model: 'synthetic-chat-model' }); await reopened.close()
 // Real Windows filesystem import/readback can exceed 5s on a hosted worker.
 // Assertions and application deadlines stay unchanged; this fixture has no network.
 }, 15000)
@@ -48,7 +50,7 @@ it('hot-applies GUI configuration and explicit routes without losing the fallbac
   writeFileSync(fallback, JSON.stringify({ description: 'synthetic legacy annotation', providers: { chat: { ...chat, description: 'synthetic slot annotation' }, privacy: { base_url: '', api_key: '', model: '' } } }))
   const before = readFileSync(fallback); let applied = 0
   const settings = createModelSettings({ root, fallback, apply: async () => { applied++ }, developer: false, slots: ['chat'], clock: createManualClock(), canConfigure: () => true, choose: async () => null, changed: () => {} })
-  expect(settings.view().routing).toEqual({ background: 'follow-main', privacy: 'independent' })
+  expect(settings.view().routing).toEqual({ background: 'follow-main', privacy: 'independent', work: 'follow-main' })
   settings.dispatch({ type: 'models.routing.set', slot: 'privacy', mode: 'follow-main' } as AppCommand); await settings.idle()
   expect(applied).toBe(1); expect(settings.view().restartRequired).toBe(false); expect(readFileSync(fallback)).toEqual(before)
   const file = join(root, 'connections', 'providers.json'); expect((await readModelProviders(file)).get('chat')).toEqual(chat)
@@ -73,7 +75,8 @@ it('imports annotated bootstrap configuration and a UTF-8 BOM without changing c
   expect(settings.view()).toMatchObject({ status: 'saved', configuredSlots: ['chat'], routing, services: { mail: true, tts: true } })
   const saved = join(root, 'connections', 'providers.json')
   expect(JSON.parse(readFileSync(saved, 'utf8'))).toEqual({ providers: { chat, privacy, tts }, mail, routing })
-  expect(readFileSync(file)).toEqual(before); expect(JSON.stringify(settings.view())).not.toContain('synthetic-')
+  expect(readFileSync(file)).toEqual(before)
+  for (const secret of ['synthetic-chat-secret', 'synthetic-speech-secret', 'synthetic-mail-secret', 'synthetic-user', 'synthetic-voice', 'chat.invalid', 'annotation']) expect(JSON.stringify(settings.view())).not.toContain(secret)
   expect(await readVoiceConfig(saved)).toEqual(tts); expect((await readModelRouting(saved)).privacy).toBe('independent')
   await settings.close()
 })
@@ -86,4 +89,31 @@ it('accepts Rodin address/key without a fictitious model and preserves a non-def
   settings.dispatch({ type: 'mail.configure', host: '', user: '', authCode: 'synthetic-new-code' } as AppCommand); await settings.idle()
   const saved = JSON.parse(readFileSync(join(root, 'connections', 'providers.json'), 'utf8')); expect(saved.mail.port).toBe(1993); expect(saved.mail.auth_code).toBe('synthetic-new-code'); expect(saved.providers.rodin.api_key).toBe('synthetic-rodin-key')
   await settings.close()
+})
+
+it('keeps a thinking level per role, applies it without a restart, and drops it when that model changes', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'lca-slot-')); roots.push(root); const file = join(root, 'connections', 'providers.json'); mkdirSync(join(root, 'connections'), { recursive: true })
+  writeFileSync(file, JSON.stringify({ providers: { chat: { base_url: 'https://api.deepseek.com/v1', api_key: 'synthetic-chat-secret', model: 'deepseek-flash' } } }))
+  let applied = 0; const changes: unknown[] = []
+  // Busy work must not block a level change: it applies from her next step.
+  const settings = createModelSettings({ root, apply: async () => { applied++ }, developer: false, slots: ['chat'], clock: createManualClock(), canConfigure: () => false, choose: async () => null, changed: () => {}, effortsChanged: (efforts) => { changes.push(efforts) } })
+  expect(settings.view().details?.chat).toEqual({ vendor: 'DeepSeek', host: 'api•••.com', model: 'deepseek-flash' })
+  expect(settings.view().routing?.work).toBe('follow-main')
+  expect(settings.dispatch({ type: 'models.effort.set', role: 'work', effort: 'max' } as AppCommand)).toBeUndefined(); await settings.idle()
+  expect(settings.dispatch({ type: 'models.effort.set', role: 'chat', effort: 'low' } as AppCommand)).toBeUndefined(); await settings.idle()
+  expect(JSON.parse(readFileSync(file, 'utf8')).efforts).toEqual({ work: 'max', chat: 'low' })
+  expect(settings.view().efforts).toEqual({ work: 'max', chat: 'low' }); expect(changes).toEqual([{ work: 'max' }, { work: 'max', chat: 'low' }]); expect(applied).toBe(0)
+  expect(settings.dispatch({ type: 'models.provider.save', slot: 'chat', baseUrl: '', model: 'deepseek-v4-pro' } as AppCommand)).toBe('unavailable')
+  await settings.close()
+  // A different chat model starts from its provider's default; work followed it, so its level goes too.
+  const free = createModelSettings({ root, apply: async () => {}, developer: false, slots: ['chat'], clock: createManualClock(), canConfigure: () => true, choose: async () => null, changed: () => {} })
+  free.setLevels({ chat: ['low', 'medium', 'high', 'bogus'], work: null })
+  expect(free.view().levels).toEqual({ chat: ['low', 'medium', 'high'] })
+  free.dispatch({ type: 'models.provider.save', slot: 'chat', baseUrl: '', model: 'deepseek-v4-pro' } as AppCommand); await free.idle()
+  expect(JSON.parse(readFileSync(file, 'utf8')).efforts).toEqual({}); expect(free.view().levels).toBeUndefined()
+  free.dispatch({ type: 'models.provider.save', slot: 'work', baseUrl: 'https://api.moonshot.cn/v1', model: 'kimi-k3', apiKey: 'synthetic-work-secret' } as AppCommand); await free.idle()
+  expect(free.view().routing?.work).toBe('independent'); expect(free.view().details?.work).toEqual({ vendor: 'Kimi', host: 'api•••.cn', model: 'kimi-k3' })
+  expect(JSON.stringify(free.view())).not.toContain('synthetic-work-secret')
+  expect(resolveModelProviders(await readModelProviders(file), await readModelRouting(file)).get('work')?.model).toBe('kimi-k3')
+  await free.close()
 })

@@ -7,10 +7,14 @@
 //   without WRITE_DAC on the maintainer's machine), the first failing command must ask about trust
 //   instead of showing her the raw ACL error. Trusting reruns the command unsandboxed; declining is
 //   asked once per session. Skipped where the sandbox works.
-// Usage: node scripts/dsh-bridge-check.mjs [degrade|trust|decline ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
+// - handoff: chat and work models differ. Turn 1 starts on the chat model; its first write is not run
+//   but handed to the work model, which writes the file itself. Turn 2 is back on the chat model.
+// - levels: catalog routes (Gemini for chat, DeepSeek's first-party adapter for work, placeholder keys)
+//   report each model's thinking levels from DSH's installed catalog; no request leaves the machine.
+// Usage: node scripts/dsh-bridge-check.mjs [degrade|trust|decline|handoff|levels ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import { prepareDshProfile } from '../dsh/profile.mjs'
@@ -21,8 +25,38 @@ const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(repo, '.local-data'))
 const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part?.text ?? '').join('')
 const pwsh = (id, command) => ({ tool: 'pwsh', id, args: { description: 'Print a number', command } })
 const resultOf = (seen, id) => seen.results.find((result) => result.callId === id)
+const write = (id, content) => ({ tool: 'write', id, args: { file_path: 'note.txt', content } })
 
 const SCENARIOS = {
+  levels: {
+    trusted: true, turns: [], describe: true,
+    routes: () => ({ LCA_CHAT_API_KEY: 'placeholder', DEEPSEEK_API_KEY: 'placeholder', LCA_DSH_ROUTES: JSON.stringify({
+      providers: { google: { apiKeyEnv: 'LCA_CHAT_API_KEY', models: [{ id: 'gemini-3.8-flash' }] } },
+      chat: { provider: 'google', model: 'gemini-3.8-flash', effort: 'low' }, work: { provider: 'deepseek-official', model: 'deepseek-v4-pro', effort: 'max' } }) }),
+    check: (seen, notes) => ({
+      chatLevelsFromCatalog: seen.described?.chat?.join() === 'low,medium,high',
+      workLevelsFromAdapter: ['off', 'high', 'max'].every((level) => seen.described?.work?.includes(level)),
+      noModelRequest: notes.requests === 0,
+    }),
+  },
+  handoff: {
+    trusted: true, answer: 'allowed-once', work: 'mock-work', turns: ['[[T1]] write a note', '[[T2]] just say hi'],
+    script({ turn, lastTool, toolText, model, notes }) {
+      notes.models.push(`${turn}:${model}`)
+      if (turn === 1 && !lastTool) return write('call_write_chat', 'from chat')
+      if (turn === 1 && lastTool === 'call_write_chat') { notes.feedback = toolText; return write('call_write_work', 'from work') }
+      if (turn === 1) return { text: 'wrote it' }
+      return { text: 'hi' }
+    },
+    check: (seen, notes, work) => ({
+      turnsCompleted: seen.turnEnds.length === 2 && seen.turnEnds.every((kind) => kind === 'completed'),
+      turn1StartedOnChat: notes.models[0] === '1:mock-chat',
+      handedOffOnce: seen.handoffs.length === 1 && seen.handoffs[0] === 'call_write_chat' && seen.switched.join() === 'work',
+      chatWriteNotRun: resultOf(seen, 'call_write_chat')?.isError === true && notes.feedback.includes('work model takes over'),
+      workModelWrote: notes.models[1] === '1:mock-work' && resultOf(seen, 'call_write_work')?.isError === false && readFileSync(join(work, 'note.txt'), 'utf8') === 'from work',
+      turn2BackOnChat: notes.models.filter((entry) => entry.startsWith('2:')).every((entry) => entry === '2:mock-chat') && notes.models.some((entry) => entry.startsWith('2:')),
+    }),
+  },
   degrade: {
     trusted: true, answer: 'allowed-once', turns: ['[[T1]] read the notes, then run a command', '[[T2]] run one more command'],
     script({ turn, lastTool, messages, notes }) {
@@ -80,7 +114,7 @@ async function run(name) {
   const scenario = SCENARIOS[name]
   const work = join(dataDir, 'dsh-work', `bridge-check-${name}-${randomUUID().slice(0, 8)}`)
   mkdirSync(work, { recursive: true })
-  const notes = { rawSeen: false }
+  const notes = { rawSeen: false, models: [] }
   let requests = 0
   const server = createServer((req, res) => {
     let body = ''
@@ -88,12 +122,13 @@ async function run(name) {
     req.on('end', () => {
       if (req.method !== 'POST' || !req.url.endsWith('/chat/completions')) { res.writeHead(404).end(); return }
       requests++
-      const messages = JSON.parse(body).messages ?? []
+      const request = JSON.parse(body)
+      const messages = request.messages ?? []
       if (messages.some((message) => message.role === 'tool' && /SetNamedSecurityInfoW|grantWrite\(/.test(textOf(message.content)))) notes.rawSeen = true
       const marker = messages.findLastIndex((message) => message.role === 'user' && /\[\[T\d\]\]/.test(textOf(message.content)))
       const turn = marker < 0 ? 0 : Number(textOf(messages[marker].content).match(/\[\[T(\d)\]\]/)[1])
       const last = messages.slice(marker + 1).filter((message) => message.role === 'tool').at(-1)
-      const reply = scenario.script({ turn, lastTool: last?.tool_call_id ?? null, toolText: textOf(last?.content), messages, notes })
+      const reply = scenario.script({ turn, lastTool: last?.tool_call_id ?? null, toolText: textOf(last?.content), messages, model: request.model, notes })
       const base = { id: `mock-${requests}`, object: 'chat.completion.chunk', created: 0, model: 'mock' }
       const send = (choices, extra = {}) => res.write(`data: ${JSON.stringify({ ...base, choices, ...extra })}\n\n`)
       res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -109,19 +144,26 @@ async function run(name) {
   const child = spawn(process.execPath, [cli, '--profile', 'lca'], {
     cwd: work,
     env: { ...process.env, DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1', LCA_GUARDED_ROOTS: join(dataDir, 'dsh-home'), DEEPSEEK_API_KEY: '', NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost',
-      LCA_CHAT_BASE_URL: `http://127.0.0.1:${server.address().port}/v1`, LCA_CHAT_MODEL: 'mock', LCA_CHAT_API_KEY: 'mock' },
+      // As src/main/dsh/routes.ts builds it for one OpenAI-compatible endpoint serving both models.
+      ...(scenario.routes ? { ...scenario.routes(), HTTPS_PROXY: 'http://127.0.0.1:9', HTTP_PROXY: 'http://127.0.0.1:9', NO_PROXY: '' } : { LCA_CHAT_API_KEY: 'mock', LCA_DSH_ROUTES: JSON.stringify({
+        providers: { 'lca-chat': { displayName: 'LCA', apiKeyEnv: 'LCA_CHAT_API_KEY', api: 'openai-completions', baseURL: `http://127.0.0.1:${server.address().port}/v1`, models: [{ id: 'mock-chat' }, ...(scenario.work ? [{ id: scenario.work }] : [])] } },
+        chat: { provider: 'lca-chat', model: 'mock-chat' }, work: { provider: 'lca-chat', model: scenario.work ?? 'mock-chat' } }) }) },
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
   })
   let stderr = ''
   child.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-4000) })
-  const seen = { approvals: [], degraded: [], retired: [], trusted: [], results: [], turnEnds: [] }
+  const seen = { approvals: [], degraded: [], retired: [], trusted: [], results: [], turnEnds: [], handoffs: [], switched: [] }
   let sessionId
   const timer = setTimeout(() => { seen.timeout = true; child.kill() }, 120_000)
   child.on('message', (message) => {
     const turn = seen.turnEnds.length + 1
     switch (message.t) {
       case 'hello': child.send({ t: 'init', persona: 'You are a test agent.', suffix: '', tools: [] }); break
-      case 'init-ok': child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted }); break
+      case 'init-ok':
+        if (scenario.describe) child.send({ t: 'describe', ref: 'levels' })
+        else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted })
+        break
+      case 'described': seen.described = { chat: message.chat, work: message.work }; child.send({ t: 'shutdown' }); break
       case 'session': sessionId = message.sessionId; child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup' }); break
       case 'approval':
         seen.approvals.push({ turn, kind: message.kind, toolName: message.toolName, degraded: message.degraded })
@@ -130,6 +172,8 @@ async function run(name) {
       case 'retired': seen.retired.push({ turn, count: message.count }); break
       case 'trusted': seen.trusted.push({ turn, preset: message.preset }); break
       case 'tool-result': seen.results.push({ callId: message.callId, isError: message.isError }); break
+      case 'handoff': seen.handoffs.push(message.callId); break
+      case 'model': seen.switched.push(message.role); break
       case 'turn-end':
         seen.turnEnds.push(message.reason?.kind ?? null)
         if (seen.turnEnds.length < scenario.turns.length) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })
@@ -142,7 +186,8 @@ async function run(name) {
   const code = await new Promise((done) => child.on('exit', done))
   clearTimeout(timer); server.close()
   if (scenario.skip?.(seen)) return { name, ok: true, skipped: 'the OS sandbox ran the command here', seen }
-  const checks = scenario.check(seen, notes)
+  notes.requests = requests
+  const checks = scenario.check(seen, notes, work)
   const ok = Object.values(checks).every(Boolean) && !seen.timeout
   if (!ok && stderr) seen.stderr = stderr.split('\n').filter((line) => /error|warn/i.test(line)).slice(-20)
   return { name, ok, checks, ...(ok ? {} : { seen, notes }), modelRequests: requests, exitCode: code }
