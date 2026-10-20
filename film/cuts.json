@@ -1,0 +1,37 @@
+{
+  "_说明": "路演两段片子的时长、配乐剪辑点和用图（分镜表 §5、路演稿 §1）。时间单位秒；audio 的 at 是片子里的时刻，from/to 是歌曲里的时刻。换关键帧只改 art 里的路径（用户审过的图）。歌曲不进仓库：默认找 <仓库>/music/，也可用环境变量 LCA_SONG 指定。",
+  "fps": 30,
+  "song": "music/花筏 - Orangestar_夏背.mp3",
+  "cuts": {
+    "opening": {
+      "audio": [
+        { "at": 8.0, "from": 31.25, "to": 45.8, "fadeIn": 0.12, "fadeOut": 0.6 }
+      ],
+      "art": {
+        "desk-writing": "src/renderer/src/assets/character/taozi/approved/desk-writing_calm.png",
+        "desk-writing-night": "src/renderer/src/assets/character/taozi/approved/desk-writing_night.png",
+        "facing-user": "src/renderer/src/assets/character/taozi/approved/facing-user_calm.png",
+        "facing-user-smile": "src/renderer/src/assets/character/taozi/approved/facing-user_smile.png",
+        "empty": "src/renderer/src/assets/character/taozi/approved/empty.png"
+      }
+    },
+    "closing": {
+      "audio": [
+        { "at": 0, "from": 102.95, "to": 122.25, "fadeIn": 0.05, "fadeOut": 0.25 },
+        { "at": 19.05, "from": 136.0, "to": 161.0, "fadeIn": 0.2, "fadeOut": 1.4 }
+      ],
+      "art": {
+        "k12": "film/gen/k12-writing-271828.png",
+        "k13-smile": "film/gen/k13-smile-271828.png",
+        "k13-quill": "film/gen/k13-quill-271828.png",
+        "k14": "film/gen/k14-wind-271828-2.png",
+        "swing": "film/gen/bg-swing-271828.png",
+        "coast": "film/gen/bg-coast-271828.png",
+        "k18": "film/gen/k18-under-swing-271828-2.png",
+        "k19-turn": "film/gen/k19-turn-271828-2.png",
+        "k19-offer": "film/gen/k19-offer-271828.png",
+        "k19-given": "film/gen/k19-given-271828.png"
+      }
+    }
+  }
+}

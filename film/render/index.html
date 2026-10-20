@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>短片合成</title>
+  <style>
+    html, body { margin: 0; background: #2b2a28; color: #ddd; font: 13px system-ui, sans-serif; }
+    canvas { display: block; width: 100vw; height: auto; max-height: 100vh; object-fit: contain; }
+    #status { position: fixed; left: 8px; bottom: 6px; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <canvas id="film"></canvas>
+  <div id="status"></div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
