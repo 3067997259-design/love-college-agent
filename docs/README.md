@@ -14,7 +14,7 @@
 | 角色身份、差分与素材采用 | [美术规格](art-spec.md) |
 | 检查命令、测试范围与真实服务 | [测试说明](testing.md) |
 | 近期维护方向与尚未承诺的探索 | [维护计划](maintenance.md) |
-| 版本变化与发布验证 | [更新记录](../CHANGELOG.md)、[v0.1.10](releases/0.1.10.md) |
+| 版本变化与发布验证 | [更新记录](../CHANGELOG.md)、[v1.0.0](releases/1.0.0.md) |
 | 参考机制、依赖和素材来源 | [参考与来源](reference-research.md)、[第三方说明](../THIRD_PARTY_NOTICES.md) |
 | 复现实验及其证据边界 | [研究索引](research/README.md) |
 | 初始交付与旧文档 | [项目历史](history.md) |

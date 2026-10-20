@@ -53,7 +53,7 @@ pnpm dev
 
 ## 当前边界与后续方向
 
-当前发布基线为 **v0.2.2**（demo 验收版，D1–D4）；功能范围与验证条件见 [版本记录](docs/releases/0.2.2.md)。合成模型的流程测试、真实服务连通、第二台机器安装和长期日用分别验证。
+当前版本为 **v1.0.0**，第一个正式版；功能范围与验证条件见 [版本记录](docs/releases/1.0.0.md)。合成模型的流程测试、真实服务连通、第二台机器安装和长期日用分别验证。
 
 - 校园插件依赖独立的 Student Hub 后端和学校登录配置，没有通用的多学校即插即用能力。
 - 可靠资料输入是文本和文字层 PDF；真实 TTS / OCR 质量、长期自主生活体验仍需继续验证。
@@ -65,7 +65,7 @@ pnpm dev
 
 ## 起源、致谢与许可
 
-项目起源于 Techathon 2026。比赛终版保存在 [Hackathon 分支](https://github.com/3067997259-design/love-college-agent/tree/Hackathon) 与 [冻结标签](https://github.com/3067997259-design/love-college-agent/tree/hackathon-2026-final)，main 持续维护。历史材料入口见 [项目历史](docs/history.md)。
+项目起源于 Techathon 2026，比赛终版保存在 [Hackathon 分支](https://github.com/3067997259-design/love-college-agent/tree/Hackathon) 与 [冻结标签](https://github.com/3067997259-design/love-college-agent/tree/hackathon-2026-final)。从 v1.0.0 起，项目由 AfterRain 独立维护，版本与比赛无关。历史材料入口见 [项目历史](docs/history.md)。
 
 感谢相关开源项目、工具与创作者。设计参考和素材来源见 [参考与来源](docs/reference-research.md)、[第三方说明](THIRD_PARTY_NOTICES.md)。
 

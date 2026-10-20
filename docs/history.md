@@ -1,6 +1,6 @@
 # 项目历史与归档
 
-Love, College & Agent 起源于 Techathon 2026，随后由 AfterRain 个人长期维护。main 保存当前产品与后续开发；公开文档使用网名，不列出成员真名。
+Love, College & Agent 起源于 Techathon 2026，随后由 AfterRain 个人长期维护。2026-10-20 的 [v1.0.0](releases/1.0.0.md) 是独立维护后的第一个正式版，此后的版本与比赛无关。main 保存当前产品与后续开发；公开文档使用网名，不列出成员真名。
 
 ## 冻结版本
 
