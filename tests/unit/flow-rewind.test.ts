@@ -8,9 +8,9 @@ import type { SessionStore } from '../../src/main/store/session'
 import { createManualClock } from '../../src/main/clock'
 import { openJournal } from '../../src/main/journal/file'
 import { projectJournal } from '../../src/main/journal/projection'
-import { createDesk } from '../../src/main/heart-flow/desk'
+import { createDesk } from '../../src/main/legacy-flow/desk'
 import { createHeartFlow } from '../../src/main/heart-flow/service'
-import { appliedDeskChanges, changeUndone } from '../../src/main/heart-flow/changes'
+import { appliedDeskChanges, changeUndone } from '../../src/main/legacy-flow/changes'
 
 const cleanup: (() => void)[] = []
 afterEach(() => { for (const close of cleanup.splice(0).reverse()) close() })

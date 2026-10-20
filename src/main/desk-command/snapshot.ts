@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, lstat, open, realpath, readdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
-import { contentHash, deskPathSchema, validateDeskText } from '../heart-flow/desk'
+import { contentHash, deskPathSchema, validateDeskText } from '../legacy-flow/desk'
 
 export type CommandSnapshot = { root: string; parent: string; files: ReadonlyMap<string, string>; hash: string }
 export type CommandEdit = { path: string; before: string | null; after: string | null }

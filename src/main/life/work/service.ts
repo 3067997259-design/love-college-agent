@@ -3,7 +3,7 @@ import type { AppCommand, LifeWorkItem, LifeWorkKind, LifeWorkView, PublicErrorC
 import type { Clock } from '../../clock'
 import type { Scheduler } from '../../scheduler'
 import type { SessionStore } from '../../store/session'
-import type { createDesk } from '../../heart-flow/desk'
+import type { createDesk } from '../../legacy-flow/desk'
 import { calendarDay } from '../service'
 import { workOutput, type LifeWorkModel, type WorkDraft } from './schema'
 import { workHash, workPath, workRecords } from './records'

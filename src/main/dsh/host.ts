@@ -11,7 +11,7 @@ import type { DshRoutes } from './routes'
  * the child environment only; the child gets an explicit environment, never main's whole one.
  */
 export type DshEvent = { t: string; sessionId?: string; [key: string]: unknown }
-export type DshTool = { name: string; description: string; parameters: Record<string, unknown> }
+export type DshTool = { name: string; description: string; parameters: Record<string, unknown>; source?: DshSource | null }
 /** Third-party content kinds, as in D2's `turn/degraded`. */
 export type DshSource = 'mail' | 'document' | 'web' | 'mcp' | 'plugin'
 const SOURCES: readonly DshSource[] = ['mail', 'document', 'web', 'mcp', 'plugin']
@@ -27,6 +27,8 @@ export interface DshHostOptions {
   routes: DshRoutes | null; guardedRoots: readonly string[]
   persona: string; suffix?: string; tools: readonly DshTool[]
   onEvent(event: DshEvent): void
+  /** Before each model step of her family: may it run (resource ledger)? */
+  onAdmit?(input: { sessionId: string; bucket: 'work' | 'autonomous'; role: 'chat' | 'work'; units: number }): boolean
   /** `source` marks a result carrying third-party content; the bridge then degrades the turn. */
   onCall(name: string, args: unknown, sessionId: string, callId: string): Promise<{ value: unknown; source: DshSource | null }>
   onApproval(request: DshApproval): Promise<'allowed-once' | 'rejected'>
@@ -86,6 +88,11 @@ export function startDshHost(options: DshHostOptions) {
     const message = raw as DshEvent
     if (message.t === 'hello') child.send({ t: 'init', persona: options.persona, suffix: options.suffix ?? '', tools: options.tools })
     else if (message.t === 'init-ok') ready()
+    else if (message.t === 'admit') {
+      let ok: boolean
+      try { ok = options.onAdmit?.({ sessionId: String(message.sessionId), bucket: message.bucket === 'autonomous' ? 'autonomous' : 'work', role: message.role === 'work' ? 'work' : 'chat', units: Math.max(1, Math.min(20_000_000, Math.round(Number(message.units) || 16_000))) }) ?? true } catch { ok = message.bucket !== 'autonomous' }
+      child.send({ t: 'admit-answer', id: message.id, ok })
+    }
     else if (message.t === 'lca-call') void options.onCall(String(message.name), message.args, String(message.sessionId), String(message.callId))
       .then((result) => child.send({ t: 'lca-result', id: message.id, ok: true, value: result.value, source: result.source }), (error: unknown) => child.send({ t: 'lca-result', id: message.id, ok: false, error: error instanceof Error ? error.message : 'LCA_TOOL_FAILED' }))
     else if (message.t === 'approval') void options.onApproval({ sessionId: String(message.sessionId), toolName: String(message.toolName), callId: (message.callId as string | null) ?? null, reason: (message.reason as string | null) ?? null,
@@ -102,15 +109,22 @@ export function startDshHost(options: DshHostOptions) {
   return {
     started,
     /** `degraded`: the resumed session still holds third-party content LCA could not retire before a restart. */
-    open: async (cwd: string, sessionId?: string, trusted = false, degraded: readonly DshSource[] = []) => { await started; return String((await request({ t: 'open', cwd, trusted, degraded, ...(sessionId ? { sessionId } : {}) })).sessionId) },
+    /** `persona` / `suffix`: her current card and profile (names change in onboarding after DSH starts). */
+    open: async (cwd: string, sessionId?: string, trusted = false, degraded: readonly DshSource[] = [], persona?: { persona: string; suffix: string }) => {
+      await started
+      return String((await request({ t: 'open', cwd, trusted, degraded, ...(sessionId ? { sessionId } : {}), ...(persona ?? {}) })).sessionId)
+    },
     /** Switch a live session to the `lca-trusted` preset after the user granted its project. */
     trust: (sessionId: string) => child.send({ t: 'trust', sessionId }),
     /** Back to the default sandbox preset after the user withdrew trust. */
     untrust: (sessionId: string) => child.send({ t: 'untrust', sessionId }),
     /** `reference`: LCA's memory references, sent as their own block before your text. */
-    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user') =>
-      child.send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}) }),
+    /** `degrade`: the reference carries third-party originals that cannot be retired; the session stays degraded. */
+    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user', degrade: readonly DshSource[] = []) =>
+      child.send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}), ...(degrade.length ? { degrade } : {}) }),
     cancel: (sessionId: string) => child.send({ t: 'cancel', sessionId }),
+    /** Replace her LCA tools (a plugin was enabled or disabled); the next step sees the new list. */
+    tools: (tools: readonly DshTool[]) => child.send({ t: 'tools', tools }),
     /** Thinking levels DSH can send for each role's model; null where it cannot tell. */
     describe: async () => {
       await started

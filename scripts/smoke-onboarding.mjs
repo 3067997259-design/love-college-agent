@@ -54,9 +54,17 @@ try {
   if (!backendOnly) { assert.equal(await onboarding().count(), 0); await page.getByRole('textbox').waitFor() }
   // Main's final request is observed at a local synthetic HTTP server, never a real provider.
   await send({ type: 'message.send', text: '只核对合成档案分层' }); await waitFor((s) => s.task?.status === 'completed', 'SYNTHETIC_CONTEXT_NOT_COMPLETED')
-  assert.equal(requests.length, 1); const messages = requests[0].messages
-  assert.equal(messages[0].role, 'system'); assert.ok(messages[1].content.includes('杏子')); assert.ok(!messages[1].content.includes('程同学'))
-  assert.equal(messages[2].role, 'system'); assert.ok(messages[2].content.includes('关于你') && messages[2].content.includes('程同学'))
+  // DSH assembles her system prompt from LCA's persona: the card names her and never you; your name lives only in
+  // the profile part ("关于你"). Names chosen in onboarding reach the session even though DSH started before them.
+  const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part?.text ?? '').join('')
+  const request = requests.findLast((body) => body.messages.some((message) => textOf(message.content).includes('只核对合成档案分层')))
+  assert.ok(request, 'SYNTHETIC_CONTEXT_REQUEST_MISSING')
+  const system = request.messages.filter((message) => message.role === 'system' || message.role === 'developer').map((message) => textOf(message.content)).join('\n')
+  const parts = system.split('\n\n')
+  const herName = parts.find((part) => part.includes(JSON.stringify({ characterName: '杏子' })))
+  const aboutYou = parts.find((part) => part.includes('关于你'))
+  assert.ok(herName && !herName.includes('程同学'), 'CHARACTER_NAME_LAYER')
+  assert.ok(aboutYou?.includes(JSON.stringify({ userName: '程同学' })) && !aboutYou.includes('杏子'), 'PROFILE_LAYER')
   assert.equal((await snapshot()).memory.items.length, 0)
   const archiveFile = join(data, 'completed.lca-save')
   await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archiveFile)

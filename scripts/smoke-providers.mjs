@@ -56,7 +56,9 @@ try {
   const sent = await page.evaluate(async () => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ type: 'message.send', text: '第一次见面，你好。', epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) })
   assert.equal(sent.status, 'accepted')
   await waitFor(async () => (await snapshot()).task?.status === 'completed', 'FIRST_CHAT_WITHOUT_RESTART_FAILED')
-  assert.ok(requests.some((body) => body.messages.some((message) => message.content === '第一次见面，你好。')))
+  // LCA's references (her world, memory) ride in front of your words in the same DSH message.
+  const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part?.text ?? '').join('')
+  assert.ok(requests.some((body) => body.messages.some((message) => textOf(message.content).endsWith('第一次见面，你好。'))))
   // 配好的卡把地址和密钥收起来了：清除在“修改连接”里
   await card.getByRole('button', { name: '修改连接', exact: true }).click(); await card.getByRole('button', { name: '清除', exact: true }).click()
   await waitFor(async () => !(await snapshot()).modelSettings.configuredSlots.includes('chat'), 'PROVIDER_NOT_REMOVED')

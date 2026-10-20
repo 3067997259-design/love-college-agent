@@ -42,6 +42,13 @@ export async function openSettings(page) {
   else await page.locator('nav.bookmarks').getByRole('button', { name: '设置', exact: true }).click()
 }
 
+/** Leave settings: the settings page turns back to the conversation; developer mode closes its floating panel. */
+export async function closeSettings(page) {
+  const mode = await page.evaluate(async () => (await window.lca.getSnapshot()).runtime?.developer.mode)
+  if (mode === 'developer') await page.getByRole('button', { name: '关闭', exact: true }).click()
+  else await page.locator('nav.bookmarks').getByRole('button', { name: /^对话/ }).click()
+}
+
 /** Navigate the grouped user settings; the developer panel keeps its direct controls. */
 export async function openSettingsGroup(page, name) {
   const summary = page.locator('[data-settings="user"] .settings-group > summary').filter({ hasText: name })

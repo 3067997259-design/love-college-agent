@@ -62,6 +62,22 @@ export function createHistoryRecall(options: { store: SessionStore; repository: 
       && summary.sources.length && summary.sources.every((source) => allowed.has(source.id)) && summary.text.split('\n').every((line) => summary.sources.some((source) => allowed.get(source.id)?.includes(line))))
     return (['day', 'week'] as const).flatMap((level) => { const summary = safe.findLast((summary) => summary.level === level); return summary ? [{ id: summary.id, level: summary.level, text: summary.text.slice(0, 3000), historical: true }] : [] })
   }
+  /** The quoted old page as a reference block for her DSH session (it has no LCA context assembly). */
+  const reference = (requestId: string): Record<string, unknown> | null => {
+    const request = rows().findLast((row) => row.type === 'history/recall-request' && row.requestId === requestId)
+    if (!enabled || request?.type !== 'history/recall-request') return null
+    const found = resolve(request.anchor)
+    const excerpts = found.messages.slice(Math.max(0, found.at - 2), found.at + 3).map((message) => excerpt(message, found.page.sessionId, message.messageId === found.anchor.messageId ? found.offset : 0))
+    const value = { recalledSeenReference: { requestId, dayKey: found.page.dayKey, quote: found.quote, excerpts, summaries: summaries(found.page.sessionId), policy: policy.referencePolicy } }
+    // The turn has no LCA id yet; the request id marks the use so it is never offered twice, and bind() moves it to the turn.
+    if (!used(requestId)) store.append({ type: 'history/recall-used', requestId, turnId: requestId, chars: JSON.stringify(value).length })
+    return value
+  }
+  /** The DSH turn your recall message opened: recall_seen and the recall's status follow that turn. */
+  const bind = (requestId: string, turnId: string) => {
+    const previous = used(requestId)
+    if (previous?.type === 'history/recall-used' && previous.turnId === requestId && turnId !== requestId) store.append({ type: 'history/recall-used', requestId, turnId, chars: previous.chars })
+  }
   const prepare = (turnId: string, prepared: Prepared): Prepared => {
     const request = relevantRequest(turnId); if (!enabled || request?.type !== 'history/recall-request') return prepared
     const previous = used(request.requestId)
@@ -75,7 +91,7 @@ export function createHistoryRecall(options: { store: SessionStore; repository: 
     return { messages: [...prepared.messages.slice(0, insertion), { role: 'user', content }, ...prepared.messages.slice(insertion)], eligibleIndexes: prepared.eligibleIndexes.map((index) => index >= insertion ? index + 1 : index) }
   }
   return {
-    prepare,
+    prepare, reference, bind,
     recallable: (sessionId: string) => sessionId === store.scope.sessionId ? [] : witnessedPage(store, sessionId).map((message) => message.messageId),
     setEnabled: (value: boolean) => { enabled = value },
     request: (anchor: RecallAnchor, question: string, requestId: string, hash: string): PublicErrorCode | undefined => {

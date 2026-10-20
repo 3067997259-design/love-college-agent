@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createManualClock } from '../../src/main/clock'
-import { createDshExecution } from '../../src/main/dsh/execution'
+import { createDshExecution, failureOf } from '../../src/main/dsh/execution'
 import type { DshApproval, DshEvent, DshHostOptions, startDshHost } from '../../src/main/dsh/host'
 import type { HarnessTool } from '../../src/main/harness/tools'
 import { openJournal } from '../../src/main/journal/file'
@@ -20,8 +20,10 @@ afterEach(() => { for (const root of roots.splice(0)) {
 
 const mailTool: HarnessTool = { definition: { name: 'read_mail', description: 'synthetic', parameters: { type: 'object', properties: {} } }, templateId: 'mail.read',
   validate: () => true, run: async () => ({ ok: true, raw: {}, visible: { subject: 'synthetic' } }) }
+const fileTool: HarnessTool = { definition: { name: 'read_uploaded_file', description: 'synthetic', parameters: { type: 'object', properties: {} } }, templateId: 'document.read',
+  validate: () => true, run: async () => ({ ok: true, raw: { documentId: 'doc-1', sourceRead: true }, visible: { documentId: 'doc-1', sourceRead: true }, original: 'UPLOADED_ORIGINAL' }) }
 
-function setup(dataDir?: string) {
+function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'; units: number }) => 'budget-exceeded' | 'unavailable' | null, revealed?: () => { reference: Record<string, unknown>; text: string; source: 'mail' } | null) {
   const root = dataDir ?? mkdtempSync(join(tmpdir(), 'lca-dsh-journal-')); if (!dataDir) roots.push(root)
   const clock = createManualClock(1_000)
   const journal = openJournal(join(root, 'journal'), { userId: 'u', characterId: 'c' }, clock)
@@ -29,21 +31,22 @@ function setup(dataDir?: string) {
   const asked: { question: string; choices: string[] }[] = []
   let project = join(root, 'project')
   let answer: (choices: string[]) => string | null = (choices) => choices[0]
-  const host = { options: undefined as DshHostOptions | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], trusted: [] as string[], current: 'dsh-1' }
+  const host = { options: undefined as DshHostOptions | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], degrades: [] as string[][], trusted: [] as string[], current: 'dsh-1' }
   const referenceAsks: boolean[] = []
+  const startedTurns: { turnId: string; requestId: string }[] = []
   const launch = ((options: DshHostOptions) => {
     host.options = options
     return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
-      send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user') => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin) }, cancel: () => {}, close: async () => null }
+      send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
   const execution = createDshExecution({ store, clock, dataDir: root, dshRoot: 'unused', bridge: 'unused', routes: { env: {}, chat: { provider: 'deepseek-official', model: 'deepseek-flash' }, work: { provider: 'deepseek-official', model: 'deepseek-flash' } }, guardedRoots: [],
-    project: () => project, persona: () => '', suffix: () => '', tools: () => [mailTool],
-    ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch,
+    project: () => project, persona: () => '', suffix: () => '', tools: () => [mailTool, fileTool],
+    ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch, admit, revealed, started: (input) => { startedTurns.push(input) },
     reference: ({ firstOfSession }) => { referenceAsks.push(firstOfSession); return { memoryReference: [{ text: '你喜欢用 TypeScript' }], ...(firstOfSession ? { previousDaysReference: [{ text: '昨天一起写了质数脚本' }] } : {}) } } })
   const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: host.current, ...event } as DshEvent)
   const approval = (patch: Partial<DshApproval>) => host.options!.onApproval({ sessionId: 'dsh-1', toolName: 'pwsh', callId: 'call-x', reason: null, kind: 'escalation', command: 'node a.js', subject: 'node a.js', degraded: null, ...patch })
   const opened = async () => { for (let i = 0; i < 20 && !host.sent.length; i++) await Promise.resolve() }
-  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, referenceAsks, setProject: (next: string) => { project = next }, setAnswer: (next: typeof answer) => { answer = next } }
+  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, referenceAsks, startedTurns, setProject: (next: string) => { project = next }, setAnswer: (next: typeof answer) => { answer = next } }
 }
 
 async function workTurn(f: ReturnType<typeof setup>) {
@@ -71,6 +74,8 @@ describe('DSH work in the LCA journal', () => {
     expect(view.context.some((message) => message.role === 'tool' || message.toolCalls)).toBe(false)
     const started = (records.find((row) => row.type === 'work/activity') as { atMs: number }).atMs
     expect(view.activities).toEqual([{ id: 'call-1', taskId: turnId, toolCallId: 'call-1', templateId: 'dsh.shell', status: 'completed', fields: {}, startedAtMs: started }])
+    // The turn your message opened is named to LCA (an old-page quote sent with it moves to this turn).
+    expect(f.startedTurns).toEqual([{ turnId, requestId: 'r-1' }])
     expect(view.evidenceSeqs).toEqual([])
     expect(view.task).toMatchObject({ id: turnId, status: 'completed' })
     f.journal.close()
@@ -186,6 +191,84 @@ describe('DSH work in the LCA journal', () => {
     f.journal.close()
   })
 
+  it('holds turns that run without you to the autonomous allowance, records your own, and keeps the usage DSH reports', async () => {
+    const asked: string[] = []
+    const f = setup(undefined, ({ bucket }) => { asked.push(bucket); return bucket === 'autonomous' ? 'budget-exceeded' : null })
+    const admit = (bucket: 'work' | 'autonomous', units = 16_000) => f.host.options!.onAdmit!({ sessionId: f.host.current, bucket, role: 'chat', units })
+    await workTurn(f)
+    f.execution.send('再说一句', 'r-2', 'h-2')
+    for (let i = 0; i < 20 && f.host.sent.length < 2; i++) await Promise.resolve()
+    f.emit({ t: 'turn-start', turn: 2, preset: 'workspace-write' })
+    expect(admit('work')).toBe(true)
+    f.emit({ t: 'message', text: '好。', toolCalls: [], usage: { inputTokens: 1200, outputTokens: 30, cacheReadTokens: 900 } })
+    f.emit({ t: 'turn-end', turn: 2, reason: { kind: 'completed' } })
+    const attempts = f.store.records().filter((row) => row.type === 'model/attempt')
+    expect(attempts.map((row) => row.type === 'model/attempt' && [row.status, row.bucket ?? null, row.inputTokens ?? null, row.cachedInputTokens ?? null])).toEqual([['started', 'work', null, null], ['success', null, 1200, 900]])
+    // An event turn past its allowance stops and says why.
+    f.execution.postEvent('autonomous', '她读完了一章书', 'ev-1')
+    for (let i = 0; i < 20 && f.host.sent.length < 3; i++) await Promise.resolve()
+    f.emit({ t: 'turn-start', turn: 3, preset: 'workspace-write' })
+    expect(admit('autonomous')).toBe(false)
+    f.emit({ t: 'turn-end', turn: 3, reason: { kind: 'aborted' } })
+    expect(asked).toEqual(['work', 'autonomous'])
+    expect(f.store.projection().messages.at(-1)).toMatchObject({ role: 'narrator', failure: { code: 'budget-exceeded' } })
+    f.journal.close()
+  })
+
+  it('sends a mail original you asked to see once, and keeps that session degraded', async () => {
+    let shown = false
+    const f = setup(undefined, undefined, () => { if (shown) return null; shown = true; return { source: 'mail', text: 'ORIGINAL_MAIL_BODY', reference: { revealedOriginal: { source: 'mail', subject: '教务通知' } } } })
+    f.execution.send('这封邮件说了什么？', 'r-1', 'h-1')
+    await f.opened()
+    expect(f.host.references[0]).toContain('"revealedOriginal"')
+    expect(f.host.references[0]!.endsWith('ORIGINAL_MAIL_BODY')).toBe(true)
+    expect(f.host.degrades[0]).toEqual(['mail'])
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
+    f.execution.send('那就这样', 'r-2', 'h-2')
+    for (let i = 0; i < 20 && f.host.sent.length < 2; i++) await Promise.resolve()
+    expect(f.host.references[1] ?? '').not.toContain('ORIGINAL_MAIL_BODY')
+    expect(f.host.degrades[1]).toEqual([])
+    f.journal.close()
+  })
+
+  it('sends a one-message reference (an old-page quote) beside your words', async () => {
+    const f = setup()
+    f.execution.send('那天说的桥在哪？', 'r-1', 'h-1', { recalledSeenReference: { quote: '周五桥在窗边' } })
+    await f.opened()
+    expect(JSON.parse(f.host.references[0]!)).toMatchObject({ recalledSeenReference: { quote: '周五桥在窗边' }, memoryReference: [{ text: '你喜欢用 TypeScript' }] })
+    f.journal.close()
+  })
+
+  it('maps DSH turn errors to the book vocabulary with the HTTP status only', () => {
+    const of = (code: string, message: string) => failureOf({ kind: 'error', error: { code, message } })
+    expect(of('AUTH', '401 Unauthorized: VENDOR_BODY')).toEqual({ code: 'configuration-failed', httpStatus: 401 })
+    expect(of('SERVER', '503 upstream overloaded')).toEqual({ code: 'upstream-busy', httpStatus: 503 })
+    expect(of('RATE_LIMIT', '429 slow down')).toEqual({ code: 'upstream-busy', httpStatus: 429 })
+    expect(of('QUOTA_EXCEEDED', 'insufficient balance')).toEqual({ code: 'quota-exhausted' })
+    expect(of('INVALID_REQUEST', '400 {"error":{"code":"content_policy_violation"}}')).toEqual({ code: 'content-filtered', httpStatus: 400 })
+    // A filter word in an error body is no verdict.
+    expect(of('AUTH', '401 PRIVATE content filter body')).toEqual({ code: 'configuration-failed', httpStatus: 401 })
+    expect(of('INVALID_REQUEST', '400 mentions a content filter')).toEqual({ code: 'configuration-failed', httpStatus: 400 })
+    expect(of('TRANSPORT', 'stream ended without done')).toEqual({ code: 'stream-interrupted' })
+    expect(of('TRANSPORT', 'ECONNREFUSED')).toEqual({ code: 'connection-failed' })
+    expect(JSON.stringify(of('AUTH', '401 VENDOR_BODY'))).not.toContain('VENDOR_BODY')
+  })
+
+  it('keeps what she had said when the stream broke, marked as cut off, before the failure note', async () => {
+    const f = setup()
+    f.execution.send('讲个长故事', 'r-1', 'h-1')
+    await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    f.emit({ t: 'delta', text: '从前有座山，' })
+    f.emit({ t: 'delta', text: '山里有座庙' })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'error', error: { code: 'TRANSPORT', message: 'stream ended before done' } } })
+    const messages = f.store.projection().messages
+    expect(messages.at(-2)).toMatchObject({ role: 'assistant', text: '从前有座山，山里有座庙', status: 'interrupted' })
+    expect(messages.at(-1)).toMatchObject({ role: 'narrator', failure: { code: 'stream-interrupted', category: 'interrupted' } })
+    f.journal.close()
+  })
+
   it('applies D-4 to DSH work turns and D2 to third-party turns in memory', async () => {
     const f = setup()
     f.execution.send('就用 TypeScript 写，别动 config 目录', 'r-1', 'h-1')
@@ -244,6 +327,9 @@ describe('DSH work in the LCA journal', () => {
     f.emit({ t: 'trusted', preset: 'lca-trusted' })
     expect(f.store.records().find((row) => row.type === 'work/trust')).toMatchObject({ sessionId: 'dsh-1', project: resolve(join(f.root, 'project')), preset: 'lca-trusted' })
     expect(await f.host.options!.onCall('lca_read_mail', {}, 'dsh-1', 'call-mail')).toEqual({ value: { subject: 'synthetic' }, source: 'mail' })
+    // An uploaded original she asked for rides with the result as a document source; the journal never holds it.
+    expect(await f.host.options!.onCall('lca_read_uploaded_file', {}, 'dsh-1', 'call-file')).toEqual({ value: { documentId: 'doc-1', sourceRead: true, original: 'UPLOADED_ORIGINAL' }, source: 'document' })
+    expect(JSON.stringify(f.store.records())).not.toContain('UPLOADED_ORIGINAL')
     f.journal.close()
   })
 

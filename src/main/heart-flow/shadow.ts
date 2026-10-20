@@ -4,8 +4,8 @@ import { existsSync, lstatSync, mkdirSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve, relative, isAbsolute } from 'node:path'
 import type { DeskShadowView } from '../../shared'
 import type { SessionStore } from '../store/session'
-import { appliedDeskChanges } from './changes'
-import { deskPathSchema, validateDeskText } from './desk'
+import { appliedDeskChanges } from '../legacy-flow/changes'
+import { deskPathSchema, validateDeskText } from '../legacy-flow/desk'
 
 type Change = ReturnType<typeof appliedDeskChanges>[number]
 const hash = (value: string) => createHash('sha256').update(value).digest('hex')

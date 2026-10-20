@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { HarnessTool } from '../harness/tools'
 import type { SessionStore } from '../store/session'
-import { deskPathSchema, validateDeskText } from '../heart-flow/desk'
+import { deskPathSchema, validateDeskText } from '../legacy-flow/desk'
 import instructions from '../heart-flow/instructions.json'
 
 type Desk = { read(path: string): string | null; write(path: string, value: string | null): void; list(): { path: string; byteLength: number }[] }

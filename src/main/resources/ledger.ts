@@ -72,6 +72,13 @@ export function openResourceLedger(options: { root: string; clock: Clock; atomic
       if (today.reduce((sum, row) => sum + row.units, 0) + units > cap.dailyTotalUnits || bucket === 'autonomous' && today.filter((row) => row.bucket === 'autonomous').reduce((sum, row) => sum + row.units, 0) + units > cap.dailyAutonomousUnits) throw new ResourceFailure('budget-exceeded')
       const id = randomUUID(); append([{ kind: 'model', id, units, bucket, atMs: clock.nowMs() }]); return id
     }),
+    /** Someone set the caps on purpose (a booth operator): they then bind every turn, in any mode. */
+    limitsConfigured: () => protectedCall(() => read().some((row) => row.kind === 'limits')),
+    /** Spending you started yourself is recorded, not refused, while no caps were set on purpose (DSH turns you sent). */
+    recordModel: (units: number, bucket: 'work' | 'autonomous') => protectedCall(() => {
+      if (!Number.isSafeInteger(units) || units <= 0 || units > 20_000_000 || !['work', 'autonomous'].includes(bucket)) throw new ResourceFailure('invalid-command')
+      const id = randomUUID(); append([{ kind: 'model', id, units, bucket, atMs: clock.nowMs() }]); return id
+    }),
     reserveSpeech: (chars: number) => protectedCall(() => {
       if (!Number.isSafeInteger(chars) || chars < 1 || chars > 1200) throw new ResourceFailure('invalid-command')
       const today = speechRows(read()); if (today.length >= 30 || today.reduce((sum, row) => sum + row.chars, 0) + chars > 12000) throw new ResourceFailure('quota-exhausted')

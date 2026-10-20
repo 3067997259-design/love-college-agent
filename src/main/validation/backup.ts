@@ -11,9 +11,9 @@ import { openDocumentVault } from '../documents/vault'
 import { exportPrivateSave, stagePrivateSave, validatePrivateSave } from '../backup/archive'
 import { applyPendingRestore, queueRestore } from '../backup/restore'
 import { journalLocation } from '../journal/file'
-import { createDesk } from '../heart-flow/desk'
+import { createDesk } from '../legacy-flow/desk'
 import { createHeartFlow } from '../heart-flow/service'
-import { appliedDeskChanges } from '../heart-flow/changes'
+import { appliedDeskChanges } from '../legacy-flow/changes'
 import type { AppCommand } from '../../shared'
 
 export async function probeBackup(root: string) {

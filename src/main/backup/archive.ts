@@ -12,7 +12,7 @@ import { projectJournal } from '../journal/projection'
 import { projectMemory } from '../memory/projection'
 import { DATABASES, BackupFailure, MAX_ARCHIVE_BYTES, MAX_UNPACKED_BYTES, manifestSchema, type SaveManifest } from './schema'
 import { directory, privateWriteParent, regular } from './paths'
-import { validateDeskChanges } from '../heart-flow/changes'
+import { validateDeskChanges } from '../legacy-flow/changes'
 import { workRecords } from '../life/work/records'
 import { validateOpticalRecords } from '../optical/records'
 

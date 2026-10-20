@@ -69,6 +69,17 @@ it('restricts model expansion to this quote and turn, with durable read limits',
   await expect(tool.run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).rejects.toThrow('RECALL_BUDGET_EXCEEDED')
   f.recall.setEnabled(false); await expect(tool.run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).rejects.toThrow()
 }, 20_000)
+it('moves a DSH reference to the turn its message opened, so expansion and status follow that turn', async () => {
+  const f = fixture(); f.recall.request(f.anchor, '回忆', 'request', 'h')
+  expect(f.recall.reference('request')?.recalledSeenReference).toMatchObject({ requestId: 'request' })
+  const context = { clock: f.clock, store: f.store, turnId: 'dsh-turn', signal: new AbortController().signal }
+  await expect(f.recall.tool().run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).rejects.toThrow('RECALL_UNAVAILABLE')
+  f.recall.bind('request', 'dsh-turn'); f.recall.bind('request', 'later-turn')
+  expect((await f.recall.tool().run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).ok).toBe(true)
+  expect(f.store.records().filter((row) => row.type === 'history/recall-used').map((row) => row.type === 'history/recall-used' && row.turnId)).toEqual(['request', 'dsh-turn'])
+  f.store.append({ type: 'turn/end', turnId: 'dsh-turn', reason: 'completed' }); f.busy(false)
+  expect(f.recall.view().status).toBe('ready')
+}, 20_000)
 it('keeps the reference and expansion available when the user interjects mid-turn (issue #12)', async () => {
   const f = fixture(); f.recall.request(f.anchor, '回忆', 'request', 'h')
   const first = f.recall.prepare('turn', f.prepared)

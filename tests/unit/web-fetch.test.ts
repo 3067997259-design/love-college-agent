@@ -12,7 +12,7 @@ import { createPublicWebPort, publicFetchUrl, publicIPv4, type WebText, type Web
 import type { SessionStore } from '../../src/main/store/session'
 import type { AppCommand } from '../../src/shared'
 import { createHeartFlow } from '../../src/main/heart-flow/service'
-import { createDesk } from '../../src/main/heart-flow/desk'
+import { createDesk } from '../../src/main/legacy-flow/desk'
 const cleanup: (() => void | Promise<void>)[] = []; afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn() })
 function fixture(read = vi.fn<WebTextPort['read']>(async (): Promise<WebText> => ({ text: 'PUBLIC_WORK_TEXT PRIVATE_KEY_CANARY', receivedBytes: 34, contentType: 'text/plain', truncated: false }))) {
   const root = mkdtempSync(join(tmpdir(), 'lca-fetch-')); cleanup.push(() => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-fetch-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })

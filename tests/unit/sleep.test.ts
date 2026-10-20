@@ -14,7 +14,7 @@ import { createAppController } from '../../src/main/bridge/controller'
 import { createMemoryService } from '../../src/main/memory/service'
 import { projectMemory } from '../../src/main/memory/projection'
 import type { AppCommand } from '../../src/shared'
-import { createDesk } from '../../src/main/heart-flow/desk'
+import { createDesk } from '../../src/main/legacy-flow/desk'
 import { createHeartFlow } from '../../src/main/heart-flow/service'
 
 const cleanup: (() => void | Promise<void>)[] = []

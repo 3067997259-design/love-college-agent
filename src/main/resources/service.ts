@@ -10,6 +10,8 @@ export function createResourceBudget(options: { root: string; clock: Clock; conf
   const required = () => { if (!ledger) throw new ResourceFailure('unavailable'); return ledger }
   return {
     reserveModel: (units: number, bucket: 'work' | 'autonomous') => required().reserveModel(units, bucket),
+    recordModel: (units: number, bucket: 'work' | 'autonomous') => required().recordModel(units, bucket),
+    limitsConfigured: () => required().limitsConfigured(),
     reserveSpeech: (chars: number) => required().reserveSpeech(chars),
     bootstrap: (profile: string, rows: readonly JournalRecord[]) => { try { required().bootstrap(profile, rows) } catch { ledger = undefined } },
     view: (): ResourceBudgetView => ledger?.view() ?? { status: 'unavailable', accounting: 'reserved-units', configurable: options.configurable,

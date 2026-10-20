@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { migrateLegacyDesk } from '../../src/main/room/legacy-desk'
-import { createDesk } from '../../src/main/heart-flow/desk'
+import { createDesk } from '../../src/main/legacy-flow/desk'
 import type { JournalRecord } from '../../src/main/journal/schema'
 const cleanups: (() => void)[] = []
 afterEach(() => cleanups.splice(0).forEach((fn) => fn()))

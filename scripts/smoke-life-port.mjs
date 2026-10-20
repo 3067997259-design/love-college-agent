@@ -76,7 +76,9 @@ try {
   await accepted({ type: 'mode.set', mode: 'rest' }); await accepted({ type: 'message.send', text: '普通模式合成边界核对。' }); await waitFor((s) => s.task?.status === 'completed', 'NORMAL_CHAT_FAILED')
   const chat = requests.findLast((row) => row.model === 'synthetic-life-chat'); assert.ok(chat)
   assert.ok(!JSON.stringify(chat).includes(material.slice(0, 40))); assert.ok(!JSON.stringify(chat).includes('NORMAL_TRANSPORT_PRODUCT'))
-  assert.ok(chat.messages.some((message) => typeof message.content === 'string' && message.content.includes('"materialSource":"fake"')))
+  // Her DSH session gets her world facts with the turn's opening message, as a text block beside your words.
+  const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part?.text ?? '').join('')
+  assert.ok(chat.messages.some((message) => textOf(message.content).includes('"materialSource":"fake"')))
   const currentRows = (await readFile(journal, 'utf8')).trim().split('\n').map((line) => JSON.parse(line)); const visible = JSON.stringify(currentRows.filter((row) => ['model/seen', 'context/inject', 'inbox/event'].includes(row.type)))
   assert.ok(!visible.includes(material.slice(0, 40))); assert.ok(!visible.includes('NORMAL_TRANSPORT_PRODUCT'))
   assert.ok(currentRows.some((row) => row.type === 'model/attempt' && row.slot === 'background' && row.bucket === 'autonomous'))

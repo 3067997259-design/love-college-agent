@@ -3,8 +3,8 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSyn
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { z } from 'zod'
 import type { JournalRecord } from '../journal/schema'
-import { appliedDeskChanges } from '../heart-flow/changes'
-import { createDesk, deskPathSchema } from '../heart-flow/desk'
+import { appliedDeskChanges } from '../legacy-flow/changes'
+import { createDesk, deskPathSchema } from '../legacy-flow/desk'
 
 const receiptSchema = z.strictObject({ version: z.literal(1), ownerKey: z.string().regex(/^[a-f0-9]{64}$/), targetRoot: z.string(),
   files: z.array(z.strictObject({ path: deskPathSchema, status: z.enum(['copied', 'present', 'conflict', 'unavailable']) })) })

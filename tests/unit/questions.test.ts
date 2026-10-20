@@ -11,11 +11,11 @@ import { answerInput, questionInput } from '../../src/main/questions/schema'
 import { createHarness } from '../../src/main/harness/loop'
 import { builtinTools } from '../../src/main/harness/tools'
 import { createAppController } from '../../src/main/bridge/controller'
-import { normalContextAllowedSeqs } from '../../src/main/heart-flow/context'
+import { normalContextAllowedSeqs } from '../../src/main/legacy-flow/context'
 import type { SessionStore } from '../../src/main/store/session'
 import type { AppCommand } from '../../src/shared'
 import type { ModelRequest } from '../../src/main/model/types'
-import { createDesk } from '../../src/main/heart-flow/desk'
+import { createDesk } from '../../src/main/legacy-flow/desk'
 import { createHeartFlow } from '../../src/main/heart-flow/service'
 
 const cleanup: (() => void | Promise<void>)[] = []

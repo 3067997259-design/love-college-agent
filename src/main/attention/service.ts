@@ -25,7 +25,10 @@ const poseForMode = (mode: InteractionMode): AttentionView['pose'] => mode === '
  * or a command does not occupy her, so her own work may continue during that time.
  */
 export function deriveAttention(input: AttentionInputs): AttentionView {
-  if (input.lightsOut || input.sleeping) return { kind: 'rest', pose: 'sleeping', taskWaiting: input.taskWaiting, focusRunning: input.focusRunning }
+  if (input.sleeping) return { kind: 'rest', pose: 'sleeping', taskWaiting: input.taskWaiting, focusRunning: input.focusRunning }
+  // Lights out while awake is a pause, not sleep (art spec, user-approved retouch 2026-10-16): she keeps the pose of
+  // the current mode, in the dark lighting; nothing else may occupy her.
+  if (input.lightsOut) return { kind: 'rest', pose: poseForMode(input.mode), taskWaiting: input.taskWaiting, focusRunning: input.focusRunning }
   if (input.userTurn) return { kind: 'user', pose: 'facing-user', taskWaiting: input.taskWaiting, focusRunning: input.focusRunning }
   if (input.taskComputing) return { kind: 'task', pose: 'desk-computer', taskWaiting: false, focusRunning: input.focusRunning }
   if (input.giftMaking) return { kind: 'gift', pose: 'desk-writing', taskWaiting: input.taskWaiting, focusRunning: input.focusRunning }

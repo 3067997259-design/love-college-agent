@@ -1,7 +1,7 @@
 import { createManualClock, systemClock } from '../clock'
 import { createScheduler } from '../scheduler'
 import { openSessionStore } from '../store/session'
-import { createDesk } from '../heart-flow/desk'
+import { createDesk } from '../legacy-flow/desk'
 import { createHeartFlow, deskTools } from '../heart-flow/service'
 import { createHarness } from '../harness/loop'
 import { runIsolatedJavaScript } from '../heart-flow/runner'

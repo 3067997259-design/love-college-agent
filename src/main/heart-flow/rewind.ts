@@ -3,8 +3,8 @@ import { z } from 'zod'
 import type { AppCommand, FlowRewindView, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
-import { appliedDeskChanges } from './changes'
-import { contentHash } from './desk'
+import { appliedDeskChanges } from '../legacy-flow/changes'
+import { contentHash } from '../legacy-flow/desk'
 
 export const rewindSchema = z.strictObject({
   id: z.string().uuid(), flowId: z.string().min(1).max(128), changeId: z.string().uuid(), createdAtMs: z.number().int().nonnegative(),

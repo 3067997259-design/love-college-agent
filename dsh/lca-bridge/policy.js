@@ -78,30 +78,26 @@ export function createLineage(isRoot) {
 }
 
 /**
- * Per root session: which third-party sources are in her context, since which turn, and the captured
- * result events to retire. A later turn retires them first, like LCA's own historical-result
- * retirement. Without captured events (state restored after a restart) the session stays degraded.
+ * Per root session: which third-party sources are in her context and since which turn. While any are, writes,
+ * commands and fetches ask the user each time. A later turn retires the originals first (the retirement projection
+ * below knows them, also after a restart) and is then no longer degraded.
  */
 export function createDegradation() {
   const roots = new Map()
-  const entry = (root, turn) => {
-    let value = roots.get(root)
-    if (!value) roots.set(root, value = { sources: new Set(), turn, pending: new Map(), sticky: false })
-    return value
-  }
   return {
     active: (root) => (roots.get(root)?.sources.size ?? 0) > 0,
     sources: (root) => [...(roots.get(root)?.sources ?? [])],
     /** @returns whether the set of sources grew, so the journal records it once per source. */
     mark(root, source, turn) {
-      const value = entry(root, turn)
+      let value = roots.get(root)
+      if (!value) roots.set(root, value = { sources: new Set(), turn })
       const grew = !value.sources.has(source)
       value.sources.add(source)
       value.turn = turn
       return grew
     },
-    restore(root, sources) { if (sources.length) roots.set(root, { sources: new Set(sources), turn: null, pending: new Map(), sticky: true }) },
-    capture(root, event) { roots.get(root)?.pending.set(event.seq, event) },
+    /** Sources LCA saw in her context before a restart: settled at her next turn's first step. */
+    restore(root, sources) { if (sources.length) roots.set(root, { sources: new Set(sources), turn: null }) },
     /** The state to settle at the first step of a turn after the one that read third-party content. */
     due(root, turn) { const value = roots.get(root); return value && value.turn !== turn ? value : null },
     carry(root, turn) { const value = roots.get(root); if (value) value.turn = turn },
@@ -112,19 +108,80 @@ export function createDegradation() {
 export const RETIRED = 'LCA retired this earlier third-party result (web page, search or external tool output) from the conversation. Fetch it again if it is still needed.'
 
 /**
- * Replace captured tool results on the model-visible surface, the way DSH's tool-result pruner does:
- * a shadow-price event for the token meter, then a single-node surface replacement.
+ * Replace tool results on the model-visible surface, the way DSH's tool-result pruner does: a shadow-price event for
+ * the token meter, then a single-node surface replacement.
  * @returns how many results were replaced; ones no longer on the surface (compacted) are skipped.
  */
-export function retireResults(session, events, meter) {
+export function retireResults(session, entries, meter) {
   const nodes = new Set(session.surface.nodes)
   let count = 0
-  for (const event of events) {
-    if (!nodes.has(event.seq)) continue
-    const original = event.data.message
+  for (const entry of entries) {
+    if (!nodes.has(entry.seq)) continue
+    const original = entry.data.message
     const message = { ...original, content: [{ type: 'text', text: RETIRED }] }
-    if (meter) session.append('compaction/prune', { shadowedRange: { start: event.seq, end: event.seq }, shadowedSeqs: [event.seq], shadowedTokenCount: meter.estimateMessage(original) })
-    session.append('tool/result', { ...event.data, message }, { surfaceOp: { op: 'replace', startSeq: event.seq, endSeq: event.seq }, sourceEventSeqs: [event.seq] })
+    if (meter) session.append('compaction/prune', { shadowedRange: { start: entry.seq, end: entry.seq }, shadowedSeqs: [entry.seq], shadowedTokenCount: meter.estimateMessage(original) })
+    session.append('tool/result', { ...entry.data, message }, { surfaceOp: { op: 'replace', startSeq: entry.seq, endSeq: entry.seq }, sourceEventSeqs: [entry.seq] })
+    count++
+  }
+  return count
+}
+
+// LCA's references (memories, her world, your files, an old-page quote, an original you asked to see) ride in front
+// of your words in a turn's opening message. They are current only for that turn, like the legacy loop's per-request
+// state, so the next turn replaces them in her context with this note and keeps your words.
+export const REFERENCE_RETIRED = '[LCA references for an earlier turn, retired: they were current only then.]\n\n'
+
+/**
+ * What a later turn retires from her context, folded from the session log so it is known after a restart too:
+ * opening messages that carry LCA references (the bridge marks them on their source; DSH keeps a source's own
+ * fields), results of source tools, and helpers' answers in a turn that had read one (they can carry what was read).
+ * Turns are counted in the log itself: `turns` is how many have started, and an entry belongs to the turn it arrived in.
+ * @param sourceOf - tool name to its third-party source, or null for an ordinary tool.
+ */
+export const RETIREMENT_KEY = 'lca-retirement'
+const validRetirement = (value) => Number.isSafeInteger(value?.turns) && typeof value.read === 'boolean' && !!value.calls && typeof value.calls === 'object' && Array.isArray(value.open)
+  && value.open.every((entry) => Number.isSafeInteger(entry?.seq) && Number.isSafeInteger(entry?.turn) && (entry.kind === 'reference' ? Array.isArray(entry.data?.content) : entry.kind === 'result' && !!entry.data?.message))
+export function retirementProjection(sourceOf) {
+  return {
+    key: RETIREMENT_KEY,
+    stateVersion: 1,
+    stateSchema: { parse(value) { if (!validRetirement(value)) throw new Error('lca-retirement: malformed projection state'); return value } },
+    // `calls`: tool names of calls still waiting for their result; `read`: this turn has read a third-party source.
+    init: () => ({ turns: 0, read: false, calls: {}, open: [] }),
+    apply(state, event) {
+      if (event.type === 'turn/start') return { ...state, turns: state.turns + 1, read: false }
+      const op = event.surfaceOp
+      // Retired here, or folded away by compaction: either way the original is no longer on the surface.
+      if (op?.op === 'replace') {
+        const covered = (entry) => entry.seq >= op.startSeq && entry.seq <= op.endSeq
+        return state.open.some(covered) ? { ...state, open: state.open.filter((entry) => !covered(entry)) } : state
+      }
+      if (event.type === 'tool/call') return { ...state, calls: { ...state.calls, [String(event.data?.callId)]: String(event.data?.name ?? '') } }
+      if (event.type === 'tool/result') {
+        const callId = String(event.data?.message?.toolCallId ?? event.data?.callId)
+        if (!(callId in state.calls)) return state
+        const { [callId]: name, ...calls } = state.calls
+        const source = sourceOf(name)
+        const carries = !!source || DELEGATION.has(name) && (state.read || state.open.some((entry) => entry.kind === 'result'))
+        if (!carries) return { ...state, calls }
+        return { ...state, calls, read: state.read || !!source, open: [...state.open, { seq: event.seq, turn: state.turns, kind: 'result', data: event.data }] }
+      }
+      if (event.type !== 'user/message' || event.data?.source?.lcaReferences !== true) return state
+      // Only your words are kept: the retired message is the note and then them.
+      const source = { ...event.data.source }
+      delete source.lcaReferences
+      return { ...state, open: [...state.open, { seq: event.seq, turn: state.turns, kind: 'reference', data: { ...event.data, source, content: (event.data.content ?? []).slice(1) } }] }
+    },
+  }
+}
+/** Entries of earlier turns than the current one. */
+export const staleEntries = (state) => (state?.open ?? []).filter((entry) => entry.turn < state.turns)
+export function retireReferences(session, entries) {
+  const nodes = new Set(session.surface.nodes)
+  let count = 0
+  for (const entry of entries) {
+    if (!nodes.has(entry.seq)) continue
+    session.append('user/message', { ...entry.data, content: [{ type: 'text', text: REFERENCE_RETIRED }, ...entry.data.content] }, { surfaceOp: { op: 'replace', startSeq: entry.seq, endSeq: entry.seq }, sourceEventSeqs: [entry.seq] })
     count++
   }
   return count

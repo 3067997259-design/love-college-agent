@@ -3,8 +3,8 @@ import { z } from 'zod'
 import type { AppCommand, FlowOperationView, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
-import { createDesk, deskPathSchema } from './desk'
-import { appliedDeskChanges } from './changes'
+import { createDesk, deskPathSchema } from '../legacy-flow/desk'
+import { appliedDeskChanges } from '../legacy-flow/changes'
 import policy from './operations.json'
 
 const digest = z.string().regex(/^[a-f0-9]{64}$/)

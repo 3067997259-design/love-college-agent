@@ -12,8 +12,12 @@
 // - levels: catalog routes (Gemini for chat, DeepSeek's first-party adapter for work, placeholder keys)
 //   report each model's thinking levels from DSH's installed catalog; no request leaves the machine.
 // - reference: LCA's memory references ride in their own block before your words in the model request.
+// - degrade-restart: the same across a restart: turn 2, in a resumed session, still sees the page retired.
+// - reference-restart: the same across a restart: DSH exits after turn 1, the session is resumed, and turn 2 must still
+//   see turn 1's references retired.
 // - event-cap: a turn LCA opened for an event (pomodoro, mail, her life) stops after its step cap.
-// Usage: node scripts/dsh-bridge-check.mjs [degrade|trust|decline|handoff|levels|reference|event-cap ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
+// - allowance: every step asks LCA's resource ledger first; an event turn refused there stops before its model call.
+// Usage: node scripts/dsh-bridge-check.mjs [degrade|degrade-restart|trust|decline|handoff|levels|reference|reference-restart|event-cap|allowance ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync } from 'node:fs'
@@ -30,6 +34,16 @@ const resultOf = (seen, id) => seen.results.find((result) => result.callId === i
 const write = (id, content) => ({ tool: 'write', id, args: { file_path: 'note.txt', content } })
 
 const SCENARIOS = {
+  get 'reference-restart'() { return { ...this.reference, restart: true } },
+  get 'degrade-restart'() { return { ...this.degrade, restart: true } },
+  allowance: {
+    trusted: true, answer: 'allowed-once', origin: 'event', refuse: 'autonomous', turns: ['[[T1]] {"source":"autonomous","facts":"she finished a chapter"}'],
+    script() { return { text: 'should never be asked' } },
+    check: (seen, notes) => ({
+      askedAsAutonomous: seen.admits.length >= 1 && seen.admits.every((admit) => admit.bucket === 'autonomous'),
+      stoppedBeforeModel: notes.requests === 0 && seen.turnEnds.length === 1 && seen.turnEnds[0] === 'aborted',
+    }),
+  },
   'event-cap': {
     trusted: true, answer: 'allowed-once', origin: 'event', turns: ['[[T1]] {"source":"pomodoro","facts":"{\\"kind\\":\\"focus-ended\\"}"}'],
     // A model that never stops looking around: only the cap ends the turn.
@@ -40,16 +54,19 @@ const SCENARIOS = {
     }),
   },
   reference: {
-    trusted: true, answer: 'allowed-once', turns: ['[[T1]] what did we do yesterday'], reference: '{"previousDaysReference":[{"text":"LCA_REFERENCE_PROBE"}]}',
-    script({ messages, notes }) {
-      // DSH may add its own reminders after your message; take the one carrying your words.
-      const user = messages.findLast((message) => message.role === 'user' && textOf(message.content).includes('[[T1]]'))
-      notes.userText = textOf(user?.content)
-      return { text: 'we wrote a prime counter' }
+    trusted: true, answer: 'allowed-once', turns: ['[[T1]] what did we do yesterday', '[[T2]] and today?'], reference: '{"previousDaysReference":[{"text":"LCA_REFERENCE_PROBE"}]}',
+    script({ turn, messages, notes }) {
+      if (turn === 1) {
+        // DSH may add its own reminders after your message; take the one carrying your words.
+        const user = messages.findLast((message) => message.role === 'user' && textOf(message.content).includes('[[T1]]'))
+        notes.userText = textOf(user?.content)
+      } else notes.later = messages.map((message) => textOf(message.content)).join('\n')
+      return { text: turn === 1 ? 'we wrote a prime counter' : 'more of it' }
     },
     check: (seen, notes) => ({
-      turnsCompleted: seen.turnEnds.length === 1 && seen.turnEnds[0] === 'completed',
+      turnsCompleted: seen.turnEnds.length === 2 && seen.turnEnds.every((kind) => kind === 'completed'),
       referenceBeforeWords: notes.userText.indexOf('LCA_REFERENCE_PROBE') >= 0 && notes.userText.indexOf('LCA_REFERENCE_PROBE') < notes.userText.indexOf('[[T1]]'),
+      retiredNextTurn: !notes.later.includes('LCA_REFERENCE_PROBE') && notes.later.includes('[[T1]]') && notes.later.includes('LCA references for an earlier turn'),
     }),
   },
   levels: {
@@ -165,7 +182,13 @@ async function run(name) {
   })
   await new Promise((done) => server.listen(0, '127.0.0.1', done))
   const { home, cli } = prepareDshProfile({ dshRoot, dataDir, bridge: join(repo, 'dsh', 'lca-bridge') })
-  const child = spawn(process.execPath, [cli, '--profile', 'lca'], {
+  let stderr = ''
+  const seen = { approvals: [], degraded: [], retired: [], trusted: [], results: [], turnEnds: [], handoffs: [], switched: [], admits: [] }
+  let sessionId
+  let restarting = false
+  let child
+  const launch = () => {
+  child = spawn(process.execPath, [cli, '--profile', 'lca'], {
     cwd: work,
     env: { ...process.env, DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1', LCA_GUARDED_ROOTS: join(dataDir, 'dsh-home'), DEEPSEEK_API_KEY: '', NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost',
       // As src/main/dsh/routes.ts builds it for one OpenAI-compatible endpoint serving both models.
@@ -174,21 +197,23 @@ async function run(name) {
         chat: { provider: 'lca-chat', model: 'mock-chat' }, work: { provider: 'lca-chat', model: scenario.work ?? 'mock-chat' } }) }) },
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
   })
-  let stderr = ''
   child.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-4000) })
-  const seen = { approvals: [], degraded: [], retired: [], trusted: [], results: [], turnEnds: [], handoffs: [], switched: [] }
-  let sessionId
-  const timer = setTimeout(() => { seen.timeout = true; child.kill() }, 120_000)
   child.on('message', (message) => {
     const turn = seen.turnEnds.length + 1
     switch (message.t) {
       case 'hello': child.send({ t: 'init', persona: 'You are a test agent.', suffix: '', tools: [] }); break
       case 'init-ok':
         if (scenario.describe) child.send({ t: 'describe', ref: 'levels' })
-        else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted })
+        else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted, ...(sessionId ? { sessionId } : {}) })
         break
       case 'described': seen.described = { chat: message.chat, work: message.work }; child.send({ t: 'shutdown' }); break
-      case 'session': sessionId = message.sessionId; child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', ...(scenario.reference ? { reference: scenario.reference } : {}), ...(scenario.origin ? { origin: scenario.origin } : {}) }); break
+      case 'session': {
+        const resumed = !!sessionId
+        sessionId = message.sessionId
+        if (resumed) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })
+        else child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', ...(scenario.reference ? { reference: scenario.reference } : {}), ...(scenario.origin ? { origin: scenario.origin } : {}) })
+        break
+      }
       case 'approval':
         seen.approvals.push({ turn, kind: message.kind, toolName: message.toolName, degraded: message.degraded })
         child.send({ t: 'approval-answer', id: message.id, outcome: scenario.answer }); break
@@ -197,17 +222,25 @@ async function run(name) {
       case 'trusted': seen.trusted.push({ turn, preset: message.preset }); break
       case 'tool-result': seen.results.push({ callId: message.callId, isError: message.isError }); break
       case 'handoff': seen.handoffs.push(message.callId); break
+      // LCA's resource ledger: allow everything unless the scenario refuses a bucket.
+      case 'admit': seen.admits.push({ bucket: message.bucket, units: message.units }); child.send({ t: 'admit-answer', id: message.id, ok: message.bucket !== scenario.refuse }); break
       case 'model': seen.switched.push(message.role); break
       case 'turn-end':
         seen.turnEnds.push(message.reason?.kind ?? null)
-        if (seen.turnEnds.length < scenario.turns.length) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })
+        // A restart scenario stops DSH after turn 1; the next process resumes the session for the rest.
+        if (scenario.restart && seen.turnEnds.length === 1 && scenario.turns.length > 1) { restarting = true; child.send({ t: 'shutdown' }) }
+        else if (seen.turnEnds.length < scenario.turns.length) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })
         else child.send({ t: 'shutdown' })
         break
       case 'error': seen.error = message.message; break
       default: break
     }
   })
-  const code = await new Promise((done) => child.on('exit', done))
+  return new Promise((done) => child.on('exit', done))
+  }
+  const timer = setTimeout(() => { seen.timeout = true; child.kill() }, 120_000)
+  let code = await launch()
+  if (restarting) { seen.restarted = code; code = await launch() }
   clearTimeout(timer); server.close()
   if (scenario.skip?.(seen)) return { name, ok: true, skipped: 'the OS sandbox ran the command here', seen }
   notes.requests = requests

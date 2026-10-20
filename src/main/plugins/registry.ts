@@ -22,6 +22,7 @@ const resultSchema = z.strictObject({ ok: z.boolean(), raw: z.json(), visible: z
   sourceMails: z.array(z.strictObject({ uidValidity: z.string().regex(/^\d{1,20}$/), uid: z.number().int().positive(), senderAddress: z.string().max(320), senderName: z.string().max(256),
     subject: z.string().max(256), body: z.string().min(1).max(64_000), sentAtMs: z.number().int().nonnegative(), receivedAtMs: z.number().int().nonnegative() })).max(20).optional(),
   imageRefs: z.array(z.string().regex(/^work-frame:[a-f0-9]{64}$/)).max(1).optional(),
+  original: z.string().max(64_000).optional(),
   fields: z.record(z.string().max(40), z.union([z.string().max(100), z.number().finite(), z.boolean()])).optional(),
   candidates: z.array(z.strictObject({ externalId: z.string().min(1).max(128), title: z.string().min(1).max(1000), kind: z.enum(['deadline', 'event']),
     deadlineIso: z.string().max(64).nullable(), eventStartIso: z.string().max(64).optional(), eventEndIso: z.string().max(64).optional(),

@@ -6,8 +6,9 @@ const base: AttentionInputs = { mode: 'rest', lightsOut: false, sleeping: false,
   taskWaiting: false, giftMaking: false, lifeActive: false, focusRunning: false }
 
 describe('D3 attention precedence', () => {
-  it('keeps rest above everything while lights are out or she is sleeping', () => {
-    expect(deriveAttention({ ...base, lightsOut: true, userTurn: true })).toMatchObject({ kind: 'rest', pose: 'sleeping' })
+  it('keeps rest above everything while lights are out or she is sleeping; awake in the dark is not asleep', () => {
+    expect(deriveAttention({ ...base, lightsOut: true, userTurn: true })).toMatchObject({ kind: 'rest', pose: 'facing-user' })
+    expect(deriveAttention({ ...base, mode: 'quiet', lightsOut: true })).toMatchObject({ kind: 'rest', pose: 'desk-writing' })
     expect(deriveAttention({ ...base, sleeping: true, taskComputing: true })).toMatchObject({ kind: 'rest', pose: 'sleeping' })
   })
   it('orders user talk above task computing, gift and her own work', () => {

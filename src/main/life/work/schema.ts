@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { deskPathSchema, validateDeskText } from '../../heart-flow/desk'
+import { deskPathSchema, validateDeskText } from '../../legacy-flow/desk'
 export const digestSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const time = z.number().int().nonnegative()
 export const workText = z.string().trim().min(1).max(12000).superRefine((text, ctx) => {

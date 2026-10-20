@@ -12,28 +12,44 @@ import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } fr
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', 'routing-smoke-' + randomUUID())
 const calls = []; let denyPrivacy = false; let holdOrganization = false; let releaseOrganization
+// Her conversation runs on DSH: LCA tools carry the lca_ prefix, your words are the last text block of their message
+// (LCA's references come first), and DSH adds its own reminders and runtime context as user messages.
+const partsOf = (content) => typeof content === 'string' ? [content] : (content ?? []).map((part) => part?.text ?? '')
+const textOf = (content) => partsOf(content).join('')
+const dshContext = (message) => /^(?:<system-reminder>|Current runtime context)/.test(textOf(message.content))
+// LCA's references come first in a turn's opening message, then a blank line, then your words (some protocols join
+// a message's text blocks into one string).
+const wordsOf = (content) => { const text = textOf(content); return /^(?:\{|\[LCA references)/.test(text) && text.includes('\n\n') ? text.slice(text.indexOf('\n\n') + 2) : text }
+const referenceOf = (content) => { const text = textOf(content); return text.startsWith('{') ? text.slice(0, text.includes('\n\n') ? text.indexOf('\n\n') : undefined) : '' }
 const hub = join(data, 'hub'); const dbPath = join(hub, 'var', 'student_hub.sqlite3')
 const server = createServer((request, response) => { void (async () => {
   let text = ''; for await (const chunk of request) text += chunk
   const body = JSON.parse(text); calls.push(body)
   if (denyPrivacy && body.model === 'synthetic-privacy') { response.writeHead(401).end(); return }
-  const prompt = body.messages[0].content
-  const actualUser = body.messages.findLastIndex((message) => message.role === 'user' && !String(message.content).startsWith('{'))
-  const latestText = body.messages[actualUser]?.content ?? ''
+  const prompt = textOf(body.messages[0].content)
+  const toolName = (name) => body.tools?.some((tool) => (tool.function?.name ?? tool.name) === 'lca_' + name) ? 'lca_' + name : name
+  const actualUser = body.messages.findLastIndex((message) => message.role === 'user' && !dshContext(message) && !wordsOf(message.content).startsWith('{'))
+  const latestText = actualUser >= 0 ? wordsOf(body.messages[actualUser].content) : ''
   const hasTool = body.messages.slice(actualUser + 1).some((message) => message.role === 'tool')
-  let nextTool
-  if (body.tools?.length && !hasTool && latestText.startsWith('校园助手测试：')) nextTool = { name: 'campus_assistant', arguments: JSON.stringify({ action: latestText.split('：')[1], ...(!['health', 'scan', 'import'].includes(latestText.split('：')[1]) ? { jobId: 'scan_fixture' } : {}) }) }
-  if (body.tools?.length && !hasTool && /切换后|重启后/.test(latestText)) {
-    const state = body.messages.map((message) => { try { return JSON.parse(message.content) } catch { return {} } }).findLast((message) => message.files)
+  // D2: originals are never attached on their own; she reads the newest file she may read with read_uploaded_file.
+  const readNewest = () => {
+    const state = body.messages.map((message) => { try { return JSON.parse(referenceOf(message.content) || textOf(message.content)) } catch { return {} } }).findLast((message) => message.files)
     const file = state?.files.find((file) => file.readableByMain)
-    if (file) nextTool = { name: 'read_uploaded_file', arguments: JSON.stringify({ documentId: file.documentId }) }
+    return file ? { name: toolName('read_uploaded_file'), arguments: JSON.stringify({ documentId: file.documentId }) } : undefined
   }
+  let nextTool
+  if (body.tools?.length && !hasTool && latestText.startsWith('校园助手测试：')) nextTool = { name: toolName('campus_assistant'), arguments: JSON.stringify({ action: latestText.split('：')[1], ...(!['health', 'scan', 'import'].includes(latestText.split('：')[1]) ? { jobId: 'scan_fixture' } : {}) }) }
+  if (body.tools?.length && !hasTool && /切换后|重启后|请按刚导入/.test(latestText)) nextTool = readNewest()
   if (nextTool) { response.writeHead(200, { 'Content-Type': 'text/event-stream' }).end('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'call-' + randomUUID(), type: 'function', function: nextTool }] }, finish_reason: 'tool_calls' }] }) + '\n\ndata: [DONE]\n\n'); return }
   if (holdOrganization && prompt.includes('Organize the provided document')) await new Promise((resolve) => { releaseOrganization = resolve })
-  const readIndex = body.messages.findLastIndex((message) => message.content === '立即读这份刚上传的文件。')
-  if (body.tools?.length && readIndex >= 0 && !body.messages.slice(readIndex + 1).some((message) => message.role === 'tool')) {
-    response.writeHead(200, { 'Content-Type': 'text/event-stream' }).end('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'ignored-mail-read', type: 'function', function: { name: 'get_campus_items', arguments: '{}' } }] }, finish_reason: 'tool_calls' }] }) + '\n\ndata: [DONE]\n\n'); return
+  const readIndex = body.messages.findLastIndex((message) => wordsOf(message.content) === '立即读这份刚上传的文件。')
+  const readTools = readIndex >= 0 ? body.messages.slice(readIndex + 1).filter((message) => message.role === 'tool').length : 0
+  if (body.tools?.length && readIndex >= 0 && readTools === 0) {
+    response.writeHead(200, { 'Content-Type': 'text/event-stream' }).end('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'ignored-mail-read', type: 'function', function: { name: toolName('get_campus_items'), arguments: '{}' } }] }, finish_reason: 'tool_calls' }] }) + '\n\ndata: [DONE]\n\n'); return
   }
+  // Then the file itself, while it is still being organized.
+  const immediateRead = body.tools?.length && readIndex >= 0 && readTools === 1 ? readNewest() : undefined
+  if (immediateRead) { response.writeHead(200, { 'Content-Type': 'text/event-stream' }).end('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'immediate-file-read', type: 'function', function: immediateRead }] }, finish_reason: 'tool_calls' }] }) + '\n\ndata: [DONE]\n\n'); return }
   const output = prompt.includes('Return only JSON. If no concrete user action') ? JSON.stringify({ kind: 'deadline', task: '活动报名', titleQuote: '校园助手活动报名', sourceRole: 'other', deadline: { iso: '2026-11-03T23:00:00+08:00', quote: '2026-11-03 23:00' } })
     : prompt.includes('Organize the provided document') ? JSON.stringify({ markdown: '# 已整理\n\n合成资料产物。', deadline: null })
     : prompt.includes('sourceId,quote,kind') ? JSON.stringify({ items: [] }) : '合成回复已收到。'
@@ -113,7 +129,7 @@ class StudentHubAssistant:
   const immediate = await chat('立即读这份刚上传的文件。')
   assert.ok(JSON.stringify(immediate).includes('IMMEDIATE_UPLOAD_SOURCE'), 'UPLOAD_NOT_READABLE_DURING_ORGANIZATION')
   assert.ok(!JSON.stringify(immediate).includes('IGNORED_MAIL_SOURCE'), 'IGNORED_MAIL_RETURNED')
-  const activeItems = JSON.parse(immediate.messages.findLast((message) => message.role === 'tool').content).items
+  const activeItems = JSON.parse(textOf(immediate.messages.find((message) => message.role === 'tool' && message.tool_call_id === 'ignored-mail-read').content)).items
   assert.equal(activeItems.length, 1); assert.equal(activeItems[0].status, 'confirmed'); assert.ok(!JSON.stringify(activeItems).includes('待忽略邮件'))
   assert.equal((await snapshot()).documents.jobs.at(-1).status, 'processing')
   holdOrganization = false; releaseOrganization?.()

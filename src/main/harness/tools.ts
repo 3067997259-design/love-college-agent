@@ -23,7 +23,9 @@ export interface CandidateSeed {
   /** User-only evidence excerpt; never placed in model projection or tool journal. */
   excerpt: string
 }
-export interface ToolResult { ok: boolean; raw: JsonValue; visible: JsonValue; imageRefs?: string[]; fields?: Record<string, string | number | boolean>; candidates?: readonly CandidateSeed[]; sourceMails?: readonly SourceMail[] }
+export interface ToolResult { ok: boolean; raw: JsonValue; visible: JsonValue; imageRefs?: string[]; fields?: Record<string, string | number | boolean>; candidates?: readonly CandidateSeed[]; sourceMails?: readonly SourceMail[]
+  /** A third-party original she asked to read (D2): handed to the model with this result only, never journaled. */
+  original?: string }
 export interface HarnessTool {
   definition: ModelTool
   templateId: string

@@ -12,6 +12,7 @@ import { projectDocuments } from './projection'
 import { attachmentRecordSchema, documentFactsSchema, documentJobSchema, type AttachmentRecord, type DocumentJob } from './schema'
 import { MAX_FILE_BYTES, DocumentFailure, extractDocument } from './reader'
 import { organizeDocument, type DocumentPrivacyModel, type createFakeDocumentModel } from './privacy'
+import { redactSecrets } from '../privacy/redact'
 import type { DocumentVault } from './vault'
 import { documentFixture } from './fixtures'
 
@@ -21,6 +22,8 @@ const failureCode = (cause: unknown): PublicErrorCode => cause instanceof Docume
 export function createDocumentService(options: { clock: Clock; store: SessionStore; scheduler: Scheduler; settings: SettingsStore; vault: DocumentVault; artifacts: ArtifactStore;
   model: DocumentPrivacyModel | null; mainModel?: DocumentPrivacyModel | null; development?: ReturnType<typeof createFakeDocumentModel>; readAttachment?(attachment: AttachmentRecord, signal: AbortSignal): Promise<Uint8Array>;
   openArtifact?(view: DeliveryView, text: string): void; changed(): void; emit(id: string, text: string): void; failed?(): void;
+  /** Masks your configured credentials in an original before the main model reads it. */
+  mask?(text: string): string;
 }) {
   const { clock, store, scheduler, settings, vault, artifacts } = options
   const records = () => store.history?.() ?? store.records()
@@ -30,13 +33,6 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
   const processingModel = () => enabled() ? options.model : options.mainModel ?? null
   const shareable = (job: DocumentJob) => enabled() || job.sharedWithMain === true
   const mainTexts = new Map<string, string>()
-  const pendingContext = new Set<string>()
-  let contextTurn = ''; const contextIds = new Set<string>()
-  const selectContextTurn = (turnId: string) => {
-    if (contextTurn !== turnId) { contextTurn = turnId; contextIds.clear() }
-    for (const id of pendingContext) contextIds.add(id)
-    pendingContext.clear()
-  }
   const initialState = (): Pick<DocumentView, 'status' | 'error'> => !enabled() && !options.mainModel?.ready ? { status: 'staged' } : processingModel()?.ready ? { status: 'queued' } : { status: 'failed', error: { code: 'privacy-unavailable', retryable: true } }
   const canRun = () => !disposed && pluginEnabled && !!processingModel()?.ready && !store.projection().lightsOut
   const append = (row: JournalInput) => {
@@ -112,7 +108,6 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
     let sourceRef: string
     try { sourceRef = vault.put(bytes, format) } catch (cause) { if (cause instanceof DocumentFailure) throw cause; options.failed?.(); throw new DocumentFailure('internal') }
     const id = 'doc:' + hash(JSON.stringify([store.scope.userId, store.scope.characterId, sourceRef, origin, attachmentId]))
-    pendingContext.add(id)
     if (state.jobs.some((job) => job.view.id === id)) return id
     append({ type: 'document/job', job: { sourceRef, sharedWithMain: !enabled() && !!options.mainModel, attempt: 0, view: { id, displayName: '资料-' + id.slice(-8) + '.' + suffix[format], format,
       origin, source: options.model?.source ?? 'real', byteLength: bytes.length, createdAtMs: clock.nowMs(), updatedAtMs: clock.nowMs(),
@@ -157,30 +152,25 @@ export function createDocumentService(options: { clock: Clock; store: SessionSto
       privacyAvailable: !!options.model?.ready, ...(options.development ? { scenarioId: options.development.scenario() } : {}) }),
     filteringEnabled: enabled,
     canReadSource: (id: string) => !disposed && pluginEnabled && !enabled() && !!options.mainModel && state.jobs.some((job) => job.view.id === id && job.sharedWithMain && job.view.status !== 'cancelled'),
-    requestMainSource: (documentId: string, turnId: string): PublicErrorCode | undefined => {
+    /**
+     * One original for her to read now: a file you allowed the main model to handle (privacy follows the main model),
+     * readable while it is still being organized. Fixed secret patterns and your credentials are masked.
+     */
+    readMainSource: async (documentId: string, signal: AbortSignal): Promise<{ text: string; truncated: boolean } | PublicErrorCode> => {
       const job = state.jobs.find((item) => item.view.id === documentId)
       if (!job || job.view.status === 'cancelled' || !pluginEnabled || disposed) return 'unavailable'
       if (enabled() || !job.sharedWithMain || !options.mainModel) return 'permission-denied'
-      selectContextTurn(turnId); contextIds.delete(documentId); contextIds.add(documentId)
-    },
-    mainContext: async (signal: AbortSignal, turnId?: string) => {
-      if (turnId) selectContextTurn(turnId)
-      if (disposed || !pluginEnabled || enabled() || !options.mainModel) return []
-      const result: { kind: string; ref: string; text: string; truncated: boolean }[] = []
-      const requested = [...contextIds]
-      const selected = state.jobs.filter((item) => item.sharedWithMain && item.view.status !== 'cancelled' && (!turnId || contextIds.has(item.view.id)))
-      if (turnId) selected.sort((a, b) => requested.indexOf(a.view.id) - requested.indexOf(b.view.id))
-      for (const job of selected.slice(-4)) {
-        signal.throwIfAborted()
-        try {
-          let text = mainTexts.get(job.view.id)
-          if (text === undefined) { if (!job.sourceRef) continue; const input = vault.read(job.sourceRef); text = (await extractDocument(input.bytes, input.format, clock, signal)).text; mainTexts.set(job.view.id, text) }
-          if (disposed || !pluginEnabled || enabled()) return []
-          if (state.jobs.find((item) => item.view.id === job.view.id)?.view.status === 'cancelled') continue
-          result.push({ kind: 'document', ref: job.view.id, text: text.slice(0, 24000), truncated: text.length > 24000 })
-        } catch { signal.throwIfAborted() }
-      }
-      return result
+      try {
+        let text = mainTexts.get(documentId)
+        if (text === undefined) {
+          if (!job.sourceRef) return 'unavailable'
+          const input = vault.read(job.sourceRef); text = (await extractDocument(input.bytes, input.format, clock, signal)).text; mainTexts.set(documentId, text)
+        }
+        if (disposed || !pluginEnabled || enabled()) return 'permission-denied'
+        if (state.jobs.find((item) => item.view.id === documentId)?.view.status === 'cancelled') return 'unavailable'
+        const masked = (options.mask ?? ((value: string) => value))(redactSecrets(text))
+        return { text: masked.slice(0, 24_000), truncated: masked.length > 24_000 }
+      } catch (cause) { signal.throwIfAborted(); return failureCode(cause) }
     },
     deliveries: () => state.artifacts.map((artifact) => artifact.view),
     ownsArtifact: (id: string) => state.artifacts.some((artifact) => artifact.view.artifactId === id),

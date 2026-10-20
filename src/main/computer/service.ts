@@ -5,7 +5,7 @@ import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import type { BinaryAssets } from '../storage/assets'
 import type { ComputerPort } from './preview'
-import { deskPathSchema } from '../heart-flow/desk'
+import { deskPathSchema } from '../legacy-flow/desk'
 import { redactFixed } from '../privacy/redact'
 import type { HarnessTool, ToolResult } from '../harness/tools'
 const hash = (text: string) => createHash('sha256').update(text).digest('hex')

@@ -7,10 +7,10 @@ import { resolve } from 'node:path'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { ReasoningEffortId, createUserMessage } from '@deepseek-ai/dsh-llm'
-import { DELEGATION, HANDOFF_FEEDBACK, TRUST_FEEDBACK, createDegradation, createLineage, gatedWhileDegraded, handoffOf, isRisky, parseRoutes, retireResults, sameModel, sandboxDenied, sourceOf, subjectOf } from './policy.js'
+import { HANDOFF_FEEDBACK, TRUST_FEEDBACK, createDegradation, createLineage, gatedWhileDegraded, handoffOf, isRisky, parseRoutes, RETIREMENT_KEY, retireReferences, retireResults, retirementProjection, sameModel, sandboxDenied, sourceOf, staleEntries, subjectOf } from './policy.js'
 
 export const name = 'lca-bridge'
-export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm']
+export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm', 'sessionProjections']
 
 const CLIP = 4000
 const SOURCES = new Set(['mail', 'document', 'web', 'mcp', 'plugin'])
@@ -18,17 +18,29 @@ const SOURCES = new Set(['mail', 'document', 'web', 'mcp', 'plugin'])
 export function apply(ctx) {
   if (typeof process.send !== 'function') throw new Error('lca-bridge needs the IPC channel of its LCA parent')
   const send = (message) => { if (process.connected) process.send(message) }
+  const lcaSources = new Map() // LCA tool name -> the third-party source its results carry (mail, documents, plugins)
+  ctx.sessionProjections.register(retirementProjection((name) => sourceOf(name) ?? lcaSources.get(name) ?? null))
   const live = new Map() // root session id -> { handle, cwd }
   const approvals = new Map()
   const calls = new Map()
   const asked = new Map() // callId -> { kind, command } for approvals this plugin asked for
   const subjects = new Map() // callId -> short subject for an approval card (approval requests carry no arguments)
-  const tainted = new Set() // root-level callIds whose results carry third-party content
   const turns = new Map() // root session id -> current DSH turn number
   // A turn LCA opened for an event (pomodoro, mail, her life) is short: capped at EVENT_STEPS unless you join in.
   const EVENT_STEPS = 6
   const eventStarts = new Map() // root session id -> event turns DSH has yet to begin
   const eventTurns = new Map() // root session id -> DSH turn number opened by an event
+  // LCA's resource ledger: every step of her family asks LCA first. A turn LCA opened for an event is admitted
+  // against the autonomous allowance; your own turns are recorded there but never refused. The estimate is the
+  // previous step's usage (input + output + a tenth of cache reads), or 16k before any usage is known.
+  const admissions = new Map() // id -> settle(boolean)
+  const lastUnits = new Map() // root session id -> units of its latest step
+  const revealing = new Map() // root session id -> sources of an original riding in its next opening message
+  const unitsOf = (usage) => Math.max(1, Math.round(Number(usage?.inputTokens ?? 0) + Number(usage?.outputTokens ?? 0) + Number(usage?.cacheReadTokens ?? 0) / 10))
+  const admit = (root, role) => new Promise((settle) => {
+    const id = randomUUID(); admissions.set(id, settle)
+    send({ t: 'admit', id, sessionId: root, role, bucket: eventTurns.has(root) && eventTurns.get(root) === turns.get(root) ? 'autonomous' : 'work', units: lastUnits.get(root) ?? 16_000 })
+  })
   // LCA's private data (journals, connection settings) and the DSH home are never her working material.
   const guarded = (process.env.LCA_GUARDED_ROOTS ?? '').split(';').filter(Boolean).map((root) => resolve(root).toLowerCase())
   const lineage = createLineage((id) => live.has(id))
@@ -66,13 +78,14 @@ export function apply(ctx) {
   const clip = (value) => (value.length > CLIP ? value.slice(0, CLIP) + '…' : value)
   const plain = (value) => JSON.parse(JSON.stringify(value ?? null))
 
-  const degrade = (root, source, callId) => {
-    if (callId) tainted.add(callId)
+  const degrade = (root, source) => {
     if (degradation.mark(root, source, turns.get(root) ?? null)) send({ t: 'degraded', sessionId: root, sources: degradation.sources(root) })
   }
 
   const registerLcaTools = (tools) => {
     for (const dispose of toolDisposers) dispose()
+    lcaSources.clear()
+    for (const tool of tools) if (SOURCES.has(tool.source)) lcaSources.set(tool.name, tool.source)
     toolDisposers = tools.map((tool) => ctx.tools.register({
       name: tool.name,
       description: tool.description,
@@ -82,7 +95,7 @@ export function apply(ctx) {
         const id = randomUUID()
         const root = lineage.rootOf(exec.agent)
         const callId = String(exec.callId)
-        calls.set(id, { done: (value, source) => { if (root && SOURCES.has(source)) degrade(root, source, isRoot(exec.agent) ? callId : null); done(value) }, fail })
+        calls.set(id, { done: (value, source) => { if (root && SOURCES.has(source)) degrade(root, source); done(value) }, fail })
         exec.signal?.addEventListener('abort', () => { if (calls.delete(id)) fail(new Error('cancelled')) }, { once: true })
         send({ t: 'lca-call', id, sessionId: root ?? lineage.sid(exec.agent), callId, name: tool.name, args: plain(args) })
       }),
@@ -187,7 +200,7 @@ export function apply(ctx) {
   }
   const block = (text) => ({ kind: 'block', feedback: [{ type: 'text', text }] })
 
-  // Third-party results degrade her root session; root-level ones are captured for retirement.
+  // Third-party results degrade her root session (the retirement projection knows the ones to retire).
   ctx.on('tools/post-execute', async (exec, result, next) => {
     const root = lineage.rootOf(exec.agent)
     if (root) {
@@ -196,8 +209,7 @@ export function apply(ctx) {
       const name = String(exec.name)
       const source = sourceOf(name)
       const top = isRoot(exec.agent)
-      if (source) degrade(root, source, top ? String(exec.callId) : null)
-      else if (top && DELEGATION.has(name) && degradation.active(root)) tainted.add(String(exec.callId))
+      if (source) degrade(root, source)
       if (top && sandboxDenied(result) && presetOf(live.get(root).handle.agent.session) !== 'lca-trusted') {
         if (degradation.active(root)) return block(TRUST_FEEDBACK.degraded)
         if (declined.has(root)) return block(TRUST_FEEDBACK.declined)
@@ -211,20 +223,34 @@ export function apply(ctx) {
   // A later turn first retires the third-party results of earlier turns; the turn is then no longer
   // degraded. If they cannot be retired, the new turn stays degraded too.
   ctx.on('agent/pre-step', async (payload, next) => {
+    const family = lineage.rootOf(payload.agent)
+    if (family && !payload.signal?.aborted) {
+      const role = isRoot(payload.agent) ? models.get(family)?.role ?? 'chat' : 'work'
+      if (!(await admit(family, role))) queueMicrotask(() => { try { live.get(family)?.handle.agent.cancel({ kind: 'user' }) } catch { /* already ended */ } })
+    }
     const root = lineage.sid(payload.agent)
     if (live.has(root) && eventTurns.get(root) === payload.turn && payload.step > EVENT_STEPS) {
       eventTurns.delete(root)
       queueMicrotask(() => payload.agent.cancel({ kind: 'user' }))
     }
-    const due = live.has(root) ? degradation.due(root, payload.turn) : null
-    if (due) {
-      let retired = false
-      if (!due.sticky) {
-        try { send({ t: 'retired', sessionId: root, count: retireResults(payload.agent.session, [...due.pending.values()], ctx.get('tokenMeter')) }); retired = true }
-        catch (error) { ctx.logger?.warn?.(`lca-bridge: could not retire third-party results: ${error instanceof Error ? error.message : String(error)}`) }
+    // Earlier turns' references and third-party results leave her context before this turn's first request, also
+    // after a restart. The turn is then no longer degraded; if they cannot be retired, it stays degraded too.
+    if (live.has(root)) {
+      const session = payload.agent.session
+      let retired = true
+      let count = 0
+      try {
+        const stale = staleEntries(ctx.sessionProjections.stateOf(session, RETIREMENT_KEY))
+        retireReferences(session, stale.filter((entry) => entry.kind === 'reference'))
+        count = retireResults(session, stale.filter((entry) => entry.kind === 'result'), ctx.get('tokenMeter'))
+      } catch (error) {
+        retired = false
+        ctx.logger?.warn?.(`lca-bridge: could not retire earlier references or third-party results: ${error instanceof Error ? error.message : String(error)}`)
       }
-      if (retired) degradation.clear(root)
-      else { degradation.carry(root, payload.turn); send({ t: 'degraded', sessionId: root, sources: degradation.sources(root) }) }
+      const due = degradation.due(root, payload.turn)
+      if (due && retired) { degradation.clear(root); send({ t: 'retired', sessionId: root, count }) }
+      else if (due) { degradation.carry(root, payload.turn); send({ t: 'degraded', sessionId: root, sources: degradation.sources(root) }) }
+      else if (count) send({ t: 'retired', sessionId: root, count })
     }
     return next()
   })
@@ -267,23 +293,33 @@ export function apply(ctx) {
         turns.set(sessionId, data.turn); choose(sessionId, 'chat')
         const queued = eventStarts.get(sessionId) ?? 0
         if (queued > 0) { eventStarts.set(sessionId, queued - 1); eventTurns.set(sessionId, data.turn) } else eventTurns.delete(sessionId)
-        send({ t: 'turn-start', sessionId, turn: data.turn, preset: presetOf(session) }); break
+        send({ t: 'turn-start', sessionId, turn: data.turn, preset: presetOf(session) })
+        // An original you asked to see rides in this turn's opening message: the turn is degraded, and the next one retires it.
+        const reveal = revealing.get(sessionId)
+        if (reveal) {
+          revealing.delete(sessionId)
+          if (reveal.map((source) => degradation.mark(sessionId, source, data.turn)).some(Boolean)) send({ t: 'degraded', sessionId, sources: degradation.sources(sessionId) })
+        }
+        break
       }
-      case 'user/message': send({ t: 'user-message', sessionId, kind: data.source?.kind ?? null, chars: texts(data.content).length }); break
+      case 'user/message': {
+        send({ t: 'user-message', sessionId, kind: data.source?.kind ?? null, chars: texts(data.content).length }); break
+      }
       case 'turn/end': send({ t: 'turn-end', sessionId, turn: data.turn, reason: plain(data.reason) }); break
       case 'assistant/message': {
         const toolCalls = (data.message.content ?? []).filter((block) => block.type === 'tool-call').map((block) => ({ id: String(block.id), name: block.name }))
+        if (data.usage) lastUnits.set(sessionId, unitsOf(data.usage))
         send({ t: 'message', sessionId, turn: data.turn, step: data.step, text: texts(data.message.content), toolCalls, usage: plain(data.usage) })
         break
       }
       case 'tool/call': send({ t: 'tool-call', sessionId, callId: String(data.callId), name: data.name, args: clip(data.arguments) }); break
       case 'tool/result': {
-        const callId = String(data.message.toolCallId)
-        if (tainted.delete(callId)) degradation.capture(sessionId, event)
-        send({ t: 'tool-result', sessionId, callId, isError: !!data.message.isError })
+        send({ t: 'tool-result', sessionId, callId: String(data.message.toolCallId), isError: !!data.message.isError })
         break
       }
       case 'system/message': send({ t: 'system', sessionId, chars: texts(data.content ?? data.message?.content).length }); break
+      // DSH asks the model again after a transient failure (a cut stream, a busy server): that attempt's text is gone.
+      case 'llm/retry-started': send({ t: 'retry', sessionId, turn: data.turn, step: data.step, retry: data.retry }); break
       default: break
     }
   })
@@ -297,13 +333,22 @@ export function apply(ctx) {
           registerLcaTools(message.tools ?? [])
           send({ t: 'init-ok', tools: ctx.tools.schemas?.().map((tool) => tool.name) ?? null })
           break
-        case 'open': send({ t: 'session', ref: message.ref, ...(await open(message)) }); break
+        case 'tools': registerLcaTools(message.tools ?? []); break
+        case 'open':
+          // Her card and your profile as they are now: onboarding names them after DSH has started.
+          if (typeof message.persona === 'string') persona = message.persona
+          if (typeof message.suffix === 'string') suffix = message.suffix
+          send({ t: 'session', ref: message.ref, ...(await open(message)) }); break
         case 'send': {
           const agent = agentOf(message.sessionId)
           // LCA's memory references (earlier days, recalled memories) ride in their own block before your words.
-          const reference = typeof message.reference === 'string' && message.reference ? [{ type: 'text', text: message.reference }] : []
+          // Some protocols join a message's text blocks into one string: a blank line keeps the reference apart from your words.
+          const reference = typeof message.reference === 'string' && message.reference ? [{ type: 'text', text: message.reference + '\n\n' }] : []
+          // A third-party original rides in this message (you asked to see it): the turn it opens is degraded.
+          const degrade = Array.isArray(message.degrade) ? message.degrade.filter((source) => SOURCES.has(source)) : []
+          if (degrade.length && reference.length) revealing.set(String(message.sessionId), [...new Set([...(revealing.get(String(message.sessionId)) ?? []), ...degrade])])
           const event = message.origin === 'event'
-          const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: event ? 'lca-event' : 'user' } })
+          const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: event ? 'lca-event' : 'user', ...(reference.length ? { lcaReferences: true } : {}) } })
           if (event && message.mode === 'followup') eventStarts.set(message.sessionId, (eventStarts.get(message.sessionId) ?? 0) + 1)
           // You joined in: the turn is yours, no event cap.
           if (!event) eventTurns.delete(message.sessionId)
@@ -314,6 +359,7 @@ export function apply(ctx) {
         case 'trust': { const session = agentOf(message.sessionId).session; trust(session); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(session) }); break }
         case 'untrust': { const session = agentOf(message.sessionId).session; ctx.get('permissionPresets')?.set(session, 'workspace-write'); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(session) }); break }
         case 'approval-answer': { const settle = approvals.get(message.id); if (settle) { approvals.delete(message.id); settle(message.outcome) } break }
+        case 'admit-answer': { const settle = admissions.get(message.id); if (settle) { admissions.delete(message.id); settle(message.ok !== false) } break }
         case 'lca-result': {
           const call = calls.get(message.id)
           if (!call) break

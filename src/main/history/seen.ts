@@ -1,7 +1,7 @@
 import type { JournalRecord } from '../journal/schema'
 import type { SessionStore } from '../store/session'
 import { redactFixed } from '../privacy/redact'
-import { flowContexts } from '../heart-flow/context'
+import { flowContexts } from '../legacy-flow/context'
 export interface WitnessedMessage { messageId: string; role: 'user' | 'assistant'; text: string; original: string; atMs: number; frameSeq: number; index: number }
 export function witnessedPage(store: SessionStore, sessionId: string): WitnessedMessage[] {
   const page = (store.pages?.() ?? [{ sessionId: store.scope.sessionId, records: store.records() }]).find((page) => page.sessionId === sessionId)
