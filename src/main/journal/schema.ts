@@ -162,6 +162,11 @@ export const inputSchema = z.discriminatedUnion('type', [
     imageRefs: contextMessageSchema.shape.imageRefs,
     fields: z.record(z.string().max(40), z.union([z.string().max(100), z.number().finite(), z.boolean()])).optional() }),
   z.strictObject({ type: z.literal('plan/update'), turnId: id, steps: z.array(step).max(30) }),
+  // DSH work (spike): DSH's own session log holds what the model saw and did. The journal keeps only
+  // the reference, the book's activity rows and LCA's own trust decisions; none of it is model context.
+  z.strictObject({ type: z.literal('work/turn'), turnId: id, engine: z.literal('dsh'), sessionId: id, preset: z.string().min(1).max(64).nullable() }),
+  z.strictObject({ type: z.literal('work/activity'), turnId: id, callId: id, templateId: id, status: z.enum(['running', 'completed', 'failed', 'cancelled']) }),
+  z.strictObject({ type: z.literal('work/trust'), sessionId: id, project: z.string().min(1).max(1024), preset: z.string().min(1).max(64) }),
   z.strictObject({ type: z.literal('context/inject'), source: z.enum(['policy', 'memory', 'scheduler']), text }),
   z.strictObject({ type: z.literal('context/compact'), fromSeq: z.number().int().positive(), toSeq: z.number().int().positive(), summary: text, sources: z.array(memorySourceSchema).max(128).optional() }),
   z.strictObject({ type: z.literal('model/seen'), turnId: id, source: z.enum(['real', 'fake']), messages: z.array(contextMessageSchema).max(1024),

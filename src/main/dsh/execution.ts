@@ -7,21 +7,24 @@ import { failureNarration } from '../harness/failure'
 import type { HarnessTool } from '../harness/tools'
 import type { JournalInput } from '../journal/schema'
 import type { SessionStore } from '../store/session'
-import { startDshHost, type DshApproval, type DshEvent, type DshHost, type DshRoute } from './host'
+import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost, type DshRoute, type DshSource } from './host'
 
-type Turn = { lcaTurnId: string; toolsExecuted: boolean; calls: Map<string, { atMs: number; command: string | null }>; asks: AbortController }
+type Turn = { lcaTurnId: string; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController }
 type Rule = { project: string; tool: string; prefix: string | null }
+/** One DSH session per LCA day; `degraded` survives a restart that came before the bridge retired third-party results. */
+type Saved = Record<string, { id: string; cwd: string; degraded?: DshSource[] }>
 const LCA_PREFIX = 'lca_'
 const TEMPLATES: Record<string, string> = { read: 'dsh.read', read_image: 'dsh.read', working_directory: 'dsh.read', write: 'dsh.write', edit: 'dsh.edit', glob: 'dsh.search', grep: 'dsh.search',
   pwsh: 'dsh.shell', bash: 'dsh.shell', job_output: 'dsh.shell', job_list: 'dsh.shell', job_kill: 'dsh.shell', web_search: 'dsh.web', web_fetch: 'dsh.web', todo_write: 'dsh.plan',
   get_goal: 'dsh.plan', create_goal: 'dsh.plan', update_goal: 'dsh.plan', exit_plan_mode: 'dsh.plan', skill: 'dsh.skill', subagent: 'dsh.agent', subagent_fork: 'dsh.agent',
   send_message: 'dsh.agent', list_agents: 'dsh.agent', interrupt_agent: 'dsh.agent', workflow: 'dsh.agent' }
 const clip = (text: string, max: number) => (text.length > max ? text.slice(0, max) + '…' : text)
-const safeName = (name: string) => name.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'tool'
 const parsed = (raw: string): Record<string, unknown> => { try { const value: unknown = JSON.parse(raw); return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {} } catch { return {} } }
-// The book keeps short, readable arguments; file bodies stay in DSH's own session log.
-const compact = (args: Record<string, unknown>) => Object.fromEntries(['file_path', 'path', 'pattern', 'command', 'description', 'url', 'query']
-  .flatMap((key) => typeof args[key] === 'string' ? [[key, clip(args[key] as string, key === 'command' ? 500 : 200)]] : []))
+// LCA tools that hand her third-party originals, as in D2 (index.ts thirdPartySources).
+const sourceOf = (templateId: string): DshSource | null => templateId.startsWith('mail.') ? 'mail' : templateId.startsWith('document.') ? 'document'
+  : templateId.startsWith('student-hub.') ? 'plugin' : templateId.startsWith('mcp.') ? 'mcp' : null
+const SOURCE_TEXT: Record<DshSource, string> = { web: '网页', mcp: '外部工具给的内容', mail: '邮件原文', document: '附件原文', plugin: '插件资料' }
+const ACTION_TEXT: Record<string, string> = { write: '写文件', edit: '改文件', pwsh: '运行命令', bash: '运行命令', web_fetch: '再上网', web_search: '再上网' }
 const failureCode = (reason: unknown): PublicErrorCode => {
   const code = String((reason as { error?: { code?: unknown } } | null)?.error?.code ?? '')
   if (code === 'QUOTA') return 'quota-exhausted'
@@ -31,16 +34,20 @@ const failureCode = (reason: unknown): PublicErrorCode => {
 }
 
 /**
- * DSH execution port (spike, LCA_DSH=1). The user's messages go to her DSH session for the day and
- * DSH activity is written into the LCA journal with the record types the book already renders. A
- * message sent while a DSH turn runs steers it instead of queueing a separate turn. Approvals use the
- * book's question card; "以后都允许" is remembered per project (and per command prefix for risky ones).
+ * DSH execution port (spike, LCA_DSH=1). The user's messages go to her DSH session for the day. DSH's
+ * own session log is the record of what she saw and did; the journal keeps what LCA owns: the
+ * conversation, a reference to the DSH turn, the book's activity rows, approvals and trust grants.
+ * Tool calls and results never enter LCA's model context or memory. A message sent while a DSH turn
+ * runs steers it. Approvals use the book's question card; "以后都允许" is remembered per project (and
+ * per command prefix for risky ones), except while third-party content is in her context (D2).
  */
 export function createDshExecution(options: {
   store: SessionStore; clock: Clock; dataDir: string; dshRoot: string; bridge: string; route: DshRoute; guardedRoots: readonly string[]
   project(): string; persona(): string; suffix(): string; tools(): readonly HarnessTool[]
   ask(question: string, choices: string[], context: { turnId: string; callId: string; signal: AbortSignal }): Promise<string | null>
   changed(reason: AppEvent['reason']): void
+  /** Test seam; production launches the DSH child process. */
+  launch?: typeof startDshHost
 }) {
   const { store, clock } = options
   const sessionsFile = join(options.dataDir, 'dsh-sessions.json')
@@ -68,22 +75,28 @@ export function createDshExecution(options: {
     const command = request.command ?? (request.callId ? turn?.calls.get(request.callId)?.command ?? null : null)
     const prefix = request.kind === 'risky' && command ? command.trim().split(/\s+/).slice(0, 2).join(' ') : null
     const rules = read<Rule[]>(rulesFile, [])
-    if (rules.some((rule) => rule.project === project && rule.tool === request.toolName && rule.prefix === prefix)) return 'allowed-once'
+    // D2: while third-party content is in her context, standing grants do not apply and none are made.
+    const degraded = request.degraded?.length ? request.degraded : null
+    if (!degraded && rules.some((rule) => rule.project === project && rule.tool === request.toolName && rule.prefix === prefix)) return 'allowed-once'
     const current = turn
     if (!current) return 'rejected'
     // DSH escalations carry the model's own justification after the mode; it reads better than a raw path.
     const justification = request.reason?.match(/^escalate sandbox to [\w-]+:\s*([\s\S]+)$/)?.[1]
-    const subject = justification ? `：${clip(justification.replace(/\s+/g, ' ').replace(/[。．.！!\s]+$/, ''), 120)}` : command ? `：${clip(command.replace(/\s+/g, ' '), 100)}` : ''
-    const question = request.kind === 'risky' ? `这条命令可能有风险${subject}。要让她执行吗？` : `她想在「${basename(project)}」里直接运行命令${subject}。可以吗？`
-    const always = request.kind === 'risky' ? `以后都允许「${clip(prefix ?? '', 24)}」` : '这个项目以后都允许'
-    const choices = ['允许这一次', always, '拒绝']
+    const shown = request.kind === 'degraded' ? request.subject ?? command : command ?? request.subject
+    const subject = justification ? `：${clip(justification.replace(/\s+/g, ' ').replace(/[。．.！!\s]+$/, ''), 120)}` : shown ? `：${clip(shown.replace(/\s+/g, ' '), 100)}` : ''
+    const readFirst = degraded ? `这一轮她读过${degraded.map((source) => SOURCE_TEXT[source]).join('和')}，` : ''
+    const question = request.kind === 'risky' ? `${readFirst}这条命令可能有风险${subject}。要让她执行吗？`
+      : request.kind === 'degraded' ? `${readFirst}${ACTION_TEXT[request.toolName] ?? '这一步'}要先问你${subject}。可以吗？`
+        : `${readFirst}她想在「${basename(project)}」里直接运行命令${subject}。可以吗？`
+    const always = degraded ? null : request.kind === 'risky' ? `以后都允许「${clip(prefix ?? '', 24)}」` : '这个项目以后都允许'
+    const choices = always ? ['允许这一次', always, '拒绝'] : ['允许这一次', '拒绝']
     const answer = await options.ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
-    if (answer === always) {
+    if (always && answer === always) {
       writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix }], null, 2))
       // A project-wide grant is the user's choice of same-user trust: later commands skip the sandbox detour.
       if (prefix === null && session?.id && session.cwd === project) host?.trust(session.id)
     }
-    return answer === choices[0] || answer === always ? 'allowed-once' : 'rejected'
+    return answer === choices[0] || (always !== null && answer === always) ? 'allowed-once' : 'rejected'
   }
 
   const call = async (name: string, args: unknown, _sessionId: string, callId: string) => {
@@ -93,7 +106,7 @@ export function createDshExecution(options: {
     if (!tool.validate(input)) throw new Error('invalid-tool-arguments: one JSON object matching the tool schema')
     const result = await tool.run(input, { clock, store, turnId: turn.lcaTurnId, callId, signal: turn.asks.signal })
     if (!result.ok) throw new Error(clip(JSON.stringify(result.visible), 400))
-    return result.visible
+    return { value: result.visible, source: sourceOf(tool.templateId) }
   }
 
   const onEvent = (event: DshEvent) => {
@@ -101,33 +114,45 @@ export function createDshExecution(options: {
     switch (event.t) {
       case 'turn-start': {
         turn = { lcaTurnId: randomUUID(), toolsExecuted: false, calls: new Map(), asks: new AbortController() }
-        record({ type: 'turn/start', turnId: turn.lcaTurnId, trigger: 'user' }); drain(); options.changed('task'); break
+        record({ type: 'turn/start', turnId: turn.lcaTurnId, trigger: 'user' }); drain()
+        const preset = typeof event.preset === 'string' && event.preset.length <= 64 ? event.preset : null
+        record({ type: 'work/turn', turnId: turn.lcaTurnId, engine: 'dsh', sessionId: session.id, preset })
+        options.changed('task'); break
       }
       case 'user-message': if (turn) drain(); break
+      // Her words are conversation and stay in the journal; the tool calls beside them are DSH's.
       case 'message': {
         if (!turn) break
-        const calls = Array.isArray(event.toolCalls) ? (event.toolCalls as { id: string; name: string; arguments: string }[]).slice(0, 16) : []
         const text = typeof event.text === 'string' ? event.text : ''
-        if (!text.trim() && !calls.length) break
-        record({ type: 'assistant/message', id: randomUUID(), turnId: turn.lcaTurnId, text, status: 'complete',
-          ...(calls.length ? { toolCalls: calls.map((item) => ({ id: item.id, name: safeName(item.name), arguments: clip(item.arguments, 64_000) })) } : {}) })
+        if (!text.trim()) break
+        record({ type: 'assistant/message', id: randomUUID(), turnId: turn.lcaTurnId, text, status: 'complete' })
         options.changed('message'); break
       }
       case 'tool-call': {
         if (!turn) break
         const name = String(event.name); const callId = String(event.callId); const args = parsed(String(event.args ?? ''))
-        const lca = lcaTools().get(name)
-        turn.calls.set(callId, { atMs: clock.nowMs(), command: typeof args.command === 'string' ? args.command : null }); turn.toolsExecuted = true
-        record({ type: 'tool/call', turnId: turn.lcaTurnId, callId, name: safeName(name), arguments: lca ? JSON.parse(JSON.stringify(args)) : compact(args), templateId: lca?.templateId ?? TEMPLATES[name] ?? 'dsh.other' })
+        const templateId = lcaTools().get(name)?.templateId ?? TEMPLATES[name] ?? 'dsh.other'
+        turn.calls.set(callId, { command: typeof args.command === 'string' ? args.command : null, templateId }); turn.toolsExecuted = true
+        record({ type: 'work/activity', turnId: turn.lcaTurnId, callId, templateId, status: 'running' })
         options.changed('task'); break
       }
       case 'tool-result': {
         if (!turn) break
-        const callId = String(event.callId); const ok = !event.isError; const text = String(event.text ?? '')
-        record({ type: 'tool/result', turnId: turn.lcaTurnId, callId, ok, raw: { text: clip(text, 2_000) }, visible: ok ? { status: 'ok', text: clip(text, 600) } : { error: 'tool-failed', reason: clip(text, 400) },
-          elapsedMs: Math.max(0, clock.nowMs() - (turn.calls.get(callId)?.atMs ?? clock.nowMs())) })
+        const callId = String(event.callId)
+        record({ type: 'work/activity', turnId: turn.lcaTurnId, callId, templateId: turn.calls.get(callId)?.templateId ?? 'dsh.other', status: event.isError ? 'failed' : 'completed' })
         options.changed('task'); break
       }
+      case 'degraded': {
+        const sources = dshSources(event.sources)
+        if (!sources.length) break
+        saveSession({ degraded: sources })
+        if (turn) { record({ type: 'turn/degraded', turnId: turn.lcaTurnId, sources }); options.changed('task') }
+        break
+      }
+      case 'retired': saveSession({ degraded: undefined }); break
+      case 'trusted':
+        if (typeof event.preset === 'string' && event.preset.length <= 64) record({ type: 'work/trust', sessionId: session.id, project: session.cwd, preset: event.preset })
+        break
       case 'turn-end': {
         if (!turn) break
         const reason = event.reason as { kind?: string } | null
@@ -146,17 +171,24 @@ export function createDshExecution(options: {
     if (session?.id && session.day === day && session.cwd === cwd) return Promise.resolve(session)
     return opening ??= openSession(day, cwd).finally(() => { opening = undefined })
   }
+  const saveSession = (patch: { degraded?: DshSource[] }) => {
+    if (!session?.id) return
+    const saved = read<Saved>(sessionsFile, {})
+    if (saved[session.day]?.id !== session.id) return
+    writeFileSync(sessionsFile, JSON.stringify({ ...saved, [session.day]: { id: session.id, cwd: session.cwd, ...(patch.degraded?.length ? { degraded: patch.degraded } : {}) } }, null, 2))
+  }
   const openSession = async (day: string, cwd: string) => {
-    host ??= startDshHost({ clock, dshRoot: options.dshRoot, dataDir: options.dataDir, bridge: options.bridge, workspace: cwd, route: options.route, guardedRoots: options.guardedRoots,
+    host ??= (options.launch ?? startDshHost)({ clock, dshRoot: options.dshRoot, dataDir: options.dataDir, bridge: options.bridge, workspace: cwd, route: options.route, guardedRoots: options.guardedRoots,
       persona: options.persona(), suffix: options.suffix(), tools: [...lcaTools()].map(([name, tool]) => ({ name, description: tool.definition.description, parameters: tool.definition.parameters as Record<string, unknown> })),
       onEvent, onCall: call, onApproval: approve })
-    const saved = read<Record<string, { id: string; cwd: string }>>(sessionsFile, {})
-    const known = saved[day]?.cwd === cwd ? saved[day].id : undefined
+    const saved = read<Saved>(sessionsFile, {})
+    const known = saved[day]?.cwd === cwd ? saved[day] : undefined
     const current = { id: '', cwd, day }
     session = current
     const trusted = read<Rule[]>(rulesFile, []).some((rule) => rule.project === cwd && rule.prefix === null)
-    current.id = await host.open(cwd, known, trusted)
-    writeFileSync(sessionsFile, JSON.stringify({ ...saved, [day]: { id: current.id, cwd } }, null, 2))
+    current.id = await host.open(cwd, known?.id, trusted, dshSources(known?.degraded))
+    const degraded = known?.id === current.id ? dshSources(known.degraded) : []
+    writeFileSync(sessionsFile, JSON.stringify({ ...saved, [day]: { id: current.id, cwd, ...(degraded.length ? { degraded } : {}) } }, null, 2))
     return current
   }
 

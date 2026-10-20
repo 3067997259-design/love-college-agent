@@ -160,6 +160,13 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
         break
       case 'plan/update': if (result.task?.id === record.turnId) result.task.steps = record.steps; break
       case 'tool/call': result.activities.push({ id: record.callId, taskId: record.turnId, toolCallId: record.callId, templateId: record.templateId, status: 'running', fields: {} }); break
+      // DSH work rows are display only: results stay in DSH's session, never in LCA's model context.
+      case 'work/activity': {
+        const activity = result.activities.find((item) => item.toolCallId === record.callId && item.taskId === record.turnId)
+        if (activity) activity.status = record.status
+        else result.activities.push({ id: record.callId, taskId: record.turnId, toolCallId: record.callId, templateId: record.templateId, status: record.status, fields: {} })
+        break
+      }
       case 'tool/result': {
         const activity = result.activities.find((item) => item.toolCallId === record.callId && item.taskId === record.turnId)
         if (activity) {

@@ -68,7 +68,7 @@ export async function probeDshSpike(dataDir: string, providersFile: string, appP
     clock, dshRoot: process.env.DSH_ROOT ?? 'D:/dsh-lca', dataDir, bridge: join(appPath, 'dsh', 'lca-bridge'), workspace,
     route, guardedRoots: [join(dataDir, 'dsh-home'), join(dataDir, 'journals'), join(dataDir, 'connections')], persona: PERSONA,
     tools: [{ name: 'lca_get_timer', description: 'Read the pomodoro timer of the LCA book: phase and minutes left.', parameters: { type: 'object', properties: {}, additionalProperties: false } }],
-    onCall: async (name) => { report.lcaCalls++; if (name !== 'lca_get_timer') throw new Error('UNKNOWN_LCA_TOOL'); return { phase: 'focus', remainingMinutes: 12, focusIndex: 2 } },
+    onCall: async (name) => { report.lcaCalls++; if (name !== 'lca_get_timer') throw new Error('UNKNOWN_LCA_TOOL'); return { value: { phase: 'focus', remainingMinutes: 12, focusIndex: 2 }, source: null } },
     onApproval: async (request) => { report.approvals++; transcript.push({ t: 'approval-asked', toolName: request.toolName, reason: request.reason?.slice(0, 160) ?? null }); return 'rejected' },
     onEvent: (event) => {
       if (event.t !== 'delta') transcript.push(event)

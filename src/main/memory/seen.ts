@@ -29,6 +29,7 @@ export const memoryInputBytes = (input: readonly SeenFragment[]) => Buffer.byteL
 export const userOrigins = (origin: SeenOrigin | undefined) => origin === undefined || origin === 'user'
 const EVENT_ORIGINS: readonly SeenOrigin[] = ['user', 'mail', 'document', 'pomodoro', 'autonomous']
 const EVENT_ORIGIN = new Set<SeenOrigin>(EVENT_ORIGINS)
+const DSH_WORKSPACE = new Set(['dsh.read', 'dsh.write', 'dsh.edit', 'dsh.search', 'dsh.shell', 'dsh.agent'])
 /**
  * The sole memory input surface: successful model input snapshots, never tool/raw or any private store.
  * Origin comes from the journal record that produced the context entry, not from the message body.
@@ -37,12 +38,15 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
   let sessionId = ''; const seen = new Set<string>(); const result: SeenFragment[] = []
   const externalCalls = records.flatMap((row) => row.type === 'tool/call' && isSourceTool(row.templateId) ? [row] : [])
   const externalIds = new Set(externalCalls.map((row) => row.callId))
-  const externalTurns = new Set(externalCalls.map((row) => row.turnId))
+  // DSH turns keep their tool traffic in DSH's log; the journal says which ones read third-party
+  // content (turn/degraded) or did project work (work/activity), and the same D2 rules apply.
+  const dshTurns = new Set(records.flatMap((row) => row.type === 'work/turn' ? [row.turnId] : []))
+  const externalTurns = new Set([...externalCalls.map((row) => row.turnId), ...records.flatMap((row) => row.type === 'turn/degraded' && dshTurns.has(row.turnId) ? [row.turnId] : [])])
   const externalReplies = new Set(records.flatMap((row) => row.type === 'assistant/message' && externalTurns.has(row.turnId) ? [row.text] : []))
   // D2: workspace tool results (legacy flow desk tools and task desk tools) are work data, never experience memory.
   const workspaceCalls = records.flatMap((row) => row.type === 'tool/call' && (row.templateId.startsWith('desk_') || row.templateId.startsWith('desk.')) ? [row] : [])
   const workspaceIds = new Set(workspaceCalls.map((row) => row.callId))
-  const workspaceTurns = new Set(workspaceCalls.map((row) => row.turnId))
+  const workspaceTurns = new Set([...workspaceCalls.map((row) => row.turnId), ...records.flatMap((row) => row.type === 'work/activity' && DSH_WORKSPACE.has(row.templateId) ? [row.turnId] : [])])
   const workspaceReplies = new Set(records.flatMap((row) => row.type === 'assistant/message' && workspaceTurns.has(row.turnId) ? [row.text] : []))
   const ignored = new Set<string>(); const titles = new Map<string, string>()
   for (const row of records) {

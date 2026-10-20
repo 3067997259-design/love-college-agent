@@ -11,14 +11,20 @@ import type { Clock } from '../clock'
  */
 export type DshEvent = { t: string; sessionId?: string; [key: string]: unknown }
 export type DshTool = { name: string; description: string; parameters: Record<string, unknown> }
-export type DshApproval = { sessionId: string; toolName: string; callId: string | null; reason: string | null; kind: 'risky' | 'escalation'; command: string | null }
+/** Third-party content kinds, as in D2's `turn/degraded`. */
+export type DshSource = 'mail' | 'document' | 'web' | 'mcp' | 'plugin'
+const SOURCES: readonly DshSource[] = ['mail', 'document', 'web', 'mcp', 'plugin']
+export const dshSources = (value: unknown): DshSource[] => Array.isArray(value) ? SOURCES.filter((source) => value.includes(source)) : []
+/** `degraded`: third-party content is in her context, so this approval may not create or apply standing grants. */
+export type DshApproval = { sessionId: string; toolName: string; callId: string | null; reason: string | null; kind: 'risky' | 'escalation' | 'degraded'; command: string | null; subject: string | null; degraded: DshSource[] | null }
 export type DshRoute = { kind: 'deepseek-official'; apiKey: string; model?: string } | { kind: 'openai-compatible'; baseUrl: string; model: string; apiKey: string }
 export interface DshHostOptions {
   clock: Clock; dshRoot: string; dataDir: string; bridge: string; workspace: string
   route: DshRoute | null; guardedRoots: readonly string[]
   persona: string; suffix?: string; tools: readonly DshTool[]
   onEvent(event: DshEvent): void
-  onCall(name: string, args: unknown, sessionId: string, callId: string): Promise<unknown>
+  /** `source` marks a result carrying third-party content; the bridge then degrades the turn. */
+  onCall(name: string, args: unknown, sessionId: string, callId: string): Promise<{ value: unknown; source: DshSource | null }>
   onApproval(request: DshApproval): Promise<'allowed-once' | 'rejected'>
 }
 
@@ -67,9 +73,10 @@ export function startDshHost(options: DshHostOptions) {
     if (message.t === 'hello') child.send({ t: 'init', persona: options.persona, suffix: options.suffix ?? '', tools: options.tools })
     else if (message.t === 'init-ok') ready()
     else if (message.t === 'lca-call') void options.onCall(String(message.name), message.args, String(message.sessionId), String(message.callId))
-      .then((value) => child.send({ t: 'lca-result', id: message.id, ok: true, value }), (error: unknown) => child.send({ t: 'lca-result', id: message.id, ok: false, error: error instanceof Error ? error.message : 'LCA_TOOL_FAILED' }))
+      .then((result) => child.send({ t: 'lca-result', id: message.id, ok: true, value: result.value, source: result.source }), (error: unknown) => child.send({ t: 'lca-result', id: message.id, ok: false, error: error instanceof Error ? error.message : 'LCA_TOOL_FAILED' }))
     else if (message.t === 'approval') void options.onApproval({ sessionId: String(message.sessionId), toolName: String(message.toolName), callId: (message.callId as string | null) ?? null, reason: (message.reason as string | null) ?? null,
-      kind: message.kind === 'risky' ? 'risky' : 'escalation', command: (message.command as string | null) ?? null })
+      kind: message.kind === 'risky' || message.kind === 'degraded' ? message.kind : 'escalation', command: (message.command as string | null) ?? null, subject: typeof message.subject === 'string' ? message.subject : null,
+      degraded: Array.isArray(message.degraded) ? dshSources(message.degraded) : null })
       .then((outcome) => child.send({ t: 'approval-answer', id: message.id, outcome }), () => child.send({ t: 'approval-answer', id: message.id, outcome: 'rejected' }))
     else if ((message.t === 'session' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
       const entry = waiting.get(message.ref)!; waiting.delete(message.ref)
@@ -80,7 +87,8 @@ export function startDshHost(options: DshHostOptions) {
   const request = (command: Record<string, unknown>) => new Promise<Record<string, unknown>>((done, fail) => { const ref = randomUUID(); waiting.set(ref, { done, fail }); child.send({ ...command, ref }) })
   return {
     started,
-    open: async (cwd: string, sessionId?: string, trusted = false) => { await started; return String((await request({ t: 'open', cwd, trusted, ...(sessionId ? { sessionId } : {}) })).sessionId) },
+    /** `degraded`: the resumed session still holds third-party content LCA could not retire before a restart. */
+    open: async (cwd: string, sessionId?: string, trusted = false, degraded: readonly DshSource[] = []) => { await started; return String((await request({ t: 'open', cwd, trusted, degraded, ...(sessionId ? { sessionId } : {}) })).sessionId) },
     /** Switch a live session to the `lca-trusted` preset after the user granted its project. */
     trust: (sessionId: string) => child.send({ t: 'trust', sessionId }),
     send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup') => child.send({ t: 'send', sessionId, text, mode }),
