@@ -121,6 +121,26 @@ describe('DSH work in the LCA journal', () => {
     f.journal.close()
   })
 
+  it('asks about trusting the project when the sandbox cannot run commands there', async () => {
+    const f = setup()
+    f.execution.send('跑一下', 'r-1', 'h-1')
+    await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    f.setAnswer(() => '先不要')
+    expect(await f.approval({ kind: 'trust', command: null, subject: 'node count.js' })).toBe('rejected')
+    expect(f.asked.at(-1)).toEqual({ question: '她想在「project」里运行命令：node count.js，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。', choices: ['信任这个项目', '先不要'] })
+    f.setAnswer((choices) => choices[0])
+    expect(await f.approval({ kind: 'trust', command: null, subject: 'node count.js' })).toBe('allowed-once')
+    expect(JSON.parse(readFileSync(join(f.root, 'dsh-approvals.json'), 'utf8'))).toEqual([{ project: resolve(join(f.root, 'project')), tool: 'pwsh', prefix: null }])
+    // The bridge applies the preset itself after LCA allows it, and reports back with `trusted`.
+    expect(f.host.trusted).toEqual([])
+    const asked = f.asked.length
+    expect(await f.approval({ kind: 'trust', command: null, subject: null })).toBe('allowed-once')
+    expect(await f.approval({ kind: 'trust', command: null, subject: null, degraded: ['web'] })).toBe('rejected')
+    expect(f.asked).toHaveLength(asked)
+    f.journal.close()
+  })
+
   it('keeps a session degraded across a restart that came before retirement', async () => {
     const f = setup()
     f.execution.send('查资料', 'r-1', 'h-1')

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error -- plain ESM plugin module loaded by the DSH runtime; no type declarations.
-import { RETIRED, createDegradation, createLineage, gatedWhileDegraded, isRisky, retireResults, sourceOf, subjectOf } from '../../dsh/lca-bridge/policy.js'
+import { RETIRED, TRUST_FEEDBACK, createDegradation, createLineage, gatedWhileDegraded, isRisky, retireResults, sandboxDenied, sourceOf, subjectOf } from '../../dsh/lca-bridge/policy.js'
 
 const agent = (id: string, parentSession?: string) => ({ session: { id, header: parentSession ? { parentSession, origin: 'subagent' } : {} } })
 
@@ -24,6 +24,15 @@ describe('lca-bridge policy', () => {
     expect(isRisky('node test.js')).toBe(false)
     expect(subjectOf({ file_path: 'src/a.js', content: 'x' })).toBe('src/a.js')
     expect(subjectOf({ todos: [] })).toBeNull()
+  })
+
+  it('recognises the sandbox failing to grant the workspace, and only that', () => {
+    const failed = (text: string) => ({ isError: true, error: { code: 'TOOL_FAILED', message: text }, content: [{ type: 'text', text }] })
+    expect(sandboxDenied(failed('Error: SetNamedSecurityInfoW failed (Win32 5): grantWrite(D:\\work\\demo)'))).toBe(true)
+    expect(sandboxDenied({ isError: true, error: { message: 'grantWrite(D:\\work\\demo) failed' }, content: [] })).toBe(true)
+    expect(sandboxDenied(failed('node: command exited with code 1'))).toBe(false)
+    expect(sandboxDenied({ isError: false, content: [{ type: 'text', text: 'grantWrite( printed by a script' }] })).toBe(false)
+    expect(Object.keys(TRUST_FEEDBACK).sort()).toEqual(['declined', 'degraded', 'trusted'])
   })
 
   it('stays degraded for the turn that read third-party content and is due at the next turn', () => {
