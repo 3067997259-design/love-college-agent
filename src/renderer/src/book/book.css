@@ -587,6 +587,60 @@
 }
 .msg-time { margin-left: 10px; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--graphite); opacity: 0.75; }
 .msg[data-status='interrupted'] .msg-text, .msg[data-status='undelivered'] .msg-text { opacity: 0.7; }
+.msg-user .msg-text { white-space: pre-wrap; }
+
+/* —— 她话里的简单 Markdown：符号藏起来但留在文字里，选中、引用时的偏移量对得上原文 —— */
+.md-mark, .md-mark-row { display: none; }
+.md-line, .md-p, .md-li, .md-h, .md-quote { white-space: pre-wrap; }
+.msg[data-rich='block'] { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.msg[data-rich='block'] .msg-who { margin-top: 0.6em; }
+.msg[data-rich='block'] .msg-time { grid-column: 2; margin: 2px 0 0; }
+div.msg-text.md { display: grid; gap: 6px; min-width: 0; }
+.md-h { font-weight: 700; }
+.md-h[data-level='1'], .md-h[data-level='2'] { font-size: 1.06em; margin-top: 4px; }
+.md-li { position: relative; padding-left: 1.1em; }
+.md-li[data-ordered='true'] { padding-left: 0; }
+.md-li[data-depth='1'] { margin-left: 1.1em; }
+.md-li[data-depth='2'], .md-li[data-depth='3'] { margin-left: 2.2em; }
+.md-li[data-ordered='false']::before {
+  content: '';
+  position: absolute;
+  left: 0.3em;
+  top: 0.78em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+.md-li { line-height: 1.55; }
+.md-li + .md-li { margin-top: -3px; }
+.md-quote { margin: 0; padding-left: 12px; border-left: 2px solid color-mix(in oklab, var(--pencil) 60%, transparent); color: color-mix(in oklab, currentColor 75%, var(--graphite)); }
+.md-hr { height: 0; margin: 4px 0; border-top: 1.5px dashed color-mix(in oklab, var(--pencil) 60%, transparent); }
+.md-link { text-decoration: underline dotted; text-underline-offset: 3px; }
+.md-math { font-family: 'Cambria Math', 'Times New Roman', serif; font-style: italic; }
+.md-code {
+  padding: 0 5px;
+  font: 0.86em var(--font-mono);
+  border-radius: 4px 3px 5px 3px;
+  background: color-mix(in oklab, var(--paper-edge) 60%, transparent);
+}
+.md-pre {
+  margin: 0;
+  padding: 8px 12px;
+  overflow-x: auto;
+  font: 14px/1.55 var(--font-mono);
+  white-space: pre;
+  tab-size: 2;
+  border-radius: 9px 6px 10px 7px;
+  background: color-mix(in oklab, var(--paper-edge) 50%, transparent);
+  scrollbar-width: thin;
+}
+.md-pre code { font: inherit; }
+.md-table-wrap { overflow-x: auto; scrollbar-width: thin; }
+.md-table { border-collapse: collapse; font-size: 0.92em; }
+.md-table th, .md-table td { padding: 2px 12px 2px 0; text-align: left; vertical-align: top; border-bottom: 1px solid color-mix(in oklab, var(--pencil) 40%, transparent); }
+.md-table th { font-weight: 700; border-bottom-width: 1.5px; }
 
 /* 任务卡：步骤逐项打勾 */
 .task { padding: 6px 0 6px 16px; border-left: 2px dashed color-mix(in oklab, var(--pencil) 80%, transparent); }
@@ -614,6 +668,23 @@ li[data-status='active'] .step-box { border-color: var(--peach-mid); animation: 
 .activities { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
 .activity { font: 17px var(--font-hand); color: var(--ink-her); opacity: 0.88; }
 .activity[data-status='running']::after { content: '…'; }
+/* 做完的一轮收成一行小字，点开看每一步；正在做的一轮只把更早的几步收起来 */
+.activity-fold { align-self: flex-start; font: 16px var(--font-hand); color: var(--ink-her); }
+.task > .activity-fold { margin-top: 6px; }
+.activity-fold > summary {
+  width: fit-content;
+  list-style: none;
+  cursor: pointer;
+  opacity: 0.72;
+  border-radius: 6px;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.activity-fold > summary::-webkit-details-marker { display: none; }
+.activity-fold > summary::before { content: '›'; display: inline-block; width: 1em; transition: transform var(--dur-fast) var(--ease-out); }
+.activity-fold[open] > summary::before { transform: rotate(90deg); }
+.activity-fold > summary:hover, .activity-fold[open] > summary { opacity: 1; }
+.activity-fold > summary:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 2px; }
+.activity-fold > .activities { margin: 4px 0 0 1em; }
 
 /* —— 卡片：手绘感的不规则圆角，阴影用薰衣草紫 —— */
 .card {

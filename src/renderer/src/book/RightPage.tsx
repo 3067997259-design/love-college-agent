@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanView, QuillView, TaskCardView } from '../../../shared'
-import { activityText } from '../voice/activity-text'
-import { CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
+import type { ActivityView, AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanView, QuillView, TaskCardView, TaskView } from '../../../shared'
+import { ActivityFold, CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
 import { TaskObjectCard } from './task/ObjectCard'
 import { sourceText } from './life/text'
 import book from '../voice/book.zh.json'
@@ -19,6 +18,7 @@ import { RewindDock } from './RewindControls'
 import { FailureDetails } from './FailureDetails'
 import failureWords from '../voice/failure.zh.json'
 import { quoteOnPage } from './history/quote'
+import { MsgText, useMarkdown } from './MessageText'
 
 type Item =
   | { kind: 'message'; at: number; id: string; view: MessageView }
@@ -29,6 +29,7 @@ type Item =
   | { kind: 'made'; at: number; id: string; view: GeneratedGiftView }
   | { kind: 'task'; at: number; id: string }
   | { kind: 'task-object'; at: number; id: string; view: TaskCardView }
+  | { kind: 'activities'; at: number; id: string; view: readonly ActivityView[] }
 
 /** 送出了的礼物（主进程判定 given 才算）：在送出的那一刻进对话 */
 const givenGifts = (snapshot: AppSnapshot) => (snapshot.gifts?.items ?? []).filter((gift) => gift.status === 'given' && gift.givenAtMs !== null)
@@ -105,8 +106,14 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
   const lastUserIndex = messages.findLastIndex((m) => m.role === 'user')
   const reply = lastUserIndex >= 0 ? messages[lastUserIndex + 1] : undefined
   const lastUserAt = (reply?.role === 'assistant' ? reply : messages[lastUserIndex])?.createdAtMs ?? 0
+  // 之前各轮的活动收成一行，留在那一轮里它们开始的位置；当前这一轮的在任务卡里
+  const pastTurns = new Map<string, ActivityView[]>()
+  for (const activity of activities) if (activity.taskId !== task?.id) pastTurns.set(activity.taskId, [...(pastTurns.get(activity.taskId) ?? []), activity])
+  // 等你回答时，问题只在输入框上方的卡片里出现一次；答完再回到对话里，接着是你的回答
+  const asking = snapshot.question?.status === 'waiting' ? snapshot.question.id : null
   const items: Item[] = [
-    ...messages.map((view) => ({ kind: 'message' as const, at: view.createdAtMs, id: view.id, view })),
+    ...messages.filter((view) => view.id !== asking).map((view) => ({ kind: 'message' as const, at: view.createdAtMs, id: view.id, view })),
+    ...[...pastTurns].map(([taskId, view]) => ({ kind: 'activities' as const, at: Math.min(...view.map((a) => a.startedAtMs ?? Number.MAX_SAFE_INTEGER)), id: 'activities:' + taskId, view })),
     ...candidates.filter((c) => c.status !== 'ignored').map((view) => ({ kind: 'candidate' as const, at: view.createdAtMs, id: view.id, view })),
     ...deliveries.map((view) => ({ kind: 'delivery' as const, at: view.createdAtMs, id: view.id, view })),
     ...(pomodoro.plan ? [{ kind: 'plan' as const, at: pomodoro.plan.createdAtMs, id: pomodoro.plan.id, view: pomodoro.plan }] : []),
@@ -114,10 +121,9 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
     ...(pomodoro.proposal ? [{ kind: 'plan' as const, at: pomodoro.proposal.createdAtMs, id: pomodoro.proposal.id, view: pomodoro.proposal }] : []),
     ...(quill?.state === 'given' && quill.givenAtMs !== null ? [{ kind: 'gift' as const, at: quill.givenAtMs, id: quill.id, view: quill }] : []),
     ...givenGifts(snapshot).map((view) => ({ kind: 'made' as const, at: view.givenAtMs!, id: view.id, view })),
-    ...(task ? [{ kind: 'task' as const, at: lastUserAt + 0.5, id: task.id }] : []),
+    ...(task ? [{ kind: 'task' as const, at: taskAt(task, activities, lastUserAt), id: task.id }] : []),
     ...(snapshot.tasks ?? []).map((view) => ({ kind: 'task-object' as const, at: view.createdAtMs, id: 'task-object:' + view.id, view })),
   ].sort((a, b) => a.at - b.at)
-  const orphanActivities = activities.filter((a) => a.taskId !== task?.id)
 
   // 只在你本来就看着最新一句时跟着滚；你往上翻旧消息时，她说话、来卡片都不把你拽回底部。翻回底部或你发消息时重新跟随。
   // 只有你的操作（滚轮往上、上翻键、拖滚动条）会取消跟随：程序平滑滚动途中的 scroll 事件不算
@@ -193,6 +199,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
               )
             }
             case 'task': return task && <TaskCard key={item.id} task={task} activities={activities} />
+            case 'activities': return <ActivityFold key={item.id} activities={item.view} />
             case 'task-object': return (
               <TaskObjectCard key={item.id} view={item.view}
                 onApprove={(taskId, planVersion) => { void dispatch({ type: 'task.approve', taskId, planVersion }) }}
@@ -219,15 +226,6 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
         {restoreReceipt && <RestoreCard view={restoreReceipt} onDone={() => { void dispatch({ type: 'backup.cancel' }) }} />}
         {/* 回忆中：书本旁白一样的小字，不替她说话；她的回答照常作为她的话出现 */}
         {recalling && <p className="msg msg-narrator recall-line" role="status">{book.history.recalling.replace('{name}', herName)}</p>}
-        {orphanActivities.length > 0 && (
-          <ul className="activities">
-            {orphanActivities.map((a) => (
-              <li key={a.id} className="activity" data-status={a.status}>
-                {activityText(a)}{a.error && <span className="notice-mark" title={a.error.detailsId ? `诊断编号 ${a.error.detailsId}` : undefined}>！</span>}
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
 
       {/* 停在输入框上面：她的提问、要你确认的回退和命令、要你批准的代码；你的话没送达也在这里说明 */}
@@ -276,18 +274,32 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
   )
 }
 
+/**
+ * 任务卡的位置：她做着的时候停在最底下，像一行进度；做完了收回到这一轮开始干活的地方，和之前各轮一样。
+ * 没有活动的（只有计划步骤）仍放在发起它的那条消息和她的应答后面。
+ */
+function taskAt(task: TaskView, activities: readonly ActivityView[], lastUserAt: number): number {
+  if (['queued', 'running', 'waiting-user', 'cancelling'].includes(task.status)) return Number.MAX_SAFE_INTEGER
+  const started = activities.flatMap((a) => a.taskId === task.id && a.startedAtMs !== undefined ? [a.startedAtMs] : [])
+  return started.length ? Math.min(...started) : lastUserAt + 0.5
+}
+
 function Message({ view }: { view: MessageView }) {
+  // 她的话按简单 Markdown 排；有列表、代码块这些时整条换成块级排版
+  const md = useMarkdown(view.role === 'assistant' ? view.text : '')
+  const rich = view.role === 'assistant'
+  const Tag = rich && !md.plain ? 'div' : 'p'
   return (
-    <p className={`msg msg-${view.role}`} data-status={view.status}>
+    <Tag className={`msg msg-${view.role}`} data-status={view.status} data-rich={rich && !md.plain ? 'block' : undefined}>
       {view.role === 'assistant' && <span className="msg-who" aria-label="桃子" />}
       {view.role === 'narrator' && <span className="narrator-tag">{failureWords.label}</span>}
-      <span className="msg-text">{view.text}</span>
+      <MsgText md={rich ? md : null} text={view.text} />
       {view.status === 'streaming' && <span className="speech-caret" />}
       {(view.status === 'interrupted' || view.status === 'undelivered') && (
         <span className="notice-mark" title={view.status === 'interrupted' ? '说到一半断了' : '没有送达'}>！</span>
       )}
       <time className="msg-time">{formatClock(view.createdAtMs)}</time>
-    </p>
+    </Tag>
   )
 }
 

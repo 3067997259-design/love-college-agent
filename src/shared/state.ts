@@ -191,6 +191,8 @@ export interface ActivityView {
   /** Validated short fields for a display template; no arguments or raw output. */
   fields: Readonly<Record<string, string | number | boolean>>
   error?: PublicError
+  /** When the call started; places a finished turn's folded activities at their spot in the day. */
+  startedAtMs?: number
 }
 export interface CandidateView {
   urgency?: 'normal' | 'reply-today' | 'location-change'
@@ -758,6 +760,8 @@ export type UserQuestionView = {
   choices: readonly string[]
   /** Main-owned ten-minute visible-time deadline; quiet/focus time does not consume it. */
   expiresAtMs: number
+  /** `approval`: LCA asks on her behalf (DSH permissions); only the choices answer it. */
+  kind?: 'approval'
 })
 export interface VoiceRead {
   utteranceId: string

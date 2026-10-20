@@ -59,6 +59,13 @@ export function createDshExecution(options: {
   let session: { id: string; cwd: string; day: string } | undefined
   let turn: Turn | undefined
   let pending: string[] = []
+  // The book shows one question at a time; concurrent approvals wait their turn instead of failing.
+  let asking: Promise<unknown> = Promise.resolve()
+  const ask: typeof options.ask = (question, choices, context) => {
+    const next = asking.then(() => context.signal.aborted ? null : options.ask(question, choices, context))
+    asking = next.catch(() => null)
+    return next
+  }
 
   const drain = () => { if (pending.length) { record({ type: 'inbox/drain', ids: pending }); pending = [] } }
   const fail = (code: PublicErrorCode) => {
@@ -85,7 +92,7 @@ export function createDshExecution(options: {
       const shown = request.subject ?? command
       const question = `她想在「${basename(project)}」里运行命令${shown ? `：${clip(shown.replace(/\s+/g, ' '), 80)}` : ''}，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。`
       const choices = ['信任这个项目', '先不要']
-      const answer = await options.ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
+      const answer = await ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
       if (answer !== choices[0]) return 'rejected'
       writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix: null }], null, 2))
       return 'allowed-once'
@@ -105,7 +112,7 @@ export function createDshExecution(options: {
         : `${readFirst}她想在「${basename(project)}」里直接运行命令${subject}。可以吗？`
     const always = degraded ? null : request.kind === 'risky' ? `以后都允许「${clip(prefix ?? '', 24)}」` : '这个项目以后都允许'
     const choices = always ? ['允许这一次', always, '拒绝'] : ['允许这一次', '拒绝']
-    const answer = await options.ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
+    const answer = await ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
     if (always && answer === always) {
       writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix }], null, 2))
       // A project-wide grant is the user's choice of same-user trust: later commands skip the sandbox detour.

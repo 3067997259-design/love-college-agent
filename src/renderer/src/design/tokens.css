@@ -44,6 +44,7 @@
   --font-body: 'LXGW WenKai Screen', 'Microsoft YaHei UI', sans-serif;
   --font-hand: 'Long Cang', 'LXGW WenKai Screen', cursive; /* 2026-10-16 用户定默认 Long Cang；以后允许装自己的字体包 */
   --font-num: 'LXGW WenKai Screen', 'Consolas', monospace;               /* 配合 tabular-nums */
+  --font-mono: 'Cascadia Mono', 'Consolas', 'LXGW WenKai Screen', monospace; /* 她话里的代码和命令；用系统自带字体，不随应用打包 */
 
   /* 字号按书的设计尺寸写，整本书再整体缩放；投影上要看得清 */
   --fs-xs: 13px;

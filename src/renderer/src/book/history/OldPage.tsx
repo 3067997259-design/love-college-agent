@@ -6,6 +6,7 @@ import copy from '../../voice/book.zh.json'
 import { formatClock } from '../format'
 import { dayKeyLabel } from '../life/text'
 import { FailureDetails } from '../FailureDetails'
+import { MsgText, useMarkdown } from '../MessageText'
 
 export type { Quote }
 
@@ -74,19 +75,13 @@ export function OldPage({ info, page: loadedPage, failed, older, newer, onTurn, 
           : page.messages.length === 0 ? <p className="sheet-empty">{copy.history.empty}</p>
           : <>
             {page.truncated && <p className="old-hint">{copy.history.truncated}</p>}
-            {page.messages.map((message) => {
-              const canQuote = recallable.has(message.id)
-              return (
-                <Fragment key={message.id}><p className={`msg msg-${message.role}`} data-recallable={canQuote} data-message-id={message.id}>
-                  {message.role === 'assistant' && <span className="msg-who" aria-hidden />}
-                  <span className="msg-text" onMouseUp={(event) => select(message, event.currentTarget)}>{message.text}</span>
-                  <time className="msg-time">{formatClock(message.createdAtMs)}</time>
-                  {canQuote && (
-                    <button type="button" className="quote-button" onClick={() => { const quote = whole(message); if (quote) onQuote(quote) }}>{copy.history.quote}</button>
-                  )}
-                </p>{message.failure && <FailureDetails failure={message.failure} />}</Fragment>
-              )
-            })}
+            {page.messages.map((message) => (
+              <Fragment key={message.id}>
+                <OldMessage message={message} canQuote={recallable.has(message.id)} onSelect={(span) => select(message, span)}
+                  onQuoteWhole={() => { const quote = whole(message); if (quote) onQuote(quote) }} />
+                {message.failure && <FailureDetails failure={message.failure} />}
+              </Fragment>
+            ))}
           </>}
       </div>
       <footer className="old-foot">
@@ -109,5 +104,20 @@ export function QuoteChip({ quote, onClear }: { quote: Quote; onClear: () => voi
       <q className="quote-chip-text">{quote.text}</q>
       <button type="button" className="quote-chip-clear" aria-label={copy.history.clearQuote} title={copy.history.clearQuote} onClick={onClear}>×</button>
     </div>
+  )
+}
+
+/** 旧页上的一句：她的话同样按 Markdown 排；排版不丢原文字符，选段的偏移量仍是原文的偏移量。 */
+function OldMessage({ message, canQuote, onSelect, onQuoteWhole }: { message: MessageView; canQuote: boolean; onSelect: (span: HTMLElement) => void; onQuoteWhole: () => void }) {
+  const rich = message.role === 'assistant'
+  const md = useMarkdown(rich ? message.text : '')
+  const Tag = rich && !md.plain ? 'div' : 'p'
+  return (
+    <Tag className={`msg msg-${message.role}`} data-recallable={canQuote} data-message-id={message.id} data-rich={rich && !md.plain ? 'block' : undefined}>
+      {message.role === 'assistant' && <span className="msg-who" aria-hidden />}
+      <MsgText md={rich ? md : null} text={message.text} onMouseUp={(event) => onSelect(event.currentTarget)} />
+      <time className="msg-time">{formatClock(message.createdAtMs)}</time>
+      {canQuote && <button type="button" className="quote-button" onClick={onQuoteWhole}>{copy.history.quote}</button>}
+    </Tag>
   )
 }

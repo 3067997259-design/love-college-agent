@@ -153,7 +153,9 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('turn/end'), turnId: id, reason: z.enum(['completed', 'aborted', 'max-steps', 'loop', 'budget', 'error']), error: publicError.optional() }),
   z.strictObject({ type: z.literal('assistant/message'), id, turnId: id, text, status: z.enum(['complete', 'interrupted']), displayOnly: z.boolean().optional(), delivery: z.enum(['immediate', 'rest']).optional(), toolCalls: z.array(toolCall).max(16).optional() }),
   z.strictObject({ type: z.literal('narrator/failure'), id, turnId: id, text: z.string().min(1).max(1000), failure: failureViewSchema, delivery: z.enum(['immediate', 'rest']).optional() }).refine((row) => row.turnId === row.failure.turnId),
-  z.strictObject({ type: z.literal('question/requested'), id: z.string().uuid(), turnId: id, callId: id, flowId: id.optional(), question: z.string().min(1).max(480), choices: z.array(z.string().min(1).max(120)).max(3) }),
+  z.strictObject({ type: z.literal('question/requested'), id: z.string().uuid(), turnId: id, callId: id, flowId: id.optional(), question: z.string().min(1).max(480), choices: z.array(z.string().min(1).max(120)).max(3),
+    /** LCA asking on her behalf (DSH permissions); not one of the questions she may ask. */
+    approval: z.literal(true).optional() }),
   z.strictObject({ type: z.literal('question/answered'), id: z.string().uuid(), turnId: id, answerMessageId: id }),
   z.strictObject({ type: z.literal('question/committed'), id: z.string().uuid(), turnId: id, answerMessageId: id }),
   z.strictObject({ type: z.literal('question/closed'), id: z.string().uuid(), turnId: id, cause: z.enum(['declined', 'cancelled', 'timeout', 'superseded', 'interrupted', 'disabled']), requestId: id.optional(), commandHash: id.optional() }),

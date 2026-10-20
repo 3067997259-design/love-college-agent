@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AppBridge, BackupView, CandidateView, DeliveryView, EvidenceView, GeneratedGiftView, PlanStep, PomodoroPlanItem, PomodoroPlanView, PomodoroView, TaskView, ActivityView } from '../../../shared'
-import { activityText } from '../voice/activity-text'
+import { activityKind, activityText } from '../voice/activity-text'
 import book from '../voice/book.zh.json'
 import { daysInMonth, formatDateTime, formatIso, weekdayIndex } from './format'
 import { momentSrc } from './Character'
@@ -290,24 +290,60 @@ export function RestoreCard({ view, onDone }: { view: BackupView; onDone: () => 
 /* —— 任务卡：update_plan 的步骤逐项打勾，下面是手写体的活动小字 —— */
 const STEP_MARK: Record<PlanStep['status'], string> = { pending: '', active: '…', done: '✓', failed: '！' }
 
+/** 正在做的一轮露出最近几步，更早的收起来；做完的一轮整个收成一行。 */
+const LIVE_ACTIVITIES = 3
+const LIVE = new Set<TaskView['status']>(['queued', 'running', 'waiting-user', 'cancelling'])
+
 export function TaskCard({ task, activities }: { task: TaskView; activities: readonly ActivityView[] }) {
   const mine = activities.filter((a) => a.taskId === task.id)
+  if (!task.steps.length && !mine.length) return null
+  const live = LIVE.has(task.status)
+  const earlier = live ? mine.slice(0, Math.max(0, mine.length - LIVE_ACTIVITIES)) : []
   return (
     <section className="task" data-status={task.status}>
-      <ol className="task-steps">
-        {task.steps.map((s) => (
-          <li key={s.id} data-status={s.status}><span className="step-box" aria-hidden>{STEP_MARK[s.status]}</span>{s.text}</li>
-        ))}
-      </ol>
-      {mine.length > 0 && (
-        <ul className="activities">
-          {mine.map((a) => (
-            <li key={a.id} className="activity" data-status={a.status}>
-              {activityText(a)}{a.error && <span className="notice-mark" title={a.error.detailsId ? `诊断编号 ${a.error.detailsId}` : undefined}>！</span>}
-            </li>
+      {task.steps.length > 0 && (
+        <ol className="task-steps">
+          {task.steps.map((s) => (
+            <li key={s.id} data-status={s.status}><span className="step-box" aria-hidden>{STEP_MARK[s.status]}</span>{s.text}</li>
           ))}
-        </ul>
+        </ol>
       )}
+      {mine.length > 0 && (live
+        ? <>
+          {earlier.length > 0 && <ActivityFold activities={earlier} label={fill(book.activityFold.earlier, { count: earlier.length })} />}
+          <ActivityList activities={mine.slice(earlier.length)} />
+        </>
+        : <ActivityFold activities={mine} />)}
     </section>
+  )
+}
+
+function ActivityList({ activities }: { activities: readonly ActivityView[] }) {
+  return (
+    <ul className="activities">
+      {activities.map((a) => (
+        <li key={a.id} className="activity" data-status={a.status}>
+          {activityText(a)}{a.error && <span className="notice-mark" title={a.error.detailsId ? `诊断编号 ${a.error.detailsId}` : undefined}>！</span>}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** 一行“做了 N 步：写文件、运行命令”，点开看每一步。 */
+export function foldLabel(activities: readonly ActivityView[]): string {
+  const kinds = [...new Set(activities.map(activityKind).filter((kind): kind is string => !!kind))]
+  const failed = activities.filter((a) => a.status === 'failed').length
+  return fill(book.activityFold.done, { count: activities.length })
+    + (kinds.length ? fill(book.activityFold.kinds, { kinds: kinds.slice(0, 3).join('、') + (kinds.length > 3 ? book.activityFold.more : '') }) : '')
+    + (failed ? fill(book.activityFold.failed, { count: failed }) : '')
+}
+
+export function ActivityFold({ activities, label }: { activities: readonly ActivityView[]; label?: string }) {
+  return (
+    <details className="activity-fold">
+      <summary>{label ?? foldLabel(activities)}</summary>
+      <ActivityList activities={activities} />
+    </details>
   )
 }

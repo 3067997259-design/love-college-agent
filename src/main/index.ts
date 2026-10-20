@@ -736,10 +736,12 @@ void app.whenReady().then(async () => {
         route: official ? { kind: 'deepseek-official', apiKey: dshChat.api_key, model: dshChat.model } : { kind: 'openai-compatible', baseUrl: dshChat.base_url, model: dshChat.model, apiKey: dshChat.api_key },
         project: () => process.env.LCA_DSH_PROJECT || join(roomRoot, '书桌'), persona,
         // After DSH's first-party guidance: how she talks in the book outranks the coding-agent style.
-        suffix: () => '和用户说话用口语化的中文，像平时聊天一样；书里不渲染 Markdown，不要用标题、粗体、列表符号或代码块，必要时直接说文件名和命令。用户在你工作途中插话时，先用一两句话回应这句话，再继续手上的事；做完后用一两句话说清结果。',
+        suffix: () => '和用户说话用口语化的中文，像平时聊天一样。书里能显示简单的 Markdown：文件名、命令和代码用代码格式，步骤多时可以用列表，但不要写成带标题的报告。用户在你工作途中插话时，先用一两句话回应这句话，再继续手上的事；做完后用一两句话说清结果。',
         tools: () => plugins.tools().filter((tool) => lcaToolNames.has(tool.definition.name)),
         ask: async (question, choices, context) => {
-          const asked = await questions!.tool().run({ question, choices }, { clock, store: store!, turnId: context.turnId, callId: context.callId, signal: context.signal })
+          // One line of at most 240 characters, or the question would be refused as invalid (questions/schema.ts).
+          const line = [...question.replace(/\s+/g, ' ').trim()]
+          const asked = await questions!.approve({ question: line.length > 240 ? line.slice(0, 239).join('') + '…' : line.join(''), choices }, { clock, store: store!, turnId: context.turnId, callId: context.callId, signal: context.signal })
           const raw = asked.raw as { status?: string; answerMessageId?: string }
           if (raw.status !== 'answered' || !raw.answerMessageId) return null
           const answer = store!.records().findLast((row) => row.type === 'user/message' && row.id === raw.answerMessageId)
