@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'voice-smoke-' + randomUUID()); const sceneId = randomUUID(); const profile = join(data, 'developer', sceneId)
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19549', LCA_MCP_PORT: '0' }
 let instance; let page; let client
@@ -29,7 +29,7 @@ async function advance() { await debug('set_clock', { nowMs: (await snapshot()).
 try {
   await mkdir(data, { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
   await launch(); assert.deepEqual((await snapshot()).voice, { enabled: false, available: true, source: 'fake' }); await chat(); assert.equal((await snapshot()).voice.utterance, undefined)
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '开启语音', exact: true }).click(); await chat()
+  await openSettings(page); await page.getByRole('button', { name: '开启语音', exact: true }).click(); await chat()
   await waitFor((s) => s.voice.utterance?.chunkCount === 1, 'FIRST_CHUNK_MISSING'); const id = (await snapshot()).voice.utterance.id
   let audio = await page.evaluate((id) => window.lca.readVoice({ utteranceId: id, afterChunk: -1 }), id); assert.equal(audio.done, false); assert.equal(audio.chunks.length, 1); assert.equal(Buffer.from(audio.chunks[0].pcmBase64, 'base64').length, 4800)
   await advance(); await advance(); await advance(); await waitFor((s) => s.voice.utterance.status === 'ready' && s.voice.utterance.playback === 'ended', 'NATIVE_AUDIO_NOT_ENDED')

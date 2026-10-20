@@ -14,9 +14,9 @@ import { useLiveFlip } from './live'
 import copy from '../voice/book.zh.json'
 import { fill } from './life/text'
 import { useCountdown } from './useCountdown'
-import type { IntroStep } from './wash/intro'
+import { COVERED_ENOUGH, type IntroStep } from './wash/intro'
 import { FURNITURE } from './wash/furniture'
-import { WashRoom } from './wash/WashRoom'
+import { WashRoom, type RoomBrush } from './wash/WashRoom'
 import { resolvePackageScene } from './characterPackage'
 import { SillItems } from './life/SillItems'
 import { HistoryPhoto, type PhotoOverlay } from './history/HistoryPhoto'
@@ -38,8 +38,11 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   snapshot: AppSnapshot
   bridge: AppBridge
   intro?: IntroStep | null
-  /** 新手流程“她醒了”：点哪件家具，她就给哪件上色 */
-  furniture?: { painted: readonly string[]; onPaint: (id: string) => void }
+  /**
+   * 新手流程“给书房添上颜色”：你按住在家具上涂，涂到一大半她接过去画完（onPaint）；
+   * 只点了一下（onTap）右页就提示怎么涂。键盘上回车、空格直接交给她。
+   */
+  furniture?: { painted: readonly string[]; onPaint: (id: string) => void; onTap?: () => void }
   /** 窗台上带回来的东西：翻到那天的日记 */
   onOpenDiary?: (dayKey: string) => void
   /** 往回翻或回忆时，那天拍下的照片盖在房间上面 */
@@ -77,10 +80,25 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   // 嘴型：播放器按音量给出闭／半开／张开，挂在房间上（data-mouth）。还没有张嘴差分图，先只作为接线点；直接改 DOM，不每帧重渲染
   const roomRef = useRef<HTMLDivElement>(null)
   useEffect(() => voiceLevel.subscribe((_level, mouth) => { if (roomRef.current) roomRef.current.dataset.mouth = mouth }), [])
+  // 你手里的彩铅（WebGL 版才有；没有时点一下就交给她画）
+  const brushRef = useRef<RoomBrush | null>(null)
+  const pressing = useRef<string | null>(null)
+  const at = (event: React.PointerEvent<SVGElement>) => {
+    const box = (event.currentTarget.ownerSVGElement ?? event.currentTarget).getBoundingClientRect()
+    return { x: (event.clientX - box.left) / box.width, y: (event.clientY - box.top) / box.height }
+  }
+  const handOver = (id: string) => { pressing.current = null; brushRef.current?.end(); furniture?.onPaint(id) }
+  const release = () => {
+    if (!pressing.current) return
+    pressing.current = null
+    const done = brushRef.current?.end()
+    // 只是点了一下：没涂上什么，告诉你要按住拖
+    if (done && done.moved < 0.02 && done.coverage < COVERED_ENOUGH) furniture?.onTap?.()
+  }
 
   const scene = importedScene
     ? <div className="character character-color"><img className="character-art" data-character-package alt="" src={importedScene} draggable={false} /></div>
-    : <><WashRoom art={art} restoreId={intro ? null : restoreId} intro={intro && intro !== 'done' ? intro : null} paintFurniture={intro ? furniture?.painted : undefined} lightSwitch={lightSwitch} />{awayArt && <AwayScene snapshot={snapshot} moved={moved} />}</>
+    : <><WashRoom art={art} restoreId={intro ? null : restoreId} intro={intro && intro !== 'done' ? intro : null} paintFurniture={intro ? furniture?.painted : undefined} lightSwitch={lightSwitch} brushRef={brushRef} />{awayArt && <AwayScene snapshot={snapshot} moved={moved} />}</>
 
   return (
     <section className="page page-left" aria-label="她在的地方" data-intro={intro ?? undefined}>
@@ -110,7 +128,19 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
               return (
                 <polygon key={item.id} className="furniture-hit" data-done={done} points={item.points.map((p) => p.join(',')).join(' ')}
                   role="button" aria-label={done ? `${item.name}（已上色）` : `给${item.name}上色`} tabIndex={done ? -1 : 0}
-                  onClick={() => { if (!done) furniture.onPaint(item.id) }}
+                  onPointerDown={(event) => {
+                    if (done || event.button !== 0) return
+                    if (!brushRef.current) { furniture.onPaint(item.id); return }
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                    pressing.current = item.id
+                    if (brushRef.current.begin(item.id, at(event)) >= COVERED_ENOUGH) handOver(item.id)
+                  }}
+                  onPointerMove={(event) => {
+                    if (pressing.current !== item.id) { if (!done) brushRef.current?.hover(at(event)); return }
+                    if ((brushRef.current?.to(at(event)) ?? 0) >= COVERED_ENOUGH) handOver(item.id)
+                  }}
+                  onPointerUp={release} onPointerCancel={release}
+                  onPointerLeave={() => { if (!pressing.current) brushRef.current?.hover(null) }}
                   onKeyDown={(event) => { if (!done && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); furniture.onPaint(item.id) } }}>
                   <title>{item.name}</title>
                 </polygon>

@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', 'sleep-' + randomUUID()); const sceneId = randomUUID()
@@ -32,7 +32,7 @@ try {
   await writeFile(join(data, 'developer', sceneId, 'clock.json'), JSON.stringify({ nowMs: now, rate: 1, frozen: true }))
   await launch(); assert.equal((await snapshot()).companion.sleeping, false)
   await accepted({ type: 'developer.life.seed' }); await accepted({ type: 'life.work.start', kind: 'read' })
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettings(page)
   await page.getByRole('button', { name: '让她休息', exact: true }).click()
   await waitFor((s) => s.companion.pose === 'sleeping', 'SLEEP_POSE_MISSING')
   await page.locator('[data-photo-scene][data-pose="sleeping"][data-lighting="baked-night"]').waitFor()

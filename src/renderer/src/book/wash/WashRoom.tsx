@@ -3,10 +3,10 @@ import { Character, sceneSrc } from '../Character'
 import type { CharacterArt } from '../characterArt'
 import { QuillArt } from '../quill/QuillArt'
 import { FURNITURE } from './furniture'
-import { ARRIVE_MS, furnitureJob, INTRO_ORDER, introJobs, poseJob, restoreJob, type IntroStep } from './intro'
+import { ARRIVE_MS, furnitureJob, INTRO_ORDER, introJobs, poseJob, restoreJob, USER_PENCIL, type IntroStep } from './intro'
 import { Painter, type Job, type PainterFrame } from './painter'
 import { WashRenderer, type Frame, type HerMask, type Layer } from './renderer'
-import { regionOf } from './strokes'
+import { coverageOf, regionOf, segment, stampsBetween } from './strokes'
 import { easeInOut, ghostAlpha, LEAVE_COLOR_MS, LEAVE_TOTAL_MS, transitionKind, washProgress, type ArtRef } from './wash-math'
 
 /**
@@ -20,7 +20,24 @@ import { easeInOut, ghostAlpha, LEAVE_COLOR_MS, LEAVE_TOTAL_MS, transitionKind, 
  * 平时画一次就停。没有 WebGL2 时退回原来的 CSS 版。
  */
 
+type Point = { x: number; y: number }
+/**
+ * 新手流程里你手里的彩铅（左页把指针交给它，坐标是房间图的纹理坐标）。涂的颜色当场印上，
+ * 返回这件家具涂过的比例；没有 WebGL 的 CSS 版没有它，左页就退回“点一下她来画”。
+ */
+export interface RoomBrush {
+  /** 指针在家具上方、没按下：彩铅跟着指针；null 是移开了 */
+  hover(at: Point | null): void
+  begin(id: string, at: Point): number
+  to(at: Point): number
+  /** 松开：这一下拖了多远、这件涂了多少 */
+  end(): { id: string; moved: number; coverage: number } | null
+}
+
 const CROSSFADE_MS = 320
+/** 羽毛笔平时斜 30°；顺着笔走的方向，笔杆往后倒一点（最多 10°） */
+const QUILL_TILT = 30
+const QUILL_LEAN = 10
 const PREVIOUS_FADE_MS = 200
 /** 光线变化：和房间调色层（book.css .room-light）同一个时长 */
 const LIGHT_FADE_MS = 1400
@@ -41,16 +58,23 @@ interface Engine {
   introTarget?: IntroStep
   queuedFurniture: Set<string>
   pendingRestore?: string
+  /** 你的彩铅：在哪、按没按着；正在涂哪一件 */
+  userPen?: Point & { down: boolean }
+  brushing?: { id: string; points: readonly (readonly [number, number])[]; last: Point; moved: number; area: ReturnType<typeof coverageOf> }
+  areas: Map<string, ReturnType<typeof coverageOf>>
+  quillTrail?: { x: number; t: number; lean: number }
 }
 
-export function WashRoom({ art, restoreId, intro = null, paintFurniture = [], lightSwitch = false }: {
+export function WashRoom({ art, restoreId, intro = null, paintFurniture = [], lightSwitch = false, brushRef }: {
   art: CharacterArt
   restoreId: string | null
   intro?: IntroStep | null
-  /** 新手流程里点过的家具，按点的先后；新出现的 id 就排上一件 */
+  /** 新手流程里交给她上色的家具，按先后；新出现的 id 就排上一件 */
   paintFurniture?: readonly string[]
   /** 这次光线变化是拉灯（一下子），不是天色（慢慢变） */
   lightSwitch?: boolean
+  /** 新手流程里你手里的彩铅 */
+  brushRef?: { current: RoomBrush | null }
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pencilRef = useRef<HTMLDivElement>(null)
@@ -64,7 +88,7 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [], li
     if (!canvas) return
     const renderer = WashRenderer.create(canvas)
     if (!renderer) { setFallback(true); return }
-    const e: Engine = { renderer, frame: 0, mode: 'static', painter: new Painter(), queuedFurniture: new Set() }
+    const e: Engine = { renderer, frame: 0, mode: 'static', painter: new Painter(), queuedFurniture: new Set(), areas: new Map() }
     engine.current = e
     const onLost = (event: Event) => { event.preventDefault(); cancelAnimationFrame(e.frame); setFallback(true) }
     canvas.addEventListener('webglcontextlost', onLost)
@@ -136,18 +160,46 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [], li
     return null
   }
 
+  /** 笔尖跟着画：铅笔是排线时的你，或者新手流程里拿彩铅涂家具的你；羽毛笔是她 */
   function moveCursor(cursor: PainterFrame['cursor']) {
-    for (const [kind, ref] of [['pencil', pencilRef], ['quill', quillRef]] as const) {
+    const e = engine.current
+    const yours = cursor?.kind === 'pencil' ? cursor : e?.userPen ? { kind: 'pencil' as const, ...e.userPen } : null
+    const hers = cursor?.kind === 'quill' ? cursor : null
+    for (const [pen, ref] of [[yours, pencilRef], [hers, quillRef]] as const) {
       const el = ref.current
       if (!el) continue
-      const on = cursor?.kind === kind
-      el.dataset.visible = String(on)
-      if (on) {
-        el.style.left = `${cursor.x * 100}%`
-        el.style.top = `${cursor.y * 100}%`
-        el.dataset.down = String(cursor.down)
-      }
+      el.dataset.visible = String(!!pen)
+      if (!pen) continue
+      el.style.left = `${pen.x * 100}%`
+      el.style.top = `${pen.y * 100}%`
+      el.dataset.down = String(pen.down)
     }
+    if (pencilRef.current) pencilRef.current.dataset.tool = cursor?.kind !== 'pencil' && e?.userPen ? 'color' : 'graphite'
+    if (quillRef.current && e) {
+      if (!hers) { e.quillTrail = undefined; return }
+      // 往右走时笔杆往左倒，往左走时往右倒；按着才倒，抬笔时慢慢回正
+      const now = performance.now()
+      const trail = e.quillTrail
+      const speed = trail && now > trail.t ? (hers.x - trail.x) / (now - trail.t) : 0
+      const target = hers.down ? Math.max(-QUILL_LEAN, Math.min(QUILL_LEAN, speed * 5000)) : 0
+      const lean = (trail?.lean ?? 0) * 0.82 + target * 0.18
+      e.quillTrail = { x: hers.x, t: now, lean }
+      quillRef.current.style.setProperty('--tilt', `${(QUILL_TILT - lean).toFixed(2)}deg`)
+    }
+  }
+
+  /** 你的彩铅涂到这里：颜色当场印上，湿边跟着你 */
+  function colorTo(e: Engine, at: Point): number {
+    const brushing = e.brushing!
+    const data = stampsBetween(segment(brushing.last, at), 0, 1, USER_PENCIL)
+    e.renderer.stamp(data, 'paint', 'add', USER_PENCIL.ragged, e.renderer.polygonMask(brushing.id, brushing.points))
+    brushing.moved += Math.hypot(at.x - brushing.last.x, at.y - brushing.last.y)
+    const ratio = brushing.area.sweep(brushing.last, at, USER_PENCIL.radius)
+    brushing.last = at
+    e.userPen = { ...at, down: true }
+    e.painter.wet(performance.now())
+    paint()
+    return ratio
   }
 
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -239,7 +291,7 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [], li
     const e = engine.current
     if (!e) return
     if (!intro) {
-      if (e.mode === 'intro') { e.mode = 'static'; e.introStep = undefined; e.introTarget = undefined; e.painter.clear(); paint() }
+      if (e.mode === 'intro') { e.mode = 'static'; e.introStep = undefined; e.introTarget = undefined; e.painter.clear(); e.userPen = undefined; e.brushing = undefined; paint() }
       return
     }
     if (e.mode !== 'intro') {
@@ -251,13 +303,47 @@ export function WashRoom({ art, restoreId, intro = null, paintFurniture = [], li
       e.renderer.resetReveal(0, 0, 0, 0)
       e.introStep = undefined
       e.queuedFurniture.clear()
+      e.areas.clear()
     }
     e.introTarget = intro
     syncIntro(e)
     paint()
   }, [intro, fallback])
 
-  // 新手流程里点了一件家具：她去给它上色
+  // 你手里的彩铅：只在 WebGL 版里有
+  useLayoutEffect(() => {
+    if (!brushRef) return
+    brushRef.current = fallback ? null : {
+      hover: (at) => {
+        const e = engine.current
+        if (!e || e.brushing) return
+        e.userPen = at ? { ...at, down: false } : undefined
+        paint()
+      },
+      begin: (id, at) => {
+        const e = engine.current
+        const item = FURNITURE.find((f) => f.id === id)
+        if (!e || e.mode !== 'intro' || !item || e.queuedFurniture.has(id)) return 0
+        let area = e.areas.get(id)
+        if (!area) { area = coverageOf(item.points); e.areas.set(id, area) }
+        e.brushing = { id, points: item.points, last: at, moved: 0, area }
+        return colorTo(e, at)
+      },
+      to: (at) => { const e = engine.current; return e?.brushing ? colorTo(e, at) : 0 },
+      end: () => {
+        const e = engine.current
+        const brushing = e?.brushing
+        if (!e || !brushing) return null
+        e.brushing = undefined
+        e.userPen = { ...brushing.last, down: false }
+        paint()
+        return { id: brushing.id, moved: brushing.moved, coverage: brushing.area.ratio() }
+      },
+    }
+    return () => { brushRef.current = null }
+  }, [brushRef, fallback])
+
+  // 新手流程里交给她的家具：她去给它上色
   useEffect(() => {
     const e = engine.current
     if (!e || e.mode !== 'intro') return
@@ -313,7 +399,7 @@ function PencilArt() {
         <path d="M30 70 L 86 14 L 96 24 L 40 80 Z" fill="#cfd5df" />
         <path d="M36 76 L 90 22" fill="none" opacity="0.5" />
         <path d="M30 70 L 40 80 L 12 90 Z" fill="#ead2ad" />
-        <path d="M12 90 L 18 81 L 21 84 Z" fill="#55585f" />
+        <path className="pencil-tip" d="M12 90 L 18 81 L 21 84 Z" fill="#55585f" />
         <path d="M86 14 L 96 24 L 99 21 L 89 11 Z" fill="#e9c0b6" />
       </g>
     </svg>

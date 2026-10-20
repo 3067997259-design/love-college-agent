@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, openSettings } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'flow-smoke-' + randomUUID()); const sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19539', LCA_MCP_PORT: '0' }
 let instance; let page; let client
@@ -17,7 +17,7 @@ const send = (body) => page.evaluate(async (body) => { const s = await window.lc
 async function waitFor(test, message) { for (let i = 0; i < 100; i++) { if (test(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(message) }
 try {
   await mkdir(data, { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
-  await launch(); await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await launch(); await openSettings(page)
   await page.getByLabel('工作长期目标', { exact: true }).fill('完成合成书桌项目'); await page.getByRole('button', { name: '新建工作目标', exact: true }).click()
   const goalId = (await snapshot()).heartFlow.goalId; assert.ok(goalId)
   await page.getByRole('button', { name: '进入心流', exact: true }).click(); await waitFor((s) => s.heartFlow.activeId, 'FLOW_ENTER_FAILED')
@@ -45,7 +45,7 @@ try {
   assert.equal((await snapshot()).heartFlow.goals[0].flowIds.length, 2)
   assert.equal((await send({ type: 'message.send', text: '/compact 保留旧文件版本与待确认的计划' })).status, 'accepted')
   await send({ type: 'flow.exit' }); await waitFor((s) => !s.heartFlow.activeId, 'RESUMED_FLOW_EXIT_FAILED')
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.locator(`[data-goal-id="${goalId}"]`).getByRole('button', { name: '标记目标完成', exact: true }).click()
+  await openSettings(page); await page.locator(`[data-goal-id="${goalId}"]`).getByRole('button', { name: '标记目标完成', exact: true }).click()
   assert.equal((await snapshot()).heartFlow.goals[0].confirmedBy, 'user'); assert.equal((await snapshot()).heartFlow.goals[0].status, 'completed')
   await instance.close(); await launch(); assert.equal((await snapshot()).heartFlow.goals[0].status, 'completed')
   console.log('Heart-flow Electron: model-tool desk write, per-run approval, sandbox return/undo, restart drops pending, native slash inspections with real scope/unknown cost, book-only diff read, historical lookup and fresh plan-only resume/compact verified; fake chat model.')

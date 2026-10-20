@@ -9,7 +9,7 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'optical-' + randomUUID()); let sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19571', LCA_MCP_PORT: '0' }
 const credential = 'SYNTHETIC_OPTICAL_' + randomUUID(); const requests = []; let hang = false; let interrupted = 0
@@ -51,7 +51,7 @@ try {
   const read = await page.evaluate((id) => window.lca.readOpticalMemory(id), frame.id); assert.deepEqual(read.impressions[0].fragments, ['我们一起折了蓝色的纸桥。'])
   const pngPath = join(data, 'developer', sceneId, 'artifacts', read.imageUrl.split('/').at(-1) + '.png'); const png = await readFile(pngPath); assert.ok(png.length > 10000)
   assert.ok(!JSON.stringify(await snapshot()).includes('我们一起折了蓝色的纸桥。')); assert.ok(!JSON.stringify(await snapshot()).includes(credential)); assert.ok(!JSON.stringify(await debug('get_state')).includes(endpoint))
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '查阅光学页', exact: true }).first().click()
+  await openSettings(page); await page.getByRole('button', { name: '查阅光学页', exact: true }).first().click()
   await page.getByRole('article', { name: '用户光学页' }).waitFor(); assert.equal(await page.getByAltText('当时可见对话的独立印刷页').evaluate((img) => img.naturalWidth), 1280)
   await page.getByRole('button', { name: '关闭光学页', exact: true }).click(); await page.getByRole('button', { name: '关闭', exact: true }).click()
   // 书页入口：往回翻到这一页，“她的印象”里是同一张 1280 宽的封页，高清档列出还能对上原话的那一行；看完回到今天
@@ -61,7 +61,7 @@ try {
   // Same mounted session: disable through the actual settings entry, then quote raw text.
   await page.locator('.old-page').evaluate((element) => { element.dataset.mountCanary = 'same-old-page' })
   const setOptical = async (enabled) => {
-    await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+    await openSettings(page)
     await page.getByRole('checkbox', { name: '启用光学印象', exact: true }).setChecked(enabled)
     await waitFor((s) => s.opticalMemory.enabled === enabled, 'OPTICAL_SETTING_NOT_APPLIED')
     await page.getByRole('button', { name: '关闭', exact: true }).click()

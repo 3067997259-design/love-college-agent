@@ -8,7 +8,7 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, openSettings } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'history-smoke-' + randomUUID()); let sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19547', LCA_MCP_PORT: '0' }
 let instance; let page; let client
@@ -42,7 +42,7 @@ try {
     return count
   }, [...bytes])
   assert.ok(await countCanaryPixels(await page.screenshot()) > 100, 'PHOTO_PIXEL_CANARY_MISSING')
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettings(page)
   // Inspect the real capture call while an overlay is open; all non-scene nodes must be hidden.
   await instance.evaluate(({ BrowserWindow }) => {
     const contents = BrowserWindow.getAllWindows()[0].webContents; const capture = contents.capturePage.bind(contents)
@@ -70,7 +70,7 @@ try {
   const historical = await page.evaluate((id) => window.lca.readSession(id), sessionId); assert.ok(historical.recallableMessageIds.includes(quotedMessage.id))
   await debug('set_fake_model', { script: [{ text: '合成回忆：我们一起折的周五桥在窗边。', toolCalls: [], delayMs: 500 }] })
   await debug('set_clock', { frozen: false, rate: 1 })
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByLabel('历史会话', { exact: true }).selectOption(sessionId)
+  await openSettings(page); await page.getByLabel('历史会话', { exact: true }).selectOption(sessionId)
   await page.locator(`[data-quote-message="${quotedMessage.id}"]`).click(); await page.getByRole('textbox', { name: '回忆问题', exact: true }).fill('这座桥有什么意义？')
   await page.getByRole('button', { name: '引用并回忆', exact: true }).click(); await waitFor((s) => s.history.recall.status === 'recalling', 'RECALL_STATUS_MISSING')
   assert.equal((await snapshot()).history.recall.photo.id, photo.id); await waitFor((s) => s.history.recall.status === 'ready', 'RECALL_UI_FAILED')

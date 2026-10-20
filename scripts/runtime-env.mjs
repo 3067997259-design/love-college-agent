@@ -35,6 +35,13 @@ export async function initializeTestBook(page) {
   await page.getByRole('region', { name: '新手流程', exact: true }).waitFor({ state: 'hidden' })
 }
 
+/** Open settings: the book's 设置 bookmark turns to the settings page; developer mode keeps its floating tools panel. */
+export async function openSettings(page) {
+  const mode = await page.evaluate(async () => (await window.lca.getSnapshot()).runtime?.developer.mode)
+  if (mode === 'developer') await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  else await page.locator('nav.bookmarks').getByRole('button', { name: '设置', exact: true }).click()
+}
+
 /** Navigate the grouped user settings; the developer panel keeps its direct controls. */
 export async function openSettingsGroup(page, name) {
   const summary = page.locator('[data-settings="user"] .settings-group > summary').filter({ hasText: name })

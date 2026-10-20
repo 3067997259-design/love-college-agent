@@ -43,7 +43,7 @@ function SettingsNav() {
   </nav>
 }
 
-export function UserSettings({ bridge, snapshot, onClose, onOpenPlugins }: { bridge: AppBridge; snapshot: AppSnapshot; onClose(): void; onOpenPlugins?: () => void }) {
+export function UserSettings({ bridge, snapshot, onClose, onOpenPlugins }: { bridge: AppBridge; snapshot: AppSnapshot; onClose?(): void; onOpenPlugins?: () => void }) {
   const [error, setError] = useState('')
   const runtime = snapshot.runtime!; const booth = runtime.developer.mode === 'booth'
   const props = { bridge, snapshot }
@@ -55,7 +55,7 @@ export function UserSettings({ bridge, snapshot, onClose, onOpenPlugins }: { bri
       <span className="settings-title">{words.title}</span>
       <span className="settings-head-actions">
         {snapshot.windows && <button type="button" onClick={() => void send({ type: 'window.mini' })}>{words.mini}</button>}
-        <button type="button" onClick={onClose}>{words.close}</button>
+        {onClose && <button type="button" onClick={onClose}>{words.close}</button>}
       </span>
     </header>
     {booth && <p className="settings-source">{words.source.booth}</p>}{synthetic && <p className="settings-source" data-synthetic-source>{words.source.fake}</p>}
@@ -71,7 +71,9 @@ export function UserSettings({ bridge, snapshot, onClose, onOpenPlugins }: { bri
       <Group name={words.groups.life}><LifeControls {...props} /><DiaryControls {...props} /><LegacyFlowRecords bridge={bridge} snapshot={snapshot} /></Group>
     </Section>
     <Section id="book">
-      <Group name={words.groups.book}><BackupControls {...props} /><CharacterControls {...props} /><button disabled={booth} onClick={() => void send({ type: 'onboarding.reset' })}>{words.reset}</button></Group>
+      {/* 重新走一遍新手指引只把“看过引导”改回没看过（onboarding.reset），不动任何资料；放在外面，不藏进折叠组 */}
+      {!booth && <div className="settings-callout" data-action="onboarding.reset"><p>{words.resetHint}</p><button type="button" onClick={() => void send({ type: 'onboarding.reset' })}>{words.reset}</button></div>}
+      <Group name={words.groups.book}><BackupControls {...props} /><CharacterControls {...props} /></Group>
     </Section>
     <Section id="usage">
       <Group name="运行资源" open={booth}><ResourceControls {...props} /></Group>

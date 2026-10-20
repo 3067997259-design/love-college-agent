@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'life-work-' + randomUUID()); let sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19551', LCA_MCP_PORT: '0' }
 const initialTime = Date.parse('2026-10-17T10:00:00+08:00'); let instance; let page; let client; let now = initialTime
@@ -33,7 +33,7 @@ async function stop() { await client?.close(); client = undefined; await instanc
 const job = (view, kind) => view.life.work.jobs.find((job) => job.kind === kind)
 try {
   await profile(now); await launch(); await debug('set_clock', { nowMs: now, frozen: true })
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '放入合成阅读材料', exact: true }).click()
+  await openSettings(page); await page.getByRole('button', { name: '放入合成阅读材料', exact: true }).click()
   assert.equal((await work()).source, 'fake'); assert.equal((await work()).materials.length, 1)
   const desk = join(await room(), '书桌'); await writeFile(join(desk, '用户未登记资料.md'), 'PRIVATE_DESK_CANARY_DO_NOT_READ')
   await accepted({ type: 'life.work.start', kind: 'read' }); await advance(); assert.equal(job(await snapshot(), 'read').completedSteps, 0)
@@ -76,7 +76,7 @@ try {
   await stop(); await writeFile(join(desk, writing.output.path), 'USER_EDITED_COMPLETED_WORK'); await launch()
   let conflicting = (await work()).jobs.find((entry) => entry.id === writing.id); assert.equal(conflicting.status, 'failed'); assert.equal(conflicting.reason, 'conflict')
   const attemptsBeforeResume = (await work()).attemptsToday
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); const row = page.locator(`[data-work-id="${writing.id}"]`)
+  await openSettings(page); const row = page.locator(`[data-work-id="${writing.id}"]`)
   await row.getByRole('button', { name: '续做作品', exact: true }).click(); conflicting = (await work()).jobs.find((entry) => entry.id === writing.id)
   assert.equal(conflicting.status, 'failed'); assert.equal(conflicting.reason, 'conflict'); assert.equal((await work()).attemptsToday, attemptsBeforeResume); assert.equal(await readFile(join(desk, writing.output.path), 'utf8'), 'USER_EDITED_COMPLETED_WORK')
   await writeFile(join(desk, writing.output.path), text); await row.getByRole('button', { name: '续做作品', exact: true }).click(); await waitFor((s) => s.life.work.jobs.find((entry) => entry.id === writing.id)?.status === 'completed', 'VERIFIED_COMPLETED_WORK_NOT_SETTLED')

@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `campus-smoke-${randomUUID()}`)
@@ -26,7 +26,7 @@ async function waitFor(predicate, message) {
   for (let i = 0; i < 100; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }
   throw new Error(message)
 }
-async function openTools() { await page.getByRole('button', { name: '工具与设置', exact: true }).click() }
+async function openTools() { await openSettings(page) }
 async function closeTools() { await page.getByRole('button', { name: '关闭', exact: true }).click() }
 const openChat = () => page.locator('.bookmarks').getByRole('button', { name: /^对话/ }).click()
 async function scan(scenario = 'initial') {

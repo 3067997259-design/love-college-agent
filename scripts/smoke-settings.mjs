@@ -5,13 +5,13 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'settings-' + randomUUID())
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '19572' }; delete env.LCA_BOOTH
 let instance; let page
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 async function waitFor(test, message) { for (let i = 0; i < 150; i++) { if (test(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(message) }
-async function launch(booth = false) { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env: { ...env, ...(booth ? { LCA_BOOTH: '1' } : {}) } }); page = await instance.firstWindow(); await initializeTestBook(page); await page.getByRole('button', { name: '工具与设置', exact: true }).click() }
+async function launch(booth = false) { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env: { ...env, ...(booth ? { LCA_BOOTH: '1' } : {}) } }); page = await instance.firstWindow(); await initializeTestBook(page); await openSettings(page) }
 async function close() { await instance?.close(); instance = undefined }
 async function group(name) { const element = page.locator('.settings-group').filter({ has: page.locator('summary', { hasText: name }) }).first(); if (!(await element.evaluate((node) => node.open))) await element.locator(':scope > summary').click(); return element }
 try {

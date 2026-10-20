@@ -1,5 +1,7 @@
 import { Fragment, useMemo, type ReactNode } from 'react'
+import type { MessageView } from '../../../shared'
 import { isPlainParagraph, parseMarkdown, type MdBlock, type MdInline } from './markdown'
+import questionWords from '../voice/questions.zh.json'
 
 /** 语法符号留在 DOM 里但不显示：选中和引用时的偏移量仍对得上原文。 */
 const Mark = ({ s }: { s: string }) => <span className="md-mark" aria-hidden>{s}</span>
@@ -70,3 +72,19 @@ export function MsgText({ md, text, onMouseUp }: { md: ReturnType<typeof useMark
   if (md.plain) return <span className="msg-text md" onMouseUp={onMouseUp}><MarkdownBody {...md} /></span>
   return <div className="msg-text md" onMouseUp={onMouseUp}><MarkdownBody {...md} /></div>
 }
+
+/**
+ * 权限请求是 LCA 替她问你的，不是她说的话：排成一张铅笔框的纸签，不带她的圆点和墨色；
+ * 你点的选项排成一行"你选了"，不当成你打的一句话。
+ */
+export function ApprovalMessage({ view, time }: { view: MessageView; time: string }) {
+  if (view.kind === 'approval-answer') return <p className="msg msg-approval-answer" data-kind="approval-answer">{fill(questionWords.approvalChosen, view.text)}<time className="msg-time">{time}</time></p>
+  return (
+    <div className="msg msg-approval" data-kind="approval" role="note" aria-label={questionWords.approvalTag}>
+      <span className="approval-tag">{questionWords.approvalTag}</span>
+      <span className="msg-text">{view.text}</span>
+      <time className="msg-time">{time}</time>
+    </div>
+  )
+}
+const fill = (template: string, choice: string) => template.replace('{choice}', choice)

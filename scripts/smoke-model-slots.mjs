@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'slots-smoke-' + randomUUID())
 const requests = []; let denyPrivacy = false
@@ -43,7 +43,7 @@ try {
   await mkdir(data, { recursive: true }); const file = join(data, 'synthetic-models.json'); await writeFile(file, '\uFEFF' + JSON.stringify(providers))
   await launch(); assert.equal((await snapshot()).memory.status, 'unconfigured')
   await instance.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, file)
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '导入模型配置', exact: true }).click()
+  await openSettings(page); await page.getByRole('button', { name: '导入模型配置', exact: true }).click()
   await waitFor((s) => s.modelSettings.status === 'saved' && s.modelSettings.restartRequired, 'PRIVATE_CONFIG_NOT_SAVED'); assert.deepEqual((await snapshot()).modelSettings.configuredSlots, ['chat', 'background', 'privacy']); safe(await snapshot())
   const persisted = JSON.parse(await readFile(join(data, 'connections', 'providers.json'), 'utf8'))
   assert.deepEqual(persisted.providers.tts, expectedTts); assert.equal(persisted.description, undefined); assert.equal(persisted.providers.chat.description, undefined)

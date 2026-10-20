@@ -17,12 +17,11 @@ import { OpticalControls } from './OpticalControls'
 import { MinecraftControls } from './MinecraftControls'
 import { VoiceControls } from './VoiceControls'
 import { ResourceControls } from './ResourceControls'
-import { UserSettings } from './UserSettings'
 import { PomodoroSettings } from './PomodoroSettings'
 
 type Action = AppCommand extends infer Command ? Command extends AppCommand ? Omit<Command, 'epoch' | 'protocolVersion' | 'requestId'> : never : never
 
-export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange, onOpenPlugins }: { bridge: AppBridge; snapshot: AppSnapshot; open?: boolean; onOpenChange?: (open: boolean) => void; onOpenPlugins?: () => void }) {
+export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: { bridge: AppBridge; snapshot: AppSnapshot; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   // 书本的“设置”书签也能打开这里：开关由 App 持有时听 App 的
   const [ownOpen, setOwnOpen] = useState(false)
   const open = openProp ?? ownOpen
@@ -36,12 +35,9 @@ export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange, onO
       setError(ack.status === 'rejected' ? ack.error.code : '')
     } catch { setError('connection-failed') }
   }
-  if (!snapshot.runtime) return null
-  if (snapshot.runtime.developer.mode !== 'developer') return <aside className="tools-panel" data-settings="user">
-    <button type="button" aria-label="工具与设置" onClick={() => setOpen(!open)} aria-expanded={open}>设置</button>
-    {open && <section aria-label="工具与设置"><UserSettings bridge={bridge} snapshot={snapshot} onClose={() => setOpen(false)} onOpenPlugins={onOpenPlugins} /></section>}
-  </aside>
-  return <aside className="tools-panel">
+  // 平时的设置是书里的一页（SettingsPage）；书外的浮动面板只留给开发模式的假数据工具
+  if (!snapshot.runtime || snapshot.runtime.developer.mode !== 'developer') return null
+  return <aside className="tools-panel settings-surface">
     <button type="button" aria-label="工具与设置" onClick={() => setOpen(!open)} aria-expanded={open}>设置</button>
     {open && <section aria-label="工具与设置">
       <button type="button" onClick={() => setOpen(false)}>关闭</button>

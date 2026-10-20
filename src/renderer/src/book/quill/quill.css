@@ -100,15 +100,16 @@
   width: 34px;
   height: 170px;
   translate: -50% -100%;
-  transform: rotate(30deg);
+  /* 斜度跟着笔走的方向轻轻摆（WashRoom 写 --tilt）；抬笔、落笔有过渡，不再一下跳过去 */
+  transform: rotate(var(--tilt, 30deg));
   transform-origin: 50% 100%;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 240ms;
+  transition: opacity 240ms, transform 160ms ease-out, filter 160ms ease-out;
   filter: drop-shadow(3px 6px 5px rgb(60 50 80 / 0.3));
 }
 .paint-quill[data-visible='true'] { opacity: 1; }
-.paint-quill[data-down='false'] { transform: rotate(30deg) translate(4px, -8px); }
+.paint-quill[data-down='false'] { transform: rotate(var(--tilt, 30deg)) translate(4px, -8px); filter: drop-shadow(5px 10px 7px rgb(60 50 80 / 0.22)); }
 .paint-quill svg { display: block; width: 100%; height: 100%; overflow: visible; }
 @media (prefers-reduced-motion: reduce) {
   .quill-dock[data-status='exporting'] .quill-button { animation: none; }

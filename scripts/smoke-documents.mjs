@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'documents-smoke-' + randomUUID())
 const sceneId = randomUUID(); const profile = join(data, 'developer', sceneId)
@@ -17,7 +17,7 @@ async function launch() { instance = await _electron.launch({ executablePath: el
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 async function waitFor(predicate, error) { for (let i = 0; i < 150; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(error) }
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) }, body)
-const openTools = () => page.getByRole('button', { name: '工具与设置', exact: true }).click()
+const openTools = () => openSettings(page)
 const closeTools = () => page.getByRole('button', { name: '关闭', exact: true }).click()
 const safe = (value) => { const text = JSON.stringify(value); for (const marker of ['RAW_ONLY_', 'USER_ONLY_DOCUMENT_RESULT', 'PRIVATE_ORIGINAL_NAME', 'sk-synthetic', 'PRIVATE_FAULT_']) assert.ok(!text.includes(marker), 'PRIVATE_DOCUMENT_LEAK') }
 async function slash(value) { await page.locator('textarea').fill(value); if (value.startsWith('/')) { assert.equal(await page.getByRole('listbox', { name: '可用指令', exact: true }).isVisible(), true); if (value === '/privacy') await page.screenshot({ path: join(root, 'test-results', 'slash-menu.png') }) } await page.getByRole('button', { name: '发送', exact: true }).click() }

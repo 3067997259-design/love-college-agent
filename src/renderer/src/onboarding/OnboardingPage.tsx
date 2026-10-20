@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { AppBridge, AppSnapshot } from '../../../shared'
 import { sendCommand, type CommandBody } from '../book/command'
 import { ROOM_COLOR_MS, type IntroStep } from '../book/wash/intro'
+import { FURNITURE } from '../book/wash/furniture'
+import { ModelControls } from '../tools/ModelControls'
 import copy from '../voice/onboarding.zh.json'
 import './onboarding.css'
 
@@ -20,20 +22,22 @@ const VISUAL: Record<OnboardingStep, IntroStep> = {
 }
 export const introStepOf = (step: OnboardingStep) => VISUAL[step]
 
-export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone, onOpenProvider }: {
+export function OnboardingPage({ snapshot, bridge, step, painted, tapped = false, onStep, onDone }: {
   snapshot: AppSnapshot
   bridge: AppBridge
   step: OnboardingStep
-  /** 已经点过、正在或已经上色的家具名 */
+  /** 交给她上色的家具 id，按先后 */
   painted: readonly string[]
+  /** 只点了一下家具、没涂上 */
+  tapped?: boolean
   onStep: (step: OnboardingStep) => void
   onDone: (names: { userName: string; characterName: string }) => void
-  /** 打开设置里的 Provider GUI；浏览器预览没有 */
-  onOpenProvider?: () => void
 }) {
   const [userName, setUserName] = useState(snapshot.onboarding?.userName ?? '')
   const [characterName, setCharacterName] = useState(snapshot.onboarding?.characterName ?? '')
   const [error, setError] = useState('')
+  // 接模型这一步就在这页上填（聊天模型和工作模型）；预览没有真实接口时不显示
+  const [filling, setFilling] = useState(false)
   const send = async (body: CommandBody) => {
     const result = await sendCommand(bridge, snapshot.epoch, body)
     setError(result.ok ? '' : copy.error)
@@ -79,8 +83,9 @@ export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone
             <p className="onboarding-lead">{copy.model.lead}</p>
             {models && models.configuredSlots.length > 0 && <p className="onboarding-note">{copy.model.configured.replace('{slots}', models.configuredSlots.map((slot) => (copy.slots as Record<string, string>)[slot] ?? slot).join('、'))}</p>}
             {models?.restartRequired && <p className="onboarding-note">{copy.model.restart}</p>}
+            {filling && <div className="onboarding-models settings-surface"><ModelControls bridge={bridge} snapshot={snapshot} compact /></div>}
             <div className="onboarding-actions">
-              {onOpenProvider && <button type="button" className="btn btn-primary" onClick={onOpenProvider}>{copy.model.chooseGui}</button>}
+              {snapshot.runtime && !filling && <button type="button" className="btn btn-primary" onClick={() => setFilling(true)}>{copy.model.chooseGui}</button>}
               <button type="button" className="btn btn-ghost" disabled={!models || models.status === 'selecting'} onClick={() => { void send({ type: 'models.configure' }) }}>{copy.model.choose}</button>
               <button type="button" className="btn btn-primary" disabled={!models?.configuredSlots.length} onClick={() => onStep('call')}>{copy.model.next}</button>
             </div>
@@ -110,7 +115,15 @@ export function OnboardingPage({ snapshot, bridge, step, painted, onStep, onDone
           <>
             <h2 className="onboarding-title">{copy.alive.title}</h2>
             <p className="onboarding-lead">{copy.alive.lead}</p>
-            {painted.length > 0 && <p className="onboarding-note">{copy.alive.painted.replace('{names}', painted.join('、'))}</p>}
+            {tapped && <p className="onboarding-note" role="status">{copy.alive.tap}</p>}
+            {/* 涂完一件，这里写一行它在书里管什么：上色就是一遍导览。纯装饰的家具不写 */}
+            <ul className="onboarding-furniture" aria-live="polite">
+              {painted.flatMap((id) => {
+                const note = (copy.alive.notes as Record<string, string>)[id]
+                const name = FURNITURE.find((item) => item.id === id)?.name
+                return note && name ? [<li key={id}><strong>{name}</strong><span>{note}</span></li>] : []
+              })}
+            </ul>
             <div className="onboarding-actions"><button type="button" className="btn btn-primary" onClick={() => onStep('coloring')}>{copy.alive.next}</button></div>
           </>
         )}

@@ -8,7 +8,7 @@ import { LeftPage } from './LeftPage'
 import { fill, dayKeyLabel } from './life/text'
 import { QuillDock } from './quill/QuillDock'
 import { introStepOf, OnboardingPage, type OnboardingStep } from '../onboarding/OnboardingPage'
-import { FURNITURE } from './wash/furniture'
+import { SettingsPage } from '../tools/SettingsPage'
 import { RightPage } from './RightPage'
 import { OldPage, type Quote } from './history/OldPage'
 import { useHistoryPhoto, useOldPages } from './history/useHistory'
@@ -21,8 +21,8 @@ import './sheets/sheets.css'
 
 const STAGE_W = 1600
 const STAGE_H = 1000
-type Tab = 'chat' | 'plugins' | 'schedule' | 'gifts' | 'diary'
-const TABS: readonly (Tab | 'settings')[] = ['chat', 'plugins', 'schedule', 'gifts', 'diary', 'settings']
+type Tab = 'chat' | 'plugins' | 'schedule' | 'gifts' | 'diary' | 'settings'
+const TABS: readonly Tab[] = ['chat', 'plugins', 'schedule', 'gifts', 'diary', 'settings']
 
 /** 书按固定的设计尺寸排版，整体缩放到窗口；书外露出的是书桌（美术规格 §6.1） */
 function useFitScale() {
@@ -41,7 +41,7 @@ function useFitScale() {
   return { ref, scale }
 }
 
-export function Stage({ snapshot, bridge, onOpenTools, pluginRequest = 0 }: { snapshot: AppSnapshot; bridge: AppBridge; onOpenTools?: () => void; pluginRequest?: number }) {
+export function Stage({ snapshot, bridge, settings = false }: { snapshot: AppSnapshot; bridge: AppBridge; settings?: boolean }) {
   const { ref, scale } = useFitScale()
   const { companion } = snapshot
   useRootAmbience(companion)
@@ -51,7 +51,9 @@ export function Stage({ snapshot, bridge, onOpenTools, pluginRequest = 0 }: { sn
   const onboarding = needed ? step : null
   // 新手流程里点过的家具（按先后）：左页据此一件件上色，右页列出来
   const [painted, setPainted] = useState<string[]>([])
-  useLayoutEffect(() => { if (needed) { setStep('cover'); setPainted([]) } }, [needed, snapshot.scope.characterId])
+  // 只点了一下家具、没涂上：右页提示要按住拖；涂成一件就收起
+  const [tapped, setTapped] = useState(false)
+  useLayoutEffect(() => { if (needed) { setStep('cover'); setPainted([]); setTapped(false) } }, [needed, snapshot.scope.characterId])
 
   const [tab, setTab] = useState<Tab>(previewTab)
   const [diaryFocus, setDiaryFocus] = useState<string | null>(null)
@@ -63,8 +65,6 @@ export function Stage({ snapshot, bridge, onOpenTools, pluginRequest = 0 }: { sn
   // 她进入心流时，工作视图在对话页上（体验设计 §2）：不让它藏在别的书签后面
   const flowing = !!snapshot.heartFlow?.activeId
   useEffect(() => { if (flowing) { old.close(); setTab('chat') } }, [flowing])
-  // 设置里的“打开插件中心”只发一个递增请求：舞台自己切书签，设置不直接改书页状态。
-  useEffect(() => { if (pluginRequest > 0) { old.close(); setTab('plugins') } }, [pluginRequest])
   const historyPhoto = useHistoryPhoto(snapshot, tab === 'chat' ? old.view : null)
   const unread = useChatUnread(snapshot, tab === 'chat')
   const openDiary = (id: string) => { turnTab('diary'); setDiaryFocus(id) }
@@ -86,13 +86,13 @@ export function Stage({ snapshot, bridge, onOpenTools, pluginRequest = 0 }: { sn
           <span className="ribbon" aria-hidden />
           {ribbonKey && <RibbonKey label={fill(copy.diary.ribbonKey, { date: dayKeyLabel(ribbonKey.dayKey) })} arriving={keyArriving} onOpen={() => openDiary(ribbonKey.id)} />}
           <LeftPage snapshot={snapshot} bridge={bridge} intro={onboarding ? introStepOf(onboarding) : null}
-            furniture={onboarding === 'alive' ? { painted, onPaint: (id) => setPainted((list) => list.includes(id) ? list : [...list, id]) } : undefined}
+            furniture={onboarding === 'alive' ? { painted, onPaint: (id) => { setTapped(false); setPainted((list) => list.includes(id) ? list : [...list, id]) }, onTap: () => setTapped(true) } : undefined}
             onOpenDiary={(dayKey) => { const entry = snapshot.diary?.entries.find((item) => item.dayKey === dayKey); if (entry) openDiary(entry.id) }}
             historyPhoto={onboarding ? null : historyPhoto} showSpeech={tab !== 'chat'} />
           <div className="gutter" aria-hidden />
           {onboarding
-            ? <OnboardingPage snapshot={snapshot} bridge={bridge} step={onboarding} painted={painted.map((id) => FURNITURE.find((f) => f.id === id)?.name ?? id)}
-              onStep={setStep} onDone={() => setPreviewDone(true)} onOpenProvider={onOpenTools} />
+            ? <OnboardingPage snapshot={snapshot} bridge={bridge} step={onboarding} painted={painted} tapped={tapped}
+              onStep={setStep} onDone={() => setPreviewDone(true)} />
             : <>
               <RightPage snapshot={snapshot} bridge={bridge} hidden={tab !== 'chat' || !!old.view} onOpenShelf={() => turnTab('gifts')} onOpenPlugins={() => turnTab('plugins')}
                 onTurnBack={old.past.length ? () => old.open(old.past.at(-1)!.sessionId) : undefined}
@@ -108,18 +108,18 @@ export function Stage({ snapshot, bridge, onOpenTools, pluginRequest = 0 }: { sn
               {tab === 'gifts' && <GiftShelf snapshot={snapshot} bridge={bridge} />}
               {tab === 'diary' && <DiaryBook snapshot={snapshot} bridge={bridge} focusId={diaryFocus} onOpened={(id) => { markOpened(id); setDiaryFocus(null) }} />}
               {tab === 'schedule' && <ScheduleSheet snapshot={snapshot} bridge={bridge} />}
+              {tab === 'settings' && settings && <SettingsPage snapshot={snapshot} bridge={bridge} onOpenPlugins={() => turnTab('plugins')} />}
             </>}
           {!onboarding && <QuillDock snapshot={snapshot} onExport={() => { void sendCommand(bridge, snapshot.epoch, { type: 'backup.export' }) }} />}
           {!onboarding && (
             <nav className="bookmarks" aria-label="书签">
               {TABS.map((id) => {
                 const active = id === tab
-                const settings = id === 'settings'
                 return (
                   <button key={id} type="button" className="bookmark" data-active={active} data-unread={id === 'chat' && unread}
-                    aria-current={active ? 'page' : undefined} disabled={settings && !onOpenTools}
+                    aria-current={active ? 'page' : undefined} disabled={id === 'settings' && !settings}
                     aria-label={id === 'chat' && unread ? `${copy.tabs.chat}（${copy.chatUnread}）` : undefined}
-                    onClick={() => { if (settings) onOpenTools?.(); else turnTab(id) }}>
+                    onClick={() => turnTab(id)}>
                     {copy.tabs[id]}
                   </button>
                 )

@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `plugins-smoke-${randomUUID()}`)
@@ -78,7 +78,7 @@ try {
 
   // 设置里的快捷入口：关闭设置，切回第 6 书签；不是复制第二套插件页面。
   await page.locator('.bookmarks').getByRole('button', { name: '对话', exact: true }).click()
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettings(page)
   await page.getByRole('button', { name: '打开插件中心', exact: true }).click()
   await center.waitFor()
   assert.equal(await page.getByRole('region', { name: '工具与设置', exact: true }).count(), 0)

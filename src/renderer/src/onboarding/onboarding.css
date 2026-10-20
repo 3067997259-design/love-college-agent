@@ -32,3 +32,13 @@
 .onboarding-persona { margin: 0 0 26px; padding: 0 0 0 1.1em; display: grid; gap: 10px; font-size: var(--fs-md); line-height: 1.6; color: var(--ink-her); }
 .onboarding-her { margin: 0 0 26px; font-size: var(--fs-lg); line-height: 1.7; color: var(--ink-her); }
 @media (prefers-reduced-motion: reduce) { .onboarding-body { animation: none; } }
+/* 涂完一件家具，写一行它在书里管什么：名字用手写体，说明一句话 */
+.onboarding-furniture { margin: 0 0 18px; padding: 0; list-style: none; display: grid; gap: 10px; }
+.onboarding-furniture:empty { display: none; }
+.onboarding-furniture li { display: grid; gap: 2px; animation: furniture-note-in var(--dur-slow) var(--ease-out) both; }
+.onboarding-furniture strong { font: normal 19px var(--font-hand); color: var(--ink-her); }
+.onboarding-furniture span { font-size: var(--fs-sm); line-height: 1.6; color: var(--graphite); }
+@keyframes furniture-note-in { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .onboarding-furniture li { animation: none; } }
+/* 接模型这一步就在页上填：聊天模型和工作模型两张卡，页里放不下时在框里滚 */
+.onboarding-models { margin: 2px 0 14px; max-height: 480px; overflow: auto; font: 14px/1.6 var(--font-body); color: var(--graphite); scrollbar-width: thin; }

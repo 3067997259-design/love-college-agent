@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
 /**
  * D2 safety scenario (developer scripted model; no network, no real provider):
@@ -112,7 +112,7 @@ try {
   assert.equal(report.flowlessWork.flowOpen, 0)
   assert.equal(report.flowlessWork.toolsEqual, true)
   // Synthetic mail material: produce a candidate with a user-only evidence ref, then reveal exactly one original.
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettings(page)
   await page.getByLabel('合成邮件场景').selectOption('initial')
   await waitFor((state) => state.mailbox?.scenarioId === 'initial', 'SCENARIO_NOT_SELECTED')
   await page.getByRole('button', { name: '关闭', exact: true }).click()

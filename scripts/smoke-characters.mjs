@@ -8,7 +8,7 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, openSettings } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'characters-smoke-' + randomUUID()); const sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19545', LCA_MCP_PORT: '0' }; let instance; let page; let client
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
@@ -23,7 +23,7 @@ try {
   await debug('set_fake_model', { script: [{ text: '合成原角色回应', toolCalls: [], delayMs: 0 }] }); await send({ type: 'onboarding.profile', userName: 'PRIVATE_USER_NAME' }); await send({ type: 'message.send', text: '我喜欢的饮料是咖啡。' }); await waitFor((s) => s.task?.status === 'completed', 'CHAR_ORIGINAL_CHAT_FAILED'); await send({ type: 'memory.extract' }); await waitFor((s) => s.memory.items.length > 0, 'CHAR_ORIGINAL_MEMORY_FAILED')
   const source = new JSZip(); source.file('manifest.json', JSON.stringify({ formatVersion: 1, kind: 'lca-character', name: '合成角色', persona: 'SYNTHETIC_CHARACTER_CARD', images: { 'facing-user_calm': 'images/facing-user_calm.png' } }), { createFolders: false }); source.file('images/facing-user_calm.png', Buffer.from(await instance.evaluate(({ nativeImage }) => nativeImage.createFromBitmap(Buffer.from([255, 0, 0, 255]), { width: 1, height: 1 }).toPNG().toString('base64')), 'base64'), { createFolders: false })
   const file = join(data, 'synthetic.lca-character'); await writeFile(file, await source.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })); await instance.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, file)
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '导入静态角色包', exact: true }).click(); await waitFor((s) => s.characterPack.installed.length === 2, 'CHAR_IMPORT_FAILED'); const id = (await snapshot()).characterPack.installed.find((pack) => !pack.builtin).id
+  await openSettings(page); await page.getByRole('button', { name: '导入静态角色包', exact: true }).click(); await waitFor((s) => s.characterPack.installed.length === 2, 'CHAR_IMPORT_FAILED'); const id = (await snapshot()).characterPack.installed.find((pack) => !pack.builtin).id
   await page.getByRole('combobox', { name: '下次启用的角色' }).selectOption(id); assert.equal((await snapshot()).characterPack.restartRequired, true); await stop(); await launch(false)
   let next = await snapshot(); assert.equal(next.scope.characterId, id); assert.equal(next.onboarding.status, 'needed'); assert.equal(next.onboarding.characterName, '合成角色'); assert.equal(next.onboarding.userName, null); assert.equal(next.messages.length, 0); assert.equal(next.memory.items.length, 0); assert.equal(next.candidates.length, 0)
   await initializeTestBook(page); await page.locator('img[data-character-package]').waitFor(); assert.equal(await page.locator('img[data-character-package]').evaluate((image) => image.complete && image.naturalWidth === 1), true)

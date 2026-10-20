@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, openSettings } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'notifications-smoke-' + randomUUID()); const sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19543', LCA_MCP_PORT: '0' }; let instance; let page; let client
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
@@ -19,8 +19,8 @@ try {
   await mkdir(data, { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId })); await launch()
   let now = Date.parse('2026-10-24T12:00:00+08:00'); await clock(now); await send({ type: 'mail.scan' }); await waitFor((s) => s.mailbox.status === 'ready', 'NOTIFY_MAIL_FAILED')
   await clock(now += 5000); assert.ok((await snapshot()).notifications.pendingCount >= 1); await clock(now += 16000); assert.equal((await snapshot()).notifications.sentLastHour, 1)
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('textbox', { name: '提醒关键词' }).fill('第三次作业'); await page.getByRole('button', { name: '添加这个提醒标准' }).click(); assert.equal((await snapshot()).notifications.rules.length, 1)
+  await openSettings(page); await page.getByRole('textbox', { name: '提醒关键词' }).fill('第三次作业'); await page.getByRole('button', { name: '添加这个提醒标准' }).click(); assert.equal((await snapshot()).notifications.rules.length, 1)
   await client.close(); client = undefined; await instance.close(); await launch(); assert.equal((await snapshot()).notifications.rules.length, 1); await clock(now += 21000); assert.equal((await snapshot()).notifications.sentLastHour, 1)
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '删除标准', exact: true }).click(); assert.equal((await snapshot()).notifications.rules.length, 0)
+  await openSettings(page); await page.getByRole('button', { name: '删除标准', exact: true }).click(); assert.equal((await snapshot()).notifications.rules.length, 0)
   console.log('Notifications Electron: actual mailbox deadline -> merged synthetic delivery, user rule controls/persistence/removal, and restart dedup verified; no OS toast in developer mode.')
 } finally { await client?.close(); await instance?.close() }

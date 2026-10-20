@@ -8,7 +8,7 @@ import ts from 'typescript'
 import JSZip from 'jszip'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettingsGroup } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettingsGroup, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const stdioMode = process.argv.find((arg) => arg.startsWith('--stdio='))?.slice(8)
@@ -95,7 +95,7 @@ try {
   await gameRow.getByRole('switch').click()
   await gameRow.getByRole('alertdialog', { name: 'MCP 连接确认', exact: true }).getByRole('button', { name: '确认此配置并连接', exact: true }).click()
   await waitFor((s) => s.mcp.servers.find((item) => item.id === 'synthetic-game')?.status === 'ready', 'MCP_CONNECT_FAILED')
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettings(page)
   await openSettingsGroup(page, 'Minecraft')
   const controls = page.locator('[data-settings="user"]').getByRole('region', { name: 'Minecraft 展位控制', exact: true })
   await controls.getByRole('button', { name: '核对游戏玩家', exact: true }).click(); await waitFor((s) => s.minecraft.status === 'ready', 'GAME_CHECK_FAILED')

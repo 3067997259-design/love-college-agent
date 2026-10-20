@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'drafts-smoke-' + randomUUID()); const sceneId = randomUUID(); const profile = join(data, 'developer', sceneId)
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19548', LCA_MCP_PORT: '0' }
 let instance; let page; let client
@@ -67,7 +67,7 @@ try {
   assert.ok(!(await snapshot()).heartFlow.files.some((file) => file.path === cancelPath))
   await close(); await launch(); assert.equal(op(await snapshot(), initId).status, 'ready'); assert.equal(op(await snapshot(), reviewId).status, 'ready'); assert.equal(op(await snapshot(), cancelId).status, 'cancelled')
   await send({ type: 'flow.exit' }); await waitFor((s) => !s.heartFlow.activeId, 'FLOW_NOT_CLOSED')
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettings(page)
   const archive = join(data, 'drafts.lca-save'); await instance.evaluate(({ dialog }, path) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: path }) }, archive)
   await send({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'DRAFT_BACKUP_FAILED')
   await writeFile(join(desk, output), 'EXTERNAL_EDIT_AFTER_SAVE')

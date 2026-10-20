@@ -67,6 +67,13 @@ export function introJobs(step: IntroStep, her: Region | null, trace: TraceFile 
   }
 }
 
+/**
+ * 你在家具上涂的彩铅：比她的颜料笔小、色更实，带一点毛边；只上简单的颜色，真实颜色留给她。
+ * 涂到这件家具的四成多，她就拿羽毛笔接过去（2026-10-20 用户：点一下就自动上色，起不到指引作用）。
+ */
+export const USER_PENCIL: StampStyle = { radius: 0.024, strength: 0.5, aspect: 1.3, ragged: 0.55 }
+export const COVERED_ENOUGH = 0.42
+
 /** 点一件家具：在它的形状里顺着长边刷几笔，再补满 */
 export function furnitureJob(item: Furniture, region: Region): Job {
   const count = Math.max(2, Math.min(6, Math.round(region.halfWidth / 0.03)))

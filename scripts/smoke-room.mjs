@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'room-smoke-' + randomUUID()); let sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19541', LCA_MCP_PORT: '0' }; let instance; let page; let client
 async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env }); page = await instance.firstWindow(); await initializeTestBook(page)
@@ -26,7 +26,7 @@ try {
   assert.equal(await page.evaluate(async (id) => { try { await window.lca.readDiary(id); return false } catch { return true } }, id), true)
   await debug('set_clock', { nowMs: Date.parse('2026-10-18T12:00:00+08:00') }); const entry = await page.evaluate((id) => window.lca.readDiary(id), id)
   assert.ok(entry.subjective); assert.ok(entry.key); assert.ok(entry.text); assert.ok(!JSON.stringify(await snapshot()).includes(entry.key)); assert.ok(!JSON.stringify(await debug('get_context')).includes(entry.text))
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click(); await page.getByRole('button', { name: '用户查阅日记', exact: true }).first().click(); await page.getByRole('article', { name: '用户独占日记' }).waitFor()
+  await openSettings(page); await page.getByRole('button', { name: '用户查阅日记', exact: true }).first().click(); await page.getByRole('article', { name: '用户独占日记' }).waitFor()
   await send({ type: 'room.rebuild' }); const rooms = join(data, 'developer', sceneId, 'rooms'); const room = join(rooms, (await readdir(rooms))[0]); const encrypted = await readFile(join(room, '日记', '2026-10-16.zip')); assert.ok(!encrypted.includes(Buffer.from(entry.text)))
   const archive = join(data, 'room.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive); await send({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'ROOM_EXPORT_FAILED')
   // Files the user saves into a projection folder are not ours to delete, even with the exact naming shape we generate.

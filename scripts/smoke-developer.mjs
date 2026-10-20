@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, openSettingsGroup } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, openSettingsGroup, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `developer-smoke-${randomUUID()}`)
@@ -24,7 +24,7 @@ try {
   assert.equal(normal.runtime.developer.mode, 'normal'); assert.equal(normal.runtime.developer.mcpPort, undefined)
   const denied = await page.evaluate((epoch) => window.lca.dispatch({ protocolVersion: 1, epoch, requestId: crypto.randomUUID(), type: 'developer.clock', frozen: true }), normal.epoch)
   assert.equal(denied.status, 'rejected')
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettings(page)
   await openSettingsGroup(page, '高级与开发')
   await page.getByRole('checkbox', { name: /使用独立的假数据/ }).click()
   await page.getByRole('button', { name: '重启应用', exact: true }).waitFor()
@@ -45,7 +45,7 @@ try {
   assert.notEqual(development.scope.sessionId, normal.scope.sessionId)
   const plugin = development.runtime.plugins.find((item) => item.id === 'synthetic')
   assert.equal(plugin.status, 'needs-approval'); assert.equal(await stat(join(pluginFolder, 'initialized')).then(() => true, () => false), false)
-  await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await openSettings(page)
   await page.locator('.tools-plugin').filter({ hasText: '合成插件验收' }).getByRole('button', { name: '启用', exact: true }).click()
   await page.getByRole('button', { name: '确认此版本并启用', exact: true }).click()
   assert.equal(await readFile(join(pluginFolder, 'initialized'), 'utf8'), 'once')

@@ -6,7 +6,7 @@ import copy from '../../voice/book.zh.json'
 import { formatClock } from '../format'
 import { dayKeyLabel } from '../life/text'
 import { FailureDetails } from '../FailureDetails'
-import { MsgText, useMarkdown } from '../MessageText'
+import { ApprovalMessage, MsgText, useMarkdown } from '../MessageText'
 
 export type { Quote }
 
@@ -109,9 +109,10 @@ export function QuoteChip({ quote, onClear }: { quote: Quote; onClear: () => voi
 
 /** 旧页上的一句：她的话同样按 Markdown 排；排版不丢原文字符，选段的偏移量仍是原文的偏移量。 */
 function OldMessage({ message, canQuote, onSelect, onQuoteWhole }: { message: MessageView; canQuote: boolean; onSelect: (span: HTMLElement) => void; onQuoteWhole: () => void }) {
-  const rich = message.role === 'assistant'
+  const rich = message.role === 'assistant' && !message.kind
   const md = useMarkdown(rich ? message.text : '')
   const Tag = rich && !md.plain ? 'div' : 'p'
+  if (message.kind) return <ApprovalMessage view={message} time={formatClock(message.createdAtMs)} />
   return (
     <Tag className={`msg msg-${message.role}`} data-recallable={canQuote} data-message-id={message.id} data-rich={rich && !md.plain ? 'block' : undefined}>
       {message.role === 'assistant' && <span className="msg-who" aria-hidden />}

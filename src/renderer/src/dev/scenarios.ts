@@ -525,6 +525,64 @@ export const SCENARIOS = {
       status: 'idle',
     },
   })),
+  /** 答完的信任卡：审批是 LCA 替她问的，和她说的话、你说的话分开排；长句的你的消息 */
+  'dsh-approved': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1420 + 9 * MIN },
+    companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'smile' },
+    task: null,
+    messages: [
+      msg('a1', 'user', '帮我写个 PowerShell 脚本，数一下 1 到 1000 之间有多少个质数，存成文件以后在书桌上跑一遍，把结果告诉我，顺便说说你是怎么判断质数的', T.sat1420),
+      msg('a2', 'assistant', '好，我先写个脚本。', T.sat1420 + 6_000),
+      msg('q1', 'assistant', '她想在「书桌」里运行命令：pwsh -File .\\count_primes.ps1，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。', T.sat1420 + MIN, { kind: 'approval' }),
+      msg('q1a', 'user', '信任这个项目', T.sat1420 + MIN + 20_000, { kind: 'approval-answer' }),
+      msg('a3', 'assistant', '在书桌里写了个脚本 `count_primes.ps1` 跑了一遍。\n\n1 到 1000 之间的质数一共是 **168** 个。\n\n判断的办法是试除到平方根：只要没有哪个数能整除它，它就是质数。', T.sat1420 + 2 * MIN),
+      msg('a4', 'user', '好', T.sat1420 + 3 * MIN),
+    ],
+    activities: [
+      act('p1', 'dsh.write', 'completed', {}, { taskId: 'turn-1', startedAtMs: T.sat1420 + 8_000 }),
+      act('p2', 'dsh.shell', 'failed', {}, { taskId: 'turn-1', startedAtMs: T.sat1420 + 12_000 }),
+      act('p3', 'dsh.shell', 'completed', {}, { taskId: 'turn-1', startedAtMs: T.sat1420 + MIN + 30_000 }),
+      act('p4', 'dsh.shell', 'completed', {}, { taskId: 'turn-1', startedAtMs: T.sat1420 + MIN + 40_000 }),
+    ],
+    work: {
+      current: { path: String.raw`C:\Users\demo\Documents\桃子的房间\demo\书桌`, name: '书桌', desk: true, trusted: true },
+      desk: { path: String.raw`C:\Users\demo\Documents\桃子的房间\demo\书桌`, name: '书桌', desk: true, trusted: true },
+      recent: [],
+      status: 'idle',
+    },
+  })),
+  /** 第一次用：还没说过话，输入框上方是几个可以直接点的开头 */
+  'dsh-first': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1420 },
+    task: null, messages: [], activities: [], candidates: [], deliveries: [],
+    work: {
+      current: { path: String.raw`C:\Users\demo\Documents\桃子的房间\demo\书桌`, name: '书桌', desk: true, trusted: false },
+      desk: { path: String.raw`C:\Users\demo\Documents\桃子的房间\demo\书桌`, name: '书桌', desk: true, trusted: false },
+      recent: [], status: 'idle',
+    },
+  })),
+  /** 刚换到自己的项目：先让她只读地熟悉一遍 */
+  'dsh-first-project': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1420 },
+    task: null, messages: [], activities: [], candidates: [], deliveries: [],
+    work: {
+      current: { path: String.raw`D:\code\course-site`, name: 'course-site', desk: false, trusted: false },
+      desk: { path: String.raw`C:\Users\demo\Documents\桃子的房间\demo\书桌`, name: '书桌', desk: true, trusted: false },
+      recent: [], status: 'idle',
+    },
+  })),
+  /** 模型设置：聊天模型和工作模型分开配，各自的思考强度；记忆与日记跟随聊天模型 */
+  'settings-models': scenario(() => ({
+    runtime: { plugins: [], developer: { mode: 'normal', requestedEnabled: false, restartRequired: false } },
+    modelSettings: {
+      status: 'idle', configuredSlots: ['chat', 'work', 'background'], restartRequired: false,
+      routing: { background: 'follow-main', privacy: 'follow-main', work: 'independent' },
+      details: { chat: { vendor: 'Google', host: 'gen•••.com', model: 'gemini-3.8-flash' }, work: { vendor: 'DeepSeek', host: 'api•••.com', model: 'deepseek-v4-pro' } },
+      efforts: { chat: 'low', work: 'max' },
+      levels: { chat: ['low', 'medium', 'high'], work: ['off', 'high', 'max'] },
+      services: { tts: false, rodin: false, mail: false },
+    },
+  })),
 } satisfies Record<string, AppSnapshot>
 
 export type ScenarioId = keyof typeof SCENARIOS

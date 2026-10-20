@@ -1,9 +1,10 @@
 /*
  * “工具与设置”：朴素实用（体验设计 §1），但和书用同一套纸色、字体和按钮，不另起一套系统控件的样子。
+ * 控件样式挂在 .settings-surface 上：书里的设置页和开发模式的浮动面板共用。
  * 标题栏固定在顶上；每组一个可展开的标题；错误用“！”＋说明，闭集代码收在“查看原因”里。
  */
 .tools-panel { position: fixed; right: 14px; bottom: 14px; z-index: 90; font: 14px/1.6 var(--font-body); color: var(--graphite); }
-.tools-panel button, .tools-panel select {
+.settings-surface button, .settings-surface select {
   font: inherit;
   font-size: 14px;
   margin: 3px 6px 3px 0;
@@ -15,11 +16,11 @@
   cursor: pointer;
   transition: background var(--dur-fast), border-color var(--dur-fast);
 }
-.tools-panel button:hover:not(:disabled) { border-color: var(--peach-mid); background: color-mix(in oklab, var(--peach) 35%, transparent); }
-.tools-panel button:disabled, .tools-panel select:disabled { opacity: 0.45; cursor: default; }
-.tools-panel select { padding: 2px 8px; border-radius: 8px; background: var(--paper); }
-.tools-panel :is(button, select, input, textarea, summary):focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 2px; }
-.tools-panel input:not([type]), .tools-panel input[type='text'], .tools-panel input[type='number'], .tools-panel textarea {
+.settings-surface button:hover:not(:disabled) { border-color: var(--peach-mid); background: color-mix(in oklab, var(--peach) 35%, transparent); }
+.settings-surface button:disabled, .settings-surface select:disabled { opacity: 0.45; cursor: default; }
+.settings-surface select { padding: 2px 8px; border-radius: 8px; background: var(--paper); }
+.settings-surface :is(button, select, input, textarea, summary):focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 2px; }
+.settings-surface input:not([type]), .settings-surface input[type='text'], .settings-surface input[type='number'], .settings-surface textarea {
   font: inherit;
   padding: 2px 4px;
   color: var(--graphite);
@@ -28,7 +29,7 @@
   border-bottom: 1.5px solid var(--pencil);
   outline: none;
 }
-.tools-panel input[type='checkbox'] { accent-color: var(--peach-mid); margin-right: 6px; vertical-align: -0.1em; }
+.settings-surface input[type='checkbox'] { accent-color: var(--peach-mid); margin-right: 6px; vertical-align: -0.1em; }
 /* 书外的开关：小小一张书页色的签 */
 .tools-panel > button {
   margin: 0;
@@ -55,10 +56,10 @@
 }
 /* 开发者面板没有标题栏：留出上边距 */
 .tools-panel:not([data-settings='user']) > section { padding-top: 14px; }
-.tools-panel h2 { margin: 16px 0 4px; font: 600 16px var(--font-body); color: var(--ink-her); }
-.tools-panel h3 { margin: 12px 0 2px; font: 600 14px var(--font-body); color: var(--ink-her); }
-.tools-panel p { margin: 5px 0; }
-.tools-panel label { display: block; margin: 4px 0; }
+.settings-surface h2 { margin: 16px 0 4px; font: 600 16px var(--font-body); color: var(--ink-her); }
+.settings-surface h3 { margin: 12px 0 2px; font: 600 14px var(--font-body); color: var(--ink-her); }
+.settings-surface p { margin: 5px 0; }
+.settings-surface label { display: block; margin: 4px 0; }
 
 .settings-head {
   position: sticky;
@@ -134,7 +135,7 @@
 .settings-issue p { margin: 0; }
 .settings-issue summary { cursor: pointer; font-size: 12px; color: var(--graphite); }
 .tools-plugin { border-bottom: 1px dashed color-mix(in oklab, var(--pencil) 60%, transparent); padding: 10px 0; }
-.tools-panel code { display: block; overflow-wrap: anywhere; font: 11px/1.5 var(--font-num); }
+.settings-surface code { display: block; overflow-wrap: anywhere; font: 11px/1.5 var(--font-num); }
 .card-actions { flex-wrap: wrap; }
 .card-actions > label { flex-basis: 100%; font-size: 13px; }
 .card-actions input { display: block; max-width: 100%; font: inherit; margin: 5px 0; }
@@ -159,5 +160,11 @@
 .flow-goals-manage li { margin: 5px 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .settings-group > summary::before, .tools-panel button { transition: none; }
+  .settings-group > summary::before, .settings-surface button { transition: none; }
 }
+
+/* 设置是书里的一页（2026-10-20 用户：其他书签都翻在右页，只有设置单独跳出小窗，不好看）：
+   和插件中心一样占满右页，内容在页里滚动，标题栏贴在页顶 */
+.page-right.settings-page { display: block; padding: 0 46px 26px 66px; overflow: auto; font: 14px/1.6 var(--font-body); color: var(--graphite); scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--pencil) 60%, transparent) transparent; }
+.settings-page .settings-head { margin: 0 -46px 4px -66px; padding: 34px 46px 10px 66px; background: linear-gradient(to right, var(--shadow-gutter) 0, transparent 70px) var(--paper); }
+.settings-page .settings-title { font-size: 28px; }

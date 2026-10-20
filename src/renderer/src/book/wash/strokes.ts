@@ -13,7 +13,10 @@ export const STAMP_FLOATS = 6
 /** 抬笔移动按下笔速度的 3 倍（练习记录） */
 const PEN_UP_SPEED = 3
 
-/** 按长度分时间：下笔匀速，抬笔快三倍 */
+/** 一笔里的快慢：起笔和收笔慢一些，中间快；不会停住（两头仍有 0.4 的速度），也不改总时长 */
+export const strokeEase = (f: number) => 0.4 * f + 0.6 * f * f * (3 - 2 * f)
+
+/** 按长度分时间：抬笔快三倍；每一笔按下的那段起落有快慢，像手在画（2026-10-20 用户：笔的动画再自然一点） */
 function timed(raw: readonly { x: number; y: number; down: boolean; p?: number }[], durationMs: number): Stroke {
   let total = 0
   const weights = raw.map((point, i) => {
@@ -25,6 +28,15 @@ function timed(raw: readonly { x: number; y: number; down: boolean; p?: number }
   })
   let acc = 0
   const points = raw.map((point, i) => { acc += weights[i]; return { ...point, t: total > 0 ? acc / total * durationMs : 0 } })
+  // 连续按着的一段（从落笔前那一点到最后一个按着的点）里重新分配时间
+  for (let start = 0; start < points.length - 1; start++) {
+    if (!points[start + 1].down) continue
+    let end = start + 1
+    while (end + 1 < points.length && points[end + 1].down) end++
+    const t0 = points[start].t, t1 = points[end].t
+    if (t1 > t0) for (let i = start + 1; i < end; i++) points[i].t = t0 + (t1 - t0) * strokeEase((points[i].t - t0) / (t1 - t0))
+    start = end - 1
+  }
   return { points, durationMs }
 }
 
@@ -153,6 +165,39 @@ export function stampsBetween(stroke: Stroke, from: number, to: number, style: S
     }
   }
   return out
+}
+
+/** 你自己涂的一小段：从上一个指针位置到这一个，按下着 */
+export function segment(a: { x: number; y: number }, b: { x: number; y: number }): Stroke {
+  return { durationMs: 1, points: [{ x: a.x, y: a.y, t: 0, down: false }, { x: b.x, y: b.y, t: 1, down: true }] }
+}
+
+/**
+ * 一件家具涂了多少：在它的形状里均匀撒一些采样点，笔刷扫过的点算涂过。
+ * 只用来判断“涂了一大半，她可以接过去”，不追求和着色器逐像素一致。
+ */
+export function coverageOf(polygon: readonly (readonly [number, number])[], columns = 18) {
+  const xs = polygon.map((p) => p[0]), ys = polygon.map((p) => p[1])
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys)
+  const step = Math.max(x1 - x0, y1 - y0) / columns
+  const samples: number[] = []
+  for (let y = y0 + step / 2; y < y1; y += step) for (let x = x0 + step / 2; x < x1; x += step) if (insidePolygon(x, y, polygon)) samples.push(x, y)
+  const covered = new Uint8Array(samples.length / 2)
+  let count = 0
+  return {
+    /** 扫过一段；返回目前涂过的比例 */
+    sweep(a: { x: number; y: number }, b: { x: number; y: number }, radius: number): number {
+      const dx = b.x - a.x, dy = b.y - a.y, len2 = dx * dx + dy * dy
+      for (let i = 0; i < covered.length; i++) {
+        if (covered[i]) continue
+        const px = samples[2 * i], py = samples[2 * i + 1]
+        const f = len2 > 0 ? Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / len2)) : 0
+        if (Math.hypot(px - (a.x + dx * f), py - (a.y + dy * f)) <= radius) { covered[i] = 1; count++ }
+      }
+      return this.ratio()
+    },
+    ratio: () => covered.length ? count / covered.length : 1,
+  }
 }
 
 /** 点在多边形里（偶奇规则） */

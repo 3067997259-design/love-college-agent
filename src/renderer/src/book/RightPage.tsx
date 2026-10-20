@@ -18,7 +18,8 @@ import { RewindDock } from './RewindControls'
 import { FailureDetails } from './FailureDetails'
 import failureWords from '../voice/failure.zh.json'
 import { quoteOnPage } from './history/quote'
-import { MsgText, useMarkdown } from './MessageText'
+import { ApprovalMessage, MsgText, useMarkdown } from './MessageText'
+import { Starters } from './Starters'
 import { ProjectChip } from './ProjectChip'
 
 type Item =
@@ -238,6 +239,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
         {commandError && <Notice>{commandError}</Notice>}
       </div>
       <FileIntake snapshot={snapshot} bridge={bridge} />
+      <Starters snapshot={snapshot} say={(text) => { pinned.current = true; void dispatch({ type: 'message.send', text }) }} pickProject={() => { void dispatch({ type: 'project.pick' }) }} />
       <footer className="composer">
         <ProjectChip snapshot={snapshot} bridge={bridge} />
         {slashOpen && <div className="slash-menu" role="listbox" aria-label={slash.label}>
@@ -288,7 +290,8 @@ function taskAt(task: TaskView, activities: readonly ActivityView[], lastUserAt:
 
 function Message({ view }: { view: MessageView }) {
   // 她的话按简单 Markdown 排；有列表、代码块这些时整条换成块级排版
-  const md = useMarkdown(view.role === 'assistant' ? view.text : '')
+  const md = useMarkdown(view.role === 'assistant' && !view.kind ? view.text : '')
+  if (view.kind) return <ApprovalMessage view={view} time={formatClock(view.createdAtMs)} />
   const rich = view.role === 'assistant'
   const Tag = rich && !md.plain ? 'div' : 'p'
   return (

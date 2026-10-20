@@ -137,4 +137,9 @@ it('asks approvals without the question budget and accepts only their choices', 
   // the three questions after them do.
   for (let i = 0; i < 3; i++) { const pending = f.ask(); expect(f.q.view()).not.toHaveProperty('kind'); f.answer(); await pending }
   expect((await f.ask()).raw).toMatchObject({ status: 'question-limit' })
+  // The book lays approvals and the chosen answers out apart from her words and typed lines.
+  const messages = f.store.projection().messages
+  expect(messages.filter((message) => message.kind === 'approval').map((message) => message.text)).toEqual(Array(4).fill('Run node a.js here?'))
+  expect(messages.filter((message) => message.kind === 'approval-answer').map((message) => message.text)).toEqual(['允许这一次', '拒绝', '允许这一次', '拒绝'])
+  expect(messages.filter((message) => !message.kind && message.role === 'user')).toHaveLength(3)
 })

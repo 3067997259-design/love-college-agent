@@ -9,7 +9,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'resources-smoke-' + randomUUID())
 let calls = 0
@@ -48,7 +48,7 @@ try {
   const zip = await JSZip.loadAsync(await readFile(archive)); assert.ok(Object.keys(zip.files).every((name) => !name.includes('runtime-resources')))
   await stop(); env.LCA_BOOTH = '1'; await launch(); assert.equal((await snapshot()).runtime.developer.mode, 'booth')
   assert.equal((await snapshot()).onboarding.userName, null); assert.equal((await snapshot()).resources.model.totalReservedUnits, charged.totalReservedUnits); assert.equal((await snapshot()).resources.configurable, true)
-  await accepted({ type: 'mode.set', mode: 'quiet' }); await page.getByRole('button', { name: '工具与设置', exact: true }).click()
+  await accepted({ type: 'mode.set', mode: 'quiet' }); await openSettings(page)
   const panel = page.getByRole('region', { name: '运行资源', exact: true }); assert.ok((await panel.innerText()).includes(String(charged.totalReservedUnits)))
   await panel.getByLabel('总日预留上限').fill('1000000'); await panel.getByLabel('自主日预留上限').fill('500000'); await panel.getByRole('button', { name: '保存展位预算', exact: true }).click()
   await waitFor((s) => s.resources.model.totalLimitUnits === 1000000 && s.resources.model.autonomousLimitUnits === 500000, 'OPERATOR_INCREASE_FAILED')

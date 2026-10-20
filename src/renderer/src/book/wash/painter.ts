@@ -38,7 +38,13 @@ export class Painter {
   /** 最近一件上色的活画完的时刻；从没上过色就是 null */
   private paintEndedAt: number | null = null
 
-  enqueue(job: Job) { this.queue.push(job) }
+  /**
+   * 空闲时排进来的活从现在开始计时：否则第一帧会把空闲的几秒都算进去，整件一下画完、看不到笔
+   * （新手流程里过一会儿再点家具，颜色直接冒出来）。
+   */
+  enqueue(job: Job) { if (!this.busy) this.lastNow = null; this.queue.push(job) }
+  /** 你自己涂了几笔：湿边从现在开始干 */
+  wet(now: number) { this.paintEndedAt = now }
   clear() { this.queue = []; this.current = undefined; this.lastNow = null; this.paintEndedAt = null }
   get busy() { return !!this.current || this.queue.length > 0 }
   has(id: string) { return this.current?.job.id === id || this.queue.some((job) => job.id === id) }

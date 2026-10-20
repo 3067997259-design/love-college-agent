@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_FURNITURE } from '../../src/renderer/src/book/wash/furniture'
 import { furnitureJob, introJobs, poseJob, restoreJob } from '../../src/renderer/src/book/wash/intro'
 import { Painter, type Job } from '../../src/renderer/src/book/wash/painter'
-import { brushStrokes, insidePolygon, penAt, regionOf, scribble, stampsBetween, STAMP_FLOATS, tracedStroke } from '../../src/renderer/src/book/wash/strokes'
+import { brushStrokes, coverageOf, insidePolygon, penAt, regionOf, scribble, segment, stampsBetween, STAMP_FLOATS, strokeEase, tracedStroke } from '../../src/renderer/src/book/wash/strokes'
 
 const pencil = { radius: 0.05, strength: 1, aspect: 1, ragged: 0 }
 
@@ -132,3 +132,37 @@ describe('what gets painted', () => {
     expect(poseJob(her)).toMatchObject({ channel: 'paint', mask: { kind: 'her' }, cursor: null })
   })
 })
+
+describe('painting together in the onboarding', () => {
+  it('eases each pen-down stroke without changing its ends', () => {
+    expect(strokeEase(0)).toBe(0); expect(strokeEase(1)).toBe(1)
+    // 起笔慢、中间快：前十分之一的路走得比匀速少
+    expect(strokeEase(0.1)).toBeLessThan(0.1); expect(strokeEase(0.5)).toBeCloseTo(0.5, 9)
+    const { stroke } = brushStrokes({ cx: 0.5, cy: 0.5, angle: 0, halfLength: 0.3, halfWidth: 0.1 }, 2, 1000, 4)
+    const down = stroke.points.slice(0, 18)
+    const early = down[2].t - down[1].t, middle = down[9].t - down[8].t
+    expect(early).toBeLessThan(middle)
+  })
+  it('measures how much of a furniture piece your strokes covered', () => {
+    const square = [[0.2, 0.2], [0.4, 0.2], [0.4, 0.4], [0.2, 0.4]] as const
+    const area = coverageOf(square)
+    expect(area.ratio()).toBe(0)
+    expect(area.sweep({ x: 0.2, y: 0.3 }, { x: 0.4, y: 0.3 }, 0.03)).toBeGreaterThan(0.2)
+    for (let y = 0.2; y <= 0.4; y += 0.04) area.sweep({ x: 0.2, y }, { x: 0.4, y }, 0.03)
+    expect(area.ratio()).toBe(1)
+    expect(stampsBetween(segment({ x: 0.1, y: 0.1 }, { x: 0.1, y: 0.1 }), 0, 1, { radius: 0.02, strength: 0.5, aspect: 1, ragged: 0 })).toHaveLength(STAMP_FLOATS)
+  })
+  it('times a job queued on an idle painter from when it starts, so its pen is seen', () => {
+    const painter = new Painter()
+    const job = furnitureJob(DEFAULT_FURNITURE.find((f) => f.id === 'mug')!, regionOf(DEFAULT_FURNITURE.find((f) => f.id === 'mug')!.points))
+    painter.enqueue(job)
+    painter.step(0)
+    while (painter.busy) painter.step(5_000)
+    // Seconds later, after the room sat idle: the next piece still starts at its first stroke.
+    painter.enqueue({ ...job, id: 'again' })
+    const first = painter.step(60_000)
+    expect(first.cursor).toMatchObject({ kind: 'quill' })
+    expect(painter.step(60_016).busy).toBe(true)
+  })
+})
+
