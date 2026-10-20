@@ -75,6 +75,21 @@ export function createDshExecution(options: {
     const command = request.command ?? (request.callId ? turn?.calls.get(request.callId)?.command ?? null : null)
     const prefix = request.kind === 'risky' && command ? command.trim().split(/\s+/).slice(0, 2).join(' ') : null
     const rules = read<Rule[]>(rulesFile, [])
+    // The sandbox cannot run commands in this project: ask about trust itself, never about the repair
+    // the model would otherwise propose. The bridge switches the preset once LCA allows it.
+    if (request.kind === 'trust') {
+      if (request.degraded?.length) return 'rejected'
+      if (rules.some((rule) => rule.project === project && rule.prefix === null)) return 'allowed-once'
+      const current = turn
+      if (!current) return 'rejected'
+      const shown = request.subject ?? command
+      const question = `她想在「${basename(project)}」里运行命令${shown ? `：${clip(shown.replace(/\s+/g, ' '), 80)}` : ''}，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。`
+      const choices = ['信任这个项目', '先不要']
+      const answer = await options.ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
+      if (answer !== choices[0]) return 'rejected'
+      writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix: null }], null, 2))
+      return 'allowed-once'
+    }
     // D2: while third-party content is in her context, standing grants do not apply and none are made.
     const degraded = request.degraded?.length ? request.degraded : null
     if (!degraded && rules.some((rule) => rule.project === project && rule.tool === request.toolName && rule.prefix === prefix)) return 'allowed-once'

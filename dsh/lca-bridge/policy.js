@@ -20,6 +20,18 @@ export const gatedWhileDegraded = (name) => GATED.has(name) || name.startsWith('
 // A helper's answer can carry what it read, so a delegation result in a degraded turn retires too.
 export const DELEGATION = new Set(['subagent', 'subagent_fork', 'workflow'])
 
+// DSH's Windows ACL sandbox needs permission to change the workspace's permissions. Where the folder
+// does not allow that (seen on a D: root without WRITE_DAC), every sandboxed command fails like this.
+const SANDBOX_DENIED = /SetNamedSecurityInfoW failed \(Win32 5\)|\bgrantWrite\(/
+const textOfResult = (result) => [...(result?.content ?? []).map((block) => block?.text ?? ''), String(result?.error?.message ?? '')].join('\n')
+export const sandboxDenied = (result) => result?.isError === true && SANDBOX_DENIED.test(textOfResult(result))
+// What she reads instead of the raw ACL error, so she never sets out to repair folder permissions.
+export const TRUST_FEEDBACK = {
+  trusted: 'The user has just trusted this project: from now on your commands here run without the OS sandbox (risky commands still ask first). Run the same command again.',
+  declined: 'Commands cannot run in this folder: the OS sandbox does not work here on this computer, and the user chose not to let commands run outside it. Do not change folder permissions or ask for escalation. Tell the user briefly what you could not run; you can still read and edit the project files.',
+  degraded: 'Commands cannot run in this folder: the OS sandbox does not work here on this computer. This turn read third-party content, so the user cannot trust the project right now. Do not change folder permissions. Tell the user they can grant trust if they ask you again in a new message.',
+}
+
 export const subjectOf = (args) => {
   for (const key of ['command', 'file_path', 'path', 'url', 'query']) if (typeof args?.[key] === 'string' && args[key].trim()) return args[key].slice(0, 200)
   return null

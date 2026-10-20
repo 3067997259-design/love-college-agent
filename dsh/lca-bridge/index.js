@@ -7,7 +7,7 @@ import { resolve } from 'node:path'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import { DELEGATION, createDegradation, createLineage, gatedWhileDegraded, isRisky, retireResults, sourceOf, subjectOf } from './policy.js'
+import { DELEGATION, TRUST_FEEDBACK, createDegradation, createLineage, gatedWhileDegraded, isRisky, retireResults, sandboxDenied, sourceOf, subjectOf } from './policy.js'
 
 export const name = 'lca-bridge'
 export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval']
@@ -125,16 +125,47 @@ export function apply(ctx) {
     return next()
   })
 
+  // The first time the OS sandbox cannot run a command in her project, ask the user about trusting
+  // the project instead of letting her read the raw ACL error and set out to repair permissions.
+  // One question per session at a time; a "not now" holds for the rest of the session.
+  const asking = new Map() // root session id -> Promise<'trusted' | 'declined' | 'cancelled'>
+  const declined = new Set()
+  const askTrust = (root, exec, subject) => {
+    const session = live.get(root).handle.agent.session
+    const pending = new Promise((settle) => {
+      const id = randomUUID()
+      approvals.set(id, settle)
+      exec.signal?.addEventListener('abort', () => { if (approvals.delete(id)) settle('cancelled') }, { once: true })
+      send({ t: 'approval', id, sessionId: root, toolName: String(exec.name), callId: String(exec.callId), reason: null, kind: 'trust', command: null, subject, degraded: null })
+    }).then((outcome) => {
+      asking.delete(root)
+      if (outcome === 'allowed-once') { trust(session); send({ t: 'trusted', sessionId: root, preset: presetOf(session) }); return 'trusted' }
+      if (outcome === 'cancelled') return 'cancelled'
+      declined.add(root)
+      return 'declined'
+    })
+    asking.set(root, pending)
+    return pending
+  }
+  const block = (text) => ({ kind: 'block', feedback: [{ type: 'text', text }] })
+
   // Third-party results degrade her root session; root-level ones are captured for retirement.
-  ctx.on('tools/post-execute', async (exec, _result, next) => {
+  ctx.on('tools/post-execute', async (exec, result, next) => {
     const root = lineage.rootOf(exec.agent)
     if (root) {
+      const subject = subjects.get(String(exec.callId)) ?? null
       subjects.delete(String(exec.callId))
       const name = String(exec.name)
       const source = sourceOf(name)
       const top = isRoot(exec.agent)
       if (source) degrade(root, source, top ? String(exec.callId) : null)
       else if (top && DELEGATION.has(name) && degradation.active(root)) tainted.add(String(exec.callId))
+      if (top && sandboxDenied(result) && presetOf(live.get(root).handle.agent.session) !== 'lca-trusted') {
+        if (degradation.active(root)) return block(TRUST_FEEDBACK.degraded)
+        if (declined.has(root)) return block(TRUST_FEEDBACK.declined)
+        const outcome = await (asking.get(root) ?? askTrust(root, exec, subject))
+        if (outcome !== 'cancelled') return block(TRUST_FEEDBACK[outcome])
+      }
     }
     return next()
   })

@@ -15,8 +15,11 @@ export type DshTool = { name: string; description: string; parameters: Record<st
 export type DshSource = 'mail' | 'document' | 'web' | 'mcp' | 'plugin'
 const SOURCES: readonly DshSource[] = ['mail', 'document', 'web', 'mcp', 'plugin']
 export const dshSources = (value: unknown): DshSource[] => Array.isArray(value) ? SOURCES.filter((source) => value.includes(source)) : []
-/** `degraded`: third-party content is in her context, so this approval may not create or apply standing grants. */
-export type DshApproval = { sessionId: string; toolName: string; callId: string | null; reason: string | null; kind: 'risky' | 'escalation' | 'degraded'; command: string | null; subject: string | null; degraded: DshSource[] | null }
+/**
+ * `degraded`: third-party content is in her context, so this approval may not create or apply standing grants.
+ * `trust`: the OS sandbox cannot run commands in her project; asks whether to trust the project instead.
+ */
+export type DshApproval = { sessionId: string; toolName: string; callId: string | null; reason: string | null; kind: 'risky' | 'escalation' | 'degraded' | 'trust'; command: string | null; subject: string | null; degraded: DshSource[] | null }
 export type DshRoute = { kind: 'deepseek-official'; apiKey: string; model?: string } | { kind: 'openai-compatible'; baseUrl: string; model: string; apiKey: string }
 export interface DshHostOptions {
   clock: Clock; dshRoot: string; dataDir: string; bridge: string; workspace: string
@@ -75,7 +78,7 @@ export function startDshHost(options: DshHostOptions) {
     else if (message.t === 'lca-call') void options.onCall(String(message.name), message.args, String(message.sessionId), String(message.callId))
       .then((result) => child.send({ t: 'lca-result', id: message.id, ok: true, value: result.value, source: result.source }), (error: unknown) => child.send({ t: 'lca-result', id: message.id, ok: false, error: error instanceof Error ? error.message : 'LCA_TOOL_FAILED' }))
     else if (message.t === 'approval') void options.onApproval({ sessionId: String(message.sessionId), toolName: String(message.toolName), callId: (message.callId as string | null) ?? null, reason: (message.reason as string | null) ?? null,
-      kind: message.kind === 'risky' || message.kind === 'degraded' ? message.kind : 'escalation', command: (message.command as string | null) ?? null, subject: typeof message.subject === 'string' ? message.subject : null,
+      kind: message.kind === 'risky' || message.kind === 'degraded' || message.kind === 'trust' ? message.kind : 'escalation', command: (message.command as string | null) ?? null, subject: typeof message.subject === 'string' ? message.subject : null,
       degraded: Array.isArray(message.degraded) ? dshSources(message.degraded) : null })
       .then((outcome) => child.send({ t: 'approval-answer', id: message.id, outcome }), () => child.send({ t: 'approval-answer', id: message.id, outcome: 'rejected' }))
     else if ((message.t === 'session' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
