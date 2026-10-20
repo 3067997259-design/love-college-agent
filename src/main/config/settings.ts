@@ -8,7 +8,9 @@ const schema = z.strictObject({ version: z.literal(1), developer: z.boolean(), b
   activeCharacterId: z.string().regex(/^(?:default-character|character:[a-f0-9]{64})$/).optional(),
   miniPosition: z.strictObject({ x: z.number().int().min(-100000).max(100000), y: z.number().int().min(-100000).max(100000), displayId: z.number().int().optional() }).optional(),
   // Resolved once so a later naming change cannot silently move an existing room; absence means version 1.
-  roomLayout: z.strictObject({ pathVersion: z.literal(2), root: z.string().min(3), folder: z.string().min(1).optional() }).optional() })
+  roomLayout: z.strictObject({ pathVersion: z.literal(2), root: z.string().min(3), folder: z.string().min(1).optional() }).optional(),
+  // DSH work folder: null is her desk. Recent projects are the folders the book may switch back to.
+  workProjects: z.strictObject({ current: z.string().min(3).max(1024).nullable(), recent: z.array(z.string().min(3).max(1024)).max(6) }).optional() })
 export type Settings = z.infer<typeof schema>
 
 /** Configuration contains consent and preferences only. Provider credentials have another owner. */

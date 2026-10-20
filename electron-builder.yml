@@ -9,6 +9,21 @@ files:
   - '!**/secrets/**'
   - '!**/.local-data/**'
 asar: true
+# DeepSeek Harness runs as a child process from real files (native addons, its own module loader), so it
+# ships outside the asar: the pinned, trimmed runtime with its notices, and LCA's bridge plugin.
+extraResources:
+  - from: dsh/runtime
+    to: dsh-runtime
+    filter:
+      - package.json
+      - THIRD_PARTY_NOTICES.txt
+  # node_modules is listed as its own source: electron-builder skips it inside a filtered folder.
+  - from: dsh/runtime/node_modules
+    to: dsh-runtime/node_modules
+    filter:
+      - '**/*'
+  - from: dsh/lca-bridge
+    to: lca-bridge
 asarUnpack:
   - '**/*.node'
   - 'out/native/**'

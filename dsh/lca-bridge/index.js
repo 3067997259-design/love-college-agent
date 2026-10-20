@@ -258,6 +258,7 @@ export function apply(ctx) {
         }
         case 'cancel': agentOf(message.sessionId).cancel({ kind: 'user' }); break
         case 'trust': { const session = agentOf(message.sessionId).session; trust(session); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(session) }); break }
+        case 'untrust': { const session = agentOf(message.sessionId).session; ctx.get('permissionPresets')?.set(session, 'workspace-write'); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(session) }); break }
         case 'approval-answer': { const settle = approvals.get(message.id); if (settle) { approvals.delete(message.id); settle(message.outcome) } break }
         case 'lca-result': {
           const call = calls.get(message.id)

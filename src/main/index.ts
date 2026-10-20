@@ -37,6 +37,8 @@ import { builtinCharacter, createCharacterService, type CharacterService } from 
 import { definitionSchema } from './characters/package'
 import { BUILTIN_CARD, briefPersona } from './characters/builtin-persona'
 import { createDshExecution, type DshExecution } from './dsh/execution'
+import { dshLocations } from './dsh/locations'
+import { createProjects } from './dsh/projects'
 import harnessPolicy from './harness/policy.json'
 import { profileContext } from './onboarding/context'
 import { exportBuiltinCharacter } from './characters/builtin'
@@ -718,23 +720,37 @@ void app.whenReady().then(async () => {
       changed: () => controller?.refresh('connection'), safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
     controller.attachVoice(voice)
     scheduler.schedule('voice.guard', clock.nowMs() + 250, () => voice?.stateChanged(), { everyMs: 250 })
-    // DSH spike (LCA_DSH=1): the user's chat goes to her DSH session; autonomous events stay on the legacy loop.
-    const dshChat = providers.get('chat')
-    if (process.env.LCA_DSH === '1' && dshChat && !prepared.developer) {
+    // DSH: the user's chat goes to her DSH session; autonomous events stay on the legacy loop. The runtime ships
+    // with the app (resources/dsh-runtime, prepared by scripts/prepare-dsh-runtime.mjs); LCA_DSH=0 turns it off.
+    const { root: dshRoot, bridge: dshBridge, present: dshPresent } = dshLocations()
+    const dshAvailable = process.env.LCA_DSH !== '0' && !prepared.developer && dshPresent
+    // LCA private data never becomes her working material, whatever folder the user picks.
+    const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'runtime-resources', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
+    const projects = createProjects({ settings: prepared.pluginSettings, desk: join(roomRoot, '书桌'), privateRoots: guardedRoots,
+      trusted: (path) => dshExecution?.trusted(path) ?? false, untrust: (path) => dshExecution?.untrust(path), busy: () => dshExecution?.busy() ?? false,
+      choose: async () => {
+        const options = { title: '选一个项目文件夹：她写代码、运行命令都在里面', defaultPath: projects.current(), properties: ['openDirectory' as const] }
+        const parent = BrowserWindow.getFocusedWindow()
+        const selected = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options)
+        return selected.canceled ? null : selected.filePaths[0] ?? null
+      },
+      changed: () => controller?.refresh('task') })
+    const persona = () => {
+      const character = (store!.history?.() ?? store!.records()).findLast((row) => row.type === 'character/definition')
+      const card = character?.type === 'character/definition' ? character.definition : BUILTIN_CARD
+      return [harnessPolicy.system, ...profileContext(store!.projection().onboarding).map((message) => message.content),
+        JSON.stringify({ characterCard: { name: card.name, persona: card.persona }, scope: 'character-configuration-only', authority: 'personality-never-tool-permission' })].join('\n\n')
+    }
+    const lcaToolNames = new Set(['get_timer', 'plan_pomodoros', 'start_focus', 'pause', 'stop', 'search_memory', 'recall_seen', 'get_campus_items', 'propose_notification_rule', 'get_first_gift', 'propose_gift'])
+    /** Built at start-up and again whenever the chat model changes: the route is fixed for a DSH process. */
+    const createDsh = () => {
+      const chat = providers.get('chat')
+      if (!dshAvailable || !chat) return undefined
       let official = false
-      try { official = new URL(dshChat.base_url).hostname === 'api.deepseek.com' } catch { /* an invalid URL fails on first use */ }
-      const persona = () => {
-        const character = (store!.history?.() ?? store!.records()).findLast((row) => row.type === 'character/definition')
-        const card = character?.type === 'character/definition' ? character.definition : BUILTIN_CARD
-        return [harnessPolicy.system, ...profileContext(store!.projection().onboarding).map((message) => message.content),
-          JSON.stringify({ characterCard: { name: card.name, persona: card.persona }, scope: 'character-configuration-only', authority: 'personality-never-tool-permission' })].join('\n\n')
-      }
-      const lcaToolNames = new Set(['get_timer', 'plan_pomodoros', 'start_focus', 'pause', 'stop', 'search_memory', 'recall_seen', 'get_campus_items', 'propose_notification_rule', 'get_first_gift', 'propose_gift'])
-      // LCA private data never becomes her working material, whatever folder the user picks.
-      const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'runtime-resources', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
-      dshExecution = createDshExecution({ store, clock, dataDir, dshRoot: process.env.DSH_ROOT ?? 'D:/dsh-lca', bridge: join(app.getAppPath(), 'dsh', 'lca-bridge'), guardedRoots,
-        route: official ? { kind: 'deepseek-official', apiKey: dshChat.api_key, model: dshChat.model } : { kind: 'openai-compatible', baseUrl: dshChat.base_url, model: dshChat.model, apiKey: dshChat.api_key },
-        project: () => process.env.LCA_DSH_PROJECT || join(roomRoot, '书桌'), persona,
+      try { official = new URL(chat.base_url).hostname === 'api.deepseek.com' } catch { /* an invalid URL fails on first use */ }
+      return createDshExecution({ store: store!, clock, dataDir, dshRoot, bridge: dshBridge, guardedRoots,
+        route: official ? { kind: 'deepseek-official', apiKey: chat.api_key, model: chat.model } : { kind: 'openai-compatible', baseUrl: chat.base_url, model: chat.model, apiKey: chat.api_key },
+        project: () => projects.current(), persona,
         // After DSH's first-party guidance: how she talks in the book outranks the coding-agent style.
         suffix: () => '和用户说话用口语化的中文，像平时聊天一样。书里能显示简单的 Markdown：文件名、命令和代码用代码格式，步骤多时可以用列表，但不要写成带标题的报告。用户在你工作途中插话时，先用一两句话回应这句话，再继续手上的事；做完后用一两句话说清结果。',
         tools: () => plugins.tools().filter((tool) => lcaToolNames.has(tool.definition.name)),
@@ -749,12 +765,14 @@ void app.whenReady().then(async () => {
           return answer?.type === 'user/message' ? answer.text : null
         },
         changed: (reason) => controller?.refresh(reason) })
-      app.once('will-quit', () => { void dshExecution?.close() })
     }
+    dshExecution = createDsh()
+    if (dshAvailable) controller.attachProjects(projects)
+    app.once('will-quit', () => { void dshExecution?.close() })
     const chatPort = () => dshExecution ?? executionPort()
     controller.attachExecution(chatPort(), modelReady)
     modelSettings = createModelSettings({ root: dataRoot, fallback: prepared.developer ? undefined : providersFile, developer: prepared.developer, slots: [...rawProviders.keys()], clock, budget: resourceBudget,
-      canConfigure: () => !harness?.isBusy() && !backup?.isBusy() && !heartFlow?.active() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
+      canConfigure: () => !harness?.isBusy() && !dshExecution?.busy() && !backup?.isBusy() && !heartFlow?.active() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
       apply: async () => {
         scheduler!.pauseBackground(true)
         try {
@@ -768,6 +786,7 @@ void app.whenReady().then(async () => {
         taskModels = createTaskModelPorts(providers, clock, store!, undefined, resourceBudget, !privacyEnabled())
         if (!privacyEnabled()) prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = false })
         modelReady = prepared.developer || providers.has('chat')
+        await dshExecution?.close(); dshExecution = createDsh()
         controller!.attachExecution(chatPort(), modelReady)
         documents?.stateChanged(); campus?.stateChanged()
         } finally { scheduler!.pauseBackground(store!.projection().lightsOut) }

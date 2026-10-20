@@ -20,6 +20,11 @@ const run = (path, args) => new Promise((resolve, reject) => {
 })
 try {
   // Native ABI is rebuilt explicitly with pnpm rebuild:native; packaged probes verify it again.
+  // DSH runtime shipped beside the asar: pinned install from the lockfile, trimmed, with notices.
+  await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [join(root, 'scripts', 'prepare-dsh-runtime.mjs')], { cwd: root, env, stdio: 'inherit', windowsHide: true })
+    child.on('error', reject); child.on('exit', (code) => code === 0 ? resolve() : reject(new Error('DSH_RUNTIME_FAILED')))
+  })
   await run('electron-vite/bin/electron-vite.js', ['build', '--logLevel', 'warn'])
   await buildDeskCommand()
   await run('electron-builder/cli.js', ['--win', 'nsis', '--x64', '--publish', 'never', '--config', 'electron-builder.yml'])

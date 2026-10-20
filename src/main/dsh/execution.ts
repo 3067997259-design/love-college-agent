@@ -34,8 +34,8 @@ const failureCode = (reason: unknown): PublicErrorCode => {
 }
 
 /**
- * DSH execution port (spike, LCA_DSH=1). The user's messages go to her DSH session for the day. DSH's
- * own session log is the record of what she saw and did; the journal keeps what LCA owns: the
+ * DSH execution port (on whenever the runtime ships; LCA_DSH=0 turns it off). The user's messages go
+ * to her DSH session for the day, in the project folder the book picked. DSH's own session log is the record of what she saw and did; the journal keeps what LCA owns: the
  * conversation, a reference to the DSH turn, the book's activity rows, approvals and trust grants.
  * Tool calls and results never enter LCA's model context or memory. A message sent while a DSH turn
  * runs steers it. Approvals use the book's question card; "以后都允许" is remembered per project (and
@@ -219,13 +219,26 @@ export function createDshExecution(options: {
     send: (text: string, requestId: string, commandHash: string) => {
       const id = randomUUID()
       record({ type: 'user/message', id, text, requestId, commandHash }); pending.push(id); options.changed('message')
-      void ensureSession().then((current) => host!.send(current.id, text, turn ? 'steer' : 'followup'), () => fail('configuration-failed'))
+      // A session that cannot open is LCA's own failure (runtime, profile, link), not the user's model setup.
+      void ensureSession().then((current) => host!.send(current.id, text, turn ? 'steer' : 'followup'), (error: unknown) => {
+        console.error('DSH_SESSION_FAILED', (error as { code?: unknown } | null)?.code ?? (error instanceof Error ? error.message.slice(0, 40) : 'unknown'))
+        fail('internal')
+      })
     },
     stop: (taskId: string) => {
       if (!turn || !session || turn.lcaTurnId !== taskId) return false
       turn.asks.abort(); host?.cancel(session.id); return true
     },
     stateChanged: () => { if (store.projection().lightsOut && turn && session) host?.cancel(session.id) },
+    /** A DSH turn is running; the work folder must not change under it. */
+    busy: () => !!turn || !!opening,
+    trusted: (project: string) => read<Rule[]>(rulesFile, []).some((rule) => rule.project === resolve(project) && rule.prefix === null),
+    /** Withdraw project-wide grants; a live session on that project goes back to the sandbox preset at once. */
+    untrust: (project: string) => {
+      const target = resolve(project)
+      writeFileSync(rulesFile, JSON.stringify(read<Rule[]>(rulesFile, []).filter((rule) => !(rule.project === target && rule.prefix === null)), null, 2))
+      if (session?.id && session.cwd === target) host?.untrust(session.id)
+    },
     taskApproved: () => {},
     close: async () => { await host?.close() },
   }

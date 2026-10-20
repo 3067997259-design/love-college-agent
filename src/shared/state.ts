@@ -503,6 +503,8 @@ export interface AppSnapshot {
   resources?: ResourceBudgetView
   /** A single current model question. Queued questions expose no prompt until rest. */
   question?: UserQuestionView
+  /** DSH work: the folder she works in, her desk and recent projects. Absent when DSH is off. */
+  work?: WorkProjectsView
   /** Main-owned optional game context. No MCP launch config, URLs, tokens or raw game transcript. */
   minecraft?: MinecraftView
   mcp?: McpView
@@ -748,6 +750,23 @@ export interface ResourceBudgetView {
     attemptCount: number | null
     attemptLimit: number
   }
+}
+export interface WorkProjectView {
+  /** Absolute folder path; shown as a tooltip. */
+  path: string
+  /** `书桌` for her desk, otherwise the folder name. */
+  name: string
+  desk: boolean
+  /** The user trusted this project: commands run without the OS sandbox, risky ones still ask. */
+  trusted: boolean
+}
+export interface WorkProjectsView {
+  current: WorkProjectView
+  desk: WorkProjectView
+  recent: readonly WorkProjectView[]
+  status: 'idle' | 'picking'
+  /** Last choice refused: not a usable folder, holds LCA's private data, or she is mid-turn. */
+  error?: 'project-invalid' | 'project-private' | 'project-busy'
 }
 export type UserQuestionView = {
   id: string

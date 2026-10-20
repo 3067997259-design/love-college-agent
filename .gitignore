@@ -14,6 +14,8 @@ references/hackathon official/
 
 # 依赖与构建产物
 node_modules/
+# 打包时由 scripts/prepare-dsh-runtime.mjs 生成
+dsh/runtime/THIRD_PARTY_NOTICES.txt
 .pnpm-store/
 out/
 dist/

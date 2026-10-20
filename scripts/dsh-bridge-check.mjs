@@ -7,7 +7,7 @@
 //   without WRITE_DAC on the maintainer's machine), the first failing command must ask about trust
 //   instead of showing her the raw ACL error. Trusting reruns the command unsandboxed; declining is
 //   asked once per session. Skipped where the sandbox works.
-// Usage: node scripts/dsh-bridge-check.mjs [degrade|trust|decline ...]   (needs the DSH fork at DSH_ROOT)
+// Usage: node scripts/dsh-bridge-check.mjs [degrade|trust|decline ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
@@ -16,7 +16,7 @@ import { join, resolve } from 'node:path'
 import { prepareDshProfile } from '../dsh/profile.mjs'
 
 const repo = resolve(import.meta.dirname, '..')
-const dshRoot = resolve(process.env.DSH_ROOT ?? 'D:/dsh-lca')
+const dshRoot = resolve(process.env.DSH_ROOT ?? join(repo, 'dsh', 'runtime'))
 const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(repo, '.local-data'))
 const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part?.text ?? '').join('')
 const pwsh = (id, command) => ({ tool: 'pwsh', id, args: { description: 'Print a number', command } })

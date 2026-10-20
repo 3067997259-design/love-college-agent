@@ -1,0 +1,11 @@
+{
+  "name": "lca-dsh-runtime",
+  "private": true,
+  "description": "DeepSeek Harness runtime shipped with LCA (MIT, https://github.com/deepseek-ai/deepseek-harness). Pinned; installed and trimmed by scripts/prepare-dsh-runtime.mjs. zod is pinned to the one version every DSH package asks for, so it is installed once instead of fifty times.",
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.2.1-rc.2"
+  },
+  "overrides": {
+    "zod": "4.4.3"
+  }
+}

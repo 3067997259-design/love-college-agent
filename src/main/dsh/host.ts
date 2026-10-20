@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import type { Clock } from '../clock'
 
 /**
@@ -46,8 +46,21 @@ export function prepareDshProfile(options: { dshRoot: string; dataDir: string; b
   if (!existsSync(join(profile, 'cordis.patch.yml'))) writeFileSync(join(profile, 'cordis.patch.yml'), '[]\n')
   if (!existsSync(join(profile, 'pnpm-workspace.yaml'))) writeFileSync(join(profile, 'pnpm-workspace.yaml'), 'packages:\n  - .\n\nnodeLinker: hoisted\nautoInstallPeers: false\n')
   const link = join(profile, 'node_modules', '@lca', 'dsh-bridge')
-  if (!existsSync(link)) { mkdirSync(dirname(link), { recursive: true }); symlinkSync(options.bridge, link, 'junction') }
-  return { home, cli: join(options.dshRoot, 'apps', 'cli', 'lib', 'bin.js') }
+  // Re-link when the bridge moved (a checkout in development, the app's resources once installed).
+  let linked: string | null = null; let present = false
+  try { const stat = lstatSync(link); present = true; if (stat.isSymbolicLink()) linked = resolve(readlinkSync(link)) } catch { /* not linked yet */ }
+  if (linked !== resolve(options.bridge)) {
+    // unlink, not rm: Electron's Node refuses rmSync on a directory junction (ERR_FS_EISDIR).
+    if (present) unlinkSync(link)
+    mkdirSync(dirname(link), { recursive: true }); symlinkSync(options.bridge, link, 'junction')
+  }
+  return { home, cli: dshCli(options.dshRoot) }
+}
+
+/** DSH's CLI: the pinned npm runtime (dsh/runtime, shipped with the app) or a built checkout of the fork. */
+export function dshCli(root: string) {
+  const npm = join(root, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+  return existsSync(npm) ? npm : join(root, 'apps', 'cli', 'lib', 'bin.js')
 }
 
 export function startDshHost(options: DshHostOptions) {
@@ -94,6 +107,8 @@ export function startDshHost(options: DshHostOptions) {
     open: async (cwd: string, sessionId?: string, trusted = false, degraded: readonly DshSource[] = []) => { await started; return String((await request({ t: 'open', cwd, trusted, degraded, ...(sessionId ? { sessionId } : {}) })).sessionId) },
     /** Switch a live session to the `lca-trusted` preset after the user granted its project. */
     trust: (sessionId: string) => child.send({ t: 'trust', sessionId }),
+    /** Back to the default sandbox preset after the user withdrew trust. */
+    untrust: (sessionId: string) => child.send({ t: 'untrust', sessionId }),
     send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup') => child.send({ t: 'send', sessionId, text, mode }),
     cancel: (sessionId: string) => child.send({ t: 'cancel', sessionId }),
     close: async () => { if (child.connected) child.send({ t: 'shutdown' }); const stop = options.clock.after(10_000, () => child.kill()); try { return await exited } finally { stop() } },

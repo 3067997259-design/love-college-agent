@@ -9,7 +9,7 @@ import { prepareDshProfile } from '../dsh/profile.mjs'
 
 const { values: args } = parseArgs({ options: { open: { type: 'string' }, timeout: { type: 'string', default: '90000' } } })
 const repo = resolve(import.meta.dirname, '..')
-const dshRoot = resolve(process.env.DSH_ROOT ?? 'D:/dsh-lca')
+const dshRoot = resolve(process.env.DSH_ROOT ?? join(repo, 'dsh', 'runtime'))
 const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(repo, '.local-data'))
 const { home, cli } = prepareDshProfile({ dshRoot, dataDir, bridge: join(repo, 'dsh', 'lca-bridge') })
 const work = resolve(args.open ?? join(dataDir, 'dsh-work', 'scratch'))

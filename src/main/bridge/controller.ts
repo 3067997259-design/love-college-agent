@@ -17,6 +17,7 @@ import type { McpService } from '../mcp/service'
 import type { BackupService } from '../backup/service'
 import type { QuillService } from '../gifts/quill'
 import type { ModelSettingsService } from '../config/model-settings'
+import type { ProjectsService } from '../dsh/projects'
 import type { CompanionWindows, WindowSurface } from '../windows/companion'
 import { characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
 import { giftSpecSchema } from '../gifts/schema'
@@ -53,6 +54,10 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('flow.command.open'), commandId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('question.answer'), questionId: z.string().uuid(), answer: answerInput }),
   z.strictObject({ ...envelope, type: z.literal('question.dismiss'), questionId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('project.pick') }),
+  z.strictObject({ ...envelope, type: z.literal('project.select'), path: z.string().min(1).max(1024) }),
+  z.strictObject({ ...envelope, type: z.literal('project.forget'), path: z.string().min(1).max(1024) }),
+  z.strictObject({ ...envelope, type: z.literal('project.untrust'), path: z.string().min(1).max(1024) }),
   z.strictObject({ ...envelope, type: z.literal('companion.sleep'), sleeping: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('flow.fetch.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('flow.computer.open'), path: z.string().min(1).max(180) }),
@@ -197,6 +202,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let quill: QuillService | undefined
   let diagnostics: (() => DiagnosticsView) | undefined
   let modelSettings: ModelSettingsService | undefined
+  let projects: ProjectsService | undefined
   let windows: CompanionWindows | undefined
   let gifts: GiftService | undefined
   let heartFlow: HeartFlowService | undefined
@@ -322,6 +328,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       if (minecraft.active() && minecraftChat) { const game = minecraftChat.view(); snapshot.messages = [...game.messages]; snapshot.activities = [...game.activities]; snapshot.task = game.task }
     }
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
+    if (projects) snapshot.work = projects.view(); else delete snapshot.work
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
     const event: AppEvent = { protocolVersion: PROTOCOL_VERSION, epoch: snapshot.epoch, revision: snapshot.revision,
@@ -344,6 +351,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('voice.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('resources.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('question.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('project.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'companion.sleep' && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('room.') || command.type === 'diary.write') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -495,6 +503,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (windows && command.type.startsWith('window.')) {
       try { const error = windows.dispatch(command, surface); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('mode', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
+    } else if (projects && command.type.startsWith('project.')) {
+      try { const error = projects.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
     } else if (modelSettings && (command.type.startsWith('models.') || command.type === 'mail.configure')) {
       try { const error = modelSettings.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -576,6 +587,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     readDiary: (id: unknown) => { if (!diary || typeof id !== 'string' || !/^diary:[a-f0-9]{64}$/.test(id)) throw new Error('DIARY_UNAVAILABLE'); return diary.read(id) },
     readHeartFlow: (input: unknown) => { const parsed = z.strictObject({ section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128).optional() }).parse(input); if (!heartFlow) throw new Error('FLOW_UNAVAILABLE'); return heartFlow.inspect(parsed) },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
+    attachProjects: (port: ProjectsService) => { projects = port; publish('task') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },
     readDiagnostics: () => { if (runtime?.view().developer.mode !== 'developer' || !diagnostics) throw new Error('DIAGNOSTICS_UNAVAILABLE'); return diagnostics() },

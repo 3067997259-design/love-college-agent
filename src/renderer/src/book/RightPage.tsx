@@ -19,6 +19,7 @@ import { FailureDetails } from './FailureDetails'
 import failureWords from '../voice/failure.zh.json'
 import { quoteOnPage } from './history/quote'
 import { MsgText, useMarkdown } from './MessageText'
+import { ProjectChip } from './ProjectChip'
 
 type Item =
   | { kind: 'message'; at: number; id: string; view: MessageView }
@@ -238,6 +239,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
       </div>
       <FileIntake snapshot={snapshot} bridge={bridge} />
       <footer className="composer">
+        <ProjectChip snapshot={snapshot} bridge={bridge} />
         {slashOpen && <div className="slash-menu" role="listbox" aria-label={slash.label}>
           {slashMatches.map((item, index) => <button key={item.value} type="button" role="option" aria-selected={index === activeSlash}
             data-active={index === activeSlash} onMouseDown={(event) => { event.preventDefault(); chooseSlash(item.value) }}>

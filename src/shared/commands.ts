@@ -16,6 +16,12 @@ export type AppCommand = CommandEnvelope & (
   /** Book-only answer to the current visible question. Information, never an execution grant. */
   | { type: 'question.answer'; questionId: string; answer: string }
   | { type: 'question.dismiss'; questionId: string }
+  /** Book only. Main opens the folder dialog; `select` takes her desk or a recent project, never a typed path. */
+  | { type: 'project.pick' }
+  | { type: 'project.select'; path: string }
+  | { type: 'project.forget'; path: string }
+  /** Withdraw trust from the current project: back to the OS sandbox, approvals ask again. */
+  | { type: 'project.untrust'; path: string }
   | { type: 'voice.stop'; utteranceId: string }
   /** Book playback reports only; this is renderer telemetry, not synthesis or external-action evidence. */
   | { type: 'voice.playback'; utteranceId: string; status: 'playing' | 'ended' | 'failed' }

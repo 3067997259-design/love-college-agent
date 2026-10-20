@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { Clock } from '../clock'
 import { readModelProviders } from '../config/providers'
 import { startDshHost, type DshEvent, type DshRoute } from '../dsh/host'
+import { dshLocations } from '../dsh/locations'
 
 /**
  * DSH spike probe: her chat and work turns on the forked DSH runtime, driven from LCA's main process.
@@ -28,7 +29,7 @@ async function bootOnly(dataDir: string, appPath: string, clock: Clock) {
   const started = clock.nowMs()
   const events: string[] = []
   const workspace = join(dataDir, 'dsh-work', 'boot')
-  const host = startDshHost({ clock, dshRoot: process.env.DSH_ROOT ?? 'D:/dsh-lca', dataDir, bridge: join(appPath, 'dsh', 'lca-bridge'), workspace,
+  const host = startDshHost({ clock, dshRoot: dshLocations().root, dataDir, bridge: dshLocations().bridge, workspace,
     route: null, guardedRoots: [join(dataDir, 'dsh-home')], persona: PERSONA, tools: [], onEvent: (event) => { events.push(event.t) },
     onCall: async () => { throw new Error('UNUSED') }, onApproval: async () => 'rejected' })
   try {
@@ -65,7 +66,7 @@ export async function probeDshSpike(dataDir: string, providersFile: string, appP
   let steerArmed: string | undefined
   const started = clock.nowMs()
   const host = startDshHost({
-    clock, dshRoot: process.env.DSH_ROOT ?? 'D:/dsh-lca', dataDir, bridge: join(appPath, 'dsh', 'lca-bridge'), workspace,
+    clock, dshRoot: dshLocations().root, dataDir, bridge: dshLocations().bridge, workspace,
     route, guardedRoots: [join(dataDir, 'dsh-home'), join(dataDir, 'journals'), join(dataDir, 'connections')], persona: PERSONA,
     tools: [{ name: 'lca_get_timer', description: 'Read the pomodoro timer of the LCA book: phase and minutes left.', parameters: { type: 'object', properties: {}, additionalProperties: false } }],
     onCall: async (name) => { report.lcaCalls++; if (name !== 'lca_get_timer') throw new Error('UNKNOWN_LCA_TOOL'); return { value: { phase: 'focus', remainingMinutes: 12, focusIndex: 2 }, source: null } },
