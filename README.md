@@ -16,7 +16,7 @@
 
 | 能力 | 当前范围 |
 | --- | --- |
-| 对话与工作 | 流式对话、工具执行记录和多步心流；当前文件与命令只支持受管理书桌中的小型纯文本项目。 |
+| 对话与工作 | 聊天和写代码在同一个会话里，由 DeepSeek Harness 执行：在你选的项目文件夹里读写文件、运行命令，默认是她的书桌；危险操作先问你，读过网页等第三方内容后逐次询问。 |
 | 资料整理 | 导入 UTF-8 文本、Markdown、文字层 PDF，生成可打开的本地整理文件。 |
 | 校园事务 | 从证据形成候选，查看原文、确认或忽略，再导出本地 `.ics` / Markdown；校园助手需另外安装、配置 Student Hub。 |
 | 专注陪伴 | 确认番茄计划、计时、桌面迷你窗；专注与暂停全部后台活动分别控制。 |
@@ -57,7 +57,7 @@ pnpm dev
 
 - 校园插件依赖独立的 Student Hub 后端和学校登录配置，没有通用的多学校即插即用能力。
 - 可靠资料输入是文本和文字层 PDF；真实 TTS / OCR 质量、长期自主生活体验仍需继续验证。
-- 当前不能直接把用户已有工程作为心流工作区，仍受书桌和文本副本限制；正在研究 [真实项目工作区与执行后端](docs/research/harness-workspaces-20261019.md)。
+- 工作执行刚切到 DeepSeek Harness：Office 文档转换和语音输入没有随安装包分发；她的自主活动仍走旧循环，记忆还看不到工作回合的细节。
 - 本地导出不代表已写入手机日历或外部待办平台。
 - 私人存档当前不加密，含聊天和可能的私有证据，请自行保管。
 
@@ -69,6 +69,6 @@ pnpm dev
 
 感谢相关开源项目、工具与创作者。设计参考和素材来源见 [参考与来源](docs/reference-research.md)、[第三方说明](THIRD_PARTY_NOTICES.md)。
 
-实验中的工作与对话执行基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH，MIT）构建，感谢 DeepSeek 团队开源。接入进展见 [DSH fork 接入 spike](docs/research/dsh-fork-spike-20261019.md)。
+对话与工作执行基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH，MIT）构建，感谢 DeepSeek 团队开源。安装包随附未修改的 DSH 运行时及其第三方声明；接入过程见 [DSH 接入记录](docs/research/dsh-fork-spike-20261019.md)。
 
 本项目以 [MIT 许可证](LICENSE) 开源，Copyright (c) 2026 AfterRain。第三方依赖、字体和引用素材遵循各自许可证。

@@ -68,6 +68,8 @@ pnpm package:win
 pnpm test:package --unpacked-only
 ```
 
+`pnpm package:win` 先运行 `scripts/prepare-dsh-runtime.mjs`：按 `dsh/runtime/package-lock.json` 安装固定版本的 DeepSeek Harness（`npm ci`，不跑安装脚本），裁掉 LCA 用不到的部分（Office 转换与语音的平台二进制、DSH 自带的网页界面、source map 与类型声明），并为每个随附的包生成 `dsh/runtime/THIRD_PARTY_NOTICES.txt`。运行时约 120 MB，和 LCA 的桥接插件一起作为附加资源放在 asar 外面（`resources/dsh-runtime`、`resources/lca-bridge`），因为 DSH 以子进程运行，要读真实文件。开发时同样先运行一次这个脚本；要改用 fork 的构建产物，设置 `DSH_ROOT`。
+
 安装器由 `package.json` 版本命名，输出到 `release/Love-College-Agent-<version>-Setup.exe`。当前为 Windows x64 NSIS、未签名；创建桌面和开始菜单快捷方式，安装后不自动启动，卸载不自动删除用户数据。
 
 `--unpacked-only` 只运行包内 EXE，不安装或卸载，报告为 `test-results/package-unpacked-report.json`。`pnpm test:package` 则还会创建、验证并卸载自己的测试安装；发现已有同名用户安装时拒绝覆盖。不要把包内验证写成用户升级验收。

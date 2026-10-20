@@ -29,7 +29,7 @@ Electron 发行包含 Chromium 等组件，保留随发行提供的第三方声�
 
 机制参考包括 deepseek-harness、AIRI / 维护者 fork 与 Neko DevLog，范围见 [参考与来源](docs/reference-research.md)。
 
-实验开关 `LCA_DSH=1` 下，工作与对话执行运行在 DeepSeek Harness（DSH）的 fork 上，MIT 许可，Copyright (c) 2026 DeepSeek。本仓库只包含 LCA 自己的桥接插件（`dsh/lca-bridge`），不复制 DSH 源码；随安装包分发 DSH 运行时前，需附带其 LICENSE 与第三方声明。“DeepSeek Harness”是深度求索公司的商标，本项目只描述“基于 DSH 构建”，不表示官方背书。Student Hub 是独立校园后端，mcpfabric 是外部游戏联动研究；应用不内置它们的个人数据或认证。
+对话与工作执行运行在 DeepSeek Harness（DSH）上，MIT 许可，Copyright (c) 2026 DeepSeek。本仓库只包含 LCA 自己的桥接插件（`dsh/lca-bridge`）和固定版本的依赖清单（`dsh/runtime`），不复制 DSH 源码。安装包随附 npm 上发布的 `@deepseek-ai/dsh` 运行时，未修改，只去掉了 LCA 不用的部分；每个随附包的名称、版本、许可证和许可文件原文见安装目录的 `resources/dsh-runtime/THIRD_PARTY_NOTICES.txt`。“DeepSeek Harness”是深度求索公司的商标，本项目只描述“基于 DSH 构建”，不表示官方背书。Student Hub 是独立校园后端，mcpfabric 是外部游戏联动研究；应用不内置它们的个人数据或认证。
 
 桃子人设改编自维护者原创 ReLU 角色卡，私人原卡不公开。画面使用 NovelAI / GPT-image 等工具制作与局部精修，人工复核采用，记录见 `art/` 与 [美术规格](docs/art-spec.md)。历史动画另使用 MiniMax H3 / CompShare，实时礼物可选 Rodin；服务名称不表示其所有输出质量均已验收。
 
