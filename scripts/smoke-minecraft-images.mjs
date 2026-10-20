@@ -8,7 +8,7 @@ import ts from 'typescript'
 import JSZip from 'jszip'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettingsGroup, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettingsGroup, openSettings, closeSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const stdioMode = process.argv.find((arg) => arg.startsWith('--stdio='))?.slice(8)
@@ -103,7 +103,7 @@ try {
   const consent = controls.getByLabel('允许本轮游戏截图交给游戏模型'); assert.equal(await consent.isChecked(), false); await consent.check()
   await controls.getByRole('button', { name: '确认此玩家与范围并开始', exact: true }).click(); await waitFor((s) => s.minecraft.status === 'playing', 'GAME_START_FAILED')
   const round = (await snapshot()).minecraft.roundId; assert.equal((await snapshot()).minecraft.scope.allowScreenshots, true)
-  await page.getByRole('button', { name: '关闭', exact: true }).click()
+  await closeSettings(page)
   await accepted({ type: 'message.send', text: 'GAME_IMAGE_ONLY_PROMPT 请看两帧合成游戏画面。' })
   if (failureExpected) {
     await waitFor((s) => s.minecraft.status === 'failed', 'EXPECTED_IMAGE_REFUSAL_MISSING')
