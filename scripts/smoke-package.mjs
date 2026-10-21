@@ -62,13 +62,13 @@ try {
     assert.equal(occupied.trim(), 'free', 'Existing user installation detected; test refuses to upgrade or uninstall it.')
   }
   const unpacked = join(release, 'win-unpacked/LoveCollegeAgent.exe')
-  for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'dsh-spike']) { stage = 'unpacked-probe:' + name; await probe(unpacked, name) }
+  for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'documents', 'questions', 'dsh-spike']) { stage = 'unpacked-probe:' + name; await probe(unpacked, name) }
   const exe = unpackedOnly ? unpacked : join(installDir, 'LoveCollegeAgent.exe')
   if (!unpackedOnly) {
     stage = 'install'
     await run(installer, ['/S', '/currentuser', `/D=${installDir}`]); installed = true
     assert.ok((await stat(exe)).isFile())
-    for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'dsh-spike']) { stage = 'installed-probe:' + name; await probe(exe, name) }
+    for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'documents', 'questions', 'dsh-spike']) { stage = 'installed-probe:' + name; await probe(exe, name) }
   }
   stage = unpackedOnly ? 'unpacked-ui-restart' : 'installed-ui-restart'
   env.LCA_DATA_DIR = join(root, '.local-data', `installed-ui-${randomUUID()}`)
