@@ -1,4 +1,4 @@
-import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, MinecraftScope, ModelProviderSlot, OpticalTier, PomodoroPlanInput, PublicError, ReasoningEffort, RecallAnchor } from './state'
+import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, MinecraftScope, ModelProviderSlot, OpticalTier, PomodoroPlanInput, PublicError, QuestionAnswer, ReasoningEffort, RecallAnchor } from './state'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -13,8 +13,12 @@ export type AppCommand = CommandEnvelope & (
   /** Booth book only. Integer reservations: total 10000..5000000, autonomous 0..total.
    * A reduction never refunds prior admissions; it only gates subsequent requests. */
   | { type: 'resources.configure'; dailyTotalUnits: number; dailyAutonomousUnits: number }
-  /** Book-only answer to the current visible question. Information, never an execution grant. */
+  /**
+   * Book-only answer to the current visible question. Information, never an execution grant. An approval takes one
+   * of its choices as `answer`; her questions take `answers`, one per question in order, at least one not skipped.
+   */
   | { type: 'question.answer'; questionId: string; answer: string }
+  | { type: 'question.answer'; questionId: string; answers: readonly QuestionAnswer[] }
   | { type: 'question.dismiss'; questionId: string }
   /** Book only. Main opens the folder dialog; `select` takes her desk or a recent project, never a typed path. */
   | { type: 'project.pick' }

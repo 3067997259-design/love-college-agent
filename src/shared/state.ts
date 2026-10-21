@@ -619,6 +619,23 @@ export interface WorkProjectsView {
   /** Last choice refused: not a usable folder, holds LCA's private data, or she is mid-turn. */
   error?: 'project-invalid' | 'project-private' | 'project-busy'
 }
+/** One of the questions she asks you at once (DSH ask_user_question). Her words; main has bounded every field. */
+export interface QuestionItemView {
+  id: string
+  /** A few words naming the question, such as 截止时间. */
+  header?: string
+  question: string
+  /** Empty: answered in your own words only. */
+  options: readonly { label: string; description?: string }[]
+  /** Several options may be picked. */
+  multiSelect: boolean
+}
+/** Your answer to one of them: picked option labels and your own words. Neither one is a skip. */
+export interface QuestionAnswer {
+  id: string
+  selected: readonly string[]
+  custom?: string
+}
 export type UserQuestionView = {
   id: string
   taskId: string
@@ -627,8 +644,12 @@ export type UserQuestionView = {
   kind?: 'approval'
 } & ({ status: 'queued' } | {
   status: 'waiting'
+  /** An approval's question, or her first question. */
   question: string
+  /** An approval's choices; empty for her questions. */
   choices: readonly string[]
+  /** Her questions, one to four (absent on an approval): answered together with `question.answer` `answers`. */
+  items?: readonly QuestionItemView[]
   /** Main-owned ten-minute visible-time deadline; quiet/focus time does not consume it. */
   expiresAtMs: number
 })
