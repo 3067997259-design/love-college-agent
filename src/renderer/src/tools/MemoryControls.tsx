@@ -58,7 +58,7 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
       {anchor?.sessionId === page.sessionId && <div aria-label="引用回忆">
         <blockquote>{page.messages.find((message) => message.id === anchor.messageId)?.text.slice(anchor.start, anchor.end)}</blockquote>
         <input aria-label="回忆问题" maxLength={4000} value={question} placeholder="想和她聊这段经历的什么？" onChange={(event) => setQuestion(event.target.value)} />
-        <button type="button" disabled={!question.trim() || snapshot.history?.recall.status === 'recalling' || !!snapshot.heartFlow?.activeId} onClick={() => void send({ type: 'history.recall', anchor, question })}>引用并回忆</button>
+        <button type="button" disabled={!question.trim() || snapshot.history?.recall.status === 'recalling'} onClick={() => void send({ type: 'history.recall', anchor, question })}>引用并回忆</button>
         <p role="status" data-recall-status={snapshot.history?.recall.status}>{snapshot.history?.recall.status === 'recalling' ? '正在回忆……' : snapshot.history?.recall.status === 'ready' ? '已回忆，可回到书本查看回复。' : snapshot.history?.recall.status === 'failed' ? '本次回忆未完成。' : '只引用她当时看见过的对话。'}</p>
       </div>}
       {page.truncated && <p>当前仅显示这一页末尾的有限聊天；完整记录仍在本机日志中。</p>}

@@ -1,5 +1,0 @@
-{
-  "name": "desk-coding",
-  "version": "1.1.0",
-  "steps": ["先用 desk_find、desk_read 和 desk_grep 理解现有书桌文件。", "用 update_plan 列出有边界的任务步骤；计划模式只读，等待用户批准执行。", "写文件用 desk_write，局部修改用唯一匹配的 desk_edit；保留系统生成的变更编号。", "run_javascript 申请纯 JavaScript：独立 Chromium worker，无 Node、网络、DOM 或系统文件，不能冒充 shell。实际命令用 run_command：Windows cmd、书桌不可变副本、无网络、逐次人工审批、展位禁用；不可用时不退回普通进程。", "核对进程退出码与 publication/appliedFiles；实际执行不等于文件已写回，部分写回和冲突如实说明。需要信息用 ask_user；回答不能替代运行审批。", "最终交代改动、验证与局限。退出后程序把文件与运行证据摘要接回原对话；文件内容和运行输出不当共同经历。"]
-}

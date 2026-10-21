@@ -175,13 +175,6 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
     }
   }
 
-  /** 预览里过一会儿再做（只用 requestAnimationFrame 和 performance.now，不碰 setTimeout） */
-  function later(ms: number, run: () => void) {
-    const startedAt = performance.now()
-    const wait = () => { if (performance.now() - startedAt < ms) requestAnimationFrame(wait); else run() }
-    requestAnimationFrame(wait)
-  }
-
   watch()
   return {
     get scenarioId() { return scenarioId },
@@ -319,33 +312,7 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
         commit({ gifts: { ...current.gifts, items: current.gifts.items.map((item) => item.id === gift.id ? { ...item, status: next } : item) } }, 'task')
         return ack(command)
       }
-      // 心流命令、回退、问答：只为在预览里看操作反馈（批准→运行→回执），不是真实执行
-      const flow = current.heartFlow
-      if (flow?.command && (command.type === 'flow.command.approve' || command.type === 'flow.command.cancel') && command.commandId === flow.command.id) {
-        const cmd = flow.command
-        if (command.type === 'flow.command.cancel' && ['preparing', 'running'].includes(cmd.status)) { commit({ heartFlow: { ...flow, command: { ...cmd, status: 'cancelled' } } }, 'task'); return ack(command) }
-        if (command.type !== 'flow.command.approve' || cmd.status !== 'awaiting-approval') return ack(command, 'unavailable')
-        if (!command.allow) { commit({ heartFlow: { ...flow, command: { ...cmd, status: 'cancelled' } } }, 'task'); return ack(command) }
-        commit({ heartFlow: { ...flow, command: { ...cmd, status: 'running' } } }, 'task')
-        later(1600, () => {
-          const now = current.heartFlow
-          if (now?.command?.id !== cmd.id || now.command.status !== 'running') return
-          commit({ heartFlow: { ...now, command: { ...now.command, status: 'completed', outcome: { exitCode: 0, elapsedMs: 1520, processTreeTerminated: false, publication: 'applied', changedFiles: 1, appliedFiles: 1 } } } }, 'task')
-        })
-        return ack(command)
-      }
-      if (flow?.rewind && (command.type === 'flow.rewind.apply' || command.type === 'flow.rewind.cancel') && command.rewindId === flow.rewind.id) {
-        const rewind = flow.rewind
-        if (command.type === 'flow.rewind.cancel') { if (!['awaiting-confirmation', 'running'].includes(rewind.status)) return ack(command, 'unavailable'); commit({ heartFlow: { ...flow, rewind: { ...rewind, status: 'cancelled' } } }, 'task'); return ack(command) }
-        if (rewind.status !== 'awaiting-confirmation') return ack(command, 'unavailable')
-        commit({ heartFlow: { ...flow, rewind: { ...rewind, status: 'running' } } }, 'task')
-        later(1400, () => {
-          const now = current.heartFlow
-          if (now?.rewind?.id !== rewind.id || now.rewind.status !== 'running') return
-          commit({ heartFlow: { ...now, rewind: { ...now.rewind, status: 'completed', appliedFiles: now.rewind.paths.length }, changes: now.changes.map((change) => ({ ...change, undone: true })) } }, 'task')
-        })
-        return ack(command)
-      }
+      // 问答：只为在预览里看操作反馈，不是真实执行
       if (current.question?.status === 'waiting' && (command.type === 'question.answer' || command.type === 'question.dismiss') && command.questionId === current.question.id) {
         const answered = command.type === 'question.answer'
         commit({ question: undefined, messages: answered ? [...current.messages, { id: `ans-${command.requestId}`, role: 'user', text: command.answer, createdAtMs: current.clock.nowMs, status: 'complete' }] : current.messages }, 'message')

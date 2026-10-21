@@ -3,7 +3,7 @@ import JSZip from 'jszip'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
-import { createManualClock, systemClock } from '../clock'
+import { createManualClock } from '../clock'
 import { openSessionStore } from '../store/session'
 import { openMemoryRepository } from '../memory/repository'
 import { openEvidenceVault } from '../mail/evidence-vault'
@@ -12,9 +12,7 @@ import { exportPrivateSave, stagePrivateSave, validatePrivateSave } from '../bac
 import { applyPendingRestore, queueRestore } from '../backup/restore'
 import { journalLocation } from '../journal/file'
 import { createDesk } from '../legacy-flow/desk'
-import { createHeartFlow } from '../heart-flow/service'
 import { appliedDeskChanges } from '../legacy-flow/changes'
-import type { AppCommand } from '../../shared'
 
 export async function probeBackup(root: string) {
   const clock = createManualClock(0); clock.advanceBy(clock.parse('2026-10-16T20:00:00+08:00'))
@@ -23,16 +21,13 @@ export async function probeBackup(root: string) {
   let stage = 0
   try {
     const desk = createDesk(join(root, 'desk'))
-    const flowOptions = { store, clock, desk, booth: false, busy: () => false, changed: () => {}, prepare: async () => ({ messages: [], eligibleIndexes: [] }), emit: () => {}, run: async () => '' }
-    const flow = createHeartFlow(flowOptions); flow.dispatch({ type: 'flow.enter' } as AppCommand)
-    await new Promise<void>((done) => systemClock.after(0, done)); if (!flow.active()) throw new Error('DESK_FLOW_ENTRY_FAILED')
-    flow.dispatch({ type: 'flow.mode', mode: 'execute' } as AppCommand); flow.write('saved.txt', '字'.repeat(21_333) + 'x')
-    const beforeInvalid = store.records().length
-    for (const text of ['字'.repeat(22_000), 'short\0text']) { let rejected = false; try { flow.write('invalid.txt', text) } catch { rejected = true }; if (!rejected) throw new Error('DESK_INVALID_ACCEPTED') }
-    if (store.records().length !== beforeInvalid) throw new Error('DESK_INVALID_INTENT_APPENDED')
-    const failedFlow = createHeartFlow({ ...flowOptions, desk: { ...desk, write: () => { throw new Error('SYNTHETIC_DISK_FAILURE') } } })
-    let failed = false; try { failedFlow.write('failed.txt', 'NEVER_WRITTEN') } catch { failed = true }; if (!failed) throw new Error('DESK_FAILURE_NOT_SIMULATED')
-    if (flow.dispatch({ type: 'flow.exit' } as AppCommand)) throw new Error('DESK_FLOW_EXIT_FAILED')
+    // Desk history as the retired heart flow left it: an applied write and a failed one.
+    const change = (path: string, after: string, status: 'applied' | 'failed') => {
+      const id = randomUUID(); store.append({ type: 'desk/change', id, path, before: null, after, pending: true })
+      if (status === 'applied') desk.write(path, after)
+      store.append({ type: 'desk/settled', id, status })
+    }
+    change('saved.txt', '字'.repeat(21_333) + 'x', 'applied'); change('failed.txt', 'NEVER_WRITTEN', 'failed')
     store.append({ type: 'user/message', id: 'saved-message', text: 'SYNTHETIC_SAVED_EXPERIENCE', requestId: 'saved-message', commandHash: 'probe' })
     const sourceRef = documents.put(new Uint8Array(Buffer.from('SYNTHETIC_PRIVATE_DOCUMENT')), 'text')
     const privateRef = evidence.put('synthetic', { uidValidity: '1', uid: 1, senderAddress: 'fixture@example.invalid', senderName: 'SYNTHETIC_SENDER', subject: 'SYNTHETIC_SUBJECT', body: 'RAW_ONLY_SAVED_MAIL', sentAtMs: clock.nowMs(), receivedAtMs: clock.nowMs() }, [])

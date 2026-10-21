@@ -30,8 +30,6 @@ export type AttentionKind = 'rest' | 'user' | 'task' | 'gift' | 'life' | 'idle'
 export interface AttentionView {
   kind: AttentionKind
   pose: 'sleeping' | 'facing-user' | 'desk-computer' | 'desk-writing'
-  /** A task exists and is waiting for the user; it does not occupy her time. */
-  taskWaiting: boolean
   focusRunning: boolean
 }
 export interface CompanionView {
@@ -120,45 +118,8 @@ export interface TaskView {
   steps: readonly PlanStep[]
   error?: PublicError
 }
-/** D1 task object view. Proposals and plans are not authorization; approval binds one plan version. */
-export type TaskCardStatus = 'proposed' | 'approved' | 'active' | 'completed' | 'abandoned' | 'failed'
-export interface TaskPlanView { version: number; source: 'model' | 'user'; steps: readonly PlanStep[] }
-export interface TaskApprovalView { planVersion: number; scope: { writes: 'desk'; commands: 'each' }; approvedAtMs: number }
-export interface TaskCheckpointView { id: string; summary: string; createdAtMs: number; source: 'model' | 'code'; evidenceSeqs?: readonly number[] }
-/** D4 handoff checkpoint. Evidence is code-collected; decisions quote real user messages only. */
-export interface TaskHandoffView {
-  id: string
-  taskId: string
-  planVersion: number
-  source: 'model' | 'fallback'
-  createdAtMs: number
-  completed: readonly string[]
-  decisions: readonly { messageId: string; text: string }[]
-  unresolved: readonly string[]
-  next: readonly string[]
-  evidence: {
-    changes: readonly { path: string; sha256: string }[]
-    commands: readonly { id: string; status: 'completed' | 'failed' | 'unknown' }[]
-    lifeWork: readonly { id: string; path: string; sha256: string }[]
-  }
-}
 /** D2 safety state for the currently running turn: third-party originals were part of its request. */
 export interface DegradedView { active: boolean; turnId: string; sources: readonly ('mail' | 'document' | 'web' | 'mcp' | 'plugin')[] }
-export interface TaskCardView {
-  id: string
-  title: string
-  goalId?: string
-  workspace: 'desk'
-  status: TaskCardStatus
-  plan?: TaskPlanView
-  approval?: TaskApprovalView
-  /** Latest D4 handoff checkpoint for this task; it becomes the B segment of later requests. */
-  latestHandoff?: TaskHandoffView
-  checkpoints: readonly TaskCheckpointView[]
-  createdAtMs: number
-  updatedAtMs: number
-  closedAtMs: number | null
-}
 export interface MessageView {
   id: string
   role: 'user' | 'assistant' | 'narrator'
@@ -252,7 +213,7 @@ export interface MailboxView {
   error?: PublicError
 }
 export interface CapabilityView {
-  id: 'chat' | 'pomodoro' | 'mail' | 'privacy' | 'memory' | 'backup' | 'mcp' | 'rodin' | 'heart-flow'
+  id: 'chat' | 'pomodoro' | 'mail' | 'privacy' | 'memory' | 'backup' | 'mcp' | 'rodin'
   status: Availability
   source: 'real' | 'fake' | 'none'
   error?: PublicError
@@ -475,7 +436,8 @@ export interface AppSnapshot {
   notifications?: NotificationsView
   diary?: DiaryView
   life?: LifeView
-  heartFlow?: HeartFlowView
+  /** Old heart-flow sessions, readable as history (the user settings page). */
+  legacyFlows?: readonly LegacyFlowSessionView[]
   protocolVersion: typeof PROTOCOL_VERSION
   epoch: string
   revision: number
@@ -484,10 +446,6 @@ export interface AppSnapshot {
   companion: CompanionView
   pomodoro: PomodoroView
   task: TaskView | null
-  /** D1 task objects. Optional so older renderer fixtures and pre-D1 snapshots stay valid. */
-  tasks?: readonly TaskCardView[]
-  /** The single task currently in hand, if any. */
-  activeTaskId?: string | null
   /** D2: present while the running turn's request contains third-party originals. */
   degraded?: DegradedView
   /** D3: what she currently has in hand; derived in main, never a permission grant. */
@@ -584,126 +542,8 @@ export interface LifeWorkView {
   materials: readonly { id: string; path: string; sha256: string; source: 'fake' }[]
   jobs: readonly LifeWorkItem[]
 }
-export interface FlowGoalView {
-  id: string
-  text: string
-  status: 'active' | 'completed' | 'cancelled'
-  createdAtMs: number
-  updatedAtMs: number
-  closedAtMs: number | null
-  flowIds: readonly string[]
-  /** A user's status decision, never proof that the model performed an external action. */
-  confirmedBy: 'user'
-}
-export interface FlowOperationView {
-  id: string
-  flowId: string
-  kind: 'init' | 'review'
-  /** ready means an actual unreviewed draft file exists, never that code passed review or tests. */
-  status: 'running' | 'ready' | 'failed' | 'cancelled'
-  source: 'real' | 'fake'
-  sourceCount: number
-  omittedSourceCount: number
-  outputPath: string
-  createdAtMs: number
-  updatedAtMs: number
-  artifact?: { changeId: string; sha256: string; byteLength: number }
-  error?: 'no-product' | 'source-changed' | 'interrupted' | 'cancelled' | 'unavailable'
-}
-export interface HeartFlowView {
-  activeId: string | null
-  mode: 'plan' | 'execute'
-  execution: 'javascript-sandbox' | 'disabled'
-  /** Independent from the JavaScript worker; missing means this backend is not installed. */
-  commandExecution?: 'windows-appcontainer' | 'unavailable' | 'disabled'
-  /** User-only command text and execution receipts. stdout/stderr never enter snapshots. */
-  command?: DeskCommandView
-  /** Metadata only. Rewinds recorded desk files, never shell/network side effects or log history. */
-  rewind?: FlowRewindView
-  /** Source and output text are user-only; models obtain approved work through desk tools. */
-  pending?: { id: string; code: string }
-  files: readonly { path: string; byteLength: number }[]
-  changes: readonly { id: string; path: string; undone: boolean; shadow?: DeskShadowView }[]
-  sessions: readonly { id: string; startedAtMs: number; endedAtMs: number | null; summary: string | null }[]
-  lastRun?: { ok: boolean; output: string }
-  /** Metadata-only subordinate work. Conclusions are unreviewed tool results for the parent flow. */
-  delegates?: readonly DelegateView[]
-  /** Scoped across day pages and flow instances. Only explicit user commands may edit or close. */
-  goals?: readonly FlowGoalView[]
-  goalId?: string | null
-  /** User-only draft metadata. Contents stay in the desk/work context and native preview. */
-  operations?: readonly FlowOperationView[]
-  computer?: DeskComputerView
-  webFetch?: FlowFetchView
-}
-
-export interface FlowRewindView {
-  id: string
-  changeId: string
-  createdAtMs: number
-  status: 'awaiting-confirmation' | 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted'
-  paths: readonly string[]
-  changeCount: number
-  /** Confirmed per-file writes. Cross-file publication is not atomic. */
-  appliedFiles: number
-  error?: 'conflict' | 'write-failed' | 'unavailable'
-}
-
-export interface DeskCommandView {
-  id: string
-  shell: 'cmd'
-  scope: 'desk-snapshot'
-  command: string
-  timeoutMs: number
-  createdAtMs: number
-  status: 'preparing' | 'awaiting-approval' | 'running' | 'completed' | 'failed' | 'cancelled'
-  fileCount: number
-  /** Immutable snapshot of approved inputs. No absolute path or source text. */
-  snapshotHash?: string
-  outcome?: {
-    exitCode: number | null
-    /** Null when a crash left no durable process receipt. */
-    elapsedMs: number | null
-    processTreeTerminated: boolean | null
-    /** Unknown never implies no effects; appliedFiles remains confirmed evidence. */
-    publication: 'unchanged' | 'applied' | 'not-applied' | 'partial' | 'unknown'
-    changedFiles: number | null
-    /** Confirmed publications; a lower bound when publication is unknown. */
-    appliedFiles: number
-  }
-  error?: PublicError
-}
-export interface FlowFetchView {
-  source: 'real' | 'fake'
-  requestsUsed: number
-  maxRequests: number
-  pending?: { id: string; url: string }
-  status: 'idle' | 'waiting-approval' | 'fetching'
-  last?: { url: string; status: 'fetched' | 'denied' | 'failed' | 'cancelled'; atMs: number; receivedBytes?: number; truncated?: boolean }
-}
-export type DeskComputerAction = { type: 'click'; x: number; y: number } | { type: 'type'; text: string } | { type: 'key'; key: 'TAB' | 'ENTER' | 'ESCAPE' | 'BACKSPACE' }
-/** An isolated static HTML desk preview, never the user's whole computer or an existing application. */
-export interface DeskComputerView {
-  status: 'closed' | 'opening' | 'ready' | 'waiting-approval' | 'acting' | 'failed'
-  target?: { path: string; sha256: string }
-  frame?: { ref: string; sha256: string; width: number; height: number; capturedAtMs: number }
-  pending?: { id: string; frameRef: string; action: DeskComputerAction }
-  actionsUsed: number
-  maxActions: number
-  /** Scripts/network/downloads/filesystem are disabled. Reopening never inherits action approval. */
-  scope: 'static-desk-preview'
-  error?: PublicError
-}
-export interface DelegateView {
-  id: string
-  flowId: string
-  status: 'running' | 'completed' | 'failed' | 'cancelled'
-  source: 'real' | 'fake'
-  sourceCount: number
-  createdAtMs: number
-  updatedAtMs: number
-  error?: 'unavailable' | 'cancelled' | 'timeout' | 'invalid-output' | 'interrupted'
-}
+/** A session of the retired heart flow (releases before 1.1): history only. */
+export interface LegacyFlowSessionView { id: string; startedAtMs: number; endedAtMs: number | null; summary: string | null }
 /** Explicit user lookup only. Raw desk diffs never enter snapshots, debug MCP or ordinary memory. */
 export interface HeartFlowInspection {
   flowId: string
@@ -783,15 +623,14 @@ export type UserQuestionView = {
   id: string
   taskId: string
   createdAtMs: number
-  context: 'conversation' | 'work'
+  /** `approval`: LCA asks on her behalf (DSH permissions); only the choices answer it. */
+  kind?: 'approval'
 } & ({ status: 'queued' } | {
   status: 'waiting'
   question: string
   choices: readonly string[]
   /** Main-owned ten-minute visible-time deadline; quiet/focus time does not consume it. */
   expiresAtMs: number
-  /** `approval`: LCA asks on her behalf (DSH permissions); only the choices answer it. */
-  kind?: 'approval'
 })
 export interface VoiceRead {
   utteranceId: string

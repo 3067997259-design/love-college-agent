@@ -73,40 +73,21 @@ try {
   await mark('focus-mini-real-reading-writing-and-rest-expand')
   await chat('我给纸桥取名叫晚风桥。', 'SYNTHETIC_SHARED_REPLY'); await chat('这座纸桥叫晚风桥。', 'SYNTHETIC_SECOND_REPLY')
   const firstMessage = (await snapshot()).messages.find((message) => message.role === 'user' && message.text === '我给纸桥取名叫晚风桥。')
-  await accepted({ type: 'flow.enter' }); await accepted({ type: 'flow.mode', mode: 'execute' })
+  // A question she asks mid-turn waits out quiet time, then the turn finishes with your answer.
   await script([
-    { text: '', toolCalls: [
-      { id: 'showcase-write', name: 'desk_write', arguments: JSON.stringify({ path: 'showcase.md', text: 'PRIVATE_SHOWCASE_WORK_BODY' }) },
-      { id: 'showcase-question', name: 'ask_user', arguments: JSON.stringify({ question: '用哪种格式记下这份合成结果？', choices: ['Markdown', 'Text'] }) },
-    ], delayMs: 0 },
-    { text: '', toolCalls: [{ id: 'showcase-command', name: 'run_command', arguments: JSON.stringify({ command: 'echo SYNTHETIC_TERMINAL>command-proof.txt' }) }], delayMs: 0 },
-    { text: '', toolCalls: [
-      { id: 'rewind-one', name: 'desk_write', arguments: JSON.stringify({ path: 'rewind-first.txt', text: 'one' }) },
-      { id: 'rewind-two', name: 'desk_write', arguments: JSON.stringify({ path: 'rewind-second.txt', text: 'two' }) },
-      { id: 'rewind-three', name: 'desk_write', arguments: JSON.stringify({ path: 'rewind-first.txt', text: 'three' }) },
-    ], delayMs: 0 },
+    { text: '', toolCalls: [{ id: 'showcase-question', name: 'ask_user', arguments: JSON.stringify({ question: '用哪种格式记下这份合成结果？', choices: ['Markdown', 'Text'] }) }], delayMs: 0 },
     { text: 'SYNTHETIC_WORK_SAVED', toolCalls: [], delayMs: 0 },
   ])
-  await accepted({ type: 'message.send', text: '保存合成书桌草稿，核对格式后用隔离命令写一份证明，再留下两份可回退草稿。' })
-  await waitFor((s) => s.question?.status === 'queued', 'WORK_QUESTION_NOT_QUEUED'); await accepted({ type: 'mode.set', mode: 'rest' })
-  await waitFor((s) => s.question?.status === 'waiting', 'WORK_QUESTION_NOT_VISIBLE'); await page.getByRole('textbox', { name: '你的回答', exact: true }).fill('Markdown'); await page.getByRole('button', { name: '回答', exact: true }).click()
-  await waitFor((s) => s.heartFlow.command?.status === 'awaiting-approval', 'COMMAND_APPROVAL_MISSING')
-  await page.getByRole('button', { name: '运行这条命令', exact: true }).click(); await waitFor((s) => s.task?.status === 'completed', 'FLOW_WRITE_FAILED')
-  assert.equal((await snapshot()).heartFlow.command.outcome.publication, 'applied'); assert.equal((await readFile(join(desk, 'command-proof.txt'), 'utf8')).trim(), 'SYNTHETIC_TERMINAL')
-  assert.equal(await readFile(join(desk, 'showcase.md'), 'utf8'), 'PRIVATE_SHOWCASE_WORK_BODY')
-  const boundary = (await snapshot()).heartFlow.changes.find((change) => change.path === 'rewind-first.txt').id
-  await accepted({ type: 'flow.rewind.prepare', changeId: boundary }); assert.equal((await snapshot()).heartFlow.rewind.paths.length, 2)
-  await page.getByRole('button', { name: '确认回退这些文件', exact: true }).click(); await waitFor((s) => s.heartFlow.rewind?.status === 'completed', 'STEP_REWIND_FAILED')
-  assert.equal((await snapshot()).heartFlow.rewind.appliedFiles, 2); await assert.rejects(readFile(join(desk, 'rewind-first.txt')), { code: 'ENOENT' }); await assert.rejects(readFile(join(desk, 'rewind-second.txt')), { code: 'ENOENT' })
-  assert.equal((await readFile(join(desk, 'command-proof.txt'), 'utf8')).trim(), 'SYNTHETIC_TERMINAL'); await mark('bounded-question-real-command-and-multi-file-rewind')
+  await accepted({ type: 'message.send', text: '这份合成结果用哪种格式记下来，你问我一下。' })
+  await waitFor((s) => s.question?.status === 'queued', 'QUESTION_NOT_QUEUED'); await accepted({ type: 'mode.set', mode: 'rest' })
+  await waitFor((s) => s.question?.status === 'waiting', 'QUESTION_NOT_VISIBLE'); await page.getByRole('textbox', { name: '你的回答', exact: true }).fill('Markdown'); await page.getByRole('button', { name: '回答', exact: true }).click()
+  await waitFor((s) => s.task?.status === 'completed' && s.messages.some((message) => message.text === 'SYNTHETIC_WORK_SAVED'), 'QUESTION_TURN_FAILED'); await mark('bounded-question')
   await script([0, 1, 2].map((index) => ({ text: '', toolCalls: [{ id: 'bounded-clock-' + index, name: 'get_clock', arguments: '{}' }], delayMs: 0 })))
   await accepted({ type: 'message.send', text: '合成执行上限场景：重复调用同一个只读时钟。' }); await waitFor((s) => s.task?.status === 'failed' && s.task.error.code === 'repeat-limit' && s.messages.some((message) => message.failure?.turnId === s.task.id), 'FAILURE_NARRATION_MISSING')
   const failed = await snapshot(); const failure = failed.messages.find((message) => message.failure?.turnId === failed.task.id)
   assert.equal(failure.failure.category, 'execution-guard'); await accepted({ type: 'mode.set', mode: 'quiet' })
-  await accepted({ type: 'flow.exit' })
-  assert.ok(!(await snapshot()).messages.some((message) => message.id === failure.id))
   await chat('工作告一段落，我们回到书页继续聊纸桥。', 'SYNTHETIC_ORDINARY_AFTER_WORK')
-  safe(await debug('get_context')); await mark('bounded-failure-narration-stays-in-work')
+  safe(await debug('get_context')); await mark('bounded-failure-narration')
   // A later automatic gift photo may fail during page transitions even when the day's work photo
   // already exists. Settle that attempt, then exercise the real manual retry instead of waiting for
   // an idle status that cannot reappear while this scenario's business clock is frozen.
@@ -131,8 +112,7 @@ try {
   assert.equal((await snapshot()).backup.status, 'restored'); assert.equal((await snapshot()).scope.sessionId, oldSession)
   assert.equal((await snapshot()).history.photos.find((item) => item.id === photo.id).imageUrl, photo.imageUrl)
   assert.equal(sha(await readFile(join(desk, reading.output.path), 'utf8')), reading.output.sha256); assert.equal(sha(await readFile(join(desk, writing.output.path), 'utf8')), writing.output.sha256)
-  assert.equal(await readFile(join(desk, 'showcase.md'), 'utf8'), 'PRIVATE_SHOWCASE_WORK_BODY'); assert.equal((await snapshot()).candidates.filter((item) => item.status === 'confirmed').length, 2)
-  assert.equal((await readFile(join(desk, 'command-proof.txt'), 'utf8')).trim(), 'SYNTHETIC_TERMINAL'); await assert.rejects(readFile(join(desk, 'rewind-first.txt')), { code: 'ENOENT' }); assert.ok(!(await snapshot()).heartFlow.command)
+  assert.equal((await snapshot()).candidates.filter((item) => item.status === 'confirmed').length, 2)
   safe(await snapshot()); await mark('safe-day-rollover-recall-restart-and-exact-restore')
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results/showcase.png') })
   await writeFile(join(root, 'test-results/showcase-report.json'), JSON.stringify({ ok: true, atIso: new Date().toISOString(), stages: proof, oneProfile: true, syntheticServices: true, acceleratedClock: true, executable: process.env.LCA_TEST_EXECUTABLE ? 'explicit-build' : 'source-electron', longTermRuntimeAccepted: false }, null, 2))

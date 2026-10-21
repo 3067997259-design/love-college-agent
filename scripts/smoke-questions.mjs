@@ -77,13 +77,6 @@ try {
   await page.getByRole('button', { name: '这次先跳过', exact: true }).click(); await waitFor((s) => s.task?.status === 'completed' && !s.question, 'DISMISS_NOT_COMPLETED')
   await send({ type: 'pomodoro.stop' }); await send({ type: 'mode.set', mode: 'rest' })
 
-  await send({ type: 'flow.enter' }); await waitFor((s) => s.heartFlow?.activeId, 'FLOW_MISSING')
-  await script('WORK_QUESTION_CANARY'); await send({ type: 'message.send', text: 'work question scope test' }); await waitFor((s) => s.question?.status === 'waiting', 'WORK_QUESTION_MISSING')
-  const workTurn = (await snapshot()).task.id; assert.equal((await snapshot()).question.context, 'work')
-  await send({ type: 'question.answer', questionId: (await snapshot()).question.id, answer: 'WORK_REPLY_CANARY' }); await waitFor((s) => s.task?.id === workTurn && s.task.status === 'completed', 'WORK_ANSWER_NOT_COMPLETED')
-  rows = await records(); for (const row of rows.filter((r) => r.type === 'model/seen' && r.turnId === workTurn)) assert.deepEqual(row.eligibleIndexes, [])
-  await send({ type: 'flow.exit' }); await debug('set_fake_model', { script: [step([], 'ordinary response')] }); await send({ type: 'message.send', text: 'ordinary after work' }); await waitFor((s) => s.task?.status === 'completed', 'ORDINARY_NOT_COMPLETED')
-  rows = await records(); const ordinary = rows.filter((r) => r.type === 'model/seen').at(-1); assert.ok(!JSON.stringify(ordinary).includes('WORK_REPLY_CANARY')); assert.ok(!JSON.stringify(ordinary).includes('WORK_QUESTION_CANARY'))
 
   await script('STOP_QUESTION_CANARY'); await send({ type: 'message.send', text: 'stop pending question' }); await waitFor((s) => s.question?.status === 'waiting', 'STOP_QUESTION_MISSING')
   const stopped = await snapshot(); await send({ type: 'turn.stop', taskId: stopped.task.id }); await waitFor((s) => s.task?.status === 'aborted' && !s.question, 'STOP_NOT_ABORTED')
@@ -103,15 +96,19 @@ try {
   console.log(JSON.stringify({ ok: true, probe: 'questions', source: 'synthetic', nativeSQLite: true, uiAnswer: true, wholeToolBatchOrdering: true, actualHttpSerialization: true, focusToRest: true, bookOnly: true, workIsolation: true, stop: true, restartNoReplay: true, privateRestore: true }))
 } finally { await close() }
 
+// A normal (non-developer) book runs her turns on DSH: LCA's tools carry an lca_ prefix there, and your answer comes back
+// as the result of her question.
 async function normalHttp() {
   const requests = []; const normalData = join(data, 'normal-http'); await mkdir(normalData, { recursive: true })
+  const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part?.text ?? '').join('')
   const frame = (delta, finish_reason) => `data: ${JSON.stringify({ choices: [{ index: 0, delta, finish_reason }] })}\n\n`
   const server = createServer(async (req, res) => {
     let input = ''; for await (const chunk of req) input += chunk
-    requests.push(JSON.parse(input)); res.writeHead(200, { 'Content-Type': 'text/event-stream' })
+    const body = JSON.parse(input); requests.push(body); res.writeHead(200, { 'Content-Type': 'text/event-stream' })
+    const toolName = (name) => body.tools?.some((tool) => (tool.function?.name ?? tool.name) === 'lca_' + name) ? 'lca_' + name : name
     const delta = requests.length === 1 ? { tool_calls: [
-      { index: 0, id: 'http-ask', type: 'function', function: { name: 'ask_user', arguments: '{"question":"HTTP_QUESTION"}' } },
-      { index: 1, id: 'http-clock', type: 'function', function: { name: 'get_clock', arguments: '{}' } },
+      { index: 0, id: 'http-ask', type: 'function', function: { name: toolName('ask_user'), arguments: '{"question":"HTTP_QUESTION"}' } },
+      { index: 1, id: 'http-clock', type: 'function', function: { name: toolName('get_clock'), arguments: '{}' } },
     ] } : { content: 'HTTP_FINAL' }
     res.end(frame(delta, requests.length === 1 ? 'tool_calls' : 'stop') + 'data: [DONE]\n\n')
   })
@@ -123,7 +120,7 @@ async function normalHttp() {
     await send({ type: 'question.answer', questionId: (await snapshot()).question.id, answer: 'HTTP_USER_ANSWER' }); await waitFor((s) => s.task?.status === 'completed', 'HTTP_ANSWER_FAILED')
     assert.equal(requests.length, 2); const messages = requests[1].messages; const batch = messages.findIndex((m) => m.role === 'assistant' && m.tool_calls?.length === 2)
     assert.ok(batch >= 0); assert.deepEqual(messages.slice(batch, batch + 3).map((m) => m.role), ['assistant', 'tool', 'tool']); assert.deepEqual(messages.slice(batch + 1, batch + 3).map((m) => m.tool_call_id), ['http-ask', 'http-clock'])
-    const answer = messages.findIndex((m) => m.role === 'user' && m.content === 'HTTP_USER_ANSWER'); assert.ok(answer > batch + 2)
+    assert.ok(textOf(messages[batch + 1].content).includes('HTTP_USER_ANSWER'), 'HTTP_ANSWER_NOT_RETURNED')
     const s = await snapshot(); assert.ok(!JSON.stringify(s).includes('synthetic-question-private-key')); assert.ok(s.messages.some((m) => m.text === 'HTTP_FINAL'))
   } finally { await close(); server.closeAllConnections(); await new Promise((done) => server.close(done)) }
 }

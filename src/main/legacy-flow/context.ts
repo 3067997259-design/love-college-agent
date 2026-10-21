@@ -8,7 +8,3 @@ export function flowContexts(store: SessionStore, includeEntries = true) {
   const spans = rows.flatMap((row, start) => row.type === 'flow/open' ? [{ id: row.id, start, end: rows.findIndex((other) => other.type === 'flow/close' && other.id === row.id) }] : [])
   return { rows, context, spans, positions }
 }
-export function normalContextAllowedSeqs(store: SessionStore, seqs: readonly number[]) {
-  const { positions, spans } = flowContexts(store, false)
-  return new Set(seqs.filter((seq) => { const position = positions.get(store.scope.sessionId + ':' + seq) ?? -1; return !spans.some((span) => position > span.start && (span.end < 0 || position < span.end)) }))
-}

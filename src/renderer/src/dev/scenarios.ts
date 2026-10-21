@@ -20,7 +20,7 @@ const T = {
 const MIN = 60_000
 
 const capabilities = (overrides: Partial<Record<CapabilityView['id'], Partial<CapabilityView>>> = {}): CapabilityView[] =>
-  (['chat', 'pomodoro', 'mail', 'privacy', 'memory', 'backup', 'mcp', 'rodin', 'heart-flow'] as const).map((id) => ({
+  (['chat', 'pomodoro', 'mail', 'privacy', 'memory', 'backup', 'mcp', 'rodin'] as const).map((id) => ({
     id, status: 'ready', source: 'fake', ...overrides[id],
   }))
 
@@ -116,14 +116,6 @@ const base: AppSnapshot = {
 }
 
 const scenario = (patch: (s: AppSnapshot) => Partial<AppSnapshot>): AppSnapshot => ({ ...base, ...patch(base) })
-
-/** 心流工作台的共同底子：已经写了一份清单，正在执行模式 */
-const flowBase = (): NonNullable<AppSnapshot['heartFlow']> => ({
-  activeId: 'flow-1', mode: 'execute', execution: 'javascript-sandbox',
-  files: [{ path: '整理/作业清单.md', byteLength: 420 }],
-  changes: [{ id: 'c1', path: '整理/作业清单.md', undone: false }],
-  sessions: [{ id: 'flow-1', startedAtMs: T.sat1420, endedAtMs: null, summary: null }],
-})
 
 export const SCENARIOS = {
   /** 早晨，她在房间里，面向你；有一封新邮件，信箱口露出一封信 */
@@ -303,76 +295,11 @@ export const SCENARIOS = {
     capabilities: capabilities({ mail: { status: 'ready' } }),
   })),
 
-  /** 书桌心流：可写执行中，她要运行一段代码等你批准；一个分身在查、一个已交回（右页工作视图） */
-  'flow-working': scenario((s) => ({
-    clock: { ...s.clock, nowMs: T.sat1420 + 12 * MIN },
-    companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'think' },
-    heartFlow: {
-      activeId: 'flow-1', mode: 'execute', execution: 'javascript-sandbox',
-      pending: { id: 'run-2', code: "const due = ['10-21 12:00', '10-26 23:59', '10-19 20:00']\nreturn due.sort().join('\\n')" },
-      files: [{ path: '整理/作业清单.md', byteLength: 420 }, { path: 'answer.js', byteLength: 9 }],
-      changes: [{ id: 'c1', path: 'answer.js', undone: true }, { id: 'c2', path: '整理/作业清单.md', undone: false }],
-      sessions: [{ id: 'flow-1', startedAtMs: T.sat1420, endedAtMs: null, summary: null }],
-      lastRun: { ok: true, output: '3 项待办，最早的周一 20:00' },
-      delegates: [
-        { id: 'd1', flowId: 'flow-1', status: 'completed', source: 'fake', sourceCount: 2, createdAtMs: T.sat1420 + 4 * MIN, updatedAtMs: T.sat1420 + 6 * MIN },
-        { id: 'd2', flowId: 'flow-1', status: 'running', source: 'fake', sourceCount: 3, createdAtMs: T.sat1420 + 10 * MIN, updatedAtMs: T.sat1420 + 11 * MIN },
-      ],
-    },
-    messages: [
-      msg('m1', 'user', '把这周的作业整理成一张清单，放在书桌上。', T.sat1420),
-      msg('m2', 'assistant', '先列计划：读三封邮件里的要求，按截止时间排，写进“整理/作业清单.md”。批准了我再动笔。', T.sat1420 + MIN, { emotion: 'think' }),
-      msg('m3', 'assistant', '清单写好了。我想再核对一遍时间顺序，这一段要运行一下，等你点头。', T.sat1420 + 11 * MIN, { emotion: 'calm' }),
-    ],
-  })),
-
-  /** 心流里她要在书桌副本上运行一条真正的命令：命令原文、解码后的脚本、范围和输入指纹，等你逐次批准 */
-  'flow-command': scenario((s) => ({
-    clock: { ...s.clock, nowMs: T.sat1420 + 16 * MIN },
-    companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'think' },
-    heartFlow: {
-      ...flowBase(),
-      commandExecution: 'windows-appcontainer',
-      command: { id: 'cmd-1', shell: 'cmd', scope: 'desk-snapshot', command: 'powershell -NoProfile -NonInteractive -EncodedCommand JABmAGkAbABlAHMAIAA9ACAARwBlAHQALQBDAGgAaQBsAGQASQB0AGUAbQAgAC0ATABpAHQAZQByAGEAbABQAGEAdABoACAAIgB0ZQZ0IgAgAC0ARgBpAGwAZQAKACIAcVEgAHsAMAB9ACAA/U4iACAALQBmACAAJABmAGkAbABlAHMALgBDAG8AdQBuAHQAIAB8ACAAUwBlAHQALQBDAG8AbgB0AGUAbgB0ACAALQBMAGkAdABlAHIAYQBsAFAAYQB0AGgAIAAiAHRlBnQvAN9+oYsuAHQAeAB0ACIAIAAtAEUAbgBjAG8AZABpAG4AZwAgAHUAdABmADgA',
-        timeoutMs: 30_000, createdAtMs: T.sat1420 + 15 * MIN, status: 'awaiting-approval', fileCount: 3, snapshotHash: '9f2c4e81b07d3a65c1e2f4a8d9b0c7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0' },
-    },
-    messages: [
-      msg('m1', 'user', '数一下整理文件夹里有几份文件，写进统计.txt。', T.sat1420 + 14 * MIN),
-      msg('m2', 'assistant', '要在书桌副本上跑一条 PowerShell。脚本在下面，你看一眼再批。', T.sat1420 + 15 * MIN, { emotion: 'think' }),
-    ],
-  })),
-
-  /** 命令跑完：退出码、用时、写回收据；写回结果不确定时明确说“不确定”，已核实的写回数只是下限 */
-  'flow-command-done': scenario((s) => ({
-    clock: { ...s.clock, nowMs: T.sat1420 + 18 * MIN },
-    companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'calm' },
-    heartFlow: {
-      ...flowBase(),
-      commandExecution: 'windows-appcontainer',
-      command: { id: 'cmd-1', shell: 'cmd', scope: 'desk-snapshot', command: 'cmd /d /c "dir /b 整理 > 整理\\目录.txt"',
-        timeoutMs: 30_000, createdAtMs: T.sat1420 + 15 * MIN, status: 'failed', fileCount: 3, snapshotHash: '9f2c4e81b07d3a65c1e2f4a8d9b0c7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0',
-        outcome: { exitCode: 0, elapsedMs: 1840, processTreeTerminated: true, publication: 'unknown', changedFiles: null, appliedFiles: 1 } },
-    },
-    messages: [msg('m1', 'assistant', '命令跑完了，但写回的时候断了一下，我先不说写好了。你看一下收据。', T.sat1420 + 17 * MIN, { emotion: 'worried' })],
-  })),
-
-  /** 从某一步往后回退：列出会回退的文件，你核对后再确认；多文件不是原子的，命令的其他副作用不撤回 */
-  'flow-rewind': scenario((s) => ({
-    clock: { ...s.clock, nowMs: T.sat1420 + 20 * MIN },
-    companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'calm' },
-    heartFlow: {
-      ...flowBase(),
-      changes: [{ id: 'c1', path: '整理/作业清单.md', undone: false }, { id: 'c2', path: '整理/统计.txt', undone: false }, { id: 'c3', path: '整理/目录.txt', undone: false }],
-      rewind: { id: 'rw-1', changeId: 'c1', createdAtMs: T.sat1420 + 19 * MIN, status: 'awaiting-confirmation', paths: ['整理/作业清单.md', '整理/统计.txt', '整理/目录.txt'], changeCount: 4, appliedFiles: 0 },
-    },
-    messages: [msg('m1', 'user', '清单那一步之后的都不要了，回到那之前。', T.sat1420 + 19 * MIN)],
-  })),
-
   /** 她需要你补充一点信息：问题和几个选项，回答只补充信息，不等于授权运行或确认 */
   'ask-question': scenario((s) => ({
     clock: { ...s.clock, nowMs: T.sat1445 + 2 * MIN },
     companion: { ...s.companion, mode: 'rest', pose: 'facing-user', expression: 'think' },
-    question: { id: 'q-1', taskId: 'task-q', createdAtMs: T.sat1445 + MIN, context: 'conversation', status: 'waiting',
+    question: { id: 'q-1', taskId: 'task-q', createdAtMs: T.sat1445 + MIN, status: 'waiting',
       question: '分享会的报名截止是周三中午，还是周三晚上？两封邮件写得不一样。', choices: ['周三 12:00', '周三 20:00', '我也不确定'], expiresAtMs: T.sat1445 + 11 * MIN },
     messages: [
       msg('m1', 'user', '帮我把流萤学社的分享会排进日程。', T.sat1445),
@@ -401,7 +328,6 @@ export const SCENARIOS = {
         items: [{ text: '数据结构第三次作业', count: 11, assist: false }, { text: '一起过一遍新邮件', count: 1, assist: true }] } },
     candidates: [{ ...candidates[1], id: 'cand-long', title: '流萤学社 × 东区图书馆联合举办的第十七届“夜读与远行”主题经验分享会暨新学期社团招新说明会（需提前在线报名并填写问卷）', locationText: '东区第二教学楼 316 室（若人数超过一百二十人则改到西区报告厅，届时以群公告为准）' }],
     deliveries: [{ ...deliveries[1], id: 'dlv-long', displayName: '第三次作业要求与评分细则·整理版（含助教十月二十四日更正与附录B的全部示例代码说明）.md' }],
-    heartFlow: { ...flowBase(), changes: [{ id: 'c1', path: '整理/2026秋季学期/数据结构与算法基础/第三次作业/参考资料/助教更正版评分细则与示例代码说明.md', undone: false }] },
     messages: [
       msg('m1', 'user', '这个链接帮我看看：https://elearning.example.edu.cn/webapps/blackboard/content/listContent.jsp?course_id=_123456_1&content_id=_7890123_1&mode=reset', T.sat1445 + 2 * MIN),
       msg('m2', 'assistant', '这个页面要登录才能看，我这里打不开。文件我放在 书桌/整理/2026秋季学期/数据结构与算法基础/第三次作业/助教更正版评分细则与示例代码说明.md 了，你先看这一份。', T.sat1445 + 3 * MIN, { emotion: 'think' }),

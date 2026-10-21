@@ -1,9 +1,6 @@
 import { z } from 'zod'
-import { commandOutcome } from '../desk-command/schema'
-import { rewindSchema } from '../heart-flow/rewind'
 import { failureViewSchema } from '../harness/failure'
-import { goalSchema } from '../heart-flow/goals'
-import { operationSchema } from '../heart-flow/operations'
+import { commandOutcome, delegateOutput, delegateState, goalSchema, operationSchema, rewindSchema } from '../legacy-flow/schemas'
 import { PUBLIC_ERROR_CODES } from '../../shared'
 import { viewSchema } from '../pomodoro/schema'
 import { artifactSchema, candidateSchema, deliverySchema, mailboxSchema, mailFactsSchema, opaqueId } from '../campus/schema'
@@ -18,7 +15,6 @@ import { diarySchema } from '../diary/schema'
 import { notificationRule } from '../notifications/schema'
 import { definitionSchema } from '../characters/package'
 import { historyPhotoSchema, recallAnchorSchema } from '../history/schema'
-import { delegateState, delegateOutput } from '../delegates/schema'
 import { opticalFrame, opticalImpression, opticalTier } from '../optical/schema'
 
 const id = z.string().min(1).max(128)

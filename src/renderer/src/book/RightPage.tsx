@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ActivityView, AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanView, QuillView, TaskCardView, TaskView } from '../../../shared'
+import type { ActivityView, AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanView, QuillView, TaskView } from '../../../shared'
 import { ActivityFold, CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
-import { TaskObjectCard } from './task/ObjectCard'
 import { sourceText } from './life/text'
 import book from '../voice/book.zh.json'
 import slash from '../voice/slash.zh.json'
@@ -11,10 +10,8 @@ import { civilFromDays, formatClock } from './format'
 import { rhythmText, tomatoStates } from './plan'
 import { useCountdown } from './useCountdown'
 import { FileIntake } from '../tools/FileIntake'
-import { FlowApproval } from './flow/FlowPanel'
 import { QuestionControls } from './QuestionControls'
-import { CommandDock, Notice } from './CommandControls'
-import { RewindDock } from './RewindControls'
+import { Notice } from './Notice'
 import { FailureDetails } from './FailureDetails'
 import failureWords from '../voice/failure.zh.json'
 import { quoteOnPage } from './history/quote'
@@ -30,7 +27,6 @@ type Item =
   | { kind: 'gift'; at: number; id: string; view: QuillView }
   | { kind: 'made'; at: number; id: string; view: GeneratedGiftView }
   | { kind: 'task'; at: number; id: string }
-  | { kind: 'task-object'; at: number; id: string; view: TaskCardView }
   | { kind: 'activities'; at: number; id: string; view: readonly ActivityView[] }
 
 /** 送出了的礼物（主进程判定 given 才算）：在送出的那一刻进对话 */
@@ -124,7 +120,6 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
     ...(quill?.state === 'given' && quill.givenAtMs !== null ? [{ kind: 'gift' as const, at: quill.givenAtMs, id: quill.id, view: quill }] : []),
     ...givenGifts(snapshot).map((view) => ({ kind: 'made' as const, at: view.givenAtMs!, id: view.id, view })),
     ...(task ? [{ kind: 'task' as const, at: taskAt(task, activities, lastUserAt), id: task.id }] : []),
-    ...(snapshot.tasks ?? []).map((view) => ({ kind: 'task-object' as const, at: view.createdAtMs, id: 'task-object:' + view.id, view })),
   ].sort((a, b) => a.at - b.at)
 
   // 只在你本来就看着最新一句时跟着滚；你往上翻旧消息时，她说话、来卡片都不把你拽回底部。翻回底部或你发消息时重新跟随。
@@ -139,7 +134,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => { if (event.nativeEvent.offsetX > event.currentTarget.clientWidth) dragging.current = true },
     onPointerUp: () => { dragging.current = false },
   }
-  const dockKey = [snapshot.question?.id, snapshot.question?.status, snapshot.heartFlow?.command?.status, snapshot.heartFlow?.rewind?.status, snapshot.heartFlow?.pending?.id].join(':')
+  const dockKey = [snapshot.question?.id, snapshot.question?.status].join(':')
   useEffect(() => {
     const el = streamRef.current
     if (el && pinned.current) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
@@ -202,11 +197,6 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
             }
             case 'task': return task && <TaskCard key={item.id} task={task} activities={activities} />
             case 'activities': return <ActivityFold key={item.id} activities={item.view} />
-            case 'task-object': return (
-              <TaskObjectCard key={item.id} view={item.view}
-                onApprove={(taskId, planVersion) => { void dispatch({ type: 'task.approve', taskId, planVersion }) }}
-                onClose={(taskId, status) => { void dispatch({ type: 'task.close', taskId, status }) }} />
-            )
             case 'candidate': return (
               <CandidateCard key={`${item.id}:${item.view.revision ?? 0}`} view={item.view} bridge={bridge} entering={entering.has(item.id)}
                 onReveal={() => { void dispatch({ type: 'context.reveal', source: 'mail', ref: item.view.evidenceRef }) }}
@@ -230,12 +220,9 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
         {recalling && <p className="msg msg-narrator recall-line" role="status">{book.history.recalling.replace('{name}', herName)}</p>}
       </div>
 
-      {/* 停在输入框上面：她的提问、要你确认的回退和命令、要你批准的代码；你的话没送达也在这里说明 */}
+      {/* 停在输入框上面：她的提问和要你批准的事；你的话没送达也在这里说明 */}
       <div className="dock">
         <QuestionControls snapshot={snapshot} bridge={bridge} />
-        <RewindDock snapshot={snapshot} bridge={bridge} />
-        <CommandDock snapshot={snapshot} bridge={bridge} />
-        <FlowApproval snapshot={snapshot} bridge={bridge} />
         {commandError && <Notice>{commandError}</Notice>}
       </div>
       <FileIntake snapshot={snapshot} bridge={bridge} />

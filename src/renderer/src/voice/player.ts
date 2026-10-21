@@ -50,7 +50,7 @@ export function createVoicePlayer(bridge: AppBridge, makeAudio: () => AudioConte
   return {
     update: (next: AppSnapshot) => {
       snapshot = next; const voice = next.voice; const utterance = voice?.utterance
-      if (!voice?.enabled || !utterance || !['synthesizing', 'ready'].includes(utterance.status) || ['ended', 'failed'].includes(utterance.playback) || id !== utterance.id && utterance.playback !== 'idle' || next.companion.lightsOut || next.companion.mode === 'quiet' || next.pomodoro.phase === 'focus' || next.heartFlow?.activeId || next.minecraft?.status === 'playing') { stop(); return }
+      if (!voice?.enabled || !utterance || !['synthesizing', 'ready'].includes(utterance.status) || ['ended', 'failed'].includes(utterance.playback) || id !== utterance.id && utterance.playback !== 'idle' || next.companion.lightsOut || next.companion.mode === 'quiet' || next.pomodoro.phase === 'focus' || next.minecraft?.status === 'playing') { stop(); return }
       if (id !== utterance.id) { stop(); id = utterance.id }
       if (!ended) void pump()
     },

@@ -23,18 +23,14 @@ pnpm test
 | `test:plugins`、`test:mcp`、`test:student-hub`、`test:student-hub-candidates` | 安装、指纹、工具白名单与兼容入口 |
 | `test:memory`、`test:history`、`test:optical` | 来源、摘要、旧页、可选光学守卫和恢复 |
 | `test:pomodoro`、`test:mini`、`test:resources` | 计时、双窗口、显示器边界与资源准入 |
-| `test:heart-flow`、`test:desk-command`、`test:flow-rewind` | 工作范围、逐次审批、版本和撤销 |
-| `test:task-object`、`test:timeline-safety` | 任务对象剧本（提议/批准/推进/结束）与 D2 一条时间线/安全剧本（固定工具列表、未授权写入、降级轮、一次性原文） |
-| `test:attention-flow` | D3 注意力剧本：任务等待时她的读写推进、专注续跑时让位、上限后从书签续跑、左页姿势 |
-| `test:handoff-flow` | D4 交班剧本：专注结束结构化交班、证据与卡片、跨天从检查点恢复、旧授权不复活、重新批准 |
-| `probe:desk-command:runtime` | Windows 原生进程、网络 / 文件拒绝、编码、上限与取消 |
+| `test:dsh-bridge` | 真实 DSH 运行时 + 本地脚本模型：引用随开场消息、下一轮退役（含重启后）；第三方结果降级本轮、下一轮退役（含重启后）；聊天与工作模型交接、思考档位、自主额度、事件步数上限、项目信任 |
 | `test:life-port`、`test:life-work`、`test:sleep`、`test:room` | 生活状态、实际产物、日记与重启 |
 | `test:gifts`、`test:backup`、`test:characters` | 礼物同意、存档与角色作用域 |
 | `test:package --unpacked-only` | 构建回执、包内 EXE 和独立测试数据 |
 
 表中省略 `pnpm` 前缀。多数 Electron 脚本自带 build；复用构建或指定安装 EXE 时先读对应脚本，不能随意绕过前置检查。
 
-D2（demo 分支，2026-10-19）起，心流面板入口退役：`test:heart-flow`、`test:flow-sleep`、`test:flow-drafts`、`test:flow-rewind`、`test:desk-command`、`test:computer`、`test:web-fetch` 与 `probe:heart-flow` 仍能通过旧 `flow.*` 命令路径运行，但不再代表产品入口；产品工作路径以 `test:task-object` 与 `test:timeline-safety` 为准，旧脚本在 D3 清理或迁移。审计探针 `scripts/probe-context-continuity.mjs` 记录的是分离现状，D2 后按设计反转，保留为历史证据，不再作为当前验收。
+1.1 移除了旧心流、书桌命令、预览电脑、网页读取、分身和任务对象，以及它们的脚本（`test:heart-flow`、`test:task-object`、`test:timeline-safety` 等）与审计探针 `probe-context-continuity`；历史结果留在 git 记录和 [研究记录](research/) 里。旧心流的会话仍可在设置里查阅状态与差异，`test:room` 覆盖。
 
 测试窗口默认透明并使用 `showInactive`，不抢焦点；需要目视验收时设置 `LCA_TEST_SILENT=0`。不另装 Playwright 浏览器。开发与测试使用合成来源和独立 profile，不借参考项目的真实数据填样例。
 
@@ -44,7 +40,6 @@ D2（demo 分支，2026-10-19）起，心流面板入口退役：`test:heart-flo
 
 - `test:real-model` 要求显式 `LCA_REAL_MODEL=1` 与授权 providers 文件；检查流式、工具往返、普通 UI 与 `probe:cache-live` 缓存 usage 对账，结果不打印正文或密钥。
 - `probe:cache-live`（M1 缓存观测）使用合成提示词与独立临时 profile，最多 6 次调用 / 20,000 输入 token / 90 秒单次超时；报告只含数字、布尔与槽位别名，验证供应商原始 usage 与 `model/attempt`、重启后 journal 三方一致。`LCA_CACHE_PROBE_PAIR_SLOTS` 可指定做相同前缀两次的槽位，`LCA_CACHE_PROBE_REPORT` 写本地证据。两种供应商形状已于 2026-10-19 用授权端点完成真实 payload 验证；换端点后重跑即可复验。
-- `probe:baseline-flow`（D0 基线）要求显式 `LCA_REAL_MODEL=1` 与授权 providers 文件；固定剧本跑一次现有心流（进入、批准计划、一条 `desk_write` 工作消息、退出），报告只含 token 数、请求哈希与枚举，临时 profile 用完删除。
 - `probe:privacy` / `probe:model` / `probe:harness` 可能调用已配置模型。失败不回退 fake，真实质量与连通分别评价。
 - `probe:student-hub-live` 要求显式 `LCA_STUDENT_HUB_LIVE=1`，使用临时库的只读邮件范围；不扩大到课程提交或外部写入。
 - `probe:imap` 读取获授权文件夹；`probe:rodin` 会提交真实生成任务并可能收费。旧任务的预算不作为新任务的通行证。

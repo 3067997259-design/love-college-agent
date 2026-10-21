@@ -62,9 +62,6 @@ export function Stage({ snapshot, bridge, settings = false }: { snapshot: AppSna
   const [quote, setQuote] = useState<Quote | null>(null)
   useEffect(() => { setQuote(null) }, [snapshot.epoch])
   const turnTab = (next: Tab) => { old.close(); setTab(next) }
-  // 她进入心流时，工作视图在对话页上（体验设计 §2）：不让它藏在别的书签后面
-  const flowing = !!snapshot.heartFlow?.activeId
-  useEffect(() => { if (flowing) { old.close(); setTab('chat') } }, [flowing])
   const historyPhoto = useHistoryPhoto(snapshot, tab === 'chat' ? old.view : null)
   const unread = useChatUnread(snapshot, tab === 'chat')
   const openDiary = (id: string) => { turnTab('diary'); setDiaryFocus(id) }

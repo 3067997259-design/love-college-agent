@@ -3,7 +3,7 @@ import { attentionAllowsLife, createAttention, deriveAttention } from '../../src
 import type { AttentionInputs } from '../../src/main/attention/service'
 
 const base: AttentionInputs = { mode: 'rest', lightsOut: false, sleeping: false, userTurn: false, taskComputing: false,
-  taskWaiting: false, giftMaking: false, lifeActive: false, focusRunning: false }
+  giftMaking: false, lifeActive: false, focusRunning: false }
 
 describe('D3 attention precedence', () => {
   it('keeps rest above everything while lights are out or she is sleeping; awake in the dark is not asleep', () => {
@@ -17,13 +17,9 @@ describe('D3 attention precedence', () => {
     expect(deriveAttention({ ...base, giftMaking: true, lifeActive: true })).toMatchObject({ kind: 'gift', pose: 'desk-writing' })
     expect(deriveAttention({ ...base, lifeActive: true })).toMatchObject({ kind: 'life', pose: 'desk-writing' })
   })
-  it('does not let a task waiting for the user occupy her own time', () => {
-    const waiting = deriveAttention({ ...base, taskWaiting: true })
-    expect(waiting).toMatchObject({ kind: 'idle', taskWaiting: true })
-    expect(attentionAllowsLife(waiting)).toBe(true)
-    const hers = deriveAttention({ ...base, taskWaiting: true, lifeActive: true })
-    expect(hers).toMatchObject({ kind: 'life', taskWaiting: true })
-    expect(attentionAllowsLife(hers)).toBe(true)
+  it('lets her own work start only when nothing above it occupies her', () => {
+    expect(attentionAllowsLife(deriveAttention(base))).toBe(true)
+    expect(attentionAllowsLife(deriveAttention({ ...base, lifeActive: true }))).toBe(true)
     expect(attentionAllowsLife(deriveAttention({ ...base, taskComputing: true }))).toBe(false)
     expect(attentionAllowsLife(deriveAttention({ ...base, userTurn: true }))).toBe(false)
   })

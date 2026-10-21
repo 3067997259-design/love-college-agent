@@ -7,7 +7,7 @@ import { formatClock } from '../book/format'
  * no entry, mode change, run approval or write control is offered any more.
  */
 export function LegacyFlowRecords({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: AppBridge }) {
-  const sessions = snapshot.heartFlow?.sessions ?? []
+  const sessions = snapshot.legacyFlows ?? []
   if (!sessions.length) return null
   const inspect = async (section: 'status' | 'diff', flowId: string) => {
     try { await bridge.readHeartFlow?.({ section, flowId }) } catch { /* Native preview may be unavailable in tests. */ }

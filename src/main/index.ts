@@ -1,7 +1,7 @@
 import { redactSecrets } from './privacy/redact'
 import taskPrompts from './model/task-prompts.json'
 import { app, BrowserWindow, dialog, powerMonitor, protocol, shell, Notification, nativeImage } from 'electron'
-import { join, resolve, parse } from 'node:path'
+import { join, resolve } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { systemClock } from './clock'
 import { initialOnboarding } from './onboarding/schema'
@@ -11,19 +11,11 @@ import { createRodinMcp } from './gifts/mcp'
 import { createGiftService, giftTools, type GiftService } from './gifts/service'
 import { syntheticGlb } from './gifts/fixture'
 import { randomUUID } from 'node:crypto'
-import { createHeartFlow, deskTools, type HeartFlowService } from './heart-flow/service'
 import { contentHash, createDesk } from './legacy-flow/desk'
-import { createDeskShadow } from './heart-flow/shadow'
-import { runIsolatedJavaScript } from './heart-flow/runner'
-import { createDeskCommands, type DeskCommands } from './desk-command/service'
-import { createCommandProcess } from './desk-command/process'
-import { probeHeartFlow } from './validation/heart-flow'
 import { createLife, type LifeService } from './life/service'
 import { createSleep, type SleepService } from './life/sleep'
 import { createLifeWork, type LifeWorkService } from './life/work/service'
 import { createFakeLifeWorkModel } from './life/work/fake'
-import { createDelegates, type DelegatesService } from './delegates/service'
-import { createFakeDelegateModel } from './delegates/fake'
 import { createOpticalMemory, type OpticalMemoryService } from './optical/service'
 import { renderOpticalPage } from './optical/render'
 import { probeLife } from './validation/life'
@@ -43,25 +35,17 @@ import harnessPolicy from './harness/policy.json'
 import { profileContext } from './onboarding/context'
 import { exportBuiltinCharacter } from './characters/builtin'
 import { appliedDeskChanges } from './legacy-flow/changes'
+import { createLegacyFlowRecords } from './legacy-flow/records'
 import { createHistoryPhotos, type HistoryPhotos } from './history/photos'
 import { captureHistoryScene } from './history/capture'
 import { createHistoryRecall, type HistoryRecall } from './history/recall'
 import { createVoice, type VoiceService } from './voice/service'
 import { readVoiceConfig, createSpeechPort, createFakeVoice } from './voice/port'
-import { createDeskComputer, type DeskComputer } from './computer/service'
-import { openDeskPreview } from './computer/preview'
-import { createPublicWebPort } from './web-fetch/port'
-import { createFlowFetch, type FlowFetch } from './web-fetch/service'
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'lca-media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 import { createAppController } from './bridge/controller'
 import { registerAppBridge } from './bridge/ipc'
 import type { ContextMessage } from './journal/schema'
-import { createTaskService } from './task/service'
-import { taskTools, taskHandoffTool } from './task/tools'
-import { taskDeskTools } from './task/desk-tools'
-import { createHandoffService } from './task/handoff'
-import { carryOpenTask } from './task/carry'
 import { createAttention, type AttentionService } from './attention/service'
 import { probeSqlite } from './validation/sqlite'
 import { probeRodin } from './validation/rodin'
@@ -155,17 +139,12 @@ if (silentTestWindows) {
   })
 }
 let controller: ReturnType<typeof createAppController> | undefined
-let taskService: ReturnType<typeof createTaskService> | undefined
 let attention: AttentionService | undefined
 /** D2 one-shot user reveal. In memory by design: it never survives restart and grants only the next turn. */
 let pendingReveal: { source: 'mail'; ref: string } | undefined
-/** D4: a focus-end event is waiting for its handoff turn; the turn id is tracked to guarantee a fallback. */
-let handoffPending = false
-let handoffTurnId: string | undefined
 let bridge: ReturnType<typeof registerAppBridge> | undefined
 let store: SessionStore | undefined
 let lifeWork: LifeWorkService | undefined
-let delegates: DelegatesService | undefined
 let optical: OpticalMemoryService | undefined
 let harness: ReturnType<typeof createHarness> | undefined
 let questions: ReturnType<typeof createQuestions> | undefined
@@ -188,7 +167,6 @@ const worldReference = (): Record<string, unknown> | null => {
     fictional: true, actualOfflineWork: false }
 }
 const postEvent = (source: 'pomodoro' | 'mail' | 'document' | 'autonomous', text: string, id?: string): boolean => dshExecution ? dshExecution.postEvent(source, text, id) : harness?.postEvent(source, text, id) ?? false
-let deskCommands: DeskCommands | undefined
 let scheduler: Scheduler | undefined
 let runtime: Awaited<ReturnType<typeof attachRuntime>> | undefined
 let pomodoro: PomodoroService | undefined
@@ -203,10 +181,7 @@ let mcpFixture: Awaited<ReturnType<typeof startMcpFixture>> | undefined
 let backup: BackupService | undefined
 let quill: QuillService | undefined
 let gifts: GiftService | undefined
-let heartFlow: HeartFlowService | undefined
 let voice: VoiceService | undefined
-let computer: DeskComputer | undefined
-let webFetch: FlowFetch | undefined
 let minecraft: MinecraftService | undefined
 let minecraftChat: MinecraftChat | undefined
 let resourceBudget: ResourceBudget | undefined
@@ -280,11 +255,6 @@ void app.whenReady().then(async () => {
   if (process.argv.includes('--lca-probe=life')) {
     try { console.log('LCA_PROBE:' + JSON.stringify(probeLife(dataDir))); app.exit(0) }
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"life","error":"LIFE_PROBE_FAILED"}'); app.exit(1) }; return
-  }
-  if (process.argv.includes('--lca-probe=heart-flow')) {
-    try { const report = await probeHeartFlow(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(0) }
-    catch { console.log('LCA_PROBE:{"ok":false,"probe":"heart-flow","error":"FLOW_PROBE_FAILED"}'); app.exit(1) }
-    return
   }
   if (process.argv.includes('--lca-probe=rodin')) {
     try { const report = await probeRodin(dataDir, providersFile, join(app.getAppPath(), '.local-data', 'rodin-live-budget-20261017.json'), systemClock); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(report.ok ? 0 : 1) }
@@ -382,8 +352,6 @@ void app.whenReady().then(async () => {
       resumeSavedSession(dataDir, restoreReceipt.manifest.owner, restoreReceipt.manifest.activeDayKey, restoreReceipt.manifest.activeSessionId)
     }
     store = openSessionStore(dataDir, owner, clock)
-    // D4: a previous-day task with a handoff checkpoint returns as a fresh proposal; approval is required again.
-    try { carryOpenTask(store) } catch { /* Carrying is a projection convenience; never block startup. */ }
     const binaryAssets = createBinaryAssets(dataDir, store)
     if (activeCharacter.id !== 'default-character') {
       if (!store.history!().some((row) => row.type === 'onboarding/state')) store.append({ type: 'onboarding/state', view: { ...initialOnboarding(), characterName: activeCharacter.name }, cause: 'profile', requestId: 'character-profile:' + activeCharacter.id, commandHash: contentHash(activeCharacter.id) })
@@ -407,11 +375,6 @@ void app.whenReady().then(async () => {
     }
     if (prepared.scene && store.records().length === 1) store.append({ type: 'companion/mode', mode: prepared.scene.mode, requestId: 'development-scene', commandHash: 'development-scene' })
     controller = createAppController(clock, undefined, store, { booth: prepared.booth })
-    taskService = createTaskService({ store, changed: () => controller?.refresh('task') })
-    controller.attachTask(taskService)
-    const taskToolset = taskTools(taskService)
-    const handoffService = createHandoffService({ store, tasks: taskService })
-    const handoffTool = taskHandoffTool(handoffService)
     controller.attachContextReveal((command, signature) => {
       if (herBusy()) return 'unavailable'
       try { vault!.readForModel?.(command.ref, store!.scope) } catch { return 'invalid-command' }
@@ -427,7 +390,7 @@ void app.whenReady().then(async () => {
     const providers = resolveModelProviders(rawProviders, routing)
     if (!privacyEnabled()) prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = false })
     const privateCredentials = [...(prepared.developer ? [] : await readPrivateCredentialValues(providersFile))]
-    questions = createQuestions({ store, clock, flowId: () => heartFlow?.id() ?? null, changed: () => controller?.refresh('task'),
+    questions = createQuestions({ store, clock, changed: () => controller?.refresh('task'),
       safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
     controller.attachQuestions(questions)
     resourceBudget = createResourceBudget({ root: join(prepared.developer ? dataDir : dataRoot, 'runtime-resources'), clock, configurable: prepared.booth })
@@ -462,7 +425,7 @@ void app.whenReady().then(async () => {
       includeContextEntries: (seqs) => new Set(seqs),
       beforeRoll: async () => { if (photos && !photos.photo(store!.scope.sessionId)) { photos.capture('day-end', 'day-end:' + store!.scope.sessionId); await photos.idle() } },
       closingDay: () => { if (!sleep || sleep.set(true, 'day-end')) throw new Error('DAY_END_BUSY') },
-      isBusy: () => herBusy() || !!heartFlow?.active() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('connection'),
+      isBusy: () => herBusy() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('connection'),
       rolled: () => { controller?.refresh('connection'); harness?.sessionChanged(); pomodoro?.reconcile(); campus?.stateChanged(); documents?.stateChanged() },
       failed: () => { console.error('Memory processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachMemory(memory)
@@ -474,7 +437,7 @@ void app.whenReady().then(async () => {
     controller.attachCampus(campus)
     bridge = registerAppBridge(controller, async (ref, scope) => vault!.read(ref, scope))
     pomodoro = createPomodoro({ clock, store, scheduler, changed: () => { life?.reconcile(); questions?.stateChanged(); controller?.refresh('timer') }, stateChanged: () => { harness?.stateChanged(); dshExecution?.stateChanged() },
-      emit: (id, text) => { try { if (JSON.parse(text)?.kind === 'focus-ended') handoffPending = true } catch { /* pomodoro facts are JSON; ignore anything else */ } postEvent('pomodoro', text, id) } })
+      emit: (id, text) => { postEvent('pomodoro', text, id) } })
     const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, clock,
       get privacyModel() { return prepared.developer ? createFakePrivacyModel() : taskModels.narrow }, privacyEnabled, fileFiltering: () => prepared.pluginSettings.read().fileFilteringEnabled,
       onCandidates: (seeds) => { campus?.ingestCandidates(seeds) }, onSources: (sources, signal) => campus!.ingestSources(sources, signal) })
@@ -484,7 +447,7 @@ void app.whenReady().then(async () => {
     plugins.registerBuiltin('documents', '附件与资料整理', documentTools(documents), { handlesPrivacy: true, permissions: ['filesystem'] })
     plugins.registerBuiltin('memory', '经历记忆与日会话', memoryTools(memory))
     recall = createHistoryRecall({ store, repository: memoryRepository, photos, changed: () => controller?.refresh('task'),
-      canRecall: () => !herBusy() && !heartFlow?.active() && !store!.projection().lightsOut && (prepared.developer || providers.has('chat')) && !backup?.isBusy(), busy: () => herBusy(),
+      canRecall: () => !herBusy() && !store!.projection().lightsOut && (prepared.developer || providers.has('chat')) && !backup?.isBusy(), busy: () => herBusy(),
       // The question goes where your conversation is: her DSH session, with the quoted page as its reference.
       send: (question, requestId, hash) => {
         if (dshExecution) { dshExecution.send(question, requestId, hash, recall?.reference(requestId)); return }
@@ -507,57 +470,27 @@ void app.whenReady().then(async () => {
       const restoredFiles = new Map(appliedDeskChanges(store.history!()).map((row) => [row.path, row.after] as const))
       for (const [path, text] of restoredFiles) desk.write(path, text)
     }
-    const shadow = createDeskShadow({ root: join(dataDir, 'desk-shadows', ownerRoom), deskRoot: join(roomRoot, '书桌'), store })
-    const taskDeskToolset = taskDeskTools({ store: store!, desk, authorized: () => !!taskService?.authorizedActiveTask(),
-      degraded: (turnId) => store!.records().some((row) => row.type === 'turn/degraded' && row.turnId === turnId), changed: () => controller?.refresh('task') })
-    heartFlow = createHeartFlow({ store, clock, desk, shadow, booth: prepared.booth, busy: herBusy, changed: () => controller?.refresh('task'),
-      fatal: () => app.quit(),
-      modelSource: () => prepared.developer ? 'fake' : providers.has('chat') ? 'real' : 'none',
-      requestDraft: (text, requestId, hash) => { if (!harness) throw new Error('MODEL_UNAVAILABLE'); harness.send(text, requestId, hash); const id = store!.projection().task?.id; if (!id) throw new Error('MODEL_UNAVAILABLE'); return id },
-      cancelTask: (id) => { harness?.stop(id) },
-      previewDraft: (view, text) => previewArtifact({ id: view.id, artifactId: view.id, displayName: view.outputPath, kind: 'markdown', status: 'ready', createdAtMs: view.createdAtMs, sourceRefs: [], source: view.source }, text, '用户工作草稿 · 未经审核 · 已产出不表示审查或测试通过。'),
-      inspect: (view) => previewArtifact({ id: view.flowId, artifactId: view.flowId, displayName: '心流 · ' + view.section, kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: prepared.developer ? 'fake' : 'real' }, JSON.stringify(view, null, 2), '用户专用查阅 · 书桌范围 · 每次运行单独审批 · 费用未知时为 null。'),
-      prepare: async (id, signal) => { const preparedContext = await memory!.prepareContext(id, signal); const world = worldReference(); if (!world) return preparedContext
-        const facts = { role: 'user' as const, content: JSON.stringify({ source: 'autonomous', ...world }) }
-        const insertion = Math.max(0, preparedContext.messages.findLastIndex((message) => message.role === 'user')); const messages = [...preparedContext.messages.slice(0, insertion), facts, ...preparedContext.messages.slice(insertion)]
-        return { messages, eligibleIndexes: [...preparedContext.eligibleIndexes.map((index) => index >= insertion ? index + 1 : index), insertion] } }, entered: () => { lifeWork?.foreground(); life?.foreground() }, emit: (id, summary) => { postEvent('autonomous', summary, id) }, run: (code, signal) => runIsolatedJavaScript(code, systemClock, signal) })
-    controller.attachHeartFlow(heartFlow)
-    // D2: the heart-flow entry is retired. A carried open flow from an older release must not hijack
-    // the normal tool list forever; close it once at startup and keep its history read-only.
-    if (heartFlow.view().activeId) {
-      try { heartFlow.dispatch({ type: 'flow.exit' } as never) } catch { /* fall through to a direct close */ }
-      const stillOpen = heartFlow.view().activeId
-      if (stillOpen) store.append({ type: 'flow/close', id: stillOpen, summary: JSON.stringify({ kind: 'legacy-flow-retired', atMs: clock.nowMs() }) })
+    // The heart flow is retired (1.1): her work runs in DSH. A flow an older release left open is closed once; the old
+    // sessions stay readable as history.
+    const flowRows = store.history?.() ?? store.records()
+    const closedFlows = new Set(flowRows.flatMap((row) => row.type === 'flow/close' ? [row.id] : []))
+    const openFlow = flowRows.flatMap((row) => row.type === 'flow/open' && !closedFlows.has(row.id) ? [row.id] : [])[0]
+    if (openFlow) store.append({ type: 'flow/close', id: openFlow, summary: JSON.stringify({ kind: 'legacy-flow-retired', atMs: clock.nowMs() }) })
+    controller.attachLegacyFlows(createLegacyFlowRecords({ store, desk, booth: prepared.booth,
+      preview: (view) => previewArtifact({ id: view.flowId, artifactId: view.flowId, displayName: '心流 · ' + view.section, kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: prepared.developer ? 'fake' : 'real' }, JSON.stringify(view, null, 2), '用户专用查阅 · 书桌范围 · 每次运行单独审批 · 费用未知时为 null。') }))
+    // Her conversation as the legacy loop sends it: memory's context, with her world as she may know it before your latest line.
+    const prepareConversation = async (id: string, signal: AbortSignal) => {
+      const preparedContext = await memory!.prepareContext(id, signal); const world = worldReference(); if (!world) return preparedContext
+      const facts = { role: 'user' as const, content: JSON.stringify({ source: 'autonomous', ...world }) }
+      const insertion = Math.max(0, preparedContext.messages.findLastIndex((message) => message.role === 'user')); const messages = [...preparedContext.messages.slice(0, insertion), facts, ...preparedContext.messages.slice(insertion)]
+      return { messages, eligibleIndexes: [...preparedContext.eligibleIndexes.map((index) => index >= insertion ? index + 1 : index), insertion] }
     }
-    // Legacy system shells/.NET still impose MAX_PATH. 77-char scratch roots keep every permitted 180-char desk path below 260.
-    const commandDrive = /^[a-z]:\\$/i.test(parse(app.getPath('temp')).root) ? parse(app.getPath('temp')).root : parse(app.getPath('exe')).root
-    const commandCache = join(commandDrive, '.lca-cmd', contentHash(JSON.stringify([dataRoot, dataDir, ownerRoom])).slice(0, 16))
-    deskCommands = createDeskCommands({ store, clock, deskRoot: join(roomRoot, '书桌'), cacheRoot: commandCache, booth: prepared.booth,
-      port: createCommandProcess(join(app.isPackaged ? join(process.resourcesPath, 'app.asar.unpacked') : app.getAppPath(), 'out', 'native', 'DeskCommand.exe'), systemClock),
-      flowId: () => heartFlow!.id(), allowed: () => heartFlow!.commandAllowed(), manualAllowed: () => !herBusy(), changed: () => controller?.refresh('task'),
-      failed: () => { console.error('Command journal unavailable; execution closed.'); app.quit() },
-      safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text), current: (path) => desk.read(path), publish: (id, edit) => heartFlow!.publishCommand(id, edit),
-      preview: (id, text) => previewArtifact({ id, artifactId: id, displayName: '命令输出', kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source: prepared.developer ? 'fake' : 'real' }, text, '用户专用命令输出 · 进程结果与文件写回分别核实。') })
-    heartFlow.attachCommands(deskCommands)
-    delegates = createDelegates({ store, clock, get model() { return prepared.developer ? createFakeDelegateModel() : taskModels.delegate },
-      flowId: () => heartFlow?.active() ? heartFlow.view().activeId : null, read: (path) => heartFlow!.read(path), changed: () => controller?.refresh('task') })
-    heartFlow.attachDelegates(delegates)
-    const interactiveWorkAllowed = () => !!heartFlow?.active() && heartFlow.view().mode === 'execute' && !heartFlow.view().operations?.some((op) => op.status === 'running') && !store!.projection().lightsOut && !prepared.booth
-    computer = createDeskComputer({ store, clock, assets: binaryAssets, allowed: interactiveWorkAllowed,
-      flowId: () => heartFlow?.view().activeId ?? null, read: (path) => heartFlow!.read(path), open: openDeskPreview, changed: () => controller?.refresh('task') })
-    heartFlow.attachComputer(computer)
-    webFetch = createFlowFetch({ store, clock, port: prepared.developer ? { source: 'fake', read: async () => { const text = '<h1>PUBLIC_SYNTHETIC_WEB_WORK</h1><p>This is a synthetic work fixture, not a live website.</p>'; return { text, receivedBytes: Buffer.byteLength(text), truncated: false, contentType: 'text/html' } } } : createPublicWebPort(clock), allowed: interactiveWorkAllowed, flowId: () => heartFlow?.id() ?? null,
-      changed: () => controller?.refresh('task'), safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
-    heartFlow.attachWebFetch(webFetch)
-    scheduler.schedule('computer.guard', clock.nowMs() + 250, () => computer?.stateChanged(), { everyMs: 250 })
     // D3: one place decides what she has in hand. Consumers ask this instead of inspecting each other.
     attention = createAttention({ inputs: () => {
       const projection = store!.projection(); const runningId = projection.task?.id
       const trigger = runningId ? store!.records().flatMap((row) => row.type === 'turn/start' && row.turnId === runningId ? [row.trigger] : []).at(-1) ?? null : null
-      const lastQuestion = store!.records().findLast((row) => row.type === 'question/requested' || row.type === 'question/answered' || row.type === 'question/closed' || row.type === 'question/committed')
       return { mode: projection.mode, lightsOut: projection.lightsOut, sleeping: projection.sleeping,
         userTurn: herBusy() && trigger === 'user', taskComputing: herBusy() && trigger === 'autonomous',
-        taskWaiting: !!taskService?.authorizedActiveTask() && !herBusy() && (projection.task?.status === 'waiting-user' || lastQuestion?.type === 'question/requested'),
         giftMaking: !!gifts?.view().items.some((gift) => gift.status === 'making'), lifeActive: !!lifeWork?.active(),
         focusRunning: projection.pomodoro.phase === 'focus' && projection.pomodoro.status === 'running' }
     } })
@@ -571,29 +504,28 @@ void app.whenReady().then(async () => {
       }, changed: () => controller?.refresh('task'), projected: () => { life?.reconcile(); roomProjection.rebuild() },
       open: (path, text, source) => previewArtifact({ id: 'life-work', artifactId: 'life-work', displayName: path.split('/').at(-1)!, kind: 'markdown', status: 'ready', createdAtMs: clock.nowMs(), sourceRefs: [], source }, text, '合成材料作品 · 仅供用户查阅，不注入对话。') })
     controller.attachLifeWork(lifeWork)
-    life = createLife({ store, clock, scheduler, work: lifeWork, restored: restoreReceipt?.status === 'restored', working: () => herBusy() || !!heartFlow?.active() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('mode'), emit: (id, facts) => { harness?.postEvent('autonomous', facts, id) } })
+    life = createLife({ store, clock, scheduler, work: lifeWork, restored: restoreReceipt?.status === 'restored', working: () => herBusy() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('mode'), emit: (id, facts) => { harness?.postEvent('autonomous', facts, id) } })
     controller.attachLife(life)
-    sleep = createSleep({ store, canSleep: () => !herBusy() && !heartFlow?.occupied() && !lifeWork?.active() && !minecraft?.active() && store!.projection().pomodoro.status !== 'running' && life?.view().locationId === 'room' && controller?.getSnapshot().onboarding?.status === 'completed',
+    sleep = createSleep({ store, canSleep: () => !herBusy() && !lifeWork?.active() && !minecraft?.active() && store!.projection().pomodoro.status !== 'running' && life?.view().locationId === 'room' && controller?.getSnapshot().onboarding?.status === 'completed',
       changed: () => { voice?.interrupt(); lifeWork?.foreground(); controller?.refresh('mode') } })
     controller.attachSleep(sleep)
-    diary = createDiary({ clock, scheduler, store, assets: binaryAssets, get model() { return prepared.developer ? { source: 'fake' as const, write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary }, busy: () => herBusy() || !!heartFlow?.active() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
+    diary = createDiary({ clock, scheduler, store, assets: binaryAssets, get model() { return prepared.developer ? { source: 'fake' as const, write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary }, busy: () => herBusy() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
     controller.attachDiary(diary, { rebuild: () => { lifeWork?.rebuild(); roomProjection.rebuild() }, open: () => { void shell.openPath(roomProjection.root) } })
     optical = createOpticalMemory({ root: dataDir, store, clock, assets: binaryAssets, developer: prepared.developer, render: (text, signal) => renderOpticalPage(text, systemClock, signal),
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入光学解码配置（地址与凭据仅在主进程）', properties: ['openFile'], filters: [{ name: '光学服务配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
-      available: () => !herBusy() && !heartFlow?.active() && !lifeWork?.active() && !minecraft?.active() && !backup?.isBusy() && controller?.getSnapshot().onboarding?.status === 'completed',
+      available: () => !herBusy() && !lifeWork?.active() && !minecraft?.active() && !backup?.isBusy() && controller?.getSnapshot().onboarding?.status === 'completed',
       changed: () => controller?.refresh('task'), protectCredential: (value) => { if (value && !privateCredentials.includes(value)) privateCredentials.push(value) } })
     controller.attachOptical(optical)
-    notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => heartFlow?.view().pending?.id ?? (deskCommands?.view()?.status === 'awaiting-approval' ? deskCommands.view()?.id : undefined) ?? computer?.view().pending?.id ?? webFetch?.view().pending?.id, changed: () => controller?.refresh('connection'),
+    notifications = createNotifications({ clock, store, scheduler, synthetic: prepared.developer || prepared.booth, candidates: () => campus!.candidates(), approval: () => questions?.approvalPending(), changed: () => controller?.refresh('connection'),
       notify: ({ title, body }) => { if (prepared.developer || prepared.booth || !Notification.isSupported()) return; const notification = new Notification({ title, body, silent: true }); notification.on('click', () => { const view = controller!.getSnapshot(); controller!.dispatch({ protocolVersion: 1, requestId: randomUUID(), epoch: view.epoch, type: 'window.expand' }) }); notification.show() } })
     controller.attachNotifications(notifications)
-    character = createCharacterService({ library: characterLibrary, active: activeCharacter, settings: prepared.pluginSettings, assets: binaryAssets, busy: () => herBusy() || !!heartFlow?.active() || !!backup?.isBusy(), changed: () => controller?.refresh('connection'),
+    character = createCharacterService({ library: characterLibrary, active: activeCharacter, settings: prepared.pluginSettings, assets: binaryAssets, busy: () => herBusy() || !!backup?.isBusy(), changed: () => controller?.refresh('connection'),
       exportBuiltin: () => exportBuiltinCharacter(join(__dirname, '../renderer')),
       normalizePng: (bytes) => { const image = nativeImage.createFromBuffer(bytes); if (image.isEmpty()) throw new Error('CHARACTER_IMAGE_INVALID'); return image.toPNG() },
       chooseImport: async () => { const result = await dialog.showOpenDialog({ title: '导入静态角色包', properties: ['openFile'], filters: [{ name: '角色包', extensions: ['lca-character'] }] }); return result.canceled ? null : result.filePaths[0] ?? null },
       chooseExport: async () => { const result = await dialog.showSaveDialog({ title: '导出静态角色包（不含私人资料）', defaultPath: 'character.lca-character', filters: [{ name: '角色包', extensions: ['lca-character'] }] }); return result.canceled ? null : result.filePath ?? null } })
     controller.attachCharacter(character)
     plugins.registerBuiltin('notifications', '急件与提醒标准', notificationTools(notifications))
-    plugins.registerBuiltin('coding', '书桌编码', [...deskTools(heartFlow), deskCommands.tool(), ...delegates.tools, ...computer.tools(), ...webFetch.tools])
     plugins.registerBuiltin('life-work', '自主阅读与写作', [])
     plugins.registerBuiltin('optical-memory', '可选光学记忆', [optical.tool()])
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
@@ -620,7 +552,7 @@ void app.whenReady().then(async () => {
         text: (value) => privateCredentials.reduce((text, credential) => credential ? text.replaceAll(credential, '[redacted]') : text, protocol.text(value)) }
     }, source: (id) => mcp?.view().servers.find((server) => server.id === id)?.source ?? 'none',
       interrupted: restoreReceipt?.status !== 'restored' && round?.type === 'minecraft/round' && !round.stopVerified ? round : undefined,
-      blocked: () => { const projection = store!.projection(); return projection.lightsOut || projection.mode === 'quiet' || projection.pomodoro.phase === 'focus' && projection.pomodoro.status === 'running' || !!heartFlow?.active() || !!minecraft?.view().serverId && !mcp?.protocol(minecraft.view().serverId!) },
+      blocked: () => { const projection = store!.projection(); return projection.lightsOut || projection.mode === 'quiet' || projection.pomodoro.phase === 'focus' && projection.pomodoro.status === 'running' || !!minecraft?.view().serverId && !mcp?.protocol(minecraft.view().serverId!) },
       available: () => (prepared.developer || prepared.booth) && !herBusy() && !lifeWork?.active() && !backup?.isBusy() && minecraftChat?.ready() !== false && life?.view().locationId === 'room',
       stopping: () => { void minecraftChat?.end() }, events: (messages) => minecraftChat?.events(messages),
       record: (receipt) => {
@@ -659,26 +591,24 @@ void app.whenReady().then(async () => {
       if (store!.records().some((row) => row.type === 'turn/degraded' && row.turnId === turnId)) return
       store!.append({ type: 'turn/degraded', turnId, sources })
     }
-    // D2/D5: normal turns must not see the legacy heart-flow tools (plan.update, run_javascript,
-    // run_command, flow desk tools). They are registered by the coding plugin and only valid inside a flow.
-    const codingToolNames = () => new Set(plugins.views().find((plugin) => plugin.id === 'coding')?.tools ?? [])
+    // Her LCA tools, the same in every turn (D2): plugin tools and Student Hub's MCP tools; Student Hub's own import
+    // tool steps aside while the campus assistant runs it. Source tools (mail, documents, Student Hub, MCP) degrade the turn.
+    const campusEnabled = () => plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')
+    const herTools = () => [...plugins.tools().filter((tool) => tool.templateId !== 'plan.update' && !(tool.definition.name === 'import_student_hub_candidates' && campusEnabled())
+      && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools(campusEnabled() ? ['student-hub'] : []) ?? [])]
     const executionPort = () => ({ source: harness!.source,
       send: (text: string, requestId: string, hash: string) => harness!.send(text, requestId, hash),
-      stop: (id: string) => harness!.stop(id), stateChanged: () => harness!.stateChanged(),
-      taskApproved: () => { const timer = store!.projection().pomodoro; if (timer.phase === 'focus' && timer.status === 'running') return; harness!.postEvent('autonomous', JSON.stringify({ kind: 'task-approved' })) } })
-    // DSH takes her turns and events whenever it ships and a chat model is configured (LCA_DSH=0 falls back).
+      stop: (id: string) => harness!.stop(id), stateChanged: () => harness!.stateChanged() })
+    // DSH takes her turns and events whenever a chat model is configured. The legacy loop serves only developer scenes
+    // (scripted replies) and a source checkout whose DSH runtime has not been prepared.
     const { root: dshRoot, bridge: dshBridge, present: dshPresent } = dshLocations()
-    const dshAvailable = process.env.LCA_DSH !== '0' && !prepared.developer && dshPresent
-    harness = createHarness({ store, clock, budget: prepared.scripted ? undefined : resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch, { resolve: (ref) => computer!.resolve(ref) }), tools: [], getTools: () => heartFlow?.active() ? [...plugins.tools().filter((tool) => ['clock.read', 'plan.update', 'user.ask'].includes(tool.templateId) || tool.templateId.startsWith('desk')), taskToolset.step] : [...plugins.tools().filter((tool) => !codingToolNames().has(tool.definition.name) && tool.templateId !== 'plan.update' && !(tool.definition.name === 'import_student_hub_candidates' && plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')) && !tool.templateId.startsWith('desk') && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...taskDeskToolset, handoffTool, ...(mcp?.tools(plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled') ? ['student-hub'] : []) ?? []), taskToolset.propose, taskToolset.step], enabled: () => modelReady, adoptEvents: !(dshAvailable && providers.has('chat')), changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!minecraft?.active(),
+    const dshAvailable = !prepared.developer && dshPresent
+    harness = createHarness({ store, clock, budget: prepared.scripted ? undefined : resourceBudget, model: prepared.scripted?.model ?? createModelClient(providers, ['chat'], clock, fetch), tools: [], getTools: herTools, enabled: () => modelReady, adoptEvents: !(dshAvailable && providers.has('chat')), changed: (reason) => controller?.refresh(reason), backgroundQuiet: () => !!minecraft?.active(),
       // Developer scenes use scripted zero-token replies; their reservations must not trip the real budget
       // while exercising long synthetic timelines. Production defaults stay untouched.
       ...(prepared.developer ? { limits: { dailyTokens: 5_000_000, autonomousTokens: 2_000_000 } } : {}),
-      // D3: while a focus is running, the approved in-hand task may continue on its own under caps.
-      taskRun: { available: () => { const timer = store!.projection().pomodoro; return timer.phase === 'focus' && timer.status === 'running' && !!taskService?.authorizedActiveTask() },
-        focusKey: () => { const timer = store!.projection().pomodoro; return (timer.plan?.id ?? '') + ':' + timer.focusIndex }, steps: 6, tokens: 40_000, turns: 4 },
-      contextVersion: () => JSON.stringify({ candidates: campus?.candidates().map((item) => [item.id, item.revision, item.status]), documents: documents?.view().jobs.map((job) => [job.id, job.status === 'cancelled']), mcp: mcp?.view().servers.map((server) => [server.id, server.status]), privacy: privacyEnabled(), files: documents?.filteringEnabled(), tools: [...plugins.tools().map((tool) => tool.definition.name), ...taskDeskToolset.map((tool) => tool.definition.name), taskToolset.propose.definition.name, taskToolset.step.definition.name, handoffTool.definition.name] }),
+      contextVersion: () => JSON.stringify({ candidates: campus?.candidates().map((item) => [item.id, item.revision, item.status]), documents: documents?.view().jobs.map((job) => [job.id, job.status === 'cancelled']), mcp: mcp?.view().servers.map((server) => [server.id, server.status]), privacy: privacyEnabled(), files: documents?.filteringEnabled(), tools: plugins.tools().map((tool) => tool.definition.name) }),
       privateContext: async (signal) => {
-        if (heartFlow?.active()) { pendingReveal = undefined; return [] }
         signal.throwIfAborted()
         const files = (documents?.view().jobs ?? []).slice(-8).reverse().map((job) => ({ documentId: job.id, status: job.status, origin: job.origin,
           readableByMain: documents!.canReadSource(job.id), ...(job.error ? { error: job.error.code } : {}) }))
@@ -698,59 +628,21 @@ void app.whenReady().then(async () => {
         return [{ role: 'system', content: taskPrompts.mainSources }, { role: 'user', content }, ...revealed]
       },
       prepareContext: async (id, signal) => {
-        const preparedContext = await heartFlow!.prepareContext(id, signal)
-        let result: { messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }
-        if (!heartFlow!.active()) {
-          const recalled = recall!.prepare(id, preparedContext)
-          const ignored = (campus?.candidates() ?? []).filter((candidate) => candidate.status === 'ignored')
-          result = { ...recalled, messages: retireSourceContext(omitIgnoredMail(recalled.messages, new Set(ignored.map((candidate) => candidate.id))), store!.history?.() ?? store!.records(), id, ignored.map((candidate) => candidate.title)) }
-        } else {
-          const seen = new Set<string>(); const messages = preparedContext.messages.slice().reverse().map((message) => { if (!message.imageRefs) return message; const imageRefs = message.imageRefs.filter((ref) => { if (seen.has(ref) || seen.size >= 2) return false; seen.add(ref); return true }); return { ...message, imageRefs } }).reverse(); result = { ...preparedContext, messages }
-        }
+        const recalled = recall!.prepare(id, await prepareConversation(id, signal))
+        const ignored = (campus?.candidates() ?? []).filter((candidate) => candidate.status === 'ignored')
+        const result = { ...recalled, messages: retireSourceContext(omitIgnoredMail(recalled.messages, new Set(ignored.map((candidate) => candidate.id))), store!.history?.() ?? store!.records(), id, ignored.map((candidate) => candidate.title)) }
         markDegradedTurn(id)
-        // D3: an autonomous turn continues the in-hand approved task. The task state is the D-segment
-        // at the end of the request; it is not chat history and never becomes experience memory.
-        if (store!.records().flatMap((row) => row.type === 'turn/start' && row.turnId === id ? [row.trigger] : []).at(-1) === 'autonomous') {
-          const continuing = taskService?.authorizedActiveTask()
-          if (continuing) {
-            const taskContext: ContextMessage = { role: 'user', content: JSON.stringify({ continuingTask: { id: continuing.id, title: continuing.title, planVersion: continuing.plan?.version, steps: continuing.plan?.steps.map((step) => ({ id: step.id, text: step.text, status: step.status })), authorization: continuing.approval?.scope ?? null }, instruction: '推进手上的已批准任务：每次一至两步，用 desk 工具只做已批准范围内的写入，用 task_step 更新步骤；不要声称任务完成，需要用户决定或批准时停下。' }) }
-            result = { messages: [...result.messages, taskContext], eligibleIndexes: result.eligibleIndexes }
-          }
-        }
-        // D4 focus end: one handoff turn asks for a structured checkpoint; the fallback is code-only.
-        const turnTrigger = store!.records().flatMap((row) => row.type === 'turn/start' && row.turnId === id ? [row.trigger] : []).at(-1)
-        if (turnTrigger === 'pomodoro' && handoffPending && taskService?.authorizedActiveTask()) {
-          handoffPending = false; handoffTurnId = id
-          result = { messages: [...result.messages, { role: 'user', content: JSON.stringify({ handoffRequest: { instruction: '专注刚结束。用 task_handoff 提交交班：完成项、逐字引用真实用户消息的决定、未决问题、下一步。不要声称外部完成；提交后可以简短回复。' } }) }], eligibleIndexes: result.eligibleIndexes }
-        }
-        // D4: the latest validated checkpoint becomes the B segment of every later request.
-        const contextTask = taskService?.authorizedActiveTask() ?? store!.projection().tasks.findLast((task) => task.closedAtMs === null)
-        const checkpoint = contextTask ? handoffService.latest(contextTask.id) : undefined
-        if (checkpoint) {
-          const messages = [...result.messages]
-          const insertion = messages.findIndex((message) => message.role !== 'system')
-          const at = insertion < 0 ? messages.length : insertion
-          messages.splice(at, 0, { role: 'user', content: JSON.stringify({ handoffCheckpoint: checkpoint, instruction: '这是上一段工作的交班检查点，作为本段起始；旧授权不延续，执行仍按当前已批准的计划。' }) })
-          result = { messages, eligibleIndexes: result.eligibleIndexes.map((index) => index >= at ? index + 1 : index) }
-        }
         return result
-      }, foreground: () => { questions?.interrupt(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, afterTools: (turnId, callIds) => questions?.commit(turnId, callIds), turnSettled: (turnId) => {
-        questions?.settled(turnId)
-        if (handoffTurnId === turnId) {
-          if (!store!.records().some((row) => row.type === 'task/handoff' && row.turnId === turnId)) handoffService.fallback(turnId)
-          handoffTurnId = undefined
-          controller?.refresh('task')
-        }
-      }, userWork: () => { sleep?.wake(); life?.foreground() },
-      settled: () => { heartFlow?.settled(); voice?.observe() }, failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
+      }, foreground: () => { questions?.interrupt(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() }, afterTools: (turnId, callIds) => questions?.commit(turnId, callIds), turnSettled: (turnId) => questions?.settled(turnId), userWork: () => { sleep?.wake(); life?.foreground() },
+      settled: () => { voice?.observe() }, failed: () => { console.error('Execution stopped: local storage unavailable.'); app.quit() } })
     const voiceConfig = prepared.developer ? null : await readVoiceConfig(providersFile)
     voice = createVoice({ store, clock, budget: resourceBudget, port: prepared.developer ? createFakeVoice(clock) : voiceConfig ? createSpeechPort(voiceConfig) : null,
-      blocked: () => { const p = store!.projection(); return p.sleeping || p.lightsOut || p.mode === 'quiet' || p.pomodoro.phase === 'focus' || !!heartFlow?.active() || !!minecraft?.active() || !!backup?.isBusy() || !!bookWindow && !bookWindow.isVisible() },
+      blocked: () => { const p = store!.projection(); return p.sleeping || p.lightsOut || p.mode === 'quiet' || p.pomodoro.phase === 'focus' || !!minecraft?.active() || !!backup?.isBusy() || !!bookWindow && !bookWindow.isVisible() },
       changed: () => controller?.refresh('connection'), safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
     controller.attachVoice(voice)
     scheduler.schedule('voice.guard', clock.nowMs() + 250, () => voice?.stateChanged(), { everyMs: 250 })
-    // DSH: the user's chat goes to her DSH session; autonomous events stay on the legacy loop. The runtime ships
-    // with the app (resources/dsh-runtime, prepared by scripts/prepare-dsh-runtime.mjs); LCA_DSH=0 turns it off.
+    // DSH: your chat and her own events go to her DSH session. The runtime ships with the app (resources/dsh-runtime,
+    // prepared by scripts/prepare-dsh-runtime.mjs).
     // LCA private data never becomes her working material, whatever folder the user picks.
     const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'runtime-resources', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
     const projects = createProjects({ settings: prepared.pluginSettings, desk: join(roomRoot, '书桌'), privateRoots: guardedRoots,
@@ -768,12 +660,6 @@ void app.whenReady().then(async () => {
       return [harnessPolicy.system, ...profileContext(store!.projection().onboarding).map((message) => message.content),
         JSON.stringify({ characterCard: { name: card.name, persona: card.persona }, scope: 'character-configuration-only', authority: 'personality-never-tool-permission' })].join('\n\n')
     }
-    // Her LCA tools in a DSH session: what the legacy loop offers in ordinary turns (plugin tools and Student Hub's
-    // MCP tools), without the heart flow's coding and desk tools that DSH replaces. Source tools (mail, documents,
-    // Student Hub, MCP) degrade the turn in the bridge (D2).
-    const campusEnabled = () => plugins.views().some((plugin) => plugin.id === 'campus-assistant' && plugin.status === 'enabled')
-    const dshTools = () => [...plugins.tools().filter((tool) => !codingToolNames().has(tool.definition.name) && tool.templateId !== 'plan.update' && !tool.templateId.startsWith('desk') && !tool.templateId.startsWith('task.')
-      && !(tool.definition.name === 'import_student_hub_candidates' && campusEnabled()) && (tool.templateId !== 'memory.optical' || !!optical?.enabled())), ...(mcp?.tools(campusEnabled() ? ['student-hub'] : []) ?? [])]
     /**
      * What she may know about your material: your latest imported files (whether main may read their source) and the
      * mail candidates you ignored. Never originals; secrets masked. The legacy loop sends it with every request.
@@ -797,7 +683,7 @@ void app.whenReady().then(async () => {
         project: () => projects.current(), persona,
         // After DSH's first-party guidance: how she talks in the book outranks the coding-agent style.
         suffix: () => '和用户说话用口语化的中文，像平时聊天一样。书里能显示简单的 Markdown：文件名、命令和代码用代码格式，步骤多时可以用列表，但不要写成带标题的报告。用户在你工作途中插话时，先用一两句话回应这句话，再继续手上的事；做完后用一两句话说清结果。',
-        tools: dshTools,
+        tools: herTools,
         ask: async (question, choices, context) => {
           // One line of at most 240 characters, or the question would be refused as invalid (questions/schema.ts).
           const line = [...question.replace(/\s+/g, ' ').trim()]
@@ -827,6 +713,7 @@ void app.whenReady().then(async () => {
           return memoryReference || world || sources ? { ...memoryReference, ...world, ...sources } : null
         },
         started: ({ turnId, requestId }) => recall?.bind(requestId, turnId),
+        answered: ({ turnId, callId }) => questions?.commit(turnId, [callId]),
         revealed: () => {
           const reveal = pendingReveal; pendingReveal = undefined
           if (!reveal || !vault?.readForModel) return null
@@ -848,7 +735,7 @@ void app.whenReady().then(async () => {
     const chatPort = () => dshExecution ?? executionPort()
     controller.attachExecution(chatPort(), modelReady)
     modelSettings = createModelSettings({ root: dataRoot, fallback: prepared.developer ? undefined : providersFile, developer: prepared.developer, slots: [...rawProviders.keys()], clock, budget: resourceBudget,
-      canConfigure: () => !herBusy() && !backup?.isBusy() && !heartFlow?.active() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
+      canConfigure: () => !herBusy() && !backup?.isBusy() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
       apply: async () => {
         scheduler!.pauseBackground(true)
         try {
@@ -875,7 +762,7 @@ void app.whenReady().then(async () => {
     // Without DSH nothing sends a thinking level; the settings say the provider decides.
     if (!dshExecution) modelSettings.setLevels(null)
     backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials, onboarding: () => controller!.getSnapshot().onboarding!,
-      canStart: () => !herBusy() && !gifts?.isBusy() && !modelSettings?.isBusy() && !heartFlow?.active() && !minecraft?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
+      canStart: () => !herBusy() && !gifts?.isBusy() && !modelSettings?.isBusy() && !minecraft?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
       freeze: async () => { scheduler!.pauseBackground(true); voice?.interrupt(); memory!.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground(); await Promise.all([memory!.idle(), diary?.idle(), photos?.idle(), lifeWork?.idle(), optical?.idle()]); if (herBusy() || gifts?.isBusy() || modelSettings?.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
       chooseExport: async (name) => { const selected = await dialog.showSaveDialog({ title: '导出私人存档', defaultPath: name, filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePath ?? null },
       chooseImport: async () => { const selected = await dialog.showOpenDialog({ title: '选择私人存档', properties: ['openFile'], filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
@@ -901,7 +788,6 @@ void app.whenReady().then(async () => {
     plugins.mountService('history', (enabled) => { recall?.setEnabled(enabled); photos?.setEnabled(enabled) })
     plugins.mountService('mcp', (enabled) => mcp?.setEnabled(enabled))
     plugins.mountService('gifts', (enabled) => gifts?.setEnabled(enabled))
-    plugins.mountService('coding', (enabled) => heartFlow?.setEnabled(enabled))
     plugins.mountService('life-work', (enabled) => lifeWork?.setEnabled(enabled))
     plugins.mountService('optical-memory', (enabled) => optical?.setPluginEnabled(enabled))
     plugins.mountService('notifications', (enabled) => notifications?.setEnabled(enabled))
@@ -933,7 +819,6 @@ app.on('before-quit', (event) => {
     pomodoro?.dispose()
     quill?.dispose()
     companionWindows?.dispose()
-    heartFlow?.close()
     life?.close()
     notifications?.close()
     const closeCampus = campus?.close()
@@ -942,6 +827,6 @@ app.on('before-quit', (event) => {
     scheduler?.dispose()
     const closeGame = (async () => { await minecraft?.close(); await minecraftChat?.end(); await mcp?.close() })()
     // Keep the development clock alive until every service has finished its cancellation/release RPCs.
-    void Promise.all([deskCommands?.close(), harness.dispose(), closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), delegates?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); resourceBudget?.close(); storageClosed = true; app.quit() })
+    void Promise.all([harness.dispose(), closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); resourceBudget?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); resourceBudget?.close(); storageClosed = true }
 })

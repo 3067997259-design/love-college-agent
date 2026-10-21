@@ -22,8 +22,7 @@ import type { CompanionWindows, WindowSurface } from '../windows/companion'
 import { characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
 import { giftSpecSchema } from '../gifts/schema'
 import type { GiftService } from '../gifts/service'
-import type { HeartFlowService } from '../heart-flow/service'
-import type { TaskService } from '../task/service'
+import type { LegacyFlowRecords } from '../legacy-flow/records'
 import type { AttentionService } from '../attention/service'
 import type { VoiceService } from '../voice/service'
 import type { LifeService } from '../life/service'
@@ -40,18 +39,12 @@ import type { OpticalMemoryService } from '../optical/service'
 import { opticalTier } from '../optical/schema'
 import { minecraftScopeSchema, type MinecraftService } from '../minecraft/service'
 import type { MinecraftChat } from '../minecraft/chat'
-import { goalTextSchema, goalStatusSchema } from '../heart-flow/goals'
 import type { ResourceBudget } from '../resources/service'
 import type { QuestionService } from '../questions/service'
 import { answerInput } from '../questions/schema'
-import { deskCommandInput } from '../desk-command/schema'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
-  z.strictObject({ ...envelope, type: z.literal('flow.command.run'), ...deskCommandInput.shape }),
-  z.strictObject({ ...envelope, type: z.literal('flow.command.approve'), commandId: z.string().uuid(), allow: z.boolean() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.command.cancel'), commandId: z.string().uuid() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.command.open'), commandId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('question.answer'), questionId: z.string().uuid(), answer: answerInput }),
   z.strictObject({ ...envelope, type: z.literal('question.dismiss'), questionId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('project.pick') }),
@@ -59,10 +52,6 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('project.forget'), path: z.string().min(1).max(1024) }),
   z.strictObject({ ...envelope, type: z.literal('project.untrust'), path: z.string().min(1).max(1024) }),
   z.strictObject({ ...envelope, type: z.literal('companion.sleep'), sleeping: z.boolean() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.fetch.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.computer.open'), path: z.string().min(1).max(180) }),
-  z.strictObject({ ...envelope, type: z.literal('flow.computer.close') }),
-  z.strictObject({ ...envelope, type: z.literal('flow.computer.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('voice.set'), enabled: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('resources.configure'), dailyTotalUnits: z.number().int().min(10000).max(5_000_000), dailyAutonomousUnits: z.number().int().nonnegative().max(5_000_000) }).refine((value) => value.dailyAutonomousUnits <= value.dailyTotalUnits),
   z.strictObject({ ...envelope, type: z.literal('voice.stop'), utteranceId: z.string().uuid() }),
@@ -96,27 +85,6 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('life.propose'), place: z.enum(['coast', 'swing']).optional() }),
   z.strictObject({ ...envelope, type: z.literal('life.depart'), outingId: z.string().max(100) }),
   z.strictObject({ ...envelope, type: z.literal('life.return') }),
-  z.strictObject({ ...envelope, type: z.literal('flow.enter') }),
-  z.strictObject({ ...envelope, type: z.literal('flow.init') }),
-  z.strictObject({ ...envelope, type: z.literal('flow.review') }),
-  z.strictObject({ ...envelope, type: z.literal('flow.operation.open'), operationId: z.string().uuid() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.goal.set'), text: goalTextSchema, goalId: z.string().uuid().optional() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.goal.select'), goalId: z.string().uuid() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.goal.status'), goalId: z.string().uuid(), status: goalStatusSchema }),
-  z.strictObject({ ...envelope, type: z.literal('flow.exit') }),
-  z.strictObject({ ...envelope, type: z.literal('flow.mode'), mode: z.enum(['plan', 'execute']) }),
-  z.strictObject({ ...envelope, type: z.literal('flow.compact'), focus: z.string().trim().min(1).max(500).optional() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.inspect'), section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128).optional() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.resume'), flowId: z.string().min(1).max(128) }),
-  z.strictObject({ ...envelope, type: z.literal('flow.delegate.cancel'), delegateId: z.string().uuid() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.undo'), changeId: z.string().uuid() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.rewind.prepare'), changeId: z.string().uuid() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.rewind.apply'), rewindId: z.string().uuid() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.rewind.cancel'), rewindId: z.string().uuid() }),
-  z.strictObject({ ...envelope, type: z.literal('flow.run'), code: z.string().min(1).max(10000) }),
-  z.strictObject({ ...envelope, type: z.literal('flow.approve'), approvalId: z.string().uuid(), allow: z.boolean() }),
-  z.strictObject({ ...envelope, type: z.literal('task.approve'), taskId: z.string().min(1).max(128), planVersion: z.number().int().positive().max(1000) }),
-  z.strictObject({ ...envelope, type: z.literal('task.close'), taskId: z.string().min(1).max(128), status: z.enum(['completed', 'abandoned']), summary: z.string().trim().min(1).max(2000).optional() }),
   z.strictObject({ ...envelope, type: z.literal('context.reveal'), source: z.literal('mail'), ref: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('message.send'), text: z.string().trim().min(1).max(20_000) }),
   z.strictObject({ ...envelope, type: z.literal('turn.stop'), taskId: z.string().min(1).max(128) }),
@@ -206,8 +174,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let projects: ProjectsService | undefined
   let windows: CompanionWindows | undefined
   let gifts: GiftService | undefined
-  let heartFlow: HeartFlowService | undefined
-  let taskService: TaskService | undefined
+  let legacyFlows: LegacyFlowRecords | undefined
   let attention: AttentionService | undefined
   let revealContext: ((command: Extract<AppCommand, { type: 'context.reveal' }>, signature: string) => PublicErrorCode | undefined) | undefined
   let voice: VoiceService | undefined
@@ -235,7 +202,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       daypart: deriveDaypart(clock.nowMs(), daypartSchedule), mailboxUnseen: 0 },
     pomodoro: { phase: 'idle', status: 'idle', remainingMs: 0, endsAtMs: null, focusIndex: 0, phaseDurationMs: 0, plannedCount: 0 },
     task: null, messages: [], activities: [], candidates: [], deliveries: [],
-    capabilities: (['chat', 'pomodoro', 'mail', 'privacy', 'memory', 'backup', 'mcp', 'rodin', 'heart-flow'] as const).map((id) => ({
+    capabilities: (['chat', 'pomodoro', 'mail', 'privacy', 'memory', 'backup', 'mcp', 'rodin'] as const).map((id) => ({
       id, status: 'unavailable' as const, source: 'none' as const,
     })),
     privacy: { mode: 'follow-main', fileFilteringEnabled: false },
@@ -249,8 +216,6 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     snapshot.messages = saved.messages
     snapshot.activities = saved.activities
     snapshot.task = saved.task
-    snapshot.tasks = saved.tasks
-    snapshot.activeTaskId = saved.activeTaskId
     if (saved.degraded) snapshot.degraded = saved.degraded
     snapshot.pomodoro = saved.pomodoro
     for (const request of saved.requests.slice(-1000)) requests.set(request.requestId, { signature: request.commandHash,
@@ -258,7 +223,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   }
   const updatePose = () => { snapshot.companion.pose = attention?.view().pose ?? (snapshot.companion.sleeping ? 'sleeping' : { work: 'desk-computer', quiet: 'desk-writing', rest: 'facing-user' }[snapshot.companion.mode]) }
   updatePose()
-  let execution: { source: 'real' | 'fake'; send(text: string, requestId: string, hash: string): void; stop(id: string): boolean; stateChanged(): void; taskApproved?(): void } | undefined
+  let execution: { source: 'real' | 'fake'; send(text: string, requestId: string, hash: string): void; stop(id: string): boolean; stateChanged(): void } | undefined
   let executionReady = false
   let runtime: RuntimePort | undefined
   let pomodoro: PomodoroService | undefined
@@ -271,7 +236,6 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     snapshot.companion.mode = view.mode; snapshot.companion.lightsOut = view.lightsOut; snapshot.companion.sleeping = view.sleeping
     snapshot.onboarding = onboardingView(view.onboarding, !!options.booth)
     snapshot.messages = view.messages; snapshot.activities = view.activities; snapshot.task = view.task
-    snapshot.tasks = view.tasks; snapshot.activeTaskId = view.activeTaskId
     if (view.degraded) snapshot.degraded = view.degraded; else delete snapshot.degraded
     snapshot.pomodoro = pomodoro?.read() ?? view.pomodoro
     updatePose()
@@ -314,7 +278,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     }
     if (quill) snapshot.quill = quill.read()
     if (gifts) { snapshot.gifts = gifts.view(); snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'rodin' ? { ...item, status: snapshot.gifts!.configured ? 'ready' : 'unconfigured', source: snapshot.gifts!.items.at(-1)?.source ?? 'none' } : item) }
-    if (heartFlow) { snapshot.heartFlow = heartFlow.view(); snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'heart-flow' ? { ...item, status: 'ready', source: 'real' } : item); if (snapshot.heartFlow.activeId) snapshot.companion.pose = 'desk-computer' }
+    if (legacyFlows) { const sessions = legacyFlows.sessions(); if (sessions.length) snapshot.legacyFlows = sessions }
     if (life) { snapshot.life = life.view(); snapshot.companion.locationId = snapshot.life.locationId }
     if (diary) snapshot.diary = diary.view()
     if (notifications) snapshot.notifications = notifications.view()
@@ -346,8 +310,6 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.epoch !== snapshot.epoch) return reject(command.requestId, 'stale-epoch')
     if (surface === 'diagnostics' || (command.type === 'window.mini.hover' || command.type === 'window.mini.move' || command.type === 'window.mini.moveBy') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
-    if (command.type.startsWith('flow.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
-    if (command.type.startsWith('task.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'context.reveal' && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('voice.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('resources.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -371,7 +333,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     let ack: CommandAck
     // A deliberate conversation/work request is user presence. Window telemetry and
     // background ticks do not wake her; lights remain an independent pause switch.
-    if (!snapshot.companion.lightsOut && (['message.send', 'history.recall', 'flow.enter', 'flow.resume', 'pomodoro.start', 'pomodoro.resume', 'life.work.start', 'life.work.resume', 'minecraft.start', 'life.depart'].includes(command.type)
+    if (!snapshot.companion.lightsOut && (['message.send', 'history.recall', 'pomodoro.start', 'pomodoro.resume', 'life.work.start', 'life.work.resume', 'minecraft.start', 'life.depart'].includes(command.type)
       || command.type === 'mode.set' && command.mode !== 'rest' || command.type === 'life.schedule' && command.schedule === 'work')) sleep?.wake()
     if (command.type === 'companion.sleep' && sleep) {
       const error = sleep.set(command.sleeping, 'user', { requestId: command.requestId, commandHash: signature }); readProjection()
@@ -432,7 +394,6 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       lifeWork?.foreground()
       life?.reconcile()
       gifts?.stateChanged()
-      heartFlow?.stateChanged()
       diary?.foreground()
       pomodoro?.stateChanged(command)
       campus?.stateChanged()
@@ -444,16 +405,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       publish('mode', command.requestId)
       execution?.stateChanged()
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
-    } else if (heartFlow && command.type === 'message.send' && (heartFlow.active() && /^(?:\/(?:init|review|exit|plan|permissions|status|diff|undo)$|\/compact(?:\s|$))/.test(command.text) || /^\/goal(?:\s|$)/.test(command.text))) {
-      const text = command.text; const focus = /^\/compact\s/.test(text) ? text.slice(8).trim() || undefined : undefined
-      const section = ({ '/permissions': 'permissions', '/status': 'status', '/diff': 'diff' } as const)[text as '/permissions' | '/status' | '/diff']
-      const goalText = text.startsWith('/goal ') ? text.slice(6).trim() : ''; const flowView = heartFlow.view(); const selectedGoal = flowView.goals?.find((goal) => goal.id === flowView.goalId && goal.status === 'active')
-      const action: AppCommand | undefined = goalText ? { ...command, type: 'flow.goal.set', text: goalText, ...(selectedGoal ? { goalId: selectedGoal.id } : {}) } : text === '/init' ? { ...command, type: 'flow.init' } : text === '/review' ? { ...command, type: 'flow.review' } : text === '/exit' ? { ...command, type: 'flow.exit' } : text === '/plan' ? { ...command, type: 'flow.mode', mode: 'plan' } : text.startsWith('/compact') ? { ...command, type: 'flow.compact', ...(focus ? { focus } : {}) } : section ? { ...command, type: 'flow.inspect', section } : text === '/undo' && heartFlow.view().changes.some((change) => !change.undone) ? { ...command, type: 'flow.undo', changeId: heartFlow.view().changes.findLast((change) => !change.undone)!.id } : undefined
-      const effectiveAction: AppCommand | undefined = action?.type === 'flow.undo' && text === '/undo' ? { ...action, type: 'flow.rewind.prepare' } : action
-      const error = focus && focus.length > 500 ? 'invalid-command' : effectiveAction ? heartFlow.dispatch(effectiveAction, signature) : 'unavailable'
-      if (!error && effectiveAction) questions?.stateChanged(effectiveAction)
-      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
-    } else if (memory && !heartFlow?.active() && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
+    } else if (memory && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
       try { const error = memory.dispatch(command.type === 'message.send' ? { ...command, type: 'context.compact' } : command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (documents && command.type === 'message.send' && /^\/privacy(?:\s+(?:on|off))?$/i.test(command.text)) {
@@ -466,16 +418,6 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (optical && command.type.startsWith('optical.')) {
       try { const error = optical.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
-    } else if (heartFlow && command.type.startsWith('flow.')) {
-      const error = heartFlow.dispatch(command, signature); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
-    } else if (taskService && command.type.startsWith('task.')) {
-      const error = taskService.dispatch(command as Extract<AppCommand, { type: 'task.approve' | 'task.close' }>, signature)
-      readProjection()
-      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
-      // D3: a fresh approval may let the focused task continue without any new user message.
-      // Outside a focus the approval starts one work turn explicitly, matching the task proposal's promise.
-      if (!error) { execution?.stateChanged(); if (command.type === 'task.approve') execution?.taskApproved?.() }
-      publish('task', command.requestId)
     } else if (revealContext && command.type === 'context.reveal') {
       const error = revealContext(command, signature)
       ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
@@ -517,12 +459,11 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       try { const error = mcp.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
     } else if (command.type === 'message.send' && execution && executionReady && !snapshot.companion.lightsOut) {
-      try { voice?.interrupt(); heartFlow?.interruptDraft(); execution.send(command.text, command.requestId, signature) }
+      try { voice?.interrupt(); execution.send(command.text, command.requestId, signature) }
       catch { return reject(command.requestId, 'internal') }
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else if (command.type === 'turn.stop' && execution) {
       if (!execution.stop(command.taskId)) return reject(command.requestId, 'invalid-command')
-      heartFlow?.stopChildren()
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else if (campus && (command.type.startsWith('candidate.') || command.type === 'mail.scan' || command.type === 'campus.export' || command.type === 'artifact.open' || command.type === 'developer.mailbox')) {
       try {
@@ -547,8 +488,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     }
     minecraft?.stateChanged()
     voice?.stateChanged()
-    heartFlow?.stateChanged()
-    questions?.stateChanged(ack.status === 'accepted' ? command : undefined)
+    questions?.stateChanged()
     requests.set(command.requestId, { signature, ack })
     if (requests.size > 1000) requests.delete(requests.keys().next().value!)
     return structuredClone(ack)
@@ -569,8 +509,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachBackup: (port: BackupService) => { backup = port; publish('connection') },
     attachQuill: (port: QuillService) => { quill = port; publish('connection') },
     attachGifts: (port: GiftService) => { gifts = port; publish('connection') },
-    attachHeartFlow: (port: HeartFlowService) => { heartFlow = port; publish('connection') },
-    attachTask: (port: TaskService) => { taskService = port; readProjection(); publish('connection') },
+    attachLegacyFlows: (port: LegacyFlowRecords) => { legacyFlows = port; publish('connection') },
     attachAttention: (port: AttentionService) => { attention = port; snapshot.attention = attention.view(); updatePose(); publish('mode') },
     attachContextReveal: (port: NonNullable<typeof revealContext>) => { revealContext = port },
     attachVoice: (port: VoiceService) => { voice = port; publish('connection') },
@@ -586,7 +525,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachOptical: (port: OpticalMemoryService) => { optical = port; publish('connection') },
     readOpticalMemory: (id: unknown) => { if (!optical || typeof id !== 'string' || !/^[a-f0-9]{64}$/.test(id) || backup?.isBusy()) throw new Error('OPTICAL_UNAVAILABLE'); return optical.read(id) },
     readDiary: (id: unknown) => { if (!diary || typeof id !== 'string' || !/^diary:[a-f0-9]{64}$/.test(id)) throw new Error('DIARY_UNAVAILABLE'); return diary.read(id) },
-    readHeartFlow: (input: unknown) => { const parsed = z.strictObject({ section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128).optional() }).parse(input); if (!heartFlow) throw new Error('FLOW_UNAVAILABLE'); return heartFlow.inspect(parsed) },
+    readHeartFlow: (input: unknown) => { const parsed = z.strictObject({ section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128) }).parse(input); if (!legacyFlows) throw new Error('FLOW_UNAVAILABLE'); return legacyFlows.inspect(parsed) },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
     attachProjects: (port: ProjectsService) => { projects = port; publish('task') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },

@@ -9,7 +9,7 @@ export async function probeQuestions(root: string) {
   const clock = createManualClock(0); clock.advanceBy(clock.parse('2026-10-17T03:59:00+08:00'))
   const owner = { userId: 'quota-user', characterId: 'quota-character' }
   let store = openSessionStore(root, owner, clock)
-  const open = () => createQuestions({ store, clock, flowId: () => null, changed: () => {}, safeText: (text) => text })
+  const open = () => createQuestions({ store, clock, changed: () => {}, safeText: (text) => text })
   let questions = open()
   const batch = async () => {
     for (let turn = 0; turn < 4; turn++) {

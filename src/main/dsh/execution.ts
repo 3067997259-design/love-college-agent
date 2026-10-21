@@ -63,7 +63,7 @@ export const failureOf = (reason: unknown): { code: PublicErrorCode; httpStatus?
 }
 
 /**
- * DSH execution port (on whenever the runtime ships; LCA_DSH=0 turns it off). The user's messages go
+ * DSH execution port (on whenever the runtime ships and a chat model is configured). The user's messages go
  * to her DSH session for the day, in the project folder the book picked. DSH's own session log is the record of what she saw and did; the journal keeps what LCA owns: the
  * conversation, a reference to the DSH turn, the book's activity rows, approvals and trust grants.
  * Tool calls and results never enter LCA's model context or memory. A message sent while a DSH turn
@@ -81,6 +81,8 @@ export function createDshExecution(options: {
   reference?(input: { requestId: string; firstOfSession: boolean }): Record<string, unknown> | null
   /** A turn your message opened has its LCA id now (an old-page quote sent with that message belongs to it). */
   started?(input: { turnId: string; requestId: string }): void
+  /** You answered a question she asked in this turn: the answer has reached her (questions/service.ts commit). */
+  answered?(input: { turnId: string; callId: string }): void
   /** Extra reasons to hold events back, besides focus, quiet mode and sleep (a game round). */
   backgroundQuiet?(): boolean
   /**
@@ -203,11 +205,22 @@ export function createDshExecution(options: {
 
   const call = async (name: string, args: unknown, _sessionId: string, callId: string) => {
     const tool = lcaTools().get(name)
-    if (!tool || !turn) throw new Error('LCA tool unavailable right now')
+    const current = turn
+    if (!tool || !current) throw new Error('LCA tool unavailable right now')
     const input = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
     if (!tool.validate(input)) throw new Error('invalid-tool-arguments: one JSON object matching the tool schema')
-    const result = await tool.run(input, { clock, store, turnId: turn.lcaTurnId, callId, signal: turn.asks.signal })
+    const result = await tool.run(input, { clock, store, turnId: current.lcaTurnId, callId, signal: current.asks.signal })
     if (!result.ok) throw new Error(clip(JSON.stringify(result.visible), 400))
+    // Her question to you: your answer is what she reads back (the legacy loop brings it as your next message instead),
+    // and as your words it is part of what she saw this turn.
+    if (tool.templateId === 'user.ask') {
+      const receipt = result.raw as { answerMessageId?: unknown }
+      const row = store.records().findLast((entry) => entry.type === 'user/message' && entry.id === receipt.answerMessageId)
+      const answer = row?.type === 'user/message' ? row.text : null
+      if (answer !== null) current.seen.push({ role: 'user', content: answer })
+      options.answered?.({ turnId: current.lcaTurnId, callId })
+      return { value: { status: 'answered', answer }, source: null }
+    }
     // An original she asked to read rides with the result, so the bridge retires it with the turn's other sources (D2).
     return { value: result.original === undefined ? result.visible : { ...result.visible as Record<string, unknown>, original: result.original }, source: sourceOf(tool.templateId) }
   }

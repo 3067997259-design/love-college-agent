@@ -118,7 +118,6 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'optical.encode'; sessionId: string }
   /** Tier is an experimental decoder setting, never an automatic age/quality guarantee. */
   | { type: 'optical.decode'; frameId: string; tier: OpticalTier }
-  | { type: 'flow.enter' }
   | { type: 'life.schedule'; schedule: 'auto' | 'work' | 'rest' }
   | { type: 'life.propose'; place?: 'coast' | 'swing' }
   | { type: 'life.depart'; outingId: string }
@@ -143,50 +142,6 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'notification.rule.remove'; ruleId: string }
   | { type: 'notification.rule.confirm'; ruleId: string }
   | { type: 'notification.rule.discard'; ruleId: string }
-  | { type: 'flow.exit' }
-  | { type: 'flow.mode'; mode: 'plan' | 'execute' }
-  | { type: 'flow.compact'; focus?: string }
-  /** User-only inspection. Native preview contains desk diffs; never a model/debug read channel. */
-  | { type: 'flow.inspect'; section: 'status' | 'permissions' | 'diff'; flowId?: string }
-  /** Start a new plan-only flow from a closed flow's frozen reference and evidence index. Fresh run approvals required. */
-  | { type: 'flow.resume'; flowId: string }
-  /** Cancels only a subordinate read task of the current flow. Never restarts it automatically. */
-  | { type: 'flow.delegate.cancel'; delegateId: string }
-  /** Create/update a short work goal; it is not an execution approval or an ordinary shared memory. */
-  | { type: 'flow.goal.set'; text: string; goalId?: string }
-  | { type: 'flow.goal.select'; goalId: string }
-  /** Human status decision only. No model tool may complete a long-term goal by itself. */
-  | { type: 'flow.goal.status'; goalId: string; status: 'active' | 'completed' | 'cancelled' }
-  /** Explicit user task; requires an active execute flow. Creates only a desk draft, not verified claims. */
-  | { type: 'flow.init' }
-  /** User explicitly opens one desk HTML file; the model cannot select or replace the target. */
-  | { type: 'flow.computer.open'; path: string }
-  | { type: 'flow.computer.close' }
-  | { type: 'flow.fetch.approve'; approvalId: string; allow: boolean }
-  | { type: 'flow.computer.approve'; approvalId: string; allow: boolean }
-  | { type: 'flow.review' }
-  /** Book-only native preview. Draft prose is never carried in snapshots or ordinary memory. */
-  | { type: 'flow.operation.open'; operationId: string }
-  | { type: 'flow.undo'; changeId: string }
-  /** Book-only preview of all recorded desk file changes from this step onward in the active flow. */
-  | { type: 'flow.rewind.prepare'; changeId: string }
-  /** Fresh confirmation; any change to the recorded range or affected live files rejects execution. */
-  | { type: 'flow.rewind.apply'; rewindId: string }
-  | { type: 'flow.rewind.cancel'; rewindId: string }
-  /** Book-only. Single-line cmd command <=6000 UTF-16 chars, timeout 500..30000 ms (default 5000). Never executes on request alone. */
-  | { type: 'flow.command.run'; command: string; timeoutMs?: number }
-  /** Fresh per-command human decision; booth always refuses execution. */
-  | { type: 'flow.command.approve'; commandId: string; allow: boolean }
-  | { type: 'flow.command.cancel'; commandId: string }
-  /** User-only native output preview; stdout/stderr are work data, not snapshot or ordinary memory. */
-  | { type: 'flow.command.open'; commandId: string }
-  /** No shell, Node, credentials, network, or app bridge in the isolated executor. Every request requires fresh human approval. */
-  | { type: 'flow.run'; code: string }
-  | { type: 'flow.approve'; approvalId: string; allow: boolean }
-  /** D1 task object: approve one concrete plan version. This is the authorization; a proposal alone grants nothing. */
-  | { type: 'task.approve'; taskId: string; planVersion: number }
-  /** D1 task object: the user decides the terminal state. Model text cannot complete a task. */
-  | { type: 'task.close'; taskId: string; status: 'completed' | 'abandoned'; summary?: string }
   /** D2: user asks for one original in the next turn. One-shot; never a standing grant. */
   | { type: 'context.reveal'; source: 'mail'; ref: string }
   /** Consolidate closed calendar periods from grounded day summaries; repeated identical inputs are no-ops. */

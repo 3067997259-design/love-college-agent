@@ -20,6 +20,9 @@ afterEach(() => { for (const root of roots.splice(0)) {
 
 const mailTool: HarnessTool = { definition: { name: 'read_mail', description: 'synthetic', parameters: { type: 'object', properties: {} } }, templateId: 'mail.read',
   validate: () => true, run: async () => ({ ok: true, raw: {}, visible: { subject: 'synthetic' } }) }
+// Her question to you: the answer is a user/message in the journal, the tool result only names it (questions/service.ts).
+const askTool: HarnessTool = { definition: { name: 'ask_user', description: 'synthetic', parameters: { type: 'object', properties: {} } }, templateId: 'user.ask',
+  validate: () => true, run: async (_input, context) => { context.store.append({ type: 'user/message', id: 'answer-1', text: '用 Markdown', requestId: 'answer-1', commandHash: 'h' }); return { ok: true, raw: { status: 'answered', answerMessageId: 'answer-1' }, visible: { status: 'answered', answerMessageId: 'answer-1' } } } }
 const fileTool: HarnessTool = { definition: { name: 'read_uploaded_file', description: 'synthetic', parameters: { type: 'object', properties: {} } }, templateId: 'document.read',
   validate: () => true, run: async () => ({ ok: true, raw: { documentId: 'doc-1', sourceRead: true }, visible: { documentId: 'doc-1', sourceRead: true }, original: 'UPLOADED_ORIGINAL' }) }
 
@@ -34,19 +37,20 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const host = { options: undefined as DshHostOptions | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], degrades: [] as string[][], trusted: [] as string[], current: 'dsh-1' }
   const referenceAsks: boolean[] = []
   const startedTurns: { turnId: string; requestId: string }[] = []
+  const answeredCalls: { turnId: string; callId: string }[] = []
   const launch = ((options: DshHostOptions) => {
     host.options = options
     return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
       send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
   const execution = createDshExecution({ store, clock, dataDir: root, dshRoot: 'unused', bridge: 'unused', routes: { env: {}, chat: { provider: 'deepseek-official', model: 'deepseek-flash' }, work: { provider: 'deepseek-official', model: 'deepseek-flash' } }, guardedRoots: [],
-    project: () => project, persona: () => '', suffix: () => '', tools: () => [mailTool, fileTool],
-    ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch, admit, revealed, started: (input) => { startedTurns.push(input) },
+    project: () => project, persona: () => '', suffix: () => '', tools: () => [mailTool, fileTool, askTool],
+    ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch, admit, revealed, started: (input) => { startedTurns.push(input) }, answered: (input) => { answeredCalls.push(input) },
     reference: ({ firstOfSession }) => { referenceAsks.push(firstOfSession); return { memoryReference: [{ text: '你喜欢用 TypeScript' }], ...(firstOfSession ? { previousDaysReference: [{ text: '昨天一起写了质数脚本' }] } : {}) } } })
   const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: host.current, ...event } as DshEvent)
   const approval = (patch: Partial<DshApproval>) => host.options!.onApproval({ sessionId: 'dsh-1', toolName: 'pwsh', callId: 'call-x', reason: null, kind: 'escalation', command: 'node a.js', subject: 'node a.js', degraded: null, ...patch })
   const opened = async () => { for (let i = 0; i < 20 && !host.sent.length; i++) await Promise.resolve() }
-  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, referenceAsks, startedTurns, setProject: (next: string) => { project = next }, setAnswer: (next: typeof answer) => { answer = next } }
+  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, referenceAsks, startedTurns, answeredCalls, setProject: (next: string) => { project = next }, setAnswer: (next: typeof answer) => { answer = next } }
 }
 
 async function workTurn(f: ReturnType<typeof setup>) {
@@ -312,6 +316,21 @@ describe('DSH work in the LCA journal', () => {
     expect(f.host.trusted).toEqual([])
     f.emit({ t: 'retired', count: 1 })
     expect(JSON.parse(readFileSync(join(f.root, 'dsh-sessions.json'), 'utf8'))[f.store.scope.sessionId][0].degraded).toBeUndefined()
+    f.journal.close()
+  })
+
+  it('gives her your answer to her question as the tool result, and counts it among what she saw', async () => {
+    const f = setup()
+    f.execution.send('帮我记下来', 'r-1', 'h-1')
+    await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    expect(await f.host.options!.onCall('lca_ask_user', {}, 'dsh-1', 'call-ask')).toEqual({ value: { status: 'answered', answer: '用 Markdown' }, source: null })
+    const turnId = (f.store.records().find((row) => row.type === 'turn/start') as { turnId: string }).turnId
+    expect(f.answeredCalls).toEqual([{ turnId, callId: 'call-ask' }])
+    f.emit({ t: 'message', text: '好，记成 Markdown。', toolCalls: [] })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
+    const seen = f.store.records().find((row) => row.type === 'model/seen')
+    expect(seen?.type === 'model/seen' && seen.messages.map((message) => message.content)).toEqual(['帮我记下来', '用 Markdown', '好，记成 Markdown。'])
     f.journal.close()
   })
 

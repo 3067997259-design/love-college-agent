@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot } from '../../../shared'
 import './tools.css'
 import { MailboxControls } from './MailboxControls'
@@ -8,7 +8,6 @@ import { BackupControls } from './BackupControls'
 import { DiagnosticsControls } from './DiagnosticsControls'
 import { ModelControls } from './ModelControls'
 import { GiftControls } from './GiftControls'
-import { HeartFlowControls } from './HeartFlowControls'
 import { LifeControls } from './LifeControls'
 import { DiaryControls } from './DiaryControls'
 import { NotificationControls } from './NotificationControls'
@@ -28,7 +27,6 @@ export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: {
   const setOpen = (value: boolean) => { if (onOpenChange) onOpenChange(value); else setOwnOpen(value) }
   const [error, setError] = useState('')
   const [approving, setApproving] = useState<string | null>(null)
-  useEffect(() => { if (snapshot.heartFlow?.activeId) setOpen(false) }, [snapshot.heartFlow?.activeId])
   const send = async (action: Action) => {
     try {
       const ack = await bridge.dispatch({ ...action, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() })
@@ -53,7 +51,6 @@ export function ToolsPanel({ bridge, snapshot, open: openProp, onOpenChange }: {
       <DiagnosticsControls bridge={bridge} snapshot={snapshot} />
       <ModelControls bridge={bridge} snapshot={snapshot} />
       <GiftControls bridge={bridge} snapshot={snapshot} />
-      {!snapshot.heartFlow?.activeId && <HeartFlowControls bridge={bridge} snapshot={snapshot} />}
       <LifeControls bridge={bridge} snapshot={snapshot} />
       <DiaryControls bridge={bridge} snapshot={snapshot} />
       <NotificationControls bridge={bridge} snapshot={snapshot} />

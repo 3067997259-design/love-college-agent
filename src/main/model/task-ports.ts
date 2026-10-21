@@ -18,8 +18,6 @@ import diaryPrompts from '../diary/prompts.json'
 import { BUILTIN_CARD } from '../characters/builtin-persona'
 import type { DiaryModel } from '../diary/schema'
 import notificationPrompts from '../notifications/prompts.json'
-import delegatePrompts from '../delegates/prompts.json'
-import type { DelegateModel } from '../delegates/schema'
 import { workModelInput, workOutput, type LifeWorkModel } from '../life/work/schema'
 import workProtocol from '../life/work/protocol.json'
 import { ResourceFailure, type ResourceAdmissions } from '../resources/ledger'
@@ -59,7 +57,6 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
   const mainDocument: DocumentPrivacyModel | null = providers.has('chat') ? { source: 'real', ready: true, isolated: false, organize: (input, signal) => json('chat', prompts.document, input, signal, 8192, false, true, 'work', 90_000) } : null
   const narrow: PrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (text, signal) => json('privacy', prompts.narrowPrivacy, { text }, signal ?? new AbortController().signal, 512) } : null
   const diary: DiaryModel | null = providers.has('background') ? { source: 'real', write: (input, signal) => { const card = (store.history?.() ?? store.records()).findLast((row) => row.type === 'character/definition'); return json('background', diaryPrompts.system, { character: { name: store.projection().onboarding.characterName, persona: card?.type === 'character/definition' ? card.definition.persona : BUILTIN_CARD.persona }, fragments: input }, signal, 1600, true) } } : null
-  const delegate: DelegateModel | null = providers.has('background') ? { source: 'real', read: (input, signal) => json('background', delegatePrompts.system, input, signal, 1600, true) } : null
   const lifeWork: LifeWorkModel | null = providers.has('background') ? { source: 'real', produce: async (input, signal) => workOutput.parse(await json('background', workProtocol.system, workModelInput.parse(input), signal, 4096)) } : null
-  return { memory, mail, document, mainDocument, narrow, diary, delegate, lifeWork }
+  return { memory, mail, document, mainDocument, narrow, diary, lifeWork }
 }

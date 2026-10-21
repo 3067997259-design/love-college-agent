@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { AppBridge, AppSnapshot, UserQuestionView } from '../../../shared'
 import words from '../voice/questions.zh.json'
-import { Notice } from './CommandControls'
+import { Notice } from './Notice'
 import { useAct } from './useAct'
 
 /**

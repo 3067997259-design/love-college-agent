@@ -62,13 +62,13 @@ try {
     assert.equal(occupied.trim(), 'free', 'Existing user installation detected; test refuses to upgrade or uninstall it.')
   }
   const unpacked = join(release, 'win-unpacked/LoveCollegeAgent.exe')
-  for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'heart-flow', 'dsh-spike']) { stage = 'unpacked-probe:' + name; await probe(unpacked, name) }
+  for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'dsh-spike']) { stage = 'unpacked-probe:' + name; await probe(unpacked, name) }
   const exe = unpackedOnly ? unpacked : join(installDir, 'LoveCollegeAgent.exe')
   if (!unpackedOnly) {
     stage = 'install'
     await run(installer, ['/S', '/currentuser', `/D=${installDir}`]); installed = true
     assert.ok((await stat(exe)).isFile())
-    for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'heart-flow', 'dsh-spike']) { stage = 'installed-probe:' + name; await probe(exe, name) }
+    for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'dsh-spike']) { stage = 'installed-probe:' + name; await probe(exe, name) }
   }
   stage = unpackedOnly ? 'unpacked-ui-restart' : 'installed-ui-restart'
   env.LCA_DATA_DIR = join(root, '.local-data', `installed-ui-${randomUUID()}`)
@@ -88,7 +88,7 @@ try {
   stage = 'history'
   await run(process.execPath, [join(root, 'scripts/smoke-history.mjs')])
   delete env.LCA_HISTORY_EXECUTABLE
-  const thirdCircleScenarios = [...new Set(['model-routing', 'model-slots', 'documents', 'campus', 'memory', 'harness', 'gifts', 'onboarding', 'life-work', 'sleep', 'flow-sleep', 'flow-drafts', 'desk-shadow', 'delegates', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'computer', 'web-fetch', 'booth', 'mini', 'showcase', 'life-port', 'resources', 'questions', 'desk-command', 'flow-rewind', 'settings', 'failure-narrator', 'privacy-probe', 'providers', 'plugins', 'student-hub-package', 'student-hub-candidates', 'documents', 'campus', 'pomodoro', 'model-routing', 'model-slots', 'gifts', 'room'])]
+  const thirdCircleScenarios = [...new Set(['model-routing', 'model-slots', 'documents', 'campus', 'memory', 'harness', 'gifts', 'onboarding', 'life-work', 'sleep', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'booth', 'mini', 'showcase', 'life-port', 'resources', 'questions', 'settings', 'failure-narrator', 'privacy-probe', 'providers', 'plugins', 'student-hub-package', 'student-hub-candidates', 'documents', 'campus', 'pomodoro', 'model-routing', 'model-slots', 'gifts', 'room'])]
   env.LCA_TEST_EXECUTABLE = exe
   for (const name of thirdCircleScenarios) { stage = 'scenario:' + name; await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs')]); completedScenarios.push(name); console.log(`${unpackedOnly ? 'Unpacked' : 'Installed'} Electron scenario passed: ${name}`); await new Promise((done) => setTimeout(done, 1500)) }
   delete env.LCA_TEST_EXECUTABLE

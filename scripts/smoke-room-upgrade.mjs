@@ -13,7 +13,6 @@ const env = { ...runtimeEnv(root), LCA_PROVIDERS_FILE: join(cwd, 'absent.json') 
 let instance; let page
 const noteId = randomUUID(); const deletedId = randomUUID()
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
-const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID() }) }, body)
 async function launch() { instance = await _electron.launch({ executablePath: electronPath, args: [join(cwd, 'entry.cjs')], cwd, env }); page = await instance.firstWindow(); await initializeTestBook(page) }
 try {
   await mkdir(legacy, { recursive: true }); await mkdir(docs, { recursive: true })
@@ -31,11 +30,11 @@ try {
   await launch(); assert.equal((await snapshot()).runtime.developer.mode, 'normal')
   const settings = JSON.parse(await readFile(join(data, 'settings.json'), 'utf8')); assert.ok(settings.roomLayout.root.startsWith(docs)); const desk = join(settings.roomLayout.root, '书桌')
   assert.equal(await readFile(join(desk, 'note.md'), 'utf8'), 'UPGRADE_OLD'); assert.equal(await readFile(join(legacy, 'note.md'), 'utf8'), 'UPGRADE_OLD')
-  const inspect = await page.evaluate(() => window.lca.readHeartFlow({ section: 'diff' })); assert.ok(inspect.changes.find((row) => row.id === noteId)?.current)
-  assert.equal((await send({ type: 'flow.undo', changeId: noteId })).status, 'accepted')
-  await assert.rejects(readFile(join(desk, 'note.md'))); await assert.rejects(readFile(join(desk, 'unlogged.md')))
+  // The old flow stays readable as history: its diff shows the migrated file as current.
+  const inspect = await page.evaluate(() => window.lca.readHeartFlow({ section: 'diff', flowId: 'upgrade-flow' })); assert.ok(inspect.changes.find((row) => row.id === noteId)?.current)
+  await assert.rejects(readFile(join(desk, 'unlogged.md')))
   await unlink(join(desk, 'deleted-after-upgrade.md')); await instance.close(); instance = undefined; await launch()
-  await assert.rejects(readFile(join(desk, 'deleted-after-upgrade.md'))); await assert.rejects(readFile(join(desk, 'note.md')))
+  await assert.rejects(readFile(join(desk, 'deleted-after-upgrade.md'))); assert.equal(await readFile(join(desk, 'note.md'), 'utf8'), 'UPGRADE_OLD')
   assert.equal(await readFile(join(legacy, 'note.md'), 'utf8'), 'UPGRADE_OLD')
-  console.log('Room upgrade Electron PASS: normal startup without LCA_DATA_DIR/developer/booth, real old journal and files, ordinary Documents layout, current diff/undo, original retained, unlogged file excluded, and restart does not resurrect a user deletion. No model/service calls.')
+  console.log('Room upgrade Electron PASS: normal startup without LCA_DATA_DIR/developer/booth, real old journal and files, ordinary Documents layout, old flow diff readable, original retained, unlogged file excluded, and restart does not resurrect a user deletion. No model/service calls.')
 } finally { await instance?.close() }

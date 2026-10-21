@@ -100,7 +100,7 @@ it('does not guess a single resend request from mixed user steering', async () =
   expect(failures).toHaveLength(1); expect(failures[0].failure?.sourceMessageId).toBeUndefined()
 })
 it('selects the original request, not the answer to ask_user, after a tool failure', async () => {
-  const f = fixture(); const q = createQuestions({ store: f.store, clock: f.clock, flowId: () => null, changed: () => {}, safeText: (text) => text }); cleanup.push(q.close); let calls = 0
+  const f = fixture(); const q = createQuestions({ store: f.store, clock: f.clock, changed: () => {}, safeText: (text) => text }); cleanup.push(q.close); let calls = 0
   const h = f.start({ source: 'fake', complete: async () => !calls++ ? { ...reply, text: '', toolCalls: [{ id: 'ask', name: 'ask_user', arguments: '{"question":"format?"}' }] } : Promise.reject(new ModelFailure('network')) }, { tools: [q.tool()], afterTools: q.commit, turnSettled: q.settled })
   h.send('PARENT_REQUEST', 'r', 'h'); const original = f.store.projection().messages[0].id; await vi.waitFor(() => expect(q.view()?.status).toBe('waiting'))
   q.dispatch({ protocolVersion: 1, epoch: 'x', requestId: 'answer', type: 'question.answer', questionId: q.view()!.id, answer: 'ANSWER_INFORMATION' } as AppCommand, 'h'); await h.idle()

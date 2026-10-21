@@ -1,6 +1,6 @@
 import type { ModelFailureView } from '../../../shared'
 import words from '../voice/failure.zh.json'
-import { Notice } from './CommandControls'
+import { Notice } from './Notice'
 import './work.css'
 
 /**

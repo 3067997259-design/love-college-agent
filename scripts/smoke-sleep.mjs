@@ -43,9 +43,7 @@ try {
   await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
   await accepted({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'SLEEP_EXPORT_FAILED')
   await stop(); await launch(); assert.equal((await snapshot()).companion.sleeping, true)
-  await accepted({ type: 'companion.sleep', sleeping: false }); await accepted({ type: 'flow.enter' })
-  assert.equal((await send({ type: 'companion.sleep', sleeping: true })).status, 'rejected')
-  await accepted({ type: 'flow.exit' })
+  await accepted({ type: 'companion.sleep', sleeping: false })
   const oldSession = (await snapshot()).scope.sessionId
   await advance(3 * 60000); await waitFor((s) => s.scope.sessionId !== oldSession && s.companion.sleeping, 'SAFE_DAY_SLEEP_MISSING')
   assert.equal((await snapshot()).companion.pose, 'sleeping')

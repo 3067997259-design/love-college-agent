@@ -4,7 +4,6 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runtimeEnv } from './runtime-env.mjs'
-import { buildDeskCommand } from './build-desk-command.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const { version: appVersion } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
@@ -26,7 +25,6 @@ try {
     child.on('error', reject); child.on('exit', (code) => code === 0 ? resolve() : reject(new Error('DSH_RUNTIME_FAILED')))
   })
   await run('electron-vite/bin/electron-vite.js', ['build', '--logLevel', 'warn'])
-  await buildDeskCommand()
   await run('electron-builder/cli.js', ['--win', 'nsis', '--x64', '--publish', 'never', '--config', 'electron-builder.yml'])
   if (revision() !== sourceRevision || trackedDiff() !== sourceDiff) throw new Error('PACKAGE_SOURCE_CHANGED')
   const sha = async (path) => createHash('sha256').update(await readFile(join(root, path))).digest('hex')

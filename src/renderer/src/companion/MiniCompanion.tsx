@@ -59,10 +59,8 @@ export function MiniCompanion({ snapshot, onExpand, onHover, onMove }: {
   const label = onBreak ? '休息了，点一下回到书本' : '回到书本'
   // 书合上以后，她在后台做的事只能在这里看见：专注时写一行她手上的活（和右页同一套活动模板，不调用模型）
   const doing = pomodoro.phase === 'focus' ? currentActivity(snapshot) : undefined
-  // 心流里有事等你批准（代码、命令、回退、网页地址、预览动作）：她卡在这一步，什么阶段都要说（系统通知另由主进程按规则发）
-  const flow = snapshot.heartFlow?.activeId ? snapshot.heartFlow : undefined
-  const approval = !!(flow && (flow.pending || flow.webFetch?.pending || flow.computer?.pending
-    || flow.command?.status === 'awaiting-approval' || flow.rewind?.status === 'awaiting-confirmation'))
+  // 她的工作有一步等你批准：她卡在这一步，什么阶段都要说（系统通知另由主进程按规则发）
+  const approval = snapshot.question?.kind === 'approval'
   // 她自己的书桌作品：步数来自快照，不按时间推断
   const work = pomodoro.phase === 'focus' ? runningWork(snapshot) : undefined
   const plan = pomodoro.plan

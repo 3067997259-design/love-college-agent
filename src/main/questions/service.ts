@@ -10,11 +10,11 @@ import { sessionDayKey } from '../journal/file'
 
 type Cause = Extract<JournalInput, { type: 'question/closed' }>['cause']
 type Reply = { id: string; turnId: string; callId: string; answerId: string; unlisten(): void }
-type Pending = { id: string; turnId: string; callId: string; flowId: string | null; question: string; choices: string[]; approval: boolean; createdAtMs: number;
+type Pending = { id: string; turnId: string; callId: string; question: string; choices: string[]; approval: boolean; createdAtMs: number;
   remainingMs: number; expiresAtMs?: number; shown: boolean; cancelTimer?: () => void; unlisten(): void; resolve(result: ToolResult): void }
 const result = (value: Record<string, string>, ok = false): ToolResult => ({ ok, raw: value, visible: value })
 
-export function createQuestions(options: { store: SessionStore; clock: Clock; flowId(): string | null; changed(): void; safeText(text: string): string }) {
+export function createQuestions(options: { store: SessionStore; clock: Clock; changed(): void; safeText(text: string): string }) {
   const { store, clock } = options
   let pending: Pending | undefined; let enabled = true; let closed = false
   const ready = new Map<string, Reply>()
@@ -38,12 +38,11 @@ export function createQuestions(options: { store: SessionStore; clock: Clock; fl
     reply.unlisten(); append({ type: 'inbox/drop', ids: [reply.answerId] })
     append({ type: 'question/closed', id: reply.id, turnId: reply.turnId, cause: 'cancelled' }); options.changed()
   }
-  const stateChanged = (command?: AppCommand) => {
+  const stateChanged = () => {
     const job = pending; if (!job) return
     const state = store.projection()
     if (closed || !enabled) { finish('disabled'); return }
     if (state.lightsOut || state.sleeping || state.task?.id !== job.turnId || !['running', 'waiting-user'].includes(state.task.status)) { finish('cancelled'); return }
-    if (options.flowId() !== job.flowId || command?.type.startsWith('flow.goal.')) { finish('superseded'); return }
     const quiet = state.mode === 'quiet' || state.pomodoro.phase === 'focus'
     if (quiet && job.expiresAtMs !== undefined) {
       job.remainingMs = Math.max(0, job.expiresAtMs - clock.nowMs()); job.cancelTimer?.(); delete job.cancelTimer; delete job.expiresAtMs; options.changed()
@@ -57,8 +56,8 @@ export function createQuestions(options: { store: SessionStore; clock: Clock; fl
   }
   const view = (): UserQuestionView | undefined => {
     const job = pending; if (!job) return
-    const base = { id: job.id, taskId: job.turnId, createdAtMs: job.createdAtMs, context: job.flowId ? 'work' as const : 'conversation' as const }
-    return job.expiresAtMs === undefined ? { ...base, status: 'queued' } : { ...base, status: 'waiting', question: job.question, choices: [...job.choices], expiresAtMs: job.expiresAtMs, ...(job.approval ? { kind: 'approval' as const } : {}) }
+    const base = { id: job.id, taskId: job.turnId, createdAtMs: job.createdAtMs, ...(job.approval ? { kind: 'approval' as const } : {}) }
+    return job.expiresAtMs === undefined ? { ...base, status: 'queued' } : { ...base, status: 'waiting', question: job.question, choices: [...job.choices], expiresAtMs: job.expiresAtMs }
   }
   // An approval is LCA asking the user on her behalf (DSH permissions): answered by one of its choices, and not
   // counted against the questions she may ask, so a busy work day never turns approvals into silent refusals.
@@ -71,18 +70,20 @@ export function createQuestions(options: { store: SessionStore; clock: Clock; fl
     const day = (atMs: number) => sessionDayKey(clock, atMs)
     const requests = (store.history?.() ?? store.records()).filter((row) => row.type === 'question/requested' && !row.approval)
     if (!approval && (requests.filter((row) => day(row.atMs) === day(clock.nowMs())).length >= 12 || requests.filter((row) => row.type === 'question/requested' && row.turnId === context.turnId).length >= 3)) return result({ status: 'question-limit' })
-    const id = randomUUID(); const flowId = options.flowId()
-    append({ type: 'question/requested', id, turnId: context.turnId, callId, question: parsed.data.question, choices: parsed.data.choices ?? [], ...(flowId ? { flowId } : {}), ...(approval ? { approval: true as const } : {}) })
+    const id = randomUUID()
+    append({ type: 'question/requested', id, turnId: context.turnId, callId, question: parsed.data.question, choices: parsed.data.choices ?? [], ...(approval ? { approval: true as const } : {}) })
     return new Promise<ToolResult>((resolve) => {
       const aborted = () => { if (pending?.id === id) finish('cancelled'); const reply = ready.get(id); if (reply) dropReply(reply) }
       context.signal.addEventListener('abort', aborted, { once: true })
-      pending = { id, turnId: context.turnId, callId, flowId, question: parsed.data.question, choices: parsed.data.choices ?? [], approval, createdAtMs: clock.nowMs(), remainingMs: 600_000, shown: false,
+      pending = { id, turnId: context.turnId, callId, question: parsed.data.question, choices: parsed.data.choices ?? [], approval, createdAtMs: clock.nowMs(), remainingMs: 600_000, shown: false,
         unlisten: () => context.signal.removeEventListener('abort', aborted), resolve }
       stateChanged(); options.changed()
     })
   }
   return {
     view, stateChanged,
+    /** An approval she asks for that still waits for you (shown or held back by focus and quiet). */
+    approvalPending: () => pending?.approval ? pending.id : undefined,
     interrupt: () => finish('superseded'),
     settled: (turnId: string) => { if (pending?.turnId === turnId) finish('cancelled'); for (const reply of [...ready.values()]) if (reply.turnId === turnId) dropReply(reply) },
     setEnabled: (value: boolean) => { enabled = value; if (!value) finish('disabled') },

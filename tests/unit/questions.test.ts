@@ -11,12 +11,9 @@ import { answerInput, questionInput } from '../../src/main/questions/schema'
 import { createHarness } from '../../src/main/harness/loop'
 import { builtinTools } from '../../src/main/harness/tools'
 import { createAppController } from '../../src/main/bridge/controller'
-import { normalContextAllowedSeqs } from '../../src/main/legacy-flow/context'
 import type { SessionStore } from '../../src/main/store/session'
 import type { AppCommand } from '../../src/shared'
 import type { ModelRequest } from '../../src/main/model/types'
-import { createDesk } from '../../src/main/legacy-flow/desk'
-import { createHeartFlow } from '../../src/main/heart-flow/service'
 
 const cleanup: (() => void | Promise<void>)[] = []
 afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn() })
@@ -24,33 +21,15 @@ function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'lca-questions-')); const clock = createManualClock(1000)
   const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
   const store: SessionStore = { scope: journal.scope, records: journal.records, append: journal.append, projection: () => projectJournal(journal.records()), close: journal.close }
-  let flowId: string | null = null
-  const options = { store, clock, flowId: () => flowId, changed: vi.fn(), safeText: (text: string) => text.replaceAll('SECRET_CANARY', '[redacted]') }
+  const options = { store, clock, changed: vi.fn(), safeText: (text: string) => text.replaceAll('SECRET_CANARY', '[redacted]') }
   const q = createQuestions(options); cleanup.push(() => { q.close(); journal.close(); if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-questions-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })
   const abort = new AbortController()
   const start = (turnId = 'turn') => { store.append({ type: 'turn/start', turnId, trigger: 'user' }); return turnId }
   const ask = (turnId = 'turn') => q.tool().run({ question: 'Which format?', choices: ['Markdown', 'Text'] }, { store, clock, signal: abort.signal, turnId, callId: randomUUID() })
   const command = (body: object) => ({ protocolVersion: 1, epoch: 'epoch', requestId: randomUUID(), ...body }) as AppCommand
   const answer = (text = 'Markdown') => q.dispatch(command({ type: 'question.answer', questionId: q.view()!.id, answer: text }), 'hash')
-  return { root, store, clock, q, options, abort, start, ask, command, answer, flow: (id: string | null) => { flowId = id } }
+  return { root, store, clock, q, options, abort, start, ask, command, answer }
 }
-it.each(['direct', 'slash', 'rejected'] as const)('invalidates questions only for accepted goal updates through %s', async (route) => {
-  const f = fixture(); const controller = createAppController(f.clock, undefined, f.store)
-  const flow = createHeartFlow({ store: f.store, clock: f.clock, desk: createDesk(join(f.root, 'desk')), booth: false, busy: () => false, changed: () => {},
-    prepare: async () => ({ messages: [], eligibleIndexes: [] }), emit: () => {}, run: async () => '' })
-  cleanup.push(() => { flow.close(); controller.dispose() }); controller.attachQuestions(f.q); controller.attachHeartFlow(flow)
-  const dispatch = (body: object) => controller.dispatch({ ...f.command(body), epoch: controller.getSnapshot().epoch })
-  dispatch({ type: 'flow.enter' }); await vi.waitFor(() => expect(flow.active()).toBe(true)); f.flow(flow.view().activeId!)
-  f.start(); const pending = f.ask(); const id = f.q.view()!.id
-  const ack = dispatch(route === 'slash' ? { type: 'message.send', text: '/goal new goal' } : { type: 'flow.goal.set', text: 'new goal', ...(route === 'rejected' ? { goalId: randomUUID() } : {}) })
-  if (route === 'rejected') {
-    expect(ack.status).toBe('rejected'); expect(f.q.view()?.id).toBe(id); expect(f.answer('still valid')).toBeUndefined(); await pending
-  } else {
-    expect(ack.status).toBe('accepted'); expect((await pending).visible).toMatchObject({ status: 'superseded' }); expect(f.q.view()).toBeUndefined()
-    expect(dispatch({ type: 'question.answer', questionId: id, answer: 'OLD_GOAL_ANSWER' })).toMatchObject({ status: 'rejected' })
-    expect(f.store.records().some((row) => row.type === 'user/message' && row.text === 'OLD_GOAL_ANSWER')).toBe(false)
-  }
-})
 it('queues without exposing the prompt; only visible time consumes the deadline', async () => {
   const f = fixture(); f.start(); f.store.append({ type: 'companion/mode', mode: 'quiet', requestId: 'quiet', commandHash: 'q' })
   const pending = f.ask(); expect(f.q.view()).toMatchObject({ status: 'queued' }); expect(JSON.stringify(f.q.view())).not.toContain('Which format?')
@@ -63,7 +42,7 @@ it('queues without exposing the prompt; only visible time consumes the deadline'
   f.clock.advanceBy(400_000); expect((await pending).visible).toMatchObject({ status: 'timeout' }); expect(f.q.view()).toBeUndefined()
   expect(f.store.projection().context).toEqual([]); expect(f.store.projection().messages).toHaveLength(1)
 })
-it.each(['abort', 'supersede', 'disable', 'close', 'lights', 'sleep', 'scope', 'settled'] as const)('invalidates a pending question on %s', async (cause) => {
+it.each(['abort', 'supersede', 'disable', 'close', 'lights', 'sleep', 'settled'] as const)('invalidates a pending question on %s', async (cause) => {
   const f = fixture(); f.start(); const p = f.ask(); const id = f.q.view()!.id
   if (cause === 'abort') f.abort.abort()
   if (cause === 'supersede') f.q.interrupt()
@@ -72,7 +51,6 @@ it.each(['abort', 'supersede', 'disable', 'close', 'lights', 'sleep', 'scope', '
   if (cause === 'settled') f.q.settled('turn')
   if (cause === 'lights') f.store.append({ type: 'companion/lights', lightsOut: true, requestId: 'off', commandHash: 'h' })
   if (cause === 'sleep') f.store.append({ type: 'companion/sleep', sleeping: true, cause: 'user' })
-  if (cause === 'scope') f.flow('different')
   f.q.stateChanged(); expect((await p).ok).toBe(false); expect(f.q.view()).toBeUndefined()
   expect(f.q.dispatch(f.command({ type: 'question.answer', questionId: id, answer: 'late' }), 'h')).toBe('invalid-command')
 })
@@ -109,13 +87,6 @@ it('enforces prompt, choices, answer, secret and per-turn/per-day bounds', async
     expect((await f.ask(turnId)).visible).toMatchObject({ status: 'question-limit' })
   }
   f.start('last'); expect((await f.ask('last')).visible).toMatchObject({ status: 'question-limit' })
-})
-it('keeps work questions and replies out of ordinary context eligibility', async () => {
-  const f = fixture(); f.flow('flow'); f.store.append({ type: 'flow/open', id: 'flow', mode: 'plan', prefix: [] }); f.start(); const p = f.ask(); f.answer('WORK_ANSWER_CANARY'); await p
-  const request = f.store.records().find((row) => row.type === 'question/requested')!; if (request.type !== 'question/requested') throw new Error('MISSING')
-  f.q.commit('turn', [request.callId]); f.store.append({ type: 'flow/close', id: 'flow', summary: 'metadata only' })
-  const entries = f.store.projection().contextEntries; expect(entries.some((entry) => entry.message.content === 'WORK_ANSWER_CANARY')).toBe(true)
-  const allowed = normalContextAllowedSeqs(f.store, entries.map((entry) => entry.seq)); expect(entries.filter((entry) => allowed.has(entry.seq))).toEqual([])
 })
 it('allows only book answers and preserves command idempotency', async () => {
   const f = fixture(); const c = createAppController(f.clock, undefined, f.store); c.attachQuestions(f.q); f.start(); const p = f.ask(); c.refresh('task')

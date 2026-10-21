@@ -14,8 +14,6 @@ import { createAppController } from '../../src/main/bridge/controller'
 import { createMemoryService } from '../../src/main/memory/service'
 import { projectMemory } from '../../src/main/memory/projection'
 import type { AppCommand } from '../../src/shared'
-import { createDesk } from '../../src/main/legacy-flow/desk'
-import { createHeartFlow } from '../../src/main/heart-flow/service'
 
 const cleanup: (() => void | Promise<void>)[] = []
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close() })
@@ -44,23 +42,6 @@ it('separates sleep from lights and rejects sleep while busy; only book may chan
   f.controller.dispatch(f.command({ type: 'companion.sleep', sleeping: false }))
   expect(f.controller.getSnapshot().companion).toMatchObject({ sleeping: false, pose: 'facing-user', lightsOut: true })
   expect(f.store.projection().requests.map((request) => request.requestId)).toEqual(['3', '4', '5'])
-})
-it('refuses sleep during the real pending flow entry, then allows it after exit', async () => {
-  const f = fixture(); let release: () => void = () => {}
-  const flow = createHeartFlow({ store: f.store, clock: f.clock, desk: createDesk(join(f.root, 'desk')), booth: false,
-    busy: () => false, changed: () => f.controller.refresh('task'), emit: () => {}, run: async () => '',
-    prepare: async () => new Promise((done) => { release = () => done({ messages: [], eligibleIndexes: [] }) }) })
-  cleanup.push(flow.close); f.controller.attachHeartFlow(flow)
-  f.controller.attachSleep(createSleep({ store: f.store, canSleep: () => !flow.occupied(), changed: () => f.controller.refresh('mode') }))
-  expect(f.controller.dispatch(f.command({ type: 'flow.enter' })).status).toBe('accepted')
-  expect(flow.active()).toBe(false); expect(flow.occupied()).toBe(true)
-  expect(f.controller.dispatch(f.command({ type: 'companion.sleep', sleeping: true }))).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
-  expect(f.store.projection().sleeping).toBe(false); release()
-  await vi.waitFor(() => expect(f.controller.getSnapshot().heartFlow?.activeId).toBeTruthy())
-  expect(f.controller.getSnapshot().companion).toMatchObject({ sleeping: false, pose: 'desk-computer' })
-  expect(f.controller.dispatch(f.command({ type: 'flow.exit' })).status).toBe('accepted')
-  expect(f.controller.dispatch(f.command({ type: 'companion.sleep', sleeping: true })).status).toBe('accepted')
-  expect(f.controller.getSnapshot().companion).toMatchObject({ sleeping: true, pose: 'sleeping' })
 })
 it('does not wake on window telemetry; a deliberate conversation wakes before its execution', () => {
   const f = fixture(); f.sleep.set(true, 'user')
