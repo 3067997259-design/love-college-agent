@@ -676,7 +676,6 @@ void app.whenReady().then(async () => {
     dshExecution = createDsh()
     servicesStarted = true
     if (dshPresent) controller.attachProjects(projects)
-    app.once('will-quit', () => { void dshExecution?.close().then(() => scriptedEndpoint?.close()) })
     // No DSH session: the book still takes your message command and says the model is not set up.
     const noExecution = { source: 'real' as const, send: () => { throw new Error('EXECUTION_UNAVAILABLE') }, stop: () => false, stateChanged: () => {} }
     const chatPort = () => dshExecution ?? noExecution
@@ -772,7 +771,8 @@ app.on('before-quit', (event) => {
     const closeMemory = memory?.close()
     scheduler?.dispose()
     const closeGame = (async () => { await minecraft?.close(); await minecraftChat?.end(); await mcp?.close() })()
-    // Keep the development clock alive until every service has finished its cancellation/release RPCs.
-    void Promise.all([closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); resourceBudget?.close(); storageClosed = true; app.quit() })
+    // Keep the development clock alive until every service has finished its cancellation/release RPCs. Her DSH session
+    // closes here too, before the journal: events it sends while it stops must not reach a closed journal.
+    void Promise.all([dshExecution?.close(), closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).then(() => scriptedEndpoint?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); resourceBudget?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); resourceBudget?.close(); storageClosed = true }
 })

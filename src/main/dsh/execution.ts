@@ -140,7 +140,10 @@ export function createDshExecution(options: {
   const sessionsFile = join(options.dataDir, 'dsh-sessions.json')
   const rulesFile = join(options.dataDir, 'dsh-approvals.json')
   const read = <T>(file: string, fallback: T): T => { try { return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as T : fallback } catch { return fallback } }
-  const record = (input: JournalInput) => store.append(input)
+  // Once closed (the app quitting, a model change) nothing more is recorded: the journal may already be closed, and
+  // a turn DSH ends after this point is closed at the next start.
+  let closed = false
+  const record = (input: JournalInput) => { if (!closed) store.append(input) }
   const lcaTools = () => new Map(options.tools().map((tool) => [LCA_PREFIX + tool.definition.name, tool]))
   let host: DshHost | undefined
   let session: Live | undefined
@@ -287,7 +290,7 @@ export function createDshExecution(options: {
   }
 
   const onEvent = (event: DshEvent) => {
-    if (!session || (event.sessionId && event.sessionId !== session.id)) return
+    if (closed || !session || (event.sessionId && event.sessionId !== session.id)) return
     switch (event.t) {
       case 'turn-start': {
         const start = starts.shift()
@@ -525,7 +528,7 @@ export function createDshExecution(options: {
     describe: () => ensureHost(resolve(options.project())).describe(),
     /** New thinking levels apply from the next step; no restart. */
     efforts: (efforts: { chat?: string; work?: string }) => { host?.efforts(efforts) },
-    close: async () => { await host?.close() },
+    close: async () => { closed = true; turn?.asks.abort(); await host?.close() },
   }
 }
 export type DshExecution = ReturnType<typeof createDshExecution>

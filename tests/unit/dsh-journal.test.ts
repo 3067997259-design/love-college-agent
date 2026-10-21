@@ -478,6 +478,22 @@ describe('DSH work in the LCA journal', () => {
     f.journal.close()
   })
 
+  it('records nothing once closed: what DSH sends while it stops never reaches a journal the app already closed', async () => {
+    const f = setup()
+    f.execution.send('写个东西', 'r-1', 'h-1')
+    await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    const rows = f.store.records().length
+    await f.execution.close()
+    f.journal.close()
+    expect(() => { f.emit({ t: 'message', text: '写好了。', toolCalls: [] }); f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'aborted' } }) }).not.toThrow()
+    const g = setup(f.root)
+    expect(g.store.records().slice(0, rows).length).toBe(rows)
+    expect(g.store.records().some((row) => row.type === 'assistant/message')).toBe(false)
+    expect(g.store.projection().task?.status).toBe('aborted')
+    g.journal.close()
+  })
+
   it('ends a turn a quit left open, and marks your messages that never reached her as undelivered', async () => {
     const f = setup()
     f.execution.send('第一句', 'r-1', 'h-1')

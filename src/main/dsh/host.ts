@@ -91,8 +91,10 @@ export function startDshHost(options: DshHostOptions) {
   let failed!: (error: Error) => void
   const started = new Promise<void>((resolve, reject) => { ready = resolve; failed = reject })
   const exited = new Promise<number | null>((resolve) => child.once('exit', (code) => { failed(new Error('DSH_HOST_EXITED')); for (const entry of waiting.values()) entry.fail(new Error('DSH_HOST_EXITED')); for (const abort of asking.values()) abort.abort(); asking.clear(); resolve(code) }))
-  child.on('message', (raw) => {
-    const message = raw as DshEvent
+  // A handler that throws (the journal already closed while the app quits, a full disk) is logged, never an uncaught
+  // exception: in Electron's main process that is a modal error dialog that also keeps the app from exiting.
+  child.on('message', (raw) => { try { handle(raw as DshEvent) } catch { console.error('DSH_EVENT_NOT_HANDLED') } })
+  const handle = (message: DshEvent) => {
     if (message.t === 'hello') child.send({ t: 'init', persona: options.persona, suffix: options.suffix ?? '', tools: options.tools })
     else if (message.t === 'init-ok') ready()
     else if (message.t === 'admit') {
@@ -118,7 +120,7 @@ export function startDshHost(options: DshHostOptions) {
       if (message.t === 'error') entry.fail(new Error(String(message.message))); else entry.done(message)
     }
     options.onEvent(message)
-  })
+  }
   const request = (command: Record<string, unknown>) => new Promise<Record<string, unknown>>((done, fail) => { const ref = randomUUID(); waiting.set(ref, { done, fail }); child.send({ ...command, ref }) })
   return {
     started,
