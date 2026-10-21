@@ -36,14 +36,14 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const asked: { question: string; choices: string[] }[] = []
   let project = join(root, 'project')
   let answer: (choices: string[]) => string | null = (choices) => choices[0]
-  const host = { options: undefined as DshHostOptions | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], degrades: [] as string[][], trusted: [] as string[], current: 'dsh-1' }
+  const host = { options: undefined as DshHostOptions | undefined, opening: undefined as Promise<void> | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], degrades: [] as string[][], trusted: [] as string[], current: 'dsh-1' }
   const referenceAsks: boolean[] = []
   const startedTurns: { turnId: string; requestId: string }[] = []
   const answeredCalls: { turnId: string; callId: string }[] = []
   const hooks: string[] = []
   const launch = ((options: DshHostOptions) => {
     host.options = options
-    return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
+    return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); if (host.opening) await host.opening; const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
       send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
   // Her questions go to the book's question card (questions/service.ts), as in index.ts.
@@ -476,6 +476,29 @@ describe('DSH work in the LCA journal', () => {
     expect(await f.approval({ kind: 'trust', command: null, subject: null, degraded: ['web'] })).toBe('rejected')
     expect(f.asked).toHaveLength(asked)
     f.journal.close()
+  })
+
+  it('does not send a message or save a session that finishes opening after close', async () => {
+    const f = setup()
+    let finish!: () => void
+    f.host.opening = new Promise<void>((resolve) => { finish = resolve })
+    f.execution.send('还在打开', 'r-1', 'h-1')
+    await f.execution.close(); f.journal.close()
+    finish()
+    for (let i = 0; i < 30; i++) await Promise.resolve()
+    expect(f.host.sent).toEqual([])
+    expect(() => readFileSync(join(f.root, 'dsh-sessions.json'))).toThrow()
+    expect(() => { f.execution.send('已经关闭', 'r-2', 'h-2'); f.execution.stateChanged(); f.execution.resume(); f.execution.efforts({ chat: 'high' }) }).not.toThrow()
+    expect(f.execution.postEvent('mail', '已经关闭')).toBe(false)
+    await expect(f.execution.describe()).rejects.toThrow('DSH_EXECUTION_CLOSED')
+  })
+
+  it('does not deliver an event queued just before the session closes', async () => {
+    const f = setup(); await workTurn(f)
+    f.execution.postEvent('mail', '新邮件', 'close-race')
+    await f.execution.close(); f.journal.close()
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    expect(f.host.sent).toHaveLength(1)
   })
 
   it('records nothing once closed: what DSH sends while it stops never reaches a journal the app already closed', async () => {

@@ -91,29 +91,56 @@ export function startDshHost(options: DshHostOptions) {
   let ready!: () => void
   let failed!: (error: Error) => void
   const started = new Promise<void>((resolve, reject) => { ready = resolve; failed = reject })
-  const exited = new Promise<number | null>((resolve) => child.once('exit', (code) => { failed(new Error('DSH_HOST_EXITED')); for (const entry of waiting.values()) entry.fail(new Error('DSH_HOST_EXITED')); for (const abort of asking.values()) abort.abort(); asking.clear(); resolve(code) }))
+  // A caller may close the host before awaiting its startup.
+  void started.catch(() => {})
+  let closed = false; let disconnected = false; let hasExited = false
+  const unavailable = () => {
+    disconnected = true
+    const error = new Error('DSH_HOST_EXITED')
+    failed(error)
+    for (const entry of waiting.values()) entry.fail(error)
+    waiting.clear()
+    for (const abort of asking.values()) abort.abort()
+    asking.clear()
+  }
+  const exited = new Promise<number | null>((resolve) => {
+    const finish = (code: number | null) => { hasExited = true; unavailable(); resolve(code) }
+    child.once('exit', finish)
+    // A spawn failure emits close without exit; an IPC error alone does not prove the child stopped.
+    child.once('close', finish)
+  })
+  child.on('error', unavailable)
+  child.once('disconnect', unavailable)
+  // connected can change between the check and send. The callback consumes asynchronous IPC errors too;
+  // without it Node emits an unhandled 'error', which becomes a modal dialog in Electron's main process.
+  const send = (command: Record<string, unknown>) => {
+    if (closed || disconnected || !child.connected) { unavailable(); return false }
+    try { child.send(command, (error) => { if (error) unavailable() }); return true }
+    catch { unavailable(); return false }
+  }
   // A handler that throws (the journal already closed while the app quits, a full disk) is logged, never an uncaught
   // exception: in Electron's main process that is a modal error dialog that also keeps the app from exiting.
   child.on('message', (raw) => { try { handle(raw as DshEvent) } catch { console.error('DSH_EVENT_NOT_HANDLED') } })
   const handle = (message: DshEvent) => {
-    if (message.t === 'hello') child.send({ t: 'init', persona: options.persona, suffix: options.suffix ?? '', tools: options.tools })
+    if (closed || disconnected) return
+    if (message.t === 'hello') send({ t: 'init', persona: options.persona, suffix: options.suffix ?? '', tools: options.tools })
     else if (message.t === 'init-ok') ready()
     else if (message.t === 'admit') {
       let ok: boolean
       try { ok = options.onAdmit?.({ sessionId: String(message.sessionId), bucket: message.bucket === 'autonomous' ? 'autonomous' : 'work', role: message.role === 'work' ? 'work' : 'chat', units: Math.max(1, Math.min(20_000_000, Math.round(Number(message.units) || 16_000))) }) ?? true } catch { ok = message.bucket !== 'autonomous' }
-      child.send({ t: 'admit-answer', id: message.id, ok })
+      send({ t: 'admit-answer', id: message.id, ok })
     }
     else if (message.t === 'lca-call') void options.onCall(String(message.name), message.args, String(message.sessionId), String(message.callId))
-      .then((result) => child.send({ t: 'lca-result', id: message.id, ok: true, value: result.value, source: result.source }), (error: unknown) => child.send({ t: 'lca-result', id: message.id, ok: false, error: error instanceof Error ? error.message : 'LCA_TOOL_FAILED' }))
+      .then((result) => send({ t: 'lca-result', id: message.id, ok: true, value: result.value, source: result.source }), (error: unknown) => send({ t: 'lca-result', id: message.id, ok: false, error: error instanceof Error ? error.message : 'LCA_TOOL_FAILED' }))
     else if (message.t === 'approval') void options.onApproval({ sessionId: String(message.sessionId), toolName: String(message.toolName), callId: (message.callId as string | null) ?? null, reason: (message.reason as string | null) ?? null,
       kind: message.kind === 'risky' || message.kind === 'degraded' || message.kind === 'trust' ? message.kind : 'escalation', command: (message.command as string | null) ?? null, subject: typeof message.subject === 'string' ? message.subject : null,
       degraded: Array.isArray(message.degraded) ? dshSources(message.degraded) : null })
-      .then((outcome) => child.send({ t: 'approval-answer', id: message.id, outcome }), () => child.send({ t: 'approval-answer', id: message.id, outcome: 'rejected' }))
+      .then((outcome) => send({ t: 'approval-answer', id: message.id, outcome }), () => send({ t: 'approval-answer', id: message.id, outcome: 'rejected' }))
     else if (message.t === 'question') {
       const abort = new AbortController(); asking.set(String(message.id), abort)
       const answered = options.onQuestion?.({ sessionId: String(message.sessionId), callId: typeof message.callId === 'string' ? message.callId : null, questions: message.questions, signal: abort.signal })
         ?? Promise.resolve({ error: 'questions are not available here' })
-      void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id))) child.send({ t: 'question-answer', id: message.id, ...result }) })
+      void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id))) send({ t: 'question-answer', id: message.id, ...result }) })
     }
     else if (message.t === 'question-cancel') { asking.get(String(message.id))?.abort(); asking.delete(String(message.id)) }
     else if ((message.t === 'session' || message.t === 'described' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
@@ -122,7 +149,8 @@ export function startDshHost(options: DshHostOptions) {
     }
     options.onEvent(message)
   }
-  const request = (command: Record<string, unknown>) => new Promise<Record<string, unknown>>((done, fail) => { const ref = randomUUID(); waiting.set(ref, { done, fail }); child.send({ ...command, ref }) })
+  const request = (command: Record<string, unknown>) => new Promise<Record<string, unknown>>((done, fail) => { const ref = randomUUID(); waiting.set(ref, { done, fail }); send({ ...command, ref }) })
+  let closing: Promise<number | null> | undefined
   return {
     started,
     /** `degraded`: the resumed session still holds third-party content LCA could not retire before a restart. */
@@ -132,16 +160,16 @@ export function startDshHost(options: DshHostOptions) {
       return String((await request({ t: 'open', cwd, trusted, degraded, ...(sessionId ? { sessionId } : {}), ...(persona ?? {}) })).sessionId)
     },
     /** Switch a live session to the `lca-trusted` preset after the user granted its project. */
-    trust: (sessionId: string) => child.send({ t: 'trust', sessionId }),
+    trust: (sessionId: string) => send({ t: 'trust', sessionId }),
     /** Back to the default sandbox preset after the user withdrew trust. */
-    untrust: (sessionId: string) => child.send({ t: 'untrust', sessionId }),
+    untrust: (sessionId: string) => send({ t: 'untrust', sessionId }),
     /** `reference`: LCA's memory references, sent as their own block before your text. */
     /** `degrade`: the reference carries third-party originals that cannot be retired; the session stays degraded. */
     send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user', degrade: readonly DshSource[] = []) =>
-      child.send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}), ...(degrade.length ? { degrade } : {}) }),
-    cancel: (sessionId: string) => child.send({ t: 'cancel', sessionId }),
+      send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}), ...(degrade.length ? { degrade } : {}) }),
+    cancel: (sessionId: string) => send({ t: 'cancel', sessionId }),
     /** Replace her LCA tools (a plugin was enabled or disabled); the next step sees the new list. */
-    tools: (tools: readonly DshTool[]) => child.send({ t: 'tools', tools }),
+    tools: (tools: readonly DshTool[]) => send({ t: 'tools', tools }),
     /** Thinking levels DSH can send for each role's model; null where it cannot tell. */
     describe: async () => {
       await started
@@ -150,8 +178,12 @@ export function startDshHost(options: DshHostOptions) {
       return { chat: levels(answer.chat), work: levels(answer.work) }
     },
     /** New thinking levels from the settings; they apply from each session's next step. */
-    efforts: (efforts: { chat?: string; work?: string }) => child.send({ t: 'efforts', efforts }),
-    close: async () => { if (child.connected) child.send({ t: 'shutdown' }); const stop = options.clock.after(10_000, () => child.kill()); try { return await exited } finally { stop() } },
+    efforts: (efforts: { chat?: string; work?: string }) => send({ t: 'efforts', efforts }),
+    close: () => closing ??= (async () => {
+      send({ t: 'shutdown' }); closed = true; unavailable()
+      const stop = hasExited ? () => {} : options.clock.after(10_000, () => child.kill())
+      try { return await exited } finally { stop() }
+    })(),
   }
 }
 export type DshHost = ReturnType<typeof startDshHost>

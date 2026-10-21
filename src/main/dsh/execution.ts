@@ -378,7 +378,7 @@ export function createDshExecution(options: {
   let toolsSent = ''
   const syncTools = () => {
     const schemas = toolSchemas(); const key = JSON.stringify(schemas)
-    if (!host || key === toolsSent) return
+    if (closed || !host || key === toolsSent) return
     host.tools(schemas); toolsSent = key
   }
   /** Each DSH step as a model attempt in the journal: reservation first, the usage DSH reports once it answers. */
@@ -408,17 +408,19 @@ export function createDshExecution(options: {
    * when she is free and need not stay quiet. Bridge caps such a turn's steps unless you join in.
    */
   const kick = () => {
-    if (!held.length || store.projection().lightsOut || opening) return
+    if (closed || !held.length || store.projection().lightsOut || opening) return
     if (!turn && quiet()) return
     const batch = held.splice(0)
     for (const event of batch) { pending.push(event.id); pendingText.set(event.id, factsOf(event)); eventIds.add(event.id) }
     const mode = turn ? 'steer' as const : 'followup' as const
     if (mode === 'followup') starts.push({ trigger: batch[0].source, requestId: null })
     void ensureSession().then((current) => {
+      if (closed) return
       if (mode === 'followup') syncTools()
       const reference = mode === 'followup' ? referenceFor(current, new Set(batch.map((event) => event.id)), batch[0].id) : { text: null, degrade: [] }
       host!.send(current.id, batch.map(factsOf).join('\n'), mode, reference.text, 'event', reference.degrade)
     }, (error: unknown) => {
+      if (closed) return
       console.error('DSH_SESSION_FAILED', (error as { code?: unknown } | null)?.code ?? (error instanceof Error ? error.message.slice(0, 40) : 'unknown'))
       if (mode === 'followup') starts.pop()
     })
@@ -447,6 +449,7 @@ export function createDshExecution(options: {
     session = current
     const trusted = read<Rule[]>(rulesFile, []).some((rule) => rule.project === cwd && rule.prefix === null)
     current.id = await running.open(cwd, known?.id, trusted, dshSources(known?.degraded), { persona: options.persona(), suffix: options.suffix() })
+    if (closed) throw new Error('DSH_EXECUTION_CLOSED')
     const resumed = known?.id === current.id
     // A session DSH did not resume starts without the earlier days: the first message brings them.
     if (!resumed) current.fresh = true
@@ -486,11 +489,13 @@ export function createDshExecution(options: {
     source: options.source ?? 'real',
     /** `extra`: references for this message only (an old-page quote you ask about). */
     send: (text: string, requestId: string, commandHash: string, extra?: Record<string, unknown> | null) => {
+      if (closed) return
       options.foreground?.(); options.userWork?.()
       const id = randomUUID()
       record({ type: 'user/message', id, text, requestId, commandHash }); pending.push(id); pendingText.set(id, text); options.changed('message')
       // A session that cannot open is LCA's own failure (runtime, profile, link), not the user's model setup.
       void ensureSession().then((current) => {
+        if (closed) return
         const mode = turn ? 'steer' : 'followup'
         if (mode === 'followup') syncTools()
         // A message joining her running turn needs no references: they came with the turn's opening message.
@@ -498,20 +503,22 @@ export function createDshExecution(options: {
         if (mode === 'followup') starts.push({ trigger: 'user', requestId })
         host!.send(current.id, text, mode, reference.text, 'user', reference.degrade)
       }, (error: unknown) => {
+        if (closed) return
         console.error('DSH_SESSION_FAILED', (error as { code?: unknown } | null)?.code ?? (error instanceof Error ? error.message.slice(0, 40) : 'unknown'))
         fail('internal')
       })
     },
     stop: (taskId: string) => {
-      if (!turn || !session || turn.lcaTurnId !== taskId) return false
+      if (closed || !turn || !session || turn.lcaTurnId !== taskId) return false
       turn.asks.abort(); host?.cancel(session.id); return true
     },
-    stateChanged: () => { if (store.projection().lightsOut && turn && session) host?.cancel(session.id); kick() },
+    stateChanged: () => { if (closed) return; if (store.projection().lightsOut && turn && session) host?.cancel(session.id); kick() },
     /**
      * An event she may speak about: recorded in the journal, then given to her DSH session.
      * Duplicates (same id) and a full queue (32 waiting) are refused.
      */
     postEvent: (source: DshEventSource, text: string, eventId: string = randomUUID()) => {
+      if (closed) return false
       if (store.records().some((row) => row.type === 'inbox/event' && row.id === eventId || row.type === 'session/carry' && row.pendingEvents?.some((event) => event.id === eventId))) return false
       if (held.length >= 32) return false
       record({ type: 'inbox/event', id: eventId, source, text })
@@ -522,6 +529,7 @@ export function createDshExecution(options: {
     trusted: (project: string) => read<Rule[]>(rulesFile, []).some((rule) => rule.project === resolve(project) && rule.prefix === null),
     /** Withdraw project-wide grants; a live session on that project goes back to the sandbox preset at once. */
     untrust: (project: string) => {
+      if (closed) return
       const target = resolve(project)
       writeFileSync(rulesFile, JSON.stringify(read<Rule[]>(rulesFile, []).filter((rule) => !(rule.project === target && rule.prefix === null)), null, 2))
       if (session?.id && session.cwd === target) host?.untrust(session.id)
@@ -530,9 +538,9 @@ export function createDshExecution(options: {
     /** Deliver events left from before a restart once LCA is ready (onboarding, model). */
     resume: () => kick(),
     /** Thinking levels her chat and work models offer, for the settings; starts DSH when it is not running yet. */
-    describe: () => ensureHost(resolve(options.project())).describe(),
+    describe: async () => { if (closed) throw new Error('DSH_EXECUTION_CLOSED'); return ensureHost(resolve(options.project())).describe() },
     /** New thinking levels apply from the next step; no restart. */
-    efforts: (efforts: { chat?: string; work?: string }) => { host?.efforts(efforts) },
+    efforts: (efforts: { chat?: string; work?: string }) => { if (!closed) host?.efforts(efforts) },
     close: async () => { closed = true; turn?.asks.abort(); await host?.close() },
   }
 }
