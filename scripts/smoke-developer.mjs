@@ -70,12 +70,12 @@ try {
   await page.locator('textarea').fill('synthetic development request')
   await page.getByRole('button', { name: '发送', exact: true }).click()
   await page.locator('.msg-text').filter({ hasText: 'DEVELOPMENT_TEST_COMPLETED' }).waitFor()
-  // Her turn ran on DSH with the scripted model: both tools ran as activities; tool traffic and the plugin's raw-only
-  // output stay out of LCA's context and state.
+  // Her turn ran on DSH with the scripted model: both tools ran as activities. get_context is DSH's last request: it
+  // carries both calls and their results, never the plugin's raw-only output; LCA's state never has it either.
   const state = JSON.parse((await client.callTool({ name: 'get_state', arguments: {} })).content[0].text)
   for (const templateId of ['clock.read', 'fixture.synthetic']) assert.ok(state.activities.some((activity) => activity.templateId === templateId && activity.status === 'completed'), templateId)
   const context = JSON.stringify(await client.callTool({ name: 'get_context', arguments: {} }))
-  assert.match(context, /DEVELOPMENT_TEST_COMPLETED/); assert.ok(!context.includes('get_clock'))
+  assert.match(context, /lca_get_clock/); assert.match(context, /lca_synthetic_fixture/)
   assert.ok(![context, JSON.stringify(state)].some((text) => text.includes('SYNTHETIC_RAW_ONLY')))
   const exported = await client.callTool({ name: 'export_scene', arguments: {} })
   const scene = JSON.parse(exported.content[0].text)

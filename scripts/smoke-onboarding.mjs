@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
 import JSZip from 'jszip'
-import { runtimeEnv, electronLaunchTarget, openSettingsGroup, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, electronLaunchTarget, openSettingsGroup, openSettings, whenIdle } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'onboarding-smoke-' + randomUUID())
 const backendOnly = process.argv.includes('--backend-only'); const requests = []
@@ -68,7 +68,7 @@ try {
   assert.equal((await snapshot()).memory.items.length, 0)
   const archiveFile = join(data, 'completed.lca-save')
   await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archiveFile)
-  await send({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'ONBOARDING_EXPORT_FAILED')
+  assert.equal((await whenIdle(send, { type: 'backup.export' })).status, 'accepted'); await waitFor((s) => s.backup.status === 'exported', 'ONBOARDING_EXPORT_FAILED')
   const zip = await JSZip.loadAsync(await readFile(archiveFile)); const manifest = JSON.parse(await zip.file('manifest.json').async('string')); assert.deepEqual(manifest.onboarding, completed)
   const journals = (await Promise.all(manifest.files.filter((file) => file.path.endsWith('.jsonl')).map((file) => zip.file(file.path).async('string')))).flatMap((text) => text.trim().split('\n').map((line) => JSON.parse(line)))
   const seen = journals.find((row) => row.type === 'model/seen'); assert.ok(seen.eligibleIndexes.every((index) => !JSON.stringify(seen.messages[index]).match(/程同学|杏子/)))

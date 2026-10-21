@@ -8,7 +8,7 @@ import ts from 'typescript'
 import JSZip from 'jszip'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettingsGroup, openSettings, closeSettings } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettingsGroup, openSettings, closeSettings, whenIdle } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const stdioMode = process.argv.find((arg) => arg.startsWith('--stdio='))?.slice(8)
@@ -138,7 +138,7 @@ try {
   const ordinary = requests.filter((item) => !item.game).at(-1); assert.equal(ordinary.images.length, 0); assert.ok(!JSON.stringify(ordinary.body).includes('GAME_IMAGE_ONLY')); assert.ok(!JSON.stringify(ordinary.body).includes('game-frame:'))
   const archive = join(data, 'game-image-exclusion.lca-save')
   await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
-  await accepted({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'EXPORT_FAILED')
+  assert.equal((await whenIdle(send, { type: 'backup.export' })).status, 'accepted'); await waitFor((s) => s.backup.status === 'exported', 'EXPORT_FAILED')
   const zip = await JSZip.loadAsync(await readFile(archive)); assert.ok(Object.keys(zip.files).every((name) => !name.startsWith('minecraft/')))
   for (const file of Object.values(zip.files).filter((file) => !file.dir && /\.(json|jsonl|md)$/.test(file.name))) { const value = await file.async('string'); assert.ok(!value.includes('game-frame:') && !value.includes('GAME_IMAGE_ONLY') && !value.includes('data:image/jpeg')) }
   await stop(); await launch(); assert.equal((await snapshot()).minecraft.status, 'idle'); assert.equal((await snapshot()).task?.status === 'running', false)

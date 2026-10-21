@@ -22,6 +22,7 @@ export const dshSources = (value: unknown): DshSource[] => Array.isArray(value) 
  */
 export type DshApproval = { sessionId: string; toolName: string; callId: string | null; reason: string | null; kind: 'risky' | 'escalation' | 'degraded' | 'trust'; command: string | null; subject: string | null; degraded: DshSource[] | null }
 export interface DshHostOptions {
+  /** Real time: it only times out a stalled shutdown. */
   clock: Clock; dshRoot: string; dataDir: string; bridge: string; workspace: string
   /** Her chat and work models (routes.ts); null keeps DSH's own default model. */
   routes: DshRoutes | null; guardedRoots: readonly string[]

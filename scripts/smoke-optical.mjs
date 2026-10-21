@@ -9,7 +9,7 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings, whenIdle } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'optical-' + randomUUID()); let sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19571', LCA_MCP_PORT: '0' }
 const credential = 'SYNTHETIC_OPTICAL_' + randomUUID(); const requests = []; let hang = false; let interrupted = 0
@@ -94,7 +94,7 @@ try {
   for (const row of texts.join('\n').split(/\r?\n/).filter(Boolean).map(JSON.parse)) if (row.type === 'model/seen') for (const index of row.eligibleIndexes) assert.ok(!row.messages[index].content.includes('OPTICAL_DERIVED_REPLY'))
   assert.ok(!texts.join('\n').includes('PRIVATE_OCR_INJECTED_UNSEEN')); assert.ok(!texts.join('\n').includes(credential))
   const archive = join(data, 'optical.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
-  await accept({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'OPTICAL_EXPORT_FAILED')
+  assert.equal((await whenIdle(send, { type: 'backup.export' })).status, 'accepted'); await waitFor((s) => s.backup.status === 'exported', 'OPTICAL_EXPORT_FAILED')
   const zip = await JSZip.loadAsync(await readFile(archive)); assert.ok(!Object.keys(zip.files).some((name) => name.includes('connections')))
   const allBytes = Buffer.concat(await Promise.all(Object.values(zip.files).filter((file) => !file.dir).map((file) => file.async('nodebuffer')))); assert.ok(!allBytes.includes(Buffer.from(credential))); assert.ok(!allBytes.includes(Buffer.from(endpoint)))
   const count = requests.length; await stop(); await launch(); assert.equal(requests.length, count); assert.equal((await snapshot()).opticalMemory.frames.length, optical.frames.length)

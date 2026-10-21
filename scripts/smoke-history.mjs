@@ -8,7 +8,7 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, openSettings, whenIdle } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'history-smoke-' + randomUUID()); let sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19547', LCA_MCP_PORT: '0' }
 let instance; let page; let client
@@ -129,7 +129,7 @@ try {
   assert.equal(await page.locator('.old-foot .quote-preview').count(), 0, 'FAILED_PAGE_RETAINED_SELECTION')
   await stop(); await launch(); assert.deepEqual((await snapshot()).history.photos[0], photo)
   const archive = join(data, 'history.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
-  await send({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'HISTORY_EXPORT_FAILED')
+  assert.equal((await whenIdle(send, { type: 'backup.export' })).status, 'accepted'); await waitFor((s) => s.backup.status === 'exported', 'HISTORY_EXPORT_FAILED')
   const zip = await JSZip.loadAsync(await readFile(archive)); const manifest = JSON.parse(await zip.file('manifest.json').async('string'))
   const sha = createHash('sha256').update(image).digest('hex'); const saved = manifest.files.find((file) => file.path === 'artifacts/' + sha + '.png'); assert.ok(saved); assert.deepEqual(await zip.file(saved.path).async('nodebuffer'), image)
   await stop(); sceneId = randomUUID(); await setupScene(); await launch()

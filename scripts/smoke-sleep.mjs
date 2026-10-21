@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings, whenIdle } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', 'sleep-' + randomUUID()); const sceneId = randomUUID()
@@ -41,7 +41,7 @@ try {
   await accepted({ type: 'lights.set', lightsOut: false })
   const archive = join(data, 'sleep.lca-save')
   await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
-  await accepted({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'SLEEP_EXPORT_FAILED')
+  assert.equal((await whenIdle(send, { type: 'backup.export' })).status, 'accepted'); await waitFor((s) => s.backup.status === 'exported', 'SLEEP_EXPORT_FAILED')
   await stop(); await launch(); assert.equal((await snapshot()).companion.sleeping, true)
   await accepted({ type: 'companion.sleep', sleeping: false })
   const oldSession = (await snapshot()).scope.sessionId

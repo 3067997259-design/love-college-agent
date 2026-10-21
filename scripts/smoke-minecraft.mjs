@@ -8,7 +8,7 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, whenIdle } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'minecraft-' + randomUUID()); const sceneId = randomUUID(); const profile = join(data, 'developer', sceneId)
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19558', LCA_MCP_PORT: '0' }
 let instance; let page; let client; let now = Date.parse('2026-10-17T12:00:00+08:00')
@@ -79,11 +79,12 @@ try {
   const ordinaryRows = await rowsAt(profile); assert.ok(!JSON.stringify(ordinaryRows).includes('GAME_ONLY_')); assert.ok(!JSON.stringify(ordinaryRows).includes('SYNTHETIC_GAME_CHAT_ONLY'))
   assert.ok(!JSON.stringify(ordinaryRows).includes('minecraft:stone_pickaxe')); assert.ok(!JSON.stringify(ordinaryRows).includes('native-crosshair-and-ray-grid'))
   const archive = join(data, 'game-boundary.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
-  await accepted({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'GAME_BOUNDARY_EXPORT_FAILED'); const zip = await JSZip.loadAsync(await readFile(archive))
+  assert.equal((await whenIdle(send, { type: 'backup.export' })).status, 'accepted'); await waitFor((s) => s.backup.status === 'exported', 'GAME_BOUNDARY_EXPORT_FAILED'); const zip = await JSZip.loadAsync(await readFile(archive))
   assert.ok(!Object.keys(zip.files).some((name) => name.includes('minecraft/')))
   for (const file of Object.values(zip.files).filter((file) => !file.dir)) { const bytes = await file.async('nodebuffer'); assert.ok(!bytes.includes(Buffer.from('GAME_ONLY_'))); assert.ok(!bytes.includes(Buffer.from('SYNTHETIC_GAME_CHAT_ONLY'))); assert.ok(!bytes.includes(Buffer.from('minecraft:stone_pickaxe'))); assert.ok(!bytes.includes(Buffer.from('native-crosshair-and-ray-grid'))) }
   const pilot = (await snapshot()).minecraft.pilot.uuid
-  const start = async () => { await accepted({ type: 'minecraft.start', serverId: 'synthetic-game', expectedPlayerUuid: pilot, scope: { radiusBlocks: 8, durationMs: 60000, allowChat: false } }); await waitFor((s) => s.minecraft.status === 'playing', 'SECOND_GAME_START_FAILED') }
+  // A round starts only while she is not speaking (a DSH turn about the last round may still run): sent until accepted.
+  const start = async () => { assert.equal((await whenIdle(send, { type: 'minecraft.start', serverId: 'synthetic-game', expectedPlayerUuid: pilot, scope: { radiusBlocks: 8, durationMs: 60000, allowChat: false } })).status, 'accepted', 'minecraft.start'); await waitFor((s) => s.minecraft.status === 'playing', 'SECOND_GAME_START_FAILED') }
   await start()
   await accepted({ type: 'pomodoro.plan', plan: { label: '专注停玩', plannedCount: 1, focusDurationMs: 60000, shortBreakDurationMs: 20000, longBreakDurationMs: 20000, longBreakEvery: 4, timing: 'demo' } })
   await accepted({ type: 'pomodoro.confirm', planId: (await snapshot()).pomodoro.proposal.id }); await accepted({ type: 'pomodoro.start', planId: (await snapshot()).pomodoro.plan.id })

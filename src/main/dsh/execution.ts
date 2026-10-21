@@ -133,6 +133,11 @@ export function createDshExecution(options: {
   /** Resource ledger for one model step: null lets it run; a code stops the turn and says why (allowance used up, ledger unreadable). */
   admit?(input: { bucket: 'work' | 'autonomous'; units: number }): PublicErrorCode | null
   changed(reason: AppEvent['reason']): void
+  /**
+   * Real time for watching the DSH process (killing it when a shutdown stalls). The business clock may be frozen in
+   * developer scenes, and a quit must not wait on it.
+   */
+  processClock?: Clock
   /** Test seam; production launches the DSH child process. */
   launch?: typeof startDshHost
 }) {
@@ -394,7 +399,7 @@ export function createDshExecution(options: {
     record({ type: 'model/attempt', turnId: current.lcaTurnId, slot: current.role, attempt: current.attempts, status: 'success', waitMs: 0,
       ...(input !== undefined ? { inputTokens: input } : {}), ...(output !== undefined ? { outputTokens: output } : {}), ...(cached !== undefined ? { cachedInputTokens: cached } : {}) })
   }
-  const ensureHost = (cwd: string) => host ??= (options.launch ?? startDshHost)({ clock, dshRoot: options.dshRoot, dataDir: options.dataDir, bridge: options.bridge, workspace: cwd, routes: options.routes, guardedRoots: options.guardedRoots,
+  const ensureHost = (cwd: string) => host ??= (options.launch ?? startDshHost)({ clock: options.processClock ?? clock, dshRoot: options.dshRoot, dataDir: options.dataDir, bridge: options.bridge, workspace: cwd, routes: options.routes, guardedRoots: options.guardedRoots,
     persona: options.persona(), suffix: options.suffix(), tools: (() => { const schemas = toolSchemas(); toolsSent = JSON.stringify(schemas); return schemas })(),
     onEvent, onCall: call, onApproval: approve, onAdmit: admitStep, onQuestion: question })
   let opening: Promise<Live> | undefined

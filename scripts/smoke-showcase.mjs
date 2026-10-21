@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, whenIdle } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'showcase-' + randomUUID()); const sceneId = randomUUID()
 const profile = join(data, 'developer', sceneId)
@@ -99,7 +99,7 @@ try {
   const photo = (await snapshot()).history.photos.find((item) => item.sessionId === oldSession)
   await accepted({ type: 'memory.extract' }); await waitFor((s) => !['extracting', 'compacting'].includes(s.memory.status), 'MEMORY_BUSY')
   const archive = join(data, 'one-book.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
-  await accepted({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'SAVE_FAILED'); await mark('shared-chat-work-boundary-photo-and-private-save')
+  assert.equal((await whenIdle(send, { type: 'backup.export' })).status, 'accepted'); await waitFor((s) => s.backup.status === 'exported', 'SAVE_FAILED'); await mark('shared-chat-work-boundary-photo-and-private-save')
   await advance(Date.parse('2026-10-17T04:03:00+08:00') - now); await waitFor((s) => s.scope.sessionId !== oldSession && s.companion.sleeping, 'DAY_END_FAILED')
   await script([{ text: '合成引用回忆响应', toolCalls: [], delayMs: 0 }])
   await accepted({ type: 'history.recall', anchor: { sessionId: oldSession, messageId: firstMessage.id, start: 0, end: firstMessage.text.length }, question: '纸桥叫什么？' })

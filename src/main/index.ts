@@ -616,7 +616,7 @@ void app.whenReady().then(async () => {
     const createDsh = () => {
       const chat = chatModel()
       if (!dshPresent || !chat) return undefined
-      const execution = createDshExecution({ store: store!, clock, dataDir, dshRoot, bridge: dshBridge, guardedRoots, source: scriptedEndpoint ? 'fake' : 'real',
+      const execution = createDshExecution({ store: store!, clock, processClock: systemClock, dataDir, dshRoot, bridge: dshBridge, guardedRoots, source: scriptedEndpoint ? 'fake' : 'real',
         routes: dshRoutes(chat, (scriptedEndpoint ? undefined : providers.get('work')) ?? chat, efforts),
         project: () => projects.current(), persona,
         // After DSH's first-party guidance: how she talks in the book outranks the coding-agent style.
@@ -760,6 +760,9 @@ app.on('before-quit', (event) => {
     event.preventDefault()
     if (closing) return
     closing = true
+    // Her DSH session stops first: from here it records nothing, so what DSH sends while it stops never reaches the
+    // journal closed below. The quit does not wait for DSH to exit; it exits on the shutdown message or when we go.
+    void dshExecution?.close()
     questions?.close()
     pomodoro?.dispose()
     quill?.dispose()
@@ -771,8 +774,7 @@ app.on('before-quit', (event) => {
     const closeMemory = memory?.close()
     scheduler?.dispose()
     const closeGame = (async () => { await minecraft?.close(); await minecraftChat?.end(); await mcp?.close() })()
-    // Keep the development clock alive until every service has finished its cancellation/release RPCs. Her DSH session
-    // closes here too, before the journal: events it sends while it stops must not reach a closed journal.
-    void Promise.all([dshExecution?.close(), closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).then(() => scriptedEndpoint?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); resourceBudget?.close(); storageClosed = true; app.quit() })
+    // Keep the development clock alive until every service has finished its cancellation/release RPCs.
+    void Promise.all([closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).then(() => scriptedEndpoint?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); resourceBudget?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); resourceBudget?.close(); storageClosed = true }
 })

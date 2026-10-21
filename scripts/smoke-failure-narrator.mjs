@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, whenIdle } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'failure-narrator-' + randomUUID())
 const credential = 'synthetic-failure-private-key'; const vendorBody = 'PRIVATE_UPSTREAM_ERROR_BODY'; const requests = []; let mode = 'configuration'; let phase = 0
 // Her conversation runs on DSH: LCA tools carry the lca_ prefix, your words are the last text block of their message
@@ -118,7 +118,7 @@ try {
   for (let i = 0; i < 100 && phase === 0; i++) await new Promise((done) => setTimeout(done, 20)); assert.equal(phase, 1)
   await accept({ type: 'turn.stop', taskId: stopped }); await waitFor((s) => s.task?.status === 'aborted', 'STOP_FAILED'); assert.equal((await records()).filter((row) => row.type === 'narrator/failure').length, count)
   const archive = join(data, 'failures.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
-  await accept({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'EXPORT_FAILED')
+  assert.equal((await whenIdle(send, { type: 'backup.export' })).status, 'accepted'); await waitFor((s) => s.backup.status === 'exported', 'EXPORT_FAILED')
   const attempts = (await records()).filter((row) => row.type === 'model/attempt' && row.status === 'started').length; const failures = (await records()).filter((row) => row.type === 'narrator/failure').length; const httpCount = requests.length
   await close(); await launch(); assert.equal(requests.length, httpCount); assert.equal((await records()).filter((row) => row.type === 'narrator/failure').length, failures)
   const oldPage = await page.evaluate(async () => { const s = await window.lca.getSnapshot(); return window.lca.readSession(s.scope.sessionId) }); const archived = oldPage.messages.find((message) => message.id === first.id)
