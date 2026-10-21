@@ -21,9 +21,10 @@ export async function probeBackup(root: string) {
   let stage = 0
   try {
     const desk = createDesk(join(root, 'desk'))
-    // Desk history as the retired heart flow left it: an applied write and a failed one.
+    // Desk history as the retired heart flow left it (each change names its flow): an applied write and a failed one.
+    const flowId = randomUUID()
     const change = (path: string, after: string, status: 'applied' | 'failed') => {
-      const id = randomUUID(); store.append({ type: 'desk/change', id, path, before: null, after, pending: true })
+      const id = randomUUID(); store.append({ type: 'desk/change', id, flowId, path, before: null, after, pending: true })
       if (status === 'applied') desk.write(path, after)
       store.append({ type: 'desk/settled', id, status })
     }
