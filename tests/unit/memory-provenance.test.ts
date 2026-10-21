@@ -47,8 +47,8 @@ function fixture() {
       store.append({ type: 'turn/end', turnId: id, reason: 'completed' })
     }
     turn('t1', '今天把这件事记一下。')
-    const prepared = await memory.prepareContext('t2', new AbortController().signal)
-    return prepared.messages.filter((message) => message.content.includes('previousDaysReference')).map((message) => message.content).join('\n')
+    // What a new day's session gets with its first message (memory/service.ts reference).
+    return JSON.stringify(memory.reference('', 't2', true)?.previousDaysReference ?? [])
   }
   return { clock, store, repository, journal, memory, dayRow, monthRow, preparation, selectedDay, today, fake }
 }

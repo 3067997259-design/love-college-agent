@@ -3,7 +3,6 @@ import type { AppCommand, MemoryView, MessageView, PublicErrorCode, SessionPage,
 import type { Clock } from '../clock'
 import type { Scheduler } from '../scheduler'
 import type { SessionStore } from '../store/session'
-import type { ContextMessage } from '../journal/schema'
 import { sessionDayKey } from '../journal/file'
 import { projectJournal } from '../journal/projection'
 import { projectFailure } from '../harness/failure'
@@ -12,10 +11,7 @@ import { seenFragments, memoryDigest, memoryInputBytes, type SeenFragment } from
 import { boundedMemoryCall, MemoryFailure, validateMemories, validateSummary, type MemoryModel, type createFakeMemoryModel } from './model'
 import { searchMemories } from './retrieval'
 import { redactFixed } from '../privacy/redact'
-import { profileContext } from '../onboarding/context'
 import { closedSummaryGroups, latestSummaries, summaryReferences, validSummaries } from './hierarchy'
-import harnessPolicy from '../harness/policy.json'
-import { BUILTIN_CARD } from '../characters/builtin-persona'
 
 type OperationKind = 'extract' | 'compact' | 'day' | 'week' | 'month'
 export function createMemoryService(options: { clock: Clock; scheduler: Scheduler; store: SessionStore; repository: MemoryRepository; model: MemoryModel | null;
@@ -207,33 +203,6 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       return { sessionId: page.sessionId, dayKey: page.dayKey, messages: bounded, truncated: bounded.length !== messages.length }
     },
     search,
-    prepareContext: async (turnId: string, signal: AbortSignal) => {
-      active?.abort(); await worker; signal.throwIfAborted()
-      if (allowed() && options.model && contextChars() >= (options.limits?.compactChars ?? 24_000)) await run('compact', (abort) => compactCore(AbortSignal.any([abort, signal])))
-      signal.throwIfAborted()
-      const base = normalEntries()
-      const rows = store.records(); const policies = base.filter((entry) => rows.some((row) => row.seq === entry.seq && row.type === 'context/inject' && row.source === 'policy'))
-      const memoryCalls = new Set(rows.flatMap((row) => row.type === 'tool/call' && (row.name === 'search_memory' || row.name === 'recall_seen' || row.name === 'recall_optical') ? [row.callId] : []))
-      const opticalTurns = new Set(rows.flatMap((row) => row.type === 'tool/call' && row.name === 'recall_optical' ? [row.turnId] : []))
-      const opticalReplies = new Set(rows.flatMap((row) => row.type === 'assistant/message' && opticalTurns.has(row.turnId) ? [row.seq] : []))
-      const today = base.filter((entry) => !policies.includes(entry))
-      const recall = allowed() ? search(today.filter((entry) => entry.message.role === 'user').slice(-3).map((entry) => entry.message.content).join('\n'), turnId) : []
-      const summaries = previousDays()
-      const messages: ContextMessage[] = [{ role: 'system', content: harnessPolicy.system }, ...policies.map((entry) => entry.message), ...profileContext(store.projection().onboarding)]; const eligibleIndexes: number[] = []
-      const character = records().findLast((row) => row.type === 'character/definition')
-      // 导入的角色包有自己的定义记录；内置桃子没有，用内置角色卡
-      const card = character?.type === 'character/definition' ? character.definition : BUILTIN_CARD
-      messages.push({ role: 'system', content: JSON.stringify({ characterCard: { name: card.name, persona: card.persona }, scope: 'character-configuration-only', authority: 'personality-never-tool-permission' }) })
-      if (summaries.length) messages.push({ role: 'user', content: JSON.stringify({ previousDaysReference: summaries }) })
-      const lastUser = today.findLastIndex((entry) => entry.message.role === 'user')
-      today.forEach((entry, index) => {
-        if (index === lastUser && recall.length) messages.push({ role: 'user', content: JSON.stringify({ memoryReference: recall, trust: 'unreviewed-reference' }) })
-        if (entry.message.role !== 'system' && !(entry.message.role === 'tool' && memoryCalls.has(entry.message.toolCallId ?? '')) && !(entry.message.role === 'assistant' && opticalReplies.has(entry.seq))) eligibleIndexes.push(messages.length)
-        messages.push(entry.message)
-      })
-      if (JSON.stringify(messages).length > (options.limits?.hardChars ?? 96_000)) throw new MemoryFailure('context-too-large')
-      return { messages, eligibleIndexes }
-    },
     foreground: () => { active?.abort() },
     setEnabled: (value: boolean) => { enabled = value; if (!value) active?.abort(); options.changed() },
     stateChanged: () => { if (store.projection().lightsOut) active?.abort() },

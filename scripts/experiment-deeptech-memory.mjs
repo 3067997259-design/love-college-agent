@@ -8,7 +8,7 @@
 //   control  没有任何纠正（守卫精度：不得误伤）
 //
 // 做法：真实 projectMemory 从日志投影摘要 → 真实 summaryReferences / validSummaries 选择
-// → 真实 createMemoryService().prepareContext 端到端确认（fake 模型、统一时钟、临时数据根）。
+// → 真实 createMemoryService().reference（新会话第一条消息带的 previousDaysReference）端到端确认（fake 模型、统一时钟、临时数据根）。
 // 不调真实模型、不发网络、不读 secrets。
 //
 // 冻结纪律：开发集可逐条查看；留出集需要 --holdout 显式打开，装置冻结后只跑一次。
@@ -150,8 +150,8 @@ async function confirmThroughService(state, today) {
     const memory = createMemoryService({ clock, scheduler, store, repository, model: fake.model, development: fake, isBusy: () => false, rolled: () => {}, changed: () => {} })
     scheduler.cancel('memory.maintenance')
     turn('t1', '今天把这件事记一下。')
-    const prepared = await memory.prepareContext('t2', new AbortController().signal)
-    const reference = prepared.messages.filter((message) => message.content.includes('previousDaysReference')).map((message) => message.content).join('\n')
+    // What a new day's session gets with its first message (memory/service.ts reference).
+    const reference = JSON.stringify(memory.reference('', 't2', true)?.previousDaysReference ?? [])
     const projected = repository.view().summaries.length
     await memory.close(); scheduler.dispose()
     return { projected, hasStale: reference.includes(state.staleText), hasExpected: reference.includes(state.expectedText), reference }

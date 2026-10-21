@@ -40,9 +40,10 @@ try {
   await waitFor((s) => s.task?.id === turn && s.task.status === 'completed' && !s.question, 'ANSWER_NOT_COMPLETED')
   let rows = await records(); const seen = rows.filter((row) => row.type === 'model/seen' && row.turnId === turn).at(-1)
   const answerIndex = seen.messages.findIndex((m) => m.role === 'user' && m.content === 'Markdown\nHUMAN_INFORMATION_CANARY')
-  const batchIndex = seen.messages.findIndex((m) => m.role === 'assistant' && m.toolCalls?.length === 2)
-  assert.ok(batchIndex >= 0 && answerIndex > batchIndex + 2); assert.deepEqual(seen.messages.slice(batchIndex, batchIndex + 3).map((m) => m.role), ['assistant', 'tool', 'tool']); assert.ok(seen.eligibleIndexes.includes(answerIndex))
-  assert.ok(!seen.messages.slice(batchIndex, batchIndex + 3).some((m) => m.content.includes('HUMAN_INFORMATION_CANARY')))
+  // On DSH your answer is the result of her question; what memory keeps of the turn has it as your words, no tool traffic.
+  assert.ok(answerIndex >= 0 && seen.eligibleIndexes.includes(answerIndex)); assert.ok(seen.messages.every((m) => m.role === 'user' || m.role === 'assistant'))
+  const sent = await debug('get_context'); const toolTexts = sent.filter((m) => m.role === 'tool').map((m) => typeof m.content === 'string' ? m.content : JSON.stringify(m.content))
+  assert.ok(toolTexts.some((text) => text.includes('HUMAN_INFORMATION_CANARY')), 'ANSWER_NOT_RETURNED')
   assert.ok(!(await snapshot()).question)
 
   // 点选项就直接回答，不用再点“回答”

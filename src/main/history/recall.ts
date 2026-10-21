@@ -2,7 +2,6 @@ import { z } from 'zod'
 import type { RecallAnchor, RecallView, PublicErrorCode } from '../../shared'
 import type { SessionStore } from '../store/session'
 import type { MemoryRepository } from '../memory/repository'
-import type { ContextMessage } from '../journal/schema'
 import type { HarnessTool } from '../harness/tools'
 import { seenFragments } from '../memory/seen'
 import { validSummaries } from '../memory/hierarchy'
@@ -11,7 +10,6 @@ import { recallAnchorSchema } from './schema'
 import { witnessedPage, type WitnessedMessage } from './seen'
 import type { HistoryPhotos } from './photos'
 import policy from './policy.json'
-type Prepared = { messages: readonly ContextMessage[]; eligibleIndexes: readonly number[] }
 const toolInput = z.strictObject({ requestId: z.string().min(1).max(128), relativeStart: z.number().int().min(-20).max(20), count: z.number().int().min(1).max(4) })
 export function createHistoryRecall(options: { store: SessionStore; repository: Pick<MemoryRepository, 'view'>; photos: Pick<HistoryPhotos, 'photo'>; changed(): void; canRecall(): boolean; busy(): boolean;
   send(question: string, requestId: string, hash: string): void }) {
@@ -78,20 +76,8 @@ export function createHistoryRecall(options: { store: SessionStore; repository: 
     const previous = used(requestId)
     if (previous?.type === 'history/recall-used' && previous.turnId === requestId && turnId !== requestId) store.append({ type: 'history/recall-used', requestId, turnId, chars: previous.chars })
   }
-  const prepare = (turnId: string, prepared: Prepared): Prepared => {
-    const request = relevantRequest(turnId); if (!enabled || request?.type !== 'history/recall-request') return prepared
-    const previous = used(request.requestId)
-    if (previous?.type === 'history/recall-used' && previous.turnId !== turnId) return prepared
-    const found = resolve(request.anchor)
-    const excerpts = found.messages.slice(Math.max(0, found.at - 2), found.at + 3).map((message) => excerpt(message, found.page.sessionId, message.messageId === found.anchor.messageId ? found.offset : 0))
-    const reference = { recalledSeenReference: { requestId: request.requestId, dayKey: found.page.dayKey, quote: found.quote, excerpts, summaries: summaries(found.page.sessionId), policy: policy.referencePolicy } }
-    const content = JSON.stringify(reference)
-    if (!previous) store.append({ type: 'history/recall-used', requestId: request.requestId, turnId, chars: content.length })
-    const insertion = Math.max(0, prepared.messages.findLastIndex((message) => message.role === 'user'))
-    return { messages: [...prepared.messages.slice(0, insertion), { role: 'user', content }, ...prepared.messages.slice(insertion)], eligibleIndexes: prepared.eligibleIndexes.map((index) => index >= insertion ? index + 1 : index) }
-  }
   return {
-    prepare, reference, bind,
+    reference, bind,
     recallable: (sessionId: string) => sessionId === store.scope.sessionId ? [] : witnessedPage(store, sessionId).map((message) => message.messageId),
     setEnabled: (value: boolean) => { enabled = value },
     request: (anchor: RecallAnchor, question: string, requestId: string, hash: string): PublicErrorCode | undefined => {

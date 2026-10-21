@@ -4,12 +4,14 @@ import { join, resolve } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { createManualClock } from '../../src/main/clock'
 import { createModelClient } from '../../src/main/model/client'
-import { createHarness } from '../../src/main/harness/loop'
+import { createRoundLoop } from '../../src/main/minecraft/round'
+import type { HarnessTool } from '../../src/main/harness/tools'
 import { openJournal } from '../../src/main/journal/file'
 import { projectJournal } from '../../src/main/journal/projection'
 import type { SessionStore } from '../../src/main/store/session'
 const roots: string[] = []; afterEach(() => { for (const root of roots.splice(0)) { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-redact-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) } })
-it('redacts escaped provider values before actual harness parsing, execution, seen projection and journal persistence', async () => {
+// A game round's own model client (her DSH turns never see provider values: DSH holds the keys).
+it('redacts escaped provider values before actual loop parsing, execution, seen projection and journal persistence', async () => {
   const root = mkdtempSync(join(tmpdir(), 'lca-redact-')); roots.push(root); const clock = createManualClock(1000); const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
   const store: SessionStore = { scope: journal.scope, append: journal.append, records: journal.records, projection: () => projectJournal(journal.records()), close: journal.close }
   const config = { base_url: 'https://synthetic.invalid/v1', api_key: 'synthetic-private-key', model: 'synthetic-config-model' }; let index = 0; let received: unknown
@@ -18,7 +20,8 @@ it('redacts escaped provider values before actual harness parsing, execution, se
     const delta = index++ === 0 ? { tool_calls: [{ index: 0, id: 'safe', function: { name: 'echo', arguments: args } }] } : { content: 'safe result' }
     return new Response('data: ' + JSON.stringify({ choices: [{ index: 0, delta, finish_reason: index === 1 ? 'tool_calls' : 'stop' }] }) + '\n\ndata: [DONE]\n\n')
   })
-  const harness = createHarness({ store, clock, model, tools: [{ definition: { name: 'echo', description: 'test only', parameters: { type: 'object' } }, templateId: 'synthetic.echo', validate: () => true, run: async (args) => { received = args; return { ok: true, raw: { parsed: JSON.stringify(args) }, visible: { parsed: JSON.stringify(args) } } } }] })
+  const echo: HarnessTool = { definition: { name: 'echo', description: 'test only', parameters: { type: 'object' } }, templateId: 'synthetic.echo', validate: () => true, run: async (args) => { received = args; return { ok: true, raw: { parsed: JSON.stringify(args) }, visible: { parsed: JSON.stringify(args) } } } }
+  const harness = createRoundLoop({ store, clock, model, tools: () => [echo], enabled: () => true, limits: { steps: 12, tokens: 500_000, outputTokens: 2048 }, prepareContext: async () => ({ messages: store.projection().context, eligibleIndexes: [] }) })
   try {
     harness.send('synthetic public request', 'r', 'h'); await harness.idle()
     expect(received).toEqual({ text: '[redacted]', nested: [{ name: '[redacted]', url: '[redacted]' }], ordinary: 'literal "quote"' })

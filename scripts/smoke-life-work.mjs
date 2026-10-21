@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings, whenIdle } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'life-work-' + randomUUID()); let sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19551', LCA_MCP_PORT: '0' }
 const initialTime = Date.parse('2026-10-17T10:00:00+08:00'); let instance; let page; let client; let now = initialTime
@@ -43,7 +43,7 @@ try {
   let reading = job(await snapshot(), 'read'); const first = reading.output; const firstText = await readFile(join(desk, first.path), 'utf8'); assert.equal(hash(firstText), first.sha256)
   await accepted({ type: 'life.work.pause', workId: reading.id }); await accepted({ type: 'pomodoro.stop' }); await accepted({ type: 'mode.set', mode: 'rest' })
   const archive = join(data, 'partial.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
-  await accepted({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'WORK_EXPORT_FAILED')
+  assert.equal((await whenIdle(send, { type: 'backup.export' })).status, 'accepted'); await waitFor((s) => s.backup.status === 'exported', 'WORK_EXPORT_FAILED')
   // Queue the old checkpoint while in rest, then close. Restart must mark it interrupted, not hide it.
   await accepted({ type: 'life.work.resume', workId: reading.id })
   await stop(); now += 3 * 86400000; await profile(now); await launch(); await debug('set_clock', { nowMs: now, frozen: true })

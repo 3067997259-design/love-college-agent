@@ -6,7 +6,7 @@ import type { Clock } from '../clock'
 import type { ModelClient } from '../model/types'
 import type { SessionStore } from '../store/session'
 import { openSessionStore } from '../store/session'
-import { createHarness } from '../harness/loop'
+import { createRoundLoop, type RoundLoop } from './round'
 import type { HarnessTool } from '../harness/tools'
 import type { ContextMessage } from '../journal/schema'
 import { imageSize } from '../model/image-size'
@@ -19,13 +19,13 @@ import definitions from './tools.json'
 import policy from './policy.json'
 import playSkill from './play-with-user.md?raw'
 
-/** Separate game journals/projection/harness: ordinary model input, memories and private saves never
+/** Separate game journals/projection/loop (round.ts): ordinary model input, memories and private saves never
  * read this root. Only attempt counters are mirrored into the main journal for the shared budget.
  */
 export function createMinecraftChat(options: { root: string; clock: Clock; mainStore: SessionStore; model: ModelClient;
   game(): MinecraftService; enabled(): boolean; persona(): { name: string; persona: string }; credentials: readonly string[]; changed(): void;
   normalizePixels?(png: Buffer): { jpeg: Buffer; width: number; height: number }; budget?: ResourceAdmissions }) {
-  let store: SessionStore | undefined; let harness: ReturnType<typeof createHarness> | undefined; let closing: Promise<void> | undefined
+  let store: SessionStore | undefined; let loop: RoundLoop | undefined; let closing: Promise<void> | undefined
   let roundId: string | undefined; let eventCount = 0
   const frames = new Map<string, Buffer>()
   const clearFrames = () => { for (const bytes of frames.values()) bytes.fill(0); frames.clear() }
@@ -57,8 +57,8 @@ export function createMinecraftChat(options: { root: string; clock: Clock; mainS
   }))
   const end = () => {
     if (closing) return closing
-    const oldHarness = harness; const oldStore = store; harness = undefined; store = undefined; roundId = undefined; clearFrames()
-    closing = (async () => { await oldHarness?.dispose(); oldStore?.close() })().finally(() => { closing = undefined; options.changed() }); return closing
+    const oldLoop = loop; const oldStore = store; loop = undefined; store = undefined; roundId = undefined; clearFrames()
+    closing = (async () => { await oldLoop?.dispose(); oldStore?.close() })().finally(() => { closing = undefined; options.changed() }); return closing
   }
   return {
     ready: () => options.enabled() && !closing,
@@ -86,14 +86,14 @@ export function createMinecraftChat(options: { root: string; clock: Clock; mainS
         })
         return { ...reply, text: scrub(reply.text), toolCalls: reply.toolCalls.map((call) => ({ ...call, arguments: scrub(call.arguments) })) }
       } }
-      harness = createHarness({ clock: options.clock, store: current, model, tools, getTools: () => {
+      loop = createRoundLoop({ clock: options.clock, store: current, model, tools: () => {
         const view = options.game().view(); const feature = { minecraft_inventory: 'inventory', minecraft_scene: 'scene', minecraft_look: 'look', minecraft_screenshot: 'screenshot', minecraft_mine: 'mining' } as const
         return tools.filter((tool) => (tool.definition.name !== 'minecraft_chat' || view.scope?.allowChat)
           && (tool.definition.name !== 'minecraft_screenshot' || view.scope?.allowScreenshots && !!options.normalizePixels)
           && (tool.definition.name !== 'minecraft_mine' || view.scope?.allowMining)
           && (!(tool.definition.name in feature) || view.features?.includes(feature[tool.definition.name as keyof typeof feature])))
       // 一轮的用量上限。原 80k 是按内置人设为空时调的（一轮 8 次调用约 78k）；她的短人设每次约 0.6 KB，放宽到 90k，其余上限不变
-      }, limits: { steps: 8, dailyTokens: 90_000, autonomousTokens: 90_000, outputTokens: 800 },
+      }, limits: { steps: 8, tokens: 90_000, outputTokens: 800 },
         enabled: () => options.enabled() && options.game().view().status === 'playing', changed: options.changed,
         prepareContext: async (_id, signal) => {
           signal.throwIfAborted(); const view = options.game().view(); const persona = options.persona()
@@ -109,17 +109,17 @@ export function createMinecraftChat(options: { root: string; clock: Clock; mainS
         } })
     },
     end,
-    send: (text: string, requestId: string, hash: string) => { if (!harness || options.game().view().status !== 'playing') throw new Error('GAME_CHAT_UNAVAILABLE'); harness.send(scrub(text), requestId, hash) },
+    send: (text: string, requestId: string, hash: string) => { if (!loop || options.game().view().status !== 'playing') throw new Error('GAME_CHAT_UNAVAILABLE'); loop.send(scrub(text), requestId, hash) },
     events: (messages: readonly { id: number; text: string; sender: string }[]) => {
-      if (!harness || !roundId || options.game().view().status !== 'playing' || eventCount >= 24) return
+      if (!loop || !roundId || options.game().view().status !== 'playing' || eventCount >= 24) return
       const selected = messages.slice(0, 2).map((message) => ({ id: message.id, text: scrub(message.text), sender: scrub(message.sender) }))
-      if (selected.length) { eventCount++; harness.postEvent('autonomous', JSON.stringify({ gameChat: selected, trust: 'untrusted-public-chat' }), 'minecraft:' + roundId + ':' + eventCount) }
+      if (selected.length) { eventCount++; loop.postEvent(JSON.stringify({ gameChat: selected, trust: 'untrusted-public-chat' }), 'minecraft:' + roundId + ':' + eventCount) }
     },
-    stop: (taskId: string) => harness?.stop(taskId) ?? false,
+    stop: (taskId: string) => loop?.stop(taskId) ?? false,
     view: (): { messages: readonly MessageView[]; activities: readonly ActivityView[]; task: TaskView | null } => {
       const view = store?.projection(); return { messages: view?.messages ?? [], activities: view?.activities ?? [], task: view?.task ?? null }
     },
-    idle: async () => { await harness?.idle(); await closing },
+    idle: async () => { await loop?.idle(); await closing },
   }
 }
 export type MinecraftChat = ReturnType<typeof createMinecraftChat>

@@ -8,12 +8,9 @@ import { openJournal } from '../../src/main/journal/file'
 import { projectJournal } from '../../src/main/journal/projection'
 import { createQuestions } from '../../src/main/questions/service'
 import { answerInput, questionInput } from '../../src/main/questions/schema'
-import { createHarness } from '../../src/main/harness/loop'
-import { builtinTools } from '../../src/main/harness/tools'
 import { createAppController } from '../../src/main/bridge/controller'
 import type { SessionStore } from '../../src/main/store/session'
 import type { AppCommand } from '../../src/shared'
-import type { ModelRequest } from '../../src/main/model/types'
 
 const cleanup: (() => void | Promise<void>)[] = []
 afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn() })
@@ -53,17 +50,6 @@ it.each(['abort', 'supersede', 'disable', 'close', 'lights', 'sleep', 'settled']
   if (cause === 'sleep') f.store.append({ type: 'companion/sleep', sleeping: true, cause: 'user' })
   f.q.stateChanged(); expect((await p).ok).toBe(false); expect(f.q.view()).toBeUndefined()
   expect(f.q.dispatch(f.command({ type: 'question.answer', questionId: id, answer: 'late' }), 'h')).toBe('invalid-command')
-})
-it('records an answer as user information only after the complete tool batch', async () => {
-  const f = fixture(); const requests: ModelRequest[] = []; let index = 0
-  const harness = createHarness({ ...f, tools: [f.q.tool(), ...builtinTools()], foreground: f.q.interrupt, afterTools: f.q.commit, turnSettled: f.q.settled,
-    model: { source: 'fake', complete: async (request) => { requests.push(structuredClone({ ...request, signal: undefined }) as unknown as ModelRequest); return index++ === 0 ? { usage: { inputTokens: 1, outputTokens: 1 }, text: '', toolCalls: [{ id: 'ask', name: 'ask_user', arguments: '{"question":"Which format?"}' }, { id: 'clock', name: 'get_clock', arguments: '{}' }] } : { usage: { inputTokens: 1, outputTokens: 1 }, text: 'done', toolCalls: [] } } } })
-  cleanup.push(harness.dispose); harness.send('Please prepare it', 'r', 'h'); await vi.waitFor(() => expect(f.q.view()?.status).toBe('waiting'))
-  expect(f.answer('human reply')).toBeUndefined(); expect(f.store.projection().context.some((message) => message.content === 'human reply')).toBe(false)
-  await harness.idle(); const messages = requests[1].messages
-  expect(messages.map((message) => message.role)).toEqual(['user', 'assistant', 'tool', 'tool', 'user']); expect(messages.at(-1)?.content).toBe('human reply')
-  expect(messages[2].content).not.toContain('human reply'); expect(messages.some((message) => message.content === 'Which format?')).toBe(false)
-  const seen = f.store.records().filter((row) => row.type === 'model/seen').at(-1); expect(seen?.type === 'model/seen' && seen.messages.at(-1)?.role).toBe('user')
 })
 it.each(['abort', 'settled', 'restart'] as const)('drops an answered but incomplete batch on %s', async (cause) => {
   const f = fixture(); f.start(); const p = f.ask(); f.answer('must not reach a model'); await p

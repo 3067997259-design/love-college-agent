@@ -1,24 +1,6 @@
 import { expect, it } from 'vitest'
-import type { ContextMessage, JournalRecord } from '../../src/main/journal/schema'
-import { retireSourceContext } from '../../src/main/campus/context'
+import type { JournalRecord } from '../../src/main/journal/schema'
 import { seenFragments } from '../../src/main/memory/seen'
-
-it('retires previous external evidence and its ignored-task reply while preserving user history and current tool protocol', () => {
-  const rows = [
-    { type: 'tool/call', turnId: 'old', callId: 'old-call', templateId: 'mcp.call', atMs: 10 },
-    { type: 'assistant/message', turnId: 'old', text: 'STALE_EXTERNAL_REPLY', atMs: 11 },
-    { type: 'campus/ignored', candidateId: 'ignored', atMs: 12 },
-    { type: 'tool/call', turnId: 'current', callId: 'new-call', templateId: 'student-hub.assistant', atMs: 13 },
-  ] as unknown as JournalRecord[]
-  const messages: ContextMessage[] = [
-    { role: 'user', content: '过去我问过那封邮件' }, { role: 'assistant', content: 'STALE_EXTERNAL_REPLY' },
-    { role: 'tool', toolCallId: 'old-call', content: 'OLD_PRIVATE_BODY' }, { role: 'tool', toolCallId: 'new-call', content: 'CURRENT_RESULT' },
-  ]
-  const projected = retireSourceContext(messages, rows, 'current', [])
-  expect(projected[0]).toEqual(messages[0]); expect(projected[1].content).toBe('')
-  expect(projected[2].toolCallId).toBe('old-call'); expect(projected[2].content).not.toContain('OLD_PRIVATE_BODY')
-  expect(projected[3]).toEqual(messages[3]); expect(messages[2].content).toBe('OLD_PRIVATE_BODY')
-})
 
 it('keeps witnessed delivery evidence for gifts but does not extract external source contents as automatic memory', () => {
   const records = [
@@ -34,30 +16,4 @@ it('keeps witnessed delivery evidence for gifts but does not extract external so
   ] as unknown as JournalRecord[]
   expect(seenFragments(records)).toHaveLength(4)
   expect(seenFragments(records, true).map((fragment) => fragment.text)).toEqual(['我喜欢安静学习'])
-})
-
-it('retains the scan job locator across turns while retiring its old status and source text', () => {
-  const rows = [{ type: 'tool/call', turnId: 'scan', callId: 'scan-call', templateId: 'student-hub.assistant', atMs: 10 }] as unknown as JournalRecord[]
-  const [message] = retireSourceContext([{ role: 'tool', toolCallId: 'scan-call', content: JSON.stringify({ jobId: 'scan_123', status: 'running', text: 'OLD_SCHOOL_SOURCE' }) }], rows, 'status-turn', [])
-  const result = JSON.parse(message.content)
-  expect(result.jobId).toBe('scan_123'); expect(result.status).toBe('historical-result-retired'); expect(message.content).not.toContain('OLD_SCHOOL_SOURCE')
-})
-
-it.each([false, true])('keeps a current result when a provider reuses an old call ID (identical bodies: %s)', (identical) => {
-  const current = { value: 'CURRENT_RESULT' }; const old = identical ? current : { value: 'OLD_RESULT' }
-  const rows = [
-    { type: 'tool/call', turnId: 'old', callId: 'reused', templateId: 'memory.recall', atMs: 10 },
-    { type: 'tool/result', turnId: 'old', callId: 'reused', visible: old, atMs: 11 },
-    { type: 'tool/call', turnId: 'current', callId: 'reused', templateId: 'memory.recall', atMs: 20 },
-    { type: 'tool/result', turnId: 'current', callId: 'reused', visible: current, atMs: 21 },
-  ] as unknown as JournalRecord[]
-  const messages: ContextMessage[] = [
-    { role: 'tool', toolCallId: 'reused', content: JSON.stringify(old) },
-    { role: 'tool', toolCallId: 'reused', content: JSON.stringify(current) },
-  ]
-  const output = retireSourceContext(messages, rows, 'current', [])
-  expect(JSON.parse(output[0].content).status).toBe('historical-result-retired')
-  expect(output[1]).toEqual(messages[1])
-  const pending = retireSourceContext(messages.slice(0, 1), rows.slice(0, -1), 'current', [])
-  expect(JSON.parse(pending[0].content).status).toBe('historical-result-retired')
 })

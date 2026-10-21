@@ -51,7 +51,8 @@ try {
   const alias = 'mcp_synthetic-game_' + createHash('sha256').update('navigate_to').digest('hex').slice(0, 12)
   await debug('set_fake_model', { script: [call('bypass', alias, { x: 2, y: 64, z: 0 }), { text: 'GENERIC_GAME_BYPASS_REJECTED', toolCalls: [], delayMs: 0 }] })
   await accepted({ type: 'message.send', text: '尝试尚未授权的普通 MCP 游戏别名。' }); await waitFor((s) => s.task?.status === 'completed' && s.messages.some((message) => message.text === 'GENERIC_GAME_BYPASS_REJECTED'), 'GENERIC_BYPASS_PROBE_FAILED')
-  assert.ok((await rowsAt(profile)).some((row) => row.type === 'tool/call' && row.name === alias && row.templateId === 'tool.unavailable'))
+  // Her DSH session is never offered the game server's generic MCP alias: the scripted call cannot run anything.
+  assert.ok(!(await rowsAt(profile)).some((row) => row.type === 'work/activity' && row.templateId === 'mcp.call' && row.status === 'completed'), 'GENERIC_GAME_ALIAS_RAN')
   const controls = gameRow.getByRole('region', { name: 'Minecraft 展位控制', exact: true })
   await controls.getByRole('button', { name: '核对游戏玩家', exact: true }).click(); await waitFor((s) => s.minecraft.status === 'ready', 'GAME_CHECK_FAILED')
   await controls.getByLabel('允许本轮公开游戏聊天').check(); await controls.getByRole('button', { name: '确认此玩家与范围并开始', exact: true }).click(); await waitFor((s) => s.minecraft.status === 'playing', 'GAME_START_FAILED')
@@ -92,6 +93,10 @@ try {
   // The expanded seven-step conversation deliberately spends most of the fixed
   // autonomous day reserve. Give the independent failure/disconnect matrix a fresh fake
   // day, rather than widening the production daily cap just to fit one test file.
+  // She speaks about the round ending in a DSH turn a moment after it stops; the day turns only once she is done.
+  const roundTalked = async () => { const rows = await rowsAt(profile); const ended = rows.findLastIndex((row) => row.type === 'inbox/event' && row.text.includes('minecraft-round-ended'))
+    const start = rows.findIndex((row, index) => index > ended && row.type === 'turn/start'); return ended >= 0 && start >= 0 && rows.slice(start).some((row) => row.type === 'turn/end') }
+  for (let i = 0; i < 150 && !(await roundTalked()); i++) await new Promise((done) => setTimeout(done, 100))
   const oldDay = (await snapshot()).scope.sessionId
   await debug('set_fake_model', { script: [{ text: 'SYNTHETIC_NEW_DAY', toolCalls: [], delayMs: 0 }] })
   now += 86400000; await debug('set_clock', { nowMs: now, frozen: true })

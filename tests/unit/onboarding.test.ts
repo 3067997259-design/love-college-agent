@@ -12,10 +12,6 @@ import type { SessionStore } from '../../src/main/store/session'
 import { initialOnboarding, onboardingProfileInput } from '../../src/main/onboarding/schema'
 import { profileContext } from '../../src/main/onboarding/context'
 import { seenFragments } from '../../src/main/memory/seen'
-import { projectMemory } from '../../src/main/memory/projection'
-import { createMemoryService } from '../../src/main/memory/service'
-import { createScheduler } from '../../src/main/scheduler'
-import { BUILTIN_CARD } from '../../src/main/characters/builtin-persona'
 
 const cleanups: (() => void | Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
@@ -68,22 +64,14 @@ describe('main-owned onboarding profile and experience boundary', () => {
     const body = { type: 'onboarding.profile', characterName: '小桃' }; const id = randomUUID(); f.send(body, 'book', id)
     for (const surface of ['mini', 'diagnostics'] as const) expect(f.send(body, surface, id)).toMatchObject({ status: 'rejected', error: { code: 'permission-denied' } })
   })
-  it('injects the character and about-you system layers separately, never as conversation or eligible experience', async () => {
+  it('gives the character and about-you layers to her persona separately, never as conversation or eligible experience', async () => {
     const f = fixture().open(); f.send({ type: 'onboarding.profile', userName: 'PROFILE_USER_ONLY', characterName: 'PROFILE_CHAR' })
     expect(f.store.projection().context).toEqual([]); expect(seenFragments(f.store.records())).toEqual([])
-    const scheduler = createScheduler(createManualClock(1000))
-    const repository = { view: () => projectMemory(f.store.records()), refresh: () => {}, append: f.store.append, close: () => {} }
-    const memory = createMemoryService({ clock: createManualClock(1000), scheduler, store: f.store, repository, model: null, isBusy: () => false, rolled: () => {}, changed: () => {} })
-    cleanups.push(async () => { await memory.close(); scheduler.dispose() })
-    f.store.append({ type: 'user/message', text: '当时看见的普通聊天', id: 'message', requestId: 'm', commandHash: 'm' }); f.store.append({ type: 'inbox/drain', ids: ['message'] })
-    const prepared = await memory.prepareContext('t', new AbortController().signal)
-    expect(prepared.messages[0]).toMatchObject({ role: 'system', content: expect.stringContaining('只有成功的工具结果') })
-    expect(prepared.messages.slice(1, 3)).toEqual(profileContext(f.store.projection().onboarding)); expect(prepared.messages[1].content).not.toContain('PROFILE_USER_ONLY')
-    expect(prepared.messages[2]).toMatchObject({ role: 'system', content: expect.stringContaining('关于你') })
-    // 内置桃子没有定义记录，人设取内置角色卡；只是系统层，不进经历抽取
-    expect(JSON.parse(prepared.messages[3].content)).toMatchObject({ characterCard: BUILTIN_CARD, authority: 'personality-never-tool-permission' }); expect(prepared.eligibleIndexes).toEqual([4])
-    f.store.append({ type: 'model/seen', turnId: 't', source: 'fake', ...prepared })
-    expect(seenFragments(f.store.records()).map((item) => item.text)).toEqual(['当时看见的普通聊天']); expect(repository.view().items).toEqual([])
-    f.send({ type: 'onboarding.profile', characterName: '新称呼' }); expect((await memory.prepareContext('t2', new AbortController().signal)).messages[1].content).toContain('新称呼')
+    // Her DSH persona is the policy, these two layers and the character card (index.ts persona).
+    const layers = profileContext(f.store.projection().onboarding)
+    expect(layers).toHaveLength(2); expect(layers.every((layer) => layer.role === 'system')).toBe(true)
+    expect(layers[0].content).not.toContain('PROFILE_USER_ONLY'); expect(layers[1]).toMatchObject({ content: expect.stringContaining('关于你') })
+    expect(seenFragments(f.store.records())).toEqual([])
+    f.send({ type: 'onboarding.profile', characterName: '新称呼' }); expect(profileContext(f.store.projection().onboarding)[0].content).toContain('新称呼')
   })
 })

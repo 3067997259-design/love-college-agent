@@ -13,6 +13,7 @@ import type { MemoryRepository } from '../../src/main/memory/repository'
 import { createMemoryService } from '../../src/main/memory/service'
 import { createFakeMemoryModel, type MemoryModel } from '../../src/main/memory/model'
 import { summaryPeriod, summaryReferences } from '../../src/main/memory/hierarchy'
+import { seenFragments } from '../../src/main/memory/seen'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
@@ -83,10 +84,9 @@ describe('background memory scheduling and context assembly', () => {
     // 引用总条数仍受预算限制，宽摘要不能把上下文挤成无界增长。
     expect(selected.length).toBeLessThanOrEqual(13)
     expect(selected.reduce((sum, summary) => sum + summary.text.length, 0)).toBeLessThanOrEqual(32_000)
-    // 同一输入在生产调用路径（prepareContext 的 previousDaysReference）上也要带上更早的周摘要。
+    // 同一输入在生产调用路径（新会话第一条消息带的 previousDaysReference）上也要带上更早的周摘要。
     f.turn('今天把上周的事情对一下。')
-    const prepared = await f.memory.prepareContext('budget-turn', new AbortController().signal)
-    const reference = prepared.messages.filter((message) => message.content.includes('previousDaysReference')).map((message) => message.content).join('\n')
+    const reference = JSON.stringify(f.memory.reference('今天把上周的事情对一下。', 'budget-turn', true)?.previousDaysReference ?? [])
     expect(reference).toContain('这一周2026-10-05'); expect(reference).toContain('可见经历2026-10-18')
     expect(reference).not.toContain('可见经历2026-10-05')
   })
@@ -109,20 +109,15 @@ describe('background memory scheduling and context assembly', () => {
     expect(summaryPeriod('2026-10-19', 'week', f.clock)).toBe('2026-10-19')
     expect(summaryPeriod('2026-11-01', 'month', f.clock)).toBe('2026-11')
   })
-  it('extracts visible experience and excludes reference injection from future extraction eligibility', async () => {
+  it('extracts visible experience and gives it back as a reference beside your words, never as a new experience', async () => {
     const f = fixture(); f.turn('我把纸桥放在书桌上，给它取名叫周五桥。')
     expect(f.memory.dispatch(f.command({ type: 'memory.extract' }))).toBeUndefined(); await f.memory.idle()
     expect(f.memory.view().shortTermCount).toBe(1)
-    const prepared = await f.memory.prepareContext('next-turn', new AbortController().signal)
-    const reference = prepared.messages.findIndex((message) => message.content.includes('memoryReference'))
-    expect(reference).toBeGreaterThanOrEqual(0); expect(prepared.eligibleIndexes).not.toContain(reference)
-    expect(prepared.messages[reference + 1].content).toContain('周五桥')
-    f.store.append({ type: 'tool/call', turnId: 'search', callId: 'lookup', name: 'search_memory', templateId: 'memory.search', arguments: {} })
+    const reference = f.memory.reference('周五桥', 'next-turn', false)
+    expect(reference).toMatchObject({ trust: 'unreviewed-reference' }); expect(JSON.stringify(reference?.memoryReference)).toContain('周五桥')
     f.store.append({ type: 'tool/result', turnId: 'search', callId: 'lookup', ok: true, raw: { secret: 'RAW_ONLY_MEMORY_TEST' }, visible: { memoryReference: '周五桥' }, elapsedMs: 0 })
-    const withTool = await f.memory.prepareContext('with-tool', new AbortController().signal)
-    const tool = withTool.messages.findIndex((message) => message.toolCallId === 'lookup')
-    expect(tool).toBeGreaterThanOrEqual(0); expect(withTool.eligibleIndexes).not.toContain(tool)
-    expect(JSON.stringify(withTool)).not.toContain('RAW_ONLY_MEMORY_TEST')
+    expect(JSON.stringify(f.memory.reference('周五桥', 'with-tool', false))).not.toContain('RAW_ONLY_MEMORY_TEST')
+    expect(seenFragments(f.store.records()).map((fragment) => fragment.text).join('\n')).not.toContain('RAW_ONLY_MEMORY_TEST')
   })
   it('aborts a hanging background model on foreground work without consuming source keys', async () => {
     const extract = vi.fn(() => new Promise(() => {})); const f = fixture({ source: 'fake', extract, summarize: async () => ({}) })

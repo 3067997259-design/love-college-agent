@@ -82,10 +82,11 @@ try {
   await waitFor((s) => s.question?.status === 'queued', 'QUESTION_NOT_QUEUED'); await accepted({ type: 'mode.set', mode: 'rest' })
   await waitFor((s) => s.question?.status === 'waiting', 'QUESTION_NOT_VISIBLE'); await page.getByRole('textbox', { name: '你的回答', exact: true }).fill('Markdown'); await page.getByRole('button', { name: '回答', exact: true }).click()
   await waitFor((s) => s.task?.status === 'completed' && s.messages.some((message) => message.text === 'SYNTHETIC_WORK_SAVED'), 'QUESTION_TURN_FAILED'); await mark('bounded-question')
-  await script([0, 1, 2].map((index) => ({ text: '', toolCalls: [{ id: 'bounded-clock-' + index, name: 'get_clock', arguments: '{}' }], delayMs: 0 })))
-  await accepted({ type: 'message.send', text: '合成执行上限场景：重复调用同一个只读时钟。' }); await waitFor((s) => s.task?.status === 'failed' && s.task.error.code === 'repeat-limit' && s.messages.some((message) => message.failure?.turnId === s.task.id), 'FAILURE_NARRATION_MISSING')
+  // The model endpoint refuses her second call after a tool ran: the book narrates the failure, never the vendor's text.
+  await script([{ text: '', toolCalls: [{ id: 'bounded-clock', name: 'get_clock', arguments: '{}' }], delayMs: 0 }, { text: '', toolCalls: [], delayMs: 0, httpStatus: 400 }])
+  await accepted({ type: 'message.send', text: '合成失败场景：读一次时钟后模型接口拒绝请求。' }); await waitFor((s) => s.task?.status === 'failed' && s.task.error.code === 'configuration-failed' && s.messages.some((message) => message.failure?.turnId === s.task.id), 'FAILURE_NARRATION_MISSING')
   const failed = await snapshot(); const failure = failed.messages.find((message) => message.failure?.turnId === failed.task.id)
-  assert.equal(failure.failure.category, 'execution-guard'); await accepted({ type: 'mode.set', mode: 'quiet' })
+  assert.equal(failure.failure.category, 'configuration'); assert.equal(failure.failure.toolsExecuted, true); assert.ok(!JSON.stringify(failed).includes('scripted failure')); await accepted({ type: 'mode.set', mode: 'quiet' })
   await chat('工作告一段落，我们回到书页继续聊纸桥。', 'SYNTHETIC_ORDINARY_AFTER_WORK')
   safe(await debug('get_context')); await mark('bounded-failure-narration')
   // A later automatic gift photo may fail during page transitions even when the day's work photo

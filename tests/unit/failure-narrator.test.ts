@@ -6,14 +6,13 @@ import { createManualClock } from '../../src/main/clock'
 import { openJournal } from '../../src/main/journal/file'
 import { projectJournal } from '../../src/main/journal/projection'
 import type { SessionStore } from '../../src/main/store/session'
-import { createHarness } from '../../src/main/harness/loop'
+import { createRoundLoop } from '../../src/main/minecraft/round'
 import { ModelFailure, type ModelClient, type ModelRequest } from '../../src/main/model/types'
 import { createModelClient } from '../../src/main/model/client'
-import { ResourceFailure } from '../../src/main/resources/ledger'
 import { seenFragments } from '../../src/main/memory/seen'
 import { createQuestions } from '../../src/main/questions/service'
 import type { AppCommand } from '../../src/shared'
-import { builtinTools } from '../../src/main/harness/tools'
+import { builtinTools, type HarnessTool } from '../../src/main/harness/tools'
 import { createVoice } from '../../src/main/voice/service'
 const cleanup: (() => void | Promise<void>)[] = []
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close() })
@@ -21,7 +20,12 @@ function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'lca-failure-')); const clock = createManualClock(1000); const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
   const store: SessionStore = { scope: journal.scope, records: journal.records, append: journal.append, projection: () => projectJournal(journal.records()), close: journal.close }
   cleanup.push(() => { store.close(); if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-failure-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })
-  const start = (model: ModelClient, extra: Partial<Parameters<typeof createHarness>[0]> = {}) => { const h = createHarness({ store, clock, model, tools: [], ...extra }); cleanup.push(h.dispose); return h }
+  // Failure notes come from harness/failure.ts whichever loop records them: a game round's here, her DSH turns in dsh-journal.test.ts.
+  const start = (model: ModelClient, extra: { tools?: readonly HarnessTool[]; tokens?: number } = {}) => {
+    const h = createRoundLoop({ store, clock, model, tools: () => extra.tools ?? [], enabled: () => true, limits: { steps: 12, tokens: extra.tokens ?? 500_000, outputTokens: 2048 },
+      prepareContext: async () => ({ messages: store.projection().context, eligibleIndexes: [] }) })
+    cleanup.push(h.dispose); return h
+  }
   return { store, clock, start }
 }
 const reply = { text: 'SYNTHETIC_REPLY', toolCalls: [], usage: { inputTokens: 1, outputTokens: 1 } }
@@ -77,16 +81,9 @@ it('never renders or logs an arbitrary exception body', async () => {
 it('has a budget narration with zero recorded attempts when admission rejects before HTTP', async () => {
   const f = fixture(); const fetcher = vi.fn()
   const model = createModelClient(new Map([['chat', { base_url: 'http://synthetic.invalid/v1', api_key: 'synthetic-private', model: 'synthetic' }]]), ['chat'], f.clock, fetcher)
-  const h = f.start(model, { budget: { reserveModel: () => { throw new ResourceFailure('budget-exceeded') }, reserveSpeech: () => 'unused' } })
+  const h = f.start(model, { tokens: 1 })
   h.send('task', 'r', 'h'); await h.idle(); expect(f.store.projection().messages.at(-1)?.failure).toMatchObject({ code: 'budget-exceeded', category: 'budget', attemptCount: 0 })
   expect(fetcher).not.toHaveBeenCalled()
-})
-it('holds background failure narration during quiet and exposes it once at rest', async () => {
-  const f = fixture(); let reject!: (error: Error) => void
-  const h = f.start({ source: 'fake', complete: () => new Promise((_resolve, fail) => { reject = fail }) }); h.postEvent('autonomous', 'synthetic event', 'e')
-  f.store.append({ type: 'companion/mode', mode: 'quiet', requestId: 'q', commandHash: 'q' }); reject(new ModelFailure('upstream')); await h.idle()
-  expect(f.store.projection().messages).toEqual([]); f.store.append({ type: 'companion/mode', mode: 'rest', requestId: 'r', commandHash: 'r' })
-  expect(f.store.projection().messages).toHaveLength(1); expect(f.store.projection().messages[0].failure?.sourceMessageId).toBeUndefined()
 })
 it('does not report user stop as a model failure', async () => {
   const f = fixture(); const h = f.start({ source: 'fake', complete: (request) => new Promise((_resolve, reject) => request.signal.addEventListener('abort', () => reject(new ModelFailure('cancelled')))) })
@@ -95,13 +92,13 @@ it('does not report user stop as a model failure', async () => {
 it('does not guess a single resend request from mixed user steering', async () => {
   const f = fixture(); let release!: () => void; let calls = 0
   const h = f.start({ source: 'fake', complete: async () => { if (!calls++) return new Promise((done) => { release = () => done({ ...reply, text: '', toolCalls: [{ id: 'clock', name: 'get_clock', arguments: '{}' }] }) }); throw new ModelFailure('network') } }, { tools: builtinTools() })
-  h.send('first', 'r1', 'h'); h.send('second', 'r2', 'h'); release(); await h.idle()
+  h.send('first', 'r1', 'h'); h.send('second', 'r2', 'h'); await vi.waitFor(() => expect(release).toBeDefined()); release(); await h.idle()
   const failures = f.store.projection().messages.filter((message) => message.failure)
   expect(failures).toHaveLength(1); expect(failures[0].failure?.sourceMessageId).toBeUndefined()
 })
 it('selects the original request, not the answer to ask_user, after a tool failure', async () => {
   const f = fixture(); const q = createQuestions({ store: f.store, clock: f.clock, changed: () => {}, safeText: (text) => text }); cleanup.push(q.close); let calls = 0
-  const h = f.start({ source: 'fake', complete: async () => !calls++ ? { ...reply, text: '', toolCalls: [{ id: 'ask', name: 'ask_user', arguments: '{"question":"format?"}' }] } : Promise.reject(new ModelFailure('network')) }, { tools: [q.tool()], afterTools: q.commit, turnSettled: q.settled })
+  const h = f.start({ source: 'fake', complete: async () => !calls++ ? { ...reply, text: '', toolCalls: [{ id: 'ask', name: 'ask_user', arguments: '{"question":"format?"}' }] } : Promise.reject(new ModelFailure('network')) }, { tools: [q.tool()] })
   h.send('PARENT_REQUEST', 'r', 'h'); const original = f.store.projection().messages[0].id; await vi.waitFor(() => expect(q.view()?.status).toBe('waiting'))
   q.dispatch({ protocolVersion: 1, epoch: 'x', requestId: 'answer', type: 'question.answer', questionId: q.view()!.id, answer: 'ANSWER_INFORMATION' } as AppCommand, 'h'); await h.idle()
   expect(f.store.projection().messages.at(-1)?.failure).toMatchObject({ toolsExecuted: true, sourceMessageId: original })

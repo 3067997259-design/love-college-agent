@@ -38,8 +38,7 @@ function fixture() {
   const options = { store, repository: { view: () => projectMemory(store.history!()) }, photos: { photo: () => undefined }, changed: () => {}, canRecall: () => !busy, busy: () => busy,
     send: (text: string, requestId: string, commandHash: string) => { store.append({ type: 'user/message', id: 'q-' + requestId, text, requestId, commandHash }); store.append({ type: 'inbox/drain', ids: ['q-' + requestId] }); busy = true } }
   const recall = createHistoryRecall(options); const original = messages[6].content; const anchor = { sessionId: oldPage.sessionId, messageId: 'u3', start: 0, end: original.length }
-  const prepared = { messages: [{ role: 'system' as const, content: 'policy' }, { role: 'user' as const, content: '这段经历呢？' }], eligibleIndexes: [1] }
-  return { store, clock, oldPage, recall, options, anchor, prepared, busy: (value: boolean) => { busy = value } }
+  return { store, clock, oldPage, recall, options, anchor, busy: (value: boolean) => { busy = value } }
 }
 it('anchors only witnessed ordinary messages and excludes private sources, unseen text, and work', () => {
   const f = fixture(); const ids = f.recall.recallable(f.oldPage.sessionId)
@@ -48,18 +47,18 @@ it('anchors only witnessed ordinary messages and excludes private sources, unsee
   expect(f.recall.request({ ...f.anchor, sessionId: 'another-character-session' }, '问一句', 'bad-owner', 'h')).toBe('invalid-command')
   expect(f.recall.request({ ...f.anchor, end: 9999 }, '问一句', 'bad-range', 'h')).toBe('invalid-command')
 })
-it('inserts bounded historical reference before the question without making it eligible as a new experience', () => {
+it('gives the quoted page as a bounded reference beside the question, never as her words or yours', () => {
   const f = fixture(); expect(f.recall.request(f.anchor, '这段经历呢？', 'request', 'h')).toBeUndefined()
-  const prepared = f.recall.prepare('turn', f.prepared); expect(prepared.eligibleIndexes).toEqual([2]); expect(prepared.messages.at(-1)?.content).toBe('这段经历呢？')
-  const reference = JSON.parse(prepared.messages[1].content).recalledSeenReference
-  expect(reference.quote).toContain('周五桥'); expect(reference.excerpts).toHaveLength(5); expect(reference.excerpts.every((entry: { source: { frameSeq: number } }) => entry.source.frameSeq > 0)).toBe(true)
-  for (const marker of ['RAW_ONLY_', 'RAW_TOOL_', 'MAIL_NOTIFICATION_', 'WORK_MUST_', 'UNDELIVERED_', 'UNSEEN_REPLY']) expect(JSON.stringify(prepared)).not.toContain(marker)
+  const value = f.recall.reference('request'); const reference = value?.recalledSeenReference as { quote: string; excerpts: { source: { frameSeq: number } }[] }
+  expect(reference.quote).toContain('周五桥'); expect(reference.excerpts).toHaveLength(5); expect(reference.excerpts.every((entry) => entry.source.frameSeq > 0)).toBe(true)
+  for (const marker of ['RAW_ONLY_', 'RAW_TOOL_', 'MAIL_NOTIFICATION_', 'WORK_MUST_', 'UNDELIVERED_', 'UNSEEN_REPLY']) expect(JSON.stringify(value)).not.toContain(marker)
+  expect(f.store.records().some((row) => row.type === 'model/seen' && JSON.stringify(row).includes('recalledSeenReference'))).toBe(false)
   expect(JSON.stringify(f.recall.view())).not.toContain('周五桥'); expect(f.recall.view().status).toBe('recalling')
-  f.store.append({ type: 'turn/end', turnId: 'turn', reason: 'completed' }); f.busy(false)
-  expect(createHistoryRecall(f.options).view().status).toBe('ready'); expect(f.recall.prepare('later-unrelated', f.prepared)).toEqual(f.prepared)
+  f.recall.bind('request', 'turn'); f.store.append({ type: 'turn/end', turnId: 'turn', reason: 'completed' }); f.busy(false)
+  expect(createHistoryRecall(f.options).view().status).toBe('ready'); expect(f.recall.reference('later-unrelated')).toBeNull()
 }, 20_000)
 it('restricts model expansion to this quote and turn, with durable read limits', async () => {
-  const f = fixture(); f.recall.request(f.anchor, '回忆', 'request', 'h'); f.recall.prepare('turn', f.prepared)
+  const f = fixture(); f.recall.request(f.anchor, '回忆', 'request', 'h'); f.recall.reference('request'); f.recall.bind('request', 'turn')
   const tool = f.recall.tool(); const context = { clock: f.clock, store: f.store, turnId: 'turn', signal: new AbortController().signal }
   expect(tool.validate({ requestId: 'request', relativeStart: -6, count: 2 })).toBe(true); expect(tool.validate({ requestId: 'request', relativeStart: -100, count: 20 })).toBe(false)
   const value = await tool.run({ requestId: 'request', relativeStart: -6, count: 2 }, context); expect(JSON.stringify(value)).toContain('共同经历第0段')
@@ -80,22 +79,18 @@ it('moves a DSH reference to the turn its message opened, so expansion and statu
   f.store.append({ type: 'turn/end', turnId: 'dsh-turn', reason: 'completed' }); f.busy(false)
   expect(f.recall.view().status).toBe('ready')
 }, 20_000)
-it('keeps the reference and expansion available when the user interjects mid-turn (issue #12)', async () => {
-  const f = fixture(); f.recall.request(f.anchor, '回忆', 'request', 'h')
-  const first = f.recall.prepare('turn', f.prepared)
-  expect(first.messages.some((message) => message.content.includes('recalledSeenReference'))).toBe(true)
+it('keeps expansion available when the user interjects mid-turn (issue #12)', async () => {
+  const f = fixture(); f.recall.request(f.anchor, '回忆', 'request', 'h'); f.recall.reference('request'); f.recall.bind('request', 'turn')
   const context = { clock: f.clock, store: f.store, turnId: 'turn', signal: new AbortController().signal }
   expect((await f.recall.tool().run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).ok).toBe(true)
   // 同回合内的普通插话：新 user/message 带自己的 requestId，不属于这次回忆。
   f.store.append({ type: 'user/message', id: 'interject', text: '顺便问一句别的。', requestId: 'interject', commandHash: 'h' })
-  const second = f.recall.prepare('turn', f.prepared)
-  expect(second.messages.some((message) => message.content.includes('recalledSeenReference'))).toBe(true)
   expect((await f.recall.tool().run({ requestId: 'request', relativeStart: 0, count: 1 }, context)).ok).toBe(true)
 })
 it('only attaches summary text grounded in allowed seen sources', () => {  const f = fixture(); const fragment = seenFragments(f.store.history!()).find((entry) => entry.text.includes('周五桥'))!
   const { id, sessionId, frameSeq, index, offset, atMs } = fragment; const source = { id, sessionId, frameSeq, index, offset, atMs }
   f.store.append({ type: 'memory/summary', summary: { id: 'safe', level: 'day', period: '1970-01-01', text: '周五桥', sources: [source], sourceSessionIds: [sessionId], source: 'fake' } })
   f.store.append({ type: 'memory/summary', summary: { id: 'bad-summary', level: 'week', period: '1969-12-29', text: 'RAW_PRIVATE_SUMMARY', sources: [source], sourceSessionIds: [sessionId], source: 'fake' } })
-  f.recall.request(f.anchor, '回忆', 'request', 'h'); const prepared = f.recall.prepare('turn', f.prepared)
-  expect(JSON.parse(prepared.messages[1].content).recalledSeenReference.summaries).toMatchObject([{ id: 'safe' }]); expect(JSON.stringify(prepared)).not.toContain('RAW_PRIVATE_SUMMARY')
+  f.recall.request(f.anchor, '回忆', 'request', 'h'); const value = f.recall.reference('request')
+  expect((value?.recalledSeenReference as { summaries: unknown }).summaries).toMatchObject([{ id: 'safe' }]); expect(JSON.stringify(value)).not.toContain('RAW_PRIVATE_SUMMARY')
 })

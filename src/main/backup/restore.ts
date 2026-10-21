@@ -65,6 +65,10 @@ function applyPendingRestoreUnchecked(root: string, owner: SaveManifest['owner']
       transaction.phase = 'committed'; writeJson(ledgerPath, transaction); success = true
     }
   } catch { if (transaction?.phase === 'applying') recover() }
+  // Her DSH sessions hold the conversation since the save: a restored book starts new ones, which bring today's
+  // conversation from the restored journal (dsh/execution.ts). The old list stays with this restore's rollback copies.
+  const sessions = join(root, 'dsh-sessions.json')
+  if (success && existsSync(sessions)) try { regular(root, sessions, 1024 * 1024); move(sessions, join(rollback, 'dsh-sessions-' + clock.nowMs() + '.json')) } catch { /* Not a plain file: left alone, the book is restored all the same. */ }
   const receipt: RestoreReceipt = { status: success ? 'restored' : 'failed', restoreId: pending.restoreId, safetyBackupId: pending.safetyBackupId, restoredAtMs: clock.nowMs(), manifest }
   writeJson(join(root, '.restore-receipt.json'), receipt); regular(root, pendingPath, 2048); unlinkSync(pendingPath)
   return receipt

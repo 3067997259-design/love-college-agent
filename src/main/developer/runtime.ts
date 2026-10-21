@@ -4,7 +4,6 @@ import { createAdjustableClock } from '../clock/adjustable'
 import { openSettings } from '../config/settings'
 import type { createPluginRegistry } from '../plugins/registry'
 import type { createAppController, RuntimePort } from '../bridge/controller'
-import type { createHarness } from '../harness/loop'
 import type { SessionStore } from '../store/session'
 import type { Scheduler } from '../scheduler'
 import { createScriptedModel } from './model'
@@ -34,11 +33,15 @@ export type PreparedRuntime = ReturnType<typeof prepareRuntime>
 
 export async function attachRuntime(options: {
   prepared: PreparedRuntime; controller: ReturnType<typeof createAppController>; plugins: ReturnType<typeof createPluginRegistry>
-  harness: ReturnType<typeof createHarness>; scheduler: Scheduler; store: SessionStore; mcpPort: number; cdpPort: number
+  /** Her events (index.ts postEvent): an injected one goes where real ones do. */
+  postEvent(source: 'pomodoro' | 'mail' | 'autonomous', text: string): boolean; scheduler: Scheduler;
+  /** What she saw in her last model call (developer/endpoint.ts), when her turns run on the scripted model. */
+  modelContext?(): unknown
+  store: SessionStore; mcpPort: number; cdpPort: number
   restart(): void
   locked?(): boolean
 }) {
-  const { prepared: p, controller, plugins, harness, scheduler, store } = options
+  const { prepared: p, controller, plugins, scheduler, store } = options
   let server: Awaited<ReturnType<typeof startDevelopmentServer>> | undefined
   let error: RuntimeView['developer']['error']
   let mounted = false; let disposed = false; let service = Promise.resolve()
@@ -86,8 +89,8 @@ export async function attachRuntime(options: {
       try {
         server = await startDevelopmentServer(p.profile.path, options.mcpPort, {
           enabled: () => mounted && !disposed,
-          state: controller.getSnapshot, context: () => store.projection().lastModelContext ?? store.projection().context, diagnostics: controller.readDiagnostics, queue: scheduler.queue,
-          clock: setClock, inject: (input) => { if (options.locked?.()) throw new Error('LOCAL_OPERATION_BUSY'); harness.postEvent(input.source, input.text); return { accepted: true, source: 'fake' } },
+          state: controller.getSnapshot, context: () => options.modelContext?.() ?? store.projection().lastModelContext ?? store.projection().context, diagnostics: controller.readDiagnostics, queue: scheduler.queue,
+          clock: setClock, inject: (input) => { if (options.locked?.()) throw new Error('LOCAL_OPERATION_BUSY'); return { accepted: options.postEvent(input.source, input.text), source: 'fake' } },
           model: (script) => { p.scripted!.set(script); return { source: 'fake' } },
           exportScene: () => ({ formatVersion: 1, kind: 'development-fixture', clock: { nowMs: Math.round(p.clock.nowMs()), ...p.adjusted!.view() },
             mode: store.projection().mode, modelScript: p.scripted!.read(), preset: p.scene?.preset ?? 'empty' }),

@@ -9,7 +9,7 @@ Electron 主进程拥有事实、权限、连接和持久化；React 渲染层�
 | 代码入口 | 职责 |
 | --- | --- |
 | `src/main/index.ts` | 实例、模型端口、业务模块和窗口装配 |
-| `src/main/harness/`、`plugins/`、`mcp/` | 回合、工具、权限、取消和外部扩展 |
+| `src/main/dsh/`、`harness/`、`plugins/`、`mcp/` | 她的 DSH 会话、LCA 工具与失败旁白、权限和外部扩展 |
 | `src/main/clock/`、`scheduler/` | 统一时钟、阶段和后台调度 |
 | `src/main/journal/`、`store/`、`storage/` | append-only 事实日志与 SQLite 投影 |
 | `src/main/mail/`、`campus/`、`documents/` | 原始来源、提取校验、候选与实际文件 |
@@ -25,7 +25,7 @@ Electron 主进程拥有事实、权限、连接和持久化；React 渲染层�
 
 ## 执行与完成依据
 
-一个回合由 inbox、模型步骤、工具调用和结果构成。harness 处理步骤上限、重复动作、预算、取消、失败分类和终态；用户插话在后续步骤进入，不靠每一步额外生成播报推进。
+她的回合在 DSH 会话里执行：DSH 处理模型步骤、工具调用、重试和取消；LCA 在每一步前按额度放行，把失败归入固定的失败词汇并写旁白。用户插话在下一步进入，不靠每一步额外生成播报推进。开发者模式把脚本回复做成本地的模型接口（`src/main/developer/endpoint.ts`），她的回合照样走 DSH；调试工具 `get_context` 返回 DSH 最近一次发给模型的内容。Minecraft 的游戏回合是唯一例外：它在自己的日志里跑一个有步数和用量上限的小循环（`src/main/minecraft/round.ts`），只看这一局。
 
 命令 accepted 只表示接收。实际调用、结果、版本和文件证据才表示执行；生成待办、本地 `.ics` 或同步状态不等于外部服务已经写入。已有动作不会因为聊天失败自动重放。外部调用发出后，停止等待不能保证远端撤回。
 

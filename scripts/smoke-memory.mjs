@@ -24,6 +24,9 @@ const safe = (value) => { const text = JSON.stringify(value); for (const marker 
 const mcp = async (name, args = {}) => { const result = await client.callTool({ name, arguments: args }); assert.ok(!result.isError, 'MCP_OPERATION_FAILED'); return JSON.parse(result.content[0].text) }
 const setReply = (text = 'SYNTHETIC_MEMORY_REPLY', delayMs = 0) => mcp('set_fake_model', { script: [{ text, toolCalls: [], delayMs }] })
 const setClock = (iso) => mcp('set_clock', { nowMs: Date.parse(iso), frozen: true })
+// Her turns run on DSH: a model call reaches the scripted model a moment after her turn starts. get_context is that call.
+const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part?.text ?? '').join('\n')
+async function modelCalled(marker, error) { for (let i = 0; i < 150; i++) { if (JSON.stringify(await mcp('get_context')).includes(marker)) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(error) }
 async function chat(text) {
   const count = (await snapshot()).messages.length
   assert.equal((await send({ type: 'message.send', text })).status, 'accepted')
@@ -70,8 +73,8 @@ try {
   ] })
   await chat('核对饮料和资料处理状态')
   const recalled = await mcp('get_context'); safe(recalled)
-  const result = recalled.find((message) => message.role === 'tool' && message.content.includes('我喜欢的饮料现在改为红茶'))
-  assert.ok(result, 'MEMORY_TOOL_NOT_RUN'); assert.ok(!result.content.includes('"text":"我喜欢的饮料是咖啡。"'), 'SUPERSEDED_MEMORY_RECALLED')
+  const result = recalled.map((message) => message.role === 'tool' ? textOf(message.content) : '').find((text) => text.includes('我喜欢的饮料现在改为红茶'))
+  assert.ok(result, 'MEMORY_TOOL_NOT_RUN'); assert.ok(!result.includes('我喜欢的饮料是咖啡。'), 'SUPERSEDED_MEMORY_RECALLED')
   for (let i = 0; i < 4; i++) { await setReply(); await chat('合成旧回合 ' + i + ' 这是可见对话压缩验收。'.repeat(100)) }
   const before = await snapshot(); const originalCount = before.messages.length
   await tools(); await page.getByLabel('记忆模型场景').selectOption('invalid')
@@ -92,7 +95,7 @@ try {
   await waitFor((s) => !['extracting', 'compacting'].includes(s.memory.status), 'BACKGROUND_NOT_IDLE')
   await setReply('SYNTHETIC_HELD_REPLY', 60_000)
   assert.equal((await send({ type: 'message.send', text: 'SYNTHETIC_HOLD_TURN' })).status, 'accepted')
-  await waitFor((s) => s.task?.status === 'running', 'HELD_TURN_NOT_STARTED')
+  await waitFor((s) => s.task?.status === 'running', 'HELD_TURN_NOT_STARTED'); await modelCalled('SYNTHETIC_HOLD_TURN', 'HELD_TURN_NOT_SENT')
   await setClock('2026-10-17T04:00:30+08:00'); assert.equal((await snapshot()).scope.sessionId, oldSession)
   await setClock('2026-10-17T04:00:55+08:00')
   await waitFor((s) => s.task?.status === 'completed', 'HELD_TURN_NOT_COMPLETED')
@@ -106,9 +109,9 @@ try {
   assert.ok(next.session.pages.some((item) => item.sessionId === oldSession && item.summarized))
   await setReply(); await chat('纸桥')
   const prepared = await mcp('get_context'); safe(prepared)
-  const oldSummary = prepared.findIndex((message) => message.content.includes('previousDaysReference'))
-  const recall = prepared.findIndex((message) => message.content.includes('memoryReference'))
-  assert.ok(oldSummary >= 0 && recall > oldSummary && recall < prepared.length - 1, 'NEXT_DAY_CONTEXT_ORDER_FAILED')
+  // The new day's first message brings the earlier day's summary and matching memories beside your words, before them.
+  const opening = prepared.map((message) => message.role === 'user' ? textOf(message.content) : '').findLast((text) => text.includes('previousDaysReference')) ?? ''
+  assert.ok(opening.includes('previousDaysReference') && opening.includes('memoryReference') && opening.endsWith('\n\n纸桥'), 'NEXT_DAY_CONTEXT_ORDER_FAILED')
   await tools(); await page.getByLabel('历史会话', { exact: true }).selectOption(oldSession)
   await page.getByRole('region', { name: '历史聊天', exact: true }).getByText('我把纸桥放在书桌上，给它取名叫周五桥。', { exact: true }).waitFor()
   assert.equal((await snapshot()).messages.some((message) => message.text === '/compact'), false)

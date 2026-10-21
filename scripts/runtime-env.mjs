@@ -56,3 +56,16 @@ export async function openSettingsGroup(page, name) {
   const details = summary.locator('..')
   if (!await details.evaluate((element) => element.open)) await summary.click()
 }
+
+/**
+ * Her turns run on DSH, a moment longer than the legacy loop's scripted turns took: a command the book refuses while
+ * she is still speaking (a private save, say) is sent again until it is accepted, for up to 15 seconds.
+ */
+export async function whenIdle(send, body) {
+  for (let i = 0; i < 150; i++) {
+    const ack = await send(body)
+    if (ack.status !== 'rejected' || ack.error?.code !== 'unavailable') return ack
+    await new Promise((done) => setTimeout(done, 100))
+  }
+  throw new Error('BUSY_TOO_LONG:' + body.type)
+}

@@ -6,22 +6,27 @@ import { createManualClock } from '../../src/main/clock'
 import { openJournal } from '../../src/main/journal/file'
 import { projectJournal } from '../../src/main/journal/projection'
 import type { SessionStore } from '../../src/main/store/session'
-import { createHarness } from '../../src/main/harness/loop'
+import { createRoundLoop } from '../../src/main/minecraft/round'
 import { builtinTools, type HarnessTool } from '../../src/main/harness/tools'
 import { ModelFailure, type ModelClient, type ModelReply, type ModelRequest } from '../../src/main/model/types'
-import { ResourceFailure } from '../../src/main/resources/ledger'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'lca-harness-'))
+  const root = mkdtempSync(join(tmpdir(), 'lca-round-'))
   const clock = createManualClock(1_000)
   const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
   const store: SessionStore = { scope: journal.scope, records: journal.records, projection: () => projectJournal(journal.records()), append: journal.append, close: journal.close }
-  cleanups.push(async () => { store.close(); if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-harness-'))) throw new Error('Unsafe cleanup path'); rmSync(root, { recursive: true, force: true }) })
+  cleanups.push(async () => { store.close(); if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-round-'))) throw new Error('Unsafe cleanup path'); rmSync(root, { recursive: true, force: true }) })
   return { clock, store }
 }
-function start(options: Parameters<typeof createHarness>[0]) { const harness = createHarness(options); cleanups.push(() => harness.dispose()); return harness }
+type Options = Parameters<typeof createRoundLoop>[0]
+// A round's context is the round's own conversation; the defaults are the legacy loop's, which these cases were written for.
+function start(options: Omit<Options, 'tools' | 'enabled' | 'limits' | 'prepareContext'> & { tools: readonly HarnessTool[]; limits?: Partial<Options['limits']> }) {
+  const loop = createRoundLoop({ ...options, tools: () => options.tools, enabled: () => true, limits: { steps: 12, tokens: 500_000, outputTokens: 2048, ...options.limits },
+    prepareContext: async () => ({ messages: options.store.projection().context, eligibleIndexes: [] }) })
+  cleanups.push(() => loop.dispose()); return loop
+}
 const reply = (toolCalls: ModelReply['toolCalls'] = [], text = ''): ModelReply => ({ text, toolCalls, usage: { inputTokens: 1, outputTokens: 1 } })
 function scripted(fn: (request: ModelRequest, index: number) => Promise<ModelReply>): ModelClient {
   let index = 0
@@ -33,23 +38,7 @@ function echoTool(run = vi.fn(async () => ({ ok: true, raw: { private: 'syntheti
 }
 function aborted(signal: AbortSignal): Promise<ModelReply> { return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new ModelFailure('cancelled')), { once: true })) }
 
-describe('single inbox execution loop', () => {
-  it('discards a reply produced before an ignore or permission change and rebuilds before executing its tools', async () => {
-    const f = fixture(); let version = 'before'; const tool = echoTool()
-    const model = scripted(async (_request, index) => { if (index === 0) { version = 'after'; return reply([{ id: 'stale-call', name: tool.tool.definition.name, arguments: '{}' }], 'STALE_REPLY') } return reply([], 'fresh reply') })
-    const h = start({ ...f, model, tools: [tool.tool], contextVersion: () => version })
-    h.send('请读文件', 'context-change', 'hash'); await h.idle()
-    expect(tool.run).not.toHaveBeenCalled(); expect(JSON.stringify(f.store.records())).not.toContain('STALE_REPLY')
-    expect(f.store.projection().messages.at(-1)?.text).toBe('fresh reply')
-  })
-  it('refuses a durable resource admission before model dispatch, independently of the book projection', async () => {
-    const f = fixture(); const dispatched = vi.fn(async () => reply([], 'must not dispatch'))
-    const reserveModel = vi.fn(() => { throw new ResourceFailure('budget-exceeded') })
-    const h = start({ ...f, model: scripted(dispatched), tools: [], budget: { reserveModel, reserveSpeech: () => crypto.randomUUID() } })
-    h.send('synthetic', 'request', 'hash'); await h.idle()
-    expect(dispatched).not.toHaveBeenCalled(); expect(reserveModel).toHaveBeenCalledOnce(); expect(f.store.projection().task).toMatchObject({ status: 'failed', error: { code: 'budget-exceeded' } })
-    expect(f.store.records().some((row) => row.type === 'model/attempt')).toBe(false)
-  })
+describe('game round loop', () => {
   it('executes a real deterministic clock tool and projects only its model-visible result', async () => {
     const f = fixture()
     const model = scripted(async (_request, index) => index === 0 ? reply([{ id: 'call', name: 'get_clock', arguments: '{}' }]) : reply([], 'synthetic final'))
@@ -69,6 +58,7 @@ describe('single inbox execution loop', () => {
     const harness = start({ ...f, model, tools: [tool] })
     harness.send('first', 'r1', 'h1')
     harness.send('second', 'r2', 'h2')
+    await vi.waitFor(() => expect(requests).toHaveLength(1))
     expect(requests[0].messages.map((message) => message.content)).toEqual(['first'])
     release(reply([{ id: 'c1', name: 'echo', arguments: '{}' }]))
     await harness.idle()
@@ -125,52 +115,21 @@ describe('single inbox execution loop', () => {
     expect(f.store.projection().task?.status).toBe('aborted')
     expect(f.store.projection().activities[0].status).toBe('cancelled')
   })
-  it('pauses on lights out and resumes the same turn only after lights return', async () => {
-    const f = fixture(); let calls = 0
-    const model = scripted(async (request, index) => { calls++; return index === 0 ? aborted(request.signal) : reply([], 'resumed') })
-    const harness = start({ ...f, model, tools: [] })
-    harness.send('synthetic', 'r', 'h')
-    f.store.append({ type: 'companion/lights', lightsOut: true, requestId: 'off', commandHash: 'off' }); harness.stateChanged()
-    await vi.waitFor(() => expect(f.store.projection().task?.status).toBe('waiting-user'))
-    f.clock.advanceBy(60_000); expect(calls).toBe(1)
-    f.store.append({ type: 'companion/lights', lightsOut: false, requestId: 'on', commandHash: 'on' }); harness.stateChanged()
-    await harness.idle()
-    expect(f.store.projection().task?.status).toBe('completed')
-    expect(f.store.records().filter((row) => row.type === 'turn/start')).toHaveLength(1)
-  })
-  it('does not wake on quiet events alone, but a running user turn receives them', async () => {
-    const f = fixture(); const complete = vi.fn(async () => reply([], 'done'))
-    f.store.append({ type: 'companion/mode', mode: 'quiet', requestId: 'quiet', commandHash: 'quiet' })
+  it('reacts to in-game chat as an event of its own and refuses the same event twice', async () => {
+    const f = fixture(); const complete = vi.fn(async () => reply([], 'seen it'))
     const harness = start({ ...f, tools: [], model: scripted(complete) })
-    harness.postEvent('pomodoro', 'synthetic phase event'); await harness.idle(); expect(complete).not.toHaveBeenCalled()
-    harness.send('user-initiated', 'r', 'h'); await harness.idle(); expect(complete).toHaveBeenCalledTimes(1)
-    expect(f.store.records().some((row) => row.type === 'inbox/drain' && JSON.stringify(row.ids).includes('synthetic phase event') === false)).toBe(true)
-    f.store.append({ type: 'companion/mode', mode: 'rest', requestId: 'rest', commandHash: 'rest' }); harness.stateChanged(); await harness.idle()
-    expect(complete).toHaveBeenCalledTimes(1)
+    expect(harness.postEvent('{"gameChat":[]}', 'minecraft:r:1')).toBe(true); await harness.idle()
+    expect(harness.postEvent('{"gameChat":[]}', 'minecraft:r:1')).toBe(false); await harness.idle()
+    expect(complete).toHaveBeenCalledOnce()
+    expect(f.store.records().find((row) => row.type === 'turn/start')).toMatchObject({ trigger: 'autonomous' })
   })
-  it('updates a checklist through the validated plan tool', async () => {
-    const f = fixture()
-    const steps = [{ id: 'one', text: 'synthetic planned step', status: 'pending' as const }]
-    const harness = start({ ...f, tools: builtinTools(), model: scripted(async (_request, index) => index === 0
-      ? reply([{ id: 'plan', name: 'update_plan', arguments: JSON.stringify({ steps }) }]) : reply([], 'plan recorded')) })
-    harness.send('synthetic', 'r', 'h'); await harness.idle()
-    expect(f.store.projection().task?.steps).toEqual(steps)
-    expect(f.store.records().some((row) => row.type === 'plan/update')).toBe(true)
-  })
-  it('reserves a persisted budget before requests and never resumes crashed effects', async () => {
+  it('holds the round to its token reservation before requests', async () => {
     const f = fixture(); const complete = vi.fn(async () => reply([], 'done'))
-    const harness = start({ ...f, tools: [], model: scripted(complete), limits: { dailyTokens: 5000 } })
+    const harness = start({ ...f, tools: [], model: scripted(complete), limits: { tokens: 5000 } })
     harness.send('first', 'r1', 'h1'); await harness.idle()
     harness.send('second', 'r2', 'h2'); await harness.idle()
     expect(complete).toHaveBeenCalledTimes(1)
     expect(f.store.projection().task).toMatchObject({ status: 'failed', error: { code: 'budget-exceeded' } })
-    await harness.dispose()
-    f.store.append({ type: 'turn/start', turnId: 'crashed', trigger: 'user' })
-    f.store.append({ type: 'assistant/message', turnId: 'crashed', id: 'a', text: '', status: 'complete', toolCalls: [{ id: 'unknown', name: 'echo', arguments: '{}' }] })
-    start({ ...f, tools: [], model: scripted(complete) })
-    expect(f.store.projection().task?.status).toBe('aborted')
-    expect(f.store.projection().context.at(-1)?.content).toContain('not-started')
-    expect(complete).toHaveBeenCalledTimes(1)
   })
   it('does not execute an effect when its call cannot be journaled', async () => {
     const f = fixture(); const { tool, run } = echoTool()

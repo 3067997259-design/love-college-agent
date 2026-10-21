@@ -8,7 +8,7 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings, whenIdle } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'gifts-smoke-' + randomUUID()); let sceneId = randomUUID()
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19536', LCA_MCP_PORT: '0' }
@@ -46,7 +46,8 @@ try {
   await page.locator('.card-gift-made model-viewer[data-loaded="true"]').waitFor()
   const gift = (await snapshot()).gifts.items[0]; const archive = join(data, 'gift.lca-save')
   await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
-  await send({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'GIFT_ARCHIVE_NOT_EXPORTED')
+  assert.equal((await whenIdle(send, { type: 'backup.export' })).status, 'accepted')
+  await waitFor((s) => s.backup.status === 'exported', 'GIFT_ARCHIVE_NOT_EXPORTED')
   const zip = await JSZip.loadAsync(await readFile(archive)); const manifest = JSON.parse(await zip.file('manifest.json').async('string'))
   assert.ok(manifest.files.some((file) => file.path === 'artifacts/' + gift.assetRef.slice(6) + '.glb')); assert.ok(manifest.files.every((file) => !file.path.includes('rodin-jobs')))
   const serialized = JSON.stringify(await snapshot()) + JSON.stringify(await debug('get_diagnostics')); assert.ok(!serialized.includes('synthetic-private-handle'))

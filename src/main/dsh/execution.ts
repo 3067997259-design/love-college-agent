@@ -10,9 +10,13 @@ import type { SessionStore } from '../store/session'
 import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost, type DshSource } from './host'
 import type { DshRoutes } from './routes'
 
-/** `seen`: the conversation of this turn, in order, as she saw it: your lines and her replies, never tool traffic. */
-type Turn = { lcaTurnId: string; trigger: Trigger; attempts: number; role: 'chat' | 'work'; denied?: PublicErrorCode; partial: string; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController; seen: { role: 'user' | 'assistant'; content: string }[] }
-/** Things that happened that she may speak about (pomodoro, mail, documents, her own life): the legacy loop's inbox events. */
+/**
+ * `seen`: the conversation of this turn, in order, as she saw it: your lines and her replies, never tool traffic.
+ * `impressions`: she read an old page's impression (optical memory, unreviewed); what she says in this turn may draw
+ * on it, so memory does not learn from her replies.
+ */
+type Turn = { impressions?: boolean; lcaTurnId: string; trigger: Trigger; attempts: number; role: 'chat' | 'work'; denied?: PublicErrorCode; partial: string; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController; seen: { role: 'user' | 'assistant'; content: string }[] }
+/** Things that happened that she may speak about (pomodoro, mail, documents, her own life): inbox events in the journal. */
 export type DshEventSource = 'pomodoro' | 'mail' | 'document' | 'autonomous'
 type Trigger = 'user' | DshEventSource
 type Rule = { project: string; tool: string; prefix: string | null }
@@ -72,6 +76,8 @@ export const failureOf = (reason: unknown): { code: PublicErrorCode; httpStatus?
  */
 export function createDshExecution(options: {
   store: SessionStore; clock: Clock; dataDir: string; dshRoot: string; bridge: string; routes: DshRoutes; guardedRoots: readonly string[]
+  /** 'fake' when the routes lead to developer scenes' scripted model (developer/endpoint.ts). */
+  source?: 'real' | 'fake'
   project(): string; persona(): string; suffix(): string; tools(): readonly HarnessTool[]
   ask(question: string, choices: string[], context: { turnId: string; callId: string; signal: AbortSignal }): Promise<string | null>
   /**
@@ -83,6 +89,12 @@ export function createDshExecution(options: {
   started?(input: { turnId: string; requestId: string }): void
   /** You answered a question she asked in this turn: the answer has reached her (questions/service.ts commit). */
   answered?(input: { turnId: string; callId: string }): void
+  /** A turn of hers starts or you send her a message: background model work (memory, diary, her own works) gives way. */
+  foreground?(): void
+  /** You sent her a message: she wakes up and comes back from an outing. */
+  userWork?(): void
+  /** A turn ended: what she said may be read aloud. */
+  settled?(): void
   /** Extra reasons to hold events back, besides focus, quiet mode and sleep (a game round). */
   backgroundQuiet?(): boolean
   /**
@@ -117,8 +129,15 @@ export function createDshExecution(options: {
     drain()
   }
   const eventIds = new Set<string>()
-  // Same beat as the legacy loop: focus, quiet mode and sleep hold events back; your own message never waits.
+  // Focus, quiet mode and sleep hold events back; your own message never waits.
   const quiet = () => { const view = store.projection(); return !!options.backgroundQuiet?.() || view.sleeping || view.mode === 'quiet' || view.pomodoro.phase === 'focus' }
+  // A turn a quit or crash left open ended there: DSH does not carry it on, so neither does the book. Your messages
+  // that never reached her are marked undelivered (send again); answers to her questions are her tool results, not these.
+  const opened = store.projection().task
+  if (opened && ['running', 'cancelling', 'queued', 'waiting-user'].includes(opened.status)) record({ type: 'turn/end', turnId: opened.id, reason: 'aborted' })
+  const consumed = new Set(store.records().flatMap((row) => row.type === 'inbox/drain' || row.type === 'inbox/drop' ? row.ids : row.type === 'question/answered' ? [row.answerMessageId] : []))
+  const undelivered = store.records().flatMap((row) => row.type === 'user/message' && !consumed.has(row.id) ? [row.id] : [])
+  for (let index = 0; index < undelivered.length; index += 32) record({ type: 'inbox/drop', ids: undelivered.slice(index, index + 32) })
   // Events recorded before a restart (or a model change) and not yet given to her wait here again.
   for (const event of store.projection().pendingEvents) held.push({ id: event.id, source: event.source, text: event.text })
   const factsOf = (event: { source: DshEventSource; text: string }) => JSON.stringify({ source: event.source, facts: event.text })
@@ -144,19 +163,24 @@ export function createDshExecution(options: {
   const recordSeen = (current: Turn) => {
     if (!current.seen.some((message) => message.role === 'assistant')) return
     const messages = current.seen.slice(-1024).map((message) => ({ role: message.role, content: clip(message.content, 200_000) }))
-    record({ type: 'model/seen', turnId: current.lcaTurnId, source: 'real', messages, eligibleIndexes: messages.map((_, index) => index) })
+    const eligibleIndexes = messages.flatMap((message, index) => current.impressions && message.role === 'assistant' ? [] : [index])
+    record({ type: 'model/seen', turnId: current.lcaTurnId, source: options.source ?? 'real', messages, eligibleIndexes })
   }
+  // What she says in a turn that runs without you, failure notes included, waits for your break while you focus or asked for quiet.
+  const delivery = (trigger: Trigger) => trigger !== 'user' && (quiet() || store.projection().lightsOut) ? { delivery: 'rest' as const } : {}
   const fail = (code: PublicErrorCode, httpStatus?: number) => {
     const lcaTurnId = turn?.lcaTurnId ?? randomUUID()
-    if (!turn) begin(lcaTurnId, starts.shift())
-    // What she had already said when the stream broke stays, marked as cut off (legacy partial reply).
-    if (turn?.partial.trim()) { const text = turn.partial; record({ type: 'assistant/message', id: randomUUID(), turnId: lcaTurnId, text, status: 'interrupted' }); turn.seen.push({ role: 'assistant', content: text }) }
+    const start = turn ? undefined : starts.shift()
+    if (!turn) begin(lcaTurnId, start)
+    const hold = delivery(turn?.trigger ?? start?.trigger ?? 'user')
+    // What she had already said when the stream broke stays, marked as cut off.
+    if (turn?.partial.trim()) { const text = turn.partial; record({ type: 'assistant/message', id: randomUUID(), turnId: lcaTurnId, text, status: 'interrupted', ...hold }); turn.seen.push({ role: 'assistant', content: text }) }
     // She answered before the failure: what she saw up to then still happened.
     if (turn) recordSeen(turn)
     turn?.asks.abort()
     record({ type: 'turn/end', turnId: lcaTurnId, reason: 'error', error: { code, retryable: code === 'connection-failed' || code === 'upstream-busy' } })
-    record(failureNarration(store, lcaTurnId, code, turn?.toolsExecuted ?? false, httpStatus))
-    turn = undefined; options.changed('message')
+    record({ ...failureNarration(store, lcaTurnId, code, turn?.toolsExecuted ?? false, httpStatus), ...hold })
+    turn = undefined; options.changed('message'); options.settled?.()
   }
 
   const approve = async (request: DshApproval): Promise<'allowed-once' | 'rejected'> => {
@@ -209,10 +233,10 @@ export function createDshExecution(options: {
     if (!tool || !current) throw new Error('LCA tool unavailable right now')
     const input = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
     if (!tool.validate(input)) throw new Error('invalid-tool-arguments: one JSON object matching the tool schema')
+    if (tool.templateId === 'memory.optical') current.impressions = true
     const result = await tool.run(input, { clock, store, turnId: current.lcaTurnId, callId, signal: current.asks.signal })
     if (!result.ok) throw new Error(clip(JSON.stringify(result.visible), 400))
-    // Her question to you: your answer is what she reads back (the legacy loop brings it as your next message instead),
-    // and as your words it is part of what she saw this turn.
+    // Her question to you: your answer is what she reads back, and as your words it is part of what she saw this turn.
     if (tool.templateId === 'user.ask') {
       const receipt = result.raw as { answerMessageId?: unknown }
       const row = store.records().findLast((entry) => entry.type === 'user/message' && entry.id === receipt.answerMessageId)
@@ -231,6 +255,7 @@ export function createDshExecution(options: {
       case 'turn-start': {
         const start = starts.shift()
         turn = { lcaTurnId: randomUUID(), trigger: start?.trigger ?? 'user', attempts: 0, role: 'chat', partial: '', toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [] }
+        options.foreground?.()
         begin(turn.lcaTurnId, start)
         const preset = typeof event.preset === 'string' && event.preset.length <= 64 ? event.preset : null
         record({ type: 'work/turn', turnId: turn.lcaTurnId, engine: 'dsh', sessionId: session.id, preset })
@@ -247,8 +272,7 @@ export function createDshExecution(options: {
         const text = typeof event.text === 'string' ? event.text : ''
         turn.partial = ''
         if (!text.trim()) { recordUsage(turn, event.usage); break }
-        // What she says about an event while you are focusing or asked for quiet waits for your break (legacy delivery rule).
-        record({ type: 'assistant/message', id: randomUUID(), turnId: turn.lcaTurnId, text, status: 'complete', ...(turn.trigger !== 'user' && (quiet() || store.projection().lightsOut) ? { delivery: 'rest' as const } : {}) })
+        record({ type: 'assistant/message', id: randomUUID(), turnId: turn.lcaTurnId, text, status: 'complete', ...delivery(turn.trigger) })
         turn.seen.push({ role: 'assistant', content: text })
         recordUsage(turn, event.usage)
         options.changed('message'); break
@@ -297,7 +321,7 @@ export function createDshExecution(options: {
         record({ type: 'turn/end', turnId: turn.lcaTurnId, reason: reason?.kind === 'aborted' || reason?.kind === 'cancelled' ? 'aborted' : 'completed' })
         // This session now has the conversation up to here; what happens in other projects it learns on its next turn.
         session.seenSeq = store.records().at(-1)?.seq ?? session.seenSeq; saveSession({ seenSeq: session.seenSeq })
-        turn = undefined; options.changed('task'); kick(); break
+        turn = undefined; options.changed('task'); options.settled?.(); kick(); break
       }
       default: break
     }
@@ -387,7 +411,7 @@ export function createDshExecution(options: {
     return current
   }
   /**
-   * Today's conversation this session did not see (another project's session, the legacy loop), as your lines and
+   * Today's conversation this session did not see (another project's session, a release before 1.1), as your lines and
    * her replies only. Approval answers and the lines being sent now are left out.
    */
   const missedConversation = (since: number, exclude: ReadonlySet<string>) => {
@@ -414,9 +438,10 @@ export function createDshExecution(options: {
   }
 
   return {
-    source: 'real' as const,
+    source: options.source ?? 'real',
     /** `extra`: references for this message only (an old-page quote you ask about). */
     send: (text: string, requestId: string, commandHash: string, extra?: Record<string, unknown> | null) => {
+      options.foreground?.(); options.userWork?.()
       const id = randomUUID()
       record({ type: 'user/message', id, text, requestId, commandHash }); pending.push(id); pendingText.set(id, text); options.changed('message')
       // A session that cannot open is LCA's own failure (runtime, profile, link), not the user's model setup.
@@ -438,8 +463,8 @@ export function createDshExecution(options: {
     },
     stateChanged: () => { if (store.projection().lightsOut && turn && session) host?.cancel(session.id); kick() },
     /**
-     * An event she may speak about (legacy loop postEvent): recorded like there, then given to her DSH session.
-     * Duplicates (same id) and a full queue are refused, as in the legacy loop.
+     * An event she may speak about: recorded in the journal, then given to her DSH session.
+     * Duplicates (same id) and a full queue (32 waiting) are refused.
      */
     postEvent: (source: DshEventSource, text: string, eventId: string = randomUUID()) => {
       if (store.records().some((row) => row.type === 'inbox/event' && row.id === eventId || row.type === 'session/carry' && row.pendingEvents?.some((event) => event.id === eventId))) return false
@@ -457,7 +482,7 @@ export function createDshExecution(options: {
       if (session?.id && session.cwd === target) host?.untrust(session.id)
     },
     taskApproved: () => {},
-    /** Deliver events left from before a restart once LCA is ready (onboarding, model) — the same moment the legacy loop would. */
+    /** Deliver events left from before a restart once LCA is ready (onboarding, model). */
     resume: () => kick(),
     /** Thinking levels her chat and work models offer, for the settings; starts DSH when it is not running yet. */
     describe: () => ensureHost(resolve(options.project())).describe(),

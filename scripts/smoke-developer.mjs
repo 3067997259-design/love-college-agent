@@ -70,9 +70,13 @@ try {
   await page.locator('textarea').fill('synthetic development request')
   await page.getByRole('button', { name: '发送', exact: true }).click()
   await page.locator('.msg-text').filter({ hasText: 'DEVELOPMENT_TEST_COMPLETED' }).waitFor()
-  const context = await client.callTool({ name: 'get_context', arguments: {} })
-  assert.match(JSON.stringify(context), /get_clock/)
-  assert.match(JSON.stringify(context), /synthetic_fixture/); assert.ok(!JSON.stringify(context).includes('SYNTHETIC_RAW_ONLY'))
+  // Her turn ran on DSH with the scripted model: both tools ran as activities; tool traffic and the plugin's raw-only
+  // output stay out of LCA's context and state.
+  const state = JSON.parse((await client.callTool({ name: 'get_state', arguments: {} })).content[0].text)
+  for (const templateId of ['clock.read', 'fixture.synthetic']) assert.ok(state.activities.some((activity) => activity.templateId === templateId && activity.status === 'completed'), templateId)
+  const context = JSON.stringify(await client.callTool({ name: 'get_context', arguments: {} }))
+  assert.match(context, /DEVELOPMENT_TEST_COMPLETED/); assert.ok(!context.includes('get_clock'))
+  assert.ok(![context, JSON.stringify(state)].some((text) => text.includes('SYNTHETIC_RAW_ONLY')))
   const exported = await client.callTool({ name: 'export_scene', arguments: {} })
   const scene = JSON.parse(exported.content[0].text)
   assert.equal(scene.kind, 'development-fixture')
@@ -84,5 +88,5 @@ try {
   assert.equal(booth.runtime.developer.mode, 'booth'); assert.equal(booth.runtime.developer.mcpPort, undefined)
   const boothDenied = await page.evaluate((epoch) => window.lca.dispatch({ protocolVersion: 1, epoch, requestId: crypto.randomUUID(), type: 'developer.set', enabled: true }), booth.epoch)
   assert.equal(boothDenied.status, 'rejected')
-  console.log('Developer smoke: isolated fake profile, authenticated MCP, clock control, approved folder plugin, narrow tool results, scene staging and booth refusal verified.')
+  console.log('Developer smoke: isolated fake profile, authenticated MCP, clock control, scripted model on DSH, approved folder plugin, narrow tool results, scene staging and booth refusal verified.')
 } finally { await client?.close(); await instance?.close() }

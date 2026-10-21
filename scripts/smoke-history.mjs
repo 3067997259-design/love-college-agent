@@ -92,11 +92,9 @@ try {
   assert.equal((await send({ type: 'history.recall', requestId: recallId, anchor, question: '再看看附近那段对话。' })).status, 'accepted'); await waitFor((s) => s.history.recall.requestId === recallId && s.history.recall.status === 'ready', 'RECALL_TOOL_FAILED')
   const profile = join(data, 'developer', sceneId); const journals = join(profile, 'journals'); const ownerFolder = join(journals, (await readdir(journals))[0])
   const rows = (await readFile(join(ownerFolder, '2026-10-17.jsonl'), 'utf8')).trim().split('\n').map((line) => JSON.parse(line))
-  const expansionCalls = new Set(rows.filter((row) => row.type === 'tool/call' && row.name === 'recall_seen').map((row) => row.callId))
-  assert.ok(rows.some((row) => row.type === 'history/recall-read' && row.requestId === recallId)); assert.ok(rows.some((row) => row.type === 'tool/result' && expansionCalls.has(row.callId) && row.ok))
-  for (const frame of rows.filter((row) => row.type === 'model/seen')) for (const index of frame.eligibleIndexes) {
-    assert.ok(!frame.messages[index].content.includes('recalledSeenReference')); assert.ok(!expansionCalls.has(frame.messages[index].toolCallId))
-  }
+  // Her DSH turn read further through the tool; what memory keeps of the turn (model/seen) never holds the quoted page.
+  assert.ok(rows.some((row) => row.type === 'history/recall-read' && row.requestId === recallId)); assert.ok(rows.some((row) => row.type === 'work/activity' && row.templateId === 'memory.recall' && row.status === 'completed'))
+  for (const frame of rows.filter((row) => row.type === 'model/seen')) for (const index of frame.eligibleIndexes) assert.ok(!frame.messages[index].content.includes('recalledSeenReference'))
   const modelContext = JSON.stringify(await debug('get_context')); for (const marker of ['RAW_ONLY_', 'USER_ONLY_DOCUMENT_RESULT']) assert.ok(!modelContext.includes(marker))
   assert.equal((await send({ type: 'history.recall', anchor: { ...anchor, sessionId: 'foreign-session' }, question: '越界' })).status, 'rejected')
   // Real second old page: selection from A cannot remain while viewing/loading/failed B (#19).
