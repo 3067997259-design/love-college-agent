@@ -10,10 +10,11 @@
 pnpm install --frozen-lockfile
 pnpm setup:electron
 pnpm rebuild:native
+node scripts/prepare-dsh-runtime.mjs
 pnpm dev
 ```
 
-`setup:electron` 确认 Electron 二进制，`rebuild:native` 为当前 Electron 重编译 better-sqlite3。仅安装 npm 包不能证明 ABI 匹配。无需运行 `playwright install`。
+`setup:electron` 确认 Electron 二进制，`rebuild:native` 为当前 Electron 重编译 better-sqlite3。仅安装 npm 包不能证明 ABI 匹配。无需运行 `playwright install`。`prepare-dsh-runtime.mjs` 把固定版本的 DSH 运行时装进 `dsh/runtime`：她的每一轮（包括开发者模式的脚本回复）都在 DSH 上跑，源码目录没有运行时就只能看书、不能聊天。
 
 ```powershell
 pnpm build
@@ -83,7 +84,7 @@ pnpm test:package --unpacked-only
 
 `--unpacked-only` 只运行包内 EXE，不安装或卸载，报告为 `test-results/package-unpacked-report.json`。`pnpm test:package` 则还会创建、验证并卸载自己的测试安装；发现已有同名用户安装时拒绝覆盖。不要把包内验证写成用户升级验收。
 
-发布应从已提交的确定源码构建，核对构建回执、安装器 SHA、对应包内结果和版本说明。另一台机器安装、真实配置和连续使用分别记录，不复用旧包结论。当前版本见 [v1.0.1](releases/1.0.1.md)。
+发布应从已提交的确定源码构建，核对构建回执、安装器 SHA、对应包内结果和版本说明。另一台机器安装、真实配置和连续使用分别记录，不复用旧包结论。当前版本见 [v1.1.0](releases/1.1.0.md)。
 
 ### 含特殊字符的仓库路径
 
