@@ -7,7 +7,8 @@ import { failureNarration } from '../harness/failure'
 import type { HarnessTool } from '../harness/tools'
 import type { JournalInput } from '../journal/schema'
 import type { SessionStore } from '../store/session'
-import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost, type DshSource } from './host'
+import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost, type DshHostOptions, type DshSource } from './host'
+import { itemsInput, type QuestionItem } from '../questions/schema'
 import type { DshRoutes } from './routes'
 
 /**
@@ -37,12 +38,34 @@ const LCA_PREFIX = 'lca_'
 const TEMPLATES: Record<string, string> = { read: 'dsh.read', read_image: 'dsh.read', working_directory: 'dsh.read', write: 'dsh.write', edit: 'dsh.edit', glob: 'dsh.search', grep: 'dsh.search',
   pwsh: 'dsh.shell', bash: 'dsh.shell', job_output: 'dsh.shell', job_list: 'dsh.shell', job_kill: 'dsh.shell', web_search: 'dsh.web', web_fetch: 'dsh.web', todo_write: 'dsh.plan',
   get_goal: 'dsh.plan', create_goal: 'dsh.plan', update_goal: 'dsh.plan', exit_plan_mode: 'dsh.plan', skill: 'dsh.skill', subagent: 'dsh.agent', subagent_fork: 'dsh.agent',
-  send_message: 'dsh.agent', list_agents: 'dsh.agent', interrupt_agent: 'dsh.agent', workflow: 'dsh.agent' }
+  send_message: 'dsh.agent', list_agents: 'dsh.agent', interrupt_agent: 'dsh.agent', workflow: 'dsh.agent', ask_user_question: 'user.ask' }
 const clip = (text: string, max: number) => (text.length > max ? text.slice(0, max) + '…' : text)
 const parsed = (raw: string): Record<string, unknown> => { try { const value: unknown = JSON.parse(raw); return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {} } catch { return {} } }
 // LCA tools that hand her third-party originals, as in D2 (index.ts thirdPartySources).
 const sourceOf = (templateId: string): DshSource | null => templateId.startsWith('mail.') ? 'mail' : templateId.startsWith('document.') ? 'document'
   : templateId.startsWith('student-hub.') ? 'plugin' : templateId.startsWith('mcp.') ? 'mcp' : null
+const line = (value: unknown) => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
+/** DSH's ask_user_question as the book shows it: one line per text, a short header, options as given. Null when it cannot be shown. */
+const itemsOf = (questions: unknown): QuestionItem[] | null => {
+  if (!Array.isArray(questions)) return null
+  const items = questions.map((entry: Record<string, unknown> | null) => {
+    const header = clip(line(entry?.header), 23)
+    return { id: line(entry?.id), ...(header ? { header } : {}), question: line(entry?.question), multiSelect: entry?.multiSelect === true,
+      options: (Array.isArray(entry?.options) ? entry.options : []).map((option: Record<string, unknown> | null) => {
+        const description = clip(line(option?.description), 159)
+        return { label: line(option?.label), ...(description ? { description } : {}) }
+      }) }
+  })
+  const parsed = itemsInput.safeParse(items)
+  return parsed.success ? parsed.data : null
+}
+// Why she gets no answer, in words she reads (questions/service.ts statuses).
+const UNANSWERED: Record<string, string> = {
+  timeout: 'The user did not answer within ten minutes of visible time. Go on without it, or ask again later.',
+  'question-limit': 'Question limit reached: at most three asks per turn and twelve per day. Go on with what you know.',
+  'invalid-question': 'The question could not be shown. Ask in plain text, without secrets or credentials.',
+  superseded: 'The user wrote to you instead of answering. Read their new message.',
+}
 const SOURCE_TEXT: Record<DshSource, string> = { web: '网页', mcp: '外部工具给的内容', mail: '邮件原文', document: '附件原文', plugin: '插件资料' }
 const ACTION_TEXT: Record<string, string> = { write: '写文件', edit: '改文件', pwsh: '运行命令', bash: '运行命令', web_fetch: '再上网', web_search: '再上网' }
 /**
@@ -80,6 +103,11 @@ export function createDshExecution(options: {
   source?: 'real' | 'fake'
   project(): string; persona(): string; suffix(): string; tools(): readonly HarnessTool[]
   ask(question: string, choices: string[], context: { turnId: string; callId: string; signal: AbortSignal }): Promise<string | null>
+  /**
+   * Her questions to you (DSH ask_user_question) in the book's question card (questions/service.ts ask). Answered:
+   * `answers` one per question and `answerMessageId`, your words in the journal; otherwise why not.
+   */
+  question?(items: QuestionItem[], context: { turnId: string; callId: string; signal: AbortSignal }): Promise<{ status?: unknown; answers?: unknown; answerMessageId?: unknown }>
   /**
    * References that go with your message (memory/service.ts reference): earlier days' summaries with the first message
    * of a new session, memories matching your latest lines. Sent beside your text, never recorded as your words.
@@ -236,17 +264,26 @@ export function createDshExecution(options: {
     if (tool.templateId === 'memory.optical') current.impressions = true
     const result = await tool.run(input, { clock, store, turnId: current.lcaTurnId, callId, signal: current.asks.signal })
     if (!result.ok) throw new Error(clip(JSON.stringify(result.visible), 400))
-    // Her question to you: your answer is what she reads back, and as your words it is part of what she saw this turn.
-    if (tool.templateId === 'user.ask') {
-      const receipt = result.raw as { answerMessageId?: unknown }
-      const row = store.records().findLast((entry) => entry.type === 'user/message' && entry.id === receipt.answerMessageId)
-      const answer = row?.type === 'user/message' ? row.text : null
-      if (answer !== null) current.seen.push({ role: 'user', content: answer })
-      options.answered?.({ turnId: current.lcaTurnId, callId })
-      return { value: { status: 'answered', answer }, source: null }
-    }
     // An original she asked to read rides with the result, so the bridge retires it with the turn's other sources (D2).
     return { value: result.original === undefined ? result.visible : { ...result.visible as Record<string, unknown>, original: result.original }, source: sourceOf(tool.templateId) }
+  }
+
+  /**
+   * Her questions to you (DSH ask_user_question), shown in the book. Your answers go back as DSH expects them, and as
+   * your words they are part of what she saw this turn. Declining answers each question as skipped.
+   */
+  const question: NonNullable<DshHostOptions['onQuestion']> = async ({ callId, questions, signal }) => {
+    const current = turn
+    if (!current || !options.question) return { error: 'Questions to the user are not available right now.' }
+    const items = itemsOf(questions)
+    if (!items) return { error: 'Ask one to four questions, each one line of at most 400 characters, with at most six options per question and option labels of at most 60 characters.' }
+    const raw = await options.question(items, { turnId: current.lcaTurnId, callId: callId ?? randomUUID(), signal: AbortSignal.any([signal, current.asks.signal]) })
+    if (raw.status === 'declined') return { answers: items.map((item) => ({ id: item.id, selected: [] })) }
+    if (raw.status !== 'answered' || !Array.isArray(raw.answers)) return { error: UNANSWERED[String(raw.status)] ?? 'The question was withdrawn before the user answered.' }
+    const row = store.records().findLast((entry) => entry.type === 'user/message' && entry.id === raw.answerMessageId)
+    if (row?.type === 'user/message') current.seen.push({ role: 'user', content: row.text })
+    if (callId) options.answered?.({ turnId: current.lcaTurnId, callId })
+    return { answers: raw.answers }
   }
 
   const onEvent = (event: DshEvent) => {
@@ -356,7 +393,7 @@ export function createDshExecution(options: {
   }
   const ensureHost = (cwd: string) => host ??= (options.launch ?? startDshHost)({ clock, dshRoot: options.dshRoot, dataDir: options.dataDir, bridge: options.bridge, workspace: cwd, routes: options.routes, guardedRoots: options.guardedRoots,
     persona: options.persona(), suffix: options.suffix(), tools: (() => { const schemas = toolSchemas(); toolsSent = JSON.stringify(schemas); return schemas })(),
-    onEvent, onCall: call, onApproval: approve, onAdmit: admitStep })
+    onEvent, onCall: call, onApproval: approve, onAdmit: admitStep, onQuestion: question })
   let opening: Promise<Live> | undefined
   /**
    * Hand held events to her: into the turn she is in (she sees them at her next step), or as a turn of their own

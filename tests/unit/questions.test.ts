@@ -7,7 +7,8 @@ import { createManualClock } from '../../src/main/clock'
 import { openJournal } from '../../src/main/journal/file'
 import { projectJournal } from '../../src/main/journal/projection'
 import { createQuestions } from '../../src/main/questions/service'
-import { answerInput, questionInput } from '../../src/main/questions/schema'
+import { answerInput, itemsInput, questionInput } from '../../src/main/questions/schema'
+import { answerText } from '../../src/main/questions/service'
 import { createAppController } from '../../src/main/bridge/controller'
 import type { SessionStore } from '../../src/main/store/session'
 import type { AppCommand } from '../../src/shared'
@@ -22,9 +23,13 @@ function fixture() {
   const q = createQuestions(options); cleanup.push(() => { q.close(); journal.close(); if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-questions-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })
   const abort = new AbortController()
   const start = (turnId = 'turn') => { store.append({ type: 'turn/start', turnId, trigger: 'user' }); return turnId }
-  const ask = (turnId = 'turn') => q.tool().run({ question: 'Which format?', choices: ['Markdown', 'Text'] }, { store, clock, signal: abort.signal, turnId, callId: randomUUID() })
+  // Her question (DSH ask_user_question): one, with two options.
+  const ask = (turnId = 'turn') => q.ask([{ id: 'format', question: 'Which format?', options: [{ label: 'Markdown' }, { label: 'Text' }], multiSelect: false }], { store, clock, signal: abort.signal, turnId, callId: randomUUID() })
   const command = (body: object) => ({ protocolVersion: 1, epoch: 'epoch', requestId: randomUUID(), ...body }) as AppCommand
-  const answer = (text = 'Markdown') => q.dispatch(command({ type: 'question.answer', questionId: q.view()!.id, answer: text }), 'hash')
+  // An approval takes one of its choices; her question takes a picked option or your own words.
+  const answer = (text = 'Markdown') => { const view = q.view()!
+    return q.dispatch(command(view.kind === 'approval' ? { type: 'question.answer', questionId: view.id, answer: text }
+      : { type: 'question.answer', questionId: view.id, answers: [{ id: 'format', ...(['Markdown', 'Text'].includes(text) ? { selected: [text] } : { selected: [], custom: text }) }] }), 'hash') }
   return { root, store, clock, q, options, abort, start, ask, command, answer }
 }
 it('queues without exposing the prompt; only visible time consumes the deadline', async () => {
@@ -61,11 +66,15 @@ it.each(['abort', 'settled', 'restart'] as const)('drops an answered but incompl
 it('does not revive waiting questions after restart and rejects duplicate or stale answers', async () => {
   const f = fixture(); f.start(); const p = f.ask(); const id = f.q.view()!.id
   const reopened = createQuestions(f.options); expect(reopened.view()).toBeUndefined(); reopened.close()
-  f.q.close(); await p; expect(f.q.dispatch(f.command({ type: 'question.answer', questionId: id, answer: 'stale' }), 'h')).toBe('invalid-command')
+  f.q.close(); await p; expect(f.q.dispatch(f.command({ type: 'question.answer', questionId: id, answers: [{ id: 'format', selected: ['Text'] }] }), 'h')).toBe('invalid-command')
 })
 it('enforces prompt, choices, answer, secret and per-turn/per-day bounds', async () => {
   const f = fixture(); expect(questionInput.safeParse({ question: 'x\ny' }).success).toBe(false); expect(questionInput.safeParse({ question: '字'.repeat(241) }).success).toBe(false)
   expect(questionInput.safeParse({ question: 'x', choices: ['a', 'b', 'c', 'd'] }).success).toBe(false)
+  const item = (patch = {}) => ({ id: 'q', question: 'x', options: [], multiSelect: false, ...patch })
+  expect(itemsInput.safeParse([item()]).success).toBe(true); expect(itemsInput.safeParse([1, 2, 3, 4, 5].map((n) => item({ id: 'q' + n }))).success).toBe(false)
+  expect(itemsInput.safeParse([item(), item()]).success).toBe(false); expect(itemsInput.safeParse([item({ options: [{ label: '长'.repeat(61) }] })]).success).toBe(false)
+  expect(itemsInput.safeParse([item({ options: [{ label: 'a' }, { label: 'a' }] })]).success).toBe(false); expect(itemsInput.safeParse([item({ options: 'abcdefg'.split('').map((label) => ({ label })) })]).success).toBe(false)
   expect(answerInput.safeParse('😀'.repeat(1000)).success).toBe(true); expect(answerInput.safeParse('😀'.repeat(1001)).success).toBe(false); expect(answerInput.safeParse('\ud800').success).toBe(false)
   for (let turn = 0; turn < 4; turn++) {
     const turnId = f.start('turn' + turn)
@@ -76,7 +85,8 @@ it('enforces prompt, choices, answer, secret and per-turn/per-day bounds', async
 })
 it('allows only book answers and preserves command idempotency', async () => {
   const f = fixture(); const c = createAppController(f.clock, undefined, f.store); c.attachQuestions(f.q); f.start(); const p = f.ask(); c.refresh('task')
-  const command = { ...f.command({ type: 'question.answer', questionId: f.q.view()!.id, answer: 'choice' }), epoch: c.getSnapshot().epoch }
+  const command = { ...f.command({ type: 'question.answer', questionId: f.q.view()!.id, answers: [{ id: 'format', selected: ['Text'] }] }), epoch: c.getSnapshot().epoch }
+  expect(c.dispatch({ ...command, answer: 'Text' })).toMatchObject({ status: 'rejected', error: { code: 'invalid-command' } })
   expect(c.dispatch(command, 'mini')).toMatchObject({ status: 'rejected', error: { code: 'permission-denied' } }); expect(c.dispatch(command)).toMatchObject({ status: 'accepted' }); expect(c.dispatch(command)).toMatchObject({ status: 'accepted' })
   await p; expect(f.store.records().filter((row) => row.type === 'question/answered')).toHaveLength(1); c.dispose()
 })
@@ -90,7 +100,7 @@ it('asks approvals without the question budget and accepts only their choices', 
     expect(f.answer(i % 2 ? '拒绝' : '允许这一次')).toBeUndefined()
     expect((await pending).raw).toMatchObject({ status: 'answered' })
   }
-  // A fourth ask_user in the same turn is still refused: approvals did not use the questions' budget, and
+  // A fourth question in the same turn is still refused: approvals did not use the questions' budget, and
   // the three questions after them do.
   for (let i = 0; i < 3; i++) { const pending = f.ask(); expect(f.q.view()).not.toHaveProperty('kind'); f.answer(); await pending }
   expect((await f.ask()).raw).toMatchObject({ status: 'question-limit' })
@@ -99,4 +109,10 @@ it('asks approvals without the question budget and accepts only their choices', 
   expect(messages.filter((message) => message.kind === 'approval').map((message) => message.text)).toEqual(Array(4).fill('Run node a.js here?'))
   expect(messages.filter((message) => message.kind === 'approval-answer').map((message) => message.text)).toEqual(['允许这一次', '拒绝', '允许这一次', '拒绝'])
   expect(messages.filter((message) => !message.kind && message.role === 'user')).toHaveLength(3)
+})
+it('writes your answers as your words: the answer alone for one question, a line per answered question for several', () => {
+  const items = [{ id: 'when', header: '截止', question: '什么时候交？', options: [{ label: '周三' }, { label: '周五' }], multiSelect: false },
+    { id: 'what', question: '带什么？', options: [{ label: '电脑' }, { label: '充电器' }], multiSelect: true }, { id: 'note', question: '还有吗？', options: [], multiSelect: false }]
+  expect(answerText(items.slice(0, 1), [{ id: 'when', selected: ['周五'], custom: '下午' }])).toBe('周五；下午')
+  expect(answerText(items, [{ id: 'when', selected: ['周三'] }, { id: 'what', selected: ['电脑', '充电器'] }, { id: 'note', selected: [] }])).toBe('截止：周三\n带什么？：电脑、充电器')
 })

@@ -10,7 +10,6 @@ import { createRoundLoop } from '../../src/main/minecraft/round'
 import { ModelFailure, type ModelClient, type ModelRequest } from '../../src/main/model/types'
 import { createModelClient } from '../../src/main/model/client'
 import { seenFragments } from '../../src/main/memory/seen'
-import { createQuestions } from '../../src/main/questions/service'
 import type { AppCommand } from '../../src/shared'
 import { builtinTools, type HarnessTool } from '../../src/main/harness/tools'
 import { createVoice } from '../../src/main/voice/service'
@@ -95,13 +94,6 @@ it('does not guess a single resend request from mixed user steering', async () =
   h.send('first', 'r1', 'h'); h.send('second', 'r2', 'h'); await vi.waitFor(() => expect(release).toBeDefined()); release(); await h.idle()
   const failures = f.store.projection().messages.filter((message) => message.failure)
   expect(failures).toHaveLength(1); expect(failures[0].failure?.sourceMessageId).toBeUndefined()
-})
-it('selects the original request, not the answer to ask_user, after a tool failure', async () => {
-  const f = fixture(); const q = createQuestions({ store: f.store, clock: f.clock, changed: () => {}, safeText: (text) => text }); cleanup.push(q.close); let calls = 0
-  const h = f.start({ source: 'fake', complete: async () => !calls++ ? { ...reply, text: '', toolCalls: [{ id: 'ask', name: 'ask_user', arguments: '{"question":"format?"}' }] } : Promise.reject(new ModelFailure('network')) }, { tools: [q.tool()] })
-  h.send('PARENT_REQUEST', 'r', 'h'); const original = f.store.projection().messages[0].id; await vi.waitFor(() => expect(q.view()?.status).toBe('waiting'))
-  q.dispatch({ protocolVersion: 1, epoch: 'x', requestId: 'answer', type: 'question.answer', questionId: q.view()!.id, answer: 'ANSWER_INFORMATION' } as AppCommand, 'h'); await h.idle()
-  expect(f.store.projection().messages.at(-1)?.failure).toMatchObject({ toolsExecuted: true, sourceMessageId: original })
 })
 it.each(['plain-403', 'explicit-http', 'explicit-stream'] as const)('uses explicit content markers and never falls back on %s', async (source) => {
   const f = fixture(); const never = vi.fn(async () => ({ ok: true, raw: {}, visible: {} }))

@@ -23,7 +23,8 @@ async function launch() {
 const debug = async (name, args = {}) => { const result = await client.callTool({ name, arguments: args }); assert.ok(!result.isError, 'DEBUG_FAILED'); return JSON.parse(result.content[0].text) }
 const call = (name, args) => ({ id: randomUUID(), name, arguments: JSON.stringify(args) })
 const step = (tools = [], text = '') => ({ text, toolCalls: tools, delayMs: 0 })
-async function script(question) { await debug('set_fake_model', { script: [step([call('ask_user', { question, choices: ['Markdown', 'Text'] }), call('get_clock', {})]), step([], 'SYNTHETIC_ANSWER_RECEIVED')] }) }
+// Her question is DSH's own ask_user_question; the book answers it.
+async function script(question) { await debug('set_fake_model', { script: [step([call('ask_user_question', { questions: [{ id: 'format', question, options: [{ label: 'Markdown' }, { label: 'Text' }] }] }), call('get_clock', {})]), step([], 'SYNTHETIC_ANSWER_RECEIVED')] }) }
 async function close() { await client?.close(); client = undefined; await instance?.close(); instance = undefined }
 async function records() {
   const rows = []; const journals = join(profile, 'journals')
@@ -54,6 +55,19 @@ try {
   rows = await records()
   assert.ok(rows.filter((row) => row.type === 'model/seen' && row.turnId === chipTurn).at(-1).messages.some((m) => m.role === 'user' && m.content === 'Text'))
 
+  // Several questions at once: a pick moves on to the next one; the answers go back to her together, and read as your
+  // words one line each.
+  await debug('set_fake_model', { script: [step([call('ask_user_question', { questions: [
+    { id: 'pace', header: '节奏', question: 'MULTI_PACE_QUESTION', options: [{ label: '每天一小时', description: '跟番茄钟走' }, { label: '周末集中' }] },
+    { id: 'subjects', question: 'MULTI_SUBJECT_QUESTION', multi_select: true, options: [{ label: '线性代数' }, { label: '概率论' }, { label: '英语' }] }] })]), step([], 'SYNTHETIC_MULTI_RECEIVED')] })
+  await send({ type: 'message.send', text: 'synthetic several questions' }); await waitFor((s) => s.question?.status === 'waiting' && s.question.items?.length === 2, 'MULTI_QUESTION_MISSING')
+  const card = page.locator('[data-question="waiting"]')
+  await card.getByRole('button', { name: /^每天一小时/ }).click(); await card.getByRole('button', { name: '线性代数', exact: true }).click(); await card.getByRole('button', { name: '英语', exact: true }).click()
+  await card.getByRole('button', { name: '回答', exact: true }).click(); await waitFor((s) => !s.question && s.messages.some((m) => m.text === 'SYNTHETIC_MULTI_RECEIVED'), 'MULTI_ANSWER_FAILED')
+  assert.ok((await snapshot()).messages.some((m) => m.role === 'user' && m.text === '节奏：每天一小时\nMULTI_SUBJECT_QUESTION：线性代数、英语'), 'MULTI_ANSWER_TEXT')
+  const toolText = (await debug('get_context')).filter((m) => m.role === 'tool').map((m) => typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).join('\n')
+  assert.ok(toolText.includes('"selected":["线性代数","英语"]') || toolText.includes('\\"selected\\":[\\"线性代数\\",\\"英语\\"]'), 'MULTI_ANSWERS_NOT_RETURNED')
+
   await script('SYNTHETIC_LENGTH_QUESTION'); await send({ type: 'message.send', text: 'synthetic answer length check' })
   await waitFor((s) => s.question?.status === 'waiting', 'LENGTH_QUESTION_MISSING')
   const input = page.getByRole('textbox', { name: '你的回答', exact: true }); const answerButton = page.getByRole('button', { name: '回答', exact: true })
@@ -81,7 +95,7 @@ try {
 
   await script('STOP_QUESTION_CANARY'); await send({ type: 'message.send', text: 'stop pending question' }); await waitFor((s) => s.question?.status === 'waiting', 'STOP_QUESTION_MISSING')
   const stopped = await snapshot(); await send({ type: 'turn.stop', taskId: stopped.task.id }); await waitFor((s) => s.task?.status === 'aborted' && !s.question, 'STOP_NOT_ABORTED')
-  assert.equal((await send({ type: 'question.answer', questionId: stopped.question.id, answer: 'stale' })).status, 'rejected')
+  assert.equal((await send({ type: 'question.answer', questionId: stopped.question.id, answers: [{ id: 'format', selected: ['Text'] }] })).status, 'rejected')
   await script('RESTART_QUESTION_CANARY'); await send({ type: 'message.send', text: 'restart pending question' }); await waitFor((s) => s.question?.status === 'waiting', 'RESTART_QUESTION_MISSING')
   const attempts = (await records()).filter((r) => r.type === 'model/attempt' && r.status === 'started').length
   await close(); await launch(); s = await snapshot(); assert.ok(!s.question); assert.equal(s.task.status, 'aborted'); assert.equal(s.windows.mode, 'book')
@@ -108,7 +122,7 @@ async function normalHttp() {
     const body = JSON.parse(input); requests.push(body); res.writeHead(200, { 'Content-Type': 'text/event-stream' })
     const toolName = (name) => body.tools?.some((tool) => (tool.function?.name ?? tool.name) === 'lca_' + name) ? 'lca_' + name : name
     const delta = requests.length === 1 ? { tool_calls: [
-      { index: 0, id: 'http-ask', type: 'function', function: { name: toolName('ask_user'), arguments: '{"question":"HTTP_QUESTION"}' } },
+      { index: 0, id: 'http-ask', type: 'function', function: { name: 'ask_user_question', arguments: '{"questions":[{"id":"q","question":"HTTP_QUESTION"}]}' } },
       { index: 1, id: 'http-clock', type: 'function', function: { name: toolName('get_clock'), arguments: '{}' } },
     ] } : { content: 'HTTP_FINAL' }
     res.end(frame(delta, requests.length === 1 ? 'tool_calls' : 'stop') + 'data: [DONE]\n\n')
@@ -118,7 +132,7 @@ async function normalHttp() {
   try {
     instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env: { ...runtimeEnv(root), LCA_DATA_DIR: normalData, LCA_PROVIDERS_FILE: fixture } }); page = await instance.firstWindow(); await initializeTestBook(page)
     await send({ type: 'message.send', text: 'normal synthetic question' }); await waitFor((s) => s.question?.status === 'waiting', 'HTTP_QUESTION_MISSING')
-    await send({ type: 'question.answer', questionId: (await snapshot()).question.id, answer: 'HTTP_USER_ANSWER' }); await waitFor((s) => s.task?.status === 'completed', 'HTTP_ANSWER_FAILED')
+    await send({ type: 'question.answer', questionId: (await snapshot()).question.id, answers: [{ id: 'q', selected: [], custom: 'HTTP_USER_ANSWER' }] }); await waitFor((s) => s.task?.status === 'completed', 'HTTP_ANSWER_FAILED')
     assert.equal(requests.length, 2); const messages = requests[1].messages; const batch = messages.findIndex((m) => m.role === 'assistant' && m.tool_calls?.length === 2)
     assert.ok(batch >= 0); assert.deepEqual(messages.slice(batch, batch + 3).map((m) => m.role), ['assistant', 'tool', 'tool']); assert.deepEqual(messages.slice(batch + 1, batch + 3).map((m) => m.tool_call_id), ['http-ask', 'http-clock'])
     assert.ok(textOf(messages[batch + 1].content).includes('HTTP_USER_ANSWER'), 'HTTP_ANSWER_NOT_RETURNED')

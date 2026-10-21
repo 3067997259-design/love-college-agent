@@ -75,12 +75,12 @@ try {
   const firstMessage = (await snapshot()).messages.find((message) => message.role === 'user' && message.text === '我给纸桥取名叫晚风桥。')
   // A question she asks mid-turn waits out quiet time, then the turn finishes with your answer.
   await script([
-    { text: '', toolCalls: [{ id: 'showcase-question', name: 'ask_user', arguments: JSON.stringify({ question: '用哪种格式记下这份合成结果？', choices: ['Markdown', 'Text'] }) }], delayMs: 0 },
+    { text: '', toolCalls: [{ id: 'showcase-question', name: 'ask_user_question', arguments: JSON.stringify({ questions: [{ id: 'format', header: '格式', question: '用哪种格式记下这份合成结果？', options: [{ label: 'Markdown', description: '标题和列表照样保留' }, { label: 'Text' }] }] }) }], delayMs: 0 },
     { text: 'SYNTHETIC_WORK_SAVED', toolCalls: [], delayMs: 0 },
   ])
   await accepted({ type: 'message.send', text: '这份合成结果用哪种格式记下来，你问我一下。' })
   await waitFor((s) => s.question?.status === 'queued', 'QUESTION_NOT_QUEUED'); await accepted({ type: 'mode.set', mode: 'rest' })
-  await waitFor((s) => s.question?.status === 'waiting', 'QUESTION_NOT_VISIBLE'); await page.getByRole('textbox', { name: '你的回答', exact: true }).fill('Markdown'); await page.getByRole('button', { name: '回答', exact: true }).click()
+  await waitFor((s) => s.question?.status === 'waiting', 'QUESTION_NOT_VISIBLE'); await page.locator('[data-question="waiting"]').getByRole('button', { name: /^Markdown/ }).click()
   await waitFor((s) => s.task?.status === 'completed' && s.messages.some((message) => message.text === 'SYNTHETIC_WORK_SAVED'), 'QUESTION_TURN_FAILED'); await mark('bounded-question')
   // The model endpoint refuses her second call after a tool ran: the book narrates the failure, never the vendor's text.
   await script([{ text: '', toolCalls: [{ id: 'bounded-clock', name: 'get_clock', arguments: '{}' }], delayMs: 0 }, { text: '', toolCalls: [], delayMs: 0, httpStatus: 400 }])

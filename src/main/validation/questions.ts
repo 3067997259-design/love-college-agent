@@ -10,12 +10,13 @@ export async function probeQuestions(root: string) {
   const owner = { userId: 'quota-user', characterId: 'quota-character' }
   let store = openSessionStore(root, owner, clock)
   const open = () => createQuestions({ store, clock, changed: () => {}, safeText: (text) => text })
+  const ask = (question: string) => [{ id: 'q', question, options: [], multiSelect: false }]
   let questions = open()
   const batch = async () => {
     for (let turn = 0; turn < 4; turn++) {
       const turnId = randomUUID(); store.append({ type: 'turn/start', turnId, trigger: 'user' })
       for (let i = 0; i < 3; i++) {
-        const waiting = questions.tool().run({ question: 'Synthetic quota check' }, { store, clock, signal: new AbortController().signal, turnId, callId: randomUUID() })
+        const waiting = questions.ask(ask('Synthetic quota check'), { store, clock, signal: new AbortController().signal, turnId, callId: randomUUID() })
         const view = questions.view(); if (view?.status !== 'waiting') throw new Error('QUESTION_QUOTA_EARLY_REFUSAL')
         const error = questions.dispatch({ protocolVersion: 1, epoch: 'probe', requestId: randomUUID(), type: 'question.dismiss', questionId: view.id } as AppCommand, 'probe')
         if (error || (await waiting).ok) throw new Error('QUESTION_QUOTA_DISMISS_FAILED')
@@ -25,7 +26,7 @@ export async function probeQuestions(root: string) {
   }
   const limited = async () => {
     const turnId = randomUUID(); store.append({ type: 'turn/start', turnId, trigger: 'user' })
-    const result = await questions.tool().run({ question: 'Thirteenth request' }, { store, clock, signal: new AbortController().signal, turnId, callId: randomUUID() })
+    const result = await questions.ask(ask('Thirteenth request'), { store, clock, signal: new AbortController().signal, turnId, callId: randomUUID() })
     if (questions.view() || (result.visible as { status?: string }).status !== 'question-limit') throw new Error('QUESTION_QUOTA_RESET')
     store.append({ type: 'turn/end', turnId, reason: 'completed' })
   }

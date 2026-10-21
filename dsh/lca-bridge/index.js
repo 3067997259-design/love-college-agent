@@ -25,6 +25,8 @@ export function apply(ctx) {
   const calls = new Map()
   const asked = new Map() // callId -> { kind, command } for approvals this plugin asked for
   const subjects = new Map() // callId -> short subject for an approval card (approval requests carry no arguments)
+  const questions = new Map() // id -> { done, fail } for her questions waiting on your answer in the book
+  const askCalls = new Map() // root session id -> callId of her ask_user_question in flight (the question request carries none)
   const turns = new Map() // root session id -> current DSH turn number
   // A turn LCA opened for an event (pomodoro, mail, her life) is short: capped at EVENT_STEPS unless you join in.
   const EVENT_STEPS = 6
@@ -153,6 +155,7 @@ export function apply(ctx) {
   ctx.on('tools/pre-execute', async (exec, next) => {
     const root = lineage.rootOf(exec.agent)
     if (!root) return next()
+    if (String(exec.name) === 'ask_user_question' && isRoot(exec.agent)) askCalls.set(root, String(exec.callId))
     const args = JSON.stringify(exec.arguments ?? {}).toLowerCase().replaceAll('\\\\', '\\')
     if (guarded.some((path) => args.includes(path) || args.includes(path.replaceAll('\\', '/')))) return { kind: 'deny', reason: 'This path is LCA private data; she does not work on it.' }
     const model = models.get(root)
@@ -271,6 +274,20 @@ export function apply(ctx) {
     })
   })
 
+  // Her questions to you (DSH ask_user_question) are answered in the book, which may hold them while you focus. A
+  // subagent's never reach you: DSH refuses them before this point. Declining answers every question as skipped.
+  ctx.on('user-questions/request', async (request, next) => {
+    const root = lineage.rootOf(request.agent)
+    if (!root || !isRoot(request.agent)) return next()
+    const id = randomUUID()
+    const callId = askCalls.get(root) ?? null; askCalls.delete(root)
+    send({ t: 'question', id, sessionId: root, callId, questions: plain(request.questions) })
+    return await new Promise((done, fail) => {
+      questions.set(id, { done, fail })
+      request.signal?.addEventListener('abort', () => { if (questions.delete(id)) { send({ t: 'question-cancel', id }); fail(new Error('the question was withdrawn before the user answered')) } }, { once: true })
+    })
+  })
+
   ctx.on('agent/assistant-stream', ({ agent, frame }) => {
     if (!isRoot(agent) || frame.type !== 'chunk') return
     if (frame.chunk.type === 'text-delta' && frame.chunk.text) send({ t: 'delta', sessionId: lineage.sid(agent), text: frame.chunk.text })
@@ -358,6 +375,13 @@ export function apply(ctx) {
         case 'cancel': agentOf(message.sessionId).cancel({ kind: 'user' }); break
         case 'trust': { const session = agentOf(message.sessionId).session; trust(session); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(session) }); break }
         case 'untrust': { const session = agentOf(message.sessionId).session; ctx.get('permissionPresets')?.set(session, 'workspace-write'); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(session) }); break }
+        case 'question-answer': {
+          const entry = questions.get(message.id)
+          if (!entry) break
+          questions.delete(message.id)
+          if (Array.isArray(message.answers)) entry.done({ answers: message.answers }); else entry.fail(new Error(String(message.error ?? 'the user did not answer')))
+          break
+        }
         case 'approval-answer': { const settle = approvals.get(message.id); if (settle) { approvals.delete(message.id); settle(message.outcome) } break }
         case 'admit-answer': { const settle = admissions.get(message.id); if (settle) { admissions.delete(message.id); settle(message.ok !== false) } break }
         case 'lca-result': {

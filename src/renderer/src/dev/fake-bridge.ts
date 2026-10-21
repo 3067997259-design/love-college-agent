@@ -314,8 +314,12 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
       }
       // 问答：只为在预览里看操作反馈，不是真实执行
       if (current.question?.status === 'waiting' && (command.type === 'question.answer' || command.type === 'question.dismiss') && command.questionId === current.question.id) {
-        const answered = command.type === 'question.answer'
-        commit({ question: undefined, messages: answered ? [...current.messages, { id: `ans-${command.requestId}`, role: 'user', text: command.answer, createdAtMs: current.clock.nowMs, status: 'complete' }] : current.messages }, 'message')
+        // 回答写成你的话：一问只写答案，几问一问一行（同主进程 questions/service.ts answerText）
+        const items = current.question.items ?? []
+        const text = command.type !== 'question.answer' ? '' : 'answer' in command ? command.answer
+          : command.answers.map((answer, index) => [[answer.selected.join('、'), answer.custom ?? ''].filter(Boolean).join('；'), index] as const).filter(([line]) => line)
+            .map(([line, index]) => items.length > 1 ? `${items[index].header ?? items[index].question}：${line}` : line).join('\n')
+        commit({ question: undefined, messages: text ? [...current.messages, { id: `ans-${command.requestId}`, role: 'user', text, createdAtMs: current.clock.nowMs, status: 'complete' }] : current.messages }, 'message')
         return ack(command)
       }
       // 其余命令明确拒绝，不假装执行过

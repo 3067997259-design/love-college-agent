@@ -69,6 +69,10 @@
 - id: hmr
   disabled: true
 
+# Her questions to you: DSH's own ask_user_question (dsh-base has only the user-questions service). lca-bridge
+# answers its requests from the book's question card; a subagent's questions never reach you.
 - insert:
+    - id: tool-ask-user
+      name: '@deepseek-ai/dsh-tool-ask-user'
     - id: lca-bridge
       name: '@lca/dsh-bridge'

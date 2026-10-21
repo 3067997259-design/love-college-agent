@@ -441,7 +441,8 @@ void app.whenReady().then(async () => {
     const plugins = createPluginRegistry({ root: join(dataDir, 'plugins'), settings: prepared.pluginSettings, clock,
       get privacyModel() { return prepared.developer ? createFakePrivacyModel() : taskModels.narrow }, privacyEnabled, fileFiltering: () => prepared.pluginSettings.read().fileFilteringEnabled,
       onCandidates: (seeds) => { campus?.ingestCandidates(seeds) }, onSources: (sources, signal) => campus!.ingestSources(sources, signal) })
-    plugins.registerBuiltin('core', '时钟与任务计划', [...builtinTools(), questions.tool()])
+    // Her questions to you come through DSH's own ask_user_question (createDsh question), not an LCA tool.
+    plugins.registerBuiltin('core', '时钟与任务计划', [...builtinTools()])
     plugins.registerBuiltin('pomodoro', '番茄钟', pomodoroTools(pomodoro))
     plugins.registerBuiltin('mail', '邮箱与校园候选', mailTools(campus), { handlesPrivacy: true, permissions: ['network'] })
     plugins.registerBuiltin('documents', '附件与资料整理', documentTools(documents), { handlesPrivacy: true, permissions: ['filesystem'] })
@@ -635,6 +636,7 @@ void app.whenReady().then(async () => {
           questions!.commit(context.turnId, [context.callId])
           return answer?.type === 'user/message' ? answer.text : null
         },
+        question: (items, context) => questions!.ask(items, { clock, store: store!, ...context }).then((result) => result.raw as { status?: unknown; answers?: unknown; answerMessageId?: unknown }),
         backgroundQuiet: () => !!minecraft?.active(),
         // Spending safety: turns that run without you are held to the autonomous allowance. Your own turns are held to
         // the daily caps only when someone set them on purpose (a booth operator; a cap set at a booth binds personal

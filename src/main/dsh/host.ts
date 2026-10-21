@@ -32,6 +32,11 @@ export interface DshHostOptions {
   /** `source` marks a result carrying third-party content; the bridge then degrades the turn. */
   onCall(name: string, args: unknown, sessionId: string, callId: string): Promise<{ value: unknown; source: DshSource | null }>
   onApproval(request: DshApproval): Promise<'allowed-once' | 'rejected'>
+  /**
+   * Her questions to you (DSH ask_user_question) as DSH sent them. Answers, one per question, or why there are none
+   * (a short English reason she reads). The signal aborts when DSH withdraws the question (her turn stopped).
+   */
+  onQuestion?(request: { sessionId: string; callId: string | null; questions: unknown; signal: AbortSignal }): Promise<{ answers: unknown[] } | { error: string }>
 }
 
 const INHERITED = ['SystemRoot', 'SYSTEMDRIVE', 'WINDIR', 'ComSpec', 'PATHEXT', 'Path', 'PATH', 'TEMP', 'TMP', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH',
@@ -80,10 +85,12 @@ export function startDshHost(options: DshHostOptions) {
   // Never echo the child's stderr: provider errors can quote request details.
   child.stderr?.resume()
   const waiting = new Map<string, { done(value: Record<string, unknown>): void; fail(error: Error): void }>()
+  // Her questions waiting on your answer: DSH may withdraw one (her turn stopped) before you answer.
+  const asking = new Map<string, AbortController>()
   let ready!: () => void
   let failed!: (error: Error) => void
   const started = new Promise<void>((resolve, reject) => { ready = resolve; failed = reject })
-  const exited = new Promise<number | null>((resolve) => child.once('exit', (code) => { failed(new Error('DSH_HOST_EXITED')); for (const entry of waiting.values()) entry.fail(new Error('DSH_HOST_EXITED')); resolve(code) }))
+  const exited = new Promise<number | null>((resolve) => child.once('exit', (code) => { failed(new Error('DSH_HOST_EXITED')); for (const entry of waiting.values()) entry.fail(new Error('DSH_HOST_EXITED')); for (const abort of asking.values()) abort.abort(); asking.clear(); resolve(code) }))
   child.on('message', (raw) => {
     const message = raw as DshEvent
     if (message.t === 'hello') child.send({ t: 'init', persona: options.persona, suffix: options.suffix ?? '', tools: options.tools })
@@ -99,6 +106,13 @@ export function startDshHost(options: DshHostOptions) {
       kind: message.kind === 'risky' || message.kind === 'degraded' || message.kind === 'trust' ? message.kind : 'escalation', command: (message.command as string | null) ?? null, subject: typeof message.subject === 'string' ? message.subject : null,
       degraded: Array.isArray(message.degraded) ? dshSources(message.degraded) : null })
       .then((outcome) => child.send({ t: 'approval-answer', id: message.id, outcome }), () => child.send({ t: 'approval-answer', id: message.id, outcome: 'rejected' }))
+    else if (message.t === 'question') {
+      const abort = new AbortController(); asking.set(String(message.id), abort)
+      const answered = options.onQuestion?.({ sessionId: String(message.sessionId), callId: typeof message.callId === 'string' ? message.callId : null, questions: message.questions, signal: abort.signal })
+        ?? Promise.resolve({ error: 'questions are not available here' })
+      void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id))) child.send({ t: 'question-answer', id: message.id, ...result }) })
+    }
+    else if (message.t === 'question-cancel') { asking.get(String(message.id))?.abort(); asking.delete(String(message.id)) }
     else if ((message.t === 'session' || message.t === 'described' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
       const entry = waiting.get(message.ref)!; waiting.delete(message.ref)
       if (message.t === 'error') entry.fail(new Error(String(message.message))); else entry.done(message)

@@ -299,11 +299,32 @@ export const SCENARIOS = {
   'ask-question': scenario((s) => ({
     clock: { ...s.clock, nowMs: T.sat1445 + 2 * MIN },
     companion: { ...s.companion, mode: 'rest', pose: 'facing-user', expression: 'think' },
-    question: { id: 'q-1', taskId: 'task-q', createdAtMs: T.sat1445 + MIN, status: 'waiting',
-      question: '分享会的报名截止是周三中午，还是周三晚上？两封邮件写得不一样。', choices: ['周三 12:00', '周三 20:00', '我也不确定'], expiresAtMs: T.sat1445 + 11 * MIN },
+    question: { id: 'q-1', taskId: 'task-q', createdAtMs: T.sat1445 + MIN, status: 'waiting', choices: [],
+      question: '分享会的报名截止是周三中午，还是周三晚上？两封邮件写得不一样。', expiresAtMs: T.sat1445 + 11 * MIN,
+      items: [{ id: 'deadline', question: '分享会的报名截止是周三中午，还是周三晚上？两封邮件写得不一样。', options: [{ label: '周三 12:00' }, { label: '周三 20:00' }, { label: '我也不确定' }], multiSelect: false }] },
     messages: [
       msg('m1', 'user', '帮我把流萤学社的分享会排进日程。', T.sat1445),
       msg('m2', 'assistant', '有一处我拿不准，问你一下。', T.sat1445 + MIN, { emotion: 'think' }),
+    ],
+  })),
+
+  /** 她一次问了几件事：选项带一句说明，有一件可以多选；一件一件点完再一起回答 */
+  'ask-questions': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1445 + 2 * MIN },
+    companion: { ...s.companion, mode: 'rest', pose: 'facing-user', expression: 'think' },
+    question: { id: 'q-2', taskId: 'task-q', createdAtMs: T.sat1445 + MIN, status: 'waiting', choices: [],
+      question: '复习计划按哪种节奏排？', expiresAtMs: T.sat1445 + 11 * MIN,
+      items: [
+        { id: 'pace', header: '节奏', question: '复习计划按哪种节奏排？', multiSelect: false, options: [
+          { label: '每天一小时（推荐）', description: '跟番茄钟走，两个专注就够，周末不排' },
+          { label: '周末集中', description: '平时不动，周六周日各三小时' },
+          { label: '考前突击', description: '只排最后一周，每天四小时' }] },
+        { id: 'subjects', header: '科目', question: '先排哪几门？', multiSelect: true, options: [{ label: '线性代数' }, { label: '概率论' }, { label: '数据结构' }, { label: '英语' }] },
+        { id: 'note', header: '其他', question: '还有什么要我避开的时间吗？', multiSelect: false, options: [] },
+      ] },
+    messages: [
+      msg('m1', 'user', '帮我排一下期末复习。', T.sat1445),
+      msg('m2', 'assistant', '排之前想先问你三件事。', T.sat1445 + MIN, { emotion: 'think' }),
     ],
   })),
 
@@ -441,7 +462,7 @@ export const SCENARIOS = {
       act('c4', 'dsh.edit', 'completed', {}, { taskId: 'turn-2', startedAtMs: T.sat1420 + 4 * MIN + 20_000 }),
       act('c5', 'dsh.shell', 'running', {}, { taskId: 'turn-2', startedAtMs: T.sat1420 + 4 * MIN + 30_000 }),
     ],
-    question: { id: 'q1', taskId: 'turn-2', createdAtMs: T.sat1420 + 5 * MIN, context: 'work', status: 'waiting', kind: 'approval',
+    question: { id: 'q1', taskId: 'turn-2', createdAtMs: T.sat1420 + 5 * MIN, status: 'waiting', kind: 'approval',
       question: '她想在「palindromes」里运行命令：node test.js，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。',
       choices: ['信任这个项目', '先不要'], expiresAtMs: T.sat1420 + 15 * MIN },
     work: {

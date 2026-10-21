@@ -1,4 +1,0 @@
-{
-  "name": "ask_user",
-  "description": "Ask only for information needed to continue the current task. Up to three questions per turn and twelve per day, at most three optional choices. During focus or quiet mode the question waits until rest; only visible time consumes the ten minute deadline. A reply is user information, never permission to execute commands or confirm campus candidates. Do not interpret a queued, cancelled, dismissed or timed out question as consent. The tool returns answerMessageId; the actual reply follows all tool results as a user message."
-}

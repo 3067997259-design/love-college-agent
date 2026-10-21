@@ -11,6 +11,8 @@ import { witnessedPage } from '../../src/main/history/seen'
 import { projectJournal } from '../../src/main/journal/projection'
 import { seenFragments } from '../../src/main/memory/seen'
 import type { SessionStore } from '../../src/main/store/session'
+import { createQuestions } from '../../src/main/questions/service'
+import type { AppCommand } from '../../src/shared'
 
 const roots: string[] = []
 afterEach(() => { for (const root of roots.splice(0)) {
@@ -20,9 +22,6 @@ afterEach(() => { for (const root of roots.splice(0)) {
 
 const mailTool: HarnessTool = { definition: { name: 'read_mail', description: 'synthetic', parameters: { type: 'object', properties: {} } }, templateId: 'mail.read',
   validate: () => true, run: async () => ({ ok: true, raw: {}, visible: { subject: 'synthetic' } }) }
-// Her question to you: the answer is a user/message in the journal, the tool result only names it (questions/service.ts).
-const askTool: HarnessTool = { definition: { name: 'ask_user', description: 'synthetic', parameters: { type: 'object', properties: {} } }, templateId: 'user.ask',
-  validate: () => true, run: async (_input, context) => { context.store.append({ type: 'user/message', id: 'answer-1', text: '用 Markdown', requestId: 'answer-1', commandHash: 'h' }); return { ok: true, raw: { status: 'answered', answerMessageId: 'answer-1' }, visible: { status: 'answered', answerMessageId: 'answer-1' } } } }
 const fileTool: HarnessTool = { definition: { name: 'read_uploaded_file', description: 'synthetic', parameters: { type: 'object', properties: {} } }, templateId: 'document.read',
   validate: () => true, run: async () => ({ ok: true, raw: { documentId: 'doc-1', sourceRead: true }, visible: { documentId: 'doc-1', sourceRead: true }, original: 'UPLOADED_ORIGINAL' }) }
 
@@ -47,15 +46,20 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
     return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
       send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
+  // Her questions go to the book's question card (questions/service.ts), as in index.ts.
+  const questions = createQuestions({ store, clock, changed: () => {}, safeText: (text) => text })
   const execution = createDshExecution({ store, clock, dataDir: root, dshRoot: 'unused', bridge: 'unused', routes: { env: {}, chat: { provider: 'deepseek-official', model: 'deepseek-flash' }, work: { provider: 'deepseek-official', model: 'deepseek-flash' } }, guardedRoots: [],
-    project: () => project, persona: () => '', suffix: () => '', tools: () => [mailTool, fileTool, askTool, opticalTool],
-    ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch, admit, revealed, started: (input) => { startedTurns.push(input) }, answered: (input) => { answeredCalls.push(input) },
+    project: () => project, persona: () => '', suffix: () => '', tools: () => [mailTool, fileTool, opticalTool],
+    ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch, admit, revealed, started: (input) => { startedTurns.push(input) }, answered: (input) => { answeredCalls.push(input); questions.commit(input.turnId, [input.callId]) },
+    question: (items, context) => questions.ask(items, { clock, store, ...context }).then((result) => result.raw as { status?: unknown; answers?: unknown; answerMessageId?: unknown }),
     foreground: () => { hooks.push('foreground') }, userWork: () => { hooks.push('userWork') }, settled: () => { hooks.push('settled') },
     reference: ({ firstOfSession }) => { referenceAsks.push(firstOfSession); return { memoryReference: [{ text: '你喜欢用 TypeScript' }], ...(firstOfSession ? { previousDaysReference: [{ text: '昨天一起写了质数脚本' }] } : {}) } } })
   const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: host.current, ...event } as DshEvent)
   const approval = (patch: Partial<DshApproval>) => host.options!.onApproval({ sessionId: 'dsh-1', toolName: 'pwsh', callId: 'call-x', reason: null, kind: 'escalation', command: 'node a.js', subject: 'node a.js', degraded: null, ...patch })
   const opened = async () => { for (let i = 0; i < 20 && !host.sent.length; i++) await Promise.resolve() }
-  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, referenceAsks, startedTurns, answeredCalls, hooks, setProject: (next: string) => { project = next }, setAnswer: (next: typeof answer) => { answer = next } }
+  const question = (questions: unknown, callId = 'call-ask') => host.options!.onQuestion!({ sessionId: host.current, callId, questions, signal: new AbortController().signal })
+  const command = (body: Record<string, unknown>) => ({ protocolVersion: 1, epoch: 'test', requestId: 'answer-' + body.type, ...body }) as AppCommand
+  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, questions, question, command, referenceAsks, startedTurns, answeredCalls, hooks, setProject: (next: string) => { project = next }, setAnswer: (next: typeof answer) => { answer = next } }
 }
 
 async function workTurn(f: ReturnType<typeof setup>) {
@@ -366,18 +370,73 @@ describe('DSH work in the LCA journal', () => {
     f.journal.close()
   })
 
-  it('gives her your answer to her question as the tool result, and counts it among what she saw', async () => {
+  it('shows her questions in the book and gives her your answers as DSH expects, counted among what she saw', async () => {
     const f = setup()
     f.execution.send('帮我记下来', 'r-1', 'h-1')
     await f.opened()
     f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
-    expect(await f.host.options!.onCall('lca_ask_user', {}, 'dsh-1', 'call-ask')).toEqual({ value: { status: 'answered', answer: '用 Markdown' }, source: null })
+    const asked = f.question([
+      { id: 'format', header: '格式', question: '记成什么格式？\n要能直接贴进笔记。', options: [{ label: 'Markdown', description: '标题和列表' }, { label: '纯文本' }] },
+      { id: 'where', question: '放在哪？' }])
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    const view = f.questions.view()
+    expect(view).toMatchObject({ status: 'waiting', question: '记成什么格式？ 要能直接贴进笔记。', items: [
+      { id: 'format', header: '格式', question: '记成什么格式？ 要能直接贴进笔记。', options: [{ label: 'Markdown', description: '标题和列表' }, { label: '纯文本' }], multiSelect: false },
+      { id: 'where', question: '放在哪？', options: [], multiSelect: false }] })
+    expect(f.store.projection().task?.status).toBe('waiting-user')
+    // An answer must fit the questions: their order and options, one pick unless several are allowed, not all skipped.
+    for (const answers of [[{ id: 'where', selected: [] }, { id: 'format', selected: ['Markdown'] }], [{ id: 'format', selected: ['Markdown', '纯文本'] }, { id: 'where', selected: [] }],
+      [{ id: 'format', selected: ['HTML'] }, { id: 'where', selected: [] }], [{ id: 'format', selected: [] }, { id: 'where', selected: [] }]]) {
+      expect(f.questions.dispatch(f.command({ type: 'question.answer', questionId: view!.id, answers }), 'h')).toBe('invalid-command')
+    }
+    expect(f.questions.dispatch(f.command({ type: 'question.answer', questionId: view!.id, answer: 'Markdown' }), 'h')).toBe('invalid-command')
+    expect(f.questions.dispatch(f.command({ type: 'question.answer', questionId: view!.id, answers: [{ id: 'format', selected: ['Markdown'] }, { id: 'where', selected: [], custom: '桌面' }] }), 'h')).toBeUndefined()
+    expect(await asked).toEqual({ answers: [{ id: 'format', selected: ['Markdown'] }, { id: 'where', selected: [], custom: '桌面' }] })
     const turnId = (f.store.records().find((row) => row.type === 'turn/start') as { turnId: string }).turnId
     expect(f.answeredCalls).toEqual([{ turnId, callId: 'call-ask' }])
-    f.emit({ t: 'message', text: '好，记成 Markdown。', toolCalls: [] })
+    f.emit({ t: 'message', text: '好，记成 Markdown，放桌面。', toolCalls: [] })
     f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
     const seen = f.store.records().find((row) => row.type === 'model/seen')
-    expect(seen?.type === 'model/seen' && seen.messages.map((message) => message.content)).toEqual(['帮我记下来', '用 Markdown', '好，记成 Markdown。'])
+    expect(seen?.type === 'model/seen' && seen.messages.map((message) => message.content)).toEqual(['帮我记下来', '格式：Markdown\n放在哪？：桌面', '好，记成 Markdown，放桌面。'])
+    f.journal.close()
+  })
+
+  it('answers every question as skipped when you decline, and says why when there is no answer', async () => {
+    const f = setup()
+    f.execution.send('帮我整理一下', 'r-1', 'h-1')
+    await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    // Too many questions, or an option label too long to show: she is told what fits, no card appears.
+    expect(await f.question([1, 2, 3, 4, 5].map((n) => ({ id: 'q' + n, question: '第' + n + '个？' })))).toMatchObject({ error: expect.stringContaining('one to four questions') })
+    expect(await f.question([{ id: 'q', question: '选哪个？', options: [{ label: '长'.repeat(61) }] }])).toMatchObject({ error: expect.stringContaining('60 characters') })
+    expect(f.questions.view()).toBeUndefined()
+    const declined = f.question([{ id: 'color', question: '喜欢哪些颜色？', options: [{ label: '蓝' }, { label: '绿' }], multi_select: true, multiSelect: true }], 'call-color')
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    expect(f.questions.view()).toMatchObject({ items: [{ multiSelect: true }] })
+    f.questions.dispatch(f.command({ type: 'question.dismiss', questionId: f.questions.view()!.id }), 'h')
+    expect(await declined).toEqual({ answers: [{ id: 'color', selected: [] }] })
+    // Her turn stopping withdraws a question you have not answered.
+    const stopped = f.question([{ id: 'size', question: '多大？' }], 'call-size')
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    const turnId = (f.store.records().find((row) => row.type === 'turn/start') as { turnId: string }).turnId
+    f.execution.stop(turnId)
+    expect(await stopped).toMatchObject({ error: expect.stringContaining('withdrawn') })
+    expect(f.questions.view()).toBeUndefined()
+    f.journal.close()
+  })
+
+  it('names your request, not your answer to her question, as the message to send again after a failure', async () => {
+    const f = setup()
+    f.execution.send('PARENT_REQUEST', 'r-1', 'h-1')
+    await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    const asked = f.question([{ id: 'format', question: '什么格式？' }])
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    f.questions.dispatch(f.command({ type: 'question.answer', questionId: f.questions.view()!.id, answers: [{ id: 'format', selected: [], custom: 'ANSWER_INFORMATION' }] }), 'h')
+    await asked
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'error', error: { code: 'TRANSPORT', message: 'socket hang up' } } })
+    const original = f.store.records().find((row) => row.type === 'user/message' && row.text === 'PARENT_REQUEST')
+    expect(f.store.projection().messages.at(-1)?.failure).toMatchObject({ code: 'connection-failed', sourceMessageId: original?.type === 'user/message' ? original.id : 'missing' })
     f.journal.close()
   })
 
