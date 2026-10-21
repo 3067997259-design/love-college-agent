@@ -49,3 +49,11 @@ export async function openSettingsGroup(page, name) {
   const details = summary.locator('..')
   if (!await details.evaluate((element) => element.open)) await summary.click()
 }
+
+/** Close settings: the book's settings page returns to chat via the 对话 bookmark; developer mode keeps its floating panel's 关闭 button. */
+export async function closeSettings(page) {
+  const mode = await page.evaluate(async () => (await window.lca.getSnapshot()).runtime?.developer.mode)
+  if (mode === 'developer') { await page.getByRole('button', { name: '关闭', exact: true }).click(); return }
+  await page.locator('nav.bookmarks').getByRole('button', { name: /^对话/ }).click()
+  await page.locator('[data-settings="user"]').waitFor({ state: 'hidden' })
+}
