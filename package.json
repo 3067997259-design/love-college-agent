@@ -72,6 +72,7 @@
     "test:dsh-family": "node scripts/dsh-family-check.mjs",
     "test:dsh-collaboration": "node scripts/dsh-collaboration-check.mjs",
     "test:collaboration": "pnpm build && node scripts/smoke-collaboration.mjs",
+    "test:v12-recovery": "pnpm build && node scripts/smoke-v12-recovery.mjs",
     "test:dsh-extensions": "node scripts/dsh-extension-check.mjs --electron",
     "test:model-slots": "pnpm build && node scripts/smoke-model-slots.mjs",
     "test:mini": "pnpm build && node scripts/smoke-mini.mjs",

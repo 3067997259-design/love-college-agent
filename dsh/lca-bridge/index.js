@@ -141,8 +141,12 @@ export function apply(ctx) {
     await ctx.get('loader')?.await()
     if (routes && !picked) await pick()
     const chat = picked ? selectionOf(picked.chat) : ctx.agentDefaultModel.currentSelection()
-    const selection = { current: chat, assembled: undefined }
     const id = brandString(sessionId ?? `session-${randomUUID()}`)
+    const resident = live.get(String(id))
+    if (resident && canonical(resident.cwd) !== canonical(cwd)) throw new Error('DSH_PROJECT_MISMATCH')
+    const selection = models.get(String(id))?.selection ?? { current: chat, assembled: undefined }
+    selection.current = chat
+    selection.assembled = undefined
     bindings.set(String(id), { protocolVersion: 2, runtimeId: binding.runtimeId, projectId: binding.projectId, cwd: canonical(binding.cwd) })
     safety.bind(String(id), trusted)
     const setup = (agentCtx) => {
@@ -151,9 +155,11 @@ export function apply(ctx) {
       if (suffix) agentCtx.systemPrompt.section({ name: 'deployment:persona-suffix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX'), text: suffix, interpolate: false })
     }
     const agentOptions = { provider: chat.provider, model: chat.model }
-    const handle = sessionId && resume !== false && ctx.get('sessionQuery')
+    // Project switching leaves inactive roots resident. Reuse their handle instead of asking DSH to
+    // resume/create a duplicate session id. bind above retires grants without running any member.
+    const handle = resident?.handle ?? (sessionId && resume !== false && ctx.get('sessionQuery')
       ? await ctx.agents.resume({ resumeSessionId: id, agentOptions, setup }).catch(() => ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup }))
-      : await ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup })
+      : await ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup }))
     live.set(String(id), { handle, cwd })
     if (!originOf(handle.agent)) { live.delete(String(id)); bindings.delete(String(id)); await handle.dispose(); throw new Error('DSH_PROJECT_MISMATCH') }
     models.set(String(id), { selection, role: 'chat' })

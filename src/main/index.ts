@@ -597,7 +597,7 @@ void app.whenReady().then(async () => {
         const selected = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options)
         return selected.canceled ? null : selected.filePaths[0] ?? null
       },
-      changed: () => controller?.refresh('task') })
+      changed: () => { dshExecution?.stateChanged(); controller?.refresh('task') } })
     const persona = () => {
       const character = (store!.history?.() ?? store!.records()).findLast((row) => row.type === 'character/definition')
       const card = character?.type === 'character/definition' ? character.definition : BUILTIN_CARD

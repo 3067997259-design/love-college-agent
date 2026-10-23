@@ -1,0 +1,312 @@
+{
+  "date": "2026-10-24",
+  "syntheticOnly": true,
+  "upstreamPackageModified": false,
+  "artModified": false,
+  "sourceSha256": {
+    "dsh/lca-bridge/index.js": "bedbffc7a4d52f2f5c6b86a3baa8bd166f7acff1b7c0e389c56fc34a166e2d5e",
+    "src/main/backup/restore.ts": "efa2e70997f5857d16651391300b74883abc6a525d9664a6affc5a8028398a0e",
+    "src/main/dsh/execution.ts": "0406247e0be1f375886c473677beb65553c3853760d20d638b31b5ad18ef3dc5",
+    "src/main/dsh/projects.ts": "306080ede1081c6aa6d7d6a5e7c103aa5b788f43990ba5bf06806445d61ee4c3",
+    "src/main/index.ts": "2efd2b4aa2f37d41aca8af7b00d276337dc38ea9d6dfc19ca96bdc3bf303399d",
+    "src/main/validation/backup.ts": "65a2fd1c4f7c1b9c8ac2d05e0df0536fcac1c852694773b8a57afd59a114c34a",
+    "tests/unit/dsh-journal.test.ts": "6aac15b4648712d036fec08ac1fa590993bb5bb87c11cdda7fa8f3a68fad1f64",
+    "scripts/smoke-v12-recovery.mjs": "a4964c9245d924099f2d5914d698528530fc4551bff2e667c39af7224ca026f8",
+    "scripts/smoke-history.mjs": "54cb6ec8a248441745fc3732b802393eec1eb43b3424b5070aa3d375df3b48e6"
+  },
+  "checks": {
+    "typecheck": "passed",
+    "scopedEslint": "passed",
+    "productionBuild": "passed",
+    "unit": {
+      "files": 6,
+      "tests": 81,
+      "status": "passed",
+      "names": [
+        "dsh-journal",
+        "dsh-projects",
+        "dsh-host",
+        "dsh-collaboration",
+        "dsh-provenance",
+        "backup-validation"
+      ]
+    },
+    "backupNative": {
+      "status": "passed",
+      "sessionIndexRetiredTransactionally": true,
+      "unsafeSessionIndexRefusesRestore": true,
+      "interruptedSessionRetirementRolledBack": true
+    },
+    "p2": {
+      "path": "%TEMP%/lca-family-probe-W1AE5K/report.json",
+      "scenarios": [
+        {
+          "name": "spawn",
+          "ok": true,
+          "modelRequests": 18,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "fork",
+          "ok": true,
+          "modelRequests": 18,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "team",
+          "ok": true,
+          "modelRequests": 20,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "spawn-revoke",
+          "ok": true,
+          "modelRequests": 17,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "spawn-decline",
+          "ok": true,
+          "modelRequests": 18,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "spawn-idle",
+          "ok": true,
+          "modelRequests": 19,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "spawn-late",
+          "ok": true,
+          "modelRequests": 19,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "spawn-summary",
+          "ok": true,
+          "modelRequests": 18,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "spawn-cross",
+          "ok": true,
+          "modelRequests": 19,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "spawn-trust",
+          "ok": true,
+          "modelRequests": 19,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "spawn-trust-decline",
+          "ok": true,
+          "modelRequests": 19,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "fork-seeded",
+          "ok": true,
+          "modelRequests": 15,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "spawn-nested",
+          "ok": true,
+          "modelRequests": 32,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "spawn-corrupt",
+          "ok": true,
+          "modelRequests": 14,
+          "exits": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "spawn-manager",
+          "ok": true,
+          "modelRequests": 20,
+          "exits": [
+            0,
+            0
+          ]
+        }
+      ],
+      "modelRequests": 285,
+      "sha256": "93cb45950ce6f9c9770a8f7a31e61c27abcbb26d319a787ec9267df975f31d0d"
+    },
+    "p5": {
+      "path": "%TEMP%/lca-collaboration-probe-Xou7EM/report.json",
+      "checks": [
+        "ordinary-and-team-coexist-with-single-controls-and-selection-guidance",
+        "main-rejects-cross-project-and-stale-targets",
+        "team-revision-dependency-cycle-and-write-overlap-with-helper-membership-denied",
+        "task-text-retired-before-model-read-and-stays-retired-after-claim",
+        "distinct-roster-and-resident-limits-and-existing-member-reuse",
+        "family-stop-does-not-free-roster",
+        "cold-recovery-keeps-source-retirement-and-operation-receipt-without-replay",
+        "autonomous-family-shares-six-step-cap-and-bucket-after-lead-is-idle",
+        "member-label-inherits-parent-source-before-first-step-and-stays-retired-on-reuse",
+        "failed-creation-retains-roster-slot"
+      ],
+      "modelRequests": 60
+    },
+    "recovery": {
+      "path": "test-results/p6-87b5b2c1-7f5b-4741-b17a-83ca1970ddf0/evidence.json",
+      "checks": [
+        "cross-project-state-address-isolation-and-return-without-member-execution",
+        "cold-start-keeps-board-and-roster-but-rejects-old-runtime-address",
+        "member-interrupt-cancels-risk-approval-and-preserves-unexecuted-artifact",
+        "idle-lead-active-member-blocks-project-switch-extension-restart-and-save",
+        "dsh-exit-during-member-work-and-read-only-reconnect-without-replay",
+        "source-derived-board-retires-in-actual-model-request-and-public-view",
+        "retired-task-source-cannot-return-through-project-switch-and-resident-reopen",
+        "clock-driven-day-rollover-revokes-old-roster-controls-and-source-context",
+        "private-save-rewinds-journal-starts-new-family-and-never-replays-old-members",
+        "second-cold-start-after-restore-has-no-background-resurrection"
+      ],
+      "simulatedDay": true,
+      "sha256": "3e3b72b2b36b2c8adbd613b3f647565bb8fb7dff75dab672264fe952192a36a1"
+    },
+    "electronRegressions": {
+      "path": "test-results/p6-regressions-8763dc7e-3f11-4783-961e-fc5e767a215e/results.json",
+      "syntheticOnly": true,
+      "results": [
+        {
+          "name": "p3-extensions",
+          "args": [
+            "scripts/dsh-extension-check.mjs",
+            "--electron"
+          ],
+          "code": 0
+        },
+        {
+          "name": "p4-page",
+          "args": [
+            "scripts/smoke-extensions.mjs"
+          ],
+          "code": 0
+        },
+        {
+          "name": "p5-page",
+          "args": [
+            "scripts/smoke-collaboration.mjs"
+          ],
+          "code": 0
+        },
+        {
+          "name": "backup-page",
+          "args": [
+            "scripts/smoke-backup.mjs"
+          ],
+          "code": 0
+        },
+        {
+          "name": "history-page",
+          "args": [
+            "scripts/smoke-history.mjs"
+          ],
+          "code": 0,
+          "rerunSession": 52157
+        },
+        {
+          "name": "model-routing",
+          "args": [
+            "scripts/smoke-model-routing.mjs"
+          ],
+          "code": 0,
+          "session": 17340
+        }
+      ],
+      "initialAttempt": [
+        {
+          "name": "p3-extensions",
+          "args": [
+            "scripts/dsh-extension-check.mjs",
+            "--electron"
+          ],
+          "code": 0
+        },
+        {
+          "name": "p4-page",
+          "args": [
+            "scripts/smoke-extensions.mjs"
+          ],
+          "code": 0
+        },
+        {
+          "name": "p5-page",
+          "args": [
+            "scripts/smoke-collaboration.mjs"
+          ],
+          "code": 0
+        },
+        {
+          "name": "backup-page",
+          "args": [
+            "scripts/smoke-backup.mjs"
+          ],
+          "code": 0
+        },
+        {
+          "name": "history-page",
+          "args": [
+            "scripts/smoke-history.mjs"
+          ],
+          "code": 1
+        }
+      ]
+    }
+  },
+  "pending": [
+    "candidate-package-and-actual-upgrade",
+    "second-windows-offline-results",
+    "authorized-real-model-selection-quality",
+    "real-time-day-use",
+    "V1-art-and-wiring"
+  ]
+}

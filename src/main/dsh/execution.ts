@@ -175,6 +175,7 @@ export function createDshExecution(options: {
   const lcaTools = () => new Map(options.tools().map((tool) => [LCA_PREFIX + tool.definition.name, tool]))
   let host: DshHost | undefined
   let session: Live | undefined
+  const currentScope = () => !!session && session.day === store.scope.sessionId && session.cwd === resolve(options.project())
   let turn: Turn | undefined
   let pending: string[] = []
   const pendingText = new Map<string, string>()
@@ -244,14 +245,14 @@ export function createDshExecution(options: {
 
   const policyVersions = new Map<string, number>()
   const approveOne = async (request: DshApproval): Promise<'allowed-once' | 'rejected'> => {
-    if (closed || request.signal.aborted || !session || request.sessionId !== session.id) return 'rejected'
+    if (closed || request.signal.aborted || !session || !currentScope() || request.sessionId !== session.id) return 'rejected'
     const project = session?.cwd ?? resolve(options.project())
     const member = request.origin.sessionId !== request.origin.rootSessionId
     const current = turn, revision = policyVersions.get(project)
     if (!member && !current) return 'rejected'
     const signal = member ? request.signal : AbortSignal.any([request.signal, current!.asks.signal])
     const context = { turnId: member ? request.activationId : current!.lcaTurnId, callId: request.approvalId, signal, ...(member ? { member: true } : {}) }
-    const valid = () => !closed && !signal.aborted && (member || current === turn) && session?.id === request.sessionId && policyVersions.get(project) === revision
+    const valid = () => !closed && !signal.aborted && currentScope() && (member || current === turn) && session?.id === request.sessionId && policyVersions.get(project) === revision
     const owner = member ? `协作者「${clip(request.origin.sessionId, 24)}」：` : ''
     const command = request.command ?? (!member && request.callId ? turn?.calls.get(request.callId)?.command ?? null : null)
     const prefix = request.kind === 'risky' && command ? command.trim().split(/\s+/).slice(0, 2).join(' ') : null
@@ -301,7 +302,7 @@ export function createDshExecution(options: {
   }
 
   const call = async (name: string, args: unknown, sessionId: string, callId: string) => {
-    if (!session || sessionId !== session.id) throw new Error('DSH_ORIGIN_UNAVAILABLE')
+    if (!session || !currentScope() || sessionId !== session.id) throw new Error('DSH_ORIGIN_UNAVAILABLE')
     const tool = lcaTools().get(name)
     const current = turn
     if (!tool || !current) throw new Error('LCA tool unavailable right now')
@@ -319,7 +320,7 @@ export function createDshExecution(options: {
    * your words they are part of what she saw this turn. Declining answers each question as skipped.
    */
   const question: NonNullable<DshHostOptions['onQuestion']> = async ({ sessionId, callId, questions, signal }) => {
-    if (!session || sessionId !== session.id) return { error: 'This session is no longer available.' }
+    if (!session || !currentScope() || sessionId !== session.id) return { error: 'This session is no longer available.' }
     const current = turn
     if (!current || !options.question) return { error: 'Questions to the user are not available right now.' }
     const items = itemsOf(questions)
@@ -336,10 +337,10 @@ export function createDshExecution(options: {
   const onEvent = (event: DshEvent) => {
     if (closed) return
     if (event.t === 'host-unavailable') { collaboration.reset(true); if (turn) fail('connection-failed'); options.disconnected?.(); return }
-    if (!session || (event.sessionId && event.sessionId !== session.id)) return
+    if (!session || !currentScope() || (event.sessionId && event.sessionId !== session.id)) return
     switch (event.t) {
       case 'collaboration':
-      case 'collaboration-reply': if (session.cwd === resolve(options.project())) collaboration.accept(event.view as CollaborationView); break
+      case 'collaboration-reply': if (currentScope()) collaboration.accept(event.view as CollaborationView); break
       case 'turn-start': {
         const start = starts.shift()
         turn = { lcaTurnId: randomUUID(), trigger: start?.trigger ?? 'user', attempts: 0, role: 'chat', partial: '', toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [] }
@@ -427,7 +428,7 @@ export function createDshExecution(options: {
   }
   /** Each DSH step as a model attempt in the journal: reservation first, the usage DSH reports once it answers. */
   const admitStep = (input: { sessionId: string; bucket: 'work' | 'autonomous'; role: 'chat' | 'work'; units: number }) => {
-    if (closed || !session || input.sessionId !== session.id) return false
+    if (closed || !session || !currentScope() || input.sessionId !== session.id) return false
     const current = turn
     const refused = options.admit?.({ bucket: input.bucket, units: input.units }) ?? null; const ok = refused === null
     // A child may outlive the root turn. It still reserves resources; only the root's conversation
@@ -489,7 +490,9 @@ export function createDshExecution(options: {
     writeDay(session.day, sessions)
   }
   const openSession = async (day: string, cwd: string) => {
-    if (session?.id) collaboration.reset()
+    // A scope-change notification already cleared the old projection. Do not invalidate the refresh
+    // that is now opening this scope, or its eventual reply would be discarded as an old operation.
+    if (session?.id && collaboration.view().members.length) collaboration.reset()
     const running = ensureHost(cwd)
     if (session?.id) running.cancel(session.id)
     const sessions = daySessions(read<Saved>(sessionsFile, {}), day)
@@ -565,7 +568,12 @@ export function createDshExecution(options: {
       if (closed || !turn || !session || turn.lcaTurnId !== taskId) return false
       turn.asks.abort(); host?.cancel(session.id); return true
     },
-    stateChanged: () => { if (closed) return; if ((store.projection().lightsOut || store.projection().sleeping || session?.cwd !== resolve(options.project())) && session) host?.cancel(session.id); if (session?.cwd !== resolve(options.project())) collaboration.reset(); kick() },
+    stateChanged: () => {
+      if (closed) return
+      if (session && (store.projection().lightsOut || store.projection().sleeping || !currentScope())) host?.cancel(session.id)
+      if (!currentScope()) collaboration.reset()
+      kick()
+    },
     /**
      * An event she may speak about: recorded in the journal, then given to her DSH session.
      * Duplicates (same id) and a full queue (32 waiting) are refused.

@@ -32,7 +32,8 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const root = dataDir ?? mkdtempSync(join(tmpdir(), 'lca-dsh-journal-')); if (!dataDir) roots.push(root)
   const clock = createManualClock(1_000)
   const journal = openJournal(join(root, 'journal'), { userId: 'u', characterId: 'c' }, clock)
-  const store: SessionStore = { scope: journal.scope, records: journal.records, projection: () => projectJournal(journal.records()), append: journal.append, close: journal.close }
+  let currentScope = journal.scope
+  const store: SessionStore = { get scope() { return currentScope }, records: journal.records, projection: () => projectJournal(journal.records()), append: journal.append, close: journal.close }
   const asked: { question: string; choices: string[] }[] = []
   let project = join(root, 'project')
   let answer: (choices: string[]) => string | null | Promise<string | null> = (choices) => choices[0]
@@ -44,6 +45,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const launch = ((options: DshHostOptions) => {
     host.options = options
     return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); if (host.opening) await host.opening; const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
+      collaboration: async () => ({ view: { status: 'ready', runtimeId: 'test-runtime', projectId: 'test-project', members: [], tasks: [] } }),
       send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: () => {}, untrust: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
   // Her questions go to the book's question card (questions/service.ts), as in index.ts.
@@ -59,7 +61,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const opened = async () => { for (let i = 0; i < 20 && !host.sent.length; i++) await Promise.resolve() }
   const question = (questions: unknown, callId = 'call-ask') => host.options!.onQuestion!({ sessionId: host.current, callId, questions, signal: new AbortController().signal })
   const command = (body: Record<string, unknown>) => ({ protocolVersion: 1, epoch: 'test', requestId: 'answer-' + body.type, ...body }) as AppCommand
-  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, questions, question, command, referenceAsks, startedTurns, answeredCalls, hooks, setProject: (next: string) => { project = next }, setAnswer: (next: typeof answer) => { answer = next } }
+  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, questions, question, command, referenceAsks, startedTurns, answeredCalls, hooks, setProject: (next: string) => { project = next }, nextDay: () => { currentScope = { ...currentScope, sessionId: 'next-day' } }, setAnswer: (next: typeof answer) => { answer = next } }
 }
 
 async function workTurn(f: ReturnType<typeof setup>) {
@@ -112,6 +114,37 @@ describe('DSH work in the LCA journal', () => {
     f.journal.close()
   })
   const memberOrigin = { protocolVersion: 2 as const, runtimeId: 'test-runtime', projectId: 'test-project', rootSessionId: 'dsh-1', sessionId: 'child', parentSessionId: 'dsh-1', cwd: 'unused' }
+  it('settles the first explicit refresh after a project switch instead of invalidating its own reply', async () => {
+    const f = setup(); await workTurn(f)
+    f.setProject(join(f.root, 'other-project')); f.execution.stateChanged()
+    expect(f.execution.collaboration.dispatch(f.command({ type: 'agent.refresh' }))).toBeUndefined()
+    for (let i = 0; i < 30; i++) await Promise.resolve()
+    expect(f.execution.collaboration.view()).toMatchObject({ status: 'ready', operation: { phase: 'settled', outcome: 'accepted' } })
+    expect(f.host.sent).toHaveLength(1)
+    f.store.close()
+  })
+  it.each(['project', 'day'] as const)('retires the old family projection, late approvals and admissions on a %s change', async (change) => {
+    const f = setup(); await workTurn(f)
+    const view = { status: 'ready', runtimeId: 'r', projectId: 'p', members: [], tasks: [], operation: null }
+    f.emit({ t: 'collaboration', view }); expect(f.execution.collaboration.view().status).toBe('ready')
+    let finish!: (value: string) => void
+    f.setAnswer(() => new Promise((done) => { finish = done }))
+    const pending = f.approval({ origin: memberOrigin, kind: 'trust' })
+    await Promise.resolve(); await Promise.resolve()
+    if (change === 'day') f.nextDay(); else f.setProject(join(f.root, 'other-project'))
+    f.execution.stateChanged()
+    expect(f.execution.collaboration.view().status).toBe('unavailable')
+    f.emit({ t: 'collaboration', view }); expect(f.execution.collaboration.view().status).toBe('unavailable')
+    finish('信任这个项目'); expect(await pending).toBe('rejected')
+    expect(await f.approval({ origin: memberOrigin, kind: 'trust' })).toBe('rejected')
+    expect(await f.host.options!.onAdmit!({ sessionId: 'dsh-1', bucket: 'work', role: 'work', units: 1 })).toBe(false)
+    await expect(f.host.options!.onCall('lca_read_uploaded_file', {}, 'dsh-1', 'late-tool')).rejects.toThrow('DSH_ORIGIN_UNAVAILABLE')
+    const before = f.store.records().length
+    f.emit({ t: 'turn-start', turn: 2 }); f.emit({ t: 'message', text: 'OLD_SCOPE_RELAY', toolCalls: [] })
+    expect(f.store.records()).toHaveLength(before)
+    expect(existsSync(join(f.root, 'dsh-approvals.json'))).toBe(false)
+    f.store.close()
+  })
   it('approves idle-root members, rechecks serialized project trust and never shares it across projects', async () => {
     const f = setup(); await workTurn(f)
     expect(await Promise.all([f.approval({ origin: memberOrigin, kind: 'trust' }), f.approval({ origin: { ...memberOrigin, sessionId: 'child-2' }, kind: 'trust' })])).toEqual(['allowed-once', 'allowed-once'])
