@@ -37,7 +37,7 @@ const server = createServer((req, res) => {
       if (req.url !== '/v1/chat/completions') { res.writeHead(404).end(); return }
       const request = JSON.parse(body), messages = request.messages
       requests.push({ phase, request })
-      const markerIndex = messages.findLastIndex((message: { role: string; content: unknown }) => message.role === 'user' && /\[\[(COEXIST|BOARD|SOURCE|RETIRE|CAPACITY|STOPPED|CHILD|CONTINUE|FORBIDDEN|AUTO|AUTOCHILD)\]\]/.test(text(message.content)))
+      const markerIndex = messages.findLastIndex((message: { role: string; content: unknown }) => message.role === 'user' && /\[\[(COEXIST|BOARD|SOURCE|RETIRE|CAPACITY|STOPPED|CHILD|CONTINUE|FORBIDDEN|AUTO|AUTOCHILD|LABEL1|LABEL2)\]\]/.test(text(message.content)))
       const marker = text(messages[markerIndex]?.content).match(/\[\[(\w+)\]\]/)?.[1]
       const results = messages.slice(markerIndex + 1).filter((message: { role: string }) => message.role === 'tool'), last = results.at(-1), id = last?.tool_call_id
       let reply: Record<string, unknown> = { content: `${marker ?? 'notification'} done` }
@@ -74,6 +74,14 @@ const server = createServer((req, res) => {
         else if (id === 'wake-helper') reply = call('subagent', 'over-active', { description: 'Must exceed resident capacity', prompt: '[[FORBIDDEN]]' })
         else if (id === 'over-active') reply = call('spawn_teammate', 'over-roster', { name: 'overflow', description: 'Must exceed roster capacity', prompt: '[[FORBIDDEN]]' })
         else if (id === 'over-roster') reply = call('send_message', 'reuse', { target: teammate, message: '[[CONTINUE]] reuse same member' })
+      } else if (marker === 'LABEL1') {
+        if (!id) reply = call('lca_probe_source', 'label-source')
+        else if (id === 'label-source') reply = call('spawn_teammate', 'label-member', { name: 'p5-private-member', description: 'P5_PRIVATE_SOURCE', prompt: '[[CHILD]] source-derived responsibility' })
+        else if (id === 'label-member') teammate = JSON.parse(text(last.content)).member.target
+      } else if (marker === 'LABEL2') {
+        if (!id) reply = call('list_agents', 'labels-before')
+        else if (id === 'labels-before') reply = call('send_message', 'labels-continue', { target: teammate, message: '[[CONTINUE]] new clean responsibility' })
+        else if (id === 'labels-continue') reply = call('list_agents', 'labels-after')
       } else if (marker === 'AUTO' && !id) {
         reply = call('subagent', 'auto-spawn', { description: 'Bounded autonomous helper', prompt: '[[AUTOCHILD]] synthetic bounded loop' })
       } else if (marker === 'AUTOCHILD') {
@@ -174,6 +182,13 @@ try {
   snapshot = await view()
   assert.ok(snapshot.members.filter((row) => row.mode !== 'root').every((row) => row.activity === 'inactive' && !row.controls.message))
   pass('autonomous-family-shares-six-step-cap-and-bucket-after-lead-is-idle')
+  sessionId = await host.open(workspace)
+  await turn('LABEL1')
+  assert.ok(!/P5_PRIVATE_SOURCE|p5-private-member/.test(JSON.stringify(await view())))
+  await turn('LABEL2')
+  assert.ok(!/P5_PRIVATE_SOURCE|p5-private-member/.test(JSON.stringify(requests.filter((row) => row.phase === 'LABEL2'))))
+  assert.ok(!/P5_PRIVATE_SOURCE|p5-private-member/.test(JSON.stringify(await view())))
+  pass('member-label-inherits-parent-source-before-first-step-and-stays-retired-on-reuse')
   const failedDir = join(root, 'failed-data')
   const failureOptions = { ...options, dataDir: failedDir }
   const failureProfile = prepareDshProfile(failureOptions).profile

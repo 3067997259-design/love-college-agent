@@ -186,7 +186,11 @@ export function createCollaboration(ctx, { originOf, safety, send, roots, onHuma
     return ctx.agentTeams.waitForChange(exec.agent, Math.min(60_000, Math.max(10_000, args.timeout_ms ?? 10_000)), exec.signal)
   })
   ctx.on('agent/created', ({ agent, source }) => {
-    if (source !== 'resume' && originOf(agent)?.parentSessionId) recordMember(agent, { ...lease(agent), labelLease: lease(agent), outcome: 'none', resultText: null })
+    if (source !== 'resume' && originOf(agent)?.parentSessionId) {
+      // Creation precedes the child's first input projection. Its label may already quote the parent's sources.
+      const initial = lease(agent), inherited = safety.ensure(agent).member.inherited
+      recordMember(agent, { ...initial, labelLease: { ...initial, sources: [...new Set([...initial.sources, ...inherited])] }, outcome: 'none', resultText: null })
+    }
     notify()
   })
   ctx.on('agent/status', ({ agent }) => { if (agent.status !== 'running') stopping.delete(String(agent.id)); notify() })
