@@ -140,7 +140,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('turn/start'), turnId: id, trigger: z.enum(['user', 'pomodoro', 'mail', 'document', 'autonomous']) }),
   // D2: this turn's request contained third-party originals or their raw tool results. The fact marks
   // the turn, not the content; source text never enters this record.
-  z.strictObject({ type: z.literal('turn/degraded'), turnId: id, sources: z.array(z.enum(['mail', 'document', 'web', 'mcp', 'plugin'])).min(1).max(8) }),
+  z.strictObject({ type: z.literal('turn/degraded'), turnId: id, sources: z.array(z.enum(['mail', 'document', 'web', 'mcp', 'plugin', 'member'])).min(1).max(8) }),
   // D2: the user explicitly asked for one original in the immediately following turn. One-shot grant.
   z.strictObject({ type: z.literal('context/reveal'), id, source: z.enum(['mail']), ref: opaqueId, requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('turn/cancelling'), turnId: id }),
@@ -165,7 +165,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('plan/update'), turnId: id, steps: z.array(step).max(30) }),
   // DSH work (spike): DSH's own session log holds what the model saw and did. The journal keeps only
   // the reference, the book's activity rows and LCA's own trust decisions; none of it is model context.
-  z.strictObject({ type: z.literal('work/turn'), turnId: id, engine: z.literal('dsh'), sessionId: id, preset: z.string().min(1).max(64).nullable() }),
+  z.strictObject({ type: z.literal('work/turn'), turnId: id, engine: z.literal('dsh'), sessionId: id, preset: z.string().min(1).max(64).nullable(), sourcePolicy: z.literal(2).optional() }),
   // `handed-off`: the chat model's first hands-on step, not run; the work model decides it again (lca-bridge).
   z.strictObject({ type: z.literal('work/activity'), turnId: id, callId: id, templateId: id, status: z.enum(['running', 'completed', 'failed', 'cancelled', 'handed-off']) }),
   z.strictObject({ type: z.literal('work/trust'), sessionId: id, project: z.string().min(1).max(1024), preset: z.string().min(1).max(64) }),
