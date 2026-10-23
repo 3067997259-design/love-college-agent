@@ -5,6 +5,7 @@ import { isAbsolute, join, relative, resolve } from 'node:path'
 import { parse, parseDocument } from 'yaml'
 import { atomicJson } from './profile.js'
 import { fingerprintDirectory } from './extension-files.js'
+import { packageManagerEnvironment } from './runtime-tools.js'
 
 const digest = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 const reserved = (name) => name === '@lca/dsh-bridge' || name === '@deepseek-ai/dsh-base' || name.startsWith('@lca/') || name.startsWith('@deepseek-ai/')
@@ -26,7 +27,7 @@ export function createExtensionAdapter(ctx) {
   const started = new Set(profile.startedBundles)
   const pnpm = process.env.LCA_PNPM_CLI
   // The installation carries pnpm; neither a system Node nor a PATH-resolved pnpm is required.
-  if (pnpm && existsSync(pnpm)) profile.packageManager = { command: process.execPath, args: [pnpm], env: { ELECTRON_RUN_AS_NODE: '1', npm_config_manage_package_manager_versions: 'false' } }
+  if (pnpm && existsSync(pnpm)) profile.packageManager = { command: process.execPath, args: [pnpm], env: packageManagerEnvironment(profile.dir) }
   const profileStamp = () => digest(['package.json', 'cordis.patch.yml', 'pnpm-workspace.yaml'].map((name) => {
     const path = join(profile.dir, name); return existsSync(path) ? readFileSync(path, 'utf8') : null
   }))

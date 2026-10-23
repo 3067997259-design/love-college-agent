@@ -10,16 +10,19 @@ import { runtimeEnv, initializeTestBook, electronLaunchTarget } from '../scripts
 assert.equal(process.env.LCA_REAL_MODEL, '1', 'REAL_MODEL_OPT_IN_REQUIRED')
 assert.ok(process.env.LCA_PROVIDERS_FILE, 'AUTHORIZED_CONFIG_PATH_REQUIRED')
 const root = resolve(import.meta.dirname, '..'), id = randomUUID(), data = join(root, '.local-data', 'real-collaboration-' + id), config = join(data, 'probe-providers.json'), out = join(root, 'test-results', 'real-collaboration-' + id)
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: config, LCA_MCP_PORT: '0', LCA_CDP_PORT: '0', LCA_TEST_SILENT: '1' }
+const user = join(data, 'user')
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: config, LCA_MCP_PORT: '0', LCA_CDP_PORT: '0', LCA_TEST_SILENT: '1',
+  HOME: user, USERPROFILE: user, APPDATA: join(user, 'AppData/Roaming'), LOCALAPPDATA: join(user, 'AppData/Local') }
 delete env.LCA_BOOTH; delete env.ELECTRON_RENDERER_URL
 const limits = { dailyTotalUnits: 480000, dailyAutonomousUnits: 0 }
 const ledgerId = randomUUID(), atMs = Date.now()
 await mkdir(join(data, 'runtime-resources'), { recursive: true }); await mkdir(out, { recursive: true })
+for (const dir of [join(user, 'Documents'), join(user, 'Desktop'), join(user, 'Downloads'), env.APPDATA, env.LOCALAPPDATA]) await mkdir(dir, { recursive: true })
 await writeFile(join(data, 'runtime-resources/identity.json'), JSON.stringify({ id: ledgerId }))
 await writeFile(join(data, 'runtime-resources/usage.jsonl'), [{ version: 1, seq: 1, atMs, kind: 'header', id: ledgerId }, { version: 1, seq: 2, atMs, kind: 'limits', ...limits }].map((x) => JSON.stringify(x)).join('\n') + '\n')
 let instance, page, timer
 const preflight = process.argv.includes('--preflight')
-const cases = [], report = { realServices: !preflight, preflight, syntheticTaskInputs: true, cases, limits, maxWallMinutes: 12, capacityStress: 'synthetic-regression-only', selectedModel: 'existing-chat-and-work-slots', automaticApprovals: false }
+const cases = [], report = { realServices: !preflight, preflight, syntheticTaskInputs: true, homeIsolated: true, cases, limits, maxWallMinutes: 12, capacityStress: 'synthetic-regression-only', selectedModel: 'existing-chat-and-work-slots', automaticApprovals: false }
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), ...body }) }, body)
 async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30000 }); page = await instance.firstWindow(); await initializeTestBook(page); await send({ type: 'mode.set', mode: 'quiet' }) }

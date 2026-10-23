@@ -1,6 +1,6 @@
 {
   "date": "2026-10-24",
-  "status": "local-candidate-acceptance-passed",
+  "status": "superseded-for-r1-node-build-gap",
   "published": false,
   "artModified": false,
   "build": {
@@ -618,5 +618,11 @@
     "authorized-real-model-selection-quality",
     "real-time-day-use",
     "V1-art-and-wiring"
-  ]
+  ],
+  "followupEvidence": "v1.2-runtime-tools-20261024.json",
+  "knownIssue": {
+    "nodeBuildWithoutSystemNode": "failed",
+    "replacementCandidate": "1.2.0-rc.2",
+    "replacementStatus": "in-progress"
+  }
 }

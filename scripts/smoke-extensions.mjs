@@ -1,6 +1,7 @@
 // P4: actual book controls -> main approvals -> pinned DSH / local pnpm. Synthetic loopback model only.
 import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
+import { spawnSync } from 'node:child_process'
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { _electron } from 'playwright'
@@ -16,6 +17,13 @@ const checks = [], name = 'lca-p4-fixture'
 let instance, page, client, center
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19593', LCA_MCP_PORT: '0',
   USERPROFILE: user, HOME: user, APPDATA: join(user, 'AppData', 'Roaming'), LOCALAPPDATA: join(user, 'AppData', 'Local') }
+const verifyNodeBuild = process.argv.includes('--verify-node-build')
+if (verifyNodeBuild) {
+  assert.equal(process.platform, 'win32')
+  env.Path = env.PATH = `${process.env.SystemRoot}\\System32;${process.env.SystemRoot}`
+  for (const name of ['NODE_OPTIONS', 'NODE', 'LCA_DSH_NODE', 'LCA_PNPM_CLI', 'PNPM_HOME']) delete env[name]
+  for (const name of ['node', 'pnpm']) assert.equal(spawnSync(join(process.env.SystemRoot, 'System32/where.exe'), [name], { env, windowsHide: true }).status, 1, name + '_MUST_NOT_RESOLVE')
+}
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), ...body }) }, body)
 async function until(test, label) { for (let i = 0; i < 400; i++) { if (await test(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(label) }
@@ -145,6 +153,22 @@ try {
   await allow('拒绝'); await settle(); assert.equal(last(await snapshot()).outcome, 'cancelled')
   assert.ok(!(await snapshot()).extensions.items.some((item) => item.id === name && item.installation === 'installed'))
   record('separate-build-approval-visible-and-refusable')
+  if (verifyNodeBuild) {
+    await writeFile(packagePath, JSON.stringify({ ...manifest, scripts: { postinstall: 'node build.cjs' } }))
+    await writeFile(join(bundle, 'build.cjs'), "require('node:fs').writeFileSync('p4-node-built.json', JSON.stringify({ok:true, executable:process.execPath, electron:process.versions.electron ?? null}))\n")
+    await center.getByRole('button', { name: '添加 DSH 扩展', exact: true }).click()
+    await until((s) => s.extensions.proposal?.requiresBuildScripts, 'NODE_BUILD_PROPOSAL_MISSING')
+    await center.getByRole('button', { name: '申请安装', exact: true }).click(); await allow()
+    await until((s) => last(s)?.phase === 'awaiting-approval' && last(s)?.pendingBuilds?.length, 'NODE_BUILD_APPROVAL_MISSING')
+    await allow(); await settle(); assert.equal(last(await snapshot()).outcome, 'succeeded', 'NODE_BUILD_FAILED')
+    const built = JSON.parse(await readFile(join(dshProfile, 'node_modules', name, 'p4-node-built.json'), 'utf8'))
+    assert.equal(built.ok, true); assert.ok(built.electron, 'BUILD_DID_NOT_USE_BUNDLED_ELECTRON')
+    assert.equal(resolve(built.executable).toLowerCase(), resolve(await instance.evaluate(() => process.execPath)).toLowerCase())
+    await row().locator('summary').first().click()
+    await row().getByRole('button', { name: '移除', exact: true }).click(); await allow(); await settle()
+    assert.equal(last(await snapshot()).outcome, 'succeeded')
+    await unlink(join(bundle, 'build.cjs')); record('approved-node-build-uses-bundled-electron-and-removes-cleanly')
+  }
   await writeFile(packagePath, JSON.stringify(manifest)); await unlink(join(bundle, 'build.cmd'))
 
   // Test-only transport fault, on the real spawned host. Drop one durably settled receipt.
@@ -190,7 +214,7 @@ try {
   await center.screenshot({ path: join(pictures, 'skills-narrow.png') })
   assert.ok(await center.evaluate((element) => element.scrollWidth <= element.clientWidth + 1))
   record('safe-projection-and-narrow-page')
-  await writeFile(join(pictures, 'evidence.json'), JSON.stringify({ ok: true, checks, data, screenshots: pictures, syntheticOnly: true }, null, 2))
+  await writeFile(join(pictures, 'evidence.json'), JSON.stringify({ ok: true, checks, data, screenshots: pictures, syntheticOnly: true, nodeBuildWithoutSystemNode: verifyNodeBuild }, null, 2))
   console.log(JSON.stringify({ ok: true, checks: checks.length, evidence: join(pictures, 'evidence.json') }))
 } catch (error) {
   if (page && !page.isClosed()) { await writeFile(join(pictures, 'failure.json'), JSON.stringify({ error: String(error), snapshot: await snapshot() }, null, 2)); await page.screenshot({ path: join(pictures, 'failure.png') }) }

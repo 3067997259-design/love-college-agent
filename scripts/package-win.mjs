@@ -8,6 +8,7 @@ import { runtimeEnv } from './runtime-env.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
 const appVersion = process.env.LCA_PACKAGE_VERSION ?? version
+const reusePreparedRuntime = process.argv.includes('--reuse-prepared-runtime')
 if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.]+)?$/.test(appVersion)) throw new Error('PACKAGE_VERSION_INVALID')
 const output = resolve(process.env.LCA_RELEASE_DIR ?? join(root, 'release'))
 const installerFileName = `Love-College-Agent-${appVersion}-Setup.exe`
@@ -24,7 +25,7 @@ try {
   // Native ABI is rebuilt explicitly with pnpm rebuild:native; packaged probes verify it again.
   // DSH runtime shipped beside the asar: pinned install from the lockfile, trimmed, with notices.
   await new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [join(root, 'scripts', 'prepare-dsh-runtime.mjs')], { cwd: root, env, stdio: 'inherit', windowsHide: true })
+    const child = spawn(process.execPath, [join(root, 'scripts', 'prepare-dsh-runtime.mjs'), ...(reusePreparedRuntime ? ['--skip-install'] : [])], { cwd: root, env, stdio: 'inherit', windowsHide: true })
     child.on('error', reject); child.on('exit', (code) => code === 0 ? resolve() : reject(new Error('DSH_RUNTIME_FAILED')))
   })
   await run('electron-vite/bin/electron-vite.js', ['build', '--logLevel', 'warn'])
@@ -32,6 +33,7 @@ try {
   if (revision() !== sourceRevision || trackedDiff() !== sourceDiff) throw new Error('PACKAGE_SOURCE_CHANGED')
   const sha = async (path) => createHash('sha256').update(await readFile(join(output, path))).digest('hex')
   await writeFile(join(output, 'build-receipt.json'), JSON.stringify({ version: 1, appVersion, installerFileName, sourceRevision, trackedDirty: !!sourceDiff,
+    runtimePreparation: reusePreparedRuntime ? 'reused-prepared-tree' : 'installed-from-lock', runtimeLockSha256: createHash('sha256').update(await readFile(join(root, 'dsh/runtime/package-lock.json'))).digest('hex'),
     builtAtIso: new Date().toISOString(), installerBytes: (await stat(join(output, installerFileName))).size, installerSha256: await sha(installerFileName),
     asarSha256: await sha('win-unpacked/resources/app.asar') }, null, 2))
 } catch { console.error('Windows packaging failed.'); process.exitCode = 1 }

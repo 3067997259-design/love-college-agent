@@ -92,7 +92,7 @@ try {
   delete env.LCA_HISTORY_EXECUTABLE
   const thirdCircleScenarios = [...new Set(['model-routing', 'model-slots', 'documents', 'campus', 'memory', 'harness', 'gifts', 'onboarding', 'life-work', 'sleep', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'booth', 'mini', 'showcase', 'life-port', 'resources', 'questions', 'settings', 'failure-narrator', 'privacy-probe', 'providers', 'plugins', 'student-hub-package', 'student-hub-candidates', 'pomodoro', 'room', 'extensions', 'collaboration', 'v12-recovery'])]
   env.LCA_TEST_EXECUTABLE = exe
-  for (const name of thirdCircleScenarios) { stage = 'scenario:' + name; await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs')]); completedScenarios.push(name); console.log(`${unpackedOnly ? 'Unpacked' : 'Installed'} Electron scenario passed: ${name}`); await new Promise((done) => setTimeout(done, 1500)) }
+  for (const name of thirdCircleScenarios) { stage = 'scenario:' + name; await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs'), ...(name === 'extensions' ? ['--verify-node-build'] : [])]); completedScenarios.push(name); console.log(`${unpackedOnly ? 'Unpacked' : 'Installed'} Electron scenario passed: ${name}`); await new Promise((done) => setTimeout(done, 1500)) }
   delete env.LCA_TEST_EXECUTABLE
   const bytes = await readFile(installer)
   const report = { ok: true, status: 'passed', atIso: new Date().toISOString(), installer, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),

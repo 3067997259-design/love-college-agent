@@ -88,6 +88,8 @@ pnpm test:package --unpacked-only
 
 可用 `LCA_RELEASE_DIR` 指定干净的绝对输出路径，用 `LCA_PACKAGE_VERSION` 指定候选版本（例如 `1.2.0-rc.1`）；版本写入包的 metadata 与构建回执，不冒充正式发布。`test:package` 同样读取 `LCA_RELEASE_DIR`，按回执版本和哈希验收，包含 1.2 的扩展、协作及恢复场景。
 
+已准备且核验过的固定 DSH 目录，可用 `node scripts/package-win.mjs --reuse-prepared-runtime` 跳过再次 npm 安装，仍执行裁剪、第三方声明、应用构建和打包；回执记录复用方式及锁文件哈希。复用前应保留逐文件比较或等效的完整性证据，不能只凭配置存在宣称运行时一致。普通 `pnpm package:win` 继续默认按锁文件重新安装。
+
 第二台 Windows 的离线包由 `node scripts/build-offline-acceptance.mjs` 生成，须指定 `LCA_RELEASE_DIR`、已核验的 `LCA_BASELINE_INSTALLER`（1.1.0）与新的 `LCA_OFFLINE_DIR`。包含两个安装器、哈希清单、PowerShell 脚本和说明，无须 Node / pnpm。用户分别运行 Fresh / Upgrade 后回传安全结果 ZIP；准备包或本机复跑不算第二机通过。已有用户安装时拒绝覆盖，安装状态未知时先核对，不自动重试。
 
 ### 含特殊字符的仓库路径

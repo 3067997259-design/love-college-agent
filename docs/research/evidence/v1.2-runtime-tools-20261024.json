@@ -1,0 +1,609 @@
+{
+  "date": "2026-10-24",
+  "status": "source-fix-passed-awaiting-replacement-package",
+  "syntheticOnly": true,
+  "upstreamModified": false,
+  "artModified": false,
+  "sourceSha256": {
+    "dsh/lca-bridge/runtime-tools.js": "a966526abe4dabcc699f0330cf7cba8ce4936c987ab65441a847ae07651a9ffc",
+    "dsh/lca-bridge/extensions.js": "7358488f95f004ef713cc7e111b9abac88737c2a0397c774c816e87689380403",
+    "scripts/smoke-extensions.mjs": "6e367b82a60f88fa65297a4bd5c3b6c892e1124f039bcf2ead6b021c25a825d5",
+    "scripts/smoke-package.mjs": "52d9f0afe75b831588d4bb42d2f7ab0c3d655240c8a35401305cd9eb196e0286",
+    "scripts/package-win.mjs": "c24bd10457fef28451ed129ecfa8a7b0cdcd878999d5387b39927a2b990f0eb5",
+    "scripts/smoke-real-collaboration.mjs": "ecb25a877affdc686d138d183ebc94d897877f3106d29f6c5b32b5abf49a729b",
+    "tests/unit/dsh-runtime-tools.test.ts": "6226c28e54ef0b087c8af1a991ae6c94718d10774591cdb470d752b1a9602e73"
+  },
+  "reproduction": {
+    "candidate": "1.2.0-rc.1",
+    "path": "test-results/p6-node-build-without-node-20261024/report.json",
+    "sha256": "ec02cf2f192bd747b10d92797ca1a032b7ec6994f3e58ce10eb5127864b35322",
+    "observedError": "node is not recognized",
+    "automaticApprovals": "fixture-explicit-install-then-build-only"
+  },
+  "fix": "An owned node.cmd calls the same Electron in Node mode on the approved package-manager subprocess PATH; refuses unknown command files and directory junctions.",
+  "static": {
+    "typecheck": "passed",
+    "scopedEslint": "passed",
+    "productionBuild": "passed",
+    "unitFiles": 7,
+    "unitTests": 84
+  },
+  "sourcePage": {
+    "path": "test-results/p4-76c0f4d5-7e80-45d1-9c62-cd8bbc33940f/evidence.json",
+    "sha256": "c936624bfb9e8515329a820226dc5867012c29a885a2caad5355dc8eb1dcf381",
+    "checks": [
+      "protected-core-has-no-mutation-controls",
+      "cancel-approval-without-installing",
+      "install-enable-restart-loads-real-bundle-skill",
+      "markdown-import-scope-priority-invalid-missing-and-no-ambient-home",
+      "remove-falls-back-delete-and-edit-refresh-model-content",
+      "cross-project-catalog-does-not-retain-old-project",
+      "mcp-page-connects-single-lca-owner-and-dsh-executes-tool",
+      "disable-restart-remove-through-page",
+      "separate-build-approval-visible-and-refusable",
+      "approved-node-build-uses-bundled-electron-and-removes-cleanly",
+      "lost-receipt-unknown-ui-blocks-retry-and-reconciles-same-id",
+      "cold-restart-preserves-skill-and-removal-no-mcp-reconnect",
+      "safe-projection-and-narrow-page"
+    ],
+    "nodeBuildWithoutSystemNode": true
+  },
+  "extensionRuntime": {
+    "path": "%TEMP%/lca-extension-probe-HV0QKJ",
+    "checks": [
+      "install-disabled-and-deduplicate",
+      "enable-restart-actual-module-loaded",
+      "refuse-removal-of-running-code",
+      "disable-persists-across-cold-start",
+      "remove-restart-preserves-user-configuration",
+      "separate-build-approval-without-standing-grant",
+      "cancel-running-build-and-observe-restoration",
+      "lost-ipc-receipt-cold-main-dsh-reconcile-without-replay",
+      "bundle-cannot-override-safety-rows",
+      "activation-failure-never-shown-ready",
+      "protected-core-at-runtime-port"
+    ],
+    "approvals": 19,
+    "modelRequests": 0,
+    "systemNodeAndPnpmOnPath": false
+  },
+  "family": {
+    "path": "%TEMP%/lca-family-probe-YWPdb3/report.json",
+    "scenarios": [
+      {
+        "name": "spawn",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 18,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "fork",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 18,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "team",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-revoke",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 17,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-decline",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 18,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-idle",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 18,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-late",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-summary",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 18,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-cross",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-trust",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-trust-decline",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "fork-seeded",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 15,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-nested",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 34,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-corrupt",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 14,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-manager",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "runtimeReuse": {
+    "ok": true,
+    "files": 11489,
+    "treeSha256": "be2f0fa37815b5fa2ce0d63b9d9dbd4fbb416548f327413a7e9267f2086e3678",
+    "referenceCandidate": "1.2.0-rc.1",
+    "lockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+    "extraUnpackagedFiles": [
+      "node_modules/pnpm/dist/node_modules/undici/lib/llhttp/.gitkeep"
+    ],
+    "upstreamModified": false,
+    "purpose": "Reuse the already prepared pinned runtime without a second npm install; every distributed file compared with the previous candidate."
+  },
+  "remaining": [
+    "replacement-candidate-build-and-package-checks",
+    "replacement-candidate-upgrade",
+    "replacement-offline-bundle",
+    "second-windows-results",
+    "authorized-real-model-selection",
+    "real-time-day-use",
+    "V1-art-and-wiring"
+  ],
+  "realModelPreflight": {
+    "path": "test-results/real-collaboration-4902a5c1-8b4f-41f2-ae1d-6d2d47d506c5/report.json",
+    "realServices": false,
+    "preflight": true,
+    "syntheticTaskInputs": true,
+    "homeIsolated": true,
+    "cases": [],
+    "limits": {
+      "dailyTotalUnits": 480000,
+      "dailyAutonomousUnits": 0
+    },
+    "maxWallMinutes": 12,
+    "capacityStress": "synthetic-regression-only",
+    "selectedModel": "existing-chat-and-work-slots",
+    "automaticApprovals": false,
+    "stage": "completed",
+    "ok": true
+  }
+}
