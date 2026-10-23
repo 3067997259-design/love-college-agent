@@ -37,11 +37,14 @@ function Assert-OwnInstallation {
 function Install-Version($item, [switch]$Upgrade) {
   if ($Upgrade) { Assert-OwnInstallation } elseif (@(Get-Installation).Count) { throw 'EXISTING_INSTALLATION_REFUSED' }
   Assert-Hash (Join-Path $Bundle $item.file) $item.sha256
+  Write-Host ('Installing ' + $item.appVersion + ' (allow several minutes; maximum 15 minutes).')
+  $report.cleanup = 'needs-local-reconciliation'
   # /D must be last. It consumes the rest of NSIS's command line, including spaces.
-  Invoke-Hidden (Join-Path $Bundle $item.file) @('/S', '/currentuser', ('/D=' + $install))
+  Invoke-Hidden (Join-Path $Bundle $item.file) @('/S', '/currentuser', ('/D=' + $install)) 900000
   $script:ownsInstall = $true
   Assert-OwnInstallation
   Assert-Hash (Join-Path $install 'resources/app.asar') $item.asarSha256
+  Write-Host ('PASS installed files ' + $item.appVersion)
 }
 function Use-Profile([string]$name) {
   $profile = Join-Path $run $name
@@ -109,7 +112,11 @@ try {
       Assert-OwnInstallation
       $uninstaller = @(Get-ChildItem -LiteralPath $install -File -Filter 'Uninstall *.exe')
       if ($uninstaller.Count -ne 1) { throw 'UNINSTALLER_NOT_UNIQUE' }
+      Write-Host 'Uninstalling this test installation and reconciling its final state...'
       Invoke-Hidden $uninstaller[0].FullName @('/S', '/currentuser')
+      # NSIS may delegate self-removal to a temporary process; its parent exit is not the final state.
+      $until = [DateTime]::UtcNow.AddSeconds(30)
+      while (@(Get-Installation).Count -and [DateTime]::UtcNow -lt $until) { Start-Sleep -Milliseconds 250 }
       if (@(Get-Installation).Count) { throw 'UNINSTALL_NOT_RECONCILED' }
       $report.cleanup = 'uninstalled-owned-test-only'
     } catch { $report.cleanup = 'needs-local-reconciliation'; $report.status = 'failed' }

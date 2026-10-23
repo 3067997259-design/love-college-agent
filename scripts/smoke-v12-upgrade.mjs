@@ -41,7 +41,7 @@ try {
   assert.equal((await registry()).length, 0, 'EXISTING_INSTALLATION_REFUSED')
   const processes = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "if (Get-Process -Name LoveCollegeAgent -ErrorAction SilentlyContinue) { 'occupied' } else { 'free' }"])
   assert.equal(processes.trim(), 'free', 'RUNNING_APP_REFUSED_INSTALLER_CAN_CLOSE_OTHER_INSTANCES')
-  stage = 'install-baseline'; await run(baseInstaller, ['/S', '/currentuser', `/D=${install}`]); owned = true; await own()
+  stage = 'install-baseline'; report.cleanup = 'needs-reconciliation'; await run(baseInstaller, ['/S', '/currentuser', `/D=${install}`], 900000); owned = true; await own()
   assert.equal(await hash(join(install, 'resources/app.asar')), '2c3ed89000861c490414efd6839feb856e153aab453a60b24ac82c06f32709a9'); report.installed = true
   await launch(); assert.equal(await instance.evaluate(({ app }) => app.getVersion()), '1.1.0'); await initializeTestBook(page)
   assert.equal((await snapshot()).runtime.developer.mode, 'normal'); await send({ type: 'mode.set', mode: 'quiet' }); await send({ type: 'onboarding.profile', userName: 'Synthetic upgrade owner' })
@@ -53,7 +53,7 @@ try {
   const old = await snapshot(); await close()
   const journals = join(data, 'journals'), owner = (await readdir(journals))[0], journalFile = (await readdir(join(journals, owner))).find((f) => f.endsWith('.jsonl')), journalPath = join(journals, owner, journalFile), journalBytes = await readFile(journalPath)
   pass('actual-1.1.0-installer-and-normal-book-with-synthetic-chat-project-and-save')
-  stage = 'upgrade'; await own(); await run(join(release, receipt.installerFileName), ['/S', '/currentuser', `/D=${install}`]); await own()
+  stage = 'upgrade'; await own(); await run(join(release, receipt.installerFileName), ['/S', '/currentuser', `/D=${install}`], 900000); await own()
   assert.equal(await hash(join(install, 'resources/app.asar')), receipt.asarSha256); report.upgraded = true
   await launch(); assert.equal(await instance.evaluate(({ app }) => app.getVersion()), receipt.appVersion)
   const current = await snapshot(); assert.equal(current.onboarding.status, old.onboarding.status); assert.equal(current.onboarding.userName, old.onboarding.userName); assert.equal(current.companion.mode, old.companion.mode); assert.equal(current.work.current.path, old.work.current.path); assert.equal(current.scope.sessionId, old.scope.sessionId)
@@ -71,6 +71,9 @@ try {
 } catch (error) { report.ok = false; report.failedStage = stage; report.error = error.message; throw error }
 finally {
   await close().catch(() => {}); await new Promise((done) => server.close(done))
-  if (owned) { try { await own(); const name = (await readdir(install)).find((f) => /^Uninstall .+\.exe$/i.test(f)); assert.ok(name); await run(join(install, name), ['/S', '/currentuser']); assert.equal((await registry()).length, 0); report.cleanup = 'owned-test-install-uninstalled' } catch { report.ok = false; report.cleanup = 'needs-reconciliation'; process.exitCode = 1 } }
+  if (owned) { try { await own(); const name = (await readdir(install)).find((f) => /^Uninstall .+\.exe$/i.test(f)); assert.ok(name); await run(join(install, name), ['/S', '/currentuser']);
+    for (let i = 0; i < 30 && (await registry()).length; i++) await new Promise((done) => setTimeout(done, 250))
+    assert.equal((await registry()).length, 0); report.cleanup = 'owned-test-install-uninstalled'
+  } catch (error) { report.ok = false; report.cleanup = 'needs-reconciliation'; report.cleanupError = error.code ?? 'CLEANUP_FAILED'; process.exitCode = 1 } }
   await writeFile(join(evidence, 'report.json'), JSON.stringify(report, null, 2)); console.log('UPGRADE_EVIDENCE', evidence)
 }
