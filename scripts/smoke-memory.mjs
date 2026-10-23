@@ -16,7 +16,7 @@ const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(
 let instance; let page; let client
 async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 }); page = await instance.firstWindow(); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
-async function waitFor(predicate, error) { for (let i = 0; i < 150; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(error) }
+async function waitFor(predicate, error) { for (let i = 0; i < 150; i++) { if (await predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(error) }
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) }, body)
 const tools = () => openSettings(page)
 const closeTools = () => page.getByRole('button', { name: '关闭', exact: true }).click()
@@ -28,9 +28,20 @@ const setClock = (iso) => mcp('set_clock', { nowMs: Date.parse(iso), frozen: tru
 const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part?.text ?? '').join('\n')
 async function modelCalled(marker, error) { for (let i = 0; i < 150; i++) { if (JSON.stringify(await mcp('get_context')).includes(marker)) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(error) }
 async function chat(text) {
-  const count = (await snapshot()).messages.length
+  const before = await snapshot(), count = before.messages.length
   assert.equal((await send({ type: 'message.send', text })).status, 'accepted')
-  await waitFor((s) => s.task?.status === 'completed' && s.messages.length >= count + 2, 'SYNTHETIC_CHAT_FAILED')
+  let approved = false
+  await waitFor(async (s) => {
+    if (text === '核对饮料和资料处理状态' && s.question?.status === 'queued') await send({ type: 'mode.set', mode: 'rest' })
+    if (text === '核对饮料和资料处理状态' && !approved && s.question?.status === 'waiting' && s.question.kind === 'approval') {
+      assert.ok(s.question.question.includes('读过附件原文')); assert.ok(s.question.choices.includes('允许这一次'))
+      approved = true
+      assert.equal((await send({ type: 'question.answer', questionId: s.question.id, answer: '允许这一次' })).status, 'accepted')
+      await send({ type: 'mode.set', mode: 'quiet' })
+    }
+    return s.task?.id !== before.task?.id && s.task?.status === 'completed' && s.messages.length >= count + 2
+  }, 'SYNTHETIC_CHAT_FAILED')
+  if (text === '核对饮料和资料处理状态') assert.ok(approved, 'MEMORY_SOURCE_APPROVAL_MISSING')
 }
 async function memoryAction(type) {
   assert.equal((await send({ type })).status, 'accepted')

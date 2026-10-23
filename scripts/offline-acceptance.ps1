@@ -14,6 +14,8 @@ if ($base -match '[,&]' -or [IO.Path]::GetFullPath($Bundle) -match '[,&]') { thr
 if (-not [Environment]::Is64BitOperatingSystem) { throw 'WINDOWS_X64_REQUIRED' }
 New-Item -ItemType Directory -Path $run | Out-Null
 $report = [ordered]@{ schema = 1; runId = $runId; mode = $Mode; osVersion = [Environment]::OSVersion.Version.ToString(); startedAt = [DateTime]::UtcNow.ToString('o'); candidate = $manifest.candidate; baseline = $manifest.baseline; syntheticOnly = $true; realServices = $false; offline = $true; installed = $false; upgraded = $false; manualUi = 'not-run'; probes = @(); cleanup = 'not-needed'; status = 'running'; error = $null }
+$report.bundleManifestSha256 = (Get-FileHash -LiteralPath (Join-Path $Bundle 'manifest.json') -Algorithm SHA256).Hash.ToLowerInvariant()
+$report.runnerSha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
 $ownsInstall = $false
 $savedEnv = @{}
 function Set-TestEnv([string]$name, [string]$value) { if (-not $savedEnv.ContainsKey($name)) { $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }; [Environment]::SetEnvironmentVariable($name, $value, 'Process') }
