@@ -121,7 +121,7 @@ export interface TaskView {
   error?: PublicError
 }
 /** D2 safety state for the currently running turn: third-party originals were part of its request. */
-export interface DegradedView { active: boolean; turnId: string; sources: readonly ('mail' | 'document' | 'web' | 'mcp' | 'plugin')[] }
+export interface DegradedView { active: boolean; turnId: string; sources: readonly ('mail' | 'document' | 'web' | 'mcp' | 'plugin' | 'member')[] }
 export interface MessageView {
   id: string
   role: 'user' | 'assistant' | 'narrator'

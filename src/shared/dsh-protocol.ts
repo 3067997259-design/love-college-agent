@@ -19,6 +19,14 @@ export interface DshMemberRegistration {
   /** Identity can be registered before the collaboration adapter has resolved its mode. */
   mode?: AgentMode
 }
+/** One pending decision belongs to one activation and one policy revision, never a standing grant.
+ * Cancellation is explicit IPC; main adds its own AbortSignal when presenting the question. */
+export interface DshApprovalScope {
+  approvalId: string
+  activationId: string
+  policyRevision: number
+}
+export interface DshApprovalCancellation { t: 'approval-cancel'; id: string }
 /** Provenance refers to an authorization and session-local turn, never to raw content.
  * Child turn numbers cannot be compared with root turn numbers. Unknown ancestry stays restricted. */
 export interface DshSourceLease {
