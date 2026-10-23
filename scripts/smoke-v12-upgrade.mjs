@@ -51,6 +51,23 @@ try {
   await instance.evaluate(({ dialog }, path) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: path }) }, archive)
   assert.equal((await send({ type: 'backup.export' })).status, 'accepted'); await until((s) => s.backup.status === 'exported', 'OLD_SAVE_FAILED')
   const old = await snapshot(); await close()
+  // Seed a user's existing profile only after the old runtime has stopped. The upgrade must keep
+  // its manifest settings and patch/workspace bytes while updating LCA's protected bridge link.
+  const dshProfile = join(data, 'dsh-home', 'profiles', 'lca'), manifestPath = join(dshProfile, 'package.json')
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8')); manifest.lcaUpgradeProbe = { preserve: 'synthetic-user-configuration' }
+  await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n')
+  const configBefore = new Map()
+  for (const name of ['cordis.patch.yml', 'pnpm-workspace.yaml']) {
+    const file = join(dshProfile, name), content = '# Synthetic user setting retained across upgrade\n' + await readFile(file, 'utf8')
+    await writeFile(file, content); configBefore.set(file, content)
+  }
+  async function profilePreserved() {
+    const current = JSON.parse(await readFile(manifestPath, 'utf8'))
+    assert.deepEqual(current.lcaUpgradeProbe, manifest.lcaUpgradeProbe)
+    for (const [name, value] of Object.entries(manifest.dependencies ?? {})) if (name !== '@lca/dsh-bridge') assert.equal(current.dependencies[name], value)
+    for (const bundle of manifest.dsh?.profile?.bundles ?? []) assert.ok(current.dsh.profile.bundles.includes(bundle))
+    for (const [file, content] of configBefore) assert.equal(await readFile(file, 'utf8'), content)
+  }
   const journals = join(data, 'journals'), owner = (await readdir(journals))[0], journalFile = (await readdir(join(journals, owner))).find((f) => f.endsWith('.jsonl')), journalPath = join(journals, owner, journalFile), journalBytes = await readFile(journalPath)
   pass('actual-1.1.0-installer-and-normal-book-with-synthetic-chat-project-and-save')
   stage = 'upgrade'; await own(); await run(join(release, receipt.installerFileName), ['/S', '/currentuser', `/D=${install}`], 900000); await own()
@@ -59,7 +76,8 @@ try {
   const current = await snapshot(); assert.equal(current.onboarding.status, old.onboarding.status); assert.equal(current.onboarding.userName, old.onboarding.userName); assert.equal(current.companion.mode, old.companion.mode); assert.equal(current.work.current.path, old.work.current.path); assert.equal(current.scope.sessionId, old.scope.sessionId)
   assert.ok(current.messages.some((m) => m.text === 'P6_OLD_VERSION_NOTE')); assert.ok((await readFile(journalPath)).subarray(0, journalBytes.length).equals(journalBytes))
   pass('same-install-path-upgrade-preserves-onboarding-mode-project-session-and-append-only-history')
-  await chat('P6_NEW_VERSION_AFTER_SAVE'); pass('upgraded-book-can-complete-a-new-DSH-turn')
+  await chat('P6_NEW_VERSION_AFTER_SAVE'); await profilePreserved(); report.profileConfigurationPreserved = true
+  pass('upgraded-book-can-complete-a-new-DSH-turn-and-preserve-user-profile-configuration')
   const beforeRestart = requests; await close(); await launch(); assert.ok((await snapshot()).messages.some((m) => m.text === 'P6_NEW_VERSION_AFTER_SAVE')); await new Promise((done) => setTimeout(done, 500)); assert.equal(requests, beforeRestart)
   pass('upgraded-cold-restart-preserves-new-history-without-model-replay')
   stage = 'restore-old-save'; await instance.evaluate(({ dialog, app }, path) => { app.relaunch = () => {}; dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }) }, archive)

@@ -97,7 +97,7 @@ try {
   const bytes = await readFile(installer)
   const report = { ok: true, status: 'passed', atIso: new Date().toISOString(), installer, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
     executionTarget: unpackedOnly ? 'unpacked' : 'installed', appVersion,
-    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: !unpackedOnly, privateSaveProbe: true, installedUiRestart: !unpackedOnly, unpackedUiRestart: unpackedOnly, historyQuoteAndPhoto: true, secondCircleProbes: ['memory', 'life', 'heart-flow'], buildReceipt, thirdCircleScenarios,
+    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: !unpackedOnly, privateSaveProbe: true, installedUiRestart: !unpackedOnly, unpackedUiRestart: unpackedOnly, historyQuoteAndPhoto: true, secondCircleProbes: ['memory', 'life'], buildReceipt, thirdCircleScenarios,
     syntheticServices: true, realProviderQualityAccepted: false }
   await writeFile(reportPath, JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report))

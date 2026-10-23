@@ -303,10 +303,10 @@
     }
   },
   "pending": [
-    "candidate-package-and-actual-upgrade",
     "second-windows-offline-results",
     "authorized-real-model-selection-quality",
     "real-time-day-use",
     "V1-art-and-wiring"
-  ]
+  ],
+  "releaseEvidence": "v1.2-release-20261024.json"
 }

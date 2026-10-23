@@ -58,7 +58,11 @@ pnpm test
 
 `test:package --unpacked-only` 不安装 / 卸载，不能称为安装器升级验收。默认 `test:package` 发现已有同名用户安装会拒绝，不覆盖用户实例。
 
+所有支持 `LCA_TEST_EXECUTABLE` 的书页检查都必须启动指定的包内 EXE；共同初始化还会核对实际页面来自该 EXE 的 `resources/app.asar`。不能把源码 Electron 的结果记到候选包上。若完整检查中断，保留失败回执；只有固定同一个 app.asar 哈希、逐项记录脚本与辅助函数哈希，才能续跑未完成的矩阵。续跑集合通过不等于原来中断的整条命令退出码为 0。
+
 `node scripts/smoke-v12-upgrade.mjs` 使用 `LCA_RELEASE_DIR` 的候选回执和 `LCA_BASELINE_INSTALLER` 指定的固定 1.1.0 安装器，在独立目录真实安装、覆盖升级、冷启和恢复旧版存档；聊天只连接本地合成接口。安装器会处理同名运行进程，安装检查必须与所有包内 EXE 测试串行；发现已有安装或运行中的同名应用时拒绝。临时目录须有至少 3 GiB 可用空间，退出码不替代包文件哈希和状态核对。
+
+升级检查还会在旧运行时关闭后写入合成的既有 profile 配置，核对候选启动及新回合后，manifest 用户字段、既有依赖与 bundle 声明、Cordis patch 和 workspace 配置均保留。卸载后等待注册状态收敛；没有确定结果时保留 `needs-reconciliation`，不重复卸载。
 
 `node scripts/smoke-real-collaboration.mjs` 为单独授权的三场景真实探针，需 `LCA_REAL_MODEL=1` 和获授权的 `LCA_PROVIDERS_FILE`。只由 Electron 主进程提取既有 chat/work 槽位；独立数据根、48 万预留单位、零自主预算、12 分钟总时限，遇到问题或审批就停止，不自动批准。结果记录实际成员模式、任务数、续用身份和用量，容量满额仍由合成回归证明。`--preflight` 仅核对启动与配置接入，不发送任务；它不是实际模型质量验收。
 
