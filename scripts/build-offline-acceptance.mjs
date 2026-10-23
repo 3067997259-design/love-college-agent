@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, readdir, stat, statfs, writeFile } from 'node:fs/promises'
 import { basename, join, resolve } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import JSZip from 'jszip'
@@ -22,6 +22,8 @@ assert.equal(await sha(process.env.LCA_BASELINE_INSTALLER), baseline.sha256)
 assert.equal((await stat(process.env.LCA_BASELINE_INSTALLER)).size, baseline.bytes)
 assert.equal(await sha(join(release, receipt.installerFileName)), receipt.installerSha256)
 const candidate = { appVersion: receipt.appVersion, file: receipt.installerFileName, bytes: (await stat(join(release, receipt.installerFileName))).size, sha256: receipt.installerSha256, asarSha256: receipt.asarSha256, sourceRevision: receipt.sourceRevision }
+const disk = await statfs(output)
+assert.ok(disk.bavail * disk.bsize > 2 * (baseline.bytes + candidate.bytes) + 100 * 1024 ** 2, 'Insufficient space for bundle and ZIP')
 for (const [from, to] of [[process.env.LCA_BASELINE_INSTALLER, baseline.file], [join(release, receipt.installerFileName), candidate.file], [join(release, 'build-receipt.json'), 'build-receipt.json'], [join(root, 'scripts/offline-acceptance.ps1'), 'Run-Acceptance.ps1']]) await copyFile(from, join(output, to))
 await writeFile(join(output, 'README.txt'), `LCA ${candidate.appVersion} 第二台 Windows 离线验收
 

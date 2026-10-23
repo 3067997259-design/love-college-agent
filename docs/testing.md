@@ -58,6 +58,10 @@ pnpm test
 
 `test:package --unpacked-only` 不安装 / 卸载，不能称为安装器升级验收。默认 `test:package` 发现已有同名用户安装会拒绝，不覆盖用户实例。
 
+`node scripts/smoke-v12-upgrade.mjs` 使用 `LCA_RELEASE_DIR` 的候选回执和 `LCA_BASELINE_INSTALLER` 指定的固定 1.1.0 安装器，在独立目录真实安装、覆盖升级、冷启和恢复旧版存档；聊天只连接本地合成接口。安装器会处理同名运行进程，安装检查必须与所有包内 EXE 测试串行；发现已有安装或运行中的同名应用时拒绝。临时目录须有至少 3 GiB 可用空间，退出码不替代包文件哈希和状态核对。
+
+`node scripts/smoke-real-collaboration.mjs` 为单独授权的三场景真实探针，需 `LCA_REAL_MODEL=1` 和获授权的 `LCA_PROVIDERS_FILE`。只由 Electron 主进程提取既有 chat/work 槽位；独立数据根、48 万预留单位、零自主预算、12 分钟总时限，遇到问题或审批就停止，不自动批准。结果记录实际成员模式、任务数、续用身份和用量，容量满额仍由合成回归证明。`--preflight` 仅核对启动与配置接入，不发送任务；它不是实际模型质量验收。
+
 每次发布核对源码 revision、trackedDirty、构建回执、安装器哈希与该包结果。第二机、真实账号和长期日用另行记录。v0.1.10 的历史证据见 [版本记录](releases/0.1.10.md)，不自动代表当前 main 已重新验收。
 
 确定性研究脚本及其局限见 [研究索引](research/README.md)。

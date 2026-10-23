@@ -25,12 +25,14 @@ function Get-Installation {
 }
 function Invoke-Hidden([string]$exe, [string[]]$arguments, [int]$timeout = 300000) {
   $p = Start-Process -FilePath $exe -ArgumentList $arguments -PassThru -WindowStyle Hidden
+  $null = $p.Handle
   if (-not $p.WaitForExit($timeout)) { $p.Kill(); throw 'PROCESS_TIMEOUT_RECONCILE_BEFORE_RETRY' }
   $p.Refresh(); if ($p.ExitCode -ne 0) { throw 'PROCESS_EXIT_FAILED' }
 }
 function Assert-OwnInstallation {
   $found = @(Get-Installation)
-  if ($found.Count -ne 1 -or [IO.Path]::GetFullPath($found[0].InstallLocation).TrimEnd('\') -ne [IO.Path]::GetFullPath($install).TrimEnd('\')) { throw 'INSTALLATION_OWNERSHIP_MISMATCH' }
+  # electron-builder NSIS does not always write InstallLocation. Require both exact registered paths.
+  if ($found.Count -ne 1 -or $found[0].DisplayIcon -ne ((Join-Path $install 'LoveCollegeAgent.exe') + ',0') -or $found[0].UninstallString -ne ('"' + (Join-Path $install 'Uninstall LoveCollegeAgent.exe') + '" /currentuser')) { throw 'INSTALLATION_OWNERSHIP_MISMATCH' }
 }
 function Install-Version($item, [switch]$Upgrade) {
   if ($Upgrade) { Assert-OwnInstallation } elseif (@(Get-Installation).Count) { throw 'EXISTING_INSTALLATION_REFUSED' }
@@ -52,6 +54,7 @@ function Run-Probe([string]$name) {
   Use-Profile ('probe-' + $name)
   $out = Join-Path $run ($name + '.stdout.local'); $err = Join-Path $run ($name + '.stderr.local')
   $p = Start-Process -FilePath (Join-Path $install 'LoveCollegeAgent.exe') -ArgumentList ('--lca-probe=' + $name) -PassThru -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err
+  $null = $p.Handle
   if (-not $p.WaitForExit(300000)) { $p.Kill(); throw 'PROBE_TIMEOUT' }; $p.Refresh()
   $line = Get-Content -LiteralPath $out | Where-Object { $_.StartsWith('LCA_PROBE:') } | Select-Object -First 1
   if (-not $line) { throw 'PROBE_REPORT_MISSING' }
@@ -67,6 +70,7 @@ function Open-Book([string]$label) {
   Write-Host ($label + ': follow README.txt, then fully close the book to continue. No model configuration is needed.')
   # This visible window is intentional: the operator explicitly runs an interactive acceptance.
   $p = Start-Process -FilePath (Join-Path $install 'LoveCollegeAgent.exe') -PassThru
+  $null = $p.Handle
   $p.WaitForExit(); $p.Refresh()
   if ($p.ExitCode -ne 0) { throw 'UI_EXIT_FAILED' }
   Set-TestEnv 'LCA_TEST_SILENT' '1'
@@ -75,11 +79,15 @@ try {
   foreach ($entry in $manifest.files) { Assert-Hash (Join-Path $Bundle $entry.file) $entry.sha256 }
   $report.hashesVerified = $true
   if ($Mode -ne 'Check') {
+    if ([IO.DriveInfo]::new([IO.Path]::GetPathRoot($run)).AvailableFreeSpace -lt 3GB) { throw 'INSUFFICIENT_DISK_SPACE' }
     if (@(Get-Installation).Count) { throw 'EXISTING_INSTALLATION_REFUSED' }
+    if (Get-Process -Name LoveCollegeAgent -ErrorAction SilentlyContinue) { throw 'RUNNING_APP_REFUSED' }
     # Suppress inherited test/service switches, and use isolated HOME as well as app data.
     foreach ($key in @('LCA_REAL_MODEL', 'ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL', 'LCA_BOOTH')) { Set-TestEnv $key $null }
     foreach ($key in @('HOME', 'USERPROFILE')) { Set-TestEnv $key (Join-Path $run 'home') }
     New-Item -ItemType Directory -Path (Join-Path $run 'home/Documents') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $run 'tmp') -Force | Out-Null
+    Set-TestEnv 'TEMP' (Join-Path $run 'tmp'); Set-TestEnv 'TMP' (Join-Path $run 'tmp')
     Set-TestEnv 'LCA_TEST_SILENT' '1'
     if ($Mode -eq 'Upgrade') { Use-Profile 'book'; Install-Version $manifest.baseline; Open-Book '1.1.0 before upgrade'; Install-Version $manifest.candidate -Upgrade; $report.upgraded = $true }
     else { Use-Profile 'book'; Install-Version $manifest.candidate }
@@ -89,7 +97,7 @@ try {
     Open-Book 'Candidate cold restart'
     if (-not $SkipUi) { $answer = Read-Host 'Did all README visual/persistence checks pass? Enter Y, N, or U (uncertain)'; $report.manualUi = switch ($answer.ToUpperInvariant()) { 'Y' { 'operator-pass' } 'N' { 'operator-fail' } default { 'uncertain' } } }
   }
-  $report.status = 'automated-passed'
+  $report.status = if ($report.manualUi -eq 'operator-fail') { 'manual-failed' } else { 'automated-passed' }
 } catch {
   $report.status = 'failed'
   $code = $_.Exception.Message
@@ -114,4 +122,4 @@ try {
   Compress-Archive -LiteralPath $reportPath -DestinationPath (Join-Path $run 'return-results.zip')
   Write-Host ('RESULT: ' + (Join-Path $run 'return-results.zip'))
 }
-if ($report.status -eq 'failed') { exit 1 }
+if ($report.status -in @('failed', 'manual-failed')) { exit 1 }
