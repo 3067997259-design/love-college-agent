@@ -77,7 +77,7 @@ export function ExtensionPanel({ snapshot, bridge, search }: { snapshot: AppSnap
         {!!op.pendingBuilds?.length && <p className="plugin-meta">构建脚本：{op.pendingBuilds.join('、')}</p>}
         {op.cancellable && op.outcome === 'pending' && <button type="button" className="btn btn-small btn-ghost" disabled={pending || op.phase === 'cancelling'} onClick={() => void send({ type: 'extension.cancel', operationId: op.id, expectedRevision: op.revision })}>取消操作</button>}
         {op.outcome === 'unknown' && <button type="button" className="btn btn-small btn-primary" disabled={busy} onClick={() => void send({ type: 'extension.reconcile', operationId: op.id, expectedRevision: op.revision })}>核对这次操作</button>}
-        {!op.pendingBuilds?.length && <SettingsIssue code={op.error?.code} />}
+        {op.outcome === 'failed' && !op.pendingBuilds?.length && <SettingsIssue code={op.error?.code} />}
       </li>)}</ul>
       <p className="plugin-meta">取消会等待状态核对；已发生的操作不一定能撤回。</p>
     </details>}
