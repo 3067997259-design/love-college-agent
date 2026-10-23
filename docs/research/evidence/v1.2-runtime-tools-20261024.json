@@ -1,6 +1,6 @@
 {
   "date": "2026-10-24",
-  "status": "source-fix-passed-awaiting-replacement-package",
+  "status": "replacement-candidate-local-acceptance-passed",
   "syntheticOnly": true,
   "upstreamModified": false,
   "artModified": false,
@@ -580,11 +580,8 @@
     "purpose": "Reuse the already prepared pinned runtime without a second npm install; every distributed file compared with the previous candidate."
   },
   "remaining": [
-    "replacement-candidate-build-and-package-checks",
-    "replacement-candidate-upgrade",
-    "replacement-offline-bundle",
-    "second-windows-results",
-    "authorized-real-model-selection",
+    "second-windows-offline-results",
+    "authorized-real-model-selection-quality",
     "real-time-day-use",
     "V1-art-and-wiring"
   ],
@@ -605,5 +602,6 @@
     "automaticApprovals": false,
     "stage": "completed",
     "ok": true
-  }
+  },
+  "replacementEvidence": "v1.2-rc2-release-20261024.json"
 }

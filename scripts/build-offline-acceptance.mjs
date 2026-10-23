@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { copyFile, mkdir, readFile, readdir, stat, statfs, writeFile } from 'node:fs/promises'
+import { copyFile, lstat, mkdir, readFile, readdir, stat, statfs, writeFile } from 'node:fs/promises'
 import { basename, join, resolve } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import JSZip from 'jszip'
@@ -15,6 +15,7 @@ assert.equal(receipt.installerFileName, `Love-College-Agent-${receipt.appVersion
 assert.ok(process.env.LCA_BASELINE_INSTALLER, 'Supply the verified 1.1.0 installer path')
 assert.ok(process.env.LCA_OFFLINE_DIR, 'Supply a new offline bundle directory')
 const output = resolve(process.env.LCA_OFFLINE_DIR)
+if (process.argv.includes('--zip-only')) { await archiveFolder(output); process.exit(0) }
 await mkdir(output, { recursive: true }); assert.equal((await readdir(output)).length, 0, 'Refuse to overwrite an existing bundle')
 async function sha(path) { const hash = createHash('sha256'); for await (const chunk of createReadStream(path)) hash.update(chunk); return hash.digest('hex') }
 const baseline = { appVersion: '1.1.0', file: 'Love-College-Agent-1.1.0-Setup.exe', bytes: 295012176, sha256: 'e6b23c25afbd329d880302f0d15f6c7388f9366097e813cd214b5a0cd5c9b403', asarSha256: '2c3ed89000861c490414efd6839feb856e153aab453a60b24ac82c06f32709a9' }
@@ -23,7 +24,8 @@ assert.equal((await stat(process.env.LCA_BASELINE_INSTALLER)).size, baseline.byt
 assert.equal(await sha(join(release, receipt.installerFileName)), receipt.installerSha256)
 const candidate = { appVersion: receipt.appVersion, file: receipt.installerFileName, bytes: (await stat(join(release, receipt.installerFileName))).size, sha256: receipt.installerSha256, asarSha256: receipt.asarSha256, sourceRevision: receipt.sourceRevision }
 const disk = await statfs(output)
-assert.ok(disk.bavail * disk.bsize > 2 * (baseline.bytes + candidate.bytes) + 100 * 1024 ** 2, 'Insufficient space for bundle and ZIP')
+const folderOnly = process.argv.includes('--folder-only')
+assert.ok(disk.bavail * disk.bsize > (folderOnly ? 1 : 2) * (baseline.bytes + candidate.bytes) + 100 * 1024 ** 2, 'Insufficient space for bundle and ZIP')
 for (const [from, to] of [[process.env.LCA_BASELINE_INSTALLER, baseline.file], [join(release, receipt.installerFileName), candidate.file], [join(release, 'build-receipt.json'), 'build-receipt.json'], [join(root, 'scripts/offline-acceptance.ps1'), 'Run-Acceptance.ps1']]) await copyFile(from, join(output, to))
 await writeFile(join(output, 'README.txt'), `LCA ${candidate.appVersion} 第二台 Windows 离线验收
 
@@ -65,9 +67,32 @@ Upgrade 会先安装包内的原版 1.1.0，再以同一路径真实升级到候
 const files = []
 for (const file of await readdir(output)) files.push({ file, bytes: (await stat(join(output, file))).size, sha256: await sha(join(output, file)) })
 await writeFile(join(output, 'manifest.json'), JSON.stringify({ schema: 1, candidate, baseline, files }, null, 2))
-const zipPath = output + '.zip', zip = new JSZip()
-for (const file of await readdir(output)) zip.file(`${basename(output)}/${file}`, createReadStream(join(output, file)))
-await pipeline(zip.generateNodeStream({ streamFiles: true, compression: 'STORE' }), createWriteStream(zipPath, { flags: 'wx' }))
-const report = { bundle: zipPath, bytes: (await stat(zipPath)).size, sha256: await sha(zipPath), candidate, baseline, secondMachineAccepted: false }
-await writeFile(output + '-receipt.json', JSON.stringify(report, null, 2))
-console.log(JSON.stringify(report))
+if (folderOnly) console.log(JSON.stringify({ status: 'folder-prepared-not-yet-archived', folder: output }))
+else await archiveFolder(output)
+
+async function archiveFolder(folder) {
+  const manifestStat = await lstat(join(folder, 'manifest.json')); assert.ok(manifestStat.isFile() && !manifestStat.isSymbolicLink())
+  const manifest = JSON.parse(await readFile(join(folder, 'manifest.json'), 'utf8'))
+  assert.equal(manifest.schema, 1)
+  assert.equal(manifest.candidate.sha256, receipt.installerSha256)
+  assert.equal(manifest.candidate.file, receipt.installerFileName)
+  assert.equal(manifest.baseline.file, 'Love-College-Agent-1.1.0-Setup.exe')
+  assert.equal(manifest.baseline.sha256, 'e6b23c25afbd329d880302f0d15f6c7388f9366097e813cd214b5a0cd5c9b403')
+  const expected = [receipt.installerFileName, manifest.baseline.file, 'build-receipt.json', 'Run-Acceptance.ps1', 'README.txt']
+  assert.deepEqual(manifest.files.map((entry) => entry.file).sort(), expected.sort())
+  assert.deepEqual((await readdir(folder)).sort(), [...expected, 'manifest.json'].sort())
+  assert.equal(manifest.files.find((entry) => entry.file === receipt.installerFileName).sha256, receipt.installerSha256)
+  assert.equal(manifest.files.find((entry) => entry.file === manifest.baseline.file).sha256, manifest.baseline.sha256)
+  for (const entry of manifest.files) {
+    const fileStat = await lstat(join(folder, entry.file)); assert.ok(fileStat.isFile() && !fileStat.isSymbolicLink())
+    assert.equal(await sha(join(folder, entry.file)), entry.sha256); assert.equal(fileStat.size, entry.bytes)
+  }
+  const disk = await statfs(folder)
+  assert.ok(disk.bavail * disk.bsize > manifest.files.reduce((sum, entry) => sum + entry.bytes, 0) + 100 * 1024 ** 2, 'Insufficient space for ZIP')
+  const zipPath = folder + '.zip', zip = new JSZip()
+  for (const file of await readdir(folder)) zip.file(`${basename(folder)}/${file}`, createReadStream(join(folder, file)))
+  await pipeline(zip.generateNodeStream({ streamFiles: true, compression: 'STORE' }), createWriteStream(zipPath, { flags: 'wx' }))
+  const report = { bundle: zipPath, bytes: (await stat(zipPath)).size, sha256: await sha(zipPath), candidate: manifest.candidate, baseline: manifest.baseline, secondMachineAccepted: false }
+  await writeFile(folder + '-receipt.json', JSON.stringify(report, null, 2))
+  console.log(JSON.stringify(report))
+}

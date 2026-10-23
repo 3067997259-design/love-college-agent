@@ -92,6 +92,8 @@ pnpm test:package --unpacked-only
 
 第二台 Windows 的离线包由 `node scripts/build-offline-acceptance.mjs` 生成，须指定 `LCA_RELEASE_DIR`、已核验的 `LCA_BASELINE_INSTALLER`（1.1.0）与新的 `LCA_OFFLINE_DIR`。包含两个安装器、哈希清单、PowerShell 脚本和说明，无须 Node / pnpm。用户分别运行 Fresh / Upgrade 后回传安全结果 ZIP；准备包或本机复跑不算第二机通过。已有用户安装时拒绝覆盖，安装状态未知时先核对，不自动重试。
 
+空间有限时，可先加 `--folder-only` 生成完整验收目录，完成本机脚本检查后再用同一环境参数加 `--zip-only` 压缩；后一步重新核对精确文件清单、所有大小与哈希，拒绝额外文件和已有 ZIP。未归档目录不会被标为已交付 ZIP。
+
 ### 含特殊字符的仓库路径
 
 2026-10-19 实测：仓库位于 `D:\love, college&agent`（路径含逗号与 `&`）时，从该路径直接运行 `release/win-unpacked` 的打包版会以 `STATUS_BREAKPOINT` 退出，NSIS 安装器的静默安装也会挂起；开发模式 Electron 不受影响。构建时把 electron-builder 输出指向无 `,`/`&` 的路径（例如 `--config.directories.output=D:/lca-release-out`），并从干净路径运行安装器；安装到干净路径后的包内探针正常。验收安装版时不要复用仓库路径下的 `win-unpacked`。
