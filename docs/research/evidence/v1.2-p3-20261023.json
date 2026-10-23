@@ -1,0 +1,759 @@
+{
+  "date": "2026-10-23",
+  "implementationCommit": "277edd1e9e5ca16ba26e822d5a3e72ae9f8b8488",
+  "interfaceCommit": "d114cc4",
+  "runtime": "0.2.1-rc.2",
+  "packageManager": "11.24.0",
+  "sourceHashes": {
+    "src/main/dsh/extensions.ts": "42773b52233be31b0cac6e780308f630b13db70e49388e70376193a8ee8c00b6",
+    "src/main/dsh/host.ts": "b8eedb083576726abe515ac3eb361a7e1ff5f7b76117a100d4b2dfe42ce5191a",
+    "src/main/dsh/execution.ts": "a344faff9b34aefaab59d2220ae7107aeec4bd325e33016cafc9e54e5addc4a9",
+    "src/main/index.ts": "5483e8760eb7ebbb1bfa37ce719f09ba8377983920bde5e6266b900586d993d5",
+    "dsh/lca-bridge/extensions.js": "9e5d8203e8abb9b8d1c071dfe9000f6711137041bda9de20cf3e1f8e42de1a4b",
+    "dsh/lca-bridge/profile.js": "398a94ba8213d488d00e54fc9d55e906ef722a287faf833980814d626c69b957",
+    "dsh/lca-bridge/extension-files.js": "f90e3a2c23dd4bcc177dacbeb900647a194823bf90b9a3eeb4a1f8735564eef5",
+    "dsh/lca-bridge/index.js": "fe6cb564fbf314fbd6fd0bb89ea80ce4685a0ab18e93ffc9090ea9fc4a07ad1e",
+    "dsh/runtime/package-lock.json": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+    "scripts/fixtures/dsh-extension-probe.ts": "a613208ddd5e79eea36ab1b0b673b73302c940cc6d8c1fb23206a35be6458e0c",
+    "scripts/dsh-family-check.mjs": "ac1becaacdad4fa7d7bb8d3a99232a2e41c303036d793a7c6eb2cb8427d90d64"
+  },
+  "static": {
+    "typecheck": "passed",
+    "scopedEslint": "passed",
+    "productionBuild": "passed",
+    "diffCheck": "passed"
+  },
+  "unit": {
+    "files": 17,
+    "tests": 161,
+    "passed": 161
+  },
+  "extensions": {
+    "localArtifact": "%TEMP%/lca-extension-probe-x4rZKZ",
+    "rawEvidenceSha256": "6762064e4cde4379a898ac083381229c287c2ca6eb0eb5cce95445eed46947b7",
+    "checks": [
+      {
+        "check": "install-disabled-and-deduplicate",
+        "outcome": "succeeded",
+        "items": [
+          {
+            "id": "lca-synthetic-fixture",
+            "revision": 1,
+            "owner": "dsh",
+            "kind": "bundle",
+            "name": "lca-synthetic-fixture",
+            "source": {
+              "kind": "local",
+              "label": "本地扩展",
+              "fingerprint": "2a63ad7ce6d7efc15047a24a48829c6ab72c6336d35c8f75789a4baaf681d7ca"
+            },
+            "version": "1.0.0",
+            "scope": {
+              "kind": "profile",
+              "projectId": null
+            },
+            "installation": "installed",
+            "enabledIntent": false,
+            "applied": "disabled",
+            "protected": false,
+            "restartReason": null,
+            "error": null
+          }
+        ]
+      },
+      {
+        "check": "enable-restart-actual-module-loaded",
+        "outcome": "succeeded",
+        "items": [
+          {
+            "id": "lca-synthetic-fixture",
+            "revision": 3,
+            "owner": "dsh",
+            "kind": "bundle",
+            "name": "lca-synthetic-fixture",
+            "source": {
+              "kind": "local",
+              "label": "本地扩展",
+              "fingerprint": "91a7a4723132ebc23a50c242ea0740a813222c24756b852830cb9758d59d5836"
+            },
+            "version": "1.0.0",
+            "scope": {
+              "kind": "profile",
+              "projectId": null
+            },
+            "installation": "installed",
+            "enabledIntent": true,
+            "applied": "ready",
+            "protected": false,
+            "restartReason": null,
+            "error": null
+          }
+        ]
+      },
+      {
+        "check": "refuse-removal-of-running-code",
+        "outcome": "failed",
+        "items": [
+          {
+            "id": "lca-synthetic-fixture",
+            "revision": 3,
+            "owner": "dsh",
+            "kind": "bundle",
+            "name": "lca-synthetic-fixture",
+            "source": {
+              "kind": "local",
+              "label": "本地扩展",
+              "fingerprint": "91a7a4723132ebc23a50c242ea0740a813222c24756b852830cb9758d59d5836"
+            },
+            "version": "1.0.0",
+            "scope": {
+              "kind": "profile",
+              "projectId": null
+            },
+            "installation": "installed",
+            "enabledIntent": true,
+            "applied": "ready",
+            "protected": false,
+            "restartReason": null,
+            "error": null
+          }
+        ]
+      },
+      {
+        "check": "disable-persists-across-cold-start",
+        "outcome": "succeeded",
+        "items": [
+          {
+            "id": "lca-synthetic-fixture",
+            "revision": 5,
+            "owner": "dsh",
+            "kind": "bundle",
+            "name": "lca-synthetic-fixture",
+            "source": {
+              "kind": "local",
+              "label": "本地扩展",
+              "fingerprint": "2a63ad7ce6d7efc15047a24a48829c6ab72c6336d35c8f75789a4baaf681d7ca"
+            },
+            "version": "1.0.0",
+            "scope": {
+              "kind": "profile",
+              "projectId": null
+            },
+            "installation": "installed",
+            "enabledIntent": false,
+            "applied": "disabled",
+            "protected": false,
+            "restartReason": null,
+            "error": null
+          }
+        ]
+      },
+      {
+        "check": "remove-restart-preserves-user-configuration",
+        "outcome": "succeeded",
+        "items": []
+      },
+      {
+        "check": "separate-build-approval-without-standing-grant",
+        "outcome": "succeeded"
+      },
+      {
+        "check": "cancel-running-build-and-observe-restoration",
+        "outcome": "cancelled"
+      },
+      {
+        "check": "lost-ipc-receipt-cold-main-dsh-reconcile-without-replay",
+        "outcome": "succeeded"
+      },
+      {
+        "check": "bundle-cannot-override-safety-rows",
+        "outcome": "refused"
+      },
+      {
+        "check": "activation-failure-never-shown-ready",
+        "outcome": "failed"
+      },
+      {
+        "check": "protected-core-at-runtime-port",
+        "outcome": "refused"
+      }
+    ],
+    "approvalAnswers": 19,
+    "modelRequests": 0,
+    "electronNodeMode": true,
+    "systemNodeAndPnpmOnPath": false,
+    "exitCode": 0
+  },
+  "family": {
+    "localArtifact": "%TEMP%/lca-family-probe-6fIopf",
+    "scenarios": 15,
+    "modelRequests": 309,
+    "processExits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "reports": [
+      {
+        "name": "spawn",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "0ff20ffb9052b23623331a6b932785071fba07b29fd8bde7d39ae9e009920259"
+      },
+      {
+        "name": "fork",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "b39c48acde991e728df4727b129fcf84540f0cc2ba7e45a2998eca0e34539329"
+      },
+      {
+        "name": "team",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 22,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "4af5975a0a92c859963fc18c9e12acb9be6e068fa46a944c5e30a4427575f32e"
+      },
+      {
+        "name": "spawn-revoke",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 17,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "335294f0f9bddd6f3201cb87196df8a33c1ac6e18c91b3871b54c1d9a2257abe"
+      },
+      {
+        "name": "spawn-decline",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "03f0741a33343db4ecca02b50fb1e1843d65ebba8278603dda9953b56c944446"
+      },
+      {
+        "name": "spawn-idle",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "5baa11da5bafd967b06e6da4a1245b0ac37f7a34c25547d8f46259133cbe5c25"
+      },
+      {
+        "name": "spawn-late",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 21,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "81dc36dc8d366dfb9af6f82aa63d624efd067266dfc729c4b8177a7ef86b4394"
+      },
+      {
+        "name": "spawn-summary",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "284b4e6ed2f726a2ddb152f2dac50810d8f150461983d1f7d65050a0b8f1befd"
+      },
+      {
+        "name": "spawn-cross",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 21,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "f358f503ce3e8d03eff5387127623b8c126fb6b4eaaa754a4e5852448c695458"
+      },
+      {
+        "name": "spawn-trust",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 21,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "f8e69b873775ea39a0255b407c6458af786ec0195acfea568e4a4014839c71e2"
+      },
+      {
+        "name": "spawn-trust-decline",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 21,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "6c5039edff7d0f9ee09d2aed481c5f5484dd631be5d8e6bff9efb07a964f4999"
+      },
+      {
+        "name": "fork-seeded",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 15,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "03c7b656418b3130528cc5083abae4a158fdc946afd218e85d35ce7c7ac2c867"
+      },
+      {
+        "name": "spawn-nested",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 34,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "5824322866f09dff474f89e5208e5181a715051ad6a81567cb344415096de90b"
+      },
+      {
+        "name": "spawn-corrupt",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 15,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "4eb79a355c9f18d003b7441dffd7c3a325e238d3c46e320da255d00bd3f59623"
+      },
+      {
+        "name": "spawn-manager",
+        "ok": true,
+        "checks": {
+          "terminated": true,
+          "originOnEveryRequest": true,
+          "childCreatedAndColdResumed": true,
+          "memberPolicyBeforeEveryRequest": true,
+          "s1MemberApproval": true,
+          "s1ChildAclTranslated": true,
+          "s2ChildContinuation": true,
+          "s2ColdResume": true,
+          "s2ParentRelayAndSettlement": true,
+          "retirementPreservesLog": true,
+          "revocationInvalidatesOldApproval": true,
+          "declinedNeverExecutes": true,
+          "idleRootMemberApproval": true,
+          "compactedSource": true,
+          "crossProjectDenied": true,
+          "cleanMemberTrust": true,
+          "forkInheritedSource": true,
+          "nestedColdResume": true,
+          "managerSeam": true,
+          "managerWritesDenied": true,
+          "toolsCoexist": true,
+          "teamTaskClaim": true
+        },
+        "modelRequests": 22,
+        "exits": [
+          0,
+          0
+        ],
+        "error": null,
+        "rawEvidenceSha256": "26213d044d07a086c32fa9dda18559d68cd50c84c3c175aba50e94d333c2c128"
+      }
+    ]
+  },
+  "notTested": [
+    "real providers",
+    "full Electron window interaction",
+    "NSIS install or upgrade",
+    "second Windows machine",
+    "save UI restore",
+    "long-term use"
+  ]
+}

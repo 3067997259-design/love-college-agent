@@ -25,3 +25,7 @@ MCP 支持 stdio 和 Streamable HTTP。使用标准 `mcpServers` JSON 导入，�
 私有工具结果走主进程窄出口，原文不直接作为普通工具回执。隐私模式见 [隐私与数据](privacy-and-data.md)；模型输出仍需校验，不把插件声明当作可信内容证明。
 
 开发入口为 `src/main/plugins/`、`src/main/mcp/`、`src/shared/` 与 `plugin-packages/`。现有完整包可作为接口示例，外部依赖、工具权限和数据归属需要逐项说明。
+
+## 1.2 开发中的 DSH 扩展管理
+
+P3 已接通本地 DSH bundle 的主进程管理接口、逐次审批、配置持久化与重启核对，扩展页面仍由 P4 接入。它与本页现有的 LCA `manifest.json` 插件格式不同，不能互换。新增 bundle 安装后默认停用；构建脚本另外批准；停用运行中的代码需要重启，随后才能移除。取消或断连不保证撤销已发生的外部效果。范围与隔离验收见 [P3 回执](research/v1.2-p3-20261023.md)。

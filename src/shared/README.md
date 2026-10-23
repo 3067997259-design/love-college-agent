@@ -45,7 +45,7 @@ onboarding 的状态与名字归主进程；修改名字不是共同经历。res
 
 ## 扩展、工作与礼物
 
-1.2 的 `extensions.ts` / `collaboration.ts` 定义安全投影和有限命令。适配器未接入时字段缺省、命令明确拒绝；类型存在不代表功能已经可用。扩展安装先由原生入口生成提案，再按提案 ID 与 fingerprint 确认；启停与移除检查显示版本。operation 的 accepted、cancelling、unknown 不表示已生效或已撤销。
+1.2 的 `extensions.ts` / `collaboration.ts` 定义安全投影和有限命令。P3 已接入扩展快照和窄命令；协作适配器未接入时字段缺省、命令明确拒绝。扩展页面仍待 P4。扩展安装先由原生入口生成提案，再按提案 ID 与 fingerprint 确认；启停与移除检查显示版本。operation 的 accepted、cancelling、unknown 不表示已生效或已撤销。
 
 成员控制同时绑定 AppCommand epoch、DSH runtimeId、projectId、root/parent/member ID 和显示 revision；进程重启、换项目、恢复后旧目标必须失效。activity 与最近一次 outcome 分开，inactive 不表示完成。Team 写入范围仅作协作提示。成员消息不能自动成为主角色对用户的发言或新经历。
 

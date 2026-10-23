@@ -25,7 +25,8 @@ pnpm test
 | `test:memory`、`test:history`、`test:optical` | 来源、摘要、旧页、可选光学守卫和恢复 |
 | `test:pomodoro`、`test:mini`、`test:resources` | 计时、双窗口、显示器边界与资源准入 |
 | `test:dsh-bridge` | 真实 DSH 运行时 + 本地脚本模型：引用随开场消息、下一轮退役（含重启后）；第三方结果降级本轮、下一轮退役（含重启后）；聊天与工作模型交接、思考档位、自主额度、事件步数上限、项目信任 |
-| `test:dsh-family` | 1.2 P2：临时项目／HOME／profile、本机脚本模型；真实 DSH + 生产 bridge 的成员审批、撤销、闲置主角色、多层委派、跨项目拒绝、迟到消息、摘要与冷恢复，共 14 场景。fixture 不代改权限或退役内容；合成证据边界见 [P2 回执](research/v1.2-p2-20261023.md)。原反例保留在 [P0 / P1 回执](research/v1.2-p0-p1-20261023.md)对应提交 |
+| `test:dsh-family` | 1.2 P2：临时项目／HOME／profile、本机脚本模型；真实 DSH + 生产 bridge 的成员审批、撤销、闲置主角色、多层委派、跨项目拒绝、迟到消息、摘要与冷恢复，原 14 场景，加 P3 的 `spawn-manager` 权限绕过回归，共 15 场景。fixture 不代改权限或退役内容；合成证据边界见 [P2 回执](research/v1.2-p2-20261023.md)。原反例保留在 [P0 / P1 回执](research/v1.2-p0-p1-20261023.md)对应提交 |
+| `test:dsh-extensions` | P3：隔离 HOME / profile / 本地合成 bundle，生产 main 服务和 bridge、Electron Node 模式与随附 pnpm；PATH 排除系统 Node / pnpm。完整生命周期、独立脚本批准、运行中取消、丢失 IPC 回执冷恢复、核心保护与加载失败状态。不是页面或安装升级验收，见 [P3 回执](research/v1.2-p3-20261023.md) |
 | `test:life-port`、`test:life-work`、`test:sleep`、`test:room` | 生活状态、实际产物、日记与重启 |
 | `test:gifts`、`test:backup`、`test:characters` | 礼物同意、存档与角色作用域 |
 | `test:package --unpacked-only` | 构建回执、包内 EXE 和独立测试数据 |
