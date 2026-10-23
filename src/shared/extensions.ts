@@ -20,13 +20,14 @@ export interface ExtensionOperation {
   id: string
   extensionId: string | null
   revision: number
-  action: 'install' | 'enable' | 'disable' | 'remove' | 'reconcile'
+  action: 'install' | 'enable' | 'disable' | 'remove' | 'reconcile' | 'restart'
   phase: 'preparing' | 'awaiting-approval' | 'running' | 'cancelling' | 'reconciling' | 'settled'
   cancellable: boolean
   /** Cancelling a wait is not proof of rollback. Unknown outcomes must be reconciled first. */
   outcome: 'pending' | 'succeeded' | 'cancelled' | 'failed' | 'unknown'
   restartRequired: boolean
   error: PublicError | null
+  pendingBuilds?: readonly string[]
 }
 export interface ExtensionProposal {
   id: string
@@ -46,6 +47,7 @@ export interface ExtensionsView {
 /** Native selection first; renderer cannot supply a package path, registry URL or manager RPC. */
 export type ExtensionCommand =
   | { type: 'extension.pick' }
+  | { type: 'extension.refresh' | 'extension.restart' }
   | { type: 'extension.install'; proposalId: string; fingerprint: string }
   | { type: 'extension.enable' | 'extension.disable' | 'extension.remove'; extensionId: string; expectedRevision: number; fingerprint: string }
   | { type: 'extension.cancel' | 'extension.reconcile'; operationId: string; expectedRevision: number }
