@@ -16,7 +16,8 @@ export interface DshOrigin extends AgentAddress {
 export interface DshMemberRegistration {
   t: 'member'
   origin: DshOrigin
-  mode: AgentMode
+  /** Identity can be registered before the collaboration adapter has resolved its mode. */
+  mode?: AgentMode
 }
 /** Provenance refers to an authorization and session-local turn, never to raw content.
  * Child turn numbers cannot be compared with root turn numbers. Unknown ancestry stays restricted. */
