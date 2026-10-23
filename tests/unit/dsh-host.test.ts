@@ -21,6 +21,25 @@ const deferred = <T>() => {
   const promise = new Promise<T>((done) => { resolve = done })
   return { promise, resolve }
 }
+
+it('bounds a silent extension request and ignores its late reply', async () => {
+  const f = setup(); await f.start()
+  const result = f.host.extensions({ action: 'reconcile', operationId: 'op' })
+  const rejected = expect(result).rejects.toThrow('DSH_REQUEST_TIMEOUT')
+  await Promise.resolve(); const request = f.child.send.mock.calls.at(-1)![0]
+  f.clock.advanceBy(30_000); await rejected
+  f.emit({ t: 'extensions', ref: request.ref, value: { items: [] } })
+  expect(f.host.available()).toBe(true)
+})
+
+it('disconnect rejects in-flight management without replaying the operation', async () => {
+  const f = setup(); await f.start()
+  const result = f.host.extensions({ action: 'remove', operationId: 'op', target: 'fixture', fingerprint: 'hash' })
+  const rejected = expect(result).rejects.toThrow('DSH_HOST_EXITED')
+  await Promise.resolve(); f.child.connected = false; f.child.emit('disconnect'); await rejected
+  expect(f.host.available()).toBe(false)
+  expect(f.child.send.mock.calls.filter(([input]) => input.t === 'extensions')).toHaveLength(1)
+})
 function setup(patch: Partial<DshHostOptions> = {}) {
   const root = mkdtempSync(join(tmpdir(), 'lca-dsh-host-')); roots.push(root)
   const bridge = join(root, 'bridge'); mkdirSync(bridge)

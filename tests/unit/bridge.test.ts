@@ -4,8 +4,19 @@ import { createManualClock } from '../../src/main/clock'
 import type { AppEvent } from '../../src/shared'
 import type { BackupService } from '../../src/main/backup/service'
 import type { DiagnosticsView } from '../../src/shared'
+import type { ExtensionsService } from '../../src/main/dsh/extensions'
 
 describe('public bridge controller', () => {
+  it('routes only bounded book extension commands and deduplicates accepted requests', () => {
+    const controller = createAppController(createManualClock()); let calls = 0
+    controller.attachExtensions({ view: () => ({ status: 'ready', items: [], operations: [], proposal: null }), dispatch: () => { calls++; return undefined } } as unknown as ExtensionsService)
+    const input = { protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId: 'extension-refresh', type: 'extension.refresh' }
+    expect(controller.dispatch({ ...input, requestId: 'debug' }, 'diagnostics').status).toBe('rejected')
+    expect(controller.dispatch({ ...input, requestId: 'mini' }, 'mini').status).toBe('rejected')
+    expect(controller.dispatch({ ...input, path: 'C:/arbitrary' }).status).toBe('rejected')
+    expect(controller.dispatch(input).status).toBe('accepted'); expect(controller.dispatch(input).status).toBe('accepted')
+    expect(calls).toBe(1); expect(controller.getSnapshot().extensions?.status).toBe('ready')
+  })
   it('refuses diagnostics outside developer mode before invoking the reader', () => {
     const controller = createAppController(createManualClock()); let reads = 0
     controller.attachDiagnostics(() => { reads++; return {} as DiagnosticsView })

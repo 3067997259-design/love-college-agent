@@ -8,6 +8,8 @@ export function v12CommandSchemas(envelope: { protocolVersion: z.ZodLiteral<1>; 
   const revision = z.number().int().nonnegative()
   return [
     z.strictObject({ ...envelope, type: z.literal('extension.pick') }),
+    z.strictObject({ ...envelope, type: z.literal('extension.refresh') }),
+    z.strictObject({ ...envelope, type: z.literal('extension.restart') }),
     z.strictObject({ ...envelope, type: z.literal('extension.install'), proposalId: id, fingerprint: id }),
     ...(['extension.enable', 'extension.disable', 'extension.remove'] as const).map((type) => z.strictObject({ ...envelope, type: z.literal(type), extensionId: id, expectedRevision: revision, fingerprint: id })),
     ...(['extension.cancel', 'extension.reconcile'] as const).map((type) => z.strictObject({ ...envelope, type: z.literal(type), operationId: id, expectedRevision: revision })),

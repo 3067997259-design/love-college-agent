@@ -12,8 +12,8 @@ const repo = resolve(import.meta.dirname, '..')
 const artifactRoot = mkdtempSync(join(tmpdir(), 'lca-family-probe-'))
 const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part?.text ?? '').join('')
 const call = (tool, id, args = {}) => ({ tool, id, args })
-const names = process.argv.slice(2).length ? process.argv.slice(2) : ['spawn', 'fork', 'team', 'spawn-revoke', 'spawn-decline', 'spawn-idle', 'spawn-late', 'spawn-summary', 'spawn-cross', 'spawn-trust', 'spawn-trust-decline', 'fork-seeded', 'spawn-nested', 'spawn-corrupt']
-for (const name of names) if (!/^(spawn|fork|team)(-(revoke|decline|idle|late|summary|cross|trust|trust-decline|seeded|nested|corrupt))?$/.test(name)) throw new Error(`Unknown scenario: ${name}`)
+const names = process.argv.slice(2).length ? process.argv.slice(2) : ['spawn', 'fork', 'team', 'spawn-revoke', 'spawn-decline', 'spawn-idle', 'spawn-late', 'spawn-summary', 'spawn-cross', 'spawn-trust', 'spawn-trust-decline', 'fork-seeded', 'spawn-nested', 'spawn-corrupt', 'spawn-manager']
+for (const name of names) if (!/^(spawn|fork|team)(-(revoke|decline|idle|late|summary|cross|trust|trust-decline|seeded|nested|corrupt|manager))?$/.test(name)) throw new Error(`Unknown scenario: ${name}`)
 
 async function run(name) {
   const team = name.startsWith('team'), fork = name.startsWith('fork')
@@ -23,6 +23,7 @@ async function run(name) {
   const { home, profile, cli } = prepareDshProfile({ dshRoot: join(repo, 'dsh', 'runtime'), dataDir, bridge: join(repo, 'dsh', 'lca-bridge') })
   // Keep ordinary spawn/fork. Team tools replace ONLY the three colliding control names in this probe.
   const patch = [{ insert: [{ id: 'family-probe', name: pathToFileURL(join(repo, 'scripts', 'fixtures', 'dsh-family-probe.mjs')).href }] }]
+  if (variant === 'manager') patch.push({ id: 'tool-plugin-manager', disabled: false })
   if (nested) patch.push({ id: 'tool-subagent', config: { provider: 'spawn', maxDepth: 2 } })
   if (team) patch.push({ id: 'tool-subagent-control', disabled: true }, { id: 'tool-subagent-list-agents', disabled: true }, { insert: [
     { id: 'agent-team', name: '@deepseek-ai/dsh-experimental-agent-team', config: { maxMembers: 8, maxTasks: 256, maxMessageBytes: 65536, disposalTimeoutMs: 5000 } },
@@ -60,7 +61,8 @@ async function run(name) {
           else if (turn === 1 && !lastId && idle) reply = call('family_hold', 'hold')
           else if (turn === 1 && !lastId && trust) reply = call('family_acl', 'clean-acl')
           else if (turn === 1 && (!lastId && !allText.includes('SUMMARY_MARKER') || ['hold', 'clean-acl', 'nested-wait'].includes(lastId))) reply = call('mcp__family__read', 'read')
-          else if (turn === 1 && (lastId === 'read' || allText.includes('SUMMARY_MARKER') && !lastId)) reply = call('family_ask', 'ask')
+          else if (turn === 1 && lastId === 'read' && variant === 'manager') reply = call('plugin_manager', 'child-manager', { action: 'set_bundle', target: '@deepseek-ai/dsh-base', enabled: false })
+          else if (turn === 1 && (lastId === 'child-manager' || lastId === 'read' || allText.includes('SUMMARY_MARKER') && !lastId)) reply = call('family_ask', 'ask')
           else if (turn === 1 && lastId === 'ask') reply = call('family_acl', 'acl')
           else if (turn === 1 && lastId === 'acl') reply = call('send_message', 'relay', team ? { target: 'lead', message: 'FAMILY_RELAY_SOURCE' } : { agent_id: sessionId, message: 'FAMILY_RELAY_SOURCE' })
           else if (turn === 1) reply = { text: 'FAMILY_SETTLED_SOURCE' }
@@ -70,12 +72,13 @@ async function run(name) {
         else if (seeded && turn === 1 && lastId === 'seed-read') reply = { text: 'ROOT_DONE_1' }
         else if (seeded && turn === 2 && !lastId) reply = call('subagent_fork', 'spawn', { description: 'inherited source fixture', prompt: '[[CHILD2]] synthetic task' })
         else if (turn === 1 && !lastId) reply = call('family_inspect', 'inspect')
+        else if (turn === 1 && lastId === 'inspect' && variant === 'manager') reply = call('plugin_manager', 'root-manager', { action: 'set_bundle', target: '@lca/dsh-bridge', enabled: false })
         else if (turn === 1 && lastId === 'inspect' && team) reply = call('team_task_create', 'task-create', { subject: 'fixture task', description: 'Synthetic shared task' })
         else if (turn === 1 && lastId === 'task-create') {
           const task = JSON.parse(textOf(last.content))
           reply = call('team_task_update', 'task-claim', { task_id: task.id, expected_revision: task.revision, action: 'claim' })
         }
-        else if (turn === 1 && (lastId === 'inspect' || lastId === 'task-claim')) reply = call(team ? 'spawn_teammate' : fork ? 'subagent_fork' : 'subagent', 'spawn', team ? { name: 'peach', description: 'fixture', prompt: '[[CHILD1]] synthetic task', context: 'fresh' } : { description: 'fixture', prompt: '[[CHILD1]] synthetic task' })
+        else if (turn === 1 && (lastId === 'inspect' || lastId === 'root-manager' || lastId === 'task-claim')) reply = call(team ? 'spawn_teammate' : fork ? 'subagent_fork' : 'subagent', 'spawn', team ? { name: 'peach', description: 'fixture', prompt: '[[CHILD1]] synthetic task', context: 'fresh' } : { description: 'fixture', prompt: '[[CHILD1]] synthetic task' })
         else if (turn === 2 && !lastId && ['late', 'cross'].includes(variant)) reply = call(variant === 'late' ? 'family_late' : 'family_foreign', 'edge', { id: memberId })
         else if (turn > 1 && (!lastId || lastId === 'edge')) reply = call('send_message', `continue-${turn}`, team ? { target: 'peach', message: `[[CHILD${turn}]] continue` } : { agent_id: memberId, message: `[[CHILD${turn}]] continue` })
         else if (idle && turn === 1 && lastId === 'spawn') reply = { text: 'ROOT_DONE_1' }
@@ -161,6 +164,7 @@ async function run(name) {
     forkInheritedSource: !seeded || events.some((event) => event.t === 'probe' && event.event === 'original-log' && event.id === memberId && event.originalStillInLog),
     nestedColdResume: !nested || everyContext('GRAND', 2, (entry) => !entry.raw && !entry.relay && !entry.settled) && everyContext('GRAND', 3, (entry) => !entry.raw && !entry.relay && !entry.settled) && scoped.some((event) => event.origin?.sessionId === grandId && event.origin.parentSessionId === memberId),
     managerSeam: inspect?.manager.length === 9,
+    managerWritesDenied: variant !== 'manager' || ['root-manager', 'child-manager'].every((id) => requests.some((request) => request.messages.some((message) => message.role === 'tool' && message.tool_call_id === id && textOf(message.content).includes('Manage extensions through LCA settings.')))) && !approvals.some((event) => event.toolName === 'plugin_manager'),
     toolsCoexist: ['subagent', 'subagent_fork', 'send_message', 'list_agents', ...(team ? ['spawn_teammate', 'team_task_create'] : [])].every((name) => requests[0]?.tools.filter((tool) => tool.function.name === name).length === 1),
     teamTaskClaim: !team || events.some((event) => event.t === 'probe' && event.event === 'tool/result' && event.id === sessionId && event.data.message.toolCallId === 'task-claim' && !event.data.message.isError),
   }

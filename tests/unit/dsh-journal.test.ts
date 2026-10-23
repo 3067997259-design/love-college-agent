@@ -619,3 +619,27 @@ describe('DSH work in the LCA journal', () => {
     again.journal.close()
   })
 })
+
+
+it('serializes extension maintenance against new work and resumes after release', async () => {
+  const f = setup()
+  let release!: () => void
+  const gate = new Promise<void>((done) => { release = done })
+  const maintenance = f.execution.withExtensions(async () => { await gate })
+  expect(f.execution.busy()).toBe(true)
+  expect(() => f.execution.send('during maintenance', 'maintenance-message', 'hash')).toThrow('DSH_MAINTENANCE')
+  await expect(f.execution.withExtensions(async () => {})).rejects.toThrow('DSH_BUSY')
+  release(); await maintenance; expect(f.execution.busy()).toBe(false)
+  f.execution.send('after maintenance', 'after-message', 'hash'); await f.opened()
+  expect(f.host.sent).toContain('after maintenance'); f.journal.close()
+})
+
+it('a disconnected active turn does not permanently block extension recovery', async () => {
+  const f = setup(); f.execution.send('work', 'disconnect-message', 'hash'); await f.opened()
+  f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' }); expect(f.execution.busy()).toBe(true)
+  f.emit({ t: 'host-unavailable' }); expect(f.execution.busy()).toBe(false)
+  expect(f.store.projection().task?.status).toBe('failed')
+  await f.execution.withExtensions(async () => {})
+  await f.execution.close(); f.journal.close()
+  expect(() => f.emit({ t: 'host-unavailable' })).not.toThrow()
+})

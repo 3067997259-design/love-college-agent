@@ -7,6 +7,7 @@ import { failureNarration } from '../harness/failure'
 import type { HarnessTool } from '../harness/tools'
 import type { JournalInput } from '../journal/schema'
 import type { SessionStore } from '../store/session'
+import type { ExtensionRuntime } from './extensions'
 import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost, type DshHostOptions, type DshSource } from './host'
 import { itemsInput, type QuestionItem } from '../questions/schema'
 import type { DshRoutes } from './routes'
@@ -132,6 +133,7 @@ export function createDshExecution(options: {
   revealed?(): { reference: Record<string, unknown>; text: string; source: DshSource } | null
   /** Resource ledger for one model step: null lets it run; a code stops the turn and says why (allowance used up, ledger unreadable). */
   admit?(input: { bucket: 'work' | 'autonomous'; units: number }): PublicErrorCode | null
+  disconnected?(): void
   changed(reason: AppEvent['reason']): void
   /**
    * Real time for watching the DSH process (killing it when a shutdown stalls). The business clock may be frozen in
@@ -147,6 +149,7 @@ export function createDshExecution(options: {
   const read = <T>(file: string, fallback: T): T => { try { return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as T : fallback } catch { return fallback } }
   // Once closed (the app quitting, a model change) nothing more is recorded: the journal may already be closed, and
   // a turn DSH ends after this point is closed at the next start.
+  let maintaining = false
   let closed = false
   const record = (input: JournalInput) => { if (!closed) store.append(input) }
   const lcaTools = () => new Map(options.tools().map((tool) => [LCA_PREFIX + tool.definition.name, tool]))
@@ -311,7 +314,9 @@ export function createDshExecution(options: {
   }
 
   const onEvent = (event: DshEvent) => {
-    if (closed || !session || (event.sessionId && event.sessionId !== session.id)) return
+    if (closed) return
+    if (event.t === 'host-unavailable') { if (turn) fail('connection-failed'); options.disconnected?.(); return }
+    if (!session || (event.sessionId && event.sessionId !== session.id)) return
     switch (event.t) {
       case 'turn-start': {
         const start = starts.shift()
@@ -428,7 +433,7 @@ export function createDshExecution(options: {
    * when she is free and need not stay quiet. Bridge caps such a turn's steps unless you join in.
    */
   const kick = () => {
-    if (closed || !held.length || store.projection().lightsOut || opening) return
+    if (closed || maintaining || !held.length || store.projection().lightsOut || opening) return
     if (!turn && quiet()) return
     const batch = held.splice(0)
     for (const event of batch) { pending.push(event.id); pendingText.set(event.id, factsOf(event)); eventIds.add(event.id) }
@@ -512,6 +517,7 @@ export function createDshExecution(options: {
     source: options.source ?? 'real',
     /** `extra`: references for this message only (an old-page quote you ask about). */
     send: (text: string, requestId: string, commandHash: string, extra?: Record<string, unknown> | null) => {
+      if (maintaining) throw new Error('DSH_MAINTENANCE')
       if (closed) return
       options.foreground?.(); options.userWork?.()
       const id = randomUUID()
@@ -548,7 +554,22 @@ export function createDshExecution(options: {
       held.push({ id: eventId, source, text }); kick(); return true
     },
     /** A DSH turn is running; the work folder must not change under it. */
-    busy: () => !!turn || !!opening,
+    busy: () => !!turn || !!opening || maintaining,
+    withExtensions: async <T>(job: (runtime: ExtensionRuntime) => Promise<T>): Promise<T> => {
+      if (closed || maintaining || turn || opening) throw new Error('DSH_BUSY')
+      maintaining = true
+      const restart = async () => {
+        const previous = host; host = undefined; session = undefined
+        await previous?.close()
+        if (closed) throw new Error('DSH_EXECUTION_CLOSED')
+        return ensureHost(resolve(options.project()))
+      }
+      try {
+        if (host?.available?.() === false) await restart()
+        return await job({ host: ensureHost(resolve(options.project())), restart })
+      }
+      finally { maintaining = false; kick() }
+    },
     trusted: (project: string) => read<Rule[]>(rulesFile, []).some((rule) => rule.project === resolve(project) && rule.prefix === null),
     /** Withdraw project-wide grants; a live session on that project goes back to the sandbox preset at once. */
     untrust: (project: string) => {

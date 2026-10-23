@@ -1,7 +1,10 @@
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { mkdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { prepareDshProfile } from '../../../dsh/lca-bridge/profile.js'
+export { prepareDshProfile, dshCli } from '../../../dsh/lca-bridge/profile.js'
+import type { DshExtensionRequest, DshExtensionReply } from '../../shared/dsh-extensions'
 import type { Clock } from '../clock'
 import type { DshRoutes } from './routes'
 import { createDshIdentities } from './identity'
@@ -46,34 +49,6 @@ const INHERITED = ['SystemRoot', 'SYSTEMDRIVE', 'WINDIR', 'ComSpec', 'PATHEXT', 
   'APPDATA', 'LOCALAPPDATA', 'ProgramData', 'ProgramFiles', 'ProgramFiles(x86)', 'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE', 'OS',
   'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'no_proxy', 'all_proxy']
 
-export function prepareDshProfile(options: { dshRoot: string; dataDir: string; bridge: string }) {
-  const home = join(options.dataDir, 'dsh-home')
-  const profile = join(home, 'profiles', 'lca')
-  const manifest = { name: 'dsh-profile-lca', private: true, dependencies: { '@lca/dsh-bridge': `link:${options.bridge.replaceAll('\\', '/')}` },
-    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@lca/dsh-bridge'] } } }
-  mkdirSync(profile, { recursive: true })
-  const manifestPath = join(profile, 'package.json'); const text = JSON.stringify(manifest, null, 2) + '\n'
-  if (!existsSync(manifestPath) || readFileSync(manifestPath, 'utf8') !== text) writeFileSync(manifestPath, text)
-  if (!existsSync(join(profile, 'cordis.patch.yml'))) writeFileSync(join(profile, 'cordis.patch.yml'), '[]\n')
-  if (!existsSync(join(profile, 'pnpm-workspace.yaml'))) writeFileSync(join(profile, 'pnpm-workspace.yaml'), 'packages:\n  - .\n\nnodeLinker: hoisted\nautoInstallPeers: false\n')
-  const link = join(profile, 'node_modules', '@lca', 'dsh-bridge')
-  // Re-link when the bridge moved (a checkout in development, the app's resources once installed).
-  let linked: string | null = null; let present = false
-  try { const stat = lstatSync(link); present = true; if (stat.isSymbolicLink()) linked = resolve(readlinkSync(link)) } catch { /* not linked yet */ }
-  if (linked !== resolve(options.bridge)) {
-    // unlink, not rm: Electron's Node refuses rmSync on a directory junction (ERR_FS_EISDIR).
-    if (present) unlinkSync(link)
-    mkdirSync(dirname(link), { recursive: true }); symlinkSync(options.bridge, link, 'junction')
-  }
-  return { home, cli: dshCli(options.dshRoot) }
-}
-
-/** DSH's CLI: the pinned npm runtime (dsh/runtime, shipped with the app) or a built checkout of the fork. */
-export function dshCli(root: string) {
-  const npm = join(root, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
-  return existsSync(npm) ? npm : join(root, 'apps', 'cli', 'lib', 'bin.js')
-}
-
 export function startDshHost(options: DshHostOptions) {
   const { home, cli } = prepareDshProfile(options)
   mkdirSync(options.workspace, { recursive: true })
@@ -82,8 +57,8 @@ export function startDshHost(options: DshHostOptions) {
   // DSH's native runtime hooks accept exact Electron builds only; LCA pins 44.7.0 to match. A system
   // Node can still host DSH for diagnosis (LCA_DSH_NODE).
   const runtime = process.env.LCA_DSH_NODE || process.execPath
-  Object.assign(env, { DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1', LCA_GUARDED_ROOTS: options.guardedRoots.join(';'), ...options.routes?.env,
-    ...(process.env.LCA_DSH_NODE ? {} : { ELECTRON_RUN_AS_NODE: '1' }) })
+  Object.assign(env, { DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1', LCA_GUARDED_ROOTS: options.guardedRoots.join(';'), LCA_PNPM_CLI: join(options.dshRoot, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'), ...options.routes?.env,
+    ELECTRON_RUN_AS_NODE: '1' })
   const child = spawn(runtime, [cli, '--profile', 'lca'], { cwd: options.workspace, env, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe', 'ipc'] })
   // Never echo the child's stderr: provider errors can quote request details.
   child.stderr?.resume()
@@ -100,19 +75,23 @@ export function startDshHost(options: DshHostOptions) {
   let ready!: () => void
   let failed!: (error: Error) => void
   const started = new Promise<void>((resolve, reject) => { ready = resolve; failed = reject })
+  const stopStartup = options.clock.after(30_000, () => { failed(new Error('DSH_STARTUP_TIMEOUT')); child.kill() })
   // A caller may close the host before awaiting its startup.
   void started.catch(() => {})
   let closed = false; let disconnected = false; let hasExited = false
   const unavailable = () => {
+    const first = !disconnected
     disconnected = true
     identities.clear()
     const error = new Error('DSH_HOST_EXITED')
+    stopStartup()
     failed(error)
     for (const entry of waiting.values()) entry.fail(error)
     waiting.clear()
     for (const abort of asking.values()) abort.abort()
     asking.clear()
     cancelApprovals()
+    if (first) { try { options.onEvent({ t: 'host-unavailable' }) } catch { /* main may already be closing */ } }
   }
   const exited = new Promise<number | null>((resolve) => {
     const finish = (code: number | null) => { hasExited = true; unavailable(); resolve(code) }
@@ -153,7 +132,7 @@ export function startDshHost(options: DshHostOptions) {
       return
     }
     if (message.t === 'hello') send({ t: 'init', persona: options.persona, suffix: options.suffix ?? '', tools: options.tools })
-    else if (message.t === 'init-ok') ready()
+    else if (message.t === 'init-ok') { stopStartup(); ready() }
     else if (message.t === 'admit') {
       let ok: boolean
       try { ok = options.onAdmit?.({ sessionId: String(message.sessionId), bucket: message.bucket === 'autonomous' ? 'autonomous' : 'work', role: message.role === 'work' ? 'work' : 'chat', units: Math.max(1, Math.min(20_000_000, Math.round(Number(message.units) || 16_000))) }) ?? true } catch { ok = false }
@@ -181,16 +160,26 @@ export function startDshHost(options: DshHostOptions) {
       void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id)) && current()) send({ t: 'question-answer', id: message.id, ...result }) })
     }
     else if (message.t === 'question-cancel') { asking.get(String(message.id))?.abort(); asking.delete(String(message.id)) }
-    else if ((message.t === 'session' || message.t === 'described' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
+    else if ((message.t === 'session' || message.t === 'described' || message.t === 'extensions' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
       const entry = waiting.get(message.ref)!; waiting.delete(message.ref)
       if (message.t === 'error') entry.fail(new Error(String(message.message))); else entry.done(message)
     }
     options.onEvent(message)
   }
-  const request = (command: Record<string, unknown>) => new Promise<Record<string, unknown>>((done, fail) => { const ref = randomUUID(); waiting.set(ref, { done, fail }); send({ ...command, ref }) })
+  const request = (command: Record<string, unknown>, timeoutMs?: number) => new Promise<Record<string, unknown>>((done, fail) => {
+    const ref = randomUUID()
+    const stop = timeoutMs === undefined ? () => {} : options.clock.after(timeoutMs, () => { waiting.delete(ref); fail(new Error('DSH_REQUEST_TIMEOUT')) })
+    waiting.set(ref, { done: (value) => { stop(); done(value) }, fail: (error) => { stop(); fail(error) } }); send({ ...command, ref })
+  })
   let closing: Promise<number | null> | undefined
   return {
     started,
+    available: () => !closed && !disconnected,
+    extensions: async (input: DshExtensionRequest): Promise<DshExtensionReply> => {
+      await started
+      const answer = await request({ t: 'extensions', input }, ['list', 'cancel', 'reconcile'].includes(input.action) ? 30_000 : 660_000)
+      return answer.value as unknown as DshExtensionReply
+    },
     /** `degraded`: the resumed session still holds third-party content LCA could not retire before a restart. */
     /** `persona` / `suffix`: her current card and profile (names change in onboarding after DSH starts). */
     open: async (cwd: string, sessionId?: string, trusted = false, degraded: readonly DshSource[] = [], persona?: { persona: string; suffix: string }) => {

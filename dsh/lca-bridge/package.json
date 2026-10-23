@@ -21,6 +21,7 @@
     "@deepseek-ai/dsh-agent": "*",
     "@deepseek-ai/dsh-brand": "*",
     "@deepseek-ai/dsh-llm": "*",
-    "@deepseek-ai/dsh-session": "*"
+    "@deepseek-ai/dsh-session": "*",
+    "yaml": "*"
   }
 }
