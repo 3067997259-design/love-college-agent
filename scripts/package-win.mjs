@@ -1,12 +1,15 @@
 import { spawn, execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, writeFile, stat } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runtimeEnv } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const { version: appVersion } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
+const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
+const appVersion = process.env.LCA_PACKAGE_VERSION ?? version
+if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.]+)?$/.test(appVersion)) throw new Error('PACKAGE_VERSION_INVALID')
+const output = resolve(process.env.LCA_RELEASE_DIR ?? join(root, 'release'))
 const installerFileName = `Love-College-Agent-${appVersion}-Setup.exe`
 const env = { ...runtimeEnv(root), CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
 const revision = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, windowsHide: true, encoding: 'utf8' }).trim()
@@ -25,10 +28,10 @@ try {
     child.on('error', reject); child.on('exit', (code) => code === 0 ? resolve() : reject(new Error('DSH_RUNTIME_FAILED')))
   })
   await run('electron-vite/bin/electron-vite.js', ['build', '--logLevel', 'warn'])
-  await run('electron-builder/cli.js', ['--win', 'nsis', '--x64', '--publish', 'never', '--config', 'electron-builder.yml'])
+  await run('electron-builder/cli.js', ['--win', 'nsis', '--x64', '--publish', 'never', '--config', 'electron-builder.yml', `--config.directories.output=${output}`, `--config.extraMetadata.version=${appVersion}`])
   if (revision() !== sourceRevision || trackedDiff() !== sourceDiff) throw new Error('PACKAGE_SOURCE_CHANGED')
-  const sha = async (path) => createHash('sha256').update(await readFile(join(root, path))).digest('hex')
-  await writeFile(join(root, 'release/build-receipt.json'), JSON.stringify({ version: 1, appVersion, installerFileName, sourceRevision, trackedDirty: !!sourceDiff,
-    builtAtIso: new Date().toISOString(), installerSha256: await sha(`release/${installerFileName}`),
-    asarSha256: await sha('release/win-unpacked/resources/app.asar') }, null, 2))
+  const sha = async (path) => createHash('sha256').update(await readFile(join(output, path))).digest('hex')
+  await writeFile(join(output, 'build-receipt.json'), JSON.stringify({ version: 1, appVersion, installerFileName, sourceRevision, trackedDirty: !!sourceDiff,
+    builtAtIso: new Date().toISOString(), installerBytes: (await stat(join(output, installerFileName))).size, installerSha256: await sha(installerFileName),
+    asarSha256: await sha('win-unpacked/resources/app.asar') }, null, 2))
 } catch { console.error('Windows packaging failed.'); process.exitCode = 1 }

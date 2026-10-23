@@ -86,6 +86,10 @@ pnpm test:package --unpacked-only
 
 发布应从已提交的确定源码构建，核对构建回执、安装器 SHA、对应包内结果和版本说明。另一台机器安装、真实配置和连续使用分别记录，不复用旧包结论。当前版本见 [v1.1.0](releases/1.1.0.md)。
 
+可用 `LCA_RELEASE_DIR` 指定干净的绝对输出路径，用 `LCA_PACKAGE_VERSION` 指定候选版本（例如 `1.2.0-rc.1`）；版本写入包的 metadata 与构建回执，不冒充正式发布。`test:package` 同样读取 `LCA_RELEASE_DIR`，按回执版本和哈希验收，包含 1.2 的扩展、协作及恢复场景。
+
+第二台 Windows 的离线包由 `node scripts/build-offline-acceptance.mjs` 生成，须指定 `LCA_RELEASE_DIR`、已核验的 `LCA_BASELINE_INSTALLER`（1.1.0）与新的 `LCA_OFFLINE_DIR`。包含两个安装器、哈希清单、PowerShell 脚本和说明，无须 Node / pnpm。用户分别运行 Fresh / Upgrade 后回传安全结果 ZIP；准备包或本机复跑不算第二机通过。已有用户安装时拒绝覆盖，安装状态未知时先核对，不自动重试。
+
 ### 含特殊字符的仓库路径
 
 2026-10-19 实测：仓库位于 `D:\love, college&agent`（路径含逗号与 `&`）时，从该路径直接运行 `release/win-unpacked` 的打包版会以 `STATUS_BREAKPOINT` 退出，NSIS 安装器的静默安装也会挂起；开发模式 Electron 不受影响。构建时把 electron-builder 输出指向无 `,`/`&` 的路径（例如 `--config.directories.output=D:/lca-release-out`），并从干净路径运行安装器；安装到干净路径后的包内探针正常。验收安装版时不要复用仓库路径下的 `win-unpacked`。
