@@ -35,6 +35,14 @@ it('keeps retired task provenance across claims, edits and cold projection repla
   expect(() => projection.stateSchema.parse({ members: {}, tasks: { bad: { revision: 1 } } })).toThrow()
 })
 
+it('a late task update retains the newer revision and the other member source restrictions', () => {
+  const newer = { authorizationId: 'old', sources: ['web'], revision: 3 }
+  const late = nextTaskLease(newer, { authorizationId: 'current', sources: ['document'] }, 2)
+  expect(late).toEqual({ authorizationId: 'old', sources: ['web', 'document'], revision: 3 })
+  expect(taskVisible({ revision: 3 }, late, 'current')).toBe(false)
+  expect(taskVisible({ revision: 2 }, late, 'old')).toBe(false)
+})
+
 it('rejects cross-project/stale targets, blocks pending operations and ignores late completion after reset', async () => {
   let finish!: (view: CollaborationView) => void
   let calls = 0

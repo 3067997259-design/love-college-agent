@@ -144,7 +144,9 @@ export function createCollaboration(ctx, { originOf, safety, send, roots, onHuma
       ...(args.subject === undefined ? {} : { subject: args.subject }), ...(args.description === undefined ? {} : { description: args.description }),
       ...(args.blocked_by === undefined ? {} : { blockedBy: args.blocked_by }), ...(args.write_scopes === undefined ? {} : { writeScopes: args.write_scopes }),
       ...(args.owner === undefined ? {} : { owner: (await resolveTarget(agent, args.owner)).name }) })
-    stamp(root, 'task', task.id, nextTaskLease(previous, current, task.revision)); await ctx.sessions.flush(root.session); notify()
+    // Another member may have persisted a newer revision while the DSH update was pending.
+    // Merge its lease now; never regress the revision or discard its source restrictions.
+    stamp(root, 'task', task.id, nextTaskLease(state(root).tasks[task.id] ?? previous, current, task.revision)); await ctx.sessions.flush(root.session); notify()
     return taskForModel(agent, task, exec)
   }
   const register = (name, description, parameters, run) => ctx.tools.register({ name, description, parameters: { type: 'object', properties: Object.fromEntries(Object.entries(parameters).map(([key, value]) => { const schema = { ...value }; delete schema.required; return [key, schema] })), required: Object.entries(parameters).filter(([, value]) => value.required).map(([key]) => key), additionalProperties: false }, output,

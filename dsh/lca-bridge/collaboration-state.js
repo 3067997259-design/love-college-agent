@@ -41,5 +41,5 @@ export function taskVisible(task, lease, authorizationId) {
 /** Revision-only edits must retain the old lease, including already retired text. */
 export function nextTaskLease(previous, current, revision) {
   if (!previous) return { authorizationId: 'unverified', sources: ['member'], revision }
-  return { authorizationId: previous.authorizationId, sources: [...new Set([...previous.sources, ...current.sources])], revision }
+  return { authorizationId: previous.authorizationId, sources: [...new Set([...previous.sources, ...current.sources])], revision: Math.max(previous.revision ?? 0, revision) }
 }
