@@ -629,7 +629,7 @@ void app.whenReady().then(async () => {
         ask: async (question, choices, context) => {
           // One line of at most 240 characters, or the question would be refused as invalid (questions/schema.ts).
           const line = [...question.replace(/\s+/g, ' ').trim()]
-          const asked = await questions!.approve({ question: line.length > 240 ? line.slice(0, 239).join('') + '…' : line.join(''), choices }, { clock, store: store!, turnId: context.turnId, callId: context.callId, signal: context.signal })
+          const asked = await questions!.approve({ question: line.length > 240 ? line.slice(0, 239).join('') + '…' : line.join(''), choices }, { clock, store: store!, turnId: context.turnId, callId: context.callId, signal: context.signal }, context.member)
           const raw = asked.raw as { status?: string; answerMessageId?: string }
           if (raw.status !== 'answered' || !raw.answerMessageId) return null
           const answer = store!.records().findLast((row) => row.type === 'user/message' && row.id === raw.answerMessageId)

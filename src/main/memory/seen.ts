@@ -46,7 +46,7 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
   // DSH turns keep their tool traffic in DSH's log; the journal says which ones read third-party
   // content (turn/degraded) or did project work (work/activity), and the same D2 rules apply.
   const dshTurns = new Set(records.flatMap((row) => row.type === 'work/turn' ? [row.turnId] : []))
-  const externalTurns = new Set([...externalCalls.map((row) => row.turnId), ...records.flatMap((row) => row.type === 'turn/degraded' && dshTurns.has(row.turnId) ? [row.turnId] : [])])
+  const externalTurns = new Set([...externalCalls.map((row) => row.turnId), ...records.flatMap((row) => row.type === 'turn/degraded' && dshTurns.has(row.turnId) || row.type === 'work/turn' && row.sourcePolicy !== 2 ? [row.turnId] : [])])
   const externalReplies = new Set(records.flatMap((row) => row.type === 'assistant/message' && externalTurns.has(row.turnId) ? [row.text] : []))
   // D2: workspace tool results (legacy flow desk tools and task desk tools) are work data, never experience memory.
   const workspaceCalls = records.flatMap((row) => row.type === 'tool/call' && (row.templateId.startsWith('desk_') || row.templateId.startsWith('desk.')) ? [row] : [])
@@ -72,6 +72,7 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
     for (const index of row.eligibleIndexes) {
       const message = row.messages[index]
       if (!message || message.role === 'system' || !message.content.trim()) continue
+      if (memoryOnly && message.role === 'assistant' && externalTurns.has(row.turnId)) continue
       if (memoryOnly && (message.role === 'tool' && externalIds.has(message.toolCallId ?? '') || message.role === 'assistant' && (externalReplies.has(message.content) || ignoredTitles.some((title) => message.content.includes(title))))) continue
       if (memoryOnly && (message.role === 'tool' && workspaceIds.has(message.toolCallId ?? '') || message.role === 'assistant' && workspaceReplies.has(message.content))) continue
       if (memoryOnly && message.role === 'assistant' && workspaceTurns.has(row.turnId)) continue

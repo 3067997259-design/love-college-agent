@@ -94,7 +94,7 @@ it.each(['close', 'disconnect'] as const)('drops late tool, approval and questio
   const origin = { ...command.binding as object, rootSessionId: 's', sessionId: 's', parentSessionId: null }
   f.emit({ t: 'session', ref: command.ref, sessionId: 's' }); await opening
   f.emit({ t: 'lca-call', id: 'tool', sessionId: 's', origin, callId: 'c', name: 'read' })
-  f.emit({ t: 'approval', id: 'approval', sessionId: 's', origin })
+  f.emit({ t: 'approval', id: 'approval', approvalId: 'approval', activationId: 'a1', policyRevision: 0, sessionId: 's', origin })
   f.emit({ t: 'question', id: 'question', sessionId: 's', origin, questions: [] })
   const closing = mode === 'close' ? f.host.close() : undefined
   if (mode === 'disconnect') { f.child.connected = false; f.child.emit('disconnect') }
@@ -153,5 +153,43 @@ it('refuses a step if the resource handler throws', async () => {
   f.emit({ t: 'session', ref: command.ref, sessionId: 'root' }); await opening
   f.emit({ t: 'admit', id: 'admit', sessionId: 'root', origin: { ...command.binding as object, rootSessionId: 'root', sessionId: 'root', parentSessionId: null } })
   expect(f.child.send.mock.calls.at(-1)![0]).toMatchObject({ t: 'admit-answer', ok: false })
+  const closing = f.host.close(); f.child.emit('exit', 0); await closing
+})
+
+it.each(['cancel', 'untrust', 'withdraw'] as const)('cancels the member approval on %s and drops old replies after reactivation', async (action) => {
+  const answer = deferred<'allowed-once' | 'rejected'>()
+  let signal!: AbortSignal
+  const onApproval = vi.fn((request) => { signal = request.signal; return answer.promise })
+  const f = setup({ onApproval }); await f.start()
+  const opening = f.host.open('project', 'root'); await Promise.resolve()
+  const command = f.child.send.mock.calls.at(-1)![0]
+  f.emit({ t: 'session', ref: command.ref, sessionId: 'root' }); await opening
+  const origin = { ...command.binding as object, rootSessionId: 'root', sessionId: 'member', parentSessionId: 'root' }
+  f.emit({ t: 'member', origin })
+  const request = { t: 'approval', id: 'a', approvalId: 'a', activationId: 'member-turn', policyRevision: 0, sessionId: 'root', origin }
+  f.emit(request); expect(onApproval).toHaveBeenCalledOnce(); expect(signal.aborted).toBe(false)
+  if (action === 'withdraw') f.emit({ t: 'approval-cancel', id: 'a' }); else f.host[action]('root')
+  expect(signal.aborted).toBe(true)
+  f.host.send('root', 'new authorization')
+  f.emit({ ...request, id: 'old', approvalId: 'old' })
+  expect(onApproval).toHaveBeenCalledOnce()
+  answer.resolve('allowed-once'); await Promise.resolve(); await Promise.resolve()
+  expect(f.child.send.mock.calls.some(([message]) => message.t === 'approval-answer' && message.outcome === 'allowed-once')).toBe(false)
+  const closing = f.host.close(); f.child.emit('exit', 0); await closing
+})
+
+it('does not reuse a pending approval when the same root is reopened', async () => {
+  const answer = deferred<'allowed-once' | 'rejected'>(); let signal!: AbortSignal
+  const f = setup({ onApproval: (request) => { signal = request.signal; return answer.promise } }); await f.start()
+  const opening = f.host.open('project', 'root'); await Promise.resolve()
+  const first = f.child.send.mock.calls.at(-1)![0]
+  f.emit({ t: 'session', ref: first.ref, sessionId: 'root' }); await opening
+  f.emit({ t: 'approval', id: 'a', approvalId: 'a', activationId: 'old', policyRevision: 0, sessionId: 'root', origin: { ...first.binding as object, rootSessionId: 'root', sessionId: 'root', parentSessionId: null } })
+  const reopened = f.host.open('project', 'root'); await Promise.resolve()
+  expect(signal.aborted).toBe(true)
+  const second = f.child.send.mock.calls.at(-1)![0]
+  f.emit({ t: 'session', ref: second.ref, sessionId: 'root' }); await reopened
+  answer.resolve('allowed-once'); await Promise.resolve(); await Promise.resolve()
+  expect(f.child.send.mock.calls.some(([message]) => message.t === 'approval-answer' && message.outcome === 'allowed-once')).toBe(false)
   const closing = f.host.close(); f.child.emit('exit', 0); await closing
 })

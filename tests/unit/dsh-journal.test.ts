@@ -44,7 +44,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const launch = ((options: DshHostOptions) => {
     host.options = options
     return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); if (host.opening) await host.opening; const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
-      send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: () => {}, close: async () => null }
+      send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: () => {}, untrust: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
   // Her questions go to the book's question card (questions/service.ts), as in index.ts.
   const questions = createQuestions({ store, clock, changed: () => {}, safeText: (text) => text })
@@ -54,8 +54,8 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
     question: (items, context) => questions.ask(items, { clock, store, ...context }).then((result) => result.raw as { status?: unknown; answers?: unknown; answerMessageId?: unknown }),
     foreground: () => { hooks.push('foreground') }, userWork: () => { hooks.push('userWork') }, settled: () => { hooks.push('settled') },
     reference: ({ firstOfSession }) => { referenceAsks.push(firstOfSession); return { memoryReference: [{ text: '你喜欢用 TypeScript' }], ...(firstOfSession ? { previousDaysReference: [{ text: '昨天一起写了质数脚本' }] } : {}) } } })
-  const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: host.current, ...event } as DshEvent)
-  const approval = (patch: Partial<DshApproval>) => host.options!.onApproval({ sessionId: 'dsh-1', origin: { protocolVersion: 2, runtimeId: 'test-runtime', projectId: 'test-project', rootSessionId: 'dsh-1', sessionId: 'dsh-1', parentSessionId: null, cwd: resolve(project) }, toolName: 'pwsh', callId: 'call-x', reason: null, kind: 'escalation', command: 'node a.js', subject: 'node a.js', degraded: null, ...patch })
+  const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: host.current, ...(event.t === 'turn-start' ? { sourcePolicy: 2 } : {}), ...event } as DshEvent)
+  const approval = (patch: Partial<DshApproval>) => host.options!.onApproval({ approvalId: 'approval-x', activationId: 'activation-x', policyRevision: 0, signal: new AbortController().signal, sessionId: 'dsh-1', origin: { protocolVersion: 2, runtimeId: 'test-runtime', projectId: 'test-project', rootSessionId: 'dsh-1', sessionId: 'dsh-1', parentSessionId: null, cwd: resolve(project) }, toolName: 'pwsh', callId: 'call-x', reason: null, kind: 'escalation', command: 'node a.js', subject: 'node a.js', degraded: null, ...patch })
   const opened = async () => { for (let i = 0; i < 20 && !host.sent.length; i++) await Promise.resolve() }
   const question = (questions: unknown, callId = 'call-ask') => host.options!.onQuestion!({ sessionId: host.current, callId, questions, signal: new AbortController().signal })
   const command = (body: Record<string, unknown>) => ({ protocolVersion: 1, epoch: 'test', requestId: 'answer-' + body.type, ...body }) as AppCommand
@@ -74,6 +74,43 @@ async function workTurn(f: ReturnType<typeof setup>) {
 }
 
 describe('DSH work in the LCA journal', () => {
+  it.each(['restricted', 'legacy'] as const)('does not refill source-derived text through cross-project conversation or memory (%s)', async (mode) => {
+    const f = setup(); f.execution.send('USER_OWN_WORDS', 'r-1', 'h-1'); await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, ...(mode === 'legacy' ? { sourcePolicy: undefined } : {}) })
+    if (mode === 'restricted') f.emit({ t: 'degraded', sources: ['member', 'web'] })
+    f.emit({ t: 'message', text: 'SOURCE_DERIVED_MARKER', toolCalls: [] })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
+    f.setProject(join(f.root, 'other')); f.execution.send('new task', 'r-2', 'h-2')
+    for (let i = 0; i < 20; i++) await Promise.resolve()
+    expect(f.host.references[1]).toContain('USER_OWN_WORDS')
+    expect(f.host.references[1]).not.toContain('SOURCE_DERIVED_MARKER')
+    expect(JSON.stringify(seenFragments(f.store.records(), true))).not.toContain('SOURCE_DERIVED_MARKER')
+    expect(f.store.records().some((row) => row.type === 'assistant/message' && row.text === 'SOURCE_DERIVED_MARKER')).toBe(true)
+    f.journal.close()
+  })
+  const memberOrigin = { protocolVersion: 2 as const, runtimeId: 'test-runtime', projectId: 'test-project', rootSessionId: 'dsh-1', sessionId: 'child', parentSessionId: 'dsh-1', cwd: 'unused' }
+  it('approves idle-root members, rechecks serialized project trust and never shares it across projects', async () => {
+    const f = setup(); await workTurn(f)
+    expect(await Promise.all([f.approval({ origin: memberOrigin, kind: 'trust' }), f.approval({ origin: { ...memberOrigin, sessionId: 'child-2' }, kind: 'trust' })])).toEqual(['allowed-once', 'allowed-once'])
+    expect(f.asked[0].question).toContain('协作者「child」')
+    expect(f.asked).toHaveLength(1)
+    const other = join(f.root, 'other'); f.setProject(other); f.execution.send('other project', 'r-other', 'h-other')
+    for (let i = 0; i < 20; i++) await Promise.resolve()
+    expect(f.execution.trusted(other)).toBe(false)
+    expect(await f.approval({ origin: memberOrigin, kind: 'trust' })).toBe('rejected')
+    f.journal.close()
+  })
+  it('does not save a detached member grant after project trust was revoked', async () => {
+    const f = setup(); await workTurn(f)
+    let finish!: (value: string) => void
+    f.setAnswer(() => new Promise((done) => { finish = done }))
+    const pending = f.approval({ origin: memberOrigin, kind: 'trust' })
+    await Promise.resolve(); await Promise.resolve()
+    f.execution.untrust(join(f.root, 'project')); finish('信任这个项目')
+    expect(await pending).toBe('rejected')
+    expect(f.execution.trusted(join(f.root, 'project'))).toBe(false)
+    f.journal.close()
+  })
   it.each(['trust', 'escalation'] as const)('does not persist a late %s grant after stopping the turn', async (kind) => {
     const f = setup(); f.execution.send('synthetic', 'r-1', 'h-1'); await f.opened()
     f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })

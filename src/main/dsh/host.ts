@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import type { Clock } from '../clock'
 import type { DshRoutes } from './routes'
 import { createDshIdentities } from './identity'
-import type { DshOrigin } from '../../shared/dsh-protocol'
+import type { DshApprovalScope, DshOrigin } from '../../shared/dsh-protocol'
 
 /**
  * DSH host launcher (spike). Runs the forked DSH runtime as an Electron-Node child with LCA's `lca`
@@ -15,14 +15,14 @@ import type { DshOrigin } from '../../shared/dsh-protocol'
 export type DshEvent = { t: string; sessionId?: string; [key: string]: unknown }
 export type DshTool = { name: string; description: string; parameters: Record<string, unknown>; source?: DshSource | null }
 /** Third-party content kinds, as in D2's `turn/degraded`. */
-export type DshSource = 'mail' | 'document' | 'web' | 'mcp' | 'plugin'
-const SOURCES: readonly DshSource[] = ['mail', 'document', 'web', 'mcp', 'plugin']
+export type DshSource = 'mail' | 'document' | 'web' | 'mcp' | 'plugin' | 'member'
+const SOURCES: readonly DshSource[] = ['mail', 'document', 'web', 'mcp', 'plugin', 'member']
 export const dshSources = (value: unknown): DshSource[] => Array.isArray(value) ? SOURCES.filter((source) => value.includes(source)) : []
 /**
  * `degraded`: third-party content is in her context, so this approval may not create or apply standing grants.
  * `trust`: the OS sandbox cannot run commands in her project; asks whether to trust the project instead.
  */
-export type DshApproval = { sessionId: string; origin: DshOrigin; toolName: string; callId: string | null; reason: string | null; kind: 'risky' | 'escalation' | 'degraded' | 'trust'; command: string | null; subject: string | null; degraded: DshSource[] | null }
+export type DshApproval = DshApprovalScope & { signal: AbortSignal; sessionId: string; origin: DshOrigin; toolName: string; callId: string | null; reason: string | null; kind: 'risky' | 'escalation' | 'degraded' | 'trust'; command: string | null; subject: string | null; degraded: DshSource[] | null }
 export interface DshHostOptions {
   /** Real time: it only times out a stalled shutdown. */
   clock: Clock; dshRoot: string; dataDir: string; bridge: string; workspace: string
@@ -89,8 +89,14 @@ export function startDshHost(options: DshHostOptions) {
   child.stderr?.resume()
   const waiting = new Map<string, { done(value: Record<string, unknown>): void; fail(error: Error): void }>()
   const identities = createDshIdentities()
+  const revisions = new Map<string, number>(), inactive = new Set<string>()
+  const invalidate = (root: string) => { revisions.set(root, (revisions.get(root) ?? 0) + 1); inactive.add(root); cancelApprovals(root) }
   // Her questions waiting on your answer: DSH may withdraw one (her turn stopped) before you answer.
   const asking = new Map<string, AbortController>()
+  const approving = new Map<string, { root: string; abort: AbortController }>()
+  const cancelApprovals = (root?: string) => {
+    for (const [id, entry] of approving) if (!root || entry.root === root) { entry.abort.abort(); approving.delete(id) }
+  }
   let ready!: () => void
   let failed!: (error: Error) => void
   const started = new Promise<void>((resolve, reject) => { ready = resolve; failed = reject })
@@ -106,6 +112,7 @@ export function startDshHost(options: DshHostOptions) {
     waiting.clear()
     for (const abort of asking.values()) abort.abort()
     asking.clear()
+    cancelApprovals()
   }
   const exited = new Promise<number | null>((resolve) => {
     const finish = (code: number | null) => { hasExited = true; unavailable(); resolve(code) }
@@ -136,8 +143,9 @@ export function startDshHost(options: DshHostOptions) {
     // the ledger/tools/approval UI. Validate again when asynchronous answers are returned.
     const scoped = ['admit', 'lca-call', 'approval', 'question'].includes(message.t)
     const origin = scoped ? identities.validate(message.origin) : null
-    const current = () => !!origin && !!identities.validate(origin) && !closed && !disconnected
-    if (scoped && (!origin || origin.rootSessionId !== message.sessionId)) {
+    const revision = origin ? revisions.get(origin.rootSessionId) : undefined
+    const current = () => !!origin && !!identities.validate(origin) && !inactive.has(origin.rootSessionId) && revisions.get(origin.rootSessionId) === revision && !closed && !disconnected
+    if (scoped && (!origin || origin.rootSessionId !== message.sessionId || inactive.has(origin.rootSessionId))) {
       if (message.t === 'admit') send({ t: 'admit-answer', id: message.id, ok: false })
       if (message.t === 'approval') send({ t: 'approval-answer', id: message.id, outcome: 'rejected' })
       if (message.t === 'lca-call') send({ t: 'lca-result', id: message.id, ok: false, error: 'DSH_ORIGIN_UNAVAILABLE' })
@@ -153,10 +161,19 @@ export function startDshHost(options: DshHostOptions) {
     }
     else if (message.t === 'lca-call') void options.onCall(String(message.name), message.args, String(message.sessionId), String(message.callId))
       .then((result) => { if (current()) send({ t: 'lca-result', id: message.id, ok: true, value: result.value, source: result.source }) }, (error: unknown) => { if (current()) send({ t: 'lca-result', id: message.id, ok: false, error: error instanceof Error ? error.message : 'LCA_TOOL_FAILED' }) })
-    else if (message.t === 'approval') void options.onApproval({ sessionId: String(message.sessionId), origin: origin!, toolName: String(message.toolName), callId: (message.callId as string | null) ?? null, reason: (message.reason as string | null) ?? null,
+    else if (message.t === 'approval') {
+      const id = String(message.id)
+      if (message.approvalId !== id || typeof message.activationId !== 'string' || !message.activationId || message.policyRevision !== revisions.get(origin!.rootSessionId) || approving.has(id)) {
+        send({ t: 'approval-answer', id, outcome: 'rejected' }); return
+      }
+      const abort = new AbortController(); approving.set(id, { root: String(message.sessionId), abort })
+      void options.onApproval({ approvalId: id, activationId: message.activationId, policyRevision: Number(message.policyRevision), signal: abort.signal,
+      sessionId: String(message.sessionId), origin: origin!, toolName: String(message.toolName), callId: (message.callId as string | null) ?? null, reason: (message.reason as string | null) ?? null,
       kind: message.kind === 'risky' || message.kind === 'degraded' || message.kind === 'trust' ? message.kind : 'escalation', command: (message.command as string | null) ?? null, subject: typeof message.subject === 'string' ? message.subject : null,
       degraded: Array.isArray(message.degraded) ? dshSources(message.degraded) : null })
-      .then((outcome) => { if (current()) send({ t: 'approval-answer', id: message.id, outcome }) }, () => { if (current()) send({ t: 'approval-answer', id: message.id, outcome: 'rejected' }) })
+      .catch(() => 'rejected' as const).then((outcome) => { if (approving.delete(id) && !abort.signal.aborted && current()) send({ t: 'approval-answer', id, outcome }) })
+    }
+    else if (message.t === 'approval-cancel') { approving.get(String(message.id))?.abort.abort(); approving.delete(String(message.id)) }
     else if (message.t === 'question') {
       const abort = new AbortController(); asking.set(String(message.id), abort)
       const answered = options.onQuestion?.({ sessionId: String(message.sessionId), callId: typeof message.callId === 'string' ? message.callId : null, questions: message.questions, signal: abort.signal })
@@ -179,7 +196,9 @@ export function startDshHost(options: DshHostOptions) {
     open: async (cwd: string, sessionId?: string, trusted = false, degraded: readonly DshSource[] = [], persona?: { persona: string; suffix: string }) => {
       await started
       const id = sessionId ?? `session-${randomUUID()}`
+      cancelApprovals(id)
       const binding = identities.reserveRoot(id, cwd)
+      revisions.set(id, 0); inactive.delete(id)
       try {
         const answer = await request({ t: 'open', cwd, trusted, degraded, sessionId: id, resume: !!sessionId, binding, ...(persona ?? {}) })
         if (answer.sessionId !== id) throw new Error('DSH_IDENTITY_CONFLICT')
@@ -189,12 +208,15 @@ export function startDshHost(options: DshHostOptions) {
     /** Switch a live session to the `lca-trusted` preset after the user granted its project. */
     trust: (sessionId: string) => send({ t: 'trust', sessionId }),
     /** Back to the default sandbox preset after the user withdrew trust. */
-    untrust: (sessionId: string) => send({ t: 'untrust', sessionId }),
+    untrust: (sessionId: string) => { invalidate(sessionId); return send({ t: 'untrust', sessionId }) },
     /** `reference`: LCA's memory references, sent as their own block before your text. */
     /** `degrade`: the reference carries third-party originals that cannot be retired; the session stays degraded. */
-    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user', degrade: readonly DshSource[] = []) =>
-      send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}), ...(degrade.length ? { degrade } : {}) }),
-    cancel: (sessionId: string) => send({ t: 'cancel', sessionId }),
+    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user', degrade: readonly DshSource[] = []) => {
+      if (mode === 'followup' || inactive.has(sessionId)) invalidate(sessionId)
+      inactive.delete(sessionId)
+      return send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}), ...(degrade.length ? { degrade } : {}) })
+    },
+    cancel: (sessionId: string) => { invalidate(sessionId); return send({ t: 'cancel', sessionId }) },
     /** Replace her LCA tools (a plugin was enabled or disabled); the next step sees the new list. */
     tools: (tools: readonly DshTool[]) => send({ t: 'tools', tools }),
     /** Thinking levels DSH can send for each role's model; null where it cannot tell. */

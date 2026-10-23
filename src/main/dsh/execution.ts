@@ -66,7 +66,7 @@ const UNANSWERED: Record<string, string> = {
   'invalid-question': 'The question could not be shown. Ask in plain text, without secrets or credentials.',
   superseded: 'The user wrote to you instead of answering. Read their new message.',
 }
-const SOURCE_TEXT: Record<DshSource, string> = { web: '网页', mcp: '外部工具给的内容', mail: '邮件原文', document: '附件原文', plugin: '插件资料' }
+const SOURCE_TEXT: Record<DshSource, string> = { web: '网页', mcp: '外部工具给的内容', mail: '邮件原文', document: '附件原文', plugin: '插件资料', member: '协作者的消息' }
 const ACTION_TEXT: Record<string, string> = { write: '写文件', edit: '改文件', pwsh: '运行命令', bash: '运行命令', web_fetch: '再上网', web_search: '再上网' }
 /**
  * A DSH turn error as LCA's closed failure vocabulary (narrator/failure). Only DSH's error code and the HTTP status
@@ -102,7 +102,7 @@ export function createDshExecution(options: {
   /** 'fake' when the routes lead to developer scenes' scripted model (developer/endpoint.ts). */
   source?: 'real' | 'fake'
   project(): string; persona(): string; suffix(): string; tools(): readonly HarnessTool[]
-  ask(question: string, choices: string[], context: { turnId: string; callId: string; signal: AbortSignal }): Promise<string | null>
+  ask(question: string, choices: string[], context: { turnId: string; callId: string; signal: AbortSignal; member?: boolean }): Promise<string | null>
   /**
    * Her questions to you (DSH ask_user_question) in the book's question card (questions/service.ts ask). Answered:
    * `answers` one per question and `answerMessageId`, your words in the journal; otherwise why not.
@@ -219,10 +219,18 @@ export function createDshExecution(options: {
     turn = undefined; options.changed('message'); options.settled?.()
   }
 
-  const approve = async (request: DshApproval): Promise<'allowed-once' | 'rejected'> => {
-    if (!session || request.sessionId !== session.id) return 'rejected'
+  const policyVersions = new Map<string, number>()
+  const approveOne = async (request: DshApproval): Promise<'allowed-once' | 'rejected'> => {
+    if (closed || request.signal.aborted || !session || request.sessionId !== session.id) return 'rejected'
     const project = session?.cwd ?? resolve(options.project())
-    const command = request.command ?? (request.callId ? turn?.calls.get(request.callId)?.command ?? null : null)
+    const member = request.origin.sessionId !== request.origin.rootSessionId
+    const current = turn, revision = policyVersions.get(project)
+    if (!member && !current) return 'rejected'
+    const signal = member ? request.signal : AbortSignal.any([request.signal, current!.asks.signal])
+    const context = { turnId: member ? request.activationId : current!.lcaTurnId, callId: request.approvalId, signal, ...(member ? { member: true } : {}) }
+    const valid = () => !closed && !signal.aborted && (member || current === turn) && session?.id === request.sessionId && policyVersions.get(project) === revision
+    const owner = member ? `协作者「${clip(request.origin.sessionId, 24)}」：` : ''
+    const command = request.command ?? (!member && request.callId ? turn?.calls.get(request.callId)?.command ?? null : null)
     const prefix = request.kind === 'risky' && command ? command.trim().split(/\s+/).slice(0, 2).join(' ') : null
     const rules = read<Rule[]>(rulesFile, [])
     // The sandbox cannot run commands in this project: ask about trust itself, never about the repair
@@ -230,13 +238,11 @@ export function createDshExecution(options: {
     if (request.kind === 'trust') {
       if (request.degraded?.length) return 'rejected'
       if (rules.some((rule) => rule.project === project && rule.prefix === null)) return 'allowed-once'
-      const current = turn
-      if (!current) return 'rejected'
       const shown = request.subject ?? command
       const question = `她想在「${basename(project)}」里运行命令${shown ? `：${clip(shown.replace(/\s+/g, ' '), 80)}` : ''}，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。`
       const choices = ['信任这个项目', '先不要']
-      const answer = await ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
-      if (closed || current !== turn || current.asks.signal.aborted || session?.id !== request.sessionId) return 'rejected'
+      const answer = await ask(owner + question, choices, context).catch(() => null)
+      if (!valid()) return 'rejected'
       if (answer !== choices[0]) return 'rejected'
       writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix: null }], null, 2))
       return 'allowed-once'
@@ -244,8 +250,6 @@ export function createDshExecution(options: {
     // D2: while third-party content is in her context, standing grants do not apply and none are made.
     const degraded = request.degraded?.length ? request.degraded : null
     if (!degraded && rules.some((rule) => rule.project === project && rule.tool === request.toolName && rule.prefix === prefix)) return 'allowed-once'
-    const current = turn
-    if (!current) return 'rejected'
     // DSH escalations carry the model's own justification after the mode; it reads better than a raw path.
     const justification = request.reason?.match(/^escalate sandbox to [\w-]+:\s*([\s\S]+)$/)?.[1]
     const shown = request.kind === 'degraded' ? request.subject ?? command : command ?? request.subject
@@ -256,14 +260,21 @@ export function createDshExecution(options: {
         : `${readFirst}她想在「${basename(project)}」里直接运行命令${subject}。可以吗？`
     const always = degraded ? null : request.kind === 'risky' ? `以后都允许「${clip(prefix ?? '', 24)}」` : '这个项目以后都允许'
     const choices = always ? ['允许这一次', always, '拒绝'] : ['允许这一次', '拒绝']
-    const answer = await ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
-    if (closed || current !== turn || current.asks.signal.aborted || session?.id !== request.sessionId) return 'rejected'
+    const answer = await ask(owner + question, choices, context).catch(() => null)
+    if (!valid()) return 'rejected'
     if (always && answer === always) {
       writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix }], null, 2))
       // A project-wide grant is the user's choice of same-user trust: later commands skip the sandbox detour.
       if (prefix === null && session?.id && session.cwd === project) host?.trust(session.id)
     }
     return answer === choices[0] || (always !== null && answer === always) ? 'allowed-once' : 'rejected'
+  }
+  // Serialize the decision, not just the card: a second member rechecks a newly saved project grant.
+  let approvals: Promise<unknown> = Promise.resolve()
+  const approve = (request: DshApproval): Promise<'allowed-once' | 'rejected'> => {
+    const pending = approvals.then(() => approveOne(request))
+    approvals = pending.catch(() => 'rejected')
+    return pending
   }
 
   const call = async (name: string, args: unknown, sessionId: string, callId: string) => {
@@ -308,7 +319,7 @@ export function createDshExecution(options: {
         options.foreground?.()
         begin(turn.lcaTurnId, start)
         const preset = typeof event.preset === 'string' && event.preset.length <= 64 ? event.preset : null
-        record({ type: 'work/turn', turnId: turn.lcaTurnId, engine: 'dsh', sessionId: session.id, preset })
+        record({ type: 'work/turn', turnId: turn.lcaTurnId, engine: 'dsh', sessionId: session.id, preset, ...(event.sourcePolicy === 2 ? { sourcePolicy: 2 as const } : {}) })
         options.changed('task'); break
       }
       // A message you send while she speaks about an event makes the turn yours: no longer held for rest.
@@ -452,6 +463,7 @@ export function createDshExecution(options: {
   }
   const openSession = async (day: string, cwd: string) => {
     const running = ensureHost(cwd)
+    if (session?.id) running.cancel(session.id)
     const sessions = daySessions(read<Saved>(sessionsFile, {}), day)
     const known = sessions.find((item) => item.cwd === cwd)
     const current: Live = { id: '', cwd, day, seenSeq: 0 }
@@ -475,9 +487,11 @@ export function createDshExecution(options: {
     const rows = store.records()
     const approvals = new Set(rows.flatMap((row) => row.type === 'question/requested' && row.approval ? [row.id] : []))
     const answers = new Set(rows.flatMap((row) => row.type === 'question/answered' && approvals.has(row.id) ? [row.answerMessageId] : []))
+    const verified = new Set(rows.flatMap((row) => row.type === 'work/turn' && row.sourcePolicy === 2 ? [row.turnId] : []))
+    const restricted = new Set(rows.flatMap((row) => row.type === 'turn/degraded' ? [row.turnId] : []))
     const lines = rows.flatMap((row): { who: 'user' | 'her'; text: string }[] => row.seq <= since ? []
       : row.type === 'user/message' && !exclude.has(row.id) && !answers.has(row.id) ? [{ who: 'user', text: row.text }]
-        : row.type === 'assistant/message' && !row.displayOnly && row.text ? [{ who: 'her', text: row.text }] : [])
+        : row.type === 'assistant/message' && !row.displayOnly && row.text && verified.has(row.turnId) && !restricted.has(row.turnId) ? [{ who: 'her', text: row.text }] : [])
     const kept: { who: 'user' | 'her'; text: string }[] = []
     let chars = 0
     for (const line of lines.slice(-EARLIER_LINES).reverse()) { chars += line.text.length; if (chars > EARLIER_CHARS && kept.length) break; kept.unshift({ ...line, text: clip(line.text, EARLIER_CHARS) }) }
@@ -521,7 +535,7 @@ export function createDshExecution(options: {
       if (closed || !turn || !session || turn.lcaTurnId !== taskId) return false
       turn.asks.abort(); host?.cancel(session.id); return true
     },
-    stateChanged: () => { if (closed) return; if (store.projection().lightsOut && turn && session) host?.cancel(session.id); kick() },
+    stateChanged: () => { if (closed) return; if ((store.projection().lightsOut || store.projection().sleeping || session?.cwd !== resolve(options.project())) && session) host?.cancel(session.id); kick() },
     /**
      * An event she may speak about: recorded in the journal, then given to her DSH session.
      * Duplicates (same id) and a full queue (32 waiting) are refused.
@@ -540,7 +554,8 @@ export function createDshExecution(options: {
     untrust: (project: string) => {
       if (closed) return
       const target = resolve(project)
-      writeFileSync(rulesFile, JSON.stringify(read<Rule[]>(rulesFile, []).filter((rule) => !(rule.project === target && rule.prefix === null)), null, 2))
+      policyVersions.set(target, (policyVersions.get(target) ?? 0) + 1)
+      writeFileSync(rulesFile, JSON.stringify(read<Rule[]>(rulesFile, []).filter((rule) => rule.project !== target), null, 2))
       if (session?.id && session.cwd === target) host?.untrust(session.id)
     },
     taskApproved: () => {},

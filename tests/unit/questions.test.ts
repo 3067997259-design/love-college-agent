@@ -44,6 +44,21 @@ it('queues without exposing the prompt; only visible time consumes the deadline'
   f.clock.advanceBy(400_000); expect((await pending).visible).toMatchObject({ status: 'timeout' }); expect(f.q.view()).toBeUndefined()
   expect(f.store.projection().context).toEqual([]); expect(f.store.projection().messages).toHaveLength(1)
 })
+
+it.each(['answer', 'timeout', 'abort', 'restart'] as const)('member approval stays available without a root turn and settles by %s', async (action) => {
+  const f = fixture()
+  const context = { store: f.store, clock: f.clock, signal: f.abort.signal, turnId: 'member-activation', callId: 'approval' }
+  const pending = f.q.approve({ question: 'Member needs approval', choices: ['Allow', 'Deny'] }, context, true)
+  expect(f.q.view()).toMatchObject({ kind: 'approval', status: 'waiting' })
+  f.start('unrelated-root'); f.store.append({ type: 'turn/end', turnId: 'unrelated-root', reason: 'completed' }); f.q.stateChanged()
+  expect(f.q.view()?.status).toBe('waiting')
+  if (action === 'answer') f.answer('Allow')
+  if (action === 'timeout') f.clock.advanceBy(600_000)
+  if (action === 'abort') f.abort.abort()
+  if (action === 'restart') { f.q.close(); const reopened = createQuestions(f.options); expect(reopened.view()).toBeUndefined(); reopened.close() }
+  expect((await pending).visible).toMatchObject({ status: action === 'answer' ? 'answered' : action === 'timeout' ? 'timeout' : 'cancelled' })
+  expect(f.q.view()).toBeUndefined()
+})
 it.each(['abort', 'supersede', 'disable', 'close', 'lights', 'sleep', 'settled'] as const)('invalidates a pending question on %s', async (cause) => {
   const f = fixture(); f.start(); const p = f.ask(); const id = f.q.view()!.id
   if (cause === 'abort') f.abort.abort()

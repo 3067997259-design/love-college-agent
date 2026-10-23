@@ -8,19 +8,19 @@ import { resolve } from 'node:path'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { ReasoningEffortId, createUserMessage } from '@deepseek-ai/dsh-llm'
-import { HANDOFF_FEEDBACK, TRUST_FEEDBACK, createDegradation, createLineage, gatedWhileDegraded, handoffOf, isRisky, parseRoutes, RETIREMENT_KEY, retireReferences, retireResults, retirementProjection, sameModel, sandboxDenied, sourceOf, staleEntries, subjectOf } from './policy.js'
+import { DELEGATION, HANDOFF_FEEDBACK, TRUST_FEEDBACK, createLineage, gatedWhileDegraded, handoffOf, isRisky, parseRoutes, sameModel, sandboxDenied, sourceOf, subjectOf } from './policy.js'
+import { createFamilySafety } from './family.js'
 
 export const name = 'lca-bridge'
 export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm', 'sessionProjections']
 
 const CLIP = 4000
-const SOURCES = new Set(['mail', 'document', 'web', 'mcp', 'plugin'])
+const SOURCES = new Set(['mail', 'document', 'web', 'mcp', 'plugin', 'member'])
 
 export function apply(ctx) {
   if (typeof process.send !== 'function') throw new Error('lca-bridge needs the IPC channel of its LCA parent')
   const send = (message) => { if (process.connected) process.send(message) }
   const lcaSources = new Map() // LCA tool name -> the third-party source its results carry (mail, documents, plugins)
-  ctx.sessionProjections.register(retirementProjection((name) => sourceOf(name) ?? lcaSources.get(name) ?? null))
   const live = new Map() // root session id -> { handle, cwd }
   const bindings = new Map() // root id -> main-issued project and runtime binding
   const registered = new Set()
@@ -29,7 +29,6 @@ export function apply(ctx) {
     try { value = realpathSync.native(value) } catch { /* an unavailable project is rejected by main */ }
     return process.platform === 'win32' ? value.toLowerCase() : value
   }
-  const approvals = new Map()
   const calls = new Map()
   const asked = new Map() // callId -> { kind, command } for approvals this plugin asked for
   const subjects = new Map() // callId -> short subject for an approval card (approval requests carry no arguments)
@@ -45,7 +44,6 @@ export function apply(ctx) {
   // previous step's usage (input + output + a tenth of cache reads), or 16k before any usage is known.
   const admissions = new Map() // id -> settle(boolean)
   const lastUnits = new Map() // root session id -> units of its latest step
-  const revealing = new Map() // root session id -> sources of an original riding in its next opening message
   const unitsOf = (usage) => Math.max(1, Math.round(Number(usage?.inputTokens ?? 0) + Number(usage?.outputTokens ?? 0) + Number(usage?.cacheReadTokens ?? 0) / 10))
   const admit = (root, role, origin) => new Promise((settle) => {
     const id = randomUUID(); admissions.set(id, settle)
@@ -69,8 +67,8 @@ export function apply(ctx) {
     if (!registered.has(sid)) { registered.add(sid); send({ t: 'member', origin }) }
     return origin
   }
-  ctx.on('agent/created', ({ agent }) => { originOf(agent) })
-  const degradation = createDegradation()
+  const safety = createFamilySafety(ctx, { originOf, send, sourceOf: (name) => sourceOf(name) ?? (lcaSources.has(name) ? lcaSources.get(name) : DELEGATION.has(name) || name === 'list_agents' || name.startsWith('team_task_') ? 'member' : name.startsWith('lca_') ? 'plugin' : null) })
+  const callKey = (agent, callId) => `${lineage.sid(agent)}:${String(callId)}`
   // Chat and work models; a thinking level the model does not offer is dropped (DSH would refuse the request).
   const routes = parseRoutes(process.env.LCA_DSH_ROUTES)
   const levels = new Map() // `${provider}/${model}` -> Promise<string[] | null>
@@ -104,14 +102,10 @@ export function apply(ctx) {
   const clip = (value) => (value.length > CLIP ? value.slice(0, CLIP) + '…' : value)
   const plain = (value) => JSON.parse(JSON.stringify(value ?? null))
 
-  const degrade = (root, source) => {
-    if (degradation.mark(root, source, turns.get(root) ?? null)) send({ t: 'degraded', sessionId: root, sources: degradation.sources(root) })
-  }
-
   const registerLcaTools = (tools) => {
     for (const dispose of toolDisposers) dispose()
     lcaSources.clear()
-    for (const tool of tools) if (SOURCES.has(tool.source)) lcaSources.set(tool.name, tool.source)
+    for (const tool of tools) lcaSources.set(tool.name, SOURCES.has(tool.source) ? tool.source : null)
     toolDisposers = tools.map((tool) => ctx.tools.register({
       name: tool.name,
       description: tool.description,
@@ -123,7 +117,7 @@ export function apply(ctx) {
         const id = randomUUID()
         const root = lineage.rootOf(exec.agent)
         const callId = String(exec.callId)
-        calls.set(id, { done: (value, source) => { if (root && SOURCES.has(source)) degrade(root, source); done(value) }, fail })
+        calls.set(id, { done: (value, source) => { try { if (SOURCES.has(source)) safety.recordSource(exec, source); done(value) } catch { fail(new Error('LCA_SOURCE_RECORD_FAILED')) } }, fail })
         exec.signal?.addEventListener('abort', () => { if (calls.delete(id)) fail(new Error('cancelled')) }, { once: true })
         send({ t: 'lca-call', id, sessionId: root ?? lineage.sid(exec.agent), origin, callId, name: tool.name, args: plain(args) })
       }),
@@ -132,13 +126,8 @@ export function apply(ctx) {
 
   // Only LCA decides trust, and only for a project the user granted in the book.
   const presetOf = (session) => ctx.get('permissionPresets')?.current(session) ?? null
-  const trust = (session) => {
-    const presets = ctx.get('permissionPresets')
-    if (!presets) throw new Error('lca-bridge: permission presets unavailable')
-    presets.set(session, 'lca-trusted')
-  }
 
-  const open = async ({ sessionId, cwd, trusted, degraded, binding, resume }) => {
+  const open = async ({ sessionId, cwd, trusted, binding, resume }) => {
     if (binding?.protocolVersion !== 2 || !['runtimeId', 'projectId', 'cwd'].every((key) => typeof binding[key] === 'string' && binding[key]) || canonical(binding.cwd) !== canonical(cwd)) throw new Error('DSH_BINDING_REQUIRED')
     await ctx.get('loader')?.await()
     if (routes && !picked) await pick()
@@ -146,6 +135,7 @@ export function apply(ctx) {
     const selection = { current: chat, assembled: undefined }
     const id = brandString(sessionId ?? `session-${randomUUID()}`)
     bindings.set(String(id), { protocolVersion: 2, runtimeId: binding.runtimeId, projectId: binding.projectId, cwd: canonical(binding.cwd) })
+    safety.bind(String(id), trusted)
     const setup = (agentCtx) => {
       installModelSelection(agentCtx, selection)
       if (persona) agentCtx.systemPrompt.section({ name: 'deployment:persona-prefix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX'), text: persona, interpolate: false })
@@ -158,9 +148,7 @@ export function apply(ctx) {
     live.set(String(id), { handle, cwd })
     if (!originOf(handle.agent)) { live.delete(String(id)); bindings.delete(String(id)); await handle.dispose(); throw new Error('DSH_PROJECT_MISMATCH') }
     models.set(String(id), { selection, role: 'chat' })
-    if (trusted === true) trust(handle.agent.session)
-    // Third-party content LCA could not retire before a restart: keep the session degraded.
-    if (Array.isArray(degraded)) degradation.restore(String(id), degraded.filter((source) => SOURCES.has(source)))
+    safety.ensure(handle.agent)
     return { sessionId: String(id), cwd, provider: chat.provider, model: chat.model, preset: presetOf(handle.agent.session) }
   }
 
@@ -184,6 +172,9 @@ export function apply(ctx) {
   ctx.on('tools/pre-execute', async (exec, next) => {
     const root = lineage.rootOf(exec.agent)
     if (!root || !originOf(exec.agent)) return { kind: 'deny', reason: 'LCA cannot verify this agent and project. Ask the user to start a new task.' }
+    if (!safety.beforeTool(exec)) return { kind: 'deny', reason: 'This member activation is no longer authorized.' }
+    // Runtime-wide plugin changes could remove this policy itself. Extension writes use LCA's main-owned adapter.
+    if (String(exec.name) === 'plugin_manager' && !['list', 'inspect'].includes(exec.arguments?.action)) return { kind: 'deny', reason: 'Manage extensions through LCA settings.' }
     if (String(exec.name) === 'ask_user_question' && isRoot(exec.agent)) askCalls.set(root, String(exec.callId))
     const args = JSON.stringify(exec.arguments ?? {}).toLowerCase().replaceAll('\\\\', '\\')
     if (guarded.some((path) => args.includes(path) || args.includes(path.replaceAll('\\', '/')))) return { kind: 'deny', reason: 'This path is LCA private data; she does not work on it.' }
@@ -196,64 +187,47 @@ export function apply(ctx) {
     }
     const command = typeof exec.arguments?.command === 'string' ? exec.arguments.command : ''
     if (subjects.size > 512) subjects.clear()
-    subjects.set(String(exec.callId), subjectOf(exec.arguments))
+    subjects.set(callKey(exec.agent, exec.callId), subjectOf(exec.arguments))
     if (isRisky(command)) {
-      asked.set(String(exec.callId), { kind: 'risky', command })
+      asked.set(callKey(exec.agent, exec.callId), { kind: 'risky', command })
       return { kind: 'ask', reason: `Risky command: ${command.slice(0, 200)}` }
     }
-    if (degradation.active(root) && gatedWhileDegraded(String(exec.name))) {
-      asked.set(String(exec.callId), { kind: 'degraded', command: command || null })
+    if (safety.sources(exec.agent).length && gatedWhileDegraded(String(exec.name))) {
+      asked.set(callKey(exec.agent, exec.callId), { kind: 'degraded', command: command || null })
       return { kind: 'ask', reason: 'Third-party content is in this turn; the user approves each write, command and fetch.' }
     }
     return next()
-  })
+  }, { prepend: true })
 
   // The first time the OS sandbox cannot run a command in her project, ask the user about trusting
   // the project instead of letting her read the raw ACL error and set out to repair permissions.
-  // One question per session at a time; a "not now" holds for the rest of the session.
-  const asking = new Map() // root session id -> Promise<'trusted' | 'declined' | 'cancelled'>
+  // Main serializes project decisions; a "not now" holds until revocation or runtime restart.
   const declined = new Set()
-  const askTrust = (root, exec, subject) => {
-    const session = live.get(root).handle.agent.session
-    const pending = new Promise((settle) => {
-      const id = randomUUID()
-      approvals.set(id, settle)
-      exec.signal?.addEventListener('abort', () => { if (approvals.delete(id)) settle('cancelled') }, { once: true })
-      send({ t: 'approval', id, sessionId: root, origin: originOf(exec.agent), toolName: String(exec.name), callId: String(exec.callId), reason: null, kind: 'trust', command: null, subject, degraded: null })
-    }).then((outcome) => {
-      asking.delete(root)
-      if (outcome === 'allowed-once') { trust(session); send({ t: 'trusted', sessionId: root, preset: presetOf(session) }); return 'trusted' }
-      if (outcome === 'cancelled') return 'cancelled'
-      declined.add(root)
-      return 'declined'
-    })
-    asking.set(root, pending)
-    return pending
+  const askTrust = async (root, exec, subject) => {
+    const outcome = await safety.request(exec.agent, { toolName: String(exec.name), callId: String(exec.callId), reason: null, kind: 'trust', command: null, subject, degraded: null }, exec.signal)
+    if (outcome === 'allowed-once') { safety.setTrust(root, true); send({ t: 'trusted', sessionId: root, preset: presetOf(exec.agent.session) }); return 'trusted' }
+    if (outcome !== 'cancelled') declined.add(root)
+    return 'declined'
   }
   const block = (text) => ({ kind: 'block', feedback: [{ type: 'text', text }] })
 
-  // Third-party results degrade her root session (the retirement projection knows the ones to retire).
+  // ACL feedback uses the executing member's sources, never only the lead's state.
   ctx.on('tools/post-execute', async (exec, result, next) => {
     const root = lineage.rootOf(exec.agent)
     if (root) {
-      const subject = subjects.get(String(exec.callId)) ?? null
-      subjects.delete(String(exec.callId))
-      const name = String(exec.name)
-      const source = sourceOf(name)
-      const top = isRoot(exec.agent)
-      if (source) degrade(root, source)
-      if (top && sandboxDenied(result) && presetOf(live.get(root).handle.agent.session) !== 'lca-trusted') {
-        if (degradation.active(root)) return block(TRUST_FEEDBACK.degraded)
+      const subject = subjects.get(callKey(exec.agent, exec.callId)) ?? null
+      subjects.delete(callKey(exec.agent, exec.callId))
+      if (sandboxDenied(result)) {
+        if (safety.sources(exec.agent).length) return block(TRUST_FEEDBACK.degraded)
         if (declined.has(root)) return block(TRUST_FEEDBACK.declined)
-        const outcome = await (asking.get(root) ?? askTrust(root, exec, subject))
-        if (outcome !== 'cancelled') return block(TRUST_FEEDBACK[outcome])
+        if (presetOf(exec.agent.session) === 'lca-trusted') return block(TRUST_FEEDBACK.declined)
+        return block(TRUST_FEEDBACK[await askTrust(root, exec, subject)])
       }
     }
     return next()
   })
 
-  // A later turn first retires the third-party results of earlier turns; the turn is then no longer
-  // degraded. If they cannot be retired, the new turn stays degraded too.
+  // Source retirement is installed by family.js around this admission hook.
   ctx.on('agent/pre-step', async (payload, next) => {
     const family = lineage.rootOf(payload.agent)
     const origin = originOf(payload.agent)
@@ -267,42 +241,18 @@ export function apply(ctx) {
       eventTurns.delete(root)
       queueMicrotask(() => payload.agent.cancel({ kind: 'user' }))
     }
-    // Earlier turns' references and third-party results leave her context before this turn's first request, also
-    // after a restart. The turn is then no longer degraded; if they cannot be retired, it stays degraded too.
-    if (live.has(root)) {
-      const session = payload.agent.session
-      let retired = true
-      let count = 0
-      try {
-        const stale = staleEntries(ctx.sessionProjections.stateOf(session, RETIREMENT_KEY))
-        retireReferences(session, stale.filter((entry) => entry.kind === 'reference'))
-        count = retireResults(session, stale.filter((entry) => entry.kind === 'result'), ctx.get('tokenMeter'))
-      } catch (error) {
-        retired = false
-        ctx.logger?.warn?.(`lca-bridge: could not retire earlier references or third-party results: ${error instanceof Error ? error.message : String(error)}`)
-      }
-      const due = degradation.due(root, payload.turn)
-      if (due && retired) { degradation.clear(root); send({ t: 'retired', sessionId: root, count }) }
-      else if (due) { degradation.carry(root, payload.turn); send({ t: 'degraded', sessionId: root, sources: degradation.sources(root) }) }
-      else if (count) send({ t: 'retired', sessionId: root, count })
-    }
     return next()
   })
 
   ctx.on('approval/request', async (request) => {
     const root = lineage.rootOf(request.agent)
     if (!root || !originOf(request.agent)) return 'rejected'
-    const id = randomUUID()
     const callId = request.callId ? String(request.callId) : null
-    const ask = callId ? asked.get(callId) ?? null : null
-    const subject = callId ? subjects.get(callId) ?? null : null
-    if (callId) { asked.delete(callId); subjects.delete(callId) }
-    send({ t: 'approval', id, sessionId: root, origin: originOf(request.agent), toolName: request.toolName, callId, reason: request.reason ?? null, kind: ask?.kind ?? 'escalation', command: ask?.command ?? null,
-      subject, degraded: degradation.active(root) ? degradation.sources(root) : null })
-    return await new Promise((settle) => {
-      approvals.set(id, settle)
-      request.signal?.addEventListener('abort', () => { if (approvals.delete(id)) settle('cancelled') }, { once: true })
-    })
+    const key = callKey(request.agent, callId)
+    const ask = asked.get(key) ?? null, subject = subjects.get(key) ?? null
+    asked.delete(key)
+    return safety.request(request.agent, { toolName: request.toolName, callId, reason: request.reason ?? null, kind: ask?.kind ?? 'escalation', command: ask?.command ?? null,
+      subject, degraded: safety.sources(request.agent) }, request.signal)
   })
 
   // Her questions to you (DSH ask_user_question) are answered in the book, which may hold them while you focus. A
@@ -341,13 +291,8 @@ export function apply(ctx) {
         turns.set(sessionId, data.turn); choose(sessionId, 'chat')
         const queued = eventStarts.get(sessionId) ?? 0
         if (queued > 0) { eventStarts.set(sessionId, queued - 1); eventTurns.set(sessionId, data.turn) } else eventTurns.delete(sessionId)
-        send({ t: 'turn-start', sessionId, turn: data.turn, preset: presetOf(session) })
+        send({ t: 'turn-start', sessionId, turn: data.turn, preset: presetOf(session), sourcePolicy: 2 })
         // An original you asked to see rides in this turn's opening message: the turn is degraded, and the next one retires it.
-        const reveal = revealing.get(sessionId)
-        if (reveal) {
-          revealing.delete(sessionId)
-          if (reveal.map((source) => degradation.mark(sessionId, source, data.turn)).some(Boolean)) send({ t: 'degraded', sessionId, sources: degradation.sources(sessionId) })
-        }
         break
       }
       case 'user/message': {
@@ -394,18 +339,18 @@ export function apply(ctx) {
           const reference = typeof message.reference === 'string' && message.reference ? [{ type: 'text', text: message.reference + '\n\n' }] : []
           // A third-party original rides in this message (you asked to see it): the turn it opens is degraded.
           const degrade = Array.isArray(message.degrade) ? message.degrade.filter((source) => SOURCES.has(source)) : []
-          if (degrade.length && reference.length) revealing.set(String(message.sessionId), [...new Set([...(revealing.get(String(message.sessionId)) ?? []), ...degrade])])
           const event = message.origin === 'event'
-          const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: event ? 'lca-event' : 'user', ...(reference.length ? { lcaReferences: true } : {}) } })
+          const authorizationId = safety.begin(agent, message.mode === 'followup')
+          const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: event ? 'lca-event' : 'user', lcaProvenance: { authorizationId, sources: degrade }, ...(reference.length ? { lcaReferences: true } : {}) } })
           if (event && message.mode === 'followup') eventStarts.set(message.sessionId, (eventStarts.get(message.sessionId) ?? 0) + 1)
           // You joined in: the turn is yours, no event cap.
           if (!event) eventTurns.delete(message.sessionId)
           if (message.mode === 'steer') agent.steer(input); else if (message.mode === 'inject') agent.inject(input); else agent.followup(input)
           break
         }
-        case 'cancel': agentOf(message.sessionId).cancel({ kind: 'user' }); break
-        case 'trust': { const session = agentOf(message.sessionId).session; trust(session); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(session) }); break }
-        case 'untrust': { const session = agentOf(message.sessionId).session; ctx.get('permissionPresets')?.set(session, 'workspace-write'); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(session) }); break }
+        case 'cancel': safety.cancel(message.sessionId); break
+        case 'trust': { safety.setTrust(message.sessionId, true); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(agentOf(message.sessionId).session) }); break }
+        case 'untrust': { safety.setTrust(message.sessionId, false); declined.delete(message.sessionId); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(agentOf(message.sessionId).session) }); break }
         case 'question-answer': {
           const entry = questions.get(message.id)
           if (!entry) break
@@ -413,7 +358,7 @@ export function apply(ctx) {
           if (Array.isArray(message.answers)) entry.done({ answers: message.answers }); else entry.fail(new Error(String(message.error ?? 'the user did not answer')))
           break
         }
-        case 'approval-answer': { const settle = approvals.get(message.id); if (settle) { approvals.delete(message.id); settle(message.outcome) } break }
+        case 'approval-answer': safety.answer(message.id, message.outcome); break
         case 'admit-answer': { const settle = admissions.get(message.id); if (settle) { admissions.delete(message.id); settle(message.ok !== false) } break }
         case 'lca-result': {
           const call = calls.get(message.id)

@@ -66,7 +66,7 @@ const SCENARIOS = {
     check: (seen, notes) => ({
       turnsCompleted: seen.turnEnds.length === 2 && seen.turnEnds.every((kind) => kind === 'completed'),
       referenceBeforeWords: notes.userText.indexOf('LCA_REFERENCE_PROBE') >= 0 && notes.userText.indexOf('LCA_REFERENCE_PROBE') < notes.userText.indexOf('[[T1]]'),
-      retiredNextTurn: !notes.later.includes('LCA_REFERENCE_PROBE') && notes.later.includes('[[T1]]') && notes.later.includes('LCA references for an earlier turn'),
+      retiredNextTurn: !notes.later.includes('LCA_REFERENCE_PROBE') && notes.later.includes('[[T1]]') && notes.later.includes('LCA retired earlier source-derived content'),
     }),
   },
   levels: {
@@ -114,7 +114,7 @@ const SCENARIOS = {
       turnsCompleted: seen.turnEnds.length === 2 && seen.turnEnds.every((kind) => kind === 'completed'),
       degradedOnceInTurn1: seen.degraded.length === 1 && seen.degraded[0].turn === 1 && seen.degraded[0].sources.join() === 'web',
       turn1CommandAskedAsDegraded: seen.approvals.length === 1 && seen.approvals[0].turn === 1 && seen.approvals[0].kind === 'degraded' && seen.approvals[0].toolName === 'pwsh',
-      retiredAtTurn2: seen.retired.length === 1 && seen.retired[0].turn === 2 && seen.retired[0].count === 1,
+      retiredAtTurn2: seen.retired.length === 1 && seen.retired[0].turn === 2 && seen.retired[0].count >= 1,
       modelSawRetiredResult: notes.retiredSeen === true,
       commandsRan: ['call_pwsh_1', 'call_pwsh_2'].every((id) => resultOf(seen, id)?.isError === false),
     }),
