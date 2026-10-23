@@ -1,6 +1,8 @@
 /** Private, main-owned management IPC. Never accept this shape from renderer or a model. */
 export type DshExtensionRequest =
   | { action: 'list' }
+  | { action: 'skills'; cwd: string }
+  | { action: 'skill-inspect'; directory: string }
   | { action: 'reconcile' | 'cancel'; operationId: string }
   | { action: 'install'; operationId: string; spec: string; fingerprint: string; approvedBuilds?: string[] }
   | { action: 'enable' | 'disable' | 'remove'; operationId: string; target: string; fingerprint: string }
@@ -26,4 +28,6 @@ export interface DshExtensionResult {
 export interface DshExtensionReply {
   items: DshExtensionItem[]
   operation?: DshExtensionResult
+  /** Private locations are used only to validate main-owned import/removal; never projected verbatim. */
+  skills?: { complete: boolean; items: (Omit<import('./skills').SkillView, 'removable'> & { path?: string })[] }
 }
