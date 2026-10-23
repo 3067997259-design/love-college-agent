@@ -30,6 +30,7 @@ describe('lca-bridge policy', () => {
 
   it('names third-party sources and the tools gated while they are in context', () => {
     expect(['web_fetch', 'web_search', 'read_mcp_resource', 'mcp__docs__lookup'].map(sourceOf)).toEqual(['web', 'web', 'mcp', 'mcp'])
+    expect(sourceOf('skill')).toBe('plugin')
     expect(['read', 'grep', 'pwsh', 'subagent', 'lca_get_timer'].map(sourceOf)).toEqual([null, null, null, null, null])
     expect(['write', 'edit', 'pwsh', 'web_fetch', 'mcp__docs__lookup'].every(gatedWhileDegraded)).toBe(true)
     expect(['read', 'glob', 'grep', 'todo_write', 'subagent'].some(gatedWhileDegraded)).toBe(false)

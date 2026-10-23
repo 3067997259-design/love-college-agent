@@ -18,6 +18,7 @@ import type { BackupService } from '../backup/service'
 import type { QuillService } from '../gifts/quill'
 import type { ModelSettingsService } from '../config/model-settings'
 import type { ExtensionsService } from '../dsh/extensions'
+import type { SkillsService } from '../dsh/skills'
 import type { ProjectsService } from '../dsh/projects'
 import type { CompanionWindows, WindowSurface } from '../windows/companion'
 import { characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
@@ -177,6 +178,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let diagnostics: (() => DiagnosticsView) | undefined
   let modelSettings: ModelSettingsService | undefined
   let extensions: ExtensionsService | undefined
+  let skills: SkillsService | undefined
   let projects: ProjectsService | undefined
   let windows: CompanionWindows | undefined
   let gifts: GiftService | undefined
@@ -300,6 +302,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     }
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
     if (extensions) snapshot.extensions = extensions.view()
+    if (skills) snapshot.skills = skills.view()
     if (projects) snapshot.work = projects.view(); else delete snapshot.work
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
@@ -316,7 +319,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     // The schema checks each command's shape; an answer's two forms are told apart by the field it has.
     const command = parsed.data as AppCommand
     if (command.epoch !== snapshot.epoch) return reject(command.requestId, 'stale-epoch')
-    if (/^(extension\.|agent\.|team\.)/.test(command.type) && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (/^(extension\.|skills\.|agent\.|team\.)/.test(command.type) && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (surface === 'diagnostics' || (command.type === 'window.mini.hover' || command.type === 'window.mini.move' || command.type === 'window.mini.moveBy') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'context.reveal' && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -458,6 +461,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (extensions && command.type.startsWith('extension.')) {
       try { const error = extensions.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
+    } else if (skills && command.type.startsWith('skills.')) {
+      try { const error = skills.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
     } else if (projects && command.type.startsWith('project.')) {
       try { const error = projects.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -540,6 +546,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     readHeartFlow: (input: unknown) => { const parsed = z.strictObject({ section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128) }).parse(input); if (!legacyFlows) throw new Error('FLOW_UNAVAILABLE'); return legacyFlows.inspect(parsed) },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
     attachExtensions: (port: ExtensionsService) => { extensions = port; publish('connection') },
+    attachSkills: (port: SkillsService) => { skills = port; publish('connection') },
     attachProjects: (port: ProjectsService) => { projects = port; publish('task') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },

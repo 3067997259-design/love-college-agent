@@ -16,7 +16,7 @@ function setup(approve: (input: { id: string; question: string; signal: AbortSig
   writeFileSync(join(candidate, 'package.json'), JSON.stringify({ name: 'unit-fixture', version: '1.0.0', dsh: { bundle: { patch: 'patch.yml' } } }))
   writeFileSync(join(candidate, 'patch.yml'), '[]')
   let reply: DshExtensionReply = { items: [{ name: 'unit-fixture', version: '1.0.0', installed: true, builtin: false, enabled: false, applied: 'disabled', protected: false, fingerprint: 'fingerprint', restartRequired: false }] }
-  const extensions = vi.fn(async (input: DshExtensionRequest): Promise<DshExtensionReply> => ({ ...reply, ...(input.action === 'list' ? {} : { operation: { operationId: input.operationId, outcome: 'succeeded', restartRequired: false } }) }))
+  const extensions = vi.fn(async (input: DshExtensionRequest): Promise<DshExtensionReply> => ({ ...reply, ...('operationId' in input ? { operation: { operationId: input.operationId, outcome: 'succeeded', restartRequired: false } } : {}) }))
   const host: ExtensionTransport = { extensions }, clock = createManualClock()
   const withRuntime = async <T>(job: (runtime: ExtensionRuntime) => Promise<T>) => job({ host, restart: async () => host })
   const approvals = vi.fn(approve)
@@ -85,6 +85,7 @@ it('cancellation observes an operation that finished too late instead of pretend
   const result = deferred<DshExtensionReply>(); let operationId = ''
   f.extensions.mockImplementation(async (input) => {
     if (input.action === 'list') return { items: [{ name: 'unit-fixture', version: '1.0.0', installed: true, builtin: false, enabled: false, applied: 'disabled', protected: false, fingerprint: 'fingerprint', restartRequired: false }] }
+    if (!('operationId' in input)) return { items: [] }
     operationId = input.operationId
     if (input.action === 'enable') return result.promise
     return { items: [], operation: { operationId, outcome: 'succeeded', restartRequired: true } }
@@ -101,7 +102,7 @@ it('times out by cancelling the same operation, never by repeating a mutation', 
   f.extensions.mockResolvedValueOnce({ items: [{ name: 'unit-fixture', version: '1.0.0', installed: true, builtin: false, enabled: false, applied: 'disabled', protected: false, fingerprint: 'fingerprint', restartRequired: false }] })
   f.extensions.mockImplementation(async (request) => {
     if (request.action === 'enable') return response.promise
-    const reply: DshExtensionReply = { items: [], operation: { operationId: request.action === 'list' ? '' : request.operationId, outcome: 'cancelled', restartRequired: false } }; response.done(reply); return reply
+    const reply: DshExtensionReply = { items: [], operation: { operationId: 'operationId' in request ? request.operationId : '', outcome: 'cancelled', restartRequired: false } }; response.done(reply); return reply
   })
   f.service.dispatch(input); await flush(); f.clock.advanceBy(600_000); await f.service.idle()
   expect(f.service.view().operations.at(-1)?.outcome).toBe('cancelled')

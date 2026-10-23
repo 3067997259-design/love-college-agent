@@ -11,9 +11,10 @@ import { ReasoningEffortId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { DELEGATION, HANDOFF_FEEDBACK, TRUST_FEEDBACK, createLineage, gatedWhileDegraded, handoffOf, isRisky, parseRoutes, sameModel, sandboxDenied, sourceOf, subjectOf } from './policy.js'
 import { createFamilySafety } from './family.js'
 import { createExtensionAdapter } from './extensions.js'
+import { createSkillCatalog } from './skills.js'
 
 export const name = 'lca-bridge'
-export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm', 'sessionProjections', 'pluginManager', 'profileContext']
+export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm', 'sessionProjections', 'pluginManager', 'profileContext', 'skills']
 
 const CLIP = 4000
 const SOURCES = new Set(['mail', 'document', 'web', 'mcp', 'plugin', 'member'])
@@ -22,6 +23,7 @@ export function apply(ctx) {
   if (typeof process.send !== 'function') throw new Error('lca-bridge needs the IPC channel of its LCA parent')
   const send = (message) => { if (process.connected) { try { process.send(message, () => {}) } catch { /* the parent disconnected */ } } }
   const extensions = createExtensionAdapter(ctx)
+  const skills = createSkillCatalog(ctx)
   const lcaSources = new Map() // LCA tool name -> the third-party source its results carry (mail, documents, plugins)
   const live = new Map() // root session id -> { handle, cwd }
   const bindings = new Map() // root id -> main-issued project and runtime binding
@@ -328,7 +330,12 @@ export function apply(ctx) {
           registerLcaTools(message.tools ?? [])
           send({ t: 'init-ok', tools: ctx.tools.schemas?.().map((tool) => tool.name) ?? null })
           break
-        case 'extensions': send({ t: 'extensions', ref: message.ref, value: await extensions.request(message.input) }); break
+        case 'extensions': {
+          const input = message.input
+          const value = input.action === 'skills' ? { items: [], skills: await skills.snapshot(input.cwd) }
+            : input.action === 'skill-inspect' ? { items: [], skills: await skills.inspect(input.directory) } : await extensions.request(input)
+          send({ t: 'extensions', ref: message.ref, value }); break
+        }
         case 'tools': registerLcaTools(message.tools ?? []); break
         case 'open':
           // Her card and your profile as they are now: onboarding names them after DSH has started.

@@ -5,8 +5,18 @@ import type { AppEvent } from '../../src/shared'
 import type { BackupService } from '../../src/main/backup/service'
 import type { DiagnosticsView } from '../../src/shared'
 import type { ExtensionsService } from '../../src/main/dsh/extensions'
+import type { SkillsService } from '../../src/main/dsh/skills'
 
 describe('public bridge controller', () => {
+  it('keeps skill import/remove on the book with no renderer paths and deduplicates import clicks', () => {
+    const controller = createAppController(createManualClock()); let calls = 0
+    controller.attachSkills({ view: () => ({ status: 'ready', items: [], projectKey: 'project', operation: null, error: null }), dispatch: () => { calls++; return undefined } } as unknown as SkillsService)
+    const input = { protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId: 'skill-import', type: 'skills.import', scope: 'project' }
+    for (const surface of ['mini', 'diagnostics'] as const) expect(controller.dispatch(input, surface).status).toBe('rejected')
+    expect(controller.dispatch({ ...input, path: 'C:/arbitrary' }).status).toBe('rejected')
+    expect(controller.dispatch({ ...input, scope: 'global' }).status).toBe('rejected')
+    expect(controller.dispatch(input).status).toBe('accepted'); expect(controller.dispatch(input).status).toBe('accepted'); expect(calls).toBe(1)
+  })
   it('routes only bounded book extension commands and deduplicates accepted requests', () => {
     const controller = createAppController(createManualClock()); let calls = 0
     controller.attachExtensions({ view: () => ({ status: 'ready', items: [], operations: [], proposal: null }), dispatch: () => { calls++; return undefined } } as unknown as ExtensionsService)

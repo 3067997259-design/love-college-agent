@@ -13,7 +13,7 @@ export const isRisky = (command) => !!command && RISKY.some((pattern) => pattern
 
 // D2: results from these tools are third-party originals. While one is in her context, writing,
 // running commands and reaching outside need the user's approval each time, and no grant applies.
-const SOURCE_TOOLS = { web_fetch: 'web', web_search: 'web', read_mcp_resource: 'mcp', list_mcp_resources: 'mcp', list_mcp_resource_templates: 'mcp' }
+const SOURCE_TOOLS = { web_fetch: 'web', web_search: 'web', read_mcp_resource: 'mcp', list_mcp_resources: 'mcp', list_mcp_resource_templates: 'mcp', skill: 'plugin' }
 export const sourceOf = (name) => SOURCE_TOOLS[name] ?? (name.startsWith('mcp__') ? 'mcp' : null)
 const GATED = new Set(['write', 'edit', 'pwsh', 'bash', 'web_fetch', 'web_search', 'read_mcp_resource'])
 export const gatedWhileDegraded = (name) => GATED.has(name) || name.startsWith('mcp__') || name.startsWith('lca_') || name === 'plugin_manager'

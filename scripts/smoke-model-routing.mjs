@@ -69,7 +69,18 @@ async function configure(slot) {
 async function chat(text) {
   const previous = (await snapshot()).task?.id
   assert.equal((await send({ type: 'message.send', text })).status, 'accepted')
-  await waitFor((s) => s.task?.id !== previous && s.task?.status === 'completed', 'CHAT_FAILED')
+  let approvedRead = false
+  await waitFor(async (s) => {
+    // P2 gates the second LCA tool after mail-derived results. Drive that real approval in this synthetic fixture.
+    if (text === '立即读这份刚上传的文件。' && s.question?.status === 'queued') await send({ type: 'mode.set', mode: 'rest' })
+    if (text === '立即读这份刚上传的文件。' && !approvedRead && s.question?.status === 'waiting' && s.question.kind === 'approval') {
+      assert.ok(s.question.question.includes('读过邮件原文')); assert.ok(s.question.choices.includes('允许这一次'))
+      approvedRead = true
+      assert.equal((await send({ type: 'question.answer', questionId: s.question.id, answer: '允许这一次' })).status, 'accepted')
+      await send({ type: 'mode.set', mode: 'quiet' })
+    }
+    return s.task?.id !== previous && s.task?.status === 'completed'
+  }, 'CHAT_FAILED')
   return calls.filter((call) => call.tools?.length).at(-1)
 }
 async function file(name, content, status = 'ready') {
@@ -117,6 +128,10 @@ class StudentHubAssistant:
   for (const action of ['health', 'scan', 'status', 'collect']) {
     const request = await chat('校园助手测试：' + action)
     assert.ok(!JSON.stringify(request).includes('UNIFIED_SOURCE_ONLY'), 'PLUGIN_EVIDENCE_LEAKED_TO_TOOL_CONTEXT')
+    const names = request.tools.map((tool) => tool.function?.name ?? tool.name)
+    assert.equal(new Set(names).size, names.length, 'DUPLICATE_TOOL_NAMES')
+    assert.equal(names.filter((name) => /^(?:lca_)?campus_assistant$/.test(name)).length, 1, 'CAMPUS_ENTRY_NOT_UNIQUE')
+    assert.ok(!names.some((name) => name.includes('import_student_hub_candidates') || name.includes('mcp_student-hub_')), 'LEGACY_CAMPUS_TOOL_DUPLICATED')
   }
   await waitFor((s) => s.candidates.some((candidate) => candidate.status === 'candidate'), 'SCANNED_EVIDENCE_NOT_TRIAGED')
   const proposed = (await snapshot()).candidates.find((candidate) => candidate.status === 'candidate')

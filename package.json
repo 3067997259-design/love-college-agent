@@ -37,6 +37,7 @@
     "test:questions": "pnpm build && node scripts/probe-electron.mjs questions && node scripts/smoke-questions.mjs",
     "test:settings": "pnpm build && node scripts/smoke-settings.mjs",
     "test:plugins": "pnpm build && node scripts/smoke-plugins.mjs",
+    "test:extensions": "pnpm build && node scripts/smoke-extensions.mjs",
     "test:student-hub": "pnpm build && node scripts/smoke-student-hub-package.mjs",
     "test:student-hub-candidates": "pnpm build && node scripts/smoke-student-hub-candidates.mjs",
     "test:real-model": "pnpm build && node scripts/run-real-model-tests.mjs",

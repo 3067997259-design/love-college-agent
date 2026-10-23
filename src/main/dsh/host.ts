@@ -177,7 +177,7 @@ export function startDshHost(options: DshHostOptions) {
     available: () => !closed && !disconnected,
     extensions: async (input: DshExtensionRequest): Promise<DshExtensionReply> => {
       await started
-      const answer = await request({ t: 'extensions', input }, ['list', 'cancel', 'reconcile'].includes(input.action) ? 30_000 : 660_000)
+      const answer = await request({ t: 'extensions', input }, ['list', 'skills', 'skill-inspect', 'cancel', 'reconcile'].includes(input.action) ? 30_000 : 660_000)
       return answer.value as unknown as DshExtensionReply
     },
     /** `degraded`: the resumed session still holds third-party content LCA could not retire before a restart. */

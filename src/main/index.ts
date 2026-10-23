@@ -31,7 +31,8 @@ import { BUILTIN_CARD, briefPersona } from './characters/builtin-persona'
 import { createDshExecution, type DshExecution } from './dsh/execution'
 import { dshLocations } from './dsh/locations'
 import { startDshHost, type DshHost } from './dsh/host'
-import { createExtensions, type ExtensionsService } from './dsh/extensions'
+import { createExtensions, type ExtensionsService, type ExtensionRuntime } from './dsh/extensions'
+import { createSkills, type SkillsService } from './dsh/skills'
 import { createProjects } from './dsh/projects'
 import harnessPolicy from './harness/policy.json'
 import { profileContext } from './onboarding/context'
@@ -149,13 +150,14 @@ let optical: OpticalMemoryService | undefined
 let questions: ReturnType<typeof createQuestions> | undefined
 let extensionHost: DshHost | undefined
 let extensions: ExtensionsService | undefined
+let skills: SkillsService | undefined
 let dshExecution: DshExecution | undefined
 /** Developer scenes: the scripted model as a local endpoint her DSH session talks to. */
 let scriptedEndpoint: ScriptedEndpoint | undefined
 /** Every service is up: quitting closes them in order first. */
 let servicesStarted = false
 /** She is in a turn of her DSH session (a game round has its own loop, minecraft/round.ts). */
-const herBusy = (): boolean => !!dshExecution?.busy() || !!extensions?.busy()
+const herBusy = (): boolean => !!dshExecution?.busy() || !!extensions?.busy() || !!skills?.busy()
 /**
  * Her own life as she may know it in a turn: where she is, recent outings and things she brought back, her own works
  * (fictional, never actual offline work). Her DSH session gets it with each turn's opening message.
@@ -586,9 +588,9 @@ void app.whenReady().then(async () => {
     // DSH: your chat and her own events go to her DSH session. The runtime ships with the app (resources/dsh-runtime,
     // prepared by scripts/prepare-dsh-runtime.mjs).
     // LCA private data never becomes her working material, whatever folder the user picks.
-    const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'extensions.json', 'extension-events.jsonl', 'extension-candidates', 'runtime-resources', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
+    const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'extensions.json', 'extension-events.jsonl', 'extension-candidates', 'skills-imports.json', 'skill-events.jsonl', 'skill-candidates', 'runtime-resources', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
     const projects = createProjects({ settings: prepared.pluginSettings, desk: join(roomRoot, '书桌'), privateRoots: guardedRoots,
-      trusted: (path) => dshExecution?.trusted(path) ?? false, untrust: (path) => dshExecution?.untrust(path), busy: () => dshExecution?.busy() ?? false,
+      trusted: (path) => dshExecution?.trusted(path) ?? false, untrust: (path) => dshExecution?.untrust(path), busy: herBusy,
       choose: async () => {
         const options = { title: '选一个项目文件夹：她写代码、运行命令都在里面', defaultPath: projects.current(), properties: ['openDirectory' as const] }
         const parent = BrowserWindow.getFocusedWindow()
@@ -620,7 +622,7 @@ void app.whenReady().then(async () => {
     const createDsh = () => {
       const chat = chatModel()
       if (!dshPresent || !chat) return undefined
-      const execution = createDshExecution({ store: store!, clock, processClock: systemClock, dataDir, dshRoot, bridge: dshBridge, guardedRoots, source: scriptedEndpoint ? 'fake' : 'real', disconnected: () => extensions?.disconnected(),
+      const execution = createDshExecution({ store: store!, clock, processClock: systemClock, dataDir, dshRoot, bridge: dshBridge, guardedRoots, source: scriptedEndpoint ? 'fake' : 'real', disconnected: () => { extensions?.disconnected(); skills?.disconnected() },
         routes: dshRoutes(chat, (scriptedEndpoint ? undefined : providers.get('work')) ?? chat, efforts),
         project: () => projects.current(), persona,
         // After DSH's first-party guidance: how she talks in the book outranks the coding-agent style.
@@ -678,28 +680,33 @@ void app.whenReady().then(async () => {
       return execution
     }
     dshExecution = createDsh()
-    extensions = createExtensions({ dataDir, clock: systemClock,
+    const withExtensionRuntime = async <T>(job: (runtime: ExtensionRuntime) => Promise<T>): Promise<T> => {
+      if (!dshPresent) throw new Error('DSH_UNAVAILABLE')
+      if (dshExecution) return dshExecution.withExtensions(job)
+      // Extension setup is available before a model is configured. This host opens no agent session.
+      const start = () => extensionHost = startDshHost({ clock: systemClock, dshRoot, bridge: dshBridge, dataDir, workspace: projects.current(), routes: null, guardedRoots,
+        persona: '', tools: [], onEvent: (event) => { if (event.t === 'host-unavailable') { extensions?.disconnected(); skills?.disconnected() } },
+        onCall: async () => { throw new Error('DSH_NO_AGENT') }, onApproval: async () => 'rejected' })
+      const restart = async () => { await extensionHost?.close(); return start() }
+      if (extensionHost?.available() === false) await restart()
+      return job({ host: extensionHost ?? start(), restart })
+    }
+    const approveExtension = async ({ id, question, signal }: { id: string; question: string; signal: AbortSignal }) => {
+      const asked = await questions!.approve({ question, choices: ['本次允许', '拒绝'] }, { clock, store: store!, turnId: id, callId: id, signal }, true)
+      const raw = asked.raw as { status?: string; answerMessageId?: string }
+      if (raw.status !== 'answered' || !raw.answerMessageId) return false
+      const answer = store!.records().findLast((row) => row.type === 'user/message' && row.id === raw.answerMessageId)
+      questions!.commit(id, [id])
+      return answer?.type === 'user/message' && answer.text === '本次允许'
+    }
+    extensions = createExtensions({ dataDir, clock: systemClock, blocked: () => !!skills?.busy(), withRuntime: withExtensionRuntime, approve: approveExtension,
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '选择 DSH 本地扩展目录', properties: ['openDirectory'] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
-      withRuntime: async (job) => {
-        if (!dshPresent) throw new Error('DSH_UNAVAILABLE')
-        if (dshExecution) return dshExecution.withExtensions(job)
-        // Extension setup is available before a model is configured. This host opens no agent session.
-        const start = () => extensionHost = startDshHost({ clock: systemClock, dshRoot, bridge: dshBridge, dataDir, workspace: projects.current(), routes: null, guardedRoots,
-          persona: '', tools: [], onEvent: (event) => { if (event.t === 'host-unavailable') extensions?.disconnected() },
-          onCall: async () => { throw new Error('DSH_NO_AGENT') }, onApproval: async () => 'rejected' })
-        const restart = async () => { await extensionHost?.close(); return start() }
-        if (extensionHost?.available() === false) await restart()
-        return job({ host: extensionHost ?? start(), restart })
-      },
-      approve: async ({ id, question, signal }) => {
-        const asked = await questions!.approve({ question, choices: ['本次允许', '拒绝'] }, { clock, store: store!, turnId: id, callId: id, signal }, true)
-        const raw = asked.raw as { status?: string; answerMessageId?: string }
-        if (raw.status !== 'answered' || !raw.answerMessageId) return false
-        const answer = store!.records().findLast((row) => row.type === 'user/message' && row.id === raw.answerMessageId)
-        questions!.commit(id, [id])
-        return answer?.type === 'user/message' && answer.text === '本次允许'
-      }, changed: () => controller?.refresh('connection') })
+      changed: () => controller?.refresh('connection') })
     controller.attachExtensions(extensions)
+    skills = createSkills({ dataDir, clock: systemClock, project: projects.current, blocked: () => !!extensions?.busy(), withRuntime: withExtensionRuntime, approve: approveExtension,
+      choose: async () => { const selected = await dialog.showOpenDialog({ title: '选择技能目录（含 SKILL.md）', properties: ['openDirectory'] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
+      changed: () => controller?.refresh('connection') })
+    controller.attachSkills(skills)
     servicesStarted = true
     if (dshPresent) controller.attachProjects(projects)
     // No DSH session: the book still takes your message command and says the model is not set up.
@@ -789,6 +796,7 @@ app.on('before-quit', (event) => {
     // Her DSH session stops first: from here it records nothing, so what DSH sends while it stops never reaches the
     // journal closed below. The quit does not wait for DSH to exit; it exits on the shutdown message or when we go.
     extensions?.close()
+    skills?.close()
     void extensionHost?.close()
     void dshExecution?.close()
     questions?.close()

@@ -20,6 +20,7 @@ const errorOf = (error?: DshExtensionResult['error']): PublicErrorCode => error 
 
 export function createExtensions(options: {
   dataDir: string; clock: Clock
+  blocked?(): boolean
   choose(): Promise<string | null>
   withRuntime<T>(job: (runtime: ExtensionRuntime) => Promise<T>): Promise<T>
   approve(input: { id: string; question: string; signal: AbortSignal }): Promise<boolean>
@@ -138,7 +139,7 @@ export function createExtensions(options: {
         if (active.sent) { operation.phase = 'cancelling'; operation.revision++; save(); void active.host?.extensions({ action: 'cancel', operationId: operation.id }).then((reply) => consume(operation, reply), () => finish(operation, { operationId: operation.id, outcome: 'unknown', restartRequired: false, error: 'unavailable' })) }
         return
       }
-      if (job) return 'unavailable'
+      if (job || options.blocked?.()) return 'unavailable'
       if (command.type === 'extension.pick') {
         saved.requests[command.requestId] = signature
         launch(async () => {

@@ -240,6 +240,37 @@
 .plugin-skill-name { font: 16px var(--font-hand); color: var(--ink-her); }
 .plugin-skills small { font-size: var(--fs-xs); color: var(--graphite); }
 
+.plugin-section-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.plugin-section-head .plugin-section { margin-right: auto; }
+.extension-panel { padding-bottom: 12px; border-bottom: 1px dashed var(--pencil); }
+.extension-panel > .btn { margin: 8px 0; }
+.extension-row { padding: 8px 0; }
+.extension-row > details > summary, .plugin-skills summary { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; cursor: pointer; overflow-wrap: anywhere; }
+.extension-row > details > summary strong { font-size: var(--fs-sm); color: var(--ink-her); }
+.extension-row .plugin-config { margin: 8px 0 0 8px; }
+.extension-history { margin: 8px 0; font-size: var(--fs-sm); }
+.extension-history > summary { cursor: pointer; }
+.extension-core { margin: 8px 0; font-size: var(--fs-sm); }
+.extension-core > summary { cursor: pointer; color: var(--graphite); }
+.plugin-skills .plugin-skill-name { font: 14px var(--font-body); }
+.extension-row > details > summary strong::before, .plugin-skills summary .plugin-skill-name::before { content: '›'; display: inline-block; margin-right: 6px; }
+.extension-row > details[open] > summary strong::before, .plugin-skills details[open] > summary .plugin-skill-name::before { transform: rotate(90deg); }
+.extension-operation { padding: 8px; border-bottom: 1px dashed var(--pencil); overflow-wrap: anywhere; }
+.extension-operation p { margin: 2px 0; }
+.plugin-skills li { display: block; }
+.plugin-skills details > p { margin: 6px 0; }
+.skills-panel > .card-actions { margin-top: 10px; }
+.plugin-question { flex: 0 1 auto; overflow-y: auto; max-height: 45%; padding-top: 8px; border-top: 1px dashed var(--pencil); }
+.plugin-question .dock-card { margin: 0; }
+.plugin-question .question-text { overflow-wrap: anywhere; }
+.plugin-center details > summary:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 2px; }
+.plugin-center .card-actions { flex-wrap: wrap; }
+@media (max-width: 1150px) {
+  .page-right.plugin-center { grid-template-columns: 110px minmax(0, 1fr); }
+  .plugin-rail { padding-left: 10px; }
+  .plugin-main { padding: 20px 12px 12px; }
+}
+
 /* —— 添加插件：一个导入框 —— */
 .plugin-dialog-backdrop {
   position: absolute;

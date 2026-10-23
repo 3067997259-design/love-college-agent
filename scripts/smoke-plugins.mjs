@@ -59,7 +59,8 @@ try {
   await center.screenshot({ path: join(root, 'test-results', 'plugins-center.png') })
 
   await center.locator('.plugin-rail').getByRole('button', { name: '技能', exact: true }).click()
-  await center.locator('.plugin-skills').getByText('smoke_skill', { exact: true }).waitFor()
+  await waitFor(async () => (await page.evaluate(() => window.lca.getSnapshot())).skills?.status === 'ready', 'SKILL_CATALOG_NOT_READY')
+  assert.equal(await center.locator('.plugin-skills').getByText('smoke_skill', { exact: true }).count(), 0)
   await center.screenshot({ path: join(root, 'test-results', 'plugins-skills.png') })
 
   await center.locator('.plugin-rail').getByRole('button', { name: '插件', exact: true }).click()
