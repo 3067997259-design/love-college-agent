@@ -42,12 +42,14 @@ import type { MinecraftChat } from '../minecraft/chat'
 import type { ResourceBudget } from '../resources/service'
 import type { QuestionService } from '../questions/service'
 import { answerInput, answersInput } from '../questions/schema'
+import { v12CommandSchemas } from './v12-commands'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
   // An approval's choice (`answer`) or her questions' answers (`answers`), never both; questions/service.ts checks them against the question.
   z.strictObject({ ...envelope, type: z.literal('question.answer'), questionId: z.string().uuid(), answer: answerInput.optional(), answers: answersInput.optional() })
     .refine((command) => (command.answer === undefined) !== (command.answers === undefined)),
+  ...v12CommandSchemas(envelope),
   z.strictObject({ ...envelope, type: z.literal('question.dismiss'), questionId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('project.pick') }),
   z.strictObject({ ...envelope, type: z.literal('project.select'), path: z.string().min(1).max(1024) }),
@@ -311,6 +313,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     // The schema checks each command's shape; an answer's two forms are told apart by the field it has.
     const command = parsed.data as AppCommand
     if (command.epoch !== snapshot.epoch) return reject(command.requestId, 'stale-epoch')
+    if (/^(extension\.|agent\.|team\.)/.test(command.type) && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (surface === 'diagnostics' || (command.type === 'window.mini.hover' || command.type === 'window.mini.move' || command.type === 'window.mini.moveBy') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'context.reveal' && surface !== 'book') return reject(command.requestId, 'permission-denied')

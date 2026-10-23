@@ -4,6 +4,8 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, symlinkSy
 import { dirname, join, resolve } from 'node:path'
 import type { Clock } from '../clock'
 import type { DshRoutes } from './routes'
+import { createDshIdentities } from './identity'
+import type { DshOrigin } from '../../shared/dsh-protocol'
 
 /**
  * DSH host launcher (spike). Runs the forked DSH runtime as an Electron-Node child with LCA's `lca`
@@ -20,7 +22,7 @@ export const dshSources = (value: unknown): DshSource[] => Array.isArray(value) 
  * `degraded`: third-party content is in her context, so this approval may not create or apply standing grants.
  * `trust`: the OS sandbox cannot run commands in her project; asks whether to trust the project instead.
  */
-export type DshApproval = { sessionId: string; toolName: string; callId: string | null; reason: string | null; kind: 'risky' | 'escalation' | 'degraded' | 'trust'; command: string | null; subject: string | null; degraded: DshSource[] | null }
+export type DshApproval = { sessionId: string; origin: DshOrigin; toolName: string; callId: string | null; reason: string | null; kind: 'risky' | 'escalation' | 'degraded' | 'trust'; command: string | null; subject: string | null; degraded: DshSource[] | null }
 export interface DshHostOptions {
   /** Real time: it only times out a stalled shutdown. */
   clock: Clock; dshRoot: string; dataDir: string; bridge: string; workspace: string
@@ -86,6 +88,7 @@ export function startDshHost(options: DshHostOptions) {
   // Never echo the child's stderr: provider errors can quote request details.
   child.stderr?.resume()
   const waiting = new Map<string, { done(value: Record<string, unknown>): void; fail(error: Error): void }>()
+  const identities = createDshIdentities()
   // Her questions waiting on your answer: DSH may withdraw one (her turn stopped) before you answer.
   const asking = new Map<string, AbortController>()
   let ready!: () => void
@@ -96,6 +99,7 @@ export function startDshHost(options: DshHostOptions) {
   let closed = false; let disconnected = false; let hasExited = false
   const unavailable = () => {
     disconnected = true
+    identities.clear()
     const error = new Error('DSH_HOST_EXITED')
     failed(error)
     for (const entry of waiting.values()) entry.fail(error)
@@ -123,24 +127,41 @@ export function startDshHost(options: DshHostOptions) {
   child.on('message', (raw) => { try { handle(raw as DshEvent) } catch { console.error('DSH_EVENT_NOT_HANDLED') } })
   const handle = (message: DshEvent) => {
     if (closed || disconnected) return
+    if (message.t === 'member') {
+      const origin = identities.register(message.origin)
+      if (origin) options.onEvent({ ...message, origin })
+      return
+    }
+    // Requests from an old process, an unregistered member or a different project never reach
+    // the ledger/tools/approval UI. Validate again when asynchronous answers are returned.
+    const scoped = ['admit', 'lca-call', 'approval', 'question'].includes(message.t)
+    const origin = scoped ? identities.validate(message.origin) : null
+    const current = () => !!origin && !!identities.validate(origin) && !closed && !disconnected
+    if (scoped && (!origin || origin.rootSessionId !== message.sessionId)) {
+      if (message.t === 'admit') send({ t: 'admit-answer', id: message.id, ok: false })
+      if (message.t === 'approval') send({ t: 'approval-answer', id: message.id, outcome: 'rejected' })
+      if (message.t === 'lca-call') send({ t: 'lca-result', id: message.id, ok: false, error: 'DSH_ORIGIN_UNAVAILABLE' })
+      if (message.t === 'question') send({ t: 'question-answer', id: message.id, error: 'This session is no longer available.' })
+      return
+    }
     if (message.t === 'hello') send({ t: 'init', persona: options.persona, suffix: options.suffix ?? '', tools: options.tools })
     else if (message.t === 'init-ok') ready()
     else if (message.t === 'admit') {
       let ok: boolean
-      try { ok = options.onAdmit?.({ sessionId: String(message.sessionId), bucket: message.bucket === 'autonomous' ? 'autonomous' : 'work', role: message.role === 'work' ? 'work' : 'chat', units: Math.max(1, Math.min(20_000_000, Math.round(Number(message.units) || 16_000))) }) ?? true } catch { ok = message.bucket !== 'autonomous' }
+      try { ok = options.onAdmit?.({ sessionId: String(message.sessionId), bucket: message.bucket === 'autonomous' ? 'autonomous' : 'work', role: message.role === 'work' ? 'work' : 'chat', units: Math.max(1, Math.min(20_000_000, Math.round(Number(message.units) || 16_000))) }) ?? true } catch { ok = false }
       send({ t: 'admit-answer', id: message.id, ok })
     }
     else if (message.t === 'lca-call') void options.onCall(String(message.name), message.args, String(message.sessionId), String(message.callId))
-      .then((result) => send({ t: 'lca-result', id: message.id, ok: true, value: result.value, source: result.source }), (error: unknown) => send({ t: 'lca-result', id: message.id, ok: false, error: error instanceof Error ? error.message : 'LCA_TOOL_FAILED' }))
-    else if (message.t === 'approval') void options.onApproval({ sessionId: String(message.sessionId), toolName: String(message.toolName), callId: (message.callId as string | null) ?? null, reason: (message.reason as string | null) ?? null,
+      .then((result) => { if (current()) send({ t: 'lca-result', id: message.id, ok: true, value: result.value, source: result.source }) }, (error: unknown) => { if (current()) send({ t: 'lca-result', id: message.id, ok: false, error: error instanceof Error ? error.message : 'LCA_TOOL_FAILED' }) })
+    else if (message.t === 'approval') void options.onApproval({ sessionId: String(message.sessionId), origin: origin!, toolName: String(message.toolName), callId: (message.callId as string | null) ?? null, reason: (message.reason as string | null) ?? null,
       kind: message.kind === 'risky' || message.kind === 'degraded' || message.kind === 'trust' ? message.kind : 'escalation', command: (message.command as string | null) ?? null, subject: typeof message.subject === 'string' ? message.subject : null,
       degraded: Array.isArray(message.degraded) ? dshSources(message.degraded) : null })
-      .then((outcome) => send({ t: 'approval-answer', id: message.id, outcome }), () => send({ t: 'approval-answer', id: message.id, outcome: 'rejected' }))
+      .then((outcome) => { if (current()) send({ t: 'approval-answer', id: message.id, outcome }) }, () => { if (current()) send({ t: 'approval-answer', id: message.id, outcome: 'rejected' }) })
     else if (message.t === 'question') {
       const abort = new AbortController(); asking.set(String(message.id), abort)
       const answered = options.onQuestion?.({ sessionId: String(message.sessionId), callId: typeof message.callId === 'string' ? message.callId : null, questions: message.questions, signal: abort.signal })
         ?? Promise.resolve({ error: 'questions are not available here' })
-      void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id))) send({ t: 'question-answer', id: message.id, ...result }) })
+      void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id)) && current()) send({ t: 'question-answer', id: message.id, ...result }) })
     }
     else if (message.t === 'question-cancel') { asking.get(String(message.id))?.abort(); asking.delete(String(message.id)) }
     else if ((message.t === 'session' || message.t === 'described' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
@@ -157,7 +178,13 @@ export function startDshHost(options: DshHostOptions) {
     /** `persona` / `suffix`: her current card and profile (names change in onboarding after DSH starts). */
     open: async (cwd: string, sessionId?: string, trusted = false, degraded: readonly DshSource[] = [], persona?: { persona: string; suffix: string }) => {
       await started
-      return String((await request({ t: 'open', cwd, trusted, degraded, ...(sessionId ? { sessionId } : {}), ...(persona ?? {}) })).sessionId)
+      const id = sessionId ?? `session-${randomUUID()}`
+      const binding = identities.reserveRoot(id, cwd)
+      try {
+        const answer = await request({ t: 'open', cwd, trusted, degraded, sessionId: id, resume: !!sessionId, binding, ...(persona ?? {}) })
+        if (answer.sessionId !== id) throw new Error('DSH_IDENTITY_CONFLICT')
+        return id
+      } catch (error) { identities.forgetRoot(id); throw error }
     },
     /** Switch a live session to the `lca-trusted` preset after the user granted its project. */
     trust: (sessionId: string) => send({ t: 'trust', sessionId }),

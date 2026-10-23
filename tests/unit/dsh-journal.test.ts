@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -35,7 +35,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const store: SessionStore = { scope: journal.scope, records: journal.records, projection: () => projectJournal(journal.records()), append: journal.append, close: journal.close }
   const asked: { question: string; choices: string[] }[] = []
   let project = join(root, 'project')
-  let answer: (choices: string[]) => string | null = (choices) => choices[0]
+  let answer: (choices: string[]) => string | null | Promise<string | null> = (choices) => choices[0]
   const host = { options: undefined as DshHostOptions | undefined, opening: undefined as Promise<void> | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], degrades: [] as string[][], trusted: [] as string[], current: 'dsh-1' }
   const referenceAsks: boolean[] = []
   const startedTurns: { turnId: string; requestId: string }[] = []
@@ -55,7 +55,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
     foreground: () => { hooks.push('foreground') }, userWork: () => { hooks.push('userWork') }, settled: () => { hooks.push('settled') },
     reference: ({ firstOfSession }) => { referenceAsks.push(firstOfSession); return { memoryReference: [{ text: '你喜欢用 TypeScript' }], ...(firstOfSession ? { previousDaysReference: [{ text: '昨天一起写了质数脚本' }] } : {}) } } })
   const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: host.current, ...event } as DshEvent)
-  const approval = (patch: Partial<DshApproval>) => host.options!.onApproval({ sessionId: 'dsh-1', toolName: 'pwsh', callId: 'call-x', reason: null, kind: 'escalation', command: 'node a.js', subject: 'node a.js', degraded: null, ...patch })
+  const approval = (patch: Partial<DshApproval>) => host.options!.onApproval({ sessionId: 'dsh-1', origin: { protocolVersion: 2, runtimeId: 'test-runtime', projectId: 'test-project', rootSessionId: 'dsh-1', sessionId: 'dsh-1', parentSessionId: null, cwd: resolve(project) }, toolName: 'pwsh', callId: 'call-x', reason: null, kind: 'escalation', command: 'node a.js', subject: 'node a.js', degraded: null, ...patch })
   const opened = async () => { for (let i = 0; i < 20 && !host.sent.length; i++) await Promise.resolve() }
   const question = (questions: unknown, callId = 'call-ask') => host.options!.onQuestion!({ sessionId: host.current, callId, questions, signal: new AbortController().signal })
   const command = (body: Record<string, unknown>) => ({ protocolVersion: 1, epoch: 'test', requestId: 'answer-' + body.type, ...body }) as AppCommand
@@ -74,6 +74,28 @@ async function workTurn(f: ReturnType<typeof setup>) {
 }
 
 describe('DSH work in the LCA journal', () => {
+  it.each(['trust', 'escalation'] as const)('does not persist a late %s grant after stopping the turn', async (kind) => {
+    const f = setup(); f.execution.send('synthetic', 'r-1', 'h-1'); await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    let finish!: (value: string) => void
+    f.setAnswer(() => new Promise((done) => { finish = done }))
+    const pending = f.approval({ kind })
+    await Promise.resolve(); await Promise.resolve()
+    const turnId = f.store.projection().task!.id
+    f.execution.stop(turnId)
+    finish(kind === 'trust' ? '信任这个项目' : '这个项目以后都允许')
+    expect(await pending).toBe('rejected')
+    expect(existsSync(join(f.root, 'dsh-approvals.json'))).toBe(false)
+    expect(f.host.trusted).toEqual([])
+    f.journal.close()
+  })
+  it('records a pre-step policy rejection as failure, never completion', async () => {
+    const f = setup(); f.execution.send('synthetic', 'r-1', 'h-1'); await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'blocked' } })
+    expect(f.store.records().find((row) => row.type === 'turn/end')).toMatchObject({ reason: 'error', error: { code: 'permission-denied' } })
+    f.journal.close()
+  })
   it('keeps the conversation and activity rows but no tool traffic in LCA context', async () => {
     const f = setup()
     await workTurn(f)
@@ -209,6 +231,8 @@ describe('DSH work in the LCA journal', () => {
     const f = setup(undefined, ({ bucket }) => { asked.push(bucket); return bucket === 'autonomous' ? 'budget-exceeded' : null })
     const admit = (bucket: 'work' | 'autonomous', units = 16_000) => f.host.options!.onAdmit!({ sessionId: f.host.current, bucket, role: 'chat', units })
     await workTurn(f)
+    expect(admit('autonomous')).toBe(false) // An idle root cannot give its children a free step.
+    expect(f.host.options!.onAdmit!({ sessionId: 'other-project', bucket: 'work', role: 'work', units: 16_000 })).toBe(false)
     f.execution.send('再说一句', 'r-2', 'h-2')
     for (let i = 0; i < 20 && f.host.sent.length < 2; i++) await Promise.resolve()
     f.emit({ t: 'turn-start', turn: 2, preset: 'workspace-write' })
@@ -223,7 +247,7 @@ describe('DSH work in the LCA journal', () => {
     f.emit({ t: 'turn-start', turn: 3, preset: 'workspace-write' })
     expect(admit('autonomous')).toBe(false)
     f.emit({ t: 'turn-end', turn: 3, reason: { kind: 'aborted' } })
-    expect(asked).toEqual(['work', 'autonomous'])
+    expect(asked).toEqual(['autonomous', 'work', 'autonomous'])
     expect(f.store.projection().messages.at(-1)).toMatchObject({ role: 'narrator', failure: { code: 'budget-exceeded' } })
     f.journal.close()
   })

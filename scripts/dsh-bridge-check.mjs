@@ -41,7 +41,7 @@ const SCENARIOS = {
     script() { return { text: 'should never be asked' } },
     check: (seen, notes) => ({
       askedAsAutonomous: seen.admits.length >= 1 && seen.admits.every((admit) => admit.bucket === 'autonomous'),
-      stoppedBeforeModel: notes.requests === 0 && seen.turnEnds.length === 1 && seen.turnEnds[0] === 'aborted',
+      stoppedBeforeModel: notes.requests === 0 && seen.turnEnds.length === 1 && seen.turnEnds[0] === 'blocked',
     }),
   },
   'event-cap': {
@@ -204,7 +204,7 @@ async function run(name) {
       case 'hello': child.send({ t: 'init', persona: 'You are a test agent.', suffix: '', tools: [] }); break
       case 'init-ok':
         if (scenario.describe) child.send({ t: 'describe', ref: 'levels' })
-        else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted, ...(sessionId ? { sessionId } : {}) })
+        else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted, binding: { protocolVersion: 2, runtimeId: 'bridge-check', projectId: 'bridge-project', cwd: work }, ...(sessionId ? { sessionId } : {}) })
         break
       case 'described': seen.described = { chat: message.chat, work: message.work }; child.send({ t: 'shutdown' }); break
       case 'session': {

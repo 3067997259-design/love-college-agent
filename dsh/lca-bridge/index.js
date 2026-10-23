@@ -3,6 +3,7 @@
 // book UI, and sends every approval to LCA. Out-of-tree plugin: DSH imports resolve through the
 // profile runtime, so it shares the installation's single Cordis instance.
 import { randomUUID } from 'node:crypto'
+import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
 import { brandString } from '@deepseek-ai/dsh-brand'
@@ -21,6 +22,13 @@ export function apply(ctx) {
   const lcaSources = new Map() // LCA tool name -> the third-party source its results carry (mail, documents, plugins)
   ctx.sessionProjections.register(retirementProjection((name) => sourceOf(name) ?? lcaSources.get(name) ?? null))
   const live = new Map() // root session id -> { handle, cwd }
+  const bindings = new Map() // root id -> main-issued project and runtime binding
+  const registered = new Set()
+  const canonical = (path) => {
+    let value = resolve(path)
+    try { value = realpathSync.native(value) } catch { /* an unavailable project is rejected by main */ }
+    return process.platform === 'win32' ? value.toLowerCase() : value
+  }
   const approvals = new Map()
   const calls = new Map()
   const asked = new Map() // callId -> { kind, command } for approvals this plugin asked for
@@ -39,13 +47,29 @@ export function apply(ctx) {
   const lastUnits = new Map() // root session id -> units of its latest step
   const revealing = new Map() // root session id -> sources of an original riding in its next opening message
   const unitsOf = (usage) => Math.max(1, Math.round(Number(usage?.inputTokens ?? 0) + Number(usage?.outputTokens ?? 0) + Number(usage?.cacheReadTokens ?? 0) / 10))
-  const admit = (root, role) => new Promise((settle) => {
+  const admit = (root, role, origin) => new Promise((settle) => {
     const id = randomUUID(); admissions.set(id, settle)
-    send({ t: 'admit', id, sessionId: root, role, bucket: eventTurns.has(root) && eventTurns.get(root) === turns.get(root) ? 'autonomous' : 'work', units: lastUnits.get(root) ?? 16_000 })
+    send({ t: 'admit', id, sessionId: root, origin, role, bucket: eventTurns.has(root) && eventTurns.get(root) === turns.get(root) ? 'autonomous' : 'work', units: lastUnits.get(root) ?? 16_000 })
   })
   // LCA's private data (journals, connection settings) and the DSH home are never her working material.
   const guarded = (process.env.LCA_GUARDED_ROOTS ?? '').split(';').filter(Boolean).map((root) => resolve(root).toLowerCase())
-  const lineage = createLineage((id) => live.has(id))
+  const lineage = createLineage((id) => bindings.has(id))
+  const originOf = (agent, visiting = new Set()) => {
+    const sid = lineage.sid(agent)
+    if (!sid || visiting.has(sid)) return null
+    visiting.add(sid)
+    const parentSessionId = agent.session.header?.parentSession == null ? null : String(agent.session.header.parentSession)
+    if (parentSessionId && !bindings.has(sid)) {
+      const parent = ctx.agents.get(parentSessionId)
+      if (parent) originOf(parent, visiting)
+    }
+    const rootSessionId = lineage.rootOf(agent), binding = bindings.get(rootSessionId)
+    if (!binding || typeof agent.session.header?.cwd !== 'string' || canonical(agent.session.header.cwd) !== canonical(binding.cwd)) return null
+    const origin = { ...binding, cwd: canonical(agent.session.header.cwd), rootSessionId, sessionId: sid, parentSessionId: sid === rootSessionId ? null : parentSessionId }
+    if (!registered.has(sid)) { registered.add(sid); send({ t: 'member', origin }) }
+    return origin
+  }
+  ctx.on('agent/created', ({ agent }) => { originOf(agent) })
   const degradation = createDegradation()
   // Chat and work models; a thinking level the model does not offer is dropped (DSH would refuse the request).
   const routes = parseRoutes(process.env.LCA_DSH_ROUTES)
@@ -94,12 +118,14 @@ export function apply(ctx) {
       parameters: tool.parameters,
       output: { schema: {}, render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }] },
       execute: (args, exec) => new Promise((done, fail) => {
+        const origin = originOf(exec.agent)
+        if (!origin) { fail(new Error('DSH_ORIGIN_UNAVAILABLE')); return }
         const id = randomUUID()
         const root = lineage.rootOf(exec.agent)
         const callId = String(exec.callId)
         calls.set(id, { done: (value, source) => { if (root && SOURCES.has(source)) degrade(root, source); done(value) }, fail })
         exec.signal?.addEventListener('abort', () => { if (calls.delete(id)) fail(new Error('cancelled')) }, { once: true })
-        send({ t: 'lca-call', id, sessionId: root ?? lineage.sid(exec.agent), callId, name: tool.name, args: plain(args) })
+        send({ t: 'lca-call', id, sessionId: root ?? lineage.sid(exec.agent), origin, callId, name: tool.name, args: plain(args) })
       }),
     }))
   }
@@ -112,22 +138,25 @@ export function apply(ctx) {
     presets.set(session, 'lca-trusted')
   }
 
-  const open = async ({ sessionId, cwd, trusted, degraded }) => {
+  const open = async ({ sessionId, cwd, trusted, degraded, binding, resume }) => {
+    if (binding?.protocolVersion !== 2 || !['runtimeId', 'projectId', 'cwd'].every((key) => typeof binding[key] === 'string' && binding[key]) || canonical(binding.cwd) !== canonical(cwd)) throw new Error('DSH_BINDING_REQUIRED')
     await ctx.get('loader')?.await()
     if (routes && !picked) await pick()
     const chat = picked ? selectionOf(picked.chat) : ctx.agentDefaultModel.currentSelection()
     const selection = { current: chat, assembled: undefined }
     const id = brandString(sessionId ?? `session-${randomUUID()}`)
+    bindings.set(String(id), { protocolVersion: 2, runtimeId: binding.runtimeId, projectId: binding.projectId, cwd: canonical(binding.cwd) })
     const setup = (agentCtx) => {
       installModelSelection(agentCtx, selection)
       if (persona) agentCtx.systemPrompt.section({ name: 'deployment:persona-prefix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX'), text: persona, interpolate: false })
       if (suffix) agentCtx.systemPrompt.section({ name: 'deployment:persona-suffix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX'), text: suffix, interpolate: false })
     }
     const agentOptions = { provider: chat.provider, model: chat.model }
-    const handle = sessionId && ctx.get('sessionQuery')
+    const handle = sessionId && resume !== false && ctx.get('sessionQuery')
       ? await ctx.agents.resume({ resumeSessionId: id, agentOptions, setup }).catch(() => ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup }))
       : await ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup })
     live.set(String(id), { handle, cwd })
+    if (!originOf(handle.agent)) { live.delete(String(id)); bindings.delete(String(id)); await handle.dispose(); throw new Error('DSH_PROJECT_MISMATCH') }
     models.set(String(id), { selection, role: 'chat' })
     if (trusted === true) trust(handle.agent.session)
     // Third-party content LCA could not retire before a restart: keep the session degraded.
@@ -154,7 +183,7 @@ export function apply(ctx) {
   // commands, and while third-party content is in context ask before every write, command or fetch.
   ctx.on('tools/pre-execute', async (exec, next) => {
     const root = lineage.rootOf(exec.agent)
-    if (!root) return next()
+    if (!root || !originOf(exec.agent)) return { kind: 'deny', reason: 'LCA cannot verify this agent and project. Ask the user to start a new task.' }
     if (String(exec.name) === 'ask_user_question' && isRoot(exec.agent)) askCalls.set(root, String(exec.callId))
     const args = JSON.stringify(exec.arguments ?? {}).toLowerCase().replaceAll('\\\\', '\\')
     if (guarded.some((path) => args.includes(path) || args.includes(path.replaceAll('\\', '/')))) return { kind: 'deny', reason: 'This path is LCA private data; she does not work on it.' }
@@ -190,7 +219,7 @@ export function apply(ctx) {
       const id = randomUUID()
       approvals.set(id, settle)
       exec.signal?.addEventListener('abort', () => { if (approvals.delete(id)) settle('cancelled') }, { once: true })
-      send({ t: 'approval', id, sessionId: root, toolName: String(exec.name), callId: String(exec.callId), reason: null, kind: 'trust', command: null, subject, degraded: null })
+      send({ t: 'approval', id, sessionId: root, origin: originOf(exec.agent), toolName: String(exec.name), callId: String(exec.callId), reason: null, kind: 'trust', command: null, subject, degraded: null })
     }).then((outcome) => {
       asking.delete(root)
       if (outcome === 'allowed-once') { trust(session); send({ t: 'trusted', sessionId: root, preset: presetOf(session) }); return 'trusted' }
@@ -227,9 +256,11 @@ export function apply(ctx) {
   // degraded. If they cannot be retired, the new turn stays degraded too.
   ctx.on('agent/pre-step', async (payload, next) => {
     const family = lineage.rootOf(payload.agent)
+    const origin = originOf(payload.agent)
+    if (!family || !origin) return { kind: 'reject' }
     if (family && !payload.signal?.aborted) {
       const role = isRoot(payload.agent) ? models.get(family)?.role ?? 'chat' : 'work'
-      if (!(await admit(family, role))) queueMicrotask(() => { try { live.get(family)?.handle.agent.cancel({ kind: 'user' }) } catch { /* already ended */ } })
+      if (!(await admit(family, role, origin))) return { kind: 'reject' }
     }
     const root = lineage.sid(payload.agent)
     if (live.has(root) && eventTurns.get(root) === payload.turn && payload.step > EVENT_STEPS) {
@@ -258,15 +289,15 @@ export function apply(ctx) {
     return next()
   })
 
-  ctx.on('approval/request', async (request, next) => {
+  ctx.on('approval/request', async (request) => {
     const root = lineage.rootOf(request.agent)
-    if (!root) return next()
+    if (!root || !originOf(request.agent)) return 'rejected'
     const id = randomUUID()
     const callId = request.callId ? String(request.callId) : null
     const ask = callId ? asked.get(callId) ?? null : null
     const subject = callId ? subjects.get(callId) ?? null : null
     if (callId) { asked.delete(callId); subjects.delete(callId) }
-    send({ t: 'approval', id, sessionId: root, toolName: request.toolName, callId, reason: request.reason ?? null, kind: ask?.kind ?? 'escalation', command: ask?.command ?? null,
+    send({ t: 'approval', id, sessionId: root, origin: originOf(request.agent), toolName: request.toolName, callId, reason: request.reason ?? null, kind: ask?.kind ?? 'escalation', command: ask?.command ?? null,
       subject, degraded: degradation.active(root) ? degradation.sources(root) : null })
     return await new Promise((settle) => {
       approvals.set(id, settle)
@@ -281,7 +312,7 @@ export function apply(ctx) {
     if (!root || !isRoot(request.agent)) return next()
     const id = randomUUID()
     const callId = askCalls.get(root) ?? null; askCalls.delete(root)
-    send({ t: 'question', id, sessionId: root, callId, questions: plain(request.questions) })
+    send({ t: 'question', id, sessionId: root, origin: originOf(request.agent), callId, questions: plain(request.questions) })
     return await new Promise((done, fail) => {
       questions.set(id, { done, fail })
       request.signal?.addEventListener('abort', () => { if (questions.delete(id)) { send({ t: 'question-cancel', id }); fail(new Error('the question was withdrawn before the user answered')) } }, { once: true })

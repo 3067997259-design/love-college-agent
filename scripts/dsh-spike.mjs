@@ -29,7 +29,7 @@ child.on('exit', (code, signal) => { clearTimeout(timer); log('exit', code, sign
 child.on('message', (message) => {
   log('<-', JSON.stringify(message).slice(0, 600))
   if (message.t === 'hello') child.send({ t: 'init', persona: '你是 LCA 里的角色。', suffix: '', tools: [{ name: 'lca_get_timer', description: 'Read the pomodoro timer of the LCA book.', parameters: { type: 'object', properties: {}, additionalProperties: false } }] })
-  if (message.t === 'init-ok') child.send({ t: 'open', ref: 'probe', cwd: work })
+  if (message.t === 'init-ok') child.send({ t: 'open', ref: 'probe', cwd: work, binding: { protocolVersion: 2, runtimeId: 'spike', projectId: 'spike-project', cwd: work } })
   if (message.t === 'session' || message.t === 'error') child.send({ t: 'shutdown' })
 })
 writeFileSync(join(dataDir, 'dsh-spike.last-run.txt'), new Date().toISOString() + '\n')

@@ -220,6 +220,7 @@ export function createDshExecution(options: {
   }
 
   const approve = async (request: DshApproval): Promise<'allowed-once' | 'rejected'> => {
+    if (!session || request.sessionId !== session.id) return 'rejected'
     const project = session?.cwd ?? resolve(options.project())
     const command = request.command ?? (request.callId ? turn?.calls.get(request.callId)?.command ?? null : null)
     const prefix = request.kind === 'risky' && command ? command.trim().split(/\s+/).slice(0, 2).join(' ') : null
@@ -235,6 +236,7 @@ export function createDshExecution(options: {
       const question = `她想在「${basename(project)}」里运行命令${shown ? `：${clip(shown.replace(/\s+/g, ' '), 80)}` : ''}，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。`
       const choices = ['信任这个项目', '先不要']
       const answer = await ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
+      if (closed || current !== turn || current.asks.signal.aborted || session?.id !== request.sessionId) return 'rejected'
       if (answer !== choices[0]) return 'rejected'
       writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix: null }], null, 2))
       return 'allowed-once'
@@ -255,6 +257,7 @@ export function createDshExecution(options: {
     const always = degraded ? null : request.kind === 'risky' ? `以后都允许「${clip(prefix ?? '', 24)}」` : '这个项目以后都允许'
     const choices = always ? ['允许这一次', always, '拒绝'] : ['允许这一次', '拒绝']
     const answer = await ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
+    if (closed || current !== turn || current.asks.signal.aborted || session?.id !== request.sessionId) return 'rejected'
     if (always && answer === always) {
       writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix }], null, 2))
       // A project-wide grant is the user's choice of same-user trust: later commands skip the sandbox detour.
@@ -263,7 +266,8 @@ export function createDshExecution(options: {
     return answer === choices[0] || (always !== null && answer === always) ? 'allowed-once' : 'rejected'
   }
 
-  const call = async (name: string, args: unknown, _sessionId: string, callId: string) => {
+  const call = async (name: string, args: unknown, sessionId: string, callId: string) => {
+    if (!session || sessionId !== session.id) throw new Error('DSH_ORIGIN_UNAVAILABLE')
     const tool = lcaTools().get(name)
     const current = turn
     if (!tool || !current) throw new Error('LCA tool unavailable right now')
@@ -280,7 +284,8 @@ export function createDshExecution(options: {
    * Her questions to you (DSH ask_user_question), shown in the book. Your answers go back as DSH expects them, and as
    * your words they are part of what she saw this turn. Declining answers each question as skipped.
    */
-  const question: NonNullable<DshHostOptions['onQuestion']> = async ({ callId, questions, signal }) => {
+  const question: NonNullable<DshHostOptions['onQuestion']> = async ({ sessionId, callId, questions, signal }) => {
+    if (!session || sessionId !== session.id) return { error: 'This session is no longer available.' }
     const current = turn
     if (!current || !options.question) return { error: 'Questions to the user are not available right now.' }
     const items = itemsOf(questions)
@@ -361,6 +366,7 @@ export function createDshExecution(options: {
         if (reason?.kind === 'error') { const failure = failureOf(reason); fail(failure.code, failure.httpStatus); break }
         // Stopped because the autonomous allowance ran out: say so instead of a silent stop.
         if (turn.denied) { fail(turn.denied); break }
+        if (reason?.kind === 'blocked' || reason?.kind === 'refusal') { fail('permission-denied'); break }
         turn.asks.abort()
         recordSeen(turn)
         record({ type: 'turn/end', turnId: turn.lcaTurnId, reason: reason?.kind === 'aborted' || reason?.kind === 'cancelled' ? 'aborted' : 'completed' })
@@ -382,10 +388,13 @@ export function createDshExecution(options: {
     host.tools(schemas); toolsSent = key
   }
   /** Each DSH step as a model attempt in the journal: reservation first, the usage DSH reports once it answers. */
-  const admitStep = (input: { bucket: 'work' | 'autonomous'; role: 'chat' | 'work'; units: number }) => {
+  const admitStep = (input: { sessionId: string; bucket: 'work' | 'autonomous'; role: 'chat' | 'work'; units: number }) => {
+    if (closed || !session || input.sessionId !== session.id) return false
     const current = turn
-    if (!current) return true
     const refused = options.admit?.({ bucket: input.bucket, units: input.units }) ?? null; const ok = refused === null
+    // A child may outlive the root turn. It still reserves resources; only the root's conversation
+    // attempt rows depend on a current user turn. Member usage projection follows in P5.
+    if (!current) return ok
     current.attempts++; current.role = input.role
     record({ type: 'model/attempt', turnId: current.lcaTurnId, slot: input.role, attempt: current.attempts, status: ok ? 'started' : 'failed', waitMs: 0, reservedTokens: input.units, bucket: input.bucket, ...(ok ? {} : { error: 'quota' as const }) })
     if (refused) current.denied = refused
