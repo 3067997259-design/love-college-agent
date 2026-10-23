@@ -29,7 +29,7 @@ export interface DshApprovalScope {
 }
 export interface DshApprovalCancellation { t: 'approval-cancel'; id: string }
 /** Main-owned scope. The child independently checks the visible member revision. */
-export interface DshCollaborationRequest { rootSessionId: string; command: CollaborationCommand }
+export interface DshCollaborationRequest { rootSessionId: string; command: CollaborationCommand; requestId?: string }
 export interface DshCollaborationReply { view: CollaborationView }
 /** Provenance refers to an authorization and session-local turn, never to raw content.
  * Child turn numbers cannot be compared with root turn numbers. Unknown ancestry stays restricted. */
