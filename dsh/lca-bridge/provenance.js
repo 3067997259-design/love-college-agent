@@ -97,25 +97,36 @@ export function retireSources(session, state, authorizationId) {
  * Missing/ambiguous evidence retires the delivery; it can never renew an old authorization. */
 export function createSourceMailbox(file) {
   let records = []
+  let sequence = 0, barriers = {}
   if (existsSync(file)) {
     const stored = JSON.parse(readFileSync(file, 'utf8'))
     if (stored.version !== 1 || !Array.isArray(stored.records) || !stored.records.every((row) => typeof row.key === 'string' && typeof row.root === 'string' && typeof row.project === 'string' && validLease(row))) throw new Error('LCA_SOURCE_MAILBOX_INVALID')
     records = stored.records
+    sequence = stored.sequence ?? 0; barriers = stored.barriers ?? {}
+    if (!Number.isSafeInteger(sequence) || sequence < 0 || typeof barriers !== 'object' || barriers === null || Array.isArray(barriers) || Object.values(barriers).some((value) => !Number.isSafeInteger(value) || value < 0 || value > sequence)) throw new Error('LCA_SOURCE_MAILBOX_INVALID')
+    if (records.some((row) => row.sequence !== undefined && (!Number.isSafeInteger(row.sequence) || row.sequence < 0 || row.sequence > sequence))) throw new Error('LCA_SOURCE_MAILBOX_INVALID')
   }
   const hash = (value) => createHash('sha256').update(value).digest('hex')
   const key = (sender, kind, body) => `${sender}:${kind}:${hash(body)}`
+  const save = () => {
+    mkdirSync(dirname(file), { recursive: true })
+    const temp = `${file}.${randomUUID()}.tmp`
+    writeFileSync(temp, JSON.stringify({ version: 1, records, sequence, barriers })); renameSync(temp, file)
+  }
   return {
+    retireRecipient(id) { barriers[id] = sequence; save() },
     publish(sender, kind, body, scope, sources) {
       const entry = { key: key(sender, kind, body), root: scope.rootSessionId, project: scope.project, authorizationId: scope.authorizationId, sources: unique(sources) }
-      if (records.some((row) => JSON.stringify(row) === JSON.stringify(entry))) return
-      records = [...records.slice(-4095), entry]
-      mkdirSync(dirname(file), { recursive: true })
-      const temp = `${file}.${randomUUID()}.tmp`
-      writeFileSync(temp, JSON.stringify({ version: 1, records })); renameSync(temp, file)
+      if (records.some((row) => row.key === entry.key && row.root === entry.root && row.project === entry.project && row.authorizationId === entry.authorizationId && JSON.stringify(row.sources) === JSON.stringify(entry.sources))) return
+      sequence++
+      if (!Number.isSafeInteger(sequence)) throw new Error('LCA_SOURCE_SEQUENCE_EXHAUSTED')
+      records = [...records.slice(-4095), { ...entry, sequence }]
+      save()
     },
-    lookup(sender, kind, body, scope) {
+    lookup(sender, kind, body, scope, recipient) {
       const found = records.filter((row) => row.key === key(sender, kind, body))
       if (!found.length || found.some((row) => row.root !== scope.rootSessionId || row.project !== scope.project || row.authorizationId !== scope.authorizationId)) return null
+      if (recipient && Object.hasOwn(barriers, recipient) && found.some((row) => (row.sequence ?? 0) <= barriers[recipient])) return null
       return { authorizationId: scope.authorizationId, sources: unique(['member', ...found.flatMap((row) => row.sources)]) }
     },
   }

@@ -24,7 +24,7 @@ export const DELEGATION = new Set(['subagent', 'subagent_fork', 'spawn_teammate'
 // moves the turn to the work model: a step that changes things is not run but decided again by the
 // work model, so the code it writes is the work model's own; a step that only looks runs as asked.
 // Helpers inherit the model of the request that spawned them, so they run on the work model too.
-const HANDS_ON = new Set(['write', 'edit', 'pwsh', 'bash', 'todo_write', 'create_goal', 'subagent', 'subagent_fork', 'workflow', 'send_message'])
+const HANDS_ON = new Set(['write', 'edit', 'pwsh', 'bash', 'todo_write', 'create_goal', 'subagent', 'subagent_fork', 'workflow', 'send_message', 'spawn_teammate', 'team_task_create', 'team_task_update'])
 const LOOKING = new Set(['read', 'read_image', 'glob', 'grep', 'working_directory'])
 export const handoffOf = (name) => HANDS_ON.has(name) ? 'redo' : LOOKING.has(name) ? 'switch' : null
 export const HANDOFF_FEEDBACK = 'Not run: the work model takes over this turn from here. Decide this step again yourself, then carry on with the work.'

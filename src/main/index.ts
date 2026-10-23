@@ -713,6 +713,7 @@ void app.whenReady().then(async () => {
     const noExecution = { source: 'real' as const, send: () => { throw new Error('EXECUTION_UNAVAILABLE') }, stop: () => false, stateChanged: () => {} }
     const chatPort = () => dshExecution ?? noExecution
     controller.attachExecution(chatPort(), !!dshExecution)
+    controller.attachCollaboration(dshExecution?.collaboration)
     modelSettings = createModelSettings({ root: dataRoot, fallback: prepared.developer ? undefined : providersFile, developer: prepared.developer, slots: [...rawProviders.keys()], clock, budget: resourceBudget,
       canConfigure: () => !herBusy() && !backup?.isBusy() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
       apply: async () => {
@@ -732,6 +733,7 @@ void app.whenReady().then(async () => {
         await dshExecution?.close(); await extensionHost?.close(); extensionHost = undefined; dshExecution = createDsh()
         if (!dshExecution) modelSettings?.setLevels(null)
         controller!.attachExecution(chatPort(), !!dshExecution)
+        controller!.attachCollaboration(dshExecution?.collaboration)
         documents?.stateChanged(); campus?.stateChanged()
         } finally { scheduler!.pauseBackground(store!.projection().lightsOut) }
       },

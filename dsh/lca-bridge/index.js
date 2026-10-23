@@ -12,9 +12,10 @@ import { DELEGATION, HANDOFF_FEEDBACK, TRUST_FEEDBACK, createLineage, gatedWhile
 import { createFamilySafety } from './family.js'
 import { createExtensionAdapter } from './extensions.js'
 import { createSkillCatalog } from './skills.js'
+import { createCollaboration } from './collaboration.js'
 
 export const name = 'lca-bridge'
-export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm', 'sessionProjections', 'pluginManager', 'profileContext', 'skills']
+export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm', 'sessionProjections', 'pluginManager', 'profileContext', 'skills', 'agentTeams', 'subagents']
 
 const CLIP = 4000
 const SOURCES = new Set(['mail', 'document', 'web', 'mcp', 'plugin', 'member'])
@@ -43,6 +44,7 @@ export function apply(ctx) {
   const EVENT_STEPS = 6
   const eventStarts = new Map() // root session id -> event turns DSH has yet to begin
   const eventTurns = new Map() // root session id -> DSH turn number opened by an event
+  const eventBudget = new Map() // the entire delegated family shares the autonomous step cap
   // LCA's resource ledger: every step of her family asks LCA first. A turn LCA opened for an event is admitted
   // against the autonomous allowance; your own turns are recorded there but never refused. The estimate is the
   // previous step's usage (input + output + a tenth of cache reads), or 16k before any usage is known.
@@ -51,7 +53,7 @@ export function apply(ctx) {
   const unitsOf = (usage) => Math.max(1, Math.round(Number(usage?.inputTokens ?? 0) + Number(usage?.outputTokens ?? 0) + Number(usage?.cacheReadTokens ?? 0) / 10))
   const admit = (root, role, origin) => new Promise((settle) => {
     const id = randomUUID(); admissions.set(id, settle)
-    send({ t: 'admit', id, sessionId: root, origin, role, bucket: eventTurns.has(root) && eventTurns.get(root) === turns.get(root) ? 'autonomous' : 'work', units: lastUnits.get(root) ?? 16_000 })
+    send({ t: 'admit', id, sessionId: root, origin, role, bucket: eventBudget.has(root) ? 'autonomous' : 'work', units: lastUnits.get(root) ?? 16_000 })
   })
   // LCA's private data (journals, connection settings) and the DSH home are never her working material.
   const guarded = (process.env.LCA_GUARDED_ROOTS ?? '').split(';').filter(Boolean).map((root) => resolve(root).toLowerCase())
@@ -71,7 +73,10 @@ export function apply(ctx) {
     if (!registered.has(sid)) { registered.add(sid); send({ t: 'member', origin }) }
     return origin
   }
-  const safety = createFamilySafety(ctx, { originOf, send, sourceOf: (name) => sourceOf(name) ?? (lcaSources.has(name) ? lcaSources.get(name) : DELEGATION.has(name) || name === 'list_agents' || name.startsWith('team_task_') ? 'member' : name.startsWith('lca_') ? 'plugin' : null) })
+  let collaboration
+  const safety = createFamilySafety(ctx, { originOf, send, onWaiting: (id, reason) => collaboration?.waiting(id, reason), sourceOf: (name) => sourceOf(name) ?? (lcaSources.has(name) ? lcaSources.get(name) : DELEGATION.has(name) && name !== 'spawn_teammate' ? 'member' : name.startsWith('lca_') ? 'plugin' : null) })
+  collaboration = createCollaboration(ctx, { originOf, safety, send, roots: () => [...live.values()].map((entry) => entry.handle.agent),
+    onHumanMessage: (root) => { eventBudget.delete(root); eventTurns.delete(root) } })
   const callKey = (agent, callId) => `${lineage.sid(agent)}:${String(callId)}`
   // Chat and work models; a thinking level the model does not offer is dropped (DSH would refuse the request).
   const routes = parseRoutes(process.env.LCA_DSH_ROUTES)
@@ -153,6 +158,7 @@ export function apply(ctx) {
     if (!originOf(handle.agent)) { live.delete(String(id)); bindings.delete(String(id)); await handle.dispose(); throw new Error('DSH_PROJECT_MISMATCH') }
     models.set(String(id), { selection, role: 'chat' })
     safety.ensure(handle.agent)
+    collaboration.notify()
     return { sessionId: String(id), cwd, provider: chat.provider, model: chat.model, preset: presetOf(handle.agent.session) }
   }
 
@@ -165,6 +171,7 @@ export function apply(ctx) {
   // Graceful DSH disposal, then drop the IPC channel: an open channel keeps the process alive.
   let closing
   const shutdown = () => closing ??= (async () => {
+    collaboration.close()
     for (const [, entry] of live) await entry.handle.dispose().catch(() => {})
     live.clear()
     ctx.get('appExit')?.(0)
@@ -236,9 +243,15 @@ export function apply(ctx) {
     const family = lineage.rootOf(payload.agent)
     const origin = originOf(payload.agent)
     if (!family || !origin) return { kind: 'reject' }
+    if (eventBudget.has(family)) {
+      const remaining = eventBudget.get(family)
+      if (remaining <= 0) { queueMicrotask(() => safety.cancel(family)); return { kind: 'reject' } }
+      eventBudget.set(family, remaining - 1)
+    }
     if (family && !payload.signal?.aborted) {
       const role = isRoot(payload.agent) ? models.get(family)?.role ?? 'chat' : 'work'
       if (!(await admit(family, role, origin))) return { kind: 'reject' }
+      collaboration.admitted(payload.agent, lastUnits.get(family) ?? 16_000)
     }
     const root = lineage.sid(payload.agent)
     if (live.has(root) && eventTurns.get(root) === payload.turn && payload.step > EVENT_STEPS) {
@@ -336,6 +349,10 @@ export function apply(ctx) {
             : input.action === 'skill-inspect' ? { items: [], skills: await skills.inspect(input.directory) } : await extensions.request(input)
           send({ t: 'extensions', ref: message.ref, value }); break
         }
+        case 'collaboration': {
+          const value = await collaboration.request(message.input)
+          send({ t: 'collaboration-reply', ref: message.ref, ...value }); break
+        }
         case 'tools': registerLcaTools(message.tools ?? []); break
         case 'open':
           // Her card and your profile as they are now: onboarding names them after DSH has started.
@@ -353,12 +370,13 @@ export function apply(ctx) {
           const authorizationId = safety.begin(agent, message.mode === 'followup')
           const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: event ? 'lca-event' : 'user', lcaProvenance: { authorizationId, sources: degrade }, ...(reference.length ? { lcaReferences: true } : {}) } })
           if (event && message.mode === 'followup') eventStarts.set(message.sessionId, (eventStarts.get(message.sessionId) ?? 0) + 1)
+          if (event && message.mode === 'followup') eventBudget.set(message.sessionId, EVENT_STEPS)
           // You joined in: the turn is yours, no event cap.
-          if (!event) eventTurns.delete(message.sessionId)
+          if (!event) { eventTurns.delete(message.sessionId); eventBudget.delete(message.sessionId) }
           if (message.mode === 'steer') agent.steer(input); else if (message.mode === 'inject') agent.inject(input); else agent.followup(input)
           break
         }
-        case 'cancel': safety.cancel(message.sessionId); break
+        case 'cancel': safety.cancel(message.sessionId); collaboration.notify(); break
         case 'trust': { safety.setTrust(message.sessionId, true); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(agentOf(message.sessionId).session) }); break }
         case 'untrust': { safety.setTrust(message.sessionId, false); declined.delete(message.sessionId); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(agentOf(message.sessionId).session) }); break }
         case 'question-answer': {

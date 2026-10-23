@@ -22,6 +22,7 @@ import { SillItems } from './life/SillItems'
 import { HistoryPhoto, type PhotoOverlay } from './history/HistoryPhoto'
 import { VoiceMark } from './VoiceMark'
 import { voiceLevel } from '../voice/level'
+import { CollaborationPanel } from './CollaborationPanel'
 
 const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
 
@@ -176,6 +177,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
       </div>
       {/* 房间之外的兄弟节点：盖在上面，但不进实时拍照的根 */}
       {!intro && historyPhoto && <HistoryPhoto view={historyPhoto} />}
+      {!intro && !historyPhoto && <CollaborationPanel snapshot={snapshot} bridge={bridge} />}
 
       {!intro && lastLine && historyPhoto?.mode !== 'page' && <VoiceMark snapshot={snapshot} bridge={bridge} messageId={lastLine.id} />}
       {!intro && showSpeech && lastLine && historyPhoto?.mode !== 'page' && (

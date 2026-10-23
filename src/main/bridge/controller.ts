@@ -19,6 +19,7 @@ import type { QuillService } from '../gifts/quill'
 import type { ModelSettingsService } from '../config/model-settings'
 import type { ExtensionsService } from '../dsh/extensions'
 import type { SkillsService } from '../dsh/skills'
+import type { CollaborationPort } from '../dsh/collaboration'
 import type { ProjectsService } from '../dsh/projects'
 import type { CompanionWindows, WindowSurface } from '../windows/companion'
 import { characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
@@ -179,6 +180,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let modelSettings: ModelSettingsService | undefined
   let extensions: ExtensionsService | undefined
   let skills: SkillsService | undefined
+  let collaboration: CollaborationPort | undefined
   let projects: ProjectsService | undefined
   let windows: CompanionWindows | undefined
   let gifts: GiftService | undefined
@@ -303,6 +305,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
     if (extensions) snapshot.extensions = extensions.view()
     if (skills) snapshot.skills = skills.view()
+    if (collaboration) snapshot.collaboration = collaboration.view(); else delete snapshot.collaboration
     if (projects) snapshot.work = projects.view(); else delete snapshot.work
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
@@ -464,6 +467,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (skills && command.type.startsWith('skills.')) {
       try { const error = skills.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
+    } else if (collaboration && /^(agent\.|team\.)/.test(command.type)) {
+      try { const error = collaboration.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
     } else if (projects && command.type.startsWith('project.')) {
       try { const error = projects.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -547,6 +553,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
     attachExtensions: (port: ExtensionsService) => { extensions = port; publish('connection') },
     attachSkills: (port: SkillsService) => { skills = port; publish('connection') },
+    attachCollaboration: (port?: CollaborationPort) => { collaboration = port; publish('task') },
     attachProjects: (port: ProjectsService) => { projects = port; publish('task') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },

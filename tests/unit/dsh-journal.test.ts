@@ -73,6 +73,29 @@ async function workTurn(f: ReturnType<typeof setup>) {
   f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
 }
 
+it('does not repopulate the collaboration page from late events after a project change', async () => {
+  const f = setup()
+  f.execution.send('synthetic work', 'scope-test', 'scope-hash'); await f.opened()
+  const view = { status: 'ready', runtimeId: 'runtime-old', projectId: 'project-old', members: [], tasks: [] }
+  f.emit({ t: 'collaboration', view })
+  expect(f.execution.collaboration.view().projectId).toBe('project-old')
+  f.setProject(join(f.root, 'other-project')); f.execution.stateChanged()
+  f.emit({ t: 'collaboration', view })
+  expect(f.execution.collaboration.view().status).toBe('unavailable')
+  expect(f.execution.collaboration.view().projectId).toBeNull()
+  await f.execution.close(); f.store.close()
+})
+
+it('withdraws old member addresses when extension maintenance replaces the runtime', async () => {
+  const f = setup()
+  f.execution.send('synthetic work', 'restart-test', 'restart-hash'); await f.opened()
+  f.execution.collaboration.accept({ status: 'ready', runtimeId: 'old', projectId: 'project', members: [], tasks: [] })
+  await f.execution.withExtensions(async ({ restart }) => { await restart() })
+  expect(f.execution.collaboration.view().runtimeId).toBeNull()
+  expect(f.execution.collaboration.view().status).toBe('unavailable')
+  await f.execution.close(); f.store.close()
+})
+
 describe('DSH work in the LCA journal', () => {
   it.each(['restricted', 'legacy'] as const)('does not refill source-derived text through cross-project conversation or memory (%s)', async (mode) => {
     const f = setup(); f.execution.send('USER_OWN_WORDS', 'r-1', 'h-1'); await f.opened()

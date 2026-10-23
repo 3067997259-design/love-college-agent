@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { appendPluginRecord } from '@deepseek-ai/dsh-session'
 import { SOURCE_KEY, SOURCE_RETIRED, createSourceMailbox, incomingBody, retireSources, sourceProjection, sourcesIn } from './provenance.js'
 
-export function createFamilySafety(ctx, { originOf, send, sourceOf }) {
+export function createFamilySafety(ctx, { originOf, send, sourceOf, onWaiting = () => {} }) {
   ctx.sessionProjections.register(sourceProjection(sourceOf))
   let mailbox
   try { mailbox = createSourceMailbox(join(process.env.DSH_HOME, 'lca-source-mailbox.json')) } catch { /* open reports a closed failure, rather than leaving main waiting for hello */ }
@@ -40,6 +40,7 @@ export function createFamilySafety(ctx, { originOf, send, sourceOf }) {
     return { member, root }
   }
   const cancelApprovals = (rootId) => { for (const request of [...pending.values()]) if (request.rootId === rootId) request.cancel() }
+  const announce = (rootId) => { const root = roots.get(rootId), agent = ctx.agents.get(rootId); if (root && agent) send({ t: 'family-policy', origin: originOf(agent), revision: root.revision, stopped: root.stopped }) }
   const setTrust = (rootId, trusted) => {
     const root = roots.get(rootId)
     if (!root) throw new Error('LCA_FAMILY_UNAVAILABLE')
@@ -49,14 +50,17 @@ export function createFamilySafety(ctx, { originOf, send, sourceOf }) {
     }
     root.trusted = trusted
     for (const member of members.values()) if (member.origin.rootSessionId === rootId) applyPolicy(member.agent, root)
+    announce(rootId)
   }
   const retiredMessage = (message) => ({ ...message, content: [{ type: 'text', text: SOURCE_RETIRED }], source: { ...message.source, lcaProvenance: { retired: true } } })
   const prepare = (member, root, messages) => messages.map((message) => {
     if (message.source?.lcaProvenance?.retired) return message
     const incoming = incomingBody(message)
     if (incoming) {
-      const lease = mailbox.lookup(incoming.sender, incoming.kind, incoming.body, { ...member.scope, authorizationId: root.authorizationId })
+      const lease = mailbox.lookup(incoming.sender, incoming.kind, incoming.body, { ...member.scope, authorizationId: root.authorizationId }, member.origin.sessionId)
       if (!lease) return retiredMessage(message)
+      if (member.stopped && (!member.resume || member.resume.sender !== incoming.sender || member.resume.body !== incoming.body)) return retiredMessage(message)
+      member.stopped = false; member.resume = null
       member.scope.authorizationId = root.authorizationId
       return { ...message, source: { ...message.source, lcaProvenance: lease } }
     }
@@ -67,16 +71,18 @@ export function createFamilySafety(ctx, { originOf, send, sourceOf }) {
   })
   const request = (agent, input, signal) => {
     const { member, root } = ensure(agent)
-    if (signal?.aborted || root.stopped || member.scope.authorizationId !== root.authorizationId) return Promise.resolve('cancelled')
+    if (signal?.aborted || member.stopped || root.stopped || member.scope.authorizationId !== root.authorizationId) return Promise.resolve('cancelled')
     const id = randomUUID(), revision = root.revision, activationId = member.activationId
     return new Promise((resolve) => {
       const finish = (outcome) => {
         if (!pending.delete(id)) return
+        onWaiting(member.origin.sessionId, null)
         signal?.removeEventListener('abort', cancel)
-        resolve(!root.stopped && revision === root.revision && activationId === member.activationId && member.scope.authorizationId === root.authorizationId ? outcome : 'cancelled')
+        resolve(!root.stopped && !member.stopped && revision === root.revision && activationId === member.activationId && member.scope.authorizationId === root.authorizationId ? outcome : 'cancelled')
       }
       const cancel = () => { send({ t: 'approval-cancel', id }); finish('cancelled') }
-      pending.set(id, { rootId: member.origin.rootSessionId, finish, cancel })
+      pending.set(id, { rootId: member.origin.rootSessionId, memberId: member.origin.sessionId, finish, cancel })
+      onWaiting(member.origin.sessionId, 'approval')
       signal?.addEventListener('abort', cancel, { once: true })
       send({ ...input, t: 'approval', id, approvalId: id, activationId, policyRevision: revision, sessionId: member.origin.rootSessionId, origin: member.origin })
     })
@@ -88,10 +94,10 @@ export function createFamilySafety(ctx, { originOf, send, sourceOf }) {
       if (root.stopped || payload.signal?.aborted) return { kind: 'reject' }
       if (member.turn !== payload.turn) { member.activationId = randomUUID(); member.turn = payload.turn }
       prepare(member, root, payload.messages)
-      if (member.scope.authorizationId !== root.authorizationId) return { kind: 'reject' }
+      if (member.stopped || member.scope.authorizationId !== root.authorizationId) return { kind: 'reject' }
       let count = retireSources(payload.agent.session, state(payload.agent), member.scope.authorizationId)
       const decision = await next()
-      if (root.stopped || payload.signal?.aborted || member.scope.authorizationId !== root.authorizationId) return { kind: 'reject' }
+      if (root.stopped || member.stopped || payload.signal?.aborted || member.scope.authorizationId !== root.authorizationId) return { kind: 'reject' }
       // Compaction is another pre-step handler. Its output inherits the provenance of its inputs.
       count += retireSources(payload.agent.session, state(payload.agent), member.scope.authorizationId)
       if (decision.kind === 'enter') decision.messages = prepare(member, root, decision.messages)
@@ -122,6 +128,16 @@ export function createFamilySafety(ctx, { originOf, send, sourceOf }) {
       cancelApprovals(rootId); roots.set(rootId, { trusted: trusted === true, revision: 0, stopped: false, authorizationId: randomUUID() })
     },
     ensure, sources, request, setTrust, recordSource,
+    status(agent) { const { member, root } = ensure(agent); return { authorized: !root.stopped && !member.stopped && member.scope.authorizationId === root.authorizationId, activationId: member.activationId, sources: sources(agent) } },
+    relay(agent, text) { const { member } = ensure(agent); mailbox.publish(member.origin.sessionId, 'relay', text, member.scope, sources(agent)) },
+    userMessage(agent, text) { const { member, root } = ensure(agent); if (root.stopped) throw new Error('LCA_FAMILY_STOPPED'); mailbox.publish(member.origin.sessionId, 'relay', text, { ...member.scope, authorizationId: root.authorizationId }, []) },
+    expectMessage(id, sender, body) { const member = members.get(id); if (member) member.resume = { sender, body } },
+    stopMember(id) {
+      const member = members.get(id)
+      if (member) { member.stopped = true; member.resume = null; member.activationId = randomUUID() }
+      mailbox.retireRecipient(id)
+      for (const request of [...pending.values()]) if (request.memberId === id) request.cancel()
+    },
     answer: (id, outcome) => pending.get(id)?.finish(outcome === 'allowed-once' ? outcome : 'rejected'),
     begin(agent, renew) {
       const { member, root } = ensure(agent)
@@ -134,11 +150,12 @@ export function createFamilySafety(ctx, { originOf, send, sourceOf }) {
         root.revision++; root.authorizationId = randomUUID(); root.stopped = false
       }
       member.scope.authorizationId = root.authorizationId
+      announce(member.origin.rootSessionId)
       return root.authorizationId
     },
     beforeTool(exec) {
       const { member, root } = ensure(exec.agent)
-      if (root.stopped || member.scope.authorizationId !== root.authorizationId || exec.signal?.aborted) return false
+      if (root.stopped || member.stopped || member.scope.authorizationId !== root.authorizationId || exec.signal?.aborted) return false
       recordSource(exec, sourceOf(String(exec.name)))
       if (String(exec.name) === 'send_message' && typeof exec.arguments?.message === 'string') mailbox.publish(member.origin.sessionId, 'relay', exec.arguments.message, member.scope, sources(exec.agent))
       return true
@@ -148,6 +165,7 @@ export function createFamilySafety(ctx, { originOf, send, sourceOf }) {
       if (!root) return
       root.stopped = true; root.revision++; cancelApprovals(rootId)
       for (const member of members.values()) if (member.origin.rootSessionId === rootId) member.agent.cancel({ kind: 'user' })
+      announce(rootId)
     },
   }
 }

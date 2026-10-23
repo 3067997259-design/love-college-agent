@@ -1,0 +1,15 @@
+.collaboration { position: absolute; bottom: 1.5rem; right: 1.4rem; z-index: 18; font-size: .9rem; color: #54483d; }
+.collaboration-tab { border: 1px solid #b9a38a; border-radius: .3rem; background: #f7eedc; padding: .35rem .8rem; box-shadow: 0 2px 6px #47382620; }
+.collaboration-sheet { position: absolute; right: 0; bottom: 2.5rem; width: min(25rem, calc(100vw - 4rem)); max-height: 65vh; overflow: auto; padding: 1rem; background: #fbf5e8; border: 1px solid #cbbb9f; border-radius: .35rem; box-shadow: 0 5px 22px #44342230; overscroll-behavior: contain; }
+.collaboration-sheet header { display: flex; justify-content: space-between; align-items: center; gap: .7rem; }
+.collaboration-sheet h2 { margin: 0; font-size: 1.25rem; }.collaboration-sheet h3 { font-size: 1rem; }
+.collaboration-sheet button { color: inherit; background: #fffaf0; border: 1px solid #cbbca6; border-radius: .25rem; padding: .25rem .5rem; cursor: pointer; }
+.collaboration-sheet button:disabled { opacity: .5; cursor: default; }.collaboration-sheet :focus-visible { outline: 2px solid #936e51; outline-offset: 2px; }
+.collaboration-note, .collaboration-sheet small { font-size: .78rem; line-height: 1.55; color: #786958; }.collaboration-sheet small { display: block; overflow-wrap: anywhere; }
+.collaboration-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin: .55rem 0; }
+.collaboration-member, .collaboration-task { border-top: 1px solid #d9cbb4; margin-top: .7rem; padding-top: .7rem; overflow-wrap: anywhere; }
+.collaboration-member summary { cursor: pointer; }.collaboration-member summary span { margin-left: .6rem; font-size: .8rem; }
+.collaboration-member p { margin: .45rem 0; }.collaboration-member form { margin: .6rem 0; }
+.collaboration-member textarea { display: block; box-sizing: border-box; width: 100%; resize: vertical; margin: .3rem 0; background: #fffdf7; color: inherit; border: 1px solid #cbbca6; border-radius: .2rem; padding: .4rem; font: inherit; }
+.collaboration-task > span { display: block; font-size: .8rem; }.collaboration-result { white-space: pre-wrap; line-height: 1.6; }
+@media (max-width: 700px) { .collaboration { right: .75rem; bottom: .75rem; }.collaboration-sheet { max-height: 55vh; width: min(20rem, calc(100vw - 3rem)); } }

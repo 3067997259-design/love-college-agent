@@ -55,6 +55,16 @@ describe('public bridge controller', () => {
     expect(controller.dispatch({ ...base, epoch: 'old', type: 'lights.set', lightsOut: true })).toMatchObject({ status: 'rejected', error: { code: 'stale-epoch' } })
     expect(controller.getSnapshot().messages).toEqual([])
   })
+  it('keeps collaboration commands book-only, closed-schema and deduplicated', () => {
+    const controller = createAppController(createManualClock()); let calls = 0
+    controller.attachCollaboration({ view: () => ({ status: 'unavailable', runtimeId: null, projectId: null, members: [], tasks: [] }), dispatch: () => { calls++; return undefined } })
+    const command = { protocolVersion: 1, requestId: 'collaboration-refresh', epoch: controller.getSnapshot().epoch, type: 'agent.refresh' }
+    expect(controller.dispatch(command, 'mini').status).toBe('rejected')
+    expect(controller.dispatch({ ...command, path: 'arbitrary' }).status).toBe('rejected')
+    expect(controller.dispatch(command).status).toBe('accepted')
+    expect(controller.dispatch(command).status).toBe('accepted')
+    expect(calls).toBe(1)
+  })
   it('deduplicates commands, publishes ordered immutable snapshots, and unsubscribes', () => {
     const clock = createManualClock()
     const controller = createAppController(clock)

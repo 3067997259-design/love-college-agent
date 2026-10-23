@@ -6,6 +6,19 @@ import { afterEach, expect, it } from 'vitest'
 import { SOURCE_RETIRED, createSourceMailbox, incomingBody, retireSources, sourceProjection, sourcesIn } from '../../dsh/lca-bridge/provenance.js'
 
 const roots: string[] = []
+it('keeps pre-interrupt deliveries retired even after a fresh instruction and cold recovery', () => {
+  const root = mkdtempSync(join(tmpdir(), 'lca-source-test-')); roots.push(root)
+  const file = join(root, 'mailbox.json'), scope = { rootSessionId: 'lead', project: 'project', authorizationId: 'current' }
+  let mailbox = createSourceMailbox(file)
+  mailbox.publish('sender', 'relay', 'late old delivery', scope, ['web'])
+  mailbox.retireRecipient('member')
+  mailbox.publish('lead', 'relay', 'fresh explicit instruction', scope, [])
+  expect(mailbox.lookup('lead', 'relay', 'fresh explicit instruction', scope, 'member')).not.toBeNull()
+  expect(mailbox.lookup('sender', 'relay', 'late old delivery', scope, 'member')).toBeNull()
+  mailbox = createSourceMailbox(file)
+  expect(mailbox.lookup('sender', 'relay', 'late old delivery', scope, 'member')).toBeNull()
+  expect(mailbox.lookup('sender', 'relay', 'late old delivery', scope, 'other-member')).not.toBeNull()
+})
 afterEach(() => { for (const root of roots.splice(0)) {
   if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-source-test-'))) throw new Error('Unsafe cleanup')
   rmSync(root, { recursive: true, force: true })

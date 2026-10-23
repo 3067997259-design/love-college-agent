@@ -25,10 +25,7 @@ async function run(name) {
   const patch = [{ insert: [{ id: 'family-probe', name: pathToFileURL(join(repo, 'scripts', 'fixtures', 'dsh-family-probe.mjs')).href }] }]
   if (variant === 'manager') patch.push({ id: 'tool-plugin-manager', disabled: false })
   if (nested) patch.push({ id: 'tool-subagent', config: { provider: 'spawn', maxDepth: 2 } })
-  if (team) patch.push({ id: 'tool-subagent-control', disabled: true }, { id: 'tool-subagent-list-agents', disabled: true }, { insert: [
-    { id: 'agent-team', name: '@deepseek-ai/dsh-experimental-agent-team', config: { maxMembers: 8, maxTasks: 256, maxMessageBytes: 65536, disposalTimeoutMs: 5000 } },
-    { id: 'tool-agent-team', name: '@deepseek-ai/dsh-experimental-tool-agent-team', config: { freshProvider: 'spawn', forkProvider: 'fork' } },
-  ] })
+  // Production LCA now composes the Team service and unified controls.
   writeFileSync(join(profile, 'cordis.patch.yml'), JSON.stringify(patch, null, 2))
   const events = [], requests = [], contexts = []
   let child, sessionId, memberId, grandId, phase = 1, restarting = false, timedOut = false, stderr = '', requestError = null, revoked = false, rootIdle = false, released = false, trustGranted = false, coldRefused = false
@@ -64,7 +61,7 @@ async function run(name) {
           else if (turn === 1 && lastId === 'read' && variant === 'manager') reply = call('plugin_manager', 'child-manager', { action: 'set_bundle', target: '@deepseek-ai/dsh-base', enabled: false })
           else if (turn === 1 && (lastId === 'child-manager' || lastId === 'read' || allText.includes('SUMMARY_MARKER') && !lastId)) reply = call('family_ask', 'ask')
           else if (turn === 1 && lastId === 'ask') reply = call('family_acl', 'acl')
-          else if (turn === 1 && lastId === 'acl') reply = call('send_message', 'relay', team ? { target: 'lead', message: 'FAMILY_RELAY_SOURCE' } : { agent_id: sessionId, message: 'FAMILY_RELAY_SOURCE' })
+          else if (turn === 1 && lastId === 'acl') reply = call('send_message', 'relay', team ? { target: `team:${sessionId}`, message: 'FAMILY_RELAY_SOURCE' } : { agent_id: sessionId, message: 'FAMILY_RELAY_SOURCE' })
           else if (turn === 1) reply = { text: 'FAMILY_SETTLED_SOURCE' }
           else if ((revoke || seeded) && !lastId) reply = call('family_ask', `ask-${turn}`)
           else reply = { text: `child continuation ${turn} done` }
@@ -80,7 +77,7 @@ async function run(name) {
         }
         else if (turn === 1 && (lastId === 'inspect' || lastId === 'root-manager' || lastId === 'task-claim')) reply = call(team ? 'spawn_teammate' : fork ? 'subagent_fork' : 'subagent', 'spawn', team ? { name: 'peach', description: 'fixture', prompt: '[[CHILD1]] synthetic task', context: 'fresh' } : { description: 'fixture', prompt: '[[CHILD1]] synthetic task' })
         else if (turn === 2 && !lastId && ['late', 'cross'].includes(variant)) reply = call(variant === 'late' ? 'family_late' : 'family_foreign', 'edge', { id: memberId })
-        else if (turn > 1 && (!lastId || lastId === 'edge')) reply = call('send_message', `continue-${turn}`, team ? { target: 'peach', message: `[[CHILD${turn}]] continue` } : { agent_id: memberId, message: `[[CHILD${turn}]] continue` })
+        else if (turn > 1 && (!lastId || lastId === 'edge')) reply = call('send_message', `continue-${turn}`, team ? { target: `team:${memberId}`, message: `[[CHILD${turn}]] continue` } : { agent_id: memberId, message: `[[CHILD${turn}]] continue` })
         else if (idle && turn === 1 && lastId === 'spawn') reply = { text: 'ROOT_DONE_1' }
         else if (lastId === 'spawn' || lastId === `continue-${turn}`) reply = call('family_wait', `wait-${turn}`, { id: memberId, count: turn === 3 || seeded ? 1 : turn })
         else reply = { text: `ROOT_DONE_${turn}` }

@@ -9,6 +9,8 @@ import type { Clock } from '../clock'
 import type { DshRoutes } from './routes'
 import { createDshIdentities } from './identity'
 import type { DshApprovalScope, DshOrigin } from '../../shared/dsh-protocol'
+import type { DshCollaborationRequest, DshCollaborationReply } from '../../shared/dsh-protocol'
+import { collaborationViewSchema } from './collaboration'
 
 /**
  * DSH host launcher (spike). Runs the forked DSH runtime as an Electron-Node child with LCA's `lca`
@@ -113,6 +115,27 @@ export function startDshHost(options: DshHostOptions) {
   child.on('message', (raw) => { try { handle(raw as DshEvent) } catch { console.error('DSH_EVENT_NOT_HANDLED') } })
   const handle = (message: DshEvent) => {
     if (closed || disconnected) return
+    if (message.t === 'family-policy') {
+      const origin = identities.validate(message.origin)
+      if (!origin || origin.parentSessionId !== null || !Number.isSafeInteger(message.revision) || Number(message.revision) < (revisions.get(origin.rootSessionId) ?? 0)) return
+      if (Number(message.revision) !== revisions.get(origin.rootSessionId)) cancelApprovals(origin.rootSessionId)
+      revisions.set(origin.rootSessionId, Number(message.revision))
+      if (message.stopped === true) { inactive.add(origin.rootSessionId); cancelApprovals(origin.rootSessionId) } else if (message.stopped === false) inactive.delete(origin.rootSessionId)
+      return
+    }
+    if (message.t === 'collaboration' || message.t === 'collaboration-reply') {
+      if (!Array.isArray(message.origins) || message.origins.length > 512) return
+      for (const input of message.origins) if (!identities.register(input)) return
+      const parsed = collaborationViewSchema.safeParse(message.view)
+      if (!parsed.success || parsed.data.runtimeId !== identities.runtimeId) return
+      const view = parsed.data
+      for (const member of view.members) {
+        const known = identities.address(member.address.sessionId)
+        if (!known || JSON.stringify(known) !== JSON.stringify(member.address) || known.projectId !== view.projectId) return
+        identities.setRevision(known.sessionId, member.revision)
+      }
+      message = { t: message.t, sessionId: view.members.find((member) => member.mode === 'root')?.address.sessionId, ref: message.ref, view }
+    }
     if (message.t === 'member') {
       const origin = identities.register(message.origin)
       if (origin) options.onEvent({ ...message, origin })
@@ -160,7 +183,7 @@ export function startDshHost(options: DshHostOptions) {
       void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id)) && current()) send({ t: 'question-answer', id: message.id, ...result }) })
     }
     else if (message.t === 'question-cancel') { asking.get(String(message.id))?.abort(); asking.delete(String(message.id)) }
-    else if ((message.t === 'session' || message.t === 'described' || message.t === 'extensions' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
+    else if ((message.t === 'session' || message.t === 'described' || message.t === 'extensions' || message.t === 'collaboration-reply' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
       const entry = waiting.get(message.ref)!; waiting.delete(message.ref)
       if (message.t === 'error') entry.fail(new Error(String(message.message))); else entry.done(message)
     }
@@ -175,6 +198,16 @@ export function startDshHost(options: DshHostOptions) {
   return {
     started,
     available: () => !closed && !disconnected,
+    collaboration: async (input: DshCollaborationRequest): Promise<DshCollaborationReply> => {
+      await started
+      const root = identities.address(input.rootSessionId)
+      if (!root || root.parentSessionId !== null) throw new Error('DSH_ORIGIN_UNAVAILABLE')
+      if (input.command.type !== 'agent.refresh' && (input.command.target.address.rootSessionId !== input.rootSessionId || (['agent.stop-family', 'team.task.update'].includes(input.command.type)
+        ? JSON.stringify(input.command.target.address) !== JSON.stringify(root)
+        : !identities.acceptsTarget(input.command.target, root.projectId)))) throw new Error('LCA_STALE_MEMBER')
+      const answer = await request({ t: 'collaboration', input }, 30_000)
+      return { view: collaborationViewSchema.parse(answer.view) }
+    },
     extensions: async (input: DshExtensionRequest): Promise<DshExtensionReply> => {
       await started
       const answer = await request({ t: 'extensions', input }, ['list', 'skills', 'skill-inspect', 'cancel', 'reconcile'].includes(input.action) ? 30_000 : 660_000)

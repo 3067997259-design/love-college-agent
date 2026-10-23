@@ -11,6 +11,8 @@ import type { ExtensionRuntime } from './extensions'
 import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost, type DshHostOptions, type DshSource } from './host'
 import { itemsInput, type QuestionItem } from '../questions/schema'
 import type { DshRoutes } from './routes'
+import { createCollaborationState } from './collaboration'
+import type { CollaborationView } from '../../shared/collaboration'
 
 /**
  * `seen`: the conversation of this turn, in order, as she saw it: your lines and her replies, never tool traffic.
@@ -151,6 +153,24 @@ export function createDshExecution(options: {
   // a turn DSH ends after this point is closed at the next start.
   let maintaining = false
   let closed = false
+  const collaboration = createCollaborationState({
+    allowed: () => !closed && !maintaining && !store.projection().lightsOut && !store.projection().sleeping,
+    changed: () => { if (!closed) options.changed('task') },
+    run: async (command) => {
+      if (closed || maintaining) throw new Error('DSH_BUSY')
+      const recovering = command.type === 'agent.refresh' && host?.available?.() === false
+      if (recovering) maintaining = true
+      try {
+        // Only an explicit read reconnects. Never resend the action whose receipt was lost.
+        if (recovering) { const previous = host; host = undefined; session = undefined; await previous?.close() }
+        if (closed) throw new Error('DSH_EXECUTION_CLOSED')
+        const current = await ensureSession()
+        const result = await host!.collaboration({ rootSessionId: current.id, command, requestId: 'requestId' in command ? String(command.requestId) : undefined })
+        if (closed || session !== current || current.cwd !== resolve(options.project())) throw new Error('DSH_ORIGIN_UNAVAILABLE')
+        return result.view
+      } finally { if (recovering) maintaining = false }
+    },
+  })
   const record = (input: JournalInput) => { if (!closed) store.append(input) }
   const lcaTools = () => new Map(options.tools().map((tool) => [LCA_PREFIX + tool.definition.name, tool]))
   let host: DshHost | undefined
@@ -315,9 +335,11 @@ export function createDshExecution(options: {
 
   const onEvent = (event: DshEvent) => {
     if (closed) return
-    if (event.t === 'host-unavailable') { if (turn) fail('connection-failed'); options.disconnected?.(); return }
+    if (event.t === 'host-unavailable') { collaboration.reset(true); if (turn) fail('connection-failed'); options.disconnected?.(); return }
     if (!session || (event.sessionId && event.sessionId !== session.id)) return
     switch (event.t) {
+      case 'collaboration':
+      case 'collaboration-reply': if (session.cwd === resolve(options.project())) collaboration.accept(event.view as CollaborationView); break
       case 'turn-start': {
         const start = starts.shift()
         turn = { lcaTurnId: randomUUID(), trigger: start?.trigger ?? 'user', attempts: 0, role: 'chat', partial: '', toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [] }
@@ -467,6 +489,7 @@ export function createDshExecution(options: {
     writeDay(session.day, sessions)
   }
   const openSession = async (day: string, cwd: string) => {
+    if (session?.id) collaboration.reset()
     const running = ensureHost(cwd)
     if (session?.id) running.cancel(session.id)
     const sessions = daySessions(read<Saved>(sessionsFile, {}), day)
@@ -514,6 +537,7 @@ export function createDshExecution(options: {
   }
 
   return {
+    collaboration,
     source: options.source ?? 'real',
     /** `extra`: references for this message only (an old-page quote you ask about). */
     send: (text: string, requestId: string, commandHash: string, extra?: Record<string, unknown> | null) => {
@@ -541,7 +565,7 @@ export function createDshExecution(options: {
       if (closed || !turn || !session || turn.lcaTurnId !== taskId) return false
       turn.asks.abort(); host?.cancel(session.id); return true
     },
-    stateChanged: () => { if (closed) return; if ((store.projection().lightsOut || store.projection().sleeping || session?.cwd !== resolve(options.project())) && session) host?.cancel(session.id); kick() },
+    stateChanged: () => { if (closed) return; if ((store.projection().lightsOut || store.projection().sleeping || session?.cwd !== resolve(options.project())) && session) host?.cancel(session.id); if (session?.cwd !== resolve(options.project())) collaboration.reset(); kick() },
     /**
      * An event she may speak about: recorded in the journal, then given to her DSH session.
      * Duplicates (same id) and a full queue (32 waiting) are refused.
@@ -554,13 +578,14 @@ export function createDshExecution(options: {
       held.push({ id: eventId, source, text }); kick(); return true
     },
     /** A DSH turn is running; the work folder must not change under it. */
-    busy: () => !!turn || !!opening || maintaining,
+    busy: () => !!turn || !!opening || maintaining || collaboration.busy(),
     withExtensions: async <T>(job: (runtime: ExtensionRuntime) => Promise<T>): Promise<T> => {
-      if (closed || maintaining || turn || opening) throw new Error('DSH_BUSY')
+      if (closed || maintaining || turn || opening || collaboration.busy()) throw new Error('DSH_BUSY')
       maintaining = true
       const restart = async () => {
         const previous = host; host = undefined; session = undefined
         await previous?.close()
+        collaboration.reset()
         if (closed) throw new Error('DSH_EXECUTION_CLOSED')
         return ensureHost(resolve(options.project()))
       }

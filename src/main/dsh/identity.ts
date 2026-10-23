@@ -59,7 +59,7 @@ export function createDshIdentities(runtimeId: string = randomUUID()) {
       const { runtimeId, projectId, rootSessionId, parentSessionId } = origin
       return { runtimeId, projectId, rootSessionId, sessionId, parentSessionId }
     },
-    /** Main updates this on visible state changes; the command must match what the user saw. */
+    /** Control revision follows activation/availability, not every token or activity update. */
     setRevision(sessionId: string, revision: number) {
       if (!members.has(sessionId) || !Number.isSafeInteger(revision) || revision < (revisions.get(sessionId) ?? 0)) return false
       revisions.set(sessionId, revision); return true
