@@ -45,6 +45,12 @@ onboarding 的状态与名字归主进程；修改名字不是共同经历。res
 
 ## 扩展、工作与礼物
 
+1.2 的 `extensions.ts` / `collaboration.ts` 定义安全投影和有限命令。适配器未接入时字段缺省、命令明确拒绝；类型存在不代表功能已经可用。扩展安装先由原生入口生成提案，再按提案 ID 与 fingerprint 确认；启停与移除检查显示版本。operation 的 accepted、cancelling、unknown 不表示已生效或已撤销。
+
+成员控制同时绑定 AppCommand epoch、DSH runtimeId、projectId、root/parent/member ID 和显示 revision；进程重启、换项目、恢复后旧目标必须失效。activity 与最近一次 outcome 分开，inactive 不表示完成。Team 写入范围仅作协作提示。成员消息不能自动成为主角色对用户的发言或新经历。
+
+`dsh-protocol.ts` 仅供 main 与受信任的 DSH 子进程，故不从通用 barrel 导出；其中 cwd、来源授权与会话局部轮次不能直接进 renderer 或调试快照。主进程建立映射后才接受成员的审批、工具和额度请求，未知来源拒绝。
+
 MCP 视图只暴露服务器身份、状态、工具白名单和 fingerprint；实际启动命令、环境或地址由原生对话框核对。路径导入按 server id 合并，重启不自动连接，断开使迟到确认失效。
 
 她的工作在 DSH 里执行；快照只有活动行、审批问题（`question.kind === 'approval'`）和项目信任，命令输出与文件内容不进快照和记忆。重启、停止和恢复不能复用旧批准。1.1 前旧心流的会话在 `legacyFlows` 里，只读，可用 `readHeartFlow` 查阅状态或差异。

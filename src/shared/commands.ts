@@ -1,4 +1,6 @@
 import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, MinecraftScope, ModelProviderSlot, OpticalTier, PomodoroPlanInput, PublicError, QuestionAnswer, ReasoningEffort, RecallAnchor } from './state'
+import type { CollaborationCommand } from './collaboration'
+import type { ExtensionCommand } from './extensions'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -7,6 +9,8 @@ interface CommandEnvelope {
 }
 /** Only main decides availability and permission. Undeveloped operations reject explicitly. */
 export type AppCommand = CommandEnvelope & (
+  | CollaborationCommand
+  | ExtensionCommand
   | { type: 'message.send'; text: string }
   | { type: 'turn.stop'; taskId: string }
   | { type: 'voice.set'; enabled: boolean }

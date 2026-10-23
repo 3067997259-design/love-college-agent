@@ -1,4 +1,6 @@
 /** Public, serializable UI projections. Never put credentials or raw tool results here. */
+import type { CollaborationView } from './collaboration'
+import type { ExtensionsView } from './extensions'
 export const PROTOCOL_VERSION = 1 as const
 export const EXPRESSION_IDS = ['calm', 'smile', 'think', 'worried'] as const
 export const DEFAULT_EXPRESSION = 'calm' as const
@@ -432,6 +434,9 @@ export interface GeneratedGiftView {
 export interface GiftsView { configured: boolean; dailyLimit: number; items: readonly GeneratedGiftView[] }
 
 export interface AppSnapshot {
+  /** Absent until the 1.2 adapters are available; absence never means an empty ready catalog. */
+  extensions?: ExtensionsView
+  collaboration?: CollaborationView
   characterPack?: CharacterPackView
   notifications?: NotificationsView
   diary?: DiaryView
