@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, join, dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 /** Run the identical native scenario against source Electron or an explicitly supplied build. */
 export function electronLaunchTarget(root, fallback) {
@@ -25,6 +26,12 @@ export function runtimeEnv(root) {
  * The onboarding scenario never calls this helper, so it still tests a genuinely fresh profile. */
 export async function initializeTestBook(page) {
   await page.waitForFunction(() => !!window.lca)
+  if (process.env.LCA_TEST_EXECUTABLE) {
+    const expected = resolve(dirname(process.env.LCA_TEST_EXECUTABLE), 'resources/app.asar/out/renderer/index.html')
+    const actual = resolve(fileURLToPath(page.url()))
+    const canonical = (path) => process.platform === 'win32' ? path.toLowerCase() : path
+    if (canonical(actual) !== canonical(expected)) throw new Error('PACKAGED_TEST_TARGET_MISMATCH')
+  }
   const ok = await page.evaluate(async () => {
     const snapshot = await window.lca.getSnapshot()
     if (snapshot.onboarding?.status !== 'needed') return true

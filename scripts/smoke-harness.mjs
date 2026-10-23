@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, electronLaunchTarget, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `harness-smoke-${randomUUID()}`)
@@ -49,7 +49,7 @@ writeFileSync(fixturePath, JSON.stringify({ providers: { chat: { base_url: `http
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: fixturePath }
 let instance
 try {
-  instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 })
   let page = await instance.firstWindow(); await initializeTestBook(page)
   await page.locator('[data-mode][data-pose][data-location]').waitFor()
   await page.getByRole('textbox').fill('synthetic user question')
@@ -79,7 +79,7 @@ try {
   assert.equal(pendingAborted, true)
   await instance.close()
   const count = requests.length
-  instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 })
   page = await instance.firstWindow(); await initializeTestBook(page)
   await page.locator('[data-mode][data-pose][data-location]').waitFor()
   const after = await page.evaluate(() => window.lca.getSnapshot())

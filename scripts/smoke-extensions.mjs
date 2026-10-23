@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, electronLaunchTarget, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(import.meta.dirname, '..'), id = randomUUID(), data = join(root, '.local-data', `p4-smoke-${id}`), scene = randomUUID()
 const profile = join(data, 'developer', scene), dshProfile = join(profile, 'dsh-home', 'profiles', 'lca'), user = join(data, 'user')
@@ -28,7 +28,7 @@ async function settle() { await until((s) => last(s)?.outcome !== 'pending' && s
 async function restartRuntime() { await center.getByRole('button', { name: '重启扩展运行时', exact: true }).click(); await allow(); await settle(); assert.equal(last(await snapshot()).outcome, 'succeeded') }
 async function tab(name) { await center.locator('.plugin-rail').getByRole('button', { name, exact: true }).click() }
 async function launch() {
-  instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 })
   page = await instance.firstWindow(); await initializeTestBook(page)
   const config = JSON.parse(await readFile(join(profile, 'debug-connection.json'), 'utf8'))
   client = new Client({ name: 'p4-smoke', version: '1' })

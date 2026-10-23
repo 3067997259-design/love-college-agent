@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, electronLaunchTarget, initializeTestBook, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', `campus-smoke-${randomUUID()}`)
@@ -16,14 +16,14 @@ const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(
 let instance; let page; let client
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 async function launch() {
-  instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 })
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 })
   page = await instance.firstWindow(); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor()
 }
 async function send(body) {
   return page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID() }) }, body)
 }
-async function waitFor(predicate, message) {
-  for (let i = 0; i < 100; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }
+async function waitFor(predicate, message, attempts = 100) {
+  for (let i = 0; i < attempts; i++) { if (await predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }
   throw new Error(message)
 }
 async function openTools() { await openSettings(page) }
@@ -124,7 +124,21 @@ try {
     { text: '', toolCalls: [{ id: 'list', name: 'get_campus_items', arguments: '{}' }], delayMs: 0 },
     { text: 'CAMPUS_TOOL_CHECK_COMPLETED', toolCalls: [], delayMs: 0 },
   ] } })
+  const previousTask = (await snapshot()).task?.id
   await page.locator('textarea').fill('synthetic campus tool verification'); await page.getByRole('button', { name: '发送', exact: true }).click()
+  let approved = false
+  await waitFor(async (s) => {
+    // P2 requires another approval after mail-derived results, including for a following LCA tool.
+    if (s.question?.status === 'queued') await send({ type: 'mode.set', mode: 'rest' })
+    if (!approved && s.question?.status === 'waiting' && s.question.kind === 'approval') {
+      assert.ok(s.question.question.includes('读过邮件原文')); assert.ok(s.question.choices.includes('允许这一次'))
+      approved = true
+      assert.equal((await send({ type: 'question.answer', questionId: s.question.id, answer: '允许这一次' })).status, 'accepted')
+      await send({ type: 'mode.set', mode: 'quiet' })
+    }
+    return s.task?.id !== previousTask && s.task?.status === 'completed'
+  }, 'CAMPUS_TOOL_TURN_FAILED', 300)
+  assert.ok(approved, 'CAMPUS_SOURCE_APPROVAL_MISSING')
   await page.locator('.msg-text').filter({ hasText: 'CAMPUS_TOOL_CHECK_COMPLETED' }).waitFor()
   const context = await client.callTool({ name: 'get_context', arguments: {} }); safe(context)
   assert.ok(JSON.stringify(context).includes('get_campus_items'), 'CAMPUS_TOOL_NOT_IN_CONTEXT')
