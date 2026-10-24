@@ -14,7 +14,10 @@ const user = join(data, 'user')
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: config, LCA_MCP_PORT: '0', LCA_CDP_PORT: '0', LCA_TEST_SILENT: '1',
   HOME: user, USERPROFILE: user, APPDATA: join(user, 'AppData/Roaming'), LOCALAPPDATA: join(user, 'AppData/Local') }
 delete env.LCA_BOOTH; delete env.ELECTRON_RENDERER_URL
-const limits = { dailyTotalUnits: 480000, dailyAutonomousUnits: 0 }
+// An override represents a separately authorized run, never an automatic retry/reset.
+const authorizedUnits = Number(process.env.LCA_REAL_MODEL_BUDGET_UNITS ?? '480000')
+assert.ok(Number.isSafeInteger(authorizedUnits) && authorizedUnits >= 10000 && authorizedUnits <= 20000000, 'REAL_MODEL_BUDGET_INVALID')
+const limits = { dailyTotalUnits: authorizedUnits, dailyAutonomousUnits: 0 }
 const ledgerId = randomUUID(), atMs = Date.now()
 await mkdir(join(data, 'runtime-resources'), { recursive: true }); await mkdir(out, { recursive: true })
 for (const dir of [join(user, 'Documents'), join(user, 'Desktop'), join(user, 'Downloads'), env.APPDATA, env.LOCALAPPDATA]) await mkdir(dir, { recursive: true })

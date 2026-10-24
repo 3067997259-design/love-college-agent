@@ -541,17 +541,25 @@
     "manualUiAccepted": false
   },
   "realModel": {
-    "status": "real-probe-budget-limited-incomplete",
-    "path": "docs/research/evidence/v1.2-real-collaboration-20261024.json",
-    "sha256": "efbd7e3bed20de7ac78828b581be2a2b7d301658e05760d208f37f0de52d20fc",
+    "status": "real-probe-upstream-error-incomplete",
+    "path": "docs/research/evidence/v1.2-real-collaboration-repeat-20261024.json",
+    "sha256": "2c51cea7f4c3d1ec1087c769020d8c855f09828f02512e22e941f88084080214",
     "authorized": true,
     "casesPassed": 1,
     "casesIncomplete": 1,
     "casesNotRun": 1,
-    "reservedUnits": 474368,
-    "limitUnits": 480000,
-    "elapsedSeconds": 88.426,
-    "automaticRetry": false
+    "reservedUnits": 509751,
+    "limitUnits": 800000,
+    "elapsedSeconds": 105.959,
+    "automaticRetry": false,
+    "priorRound": {
+      "path": "docs/research/evidence/v1.2-real-collaboration-20261024.json",
+      "sha256": "efbd7e3bed20de7ac78828b581be2a2b7d301658e05760d208f37f0de52d20fc",
+      "status": "real-probe-budget-limited-incomplete",
+      "reservedUnits": 474368,
+      "limitUnits": 480000,
+      "retainedUnchanged": true
+    }
   },
   "remaining": [
     "real-model-team-final-delivery-and-rule-officer-reuse",
