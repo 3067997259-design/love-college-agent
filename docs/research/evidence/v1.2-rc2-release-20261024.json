@@ -45,7 +45,7 @@
   },
   "sourceFollowup": {
     "path": "docs/research/evidence/v1.2-runtime-tools-20261024.json",
-    "sha256": "6448a7af6abe7aaf5ca7c13127f177826ffa83e41a5c62f46bc3363be3154bdc",
+    "sha256": "16e8062fec3290f20e720eca84fd40f32c62ba7eb32fc91e4756c5e0c9c72c34",
     "safetyScenarios": 15,
     "safetyProcessExits": 30
   },
@@ -541,29 +541,21 @@
     "manualUiAccepted": false
   },
   "realModel": {
-    "status": "awaiting-task-specific-user-authorization",
-    "preflight": {
-      "path": "test-results/real-collaboration-4902a5c1-8b4f-41f2-ae1d-6d2d47d506c5/report.json",
-      "realServices": false,
-      "preflight": true,
-      "syntheticTaskInputs": true,
-      "homeIsolated": true,
-      "cases": [],
-      "limits": {
-        "dailyTotalUnits": 480000,
-        "dailyAutonomousUnits": 0
-      },
-      "maxWallMinutes": 12,
-      "capacityStress": "synthetic-regression-only",
-      "selectedModel": "existing-chat-and-work-slots",
-      "automaticApprovals": false,
-      "stage": "completed",
-      "ok": true
-    }
+    "status": "real-probe-budget-limited-incomplete",
+    "path": "docs/research/evidence/v1.2-real-collaboration-20261024.json",
+    "sha256": "efbd7e3bed20de7ac78828b581be2a2b7d301658e05760d208f37f0de52d20fc",
+    "authorized": true,
+    "casesPassed": 1,
+    "casesIncomplete": 1,
+    "casesNotRun": 1,
+    "reservedUnits": 474368,
+    "limitUnits": 480000,
+    "elapsedSeconds": 88.426,
+    "automaticRetry": false
   },
   "remaining": [
+    "real-model-team-final-delivery-and-rule-officer-reuse",
     "second-windows-offline-results",
-    "authorized-real-model-selection-quality",
     "real-time-day-use",
     "V1-art-and-wiring"
   ]

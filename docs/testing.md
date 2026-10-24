@@ -66,7 +66,7 @@ pnpm test
 
 升级检查还会在旧运行时关闭后写入合成的既有 profile 配置，核对候选启动及新回合后，manifest 用户字段、既有依赖与 bundle 声明、Cordis patch 和 workspace 配置均保留。卸载后等待注册状态收敛；没有确定结果时保留 `needs-reconciliation`，不重复卸载。
 
-`node scripts/smoke-real-collaboration.mjs` 为单独授权的三场景真实探针，需 `LCA_REAL_MODEL=1` 和获授权的 `LCA_PROVIDERS_FILE`。只由 Electron 主进程提取既有 chat/work 槽位；独立数据根、48 万预留单位、零自主预算、12 分钟总时限，遇到问题或审批就停止，不自动批准。结果记录实际成员模式、任务数、续用身份和用量，容量满额仍由合成回归证明。`--preflight` 仅核对启动与配置接入，不发送任务；它不是实际模型质量验收。
+`node scripts/smoke-real-collaboration.mjs` 为单独授权的三场景真实探针，需 `LCA_REAL_MODEL=1` 和获授权的 `LCA_PROVIDERS_FILE`。只由 Electron 主进程提取既有 chat/work 槽位，保留工作路由与两项思考强度；独立数据根、48 万预留单位、零自主预算、12 分钟总时限，出现需要用户回答的问题或审批就停止，不自动批准。结果记录实际成员模式、完成状态、普通最终回复、续用身份、用量及包身份；触及预算不能换新数据根自动重跑。容量满额仍由合成回归证明。`--preflight` 仅核对启动与配置接入，不发送任务；它不是实际模型质量验收。
 
 每次发布核对源码 revision、trackedDirty、构建回执、安装器哈希与该包结果。第二机、真实账号和长期日用另行记录。v0.1.10 的历史证据见 [版本记录](releases/0.1.10.md)，不自动代表当前 main 已重新验收。
 
