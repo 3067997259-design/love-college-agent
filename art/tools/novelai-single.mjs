@@ -15,10 +15,12 @@ const spec = JSON.parse(readFileSync(specPath, 'utf8'))
 if (!/^[a-z0-9_-]+$/.test(spec.name) || typeof spec.prompt !== 'string') throw new Error('Invalid name or prompt')
 for (const key of ['width', 'height', 'seed']) if (!Number.isSafeInteger(spec[key])) throw new Error(`Invalid ${key}`)
 if (spec.width % 64 || spec.height % 64 || spec.width <= 0 || spec.height <= 0 || spec.width * spec.height > 1048576) throw new Error('Use a positive, 64-aligned canvas of at most 1 megapixel')
+if (spec.qualityToggle !== undefined && typeof spec.qualityToggle !== 'boolean') throw new Error('qualityToggle must be true or false')
 const params = {
   params_version: 3, width: spec.width, height: spec.height,
   scale: spec.scale ?? 5, sampler: 'k_euler_ancestral', steps: spec.steps ?? 23,
-  n_samples: 1, seed: spec.seed, ucPreset: 0, qualityToggle: false,
+  // The hackathon's nai_gen.py ran with quality tags on; specs that follow those assets say so explicitly.
+  n_samples: 1, seed: spec.seed, ucPreset: 0, qualityToggle: spec.qualityToggle ?? false,
   noise_schedule: 'karras', cfg_rescale: 0, sm: false, sm_dyn: false,
   dynamic_thresholding: false, legacy: false, legacy_v3_extend: false,
   add_original_image: true, use_coords: false, characterPrompts: [],
@@ -78,12 +80,16 @@ if (process.argv.includes('--dry-run')) {
     if (width !== params.width || height !== params.height) throw new Error('Unexpected output dimensions')
     writeFileSync(pngPath, png, { flag: 'wx' })
     Object.assign(record, { status: 'candidate-awaiting-review', file: pngPath, width, height, sha256: createHash('sha256').update(png).digest('hex') })
-  } catch {
+  } catch (error) {
     if (record.status === 'request-started') record.status = phase === 'response-saved' ? 'response-saved-decode-failed' : 'outcome-unknown'
+    // Why it failed (timeout, ENOTFOUND, a reset connection), so a hung request is not a mystery later. Never the token.
+    const cause = error?.cause
+    record.error = { name: String(error?.name ?? 'Error'), message: String(error?.message ?? error).split(cfg?.api_token || '\0').join('[token]').slice(0, 500),
+      ...(cause ? { cause: { code: cause.code ? String(cause.code) : undefined, message: String(cause.message ?? '').split(cfg?.api_token || '\0').join('[token]').slice(0, 500) } } : {}) }
     process.exitCode = 1
   } finally {
     record.seconds = Math.round((performance.now() - start) / 100) / 10
     save()
-    console.log(JSON.stringify({ status: record.status, httpStatus: record.httpStatus, file: record.file, record: recordPath, seconds: record.seconds }))
+    console.log(JSON.stringify({ status: record.status, httpStatus: record.httpStatus, file: record.file, record: recordPath, seconds: record.seconds, ...(record.error ? { error: record.error.cause?.code ?? record.error.name } : {}) }))
   }
 }
