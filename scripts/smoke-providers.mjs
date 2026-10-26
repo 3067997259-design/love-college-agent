@@ -15,6 +15,12 @@ const server = createServer((request, response) => {
   void (async () => {
     let body = ''; for await (const chunk of request) body += chunk
     requests.push(JSON.parse(body))
+    // A key the provider does not know: answer as OpenAI does, so the settings can show its own words.
+    if (/synthetic-wrong-secret/.test(request.headers.authorization ?? '')) {
+      response.writeHead(401, { 'Content-Type': 'application/json' })
+      response.end(JSON.stringify({ error: { message: 'Incorrect API key provided: synth***cret.', type: 'invalid_request_error', code: 'invalid_api_key' } }))
+      return
+    }
     response.writeHead(200, { 'Content-Type': 'text/event-stream' })
     response.end('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: 'OK' }, finish_reason: 'stop' }], usage: { prompt_tokens: 3, completion_tokens: 1 } }) + '\n\ndata: [DONE]\n\n')
   })().catch(() => { if (!response.headersSent) response.writeHead(500).end(); else response.end() })
@@ -51,6 +57,9 @@ try {
   await waitFor(async () => (await snapshot()).modelSettings.probe?.status === 'ok', 'PROVIDER_PROBE_NOT_OK')
   await page.waitForTimeout(150)
   await card.getByText('已经连接', { exact: true }).waitFor()
+  // The test went through DSH, the path her turns use, and says so.
+  assert.equal((await snapshot()).modelSettings.probe.detail.path, 'dsh')
+  await card.getByText(/^经 DSH 测试通过，用时 \d+\.\d 秒。$/).waitFor()
   await page.screenshot({ path: join(root, 'test-results', 'providers-connected.png') })
   assert.equal(requests.length, 1); assert.equal(requests[0].model, 'synthetic-chat')
   const sent = await page.evaluate(async () => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ type: 'message.send', text: '第一次见面，你好。', epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) })
@@ -59,6 +68,29 @@ try {
   // LCA's references (her world, memory) ride in front of your words in the same DSH message.
   const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part?.text ?? '').join('')
   assert.ok(requests.some((body) => body.messages.some((message) => textOf(message.content).endsWith('第一次见面，你好。'))))
+  // A wrong key: one plain reason behind a warning triangle; the provider's own words and the request URL one click away; no key anywhere.
+  await card.getByRole('button', { name: '修改连接', exact: true }).click()
+  await card.getByLabel('API 密钥', { exact: true }).fill('synthetic-wrong-secret')
+  await card.getByRole('button', { name: '保存', exact: true }).click()
+  // The status was already "saved" from the first key: wait for the new key on disk, then for DSH to be rebuilt with it.
+  await waitFor(async () => JSON.parse(await readFile(join(data, 'connections', 'providers.json'), 'utf8')).providers.chat.api_key === 'synthetic-wrong-secret', 'WRONG_KEY_NOT_WRITTEN')
+  await waitFor(async () => (await snapshot()).modelSettings.status === 'saved', 'WRONG_KEY_NOT_APPLIED')
+  await card.getByRole('button', { name: '测试连接', exact: true }).click()
+  await waitFor(async () => (await snapshot()).modelSettings.probe?.status === 'failed', 'WRONG_KEY_PROBE_NOT_FAILED')
+  const failed = (await snapshot()).modelSettings.probe
+  assert.equal(failed.detail.issue.kind, 'key-rejected'); assert.equal(failed.detail.issue.httpStatus, 401)
+  // The snapshot carries the reason and codes only; the URL and the provider's words come when the details open.
+  for (const hidden of ['synthetic-wrong-secret', 'Incorrect API key', '/chat/completions']) assert.ok(!JSON.stringify(await snapshot()).includes(hidden), `SNAPSHOT_CARRIES_${hidden}`)
+  const issue = card.getByRole('button', { name: /密钥没有通过验证（HTTP 401）/ })
+  await issue.click()
+  const dialog = page.getByRole('dialog', { name: '密钥没有通过验证' })
+  await dialog.waitFor()
+  await dialog.getByText('Incorrect API key provided: synth***cret.', { exact: true }).waitFor()
+  await dialog.getByText(`http://127.0.0.1:${server.address().port}/v1/chat/completions`, { exact: true }).waitFor()
+  await page.screenshot({ path: join(root, 'test-results', 'providers-probe-failed.png') })
+  await page.keyboard.press('Escape')
+  await dialog.waitFor({ state: 'detached' })
+  assert.equal(await issue.evaluate((element) => element === document.activeElement), true)
   // 配好的卡把地址和密钥收起来了：清除在“修改连接”里
   await card.getByRole('button', { name: '修改连接', exact: true }).click(); await card.getByRole('button', { name: '清除', exact: true }).click()
   await waitFor(async () => !(await snapshot()).modelSettings.configuredSlots.includes('chat'), 'PROVIDER_NOT_REMOVED')

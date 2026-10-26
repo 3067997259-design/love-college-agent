@@ -17,7 +17,8 @@
 //   see turn 1's references retired.
 // - event-cap: a turn LCA opened for an event (pomodoro, mail, her life) stops after its step cap.
 // - allowance: every step asks LCA's resource ledger first; an event turn refused there stops before its model call.
-// Usage: node scripts/dsh-bridge-check.mjs [degrade|degrade-restart|trust|decline|handoff|levels|reference|reference-restart|event-cap|allowance ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
+// - probe: "Test connection" through the real adapter: one route answers, the other returns 401 with the provider's message.
+// Usage: node scripts/dsh-bridge-check.mjs [probe|degrade|degrade-restart|trust|decline|handoff|levels|reference|reference-restart|event-cap|allowance ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -34,6 +35,22 @@ const resultOf = (seen, id) => seen.results.find((result) => result.callId === i
 const write = (id, content) => ({ tool: 'write', id, args: { file_path: 'note.txt', content } })
 
 const SCENARIOS = {
+  // "Test connection" for chat and work goes through DSH's own adapter: a reply passes, a 401 comes back with the provider's words.
+  probe: {
+    probe: ['chat', 'work'], work: 'mock-rejected', turns: [],
+    script({ model, notes }) {
+      notes.models.push(model)
+      return model === 'mock-rejected'
+        ? { status: 401, body: { error: { message: 'Incorrect API key provided: mock-key-tail.', type: 'invalid_request_error', code: 'invalid_api_key' } } }
+        : { text: 'OK' }
+    },
+    check: (seen, notes) => ({
+      chatPassed: seen.probed.chat?.ok === true && !seen.probed.chat.failure && seen.probed.chat.route?.provider === 'lca-chat',
+      workFailedWithProviderWords: seen.probed.work?.ok === false && seen.probed.work.failure?.code === 'AUTH' && /Incorrect API key/.test(seen.probed.work.failure.message ?? ''),
+      oneRequestEach: notes.models.toSorted().join() === 'mock-chat,mock-rejected',
+      timed: [seen.probed.chat, seen.probed.work].every((result) => Number.isInteger(result?.durationMs)),
+    }),
+  },
   'state-truncated': {
     trusted: true, work: 'mock-work', state: { mode: 'quiet', token: 'length-token' }, turns: ['[[T1]] write a note'],
     script({ model, notes }) { notes.models.push(model); return { finish: 'length', text: '{"lca_state":{"mode":"work","token":"length-token"},"reply":"稍等。"}' } },
@@ -223,6 +240,7 @@ async function run(name) {
       const turn = marker < 0 ? 0 : Number(textOf(messages[marker].content).match(/\[\[T(\d)\]\]/)[1])
       const last = messages.slice(marker + 1).filter((message) => message.role === 'tool').at(-1)
       const reply = scenario.script({ turn, lastTool: last?.tool_call_id ?? null, toolText: textOf(last?.content), messages, model: request.model, notes })
+      if (reply.status) { res.writeHead(reply.status, { 'content-type': 'application/json' }).end(JSON.stringify(reply.body ?? {})); return }
       const base = { id: `mock-${requests}`, object: 'chat.completion.chunk', created: 0, model: 'mock' }
       const send = (choices, extra = {}) => res.write(`data: ${JSON.stringify({ ...base, choices, ...extra })}\n\n`)
       res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -236,7 +254,7 @@ async function run(name) {
   await new Promise((done) => server.listen(0, '127.0.0.1', done))
   const { home, cli } = prepareDshProfile({ dshRoot, dataDir, bridge: join(repo, 'dsh', 'lca-bridge') })
   let stderr = ''
-  const seen = { states: [], stateNotices: [], messages: [], approvals: [], degraded: [], retired: [], trusted: [], results: [], turnEnds: [], handoffs: [], switched: [], admits: [] }
+  const seen = { states: [], stateNotices: [], messages: [], approvals: [], degraded: [], retired: [], trusted: [], results: [], turnEnds: [], handoffs: [], switched: [], admits: [], probed: {} }
   let sessionId
   let restarting = false
   let child
@@ -256,10 +274,15 @@ async function run(name) {
     switch (message.t) {
       case 'hello': child.send({ t: 'init', persona: 'You are a test agent.', suffix: '', tools: [] }); break
       case 'init-ok':
-        if (scenario.describe) child.send({ t: 'describe', ref: 'levels' })
+        if (scenario.probe) for (const role of scenario.probe) child.send({ t: 'probe', ref: `probe-${role}`, role })
+        else if (scenario.describe) child.send({ t: 'describe', ref: 'levels' })
         else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted, binding: { protocolVersion: 2, runtimeId: 'bridge-check', projectId: 'bridge-project', cwd: work }, ...(sessionId ? { sessionId } : {}) })
         break
       case 'described': seen.described = { chat: message.chat, work: message.work }; child.send({ t: 'shutdown' }); break
+      case 'probed':
+        seen.probed[String(message.ref).replace('probe-', '')] = { ok: message.ok, durationMs: message.durationMs, route: message.route, failure: message.failure }
+        if (Object.keys(seen.probed).length === scenario.probe.length) child.send({ t: 'shutdown' })
+        break
       case 'session': {
         const resumed = !!sessionId
         sessionId = message.sessionId
@@ -306,7 +329,7 @@ async function run(name) {
   const checks = scenario.check(seen, notes, work)
   const ok = Object.values(checks).every(Boolean) && !seen.timeout
   if (!ok && stderr) seen.stderr = stderr.split('\n').filter((line) => /error|warn/i.test(line)).slice(-20)
-  return { name, ok, checks, ...(ok ? {} : { seen, notes }), modelRequests: requests, exitCode: code }
+  return { name, ok, checks, ...(ok ? {} : { seen, notes }), ...(scenario.probe ? { probed: seen.probed } : {}), modelRequests: requests, exitCode: code }
 }
 
 const names = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SCENARIOS)

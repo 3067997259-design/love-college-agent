@@ -742,6 +742,10 @@ void app.whenReady().then(async () => {
         } finally { scheduler!.pauseBackground(store!.projection().lightsOut) }
       },
       effortsChanged: (next) => { efforts = next; dshExecution?.efforts(next) },
+      probeDsh: async (role) => {
+        if (!dshExecution) throw new Error(dshPresent ? 'DSH starts once a chat model is saved; save the chat model first' : 'The DSH runtime is missing from this installation')
+        return dshExecution.probe(role)
+      },
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入模型槽位配置（内容仅由主进程读取）', properties: ['openFile'], filters: [{ name: '模型配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null }, changed: () => controller?.refresh('connection') })
     controller.attachModelSettings(modelSettings)
     // Without DSH nothing sends a thinking level; the settings say the provider decides.

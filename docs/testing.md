@@ -19,12 +19,12 @@ pnpm test
 | `test:electron`、`probe:sqlite`、`probe:journal` | 原生模块、受限 IPC、日志和重启 |
 | `test:harness`、`test:failure-narrator`、`test:questions` | 工具回合、取消、失败与有界询问 |
 | `test:developer` | 开发者 profile、调试 MCP、脚本模型经本地接口跑在 DSH 上、场景导出与展位拒绝 |
-| `test:providers`、`test:model-slots`、`test:model-routing` | 配置、热路由、隔离、上下文、候选和重启 |
+| `test:providers`、`test:model-slots`、`test:model-routing` | 配置、热路由、隔离、上下文、候选和重启；`test:providers` 另覆盖经 DSH 的连接测试、错误密钥的三角警示与详情对话框（服务商原话、请求地址、Esc 关闭后焦点返回）及快照不含密钥 |
 | `test:documents`、`test:campus` | 文件解析、原文边界、版本确认与真实本地交付 |
 | `test:plugins`、`test:mcp`、`test:student-hub`、`test:student-hub-candidates` | 安装、指纹、工具白名单与兼容入口 |
 | `test:memory`、`test:history`、`test:optical` | 来源、摘要、旧页、可选光学守卫和恢复 |
 | `test:pomodoro`、`test:mini`、`test:resources` | 计时、双窗口、显示器边界与资源准入 |
-| `test:dsh-bridge` | 真实 DSH 运行时 + 本地脚本模型：引用及本地时间 / 时区随开场消息、下一轮退役（含重启后）；第三方结果降级本轮、下一轮退役（含重启后）；聊天与工作模型交接、思考档位、自主额度、事件步数上限、项目信任 |
+| `test:dsh-bridge` | 真实 DSH 运行时 + 本地脚本模型：引用及本地时间 / 时区随开场消息、下一轮退役（含重启后）；第三方结果降级本轮、下一轮退役（含重启后）；聊天与工作模型交接、思考档位、自主额度、事件步数上限、项目信任；`probe` 场景经真实适配器做连接测试（一条路由通过，另一条返回 401 与服务商原话） |
 | `test:state-routing` | 隔离 Electron + 本地 HTTP：门牌直接工作、文本状态交接、过期回复拒绝、状态持久化与无重放重启。DSH bridge 的 `state-*` 场景另覆盖截断、主进程拒绝及交接后来源限制不降级 |
 | `test:model-capabilities` | 隔离 Electron / HOME + 本地 HTTP：手动能力保存及 DSH 元数据、思考参数映射、off 的省略 / 显式值 / 默认语义、输出上限、图片正反路径、模型切换、重启、恢复自动与凭据隔离 |
 | `test:dsh-family` | 1.2 P2：临时项目／HOME／profile、本机脚本模型；真实 DSH + 生产 bridge 的成员审批、撤销、闲置主角色、多层委派、跨项目拒绝、迟到消息、摘要与冷恢复，原 14 场景，加 P3 的 `spawn-manager` 权限绕过回归，共 15 场景。fixture 不代改权限或退役内容；合成证据边界见 [P2 回执](research/v1.2-p2-20261023.md)。原反例保留在 [P0 / P1 回执](research/v1.2-p0-p1-20261023.md)对应提交 |

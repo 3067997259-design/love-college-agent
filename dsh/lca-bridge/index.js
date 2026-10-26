@@ -96,6 +96,29 @@ export function apply(ctx) {
       ...(info.inputModalities ? { inputModalities: info.inputModalities.filter((value) => ['text', 'image'].includes(value)) } : {}),
       reasoningLevels: info.reasoning?.efforts.map((effort) => String(effort.id)) ?? [] }
   }
+  // The first sign of a reply proves the key, model and endpoint work; stop there instead of paying for the rest.
+  // No session, no tools, no thinking level: the provider's default, as a fresh turn would get it.
+  const PROBE_TIMEOUT_MS = 30_000
+  const probeRoute = async (route) => {
+    const abort = new AbortController(), started = Date.now()
+    let received = false, timedOut = false, failure = null
+    const timer = setTimeout(() => { timedOut = true; abort.abort() }, PROBE_TIMEOUT_MS)
+    const failureOf = (value) => ({ code: String(value?.code ?? 'UNKNOWN'), message: String(value?.message ?? value ?? ''),
+      ...(Number.isInteger(value?.status) ? { status: value.status } : {}), ...(typeof value?.requestId === 'string' ? { requestId: value.requestId } : {}) })
+    try {
+      const messages = [Object.freeze({ role: 'user', content: Object.freeze([Object.freeze({ type: 'text', text: 'Reply with OK only.' })]) })]
+      for await (const chunk of ctx.llm.stream({ provider: route.provider, model: route.model, messages, signal: abort.signal })) {
+        if (['block-start', 'text-delta', 'reasoning-delta', 'tool-call-delta'].includes(chunk.type)) { received = true; abort.abort(); break }
+        if (chunk.type !== 'finish') continue
+        if (chunk.reason?.kind === 'error') failure = failureOf(chunk.reason.failure)
+        else if (chunk.reason?.kind === 'aborted' && !received) failure = timedOut ? { code: 'TIMEOUT', message: `No reply within ${PROBE_TIMEOUT_MS / 1000} s` } : failureOf(chunk.reason.failure ?? { code: 'ABORTED' })
+        break
+      }
+    } catch (error) {
+      if (!received) failure = timedOut ? { code: 'TIMEOUT', message: `No reply within ${PROBE_TIMEOUT_MS / 1000} s` } : failureOf(error)
+    } finally { clearTimeout(timer) }
+    return { ok: received || !failure, durationMs: Date.now() - started, route: { provider: route.provider, model: route.model }, ...(failure && !received ? { failure } : {}) }
+  }
   const usable = async (route) => {
     const offered = route.effort ? await levelsOf(route) : null
     return { provider: route.provider, model: route.model, ...(route.effort && offered?.includes(route.effort) ? { effort: route.effort } : {}) }
@@ -464,6 +487,12 @@ export function apply(ctx) {
           calls.delete(message.id)
           if (message.ok) call.done(message.value ?? null, message.source ?? null); else call.fail(new Error(message.error ?? 'LCA tool failed'))
           break
+        }
+        // "Test connection" in the settings: one tiny request through the same adapter her turns use.
+        case 'probe': {
+          const route = routes?.[message.role === 'work' ? 'work' : 'chat']
+          if (!route) { send({ t: 'probed', ref: message.ref, ok: false, durationMs: 0, route: null, failure: { code: 'NO_ROUTE', message: 'DSH has no model route for this role' } }); break }
+          send({ t: 'probed', ref: message.ref, ...(await probeRoute(route)) }); break
         }
         // The thinking levels each role's model offers, for the book's settings; null when DSH cannot tell.
         case 'describe': send({ t: 'described', ref: message.ref, chat: routes ? await levelsOf(routes.chat) : null, work: routes ? await levelsOf(routes.work) : null,

@@ -654,6 +654,8 @@ export function createDshExecution(options: {
     resume: () => kick(),
     /** Thinking levels her chat and work models offer, for the settings; starts DSH when it is not running yet. */
     describe: async () => { if (closed) throw new Error('DSH_EXECUTION_CLOSED'); return ensureHost(resolve(options.project())).describe() },
+    /** "Test connection" for chat or work: one request through the adapter her turns use. */
+    probe: async (role: 'chat' | 'work') => { if (closed) throw new Error('DSH_EXECUTION_CLOSED'); return ensureHost(resolve(options.project())).probe(role) },
     /** New thinking levels apply from the next step; no restart. */
     efforts: (efforts: { chat?: string; work?: string }) => { if (!closed) host?.efforts(efforts) },
     close: async () => { closed = true; turn?.asks.abort(); await host?.close() },

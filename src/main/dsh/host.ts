@@ -8,7 +8,7 @@ import type { DshExtensionRequest, DshExtensionReply } from '../../shared/dsh-ex
 import type { Clock } from '../clock'
 import type { DshRoutes } from './routes'
 import { createDshIdentities } from './identity'
-import type { DshApprovalScope, DshOrigin, DshConversationState } from '../../shared/dsh-protocol'
+import type { DshApprovalScope, DshOrigin, DshConversationState, DshProbeResult } from '../../shared/dsh-protocol'
 import type { DshCollaborationRequest, DshCollaborationReply } from '../../shared/dsh-protocol'
 import { collaborationViewSchema } from './collaboration'
 import { z } from 'zod'
@@ -26,6 +26,13 @@ export type DshTool = { name: string; description: string; parameters: Record<st
 export type DshSource = 'mail' | 'document' | 'web' | 'mcp' | 'plugin' | 'member'
 const SOURCES: readonly DshSource[] = ['mail', 'document', 'web', 'mcp', 'plugin', 'member']
 export const dshSources = (value: unknown): DshSource[] => Array.isArray(value) ? SOURCES.filter((source) => value.includes(source)) : []
+const clip = (max: number) => z.string().transform((value) => value.slice(0, max))
+/** A connection test answer from the bridge; provider text is kept but bounded. */
+const probedSchema = z.object({
+  ok: z.boolean(), durationMs: z.number().int().min(0).max(600_000),
+  route: z.object({ provider: clip(256), model: clip(256) }).nullable().optional(),
+  failure: z.object({ code: clip(80), message: clip(4000), status: z.number().int().min(100).max(599).optional(), requestId: clip(200).optional() }).optional(),
+})
 /**
  * `degraded`: third-party content is in her context, so this approval may not create or apply standing grants.
  * `trust`: the OS sandbox cannot run commands in her project; asks whether to trust the project instead.
@@ -193,7 +200,7 @@ export function startDshHost(options: DshHostOptions) {
       void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id)) && current()) send({ t: 'question-answer', id: message.id, ...result }) })
     }
     else if (message.t === 'question-cancel') { asking.get(String(message.id))?.abort(); asking.delete(String(message.id)) }
-    else if ((message.t === 'session' || message.t === 'described' || message.t === 'extensions' || message.t === 'collaboration-reply' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
+    else if ((message.t === 'session' || message.t === 'described' || message.t === 'probed' || message.t === 'extensions' || message.t === 'collaboration-reply' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
       const entry = waiting.get(message.ref)!; waiting.delete(message.ref)
       if (message.t === 'error') entry.fail(new Error(String(message.message))); else entry.done(message)
     }
@@ -263,6 +270,12 @@ export function startDshHost(options: DshHostOptions) {
       const capabilities: { chat?: ResolvedModelCapabilities; work?: ResolvedModelCapabilities } = {}
       for (const role of ['chat', 'work'] as const) { const parsed = schema.safeParse(metadata?.[role]); if (parsed.success) capabilities[role] = parsed.data }
       return { chat: levels(answer.chat), work: levels(answer.work), ...(Object.keys(capabilities).length ? { capabilities } : {}) }
+    },
+    /** One connection test through DSH's own adapter for the role's route. The bridge stops waiting after 30 s. */
+    probe: async (role: 'chat' | 'work'): Promise<DshProbeResult> => {
+      await started
+      const answer = probedSchema.parse(await request({ t: 'probe', role }, 45_000))
+      return { ok: answer.ok, durationMs: answer.durationMs, route: answer.route ?? { provider: '', model: '' }, ...(answer.failure ? { failure: answer.failure } : {}) }
     },
     /** New thinking levels from the settings; they apply from each session's next step. */
     efforts: (efforts: { chat?: string; work?: string }) => send({ t: 'efforts', efforts }),

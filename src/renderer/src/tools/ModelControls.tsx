@@ -4,6 +4,7 @@ import { sendCommand, type CommandBody } from '../book/command'
 import { SettingsIssue } from './SettingsIssue'
 import { ServiceControls } from './ServiceControls'
 import { ModelCapabilities } from './ModelCapabilities'
+import { ProbeOutcome } from './ProbeOutcome'
 import words from '../voice/settings.zh.json'
 import copy from '../voice/providers.zh.json'
 import './providers.css'
@@ -187,7 +188,7 @@ function ProviderCard({ slot, bridge, epoch, configured, mainConfigured, mode, p
     </div>
     {dirty && configured && !testing && <p className="provider-note">{copy.saveBeforeTest}</p>}
     {notice && (notice !== copy.saved || settingsStatus === 'saved') && <p className="provider-note" role="status">{notice}</p>}
-    {probe?.status === 'failed' && <div className="provider-probe-failed"><p>{copy.probeFailed}</p><SettingsIssue code={probe.code} /></div>}
+    {probe && <ProbeOutcome probe={probe} slot={slot} slotLabel={label} bridge={bridge} />}
     {error && <SettingsIssue code={error} />}
   </section>
 }

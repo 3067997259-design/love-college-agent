@@ -540,6 +540,11 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachContextReveal: (port: NonNullable<typeof revealContext>) => { revealContext = port },
     attachVoice: (port: VoiceService) => { voice = port; publish('connection') },
     readVoice: (input: unknown) => { if (!voice || backup?.isBusy()) throw new Error('VOICE_UNAVAILABLE'); return voice.read(input) },
+    readConnectionTest: (slot: unknown) => {
+      const parsed = z.enum(['chat', 'work', 'background', 'chat_google', 'chat_claude', 'privacy']).safeParse(slot)
+      if (!parsed.success || !modelSettings) throw new Error('CONNECTION_TEST_UNAVAILABLE')
+      return modelSettings.readProbe(parsed.data)
+    },
     attachLife: (port: LifeService) => { life = port; publish('mode') },
     attachSleep: (port: SleepService) => { sleep = port },
     attachLifeWork: (port: LifeWorkService) => { lifeWork = port },

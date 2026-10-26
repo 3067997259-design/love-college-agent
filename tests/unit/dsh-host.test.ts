@@ -230,3 +230,19 @@ it('does not reuse a pending approval when the same root is reopened', async () 
   expect(f.child.send.mock.calls.some(([message]) => message.t === 'approval-answer' && message.outcome === 'allowed-once')).toBe(false)
   const closing = f.host.close(); f.child.emit('exit', 0); await closing
 })
+
+it('asks the bridge for one connection test and bounds what comes back', async () => {
+  const f = setup(); await f.start()
+  const probing = f.host.probe('work')
+  await Promise.resolve()
+  const command = f.child.send.mock.calls.at(-1)![0]
+  expect(command).toMatchObject({ t: 'probe', role: 'work' })
+  f.emit({ t: 'probed', ref: command.ref, ok: false, durationMs: 1200, route: { provider: 'lca-work', model: 'synthetic' },
+    failure: { code: 'AUTH', message: 'x'.repeat(9000), status: 401, requestId: 'req-1' } })
+  const result = await probing
+  expect(result).toMatchObject({ ok: false, durationMs: 1200, route: { provider: 'lca-work', model: 'synthetic' }, failure: { code: 'AUTH', status: 401, requestId: 'req-1' } })
+  expect(result.failure!.message).toHaveLength(4000)
+  // The bridge stops its own request after 30 s; the host gives up on a silent bridge after 45 s.
+  const silent = f.host.probe('chat'); const rejected = expect(silent).rejects.toThrow('DSH_REQUEST_TIMEOUT')
+  await Promise.resolve(); f.clock.advanceBy(45_000); await rejected
+})
