@@ -3,6 +3,8 @@ import type { CollaborationCommand, CollaborationView } from './collaboration'
 
 /** Main <-> trusted DSH subprocess only; NEVER expose these internal records to renderer/debug. */
 export const DSH_PROTOCOL_VERSION = 2 as const
+/** Ephemeral state capability: only main issues it; old replies cannot override a new user choice. */
+export interface DshConversationState { mode: 'work' | 'quiet' | 'rest'; token: string }
 export interface DshRootBinding {
   protocolVersion: typeof DSH_PROTOCOL_VERSION
   runtimeId: string
