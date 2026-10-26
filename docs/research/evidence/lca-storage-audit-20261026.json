@@ -1,0 +1,872 @@
+{
+  "date": "2026-10-26",
+  "mode": "read-only-audit",
+  "deletedFiles": 0,
+  "scope": [
+    "D:/love, college&agent",
+    "D:/.lca-cache"
+  ],
+  "measurement": "logical file bytes; symlinks/junctions not followed; hardlinks not deduplicated; secrets contents not read",
+  "workspace": {
+    "logicalBytes": 17478871415,
+    "logicalGiB": 16.278467527590692,
+    "files": 150616
+  },
+  "driveFreeAtFirstScan": {
+    "C": 10834542592,
+    "D": 7764074496
+  },
+  "detailedScans": [
+    {
+      "root": ".local-data",
+      "totalGiB": 11.818213052116334,
+      "files": 108478,
+      "dirCount": 622,
+      "groups": [
+        {
+          "name": "p5-package-<uuid>",
+          "bytes": 1603836158,
+          "count": 2,
+          "MiB": 1530
+        },
+        {
+          "name": "settings-<uuid>",
+          "bytes": 885915334,
+          "count": 23,
+          "MiB": 845
+        },
+        {
+          "name": "minecraft-images-<uuid>",
+          "bytes": 822176710,
+          "count": 63,
+          "MiB": 784
+        },
+        {
+          "name": "onboarding-smoke-<uuid>",
+          "bytes": 620567809,
+          "count": 18,
+          "MiB": 592
+        },
+        {
+          "name": "pomodoro-smoke-<uuid>",
+          "bytes": 582671904,
+          "count": 16,
+          "MiB": 556
+        },
+        {
+          "name": "documents-smoke-<uuid>",
+          "bytes": 470446487,
+          "count": 18,
+          "MiB": 449
+        },
+        {
+          "name": "life-work-<uuid>",
+          "bytes": 466225314,
+          "count": 8,
+          "MiB": 445
+        },
+        {
+          "name": "memory-smoke-<uuid>",
+          "bytes": 420210044,
+          "count": 16,
+          "MiB": 401
+        },
+        {
+          "name": "resources-smoke-<uuid>",
+          "bytes": 407379002,
+          "count": 12,
+          "MiB": 389
+        },
+        {
+          "name": "questions-smoke-<uuid>",
+          "bytes": 397885815,
+          "count": 18,
+          "MiB": 379
+        },
+        {
+          "name": "campus-smoke-<uuid>",
+          "bytes": 390040293,
+          "count": 15,
+          "MiB": 372
+        },
+        {
+          "name": "gifts-smoke-<uuid>",
+          "bytes": 368843598,
+          "count": 15,
+          "MiB": 352
+        },
+        {
+          "name": "developer-smoke-<uuid>",
+          "bytes": 358122117,
+          "count": 10,
+          "MiB": 342
+        },
+        {
+          "name": "minecraft-<uuid>",
+          "bytes": 341327836,
+          "count": 25,
+          "MiB": 326
+        },
+        {
+          "name": "routing-smoke-<uuid>",
+          "bytes": 319081525,
+          "count": 24,
+          "MiB": 304
+        },
+        {
+          "name": "optical-<uuid>",
+          "bytes": 269798315,
+          "count": 11,
+          "MiB": 257
+        },
+        {
+          "name": "mini-smoke-<uuid>",
+          "bytes": 256058311,
+          "count": 10,
+          "MiB": 244
+        },
+        {
+          "name": "failure-narrator-<uuid>",
+          "bytes": 250432244,
+          "count": 19,
+          "MiB": 239
+        },
+        {
+          "name": "history-smoke-<uuid>",
+          "bytes": 242606143,
+          "count": 10,
+          "MiB": 231
+        },
+        {
+          "name": "mcp-smoke-<uuid>",
+          "bytes": 219149497,
+          "count": 9,
+          "MiB": 209
+        },
+        {
+          "name": "room-smoke-<uuid>",
+          "bytes": 204387660,
+          "count": 8,
+          "MiB": 195
+        },
+        {
+          "name": "p5-smoke-<uuid>",
+          "bytes": 187630567,
+          "count": 14,
+          "MiB": 179
+        },
+        {
+          "name": "backup-smoke-<uuid>",
+          "bytes": 177407346,
+          "count": 7,
+          "MiB": 169
+        },
+        {
+          "name": "booth-<uuid>",
+          "bytes": 176711157,
+          "count": 7,
+          "MiB": 169
+        },
+        {
+          "name": "p4-smoke-<uuid>",
+          "bytes": 169055927,
+          "count": 15,
+          "MiB": 161
+        },
+        {
+          "name": "harness-smoke-<uuid>",
+          "bytes": 167450046,
+          "count": 13,
+          "MiB": 160
+        },
+        {
+          "name": "privacy-live-<uuid>",
+          "bytes": 166549066,
+          "count": 13,
+          "MiB": 159
+        },
+        {
+          "name": "showcase-<uuid>",
+          "bytes": 162025182,
+          "count": 11,
+          "MiB": 155
+        },
+        {
+          "name": "sleep-<uuid>",
+          "bytes": 160354853,
+          "count": 11,
+          "MiB": 153
+        },
+        {
+          "name": "p6-smoke-<uuid>",
+          "bytes": 158993476,
+          "count": 11,
+          "MiB": 152
+        },
+        {
+          "name": "real-collaboration-<uuid>",
+          "bytes": 145243992,
+          "count": 11,
+          "MiB": 139
+        },
+        {
+          "name": "slots-smoke-<uuid>",
+          "bytes": 141640013,
+          "count": 11,
+          "MiB": 135
+        },
+        {
+          "name": "minecraft-mining-<uuid>",
+          "bytes": 129984979,
+          "count": 10,
+          "MiB": 124
+        },
+        {
+          "name": "characters-smoke-<uuid>",
+          "bytes": 122428775,
+          "count": 5,
+          "MiB": 117
+        },
+        {
+          "name": "life-port-<uuid>",
+          "bytes": 116631894,
+          "count": 9,
+          "MiB": 111
+        },
+        {
+          "name": "smoke-<uuid>",
+          "bytes": 115436171,
+          "count": 9,
+          "MiB": 110
+        },
+        {
+          "name": "voice-smoke-<uuid>",
+          "bytes": 77505541,
+          "count": 6,
+          "MiB": 74
+        },
+        {
+          "name": "notifications-smoke-<uuid>",
+          "bytes": 52307203,
+          "count": 4,
+          "MiB": 50
+        },
+        {
+          "name": "upgrade-<uuid>",
+          "bytes": 50482945,
+          "count": 4,
+          "MiB": 48
+        },
+        {
+          "name": "real-collaboration-22d5f474-6665-40da-99e6-3edc9bc3fa15-before-reuse-<uuid>",
+          "bytes": 42608718,
+          "count": 3,
+          "MiB": 41
+        },
+        {
+          "name": "installed-ui-<uuid>",
+          "bytes": 38214694,
+          "count": 3,
+          "MiB": 36
+        },
+        {
+          "name": "probe-<uuid>",
+          "bytes": 29892323,
+          "count": 28,
+          "MiB": 29
+        },
+        {
+          "name": "flow-sleep-<uuid>",
+          "bytes": 26061494,
+          "count": 2,
+          "MiB": 25
+        },
+        {
+          "name": "promo",
+          "bytes": 15768713,
+          "count": 1,
+          "MiB": 15
+        },
+        {
+          "name": "drafts-smoke-<uuid>",
+          "bytes": 13954849,
+          "count": 1,
+          "MiB": 13
+        },
+        {
+          "name": "chromium",
+          "bytes": 13179766,
+          "count": 1,
+          "MiB": 13
+        },
+        {
+          "name": "delegates-<uuid>",
+          "bytes": 12981793,
+          "count": 1,
+          "MiB": 12
+        },
+        {
+          "name": "flow-smoke-<uuid>",
+          "bytes": 12980391,
+          "count": 1,
+          "MiB": 12
+        },
+        {
+          "name": "shadow-smoke-<uuid>",
+          "bytes": 12922596,
+          "count": 1,
+          "MiB": 12
+        },
+        {
+          "name": "flow-rewind-<uuid>",
+          "bytes": 12896889,
+          "count": 1,
+          "MiB": 12
+        },
+        {
+          "name": "desk-command-smoke-<uuid>",
+          "bytes": 12867691,
+          "count": 1,
+          "MiB": 12
+        },
+        {
+          "name": "fetch-smoke-<uuid>",
+          "bytes": 12855679,
+          "count": 1,
+          "MiB": 12
+        },
+        {
+          "name": "reuse-bootstrap-<uuid>",
+          "bytes": 8911080,
+          "count": 3,
+          "MiB": 8
+        },
+        {
+          "name": "computer-smoke-<uuid>",
+          "bytes": 7586612,
+          "count": 1,
+          "MiB": 7
+        },
+        {
+          "name": "package-probe-backup-<uuid>",
+          "bytes": 7502893,
+          "count": 3,
+          "MiB": 7
+        },
+        {
+          "name": "package-probe-memory-<uuid>",
+          "bytes": 4149453,
+          "count": 3,
+          "MiB": 4
+        },
+        {
+          "name": "connection-diagnostic-<uuid>",
+          "bytes": 3461917,
+          "count": 1,
+          "MiB": 3
+        },
+        {
+          "name": "package-probe-documents-<uuid>",
+          "bytes": 3448641,
+          "count": 3,
+          "MiB": 3
+        },
+        {
+          "name": "package-probe-dsh-spike-<uuid>",
+          "bytes": 3361721,
+          "count": 3,
+          "MiB": 3
+        },
+        {
+          "name": "dsh-home",
+          "bytes": 2476583,
+          "count": 1,
+          "MiB": 2
+        },
+        {
+          "name": "package-probe-questions-<uuid>",
+          "bytes": 1943814,
+          "count": 3,
+          "MiB": 2
+        },
+        {
+          "name": "package-probe-life-<uuid>",
+          "bytes": 1839261,
+          "count": 3,
+          "MiB": 2
+        },
+        {
+          "name": "package-probe-sqlite-<uuid>",
+          "bytes": 1795152,
+          "count": 3,
+          "MiB": 2
+        },
+        {
+          "name": "package-probe-pomodoro-<uuid>",
+          "bytes": 1720911,
+          "count": 3,
+          "MiB": 2
+        },
+        {
+          "name": "package-probe-journal-<uuid>",
+          "bytes": 1711413,
+          "count": 3,
+          "MiB": 2
+        },
+        {
+          "name": "art-retouch-integration",
+          "bytes": 1591664,
+          "count": 1,
+          "MiB": 2
+        },
+        {
+          "name": "function-calling-<uuid>",
+          "bytes": 1522485,
+          "count": 1,
+          "MiB": 1
+        },
+        {
+          "name": "artifacts",
+          "bytes": 921108,
+          "count": 1,
+          "MiB": 1
+        },
+        {
+          "name": "journals",
+          "bytes": 840416,
+          "count": 1,
+          "MiB": 1
+        },
+        {
+          "name": "package-probe-manual",
+          "bytes": 598384,
+          "count": 1,
+          "MiB": 1
+        },
+        {
+          "name": "resource-concurrency-<uuid>",
+          "bytes": 104840,
+          "count": 4,
+          "MiB": 0
+        },
+        {
+          "name": "launch-logs",
+          "bytes": 25903,
+          "count": 1,
+          "MiB": 0
+        },
+        {
+          "name": "student-hub-fixture-<uuid>",
+          "bytes": 20524,
+          "count": 1,
+          "MiB": 0
+        },
+        {
+          "name": "runtime-resources",
+          "bytes": 10742,
+          "count": 1,
+          "MiB": 0
+        },
+        {
+          "name": "privacy-probe-smoke-<uuid>",
+          "bytes": 5238,
+          "count": 6,
+          "MiB": 0
+        },
+        {
+          "name": "connections",
+          "bytes": 1998,
+          "count": 1,
+          "MiB": 0
+        },
+        {
+          "name": "archive-negative-<uuid>",
+          "bytes": 1820,
+          "count": 1,
+          "MiB": 0
+        },
+        {
+          "name": "rooms",
+          "bytes": 1289,
+          "count": 1,
+          "MiB": 0
+        },
+        {
+          "name": "dsh-work",
+          "bytes": 127,
+          "count": 1,
+          "MiB": 0
+        },
+        {
+          "name": "characters",
+          "bytes": 0,
+          "count": 1,
+          "MiB": 0
+        }
+      ],
+      "largest": [
+        {
+          "name": "p5-package-b66e945c-5843-42c5-b823-f4ed7559d193",
+          "bytes": 801918342,
+          "files": 11649,
+          "modified": "2026-10-23T16:29:24.849Z"
+        },
+        {
+          "name": "p5-package-9143e5d2-17b6-4ce2-aa78-1208498dc8a8",
+          "bytes": 801917816,
+          "files": 11649,
+          "modified": "2026-10-23T16:20:55.381Z"
+        },
+        {
+          "name": "life-work-653cc870-f450-4cef-adc7-0c88d52385e7",
+          "bytes": 65144451,
+          "files": 536,
+          "modified": "2026-10-21T06:17:20.004Z"
+        },
+        {
+          "name": "life-work-04d76811-c99e-48dd-a6a6-ff76375e03dd",
+          "bytes": 64916335,
+          "files": 502,
+          "modified": "2026-10-17T20:08:43.974Z"
+        },
+        {
+          "name": "life-work-fa7bca5e-3ee5-4a86-8c48-317e91cbadd5",
+          "bytes": 64794215,
+          "files": 519,
+          "modified": "2026-10-21T03:31:29.388Z"
+        },
+        {
+          "name": "life-work-a42f782a-4442-459a-ba0d-24564ccb1c82",
+          "bytes": 64756062,
+          "files": 493,
+          "modified": "2026-10-20T16:29:17.437Z"
+        },
+        {
+          "name": "life-work-8d99ed12-e244-4326-bd51-3d1ae8572679",
+          "bytes": 64667908,
+          "files": 513,
+          "modified": "2026-10-21T07:47:32.632Z"
+        },
+        {
+          "name": "life-work-d727c81f-1191-482c-89fc-ba17736900cc",
+          "bytes": 64533925,
+          "files": 513,
+          "modified": "2026-10-23T21:51:48.473Z"
+        },
+        {
+          "name": "life-work-afcafda4-527c-4c22-95a9-876e8c2634c9",
+          "bytes": 64512537,
+          "files": 511,
+          "modified": "2026-10-23T20:52:28.836Z"
+        },
+        {
+          "name": "resources-smoke-bdc13a87-7a60-4125-95d0-60573f5939b3",
+          "bytes": 39709118,
+          "files": 351,
+          "modified": "2026-10-21T06:23:30.503Z"
+        },
+        {
+          "name": "resources-smoke-98d44e88-b439-4cd2-b9d7-0892b608e8d0",
+          "bytes": 39555724,
+          "files": 333,
+          "modified": "2026-10-21T01:21:04.056Z"
+        },
+        {
+          "name": "resources-smoke-432a6491-31f2-4ec9-9c7f-ca26ba7d5a5c",
+          "bytes": 39509899,
+          "files": 338,
+          "modified": "2026-10-21T03:23:05.323Z"
+        }
+      ],
+      "browserCaches": [
+        {
+          "name": "Code Cache",
+          "MiB": 1
+        },
+        {
+          "name": "DawnGraphiteCache",
+          "MiB": 445
+        },
+        {
+          "name": "DawnWebGPUCache",
+          "MiB": 445
+        },
+        {
+          "name": "GPUCache",
+          "MiB": 4604
+        },
+        {
+          "name": "ShaderCache",
+          "MiB": 475
+        },
+        {
+          "name": "Cache",
+          "MiB": 1
+        }
+      ],
+      "errors": []
+    },
+    {
+      "root": "D:/.lca-cache",
+      "totalGiB": 1.893015873618424,
+      "files": 14395,
+      "dirCount": 7,
+      "groups": [
+        {
+          "name": "tmp",
+          "bytes": 1124647881,
+          "count": 1,
+          "MiB": 1073
+        },
+        {
+          "name": "upgrade-tests",
+          "bytes": 664098576,
+          "count": 1,
+          "MiB": 633
+        },
+        {
+          "name": "pnpm",
+          "bytes": 227670023,
+          "count": 1,
+          "MiB": 217
+        },
+        {
+          "name": "electron-builder",
+          "bytes": 16183252,
+          "count": 1,
+          "MiB": 15
+        },
+        {
+          "name": "electron",
+          "bytes": 0,
+          "count": 1,
+          "MiB": 0
+        },
+        {
+          "name": "electron-gyp",
+          "bytes": 0,
+          "count": 1,
+          "MiB": 0
+        },
+        {
+          "name": "install-tests",
+          "bytes": 0,
+          "count": 1,
+          "MiB": 0
+        }
+      ],
+      "largest": [
+        {
+          "name": "tmp",
+          "bytes": 1124647881,
+          "files": 11872,
+          "modified": "2026-10-26T08:31:56.690Z"
+        },
+        {
+          "name": "upgrade-tests",
+          "bytes": 664098576,
+          "files": 1537,
+          "modified": "2026-10-23T20:19:06.465Z"
+        },
+        {
+          "name": "pnpm",
+          "bytes": 227670023,
+          "files": 596,
+          "modified": "2026-10-16T08:52:21.547Z"
+        },
+        {
+          "name": "electron-builder",
+          "bytes": 16183252,
+          "files": 378,
+          "modified": "2026-10-16T10:48:45.225Z"
+        },
+        {
+          "name": "electron",
+          "bytes": 0,
+          "files": 0,
+          "modified": "2026-10-16T08:36:32.809Z"
+        },
+        {
+          "name": "electron-gyp",
+          "bytes": 0,
+          "files": 0,
+          "modified": "2026-10-16T09:18:02.790Z"
+        },
+        {
+          "name": "install-tests",
+          "bytes": 0,
+          "files": 0,
+          "modified": "2026-10-21T11:43:45.935Z"
+        }
+      ],
+      "browserCaches": [],
+      "errors": []
+    }
+  ],
+  "cacheCandidates": {
+    "candidateCount": 5964,
+    "candidateBytes": 6252372968,
+    "examples": [
+      {
+        "path": ".local-data\\backup-smoke-222200f1-4317-4c04-918d-64c457ebc9e6\\developer\\60e19d85-9c10-4c01-afc7-7d68fd4a078e\\chromium\\GPUCache",
+        "bytes": 5837168,
+        "files": 5
+      },
+      {
+        "path": ".local-data\\backup-smoke-222200f1-4317-4c04-918d-64c457ebc9e6\\developer\\fd95a875-109d-4f64-8f31-42b2227866cc\\chromium\\GPUCache",
+        "bytes": 5837168,
+        "files": 5
+      },
+      {
+        "path": ".local-data\\backup-smoke-2a277300-2b4e-4274-8952-98ba05f8e007\\developer\\aa02d5b2-d5a5-4571-b240-6fc5b11d412a\\chromium\\GPUCache",
+        "bytes": 5837168,
+        "files": 5
+      },
+      {
+        "path": ".local-data\\backup-smoke-8166cd7a-8c85-4ae5-8dfb-57a0c683841a\\developer\\0983d0c9-bea5-48df-bbcb-4441b9e6dde5\\chromium\\GPUCache",
+        "bytes": 5837168,
+        "files": 5
+      },
+      {
+        "path": ".local-data\\backup-smoke-8166cd7a-8c85-4ae5-8dfb-57a0c683841a\\developer\\d51b53b1-659a-404a-92c2-bb3d6b73eae0\\chromium\\GPUCache",
+        "bytes": 5837168,
+        "files": 5
+      },
+      {
+        "path": ".local-data\\backup-smoke-b14b2c9c-f8f3-4162-a90d-e9ad6473595b\\developer\\21ffd078-f61e-4776-b005-c6ca4d3a8f30\\chromium\\GPUCache",
+        "bytes": 5837168,
+        "files": 5
+      }
+    ],
+    "nonUuidProfilesExcluded": [
+      {
+        "path": ".local-data\\chromium\\Cache",
+        "bytes": 0,
+        "files": 0
+      },
+      {
+        "path": ".local-data\\chromium\\Code Cache",
+        "bytes": 3748,
+        "files": 5
+      },
+      {
+        "path": ".local-data\\chromium\\DawnGraphiteCache",
+        "bytes": 557424,
+        "files": 5
+      },
+      {
+        "path": ".local-data\\chromium\\DawnWebGPUCache",
+        "bytes": 557424,
+        "files": 5
+      },
+      {
+        "path": ".local-data\\chromium\\GPUCache",
+        "bytes": 5837168,
+        "files": 5
+      },
+      {
+        "path": ".local-data\\chromium\\GPUPersistentCache\\DawnGraphiteCache",
+        "bytes": 0,
+        "files": 3
+      },
+      {
+        "path": ".local-data\\chromium\\ShaderCache",
+        "bytes": 557424,
+        "files": 5
+      },
+      {
+        "path": ".local-data\\package-probe-manual\\chromium\\GPUPersistentCache\\DawnGraphiteCache",
+        "bytes": 0,
+        "files": 3
+      },
+      {
+        "path": ".local-data\\package-probe-manual\\chromium\\ShaderCache",
+        "bytes": 557424,
+        "files": 5
+      }
+    ],
+    "totalExcludedBytes": 8070612
+  },
+  "temporaryDirectorySummary": {
+    "tmp": [
+      {
+        "name": "nspE9C8.tmp",
+        "bytes": 1075870148,
+        "files": 11187
+      },
+      {
+        "name": "t-QeWzmm",
+        "bytes": 24427870,
+        "files": 1
+      },
+      {
+        "name": "node-compile-cache",
+        "bytes": 9846388,
+        "files": 607
+      },
+      {
+        "name": "~nsu.tmp",
+        "bytes": 171444,
+        "files": 1
+      },
+      {
+        "name": "dsh-acl-skill-3tehqk",
+        "bytes": 52442,
+        "files": 2
+      },
+      {
+        "name": "dsh-acl-skill-4ECHqO",
+        "bytes": 52442,
+        "files": 2
+      },
+      {
+        "name": "dsh-acl-skill-6Iv1Jc",
+        "bytes": 52442,
+        "files": 2
+      },
+      {
+        "name": "dsh-acl-skill-8da18G",
+        "bytes": 52442,
+        "files": 2
+      },
+      {
+        "name": "dsh-acl-skill-At1Wui",
+        "bytes": 52442,
+        "files": 2
+      },
+      {
+        "name": "dsh-acl-skill-bgmYRX",
+        "bytes": 52442,
+        "files": 2
+      },
+      {
+        "name": "dsh-acl-skill-dV7FC7",
+        "bytes": 52442,
+        "files": 2
+      },
+      {
+        "name": "dsh-acl-skill-eAmHLs",
+        "bytes": 52442,
+        "files": 2
+      }
+    ],
+    "upgrade": [
+      {
+        "name": "cfcd7e7e-49b0-482d-a85a-ddf65e53424b",
+        "bytes": 664093489,
+        "files": 1530
+      },
+      {
+        "name": "8d23f985-2bae-4b90-a895-a0ddb71062ce",
+        "bytes": 5087,
+        "files": 7
+      }
+    ]
+  },
+  "limits": [
+    "No deletion performed.",
+    "No guarantee of current process use: Win32_Process query was denied; visible Get-Process paths showed no matching LCA executable at inspection.",
+    "UUID-named profiles identify the candidate set; any cleanup must revalidate paths and only remove known Chromium cache directories, never whole profiles by this heuristic.",
+    "Reports, test databases, histories, credentials, art candidates, frozen references, dependencies and build source remain preserved."
+  ]
+}
