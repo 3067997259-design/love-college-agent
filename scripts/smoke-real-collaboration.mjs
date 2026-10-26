@@ -25,14 +25,17 @@ await writeFile(join(data, 'runtime-resources/identity.json'), JSON.stringify({ 
 await writeFile(join(data, 'runtime-resources/usage.jsonl'), [{ version: 1, seq: 1, atMs, kind: 'header', id: ledgerId }, { version: 1, seq: 2, atMs, kind: 'limits', ...limits }].map((x) => JSON.stringify(x)).join('\n') + '\n')
 let instance, page, timer
 const preflight = process.argv.includes('--preflight')
+const stateRouting = process.argv.includes('--state-routing')
+const workOnly = process.argv.includes('--work-only')
 const hash = async (path) => createHash('sha256').update(await readFile(path)).digest('hex')
 const cases = [], report = { realServices: !preflight, preflight, syntheticTaskInputs: true, homeIsolated: true, cases, limits, maxWallMinutes: 12, capacityStress: 'synthetic-regression-only', selectedModel: 'existing-chat-and-work-slots', automaticApprovals: false,
+  stateRouting, workOnly, precedingRun: process.env.LCA_REAL_MODEL_PRECEDING_RUN ?? null,
   scriptSha256: await hash(import.meta.filename), targetHelperSha256: await hash(join(root, 'scripts/runtime-env.mjs')) }
 const memberEvidence = (s) => s.collaboration.members.map((m) => ({ sessionId: m.address.sessionId, mode: m.mode, name: m.name, activity: m.activity, outcome: m.outcome, waitingFor: m.waitingFor, usage: m.usage, errorCode: m.error?.code ?? null, resultText: m.resultText?.slice(0, 3000) ?? null }))
 console.log('REAL_COLLABORATION_START', out)
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), ...body }) }, body)
-async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30000 }); page = await instance.firstWindow(); await initializeTestBook(page); await send({ type: 'mode.set', mode: 'quiet' }) }
+async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30000 }); page = await instance.firstWindow(); await initializeTestBook(page); await send({ type: 'mode.set', mode: workOnly ? 'work' : 'quiet' }) }
 async function settle(previous) {
   for (let i = 0; i < 1800; i++) {
     const s = await snapshot()
@@ -50,6 +53,12 @@ const prompts = [
   ['team', '继续隔离验收。现在需要两位固定职责的协作者持续配合：规则员定义小型验收规则，复核员等待规则再按规则检查。用共同任务板表达领取和依赖，让双方按职责完成后向你汇报。输入只有：甲=2、乙=3，总和应为5。不要浏览网络、读写文件或执行命令；无需再派独立的一次性帮手。'],
   ['reuse', '沿用刚才负责规则的同一位协作者，补充检查甲=4、乙=1是否仍符合规则，让它实际回复后你再总结。不要创建新成员或新身份，不要浏览网络、读写文件或执行命令。'],
 ]
+if (stateRouting) {
+  prompts.unshift(['handoff', '这是隔离验收的第一步。请先把门牌切换到“工作中”，交给工作模型在同一个回合里调用一次当前时间工具，最后告诉我本地几点。用程序提供的状态指令完成切换，不要只口头说开始。不要找帮手、浏览网络、读写文件或执行命令。'])
+  // This authorization covers handoff, one ordinary delegation and one small team, not identity reuse.
+  prompts.splice(prompts.findIndex(([name]) => name === 'reuse'), 1)
+}
+if (workOnly) { assert.ok(stateRouting, 'WORK_ONLY_REQUIRES_STATE_ROUTING'); prompts.splice(prompts.findIndex(([name]) => name === 'handoff'), 1) }
 try {
   report.stage = 'bootstrap'
   await launch()
@@ -61,8 +70,8 @@ try {
     if (!parsed.providers?.chat) throw new Error('AUTHORIZED_CHAT_MISSING')
     const workRouting = parsed.routing?.work ?? (Object.hasOwn(parsed.providers, 'work') ? 'independent' : 'follow-main')
     const efforts = Object.fromEntries(['chat', 'work'].filter((role) => Object.hasOwn(parsed.efforts ?? {}, role)).map((role) => [role, parsed.efforts[role]]))
-    await fs.writeFile(config, JSON.stringify({ providers: { chat: parsed.providers.chat, ...(parsed.providers.work ? { work: parsed.providers.work } : {}) }, routing: { work: workRouting }, efforts }), { mode: 0o600 })
-    return { workRouting, efforts }
+    await fs.writeFile(config, JSON.stringify({ providers: { chat: parsed.providers.chat, ...(parsed.providers.work ? { work: parsed.providers.work } : {}) }, routing: { work: workRouting }, efforts, ...(parsed.modelCapabilities ? { modelCapabilities: parsed.modelCapabilities } : {}) }), { mode: 0o600 })
+    return { workRouting, efforts, independentWorkPresent: !!parsed.providers.work, officialWorkEndpoint: !!parsed.providers.work && new URL(parsed.providers.work.base_url).hostname === 'api.deepseek.com' }
   }, { authorized: resolve(process.env.LCA_PROVIDERS_FILE), config })
   report.stage = 'configured-launch'
   await instance.close(); instance = null; await launch()
@@ -71,6 +80,8 @@ try {
   assert.equal(initial.modelSettings.routing.work, selected.workRouting); assert.deepEqual(initial.modelSettings.efforts, selected.efforts)
   assert.equal(initial.resources.status, 'ready'); assert.equal(initial.resources.model.totalLimitUnits, limits.dailyTotalUnits); assert.equal(initial.resources.model.autonomousLimitUnits, 0)
   report.configurationSelectionPreserved = true
+  report.workConfiguration = { independent: selected.workRouting === 'independent' && selected.independentWorkPresent, officialDeepSeekEndpoint: selected.officialWorkEndpoint }
+  if (stateRouting) assert.ok(report.workConfiguration.independent && report.workConfiguration.officialDeepSeekEndpoint, 'OFFICIAL_WORK_CONFIGURATION_REQUIRED')
   report.target = { executable: electronLaunchTarget(root, electronPath).executablePath, appVersion: await instance.evaluate(({ app }) => app.getVersion()), asarSha256: process.env.LCA_TEST_EXECUTABLE ? await hash(join(dirname(process.env.LCA_TEST_EXECUTABLE), 'resources/app.asar')) : null }
   report.startedAtIso = new Date().toISOString()
   timer = setTimeout(() => { report.timedOut = true; void instance?.close().catch(() => {}) }, 12 * 60000)
@@ -82,9 +93,26 @@ try {
     const after = await settle(before.task?.id), added = after.collaboration.members.filter((m) => m.mode !== 'root' && !old.has(m.address.sessionId))
     const oldMessages = new Set(before.messages.map((m) => m.id))
     const result = { name, addedModes: added.map((m) => m.mode), memberCount: after.collaboration.members.length, teamTasks: after.collaboration.tasks.length, dependentTasks: after.collaboration.tasks.filter((t) => t.blockedBy.length > 0).length, completedTasks: after.collaboration.tasks.filter((t) => t.status === 'completed').length, attempts: after.resources.model.attemptCount - before.resources.model.attemptCount, reservedUnits: after.resources.model.totalReservedUnits,
+      mode: after.companion.mode,
+      activities: after.activities.filter((a) => a.taskId === after.task?.id).map((a) => ({ templateId: a.templateId, status: a.status })),
       members: memberEvidence(after), tasks: after.collaboration.tasks, responses: after.messages.filter((m) => m.role === 'assistant' && !oldMessages.has(m.id)).map((m) => m.text.slice(0, 3000)),
       resumedSessionIds: after.collaboration.members.filter((m) => m.mode === 'teammate' && old.has(m.address.sessionId) && m.usage.admittedUnits > (before.collaboration.members.find((b) => b.address.sessionId === m.address.sessionId)?.usage.admittedUnits ?? 0)).map((m) => m.address.sessionId) }
-    result.selectionPassed = name === 'independent' ? added.some((m) => ['subagent', 'fork'].includes(m.mode) && m.usage.admittedUnits > 0 && m.outcome === 'completed') && !added.some((m) => m.mode === 'teammate') : name === 'team' ? added.filter((m) => m.mode === 'teammate').length === 2 && added.filter((m) => m.mode === 'teammate').every((m) => m.usage.admittedUnits > 0 && m.outcome === 'completed') && result.completedTasks >= 2 && result.dependentTasks > 0 : added.length === 0 && result.resumedSessionIds.length > 0 && after.collaboration.members.filter((m) => result.resumedSessionIds.includes(m.address.sessionId)).every((m) => m.outcome === 'completed')
+    if (stateRouting) {
+      // Narrow, synthetic-run-only evidence. Never return private context, raw tool inputs or credentials.
+      result.routeEvidence = await instance.evaluate(async (_, taskId) => {
+        const fs = process.mainModule.require('node:fs'), path = process.mainModule.require('node:path')
+        const dir = path.join(process.env.LCA_DATA_DIR, 'journals')
+        const files = []
+        const visit = (root) => { if (!fs.existsSync(root)) return; for (const entry of fs.readdirSync(root, { withFileTypes: true })) { const item = path.join(root, entry.name); if (entry.isDirectory()) visit(item); else if (entry.name.endsWith('.jsonl')) files.push(item) } }
+        visit(dir)
+        const rows = files.flatMap((file) => fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)))
+        return { attempts: rows.filter((r) => r.type === 'model/attempt' && r.turnId === taskId).map((r) => ({ slot: r.slot, status: r.status, attempt: r.attempt })),
+          modeChanges: rows.filter((r) => r.type === 'companion/mode' && r.requestId?.startsWith('model-state-' + taskId)).map((r) => ({ mode: r.mode, seq: r.seq })),
+          sessions: rows.filter((r) => r.type === 'work/turn' && r.turnId === taskId).map((r) => r.sessionId) }
+      }, after.task?.id)
+    }
+    result.selectionPassed = name === 'handoff' ? result.mode === 'work' && result.routeEvidence.modeChanges.some((r) => r.mode === 'work') && result.routeEvidence.sessions.length === 1 && ['chat', 'work'].every((slot) => result.routeEvidence.attempts.some((r) => r.slot === slot && r.status === 'success')) && result.activities.some((a) => a.templateId === 'clock.read' && a.status === 'completed') && added.length === 0
+      : name === 'independent' ? added.some((m) => ['subagent', 'fork'].includes(m.mode) && m.usage.admittedUnits > 0 && m.outcome === 'completed') && !added.some((m) => m.mode === 'teammate') : name === 'team' ? added.filter((m) => m.mode === 'teammate').length === 2 && added.filter((m) => m.mode === 'teammate').every((m) => m.usage.admittedUnits > 0 && m.outcome === 'completed') && result.completedTasks >= 2 && result.dependentTasks > 0 : added.length === 0 && result.resumedSessionIds.length > 0 && after.collaboration.members.filter((m) => result.resumedSessionIds.includes(m.address.sessionId)).every((m) => m.outcome === 'completed')
     cases.push(result); console.log(JSON.stringify(result))
     if (!result.selectionPassed) throw new Error('MODEL_SELECTION_EXPECTATION_FAILED')
   }

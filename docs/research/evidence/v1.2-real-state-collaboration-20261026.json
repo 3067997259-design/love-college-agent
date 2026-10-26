@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-26",
+  "target": "source-development-build",
+  "realServices": true,
+  "source": {
+    "head": "ef1ca96cd4ca453550d79dce8b8ad75311394025",
+    "dirty": [
+      "M README.md",
+      " M docs/experience-design.md",
+      " M docs/getting-started.md",
+      " M docs/maintenance.md",
+      " M docs/research/README.md",
+      " M docs/research/v1.2-development-plan-20261023.md",
+      " M docs/tech-design.md",
+      " M docs/testing.md",
+      " M dsh/lca-bridge/index.js",
+      " M package.json",
+      " M scripts/dsh-bridge-check.mjs",
+      " M scripts/smoke-real-collaboration.mjs",
+      " M src/main/dsh/execution.ts",
+      " M src/main/dsh/host.ts",
+      " M src/main/index.ts",
+      " M src/renderer/src/book/LeftPage.tsx",
+      " M src/renderer/src/voice/providers.zh.json",
+      " M src/shared/dsh-protocol.ts",
+      " M tests/unit/dsh-host.test.ts",
+      " M tests/unit/dsh-journal.test.ts",
+      "?? docs/research/evidence/v1.2-function-calling-diagnostic-20261026.json",
+      "?? docs/research/evidence/v1.2-real-collaboration-20261026.json",
+      "?? docs/research/v1.2-function-calling-diagnostic-20261026.md",
+      "?? docs/research/v1.2-real-collaboration-20261026.md",
+      "?? docs/research/v1.2-state-routing-20261026.md",
+      "?? dsh/lca-bridge/state.js",
+      "?? scripts/audit-real-collaboration.mjs",
+      "?? scripts/smoke-state-routing.mjs",
+      "?? tests/unit/dsh-state.test.ts"
+    ],
+    "packageVersion": "1.1.0",
+    "mainSha256": "a549cc25de05b3e6838852f3b4043a8b22f706e816ddebe3ebf5c494b868cfca",
+    "rendererSha256": "47233ebeabe377b59c006e73e3a351e303b40da200a166a742a55b02a6483fff"
+  },
+  "configuration": {
+    "preserved": true,
+    "workProvider": "deepseek-official",
+    "workModel": "deepseek-flash",
+    "workEffort": "max",
+    "sourceFileSize": 1750,
+    "sourceFileModifiedIso": "2026-10-25T16:12:32.861Z",
+    "credentialsIncluded": false
+  },
+  "budget": {
+    "authorizedTotalUnits": 480000,
+    "handoffReservedUnits": 35557,
+    "workReservedUnits": 131892,
+    "totalReservedUnits": 167449,
+    "totalAdmissions": 41,
+    "autonomousReservedUnits": 0,
+    "noRepeatedHandoffCall": true
+  },
+  "results": {
+    "handoff": {
+      "passed": true,
+      "sameSession": true,
+      "chatRequests": 1,
+      "workRequests": 2,
+      "successfulClockTool": true,
+      "runnerFalseNegative": "ActivityView.taskId was incorrectly checked as turnId; original report preserved, application success verified offline."
+    },
+    "independent": {
+      "passed": true,
+      "subagents": 1,
+      "result": {
+        "red": 7,
+        "blue": 2,
+        "total": 9
+      }
+    },
+    "team": {
+      "orchestrationPassed": true,
+      "teammates": 2,
+      "completedTasks": 2,
+      "dependencyEdges": 1,
+      "result": {
+        "a": 2,
+        "b": 3,
+        "sum": 5
+      },
+      "toolErrors": 0,
+      "contentCaveat": "The team-authored rule says both paths must yield 5, but its inverse check 5-3 yields 2. Numeric answer is right; rule wording is inconsistent. No automatic retry."
+    },
+    "sameRuleMemberReuse": "not tested"
+  },
+  "cleanup": {
+    "isolatedInstancesClosed": true,
+    "temporaryCredentialsRemoved": true,
+    "normalPreviewConfigurationUnchanged": true
+  },
+  "runs": [
+    {
+      "id": "3845fb58-3f47-4694-9a41-d5abb4d116ee",
+      "report": "test-results/real-collaboration-3845fb58-3f47-4694-9a41-d5abb4d116ee/report.json",
+      "reportSha256": "7f5270cf7e7439036b618108a06303107bddff91fca3547d71b41e99f9bbb46b",
+      "audit": "test-results/real-collaboration-3845fb58-3f47-4694-9a41-d5abb4d116ee/audit.json",
+      "auditSha256": "0595ed356cd1c3da085eb23e8fba14da83ea530de24a048566cf1c4b8940cd3a",
+      "started": "2026-10-26T01:02:06.131Z",
+      "completed": "2026-10-26T01:02:24.106Z",
+      "usage": {
+        "dayKey": "2026-10-26",
+        "totalReservedUnits": 35557,
+        "autonomousReservedUnits": 0,
+        "totalLimitUnits": 480000,
+        "autonomousLimitUnits": 0,
+        "attemptCount": 3,
+        "legacyReservedUnits": 0
+      }
+    },
+    {
+      "id": "22d5f474-6665-40da-99e6-3edc9bc3fa15",
+      "report": "test-results/real-collaboration-22d5f474-6665-40da-99e6-3edc9bc3fa15/report.json",
+      "reportSha256": "e530addb81ff6c49d10e2f1d8802edcfa6acd47f8360da4dd5d7adab62b1c27f",
+      "audit": "test-results/real-collaboration-22d5f474-6665-40da-99e6-3edc9bc3fa15/audit.json",
+      "auditSha256": "fa945cefc4449ed566c673475b4ddb8ceb49dbdefa6f69baec7246d87a24fbe9",
+      "started": "2026-10-26T01:03:28.521Z",
+      "completed": "2026-10-26T01:04:39.743Z",
+      "usage": {
+        "dayKey": "2026-10-26",
+        "totalReservedUnits": 131892,
+        "autonomousReservedUnits": 0,
+        "totalLimitUnits": 444443,
+        "autonomousLimitUnits": 0,
+        "attemptCount": 38,
+        "legacyReservedUnits": 0
+      }
+    }
+  ]
+}
