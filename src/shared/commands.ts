@@ -87,6 +87,7 @@ export type AppCommand = CommandEnvelope & (
   /** GUI save. Blank fields keep the saved value; credentials never return to the renderer. */
   | { type: 'models.provider.save'; slot: ModelProviderSlot; baseUrl: string; model: string; apiKey?: string }
   | { type: 'models.provider.remove'; slot: ModelProviderSlot }
+  | { type: 'models.capabilities.save'; slot: ModelProviderSlot; modelRef: string; capabilities: import('./model-capabilities').ManualModelCapabilities | null }
   | { type: 'models.routing.set'; slot: 'background' | 'privacy' | 'work'; mode: 'follow-main' | 'independent' }
   /** null returns the role to the provider's default thinking level. */
   | { type: 'models.effort.set'; role: 'chat' | 'work'; effort: ReasoningEffort | null }

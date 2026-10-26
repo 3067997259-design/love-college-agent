@@ -379,7 +379,12 @@ export interface ModelRouting { background: 'follow-main' | 'independent'; priva
 /** Thinking levels in escalation order (DSH / pi-ai). A model offers some of them; none means the provider decides. */
 export type ReasoningEffort = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 /** What the book may show about a configured slot: a known vendor's name or a masked host, and the model id. Never the URL path or key. */
-export interface ModelSlotDetail { vendor: string | null; host: string; model: string }
+export interface ModelSlotDetail {
+  vendor: string | null; host: string; model: string
+  /** Opaque equality reference for the current connection/model, never a credential or editable address. */
+  modelRef?: string
+  capabilities?: import('./model-capabilities').ModelCapabilityView
+}
 export interface ModelSettingsView {
   routing?: ModelRouting
   details?: Partial<Record<ModelProviderSlot, ModelSlotDetail>>
