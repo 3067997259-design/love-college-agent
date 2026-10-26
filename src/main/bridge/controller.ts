@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { manualCapabilitiesSchema } from '../config/model-capabilities'
 import type { AppCommand, AppEvent, AppSnapshot, CommandAck, DiagnosticsView, PublicErrorCode, RuntimeView, ClockView } from '../../shared'
 import { DEFAULT_EXPRESSION, PROTOCOL_VERSION } from '../../shared'
 import type { Clock } from '../clock'
@@ -128,6 +129,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('models.configure') }),
   z.strictObject({ ...envelope, type: z.literal('models.provider.save'), slot: z.enum(['chat', 'work', 'background', 'chat_google', 'chat_claude', 'privacy']), baseUrl: z.string().max(4096).default(''), model: z.string().max(256).default(''), apiKey: z.string().max(8192).optional() }),
   z.strictObject({ ...envelope, type: z.literal('models.provider.remove'), slot: z.enum(['chat', 'work', 'background', 'chat_google', 'chat_claude', 'privacy']) }),
+  z.strictObject({ ...envelope, type: z.literal('models.capabilities.save'), slot: z.enum(['chat', 'work', 'background', 'chat_google', 'chat_claude', 'privacy']), modelRef: z.string().regex(/^[a-f0-9]{64}$/), capabilities: manualCapabilitiesSchema.nullable() }),
   z.strictObject({ ...envelope, type: z.literal('models.routing.set'), slot: z.enum(['background', 'privacy', 'work']), mode: z.enum(['follow-main', 'independent']) }),
   z.strictObject({ ...envelope, type: z.literal('models.effort.set'), role: z.enum(['chat', 'work']), effort: z.enum(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']).nullable() }),
   z.strictObject({ ...envelope, type: z.literal('models.probe'), slot: z.enum(['chat', 'work', 'background', 'chat_google', 'chat_claude', 'privacy']) }),

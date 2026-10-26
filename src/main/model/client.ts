@@ -79,8 +79,9 @@ export function createModelClient(configs: ReadonlyMap<ProviderSlot, ProviderCon
       if (signal.aborted) throw new ModelFailure('cancelled')
       const base = config.base_url.replace(/\/+$/, '')
       const url = base.endsWith('/chat/completions') ? base : `${base}/chat/completions`
+      if (config.capabilities?.inputModalities && !config.capabilities.inputModalities.includes('image') && request.messages.some((message) => message.imageRefs?.length)) throw new ModelFailure('configuration')
       const response = await fetcher(url, { method: 'POST', signal, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.api_key}` },
-        body: JSON.stringify({ model: config.model, stream: true, stream_options: { include_usage: true }, max_tokens: request.maxOutputTokens ?? 2048,
+        body: JSON.stringify({ model: config.model, stream: true, stream_options: { include_usage: true }, max_tokens: Math.min(request.maxOutputTokens ?? 2048, config.capabilities?.maxOutputTokens ?? Infinity),
           messages: wireMessages(request, images),
           ...(request.tools.length ? { tools: request.tools.map((tool) => ({ type: 'function', function: tool })), parallel_tool_calls: false } : {}),
         }) })
