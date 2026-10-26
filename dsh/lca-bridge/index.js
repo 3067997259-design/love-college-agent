@@ -13,6 +13,7 @@ import { createFamilySafety } from './family.js'
 import { createExtensionAdapter } from './extensions.js'
 import { createSkillCatalog } from './skills.js'
 import { createCollaboration } from './collaboration.js'
+import { validState, stateReply, statePrompt, WORK_CONTINUATION } from './state.js'
 
 export const name = 'lca-bridge'
 export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm', 'sessionProjections', 'pluginManager', 'profileContext', 'skills', 'agentTeams', 'subagents']
@@ -80,11 +81,20 @@ export function apply(ctx) {
   const callKey = (agent, callId) => `${lineage.sid(agent)}:${String(callId)}`
   // Chat and work models; a thinking level the model does not offer is dropped (DSH would refuse the request).
   const routes = parseRoutes(process.env.LCA_DSH_ROUTES)
-  const levels = new Map() // `${provider}/${model}` -> Promise<string[] | null>
-  const levelsOf = (route) => {
+  const modelInfo = new Map() // `${provider}/${model}` -> adapter metadata, never a network probe
+  const infoOf = (route) => {
     const key = `${route.provider}/${route.model}`
-    if (!levels.has(key)) levels.set(key, ctx.llm.resolveModelInfo(route.provider, route.model).then((info) => info.reasoning?.efforts.map((effort) => String(effort.id)) ?? null, () => null))
-    return levels.get(key)
+    if (!modelInfo.has(key)) modelInfo.set(key, ctx.llm.resolveModelInfo(route.provider, route.model).catch(() => null))
+    return modelInfo.get(key)
+  }
+  const levelsOf = async (route) => (await infoOf(route))?.reasoning?.efforts.map((effort) => String(effort.id)) ?? null
+  const capabilitiesOf = async (route) => {
+    const info = await infoOf(route)
+    if (!info) return undefined
+    return { ...(info.context?.contextWindow ? { contextWindow: info.context.contextWindow } : {}),
+      ...(info.defaultMaxTokens ? { maxOutputTokens: info.defaultMaxTokens } : {}),
+      ...(info.inputModalities ? { inputModalities: info.inputModalities.filter((value) => ['text', 'image'].includes(value)) } : {}),
+      reasoningLevels: info.reasoning?.efforts.map((effort) => String(effort.id)) ?? [] }
   }
   const usable = async (route) => {
     const offered = route.effort ? await levelsOf(route) : null
@@ -96,11 +106,41 @@ export function apply(ctx) {
   const pick = async () => { if (routes) picked = { chat: await usable(routes.chat), work: await usable(routes.work) } }
   const selectionOf = (route) => ({ provider: route.provider, model: route.model, ...(route.effort ? { reasoningEffort: ReasoningEffortId(route.effort) } : {}) })
   const models = new Map() // root session id -> { selection, role: 'chat' | 'work' }
+  const states = new Map(), stateRequests = new Map(), stateReplies = new Map(), continued = new Set(), streamText = new Map()
   const choose = (sessionId, role) => {
     const entry = models.get(sessionId)
     if (!entry || !picked) return
     entry.role = role
     entry.selection.current = selectionOf(picked[role])
+  }
+  const updateState = (sessionId, state) => {
+    if (!validState(state)) return
+    states.set(sessionId, { mode: state.mode, token: state.token })
+  }
+  // Await main at DSH's existing step/stop boundaries, never create another agent loop.
+  const settleState = async (agent, signal) => {
+    const root = lineage.sid(agent), request = stateRequests.get(root)
+    if (!request || !isRoot(agent)) return
+    stateRequests.delete(root)
+    if (signal.aborted || request.turn !== turns.get(root)) return
+    const id = randomUUID()
+    const ok = await new Promise((done) => {
+      const finish = (ok) => { stateReplies.delete(id); signal.removeEventListener('abort', cancel); done(ok) }
+      const cancel = () => finish(false)
+      stateReplies.set(id, finish)
+      signal.addEventListener('abort', cancel, { once: true })
+      send({ t: 'state-request', id, sessionId: root, origin: originOf(agent), state: request.state })
+    })
+    if (signal.aborted) return
+    if (!ok) { send({ t: 'state-notice', sessionId: root, reason: 'rejected' }); return }
+    choose(root, request.state.mode === 'work' ? 'work' : 'chat')
+    if (request.text) send({ t: 'message', sessionId: root, turn: request.turn, text: request.text, toolCalls: [] })
+    if (request.role === 'chat' && request.state.mode === 'work' && !continued.has(root)) {
+      continued.add(root)
+      send({ t: 'model', sessionId: root, role: 'work' })
+      // A program-authored continuation, not another user authorization or turn.
+      agent.inject(createUserMessage({ content: [{ type: 'text', text: WORK_CONTINUATION }], source: { kind: 'lca-state' } }))
+    }
   }
   let persona = ''
   let suffix = ''
@@ -153,6 +193,8 @@ export function apply(ctx) {
       installModelSelection(agentCtx, selection)
       if (persona) agentCtx.systemPrompt.section({ name: 'deployment:persona-prefix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX'), text: persona, interpolate: false })
       if (suffix) agentCtx.systemPrompt.section({ name: 'deployment:persona-suffix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX'), text: suffix, interpolate: false })
+      agentCtx.systemPrompt.section({ name: 'deployment:lca-state', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX') + 1,
+        text: () => statePrompt(states.get(String(id)), models.get(String(id))?.role ?? 'chat'), interpolate: false })
     }
     const agentOptions = { provider: chat.provider, model: chat.model }
     // Project switching leaves inactive roots resident. Reuse their handle instead of asking DSH to
@@ -249,6 +291,8 @@ export function apply(ctx) {
     const family = lineage.rootOf(payload.agent)
     const origin = originOf(payload.agent)
     if (!family || !origin) return { kind: 'reject' }
+    await settleState(payload.agent, payload.signal)
+    if (payload.signal?.aborted) return { kind: 'reject' }
     if (eventBudget.has(family)) {
       const remaining = eventBudget.get(family)
       if (remaining <= 0) { queueMicrotask(() => safety.cancel(family)); return { kind: 'reject' } }
@@ -266,6 +310,8 @@ export function apply(ctx) {
     }
     return next()
   })
+
+  ctx.on('agent/turn-stopping', ({ agent, signal }) => settleState(agent, signal))
 
   ctx.on('approval/request', async (request) => {
     const root = lineage.rootOf(request.agent)
@@ -293,8 +339,14 @@ export function apply(ctx) {
   })
 
   ctx.on('agent/assistant-stream', ({ agent, frame }) => {
-    if (!isRoot(agent) || frame.type !== 'chunk') return
-    if (frame.chunk.type === 'text-delta' && frame.chunk.text) send({ t: 'delta', sessionId: lineage.sid(agent), text: frame.chunk.text })
+    if (!isRoot(agent)) return
+    const root = lineage.sid(agent)
+    if (frame.type === 'start') streamText.set(root, '')
+    if (frame.type === 'chunk' && frame.chunk.type === 'text-delta' && frame.chunk.text) {
+      const text = (streamText.get(root) ?? '') + frame.chunk.text; streamText.set(root, text)
+      // Buffer JSON-shaped replies until validated; a broken stream must not reveal control tokens.
+      if (!text.trimStart().startsWith('{')) send({ t: 'delta', sessionId: root, text: frame.chunk.text })
+    }
   })
 
   ctx.on('agent/error', ({ agent, error }) => {
@@ -309,10 +361,11 @@ export function apply(ctx) {
     // Surface replacements (compaction, pruning, retirement) rewrite history; they are not new activity.
     if (event.surfaceOp?.op === 'replace') return
     switch (event.type) {
-      // Every turn starts on the chat model; she reaches the work model by starting to work.
+      // The door sign chooses the initial route. Native-tool handoff remains a fallback.
       case 'turn/start': {
-        turns.set(sessionId, data.turn); choose(sessionId, 'chat')
+        turns.set(sessionId, data.turn); stateRequests.delete(sessionId); continued.delete(sessionId); streamText.delete(sessionId)
         const queued = eventStarts.get(sessionId) ?? 0
+        choose(sessionId, queued === 0 && states.get(sessionId)?.mode === 'work' ? 'work' : 'chat')
         if (queued > 0) { eventStarts.set(sessionId, queued - 1); eventTurns.set(sessionId, data.turn) } else eventTurns.delete(sessionId)
         send({ t: 'turn-start', sessionId, turn: data.turn, preset: presetOf(session), sourcePolicy: 2 })
         // An original you asked to see rides in this turn's opening message: the turn is degraded, and the next one retires it.
@@ -325,7 +378,15 @@ export function apply(ctx) {
       case 'assistant/message': {
         const toolCalls = (data.message.content ?? []).filter((block) => block.type === 'tool-call').map((block) => ({ id: String(block.id), name: block.name }))
         if (data.usage) lastUnits.set(sessionId, unitsOf(data.usage))
-        send({ t: 'message', sessionId, turn: data.turn, step: data.step, text: texts(data.message.content), toolCalls, usage: plain(data.usage) })
+        const reply = stateReply(texts(data.message.content))
+        if (reply.kind !== 'text') {
+          const finish = data.stream?.findLast((entry) => entry.type === 'chunk' && entry.chunk.type === 'finish')?.chunk.reason
+          if (reply.kind === 'state' && !toolCalls.length && finish?.kind === 'stop' && reply.state.token === states.get(sessionId)?.token) {
+            stateRequests.set(sessionId, { state: reply.state, text: reply.text, role: models.get(sessionId)?.role ?? 'chat', turn: data.turn })
+          } else send({ t: 'state-notice', sessionId, reason: 'invalid' })
+        }
+        // Usage belongs to the completed model step. Speech about a switch is shown only after main accepts it.
+        send({ t: 'message', sessionId, turn: data.turn, step: data.step, text: reply.kind === 'text' ? reply.text : '', toolCalls, usage: plain(data.usage) })
         break
       }
       case 'tool/call': send({ t: 'tool-call', sessionId, callId: String(data.callId), name: data.name, args: clip(data.arguments) }); break
@@ -367,6 +428,7 @@ export function apply(ctx) {
           send({ t: 'session', ref: message.ref, ...(await open(message)) }); break
         case 'send': {
           const agent = agentOf(message.sessionId)
+          updateState(message.sessionId, message.state)
           // LCA's memory references (earlier days, recalled memories) ride in their own block before your words.
           // Some protocols join a message's text blocks into one string: a blank line keeps the reference apart from your words.
           const reference = typeof message.reference === 'string' && message.reference ? [{ type: 'text', text: message.reference + '\n\n' }] : []
@@ -383,6 +445,8 @@ export function apply(ctx) {
           break
         }
         case 'cancel': safety.cancel(message.sessionId); collaboration.notify(); break
+        case 'state': updateState(message.sessionId, message.state); break
+        case 'state-answer': stateReplies.get(message.id)?.(message.ok === true); break
         case 'trust': { safety.setTrust(message.sessionId, true); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(agentOf(message.sessionId).session) }); break }
         case 'untrust': { safety.setTrust(message.sessionId, false); declined.delete(message.sessionId); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(agentOf(message.sessionId).session) }); break }
         case 'question-answer': {
@@ -402,7 +466,8 @@ export function apply(ctx) {
           break
         }
         // The thinking levels each role's model offers, for the book's settings; null when DSH cannot tell.
-        case 'describe': send({ t: 'described', ref: message.ref, chat: routes ? await levelsOf(routes.chat) : null, work: routes ? await levelsOf(routes.work) : null }); break
+        case 'describe': send({ t: 'described', ref: message.ref, chat: routes ? await levelsOf(routes.chat) : null, work: routes ? await levelsOf(routes.work) : null,
+          ...(routes ? { capabilities: { chat: await capabilitiesOf(routes.chat), work: await capabilitiesOf(routes.work) } } : {}) }); break
         // A new thinking level from the settings: the next step of every session uses it.
         case 'efforts': {
           if (!routes) break

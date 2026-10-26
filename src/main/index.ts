@@ -644,6 +644,10 @@ void app.whenReady().then(async () => {
         },
         question: (items, context) => questions!.ask(items, { clock, store: store!, ...context }).then((result) => result.raw as { status?: unknown; answers?: unknown; answerMessageId?: unknown }),
         backgroundQuiet: () => !!minecraft?.active(),
+        setMode: (mode, requestId) => {
+          const snapshot = controller!.getSnapshot()
+          return controller!.dispatch({ protocolVersion: 1, epoch: snapshot.epoch, requestId, type: 'mode.set', mode }).status === 'accepted'
+        },
         // Spending safety: turns that run without you are held to the autonomous allowance. Your own turns are held to
         // the daily caps only when someone set them on purpose (a booth operator; a cap set at a booth binds personal
         // mode too); with the defaults they are recorded, as DSH work has been since 1.0. Scripted replies cost nothing:

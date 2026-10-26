@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createManualClock } from '../../src/main/clock'
 import { createDshExecution, failureOf } from '../../src/main/dsh/execution'
 import type { DshApproval, DshEvent, DshHostOptions, startDshHost } from '../../src/main/dsh/host'
-import type { HarnessTool } from '../../src/main/harness/tools'
+import { builtinTools, type HarnessTool } from '../../src/main/harness/tools'
 import { openJournal } from '../../src/main/journal/file'
 import { witnessedPage } from '../../src/main/history/seen'
 import { projectJournal } from '../../src/main/journal/projection'
@@ -13,6 +13,7 @@ import { seenFragments } from '../../src/main/memory/seen'
 import type { SessionStore } from '../../src/main/store/session'
 import { createQuestions } from '../../src/main/questions/service'
 import type { AppCommand } from '../../src/shared'
+import type { DshConversationState } from '../../src/shared/dsh-protocol'
 
 const roots: string[] = []
 afterEach(() => { for (const root of roots.splice(0)) {
@@ -37,7 +38,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const asked: { question: string; choices: string[] }[] = []
   let project = join(root, 'project')
   let answer: (choices: string[]) => string | null | Promise<string | null> = (choices) => choices[0]
-  const host = { options: undefined as DshHostOptions | undefined, opening: undefined as Promise<void> | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], degrades: [] as string[][], trusted: [] as string[], current: 'dsh-1' }
+  const host = { states: [] as DshConversationState[], options: undefined as DshHostOptions | undefined, opening: undefined as Promise<void> | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], degrades: [] as string[][], trusted: [] as string[], current: 'dsh-1' }
   const referenceAsks: boolean[] = []
   const startedTurns: { turnId: string; requestId: string }[] = []
   const answeredCalls: { turnId: string; callId: string }[] = []
@@ -46,6 +47,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
     host.options = options
     return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); if (host.opening) await host.opening; const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
       collaboration: async () => ({ view: { status: 'ready', runtimeId: 'test-runtime', projectId: 'test-project', members: [], tasks: [] } }),
+      state: (_id: string, state: DshConversationState) => { host.states.push(state) },
       send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: () => {}, untrust: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
   // Her questions go to the book's question card (questions/service.ts), as in index.ts.
@@ -55,6 +57,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
     ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch, admit, revealed, started: (input) => { startedTurns.push(input) }, answered: (input) => { answeredCalls.push(input); questions.commit(input.turnId, [input.callId]) },
     question: (items, context) => questions.ask(items, { clock, store, ...context }).then((result) => result.raw as { status?: unknown; answers?: unknown; answerMessageId?: unknown }),
     foreground: () => { hooks.push('foreground') }, userWork: () => { hooks.push('userWork') }, settled: () => { hooks.push('settled') },
+    setMode: (mode, requestId) => { store.append({ type: 'companion/mode', mode, requestId, commandHash: 'model-state' }); return true },
     reference: ({ firstOfSession }) => { referenceAsks.push(firstOfSession); return { memoryReference: [{ text: '你喜欢用 TypeScript' }], ...(firstOfSession ? { previousDaysReference: [{ text: '昨天一起写了质数脚本' }] } : {}) } } })
   const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: host.current, ...(event.t === 'turn-start' ? { sourcePolicy: 2 } : {}), ...event } as DshEvent)
   const approval = (patch: Partial<DshApproval>) => host.options!.onApproval({ approvalId: 'approval-x', activationId: 'activation-x', policyRevision: 0, signal: new AbortController().signal, sessionId: 'dsh-1', origin: { protocolVersion: 2, runtimeId: 'test-runtime', projectId: 'test-project', rootSessionId: 'dsh-1', sessionId: 'dsh-1', parentSessionId: null, cwd: resolve(project) }, toolName: 'pwsh', callId: 'call-x', reason: null, kind: 'escalation', command: 'node a.js', subject: 'node a.js', degraded: null, ...patch })
@@ -63,6 +66,33 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const command = (body: Record<string, unknown>) => ({ protocolVersion: 1, epoch: 'test', requestId: 'answer-' + body.type, ...body }) as AppCommand
   return { root, clock, journal, store, execution, host, emit, approval, asked, opened, questions, question, command, referenceAsks, startedTurns, answeredCalls, hooks, setProject: (next: string) => { project = next }, nextDay: () => { currentScope = { ...currentScope, sessionId: 'next-day' } }, setAnswer: (next: typeof answer) => { answer = next } }
 }
+
+it('accepts a current root state request, persists it and retires its credential', async () => {
+  const f = setup(); f.execution.send('请找帮手完成工作', 'state-start', 'hash'); await f.opened(); f.emit({ t: 'turn-start', turn: 1 })
+  const state = { ...f.host.states.at(-1)!, mode: 'work' as const }
+  expect(f.host.options!.onState!({ sessionId: f.host.current, state })).toBe(true)
+  expect(f.store.projection().mode).toBe('work')
+  expect(f.host.options!.onState!({ sessionId: f.host.current, state })).toBe(false)
+  expect(f.host.states.at(-1)!.token).not.toBe(state.token)
+  await f.execution.close(); f.store.close()
+})
+
+it.each(['manual', 'stop', 'project', 'lights', 'focus', 'extra'] as const)('refuses a state response after %s without overriding user state', async (boundary) => {
+  const f = setup(); f.execution.send('工作', 'state-start', 'hash'); await f.opened(); f.emit({ t: 'turn-start', turn: 1 })
+  const state = { ...f.host.states.at(-1)!, mode: 'work' as DshConversationState['mode'] }
+  if (boundary === 'manual') f.store.append({ type: 'companion/mode', mode: 'quiet', requestId: 'manual', commandHash: 'manual' })
+  if (boundary === 'stop') f.execution.stop(f.store.projection().task!.id)
+  if (boundary === 'project') f.setProject(join(f.root, 'another'))
+  if (boundary === 'lights') f.store.append({ type: 'companion/lights', lightsOut: true, requestId: 'lights', commandHash: 'lights' })
+  if (boundary === 'focus') {
+    const view = f.store.projection().pomodoro
+    f.store.append({ type: 'pomodoro/state', view: { ...view, phase: 'focus', status: 'paused', remainingMs: 1000 }, pauseReason: 'manual', cause: 'paused' })
+    state.mode = 'rest'
+  }
+  expect(f.host.options!.onState!({ sessionId: f.host.current, state: boundary === 'extra' ? { ...state, command: 'run' } : state })).toBe(false)
+  expect(f.store.projection().mode).toBe(boundary === 'manual' ? 'quiet' : 'rest')
+  await f.execution.close(); f.store.close()
+})
 
 async function workTurn(f: ReturnType<typeof setup>) {
   f.execution.send('帮我跑一下 count.js', 'r-1', 'h-1')
@@ -234,6 +264,32 @@ describe('DSH work in the LCA journal', () => {
     // Old pages can quote DSH lines again: a later frame shows she saw them.
     expect(witnessedPage(f.store, f.store.scope.sessionId).map((message) => message.text)).toEqual(['帮我跑一下 count.js', '我先跑一下看看。', '跑出来了，一共 1229 个。'])
     f.journal.close()
+  })
+
+  it('provides fresh application time on each turn, matching the clock tool without learning it as conversation', async () => {
+    const f = setup()
+    const nowMs = f.clock.parse('2026-10-26T02:59:00.000Z')
+    f.clock.advanceBy(nowMs - f.clock.nowMs())
+    f.execution.send('早安。', 'clock-1', 'clock-hash-1', { currentTime: { local: '23:00' } })
+    await f.opened()
+    const initial = JSON.parse(f.host.references[0]!).currentTime
+    expect(initial).toMatchObject({ nowMs, iso: '2026-10-26T02:59:00.000Z', timeZone: 'Asia/Shanghai' })
+    expect(initial.local).toContain('10:59')
+    const tool = builtinTools().find((tool) => tool.templateId === 'clock.read')!
+    const result = await tool.run({}, { clock: f.clock, store: f.store, turnId: 'clock', signal: new AbortController().signal })
+    expect(result.raw).toEqual(initial)
+    f.emit({ t: 'turn-start', turn: 1 })
+    f.emit({ t: 'message', text: '早安。', toolCalls: [] })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
+    f.clock.advanceBy(120_000)
+    f.execution.send('现在呢？', 'clock-2', 'clock-hash-2')
+    for (let i = 0; i < 20 && f.host.sent.length < 2; i++) await Promise.resolve()
+    const next = JSON.parse(f.host.references[1]!).currentTime
+    expect(next.nowMs).toBe(nowMs + 120_000)
+    expect(next.local).toContain('11:01')
+    expect(f.host.opened).toHaveLength(1)
+    expect(JSON.stringify(f.store.records())).not.toContain('currentTime')
+    await f.execution.close(); f.store.close()
   })
 
   it('sends memory references beside your words: earlier days only with the first message of a fresh session', async () => {

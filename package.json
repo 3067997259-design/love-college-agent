@@ -69,6 +69,7 @@
     "test:backup": "pnpm build && node scripts/smoke-backup.mjs",
     "test:model-routing": "pnpm build && node scripts/smoke-model-routing.mjs",
     "test:dsh-bridge": "node scripts/dsh-bridge-check.mjs",
+    "test:state-routing": "pnpm build && node scripts/smoke-state-routing.mjs",
     "test:model-capabilities": "pnpm build && node scripts/smoke-model-capabilities.mjs",
     "test:dsh-family": "node scripts/dsh-family-check.mjs",
     "test:dsh-collaboration": "node scripts/dsh-collaboration-check.mjs",

@@ -75,7 +75,7 @@
   "restart": "语音、礼物或邮箱配置已保存，需要重启生效。模型连接已立即应用。",
   "restartAction": "重启应用",
   "developer": "开发模式使用独立假模型。",
-  "probeFailed": "连接没有成功，请检查地址、模型和密钥。",
+  "probeFailed": "连接没有成功，请检查地址、模型和密钥。这里的错误提示可能不够详细，实际原因还需进一步排查。",
   "baseRequired": "先填接口地址。",
   "modelRequired": "先填模型名。",
   "keyRequired": "先填 API 密钥。",
@@ -136,5 +136,5 @@
   "followChatModel": "跟随聊天模型：{model}",
   "independentWork": "单独配置",
   "followWorkHint": "干活时用聊天模型；思考强度可以单独调高。",
-  "independentWorkHint": "她开始写文件、运行命令时，这一轮剩下的部分交给工作模型；下一句话再回到聊天模型。"
+  "independentWorkHint": "门牌选“工作中”后，新回合直接用工作模型；聊天里需要动手时，也可以交给它在同一回合继续。"
 }

@@ -8,9 +8,12 @@ import type { DshExtensionRequest, DshExtensionReply } from '../../shared/dsh-ex
 import type { Clock } from '../clock'
 import type { DshRoutes } from './routes'
 import { createDshIdentities } from './identity'
-import type { DshApprovalScope, DshOrigin } from '../../shared/dsh-protocol'
+import type { DshApprovalScope, DshOrigin, DshConversationState } from '../../shared/dsh-protocol'
 import type { DshCollaborationRequest, DshCollaborationReply } from '../../shared/dsh-protocol'
 import { collaborationViewSchema } from './collaboration'
+import { z } from 'zod'
+import { CAPABILITY_LEVELS } from '../config/model-capabilities'
+import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
 
 /**
  * DSH host launcher (spike). Runs the forked DSH runtime as an Electron-Node child with LCA's `lca`
@@ -37,6 +40,7 @@ export interface DshHostOptions {
   onEvent(event: DshEvent): void
   /** Before each model step of her family: may it run (resource ledger)? */
   onAdmit?(input: { sessionId: string; bucket: 'work' | 'autonomous'; role: 'chat' | 'work'; units: number }): boolean
+  onState?(input: { sessionId: string; state: unknown }): boolean
   /** `source` marks a result carrying third-party content; the bridge then degrades the turn. */
   onCall(name: string, args: unknown, sessionId: string, callId: string): Promise<{ value: unknown; source: DshSource | null }>
   onApproval(request: DshApproval): Promise<'allowed-once' | 'rejected'>
@@ -143,7 +147,7 @@ export function startDshHost(options: DshHostOptions) {
     }
     // Requests from an old process, an unregistered member or a different project never reach
     // the ledger/tools/approval UI. Validate again when asynchronous answers are returned.
-    const scoped = ['admit', 'lca-call', 'approval', 'question'].includes(message.t)
+    const scoped = ['admit', 'lca-call', 'approval', 'question', 'state-request'].includes(message.t)
     const origin = scoped ? identities.validate(message.origin) : null
     const revision = origin ? revisions.get(origin.rootSessionId) : undefined
     const current = () => !!origin && !!identities.validate(origin) && !inactive.has(origin.rootSessionId) && revisions.get(origin.rootSessionId) === revision && !closed && !disconnected
@@ -152,10 +156,16 @@ export function startDshHost(options: DshHostOptions) {
       if (message.t === 'approval') send({ t: 'approval-answer', id: message.id, outcome: 'rejected' })
       if (message.t === 'lca-call') send({ t: 'lca-result', id: message.id, ok: false, error: 'DSH_ORIGIN_UNAVAILABLE' })
       if (message.t === 'question') send({ t: 'question-answer', id: message.id, error: 'This session is no longer available.' })
+      if (message.t === 'state-request') send({ t: 'state-answer', id: message.id, ok: false })
       return
     }
     if (message.t === 'hello') send({ t: 'init', persona: options.persona, suffix: options.suffix ?? '', tools: options.tools })
     else if (message.t === 'init-ok') { stopStartup(); ready() }
+    else if (message.t === 'state-request') {
+      let ok = false
+      try { ok = current() && origin?.parentSessionId === null && (options.onState?.({ sessionId: String(message.sessionId), state: message.state }) ?? false) } catch { /* rejected */ }
+      send({ t: 'state-answer', id: message.id, ok: ok && current() })
+    }
     else if (message.t === 'admit') {
       let ok: boolean
       try { ok = options.onAdmit?.({ sessionId: String(message.sessionId), bucket: message.bucket === 'autonomous' ? 'autonomous' : 'work', role: message.role === 'work' ? 'work' : 'chat', units: Math.max(1, Math.min(20_000_000, Math.round(Number(message.units) || 16_000))) }) ?? true } catch { ok = false }
@@ -233,11 +243,12 @@ export function startDshHost(options: DshHostOptions) {
     untrust: (sessionId: string) => { invalidate(sessionId); return send({ t: 'untrust', sessionId }) },
     /** `reference`: LCA's memory references, sent as their own block before your text. */
     /** `degrade`: the reference carries third-party originals that cannot be retired; the session stays degraded. */
-    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user', degrade: readonly DshSource[] = []) => {
+    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user', degrade: readonly DshSource[] = [], state?: DshConversationState) => {
       if (mode === 'followup' || inactive.has(sessionId)) invalidate(sessionId)
       inactive.delete(sessionId)
-      return send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}), ...(degrade.length ? { degrade } : {}) })
+      return send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}), ...(degrade.length ? { degrade } : {}), ...(state ? { state } : {}) })
     },
+    state: (sessionId: string, state: DshConversationState) => send({ t: 'state', sessionId, state }),
     cancel: (sessionId: string) => { invalidate(sessionId); return send({ t: 'cancel', sessionId }) },
     /** Replace her LCA tools (a plugin was enabled or disabled); the next step sees the new list. */
     tools: (tools: readonly DshTool[]) => send({ t: 'tools', tools }),
@@ -246,7 +257,12 @@ export function startDshHost(options: DshHostOptions) {
       await started
       const answer = await request({ t: 'describe' })
       const levels = (value: unknown) => Array.isArray(value) ? value.filter((level): level is string => typeof level === 'string') : null
-      return { chat: levels(answer.chat), work: levels(answer.work) }
+      const schema = z.object({ contextWindow: z.number().int().positive().max(100_000_000).optional(), maxOutputTokens: z.number().int().positive().max(100_000_000).optional(),
+        inputModalities: z.array(z.enum(['text', 'image'])).max(2).optional(), reasoningLevels: z.array(z.enum(CAPABILITY_LEVELS)).max(7).optional() })
+      const metadata = answer.capabilities as Record<string, unknown> | undefined
+      const capabilities: { chat?: ResolvedModelCapabilities; work?: ResolvedModelCapabilities } = {}
+      for (const role of ['chat', 'work'] as const) { const parsed = schema.safeParse(metadata?.[role]); if (parsed.success) capabilities[role] = parsed.data }
+      return { chat: levels(answer.chat), work: levels(answer.work), ...(Object.keys(capabilities).length ? { capabilities } : {}) }
     },
     /** New thinking levels from the settings; they apply from each session's next step. */
     efforts: (efforts: { chat?: string; work?: string }) => send({ t: 'efforts', efforts }),

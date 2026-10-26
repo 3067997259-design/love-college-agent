@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Clock } from '../clock'
+import { readClock, type Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import type { ModelTool } from '../model/types'
 import type { JournalInput } from '../journal/schema'
@@ -42,16 +42,7 @@ export function builtinTools(): HarnessTool[] {
     { definition: manifest[0], templateId: 'clock.read', validate: (input) => z.strictObject({}).safeParse(input).success,
       run: async (_input, { clock, signal }) => {
         signal.throwIfAborted()
-        const nowMs = clock.nowMs()
-        const value = {
-          nowMs,
-          iso: clock.iso(nowMs),
-          timeZone: 'Asia/Shanghai',
-          local: new Intl.DateTimeFormat('zh-CN', {
-            timeZone: 'Asia/Shanghai', weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit', hour12: false,
-          }).format(nowMs),
-        }
+        const value = readClock(clock)
         return { ok: true, raw: value, visible: value }
       } },
     { definition: manifest[1], templateId: 'plan.update', validate: (input) => planSchema.safeParse(input).success,

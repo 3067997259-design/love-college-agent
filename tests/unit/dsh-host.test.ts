@@ -70,6 +70,24 @@ it('preserves startup and request/reply while IPC is connected', async () => {
   const closing = f.host.close(); f.child.emit('exit', 0); expect(await closing).toBe(0)
 })
 
+it('only passes state requests from the current registered root to main', async () => {
+  const onState = vi.fn(() => true), f = setup({ onState }); await f.start()
+  const opening = f.host.open('project', 's'); await Promise.resolve()
+  const command = f.child.send.mock.calls.at(-1)![0]
+  const origin = { ...command.binding as object, rootSessionId: 's', sessionId: 's', parentSessionId: null }
+  f.emit({ t: 'session', ref: command.ref, sessionId: 's' }); await opening
+  const request = { t: 'state-request', id: 'state', sessionId: 's', origin, state: { mode: 'work', token: 'token' } }
+  f.emit(request); expect(onState).toHaveBeenCalledTimes(1)
+  expect(f.child.send.mock.calls.at(-1)![0]).toMatchObject({ t: 'state-answer', ok: true })
+  const child = { ...origin, sessionId: 'child', parentSessionId: 's' }
+  f.emit({ t: 'member', origin: child }); f.emit({ ...request, origin: child })
+  f.emit({ ...request, origin: { ...origin, runtimeId: 'old-runtime' } })
+  f.host.cancel('s'); f.emit(request)
+  expect(onState).toHaveBeenCalledTimes(1)
+  expect(f.child.send.mock.calls.at(-1)![0]).toMatchObject({ t: 'state-answer', ok: false })
+  const closing = f.host.close(); f.child.emit('exit', 0); await closing
+})
+
 it('rejects pending requests and stops all commands after disconnect', async () => {
   const f = setup(); await f.start()
   const opening = f.host.open('project'); const rejected = expect(opening).rejects.toThrow('DSH_HOST_EXITED')

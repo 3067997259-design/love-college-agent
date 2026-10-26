@@ -232,7 +232,7 @@ function DoorSign({ snapshot, onCommand, failed }: { snapshot: AppSnapshot; onCo
   return (
     <div className="door room-ui" data-photo-omit ref={ref}>
       <button type="button" className="door-sign" data-mode={companion.mode} aria-haspopup="menu" aria-expanded={open}
-        title="门牌：点一下翻面" onClick={() => setOpen((value) => !value)}>
+        title="门牌：切换工作与相处节奏" onClick={() => setOpen((value) => !value)}>
         {MODE_LABEL[companion.mode]}
       </button>
       {failed && <span className="notice-mark door-notice" title="没翻过去，稍后再试">！</span>}
@@ -242,6 +242,7 @@ function DoorSign({ snapshot, onCommand, failed }: { snapshot: AppSnapshot; onCo
             <button key={mode} type="button" role="menuitemradio" aria-checked={companion.mode === mode}
               onClick={() => pick({ type: 'mode.set', mode })}>
               {MODE_LABEL[mode]}
+              <small>{{ work: '交给她做事，下一轮直接开始工作', quiet: '安静陪伴，暂存后台消息', rest: '聊聊天，看看她的交付' }[mode]}</small>
               {mode === 'rest' && interrupts && companion.mode !== 'rest' && <small>提前结束这一段</small>}
             </button>
           ))}

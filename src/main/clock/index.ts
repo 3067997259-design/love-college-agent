@@ -5,6 +5,20 @@ export interface Clock {
   after(delayMs: number, callback: () => void): () => void
 }
 
+/** One application-clock reading, shared by turn context and the clock tool. */
+export function readClock(clock: Clock) {
+  const nowMs = clock.nowMs()
+  return {
+    nowMs,
+    iso: clock.iso(nowMs),
+    timeZone: 'Asia/Shanghai',
+    local: new Intl.DateTimeFormat('zh-CN', {
+      timeZone: 'Asia/Shanghai', weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(nowMs),
+  }
+}
+
 export const systemClock: Clock = {
   nowMs: () => Date.now(),
   iso: (timestampMs) => new Date(timestampMs).toISOString(),
