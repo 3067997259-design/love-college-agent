@@ -5,6 +5,14 @@ import type { CollaborationCommand, CollaborationView } from './collaboration'
 export const DSH_PROTOCOL_VERSION = 2 as const
 /** Ephemeral state capability: only main issues it; old replies cannot override a new user choice. */
 export interface DshConversationState { mode: 'work' | 'quiet' | 'rest'; token: string }
+/** One user-requested connection test through DSH's own adapter for a role's route (bridge `probe` -> `probed`). */
+export interface DshProbeResult {
+  ok: boolean
+  durationMs: number
+  route: { provider: string; model: string }
+  /** DSH's normalized model failure; `message` is the provider's or transport's text. */
+  failure?: { code: string; message: string; status?: number; requestId?: string }
+}
 export interface DshRootBinding {
   protocolVersion: typeof DSH_PROTOCOL_VERSION
   runtimeId: string

@@ -385,6 +385,33 @@ export interface ModelSlotDetail {
   modelRef?: string
   capabilities?: import('./model-capabilities').ModelCapabilityView
 }
+/** A closed reason for a failed connection test; the settings show one plain sentence per kind. */
+export type ConnectionIssueKind = 'key-rejected' | 'forbidden' | 'model-not-found' | 'endpoint-not-found' | 'bad-request' | 'quota' | 'rate-limited'
+  | 'server-error' | 'dns' | 'refused' | 'tls' | 'timeout' | 'bad-response' | 'engine-unavailable' | 'unknown'
+/**
+ * What one connection test actually did. Chat and work are tested through DSH, the path her turns use;
+ * memory, diary and the privacy filter through LCA's own client. Provider text is key-redacted and bounded.
+ */
+export interface ConnectionProbeDetail {
+  path: 'dsh' | 'direct'
+  model: string
+  /** The URL that was called, when LCA knows it (direct client, or DSH speaking OpenAI-compatible chat at your address). */
+  endpoint?: string
+  /** The DSH provider route; a native vendor's adapter uses its own endpoint, not the address you entered. */
+  adapter?: string
+  durationMs: number
+  issue?: {
+    kind: ConnectionIssueKind
+    httpStatus?: number
+    /** DSH failure code, provider error code, or network code such as ENOTFOUND. */
+    code?: string
+    /** The provider's or the transport's own message. */
+    message?: string
+    /** Start of the raw error response (direct client only). */
+    body?: string
+    requestId?: string
+  }
+}
 export interface ModelSettingsView {
   routing?: ModelRouting
   details?: Partial<Record<ModelProviderSlot, ModelSlotDetail>>
@@ -395,8 +422,8 @@ export interface ModelSettingsView {
   status: 'idle' | 'selecting' | 'saved' | 'failed'
   configuredSlots: readonly ModelProviderSlot[]
   restartRequired: boolean
-  /** Latest user-requested connectivity probe; never carries URL, model name, key or response text. */
-  probe?: { slot: ModelProviderSlot; status: 'testing' | 'ok' | 'failed'; code?: PublicErrorCode; atMs: number }
+  /** Latest user-requested connection test. `detail` is for the user's own settings page; it never carries a key. */
+  probe?: { slot: ModelProviderSlot; status: 'testing' | 'ok' | 'failed'; code?: PublicErrorCode; detail?: ConnectionProbeDetail; atMs: number }
   /** Presence only: never URLs, mail user, voices or keys. */
   services?: { tts: boolean; rodin: boolean; mail: boolean }
   error?: PublicError

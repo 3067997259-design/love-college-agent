@@ -91,7 +91,7 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'models.routing.set'; slot: 'background' | 'privacy' | 'work'; mode: 'follow-main' | 'independent' }
   /** null returns the role to the provider's default thinking level. */
   | { type: 'models.effort.set'; role: 'chat' | 'work'; effort: ReasoningEffort | null }
-  /** User-requested fixed-prompt probe of the saved slot; no URL/key/response text returns. */
+  /** User-requested fixed-prompt test of the saved slot, on the path that slot really uses; the result never carries a key. */
   | { type: 'models.probe'; slot: ModelProviderSlot }
   /** TTS / Rodin service connections; blank fields keep saved values. */
   | { type: 'models.service.save'; service: 'tts' | 'rodin'; baseUrl: string; model: string; apiKey?: string; voice?: string }
