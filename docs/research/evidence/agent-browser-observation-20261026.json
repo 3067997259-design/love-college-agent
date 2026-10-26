@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "observedDate": "2026-10-26",
+  "purpose": "Read-only follow-up on observation cost; not a full Agent Browser migration review or runtime benchmark.",
+  "agentBrowser": {
+    "repository": "vercel-labs/agent-browser",
+    "revision": "6d6270059bfa34b39719d218486dc9acc7d82823",
+    "version": "0.39.3",
+    "sources": [
+      {
+        "path": "package.json",
+        "blobSha": "bd6ac41b0e019ffdc4b09e70ac0f780494fd6564",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/package.json"
+      },
+      {
+        "path": "README.md",
+        "blobSha": "a98f730503585832f6330b7455bd1753a721d319",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/README.md"
+      },
+      {
+        "path": "docs/content/docs/snapshots.mdx",
+        "blobSha": "a8e7ce3e217e76e31fc9c0e612c874fe1425c94b",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/docs/content/docs/snapshots.mdx"
+      },
+      {
+        "path": "cli/src/native/snapshot.rs",
+        "blobSha": "46efcbcd018112ba9837a886c908bb484694676b",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/native/snapshot.rs"
+      },
+      {
+        "path": "cli/src/native/screenshot.rs",
+        "blobSha": "dcf6bf0dcb6ac9fdfd27a759bf6fa03b3c0a8b7e",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/native/screenshot.rs"
+      }
+    ]
+  },
+  "browserSkill": {
+    "repository": "Tencent/BrowserSkill",
+    "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+    "path": "packages/dsh-plugin-browserskill/src/browser-tools.ts",
+    "blobSha": "731d463fdcbc3b1ea32eb61231442829ebf46d1e"
+  },
+  "runtimeAcceptance": "not-run",
+  "comparativeTokenMeasurement": "not-run",
+  "decision": "Prefer Agent Browser as the next observation-backend candidate given user preference; BrowserSkill remains alternative for visible borrowed-tab workflows."
+}

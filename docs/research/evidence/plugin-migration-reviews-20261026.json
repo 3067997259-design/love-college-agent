@@ -1,0 +1,585 @@
+{
+  "schema": 1,
+  "observedDate": "2026-10-26",
+  "purpose": "Read-only migration review under plugin-migration-spec v0.1; no third-party execution, installation, or LCA runtime changes.",
+  "catalog": {
+    "repository": "awesome-dsh-plugin/awesome-dsh-plugin",
+    "revision": "a7ae7b2a1295e96b2a84268ed0443f1aead14f33",
+    "recordCount": 6896,
+    "treeTruncated": false,
+    "selection": "Purposeful filename/category screening for research, documents and external software; 12 metadata records inspected, not a representative market sample.",
+    "inspected": [
+      {
+        "path": "data/plugins/Hongcheng-LI__dsh-zotero.yml",
+        "blobSha": "09fb559ee219631e470f5825cb0cdce07b9c2947",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/Hongcheng-LI__dsh-zotero.yml"
+      },
+      {
+        "path": "data/plugins/Vncntvx__dsh-zotero.yml",
+        "blobSha": "3e8f9c29e4372c40b3f9a74fb51a9026baf15e5a",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/Vncntvx__dsh-zotero.yml"
+      },
+      {
+        "path": "data/plugins/peijiping__dsh-plugin-zotero.yml",
+        "blobSha": "3ec3ed0d87beedfd56519e5f99b3660f839c2a2d",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/peijiping__dsh-plugin-zotero.yml"
+      },
+      {
+        "path": "data/plugins/hairyf__dsh-office-kit.yml",
+        "blobSha": "a54822a8cb7555b9358c980c226e57aa3d2d830d",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/hairyf__dsh-office-kit.yml"
+      },
+      {
+        "path": "data/plugins/wly8691-jpg__dsh-office-com.yml",
+        "blobSha": "75386a9a105e6d727e61d8228242062cdf80a194",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/wly8691-jpg__dsh-office-com.yml"
+      },
+      {
+        "path": "data/plugins/Tencent__BrowserSkill--packages-dsh-plugin-browserskill.yml",
+        "blobSha": "f2044a55bc2f8bc382a9c0c693086cdfa21b8b76",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/Tencent__BrowserSkill--packages-dsh-plugin-browserskill.yml"
+      },
+      {
+        "path": "data/plugins/DedsecLemon__dsh-obsidian.yml",
+        "blobSha": "33f6fd8a671156505f109104093e500cef9d4f64",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/DedsecLemon__dsh-obsidian.yml"
+      },
+      {
+        "path": "data/plugins/Harzva__dsh-obsidian.yml",
+        "blobSha": "f35867ad951284bb3273e91072066d8b2d4b7d8f",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/Harzva__dsh-obsidian.yml"
+      },
+      {
+        "path": "data/plugins/AngelosZou__dsh-pdf-reader.yml",
+        "blobSha": "3c4d88d62235553b2fd2b6db4e72950797044140",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/AngelosZou__dsh-pdf-reader.yml"
+      },
+      {
+        "path": "data/plugins/Cjrrrrrrrr__dsh-plugins--packages-dsh-scholar.yml",
+        "blobSha": "392d7f0f4bc62562b448975cf473c5fe9ddb9b5b",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/Cjrrrrrrrr__dsh-plugins--packages-dsh-scholar.yml"
+      },
+      {
+        "path": "data/plugins/Azhe0306__dsh-connectors--packages-browser-connector.yml",
+        "blobSha": "4dee846d364d308b6065a59b88d5f565301bf11d",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/Azhe0306__dsh-connectors--packages-browser-connector.yml"
+      },
+      {
+        "path": "data/plugins/Anionex__dsh-computer-use.yml",
+        "blobSha": "a5dc984e67e85bf50730c8e1de8d6c63fb266cf7",
+        "url": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/a7ae7b2a1295e96b2a84268ed0443f1aead14f33/data/plugins/Anionex__dsh-computer-use.yml"
+      }
+    ]
+  },
+  "local": {
+    "revision": "711af30d0299141d5830d78b51090dd195f9cb31",
+    "trackedDirty": true,
+    "platform": "Windows",
+    "electronDeclared": "44.7.0",
+    "dshDeclared": "0.2.1-rc.2",
+    "files": [
+      {
+        "path": "src/main/plugins/registry.ts",
+        "sha256": "930e174009d12344ed13fe1c5e46e8c4e7effcbb266b30917ea22432163aeb69"
+      },
+      {
+        "path": "src/main/plugins/manifest.ts",
+        "sha256": "58c36c97bf413a57a61b7123f6ba0b62c2b278cd21424ec040293a3ff6915a2b"
+      },
+      {
+        "path": "src/main/dsh/execution.ts",
+        "sha256": "024a4a545a48a225a0f24d823b674059467ce8f2e68e2e25ae4a3d77d6ca0750"
+      },
+      {
+        "path": "dsh/lca-bridge/policy.js",
+        "sha256": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615"
+      },
+      {
+        "path": "dsh/lca-bridge/index.js",
+        "sha256": "c8a6faf59653fdcdd5291dde213143a98b637f84857015ccb7a6785c489ca47b"
+      },
+      {
+        "path": "src/main/mcp/connection.ts",
+        "sha256": "17e97a9ea04708078088d4c2ea89f8b7543d6165efb609553d1b7173e11910e1"
+      },
+      {
+        "path": "src/main/documents/tools.ts",
+        "sha256": "204f34cce2fcf63c41dbfabf48089186dda8233dba10847565e50a076b688d1d"
+      },
+      {
+        "path": "src/shared/extensions.ts",
+        "sha256": "3d37e62aefef2e4866d24bb72481fe500eea48141ee1bc7c790fc6e872c8cc71"
+      },
+      {
+        "path": "docs/plugin-migration-spec.md",
+        "sha256": "37dd159760071ba0d4c464c44e8c5a2c8b8c35c518f4cecfe663f3f4967be5d1"
+      }
+    ]
+  },
+  "reviews": [
+    {
+      "id": "scholar",
+      "repository": "Cjrrrrrrrr/dsh-plugins",
+      "revision": "3d546b1dcd534ba412f5eaa7989368e0d5f5e006",
+      "scope": "Crossref/arXiv explicit bounded search and identifier metadata, not full text",
+      "route": "M3",
+      "flow": "F1",
+      "priority": 1,
+      "decision": "validate-first",
+      "artifactHash": null,
+      "runtimeAcceptance": "not-run",
+      "packageAcceptance": "not-run",
+      "redistributionClearance": "not-determined",
+      "estimates": "planning estimates, not measured"
+    },
+    {
+      "id": "zotero",
+      "repository": "Hongcheng-LI/dsh-zotero",
+      "revision": "e4042d5139aa81d810b95928d63632f80a32a7ac",
+      "scope": "Explicit collection-bound local library metadata/abstract read, no filesystem/fulltext/writes",
+      "route": "M3",
+      "flow": "F2",
+      "priority": 2,
+      "decision": "validate-first; conditional on user having a library",
+      "artifactHash": null,
+      "runtimeAcceptance": "not-run",
+      "packageAcceptance": "not-run",
+      "redistributionClearance": "not-determined",
+      "estimates": "planning estimates, not measured"
+    },
+    {
+      "id": "browserskill",
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "scope": "Explicitly selected/borrowed browser tab text observation; later bounded interaction separately",
+      "route": "M1+M3",
+      "flow": "F2",
+      "priority": 3,
+      "decision": "validate-first",
+      "artifactHash": null,
+      "runtimeAcceptance": "not-run",
+      "packageAcceptance": "not-run",
+      "redistributionClearance": "not-determined",
+      "estimates": "planning estimates, not measured"
+    },
+    {
+      "id": "coopanion",
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "scope": "User-selected desktop software window observation; input-control is a separate future scope",
+      "route": "M4 preferred for narrow observation; M3 contingent on license/integration decision",
+      "flow": "F2 observation; F3 unrestricted desktop control",
+      "priority": 4,
+      "decision": "defer full control; validate bounded observation",
+      "artifactHash": null,
+      "runtimeAcceptance": "not-run",
+      "packageAcceptance": "not-run",
+      "redistributionClearance": "not-determined",
+      "estimates": "planning estimates, not measured"
+    }
+  ],
+  "sources": [
+    {
+      "repository": "Cjrrrrrrrr/dsh-plugins",
+      "revision": "3d546b1dcd534ba412f5eaa7989368e0d5f5e006",
+      "path": "LICENSE",
+      "blobSha": "db3992f3c4c7f500dd6de9c091dbd57423ccaebf",
+      "lineCount": 22,
+      "url": "https://github.com/Cjrrrrrrrr/dsh-plugins/blob/3d546b1dcd534ba412f5eaa7989368e0d5f5e006/LICENSE"
+    },
+    {
+      "repository": "Cjrrrrrrrr/dsh-plugins",
+      "revision": "3d546b1dcd534ba412f5eaa7989368e0d5f5e006",
+      "path": "packages/dsh-scholar/lib/index.js",
+      "blobSha": "4ca636ef45af0ede1c9cef83fcb3d09ac8b64a32",
+      "lineCount": 271,
+      "url": "https://github.com/Cjrrrrrrrr/dsh-plugins/blob/3d546b1dcd534ba412f5eaa7989368e0d5f5e006/packages/dsh-scholar/lib/index.js"
+    },
+    {
+      "repository": "Cjrrrrrrrr/dsh-plugins",
+      "revision": "3d546b1dcd534ba412f5eaa7989368e0d5f5e006",
+      "path": "packages/dsh-scholar/lib/sources.js",
+      "blobSha": "1205b35fcd2e9dfe7b5673ee80a71a4819b2d86d",
+      "lineCount": 469,
+      "url": "https://github.com/Cjrrrrrrrr/dsh-plugins/blob/3d546b1dcd534ba412f5eaa7989368e0d5f5e006/packages/dsh-scholar/lib/sources.js"
+    },
+    {
+      "repository": "Cjrrrrrrrr/dsh-plugins",
+      "revision": "3d546b1dcd534ba412f5eaa7989368e0d5f5e006",
+      "path": "packages/dsh-scholar/package.json",
+      "blobSha": "5a6ec3b70cf548acd0e1835e9cad280bd56597cf",
+      "lineCount": 60,
+      "url": "https://github.com/Cjrrrrrrrr/dsh-plugins/blob/3d546b1dcd534ba412f5eaa7989368e0d5f5e006/packages/dsh-scholar/package.json"
+    },
+    {
+      "repository": "Hongcheng-LI/dsh-zotero",
+      "revision": "e4042d5139aa81d810b95928d63632f80a32a7ac",
+      "path": "LICENSE",
+      "blobSha": "3908477b0162f0b11d49f348d45685136824e270",
+      "lineCount": 22,
+      "url": "https://github.com/Hongcheng-LI/dsh-zotero/blob/e4042d5139aa81d810b95928d63632f80a32a7ac/LICENSE"
+    },
+    {
+      "repository": "Hongcheng-LI/dsh-zotero",
+      "revision": "e4042d5139aa81d810b95928d63632f80a32a7ac",
+      "path": "package.json",
+      "blobSha": "e42798c51f01646da826aad241437e886a12da1a",
+      "lineCount": 64,
+      "url": "https://github.com/Hongcheng-LI/dsh-zotero/blob/e4042d5139aa81d810b95928d63632f80a32a7ac/package.json"
+    },
+    {
+      "repository": "Hongcheng-LI/dsh-zotero",
+      "revision": "e4042d5139aa81d810b95928d63632f80a32a7ac",
+      "path": "src/config.ts",
+      "blobSha": "6e3bc87c7df88748958ac86312c1fc95a0263e50",
+      "lineCount": 52,
+      "url": "https://github.com/Hongcheng-LI/dsh-zotero/blob/e4042d5139aa81d810b95928d63632f80a32a7ac/src/config.ts"
+    },
+    {
+      "repository": "Hongcheng-LI/dsh-zotero",
+      "revision": "e4042d5139aa81d810b95928d63632f80a32a7ac",
+      "path": "src/files.ts",
+      "blobSha": "aac8e00354b6cfc1efd35b54502f0e2d78d4b36a",
+      "lineCount": 38,
+      "url": "https://github.com/Hongcheng-LI/dsh-zotero/blob/e4042d5139aa81d810b95928d63632f80a32a7ac/src/files.ts"
+    },
+    {
+      "repository": "Hongcheng-LI/dsh-zotero",
+      "revision": "e4042d5139aa81d810b95928d63632f80a32a7ac",
+      "path": "src/index.ts",
+      "blobSha": "815bc5b8afbb38304054d5e5482b1c1f2322c87c",
+      "lineCount": 572,
+      "url": "https://github.com/Hongcheng-LI/dsh-zotero/blob/e4042d5139aa81d810b95928d63632f80a32a7ac/src/index.ts"
+    },
+    {
+      "repository": "Hongcheng-LI/dsh-zotero",
+      "revision": "e4042d5139aa81d810b95928d63632f80a32a7ac",
+      "path": "src/notes.ts",
+      "blobSha": "8a13b61f43bb9a5e514a847032be27da4cda3d70",
+      "lineCount": 25,
+      "url": "https://github.com/Hongcheng-LI/dsh-zotero/blob/e4042d5139aa81d810b95928d63632f80a32a7ac/src/notes.ts"
+    },
+    {
+      "repository": "Hongcheng-LI/dsh-zotero",
+      "revision": "e4042d5139aa81d810b95928d63632f80a32a7ac",
+      "path": "src/storage.ts",
+      "blobSha": "946d18b2f23e3661dc3f09d3df1153b9d792eaa3",
+      "lineCount": 86,
+      "url": "https://github.com/Hongcheng-LI/dsh-zotero/blob/e4042d5139aa81d810b95928d63632f80a32a7ac/src/storage.ts"
+    },
+    {
+      "repository": "Hongcheng-LI/dsh-zotero",
+      "revision": "e4042d5139aa81d810b95928d63632f80a32a7ac",
+      "path": "src/zotero-client.ts",
+      "blobSha": "b4b78ff555fdfa8c09f304caaccedf0606890f01",
+      "lineCount": 503,
+      "url": "https://github.com/Hongcheng-LI/dsh-zotero/blob/e4042d5139aa81d810b95928d63632f80a32a7ac/src/zotero-client.ts"
+    },
+    {
+      "repository": "Hongcheng-LI/dsh-zotero",
+      "revision": "e4042d5139aa81d810b95928d63632f80a32a7ac",
+      "path": "test/zotero.test.mjs",
+      "blobSha": "2df79ea36838ce8637cac2efb99e3b846f7bce49",
+      "lineCount": 200,
+      "url": "https://github.com/Hongcheng-LI/dsh-zotero/blob/e4042d5139aa81d810b95928d63632f80a32a7ac/test/zotero.test.mjs"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "LICENSE",
+      "blobSha": "0d72eb2dbb2d166576ff81781a0127dfbbd5e636",
+      "lineCount": 22,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/LICENSE"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "README.zh-CN.md",
+      "blobSha": "9e4d19e46165a680d6e255d344e16241d0120a4e",
+      "lineCount": 327,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/README.zh-CN.md"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/LICENSE",
+      "blobSha": "0d72eb2dbb2d166576ff81781a0127dfbbd5e636",
+      "lineCount": 22,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/LICENSE"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/package.json",
+      "blobSha": "2a81397583d04e02a977642baa344c9cbc87490d",
+      "lineCount": 137,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/package.json"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/src/browser-tools.ts",
+      "blobSha": "731d463fdcbc3b1ea32eb61231442829ebf46d1e",
+      "lineCount": 498,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/src/browser-tools.ts"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/src/index.ts",
+      "blobSha": "dcd9504522c5255b354240ff927715e49ea0ff0c",
+      "lineCount": 180,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/src/index.ts"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/src/phase-one-runtime.ts",
+      "blobSha": "361007750e105c792b99d23a584e380d53b20bdd",
+      "lineCount": 59,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/src/phase-one-runtime.ts"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/src/phase-one-tools-navigation.ts",
+      "blobSha": "5db4d27dbd0f6aca6e2a1606b4fbe257b0977be4",
+      "lineCount": 341,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/src/phase-one-tools-navigation.ts"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/src/phase-one-tools-tabs.ts",
+      "blobSha": "db008da8c155e47706102cb747a950143d9793b8",
+      "lineCount": 403,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/src/phase-one-tools-tabs.ts"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/src/phase-one-tools.ts",
+      "blobSha": "ff4ca05cd0a84c2a153db87a87d42acab17786fd",
+      "lineCount": 27,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/src/phase-one-tools.ts"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/src/runner.ts",
+      "blobSha": "ac367057c610ba22b0dc83b79e9b2708bef6d7d4",
+      "lineCount": 478,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/src/runner.ts"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/src/session-starts.ts",
+      "blobSha": "74bfe5a9b5e29743512e7002fd96d3de8da1c3b8",
+      "lineCount": 460,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/src/session-starts.ts"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/src/sessions.ts",
+      "blobSha": "e4f08110519ea9e22d06a3bf308bba4f2fcbea82",
+      "lineCount": 250,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/src/sessions.ts"
+    },
+    {
+      "repository": "Tencent/BrowserSkill",
+      "revision": "c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b",
+      "path": "packages/dsh-plugin-browserskill/src/tools.ts",
+      "blobSha": "3e5b47ac7511a200999c5f25260d45e2c9a20766",
+      "lineCount": 1194,
+      "url": "https://github.com/Tencent/BrowserSkill/blob/c0b8e5704a69aa93f6cdd40bbb286a9dd485d42b/packages/dsh-plugin-browserskill/src/tools.ts"
+    },
+    {
+      "repository": "Vncntvx/dsh-zotero",
+      "revision": "6bd46578935077ff804423cb4ae302ac898273d0",
+      "path": "package.json",
+      "blobSha": "176436482cea8b724ee22874a85d5e4a9920c643",
+      "lineCount": 304,
+      "url": "https://github.com/Vncntvx/dsh-zotero/blob/6bd46578935077ff804423cb4ae302ac898273d0/package.json"
+    },
+    {
+      "repository": "hairyf/dsh-office-kit",
+      "revision": "418ab105be7a3c7c0bb5e9824ba6a6c4797bef96",
+      "path": "LICENSE.md",
+      "blobSha": "c1e35c1824aeed0dd74f475595262cae184aa1b7",
+      "lineCount": 22,
+      "url": "https://github.com/hairyf/dsh-office-kit/blob/418ab105be7a3c7c0bb5e9824ba6a6c4797bef96/LICENSE.md"
+    },
+    {
+      "repository": "hairyf/dsh-office-kit",
+      "revision": "418ab105be7a3c7c0bb5e9824ba6a6c4797bef96",
+      "path": "python/requirements.txt",
+      "blobSha": "b7d98a0657b2f14e8109255deeba9a7e4aa7541b",
+      "lineCount": 11,
+      "url": "https://github.com/hairyf/dsh-office-kit/blob/418ab105be7a3c7c0bb5e9824ba6a6c4797bef96/python/requirements.txt"
+    },
+    {
+      "repository": "wly8691-jpg/dsh-office-com",
+      "revision": "494b53e708e342f3f36278324fa93d86d67d81bd",
+      "path": "lib/index.mjs",
+      "blobSha": "9490ee08b1ec797101f90d4a7883b6bc205b59ee",
+      "lineCount": 3670,
+      "url": "https://github.com/wly8691-jpg/dsh-office-com/blob/494b53e708e342f3f36278324fa93d86d67d81bd/lib/index.mjs"
+    },
+    {
+      "repository": "wly8691-jpg/dsh-office-com",
+      "revision": "494b53e708e342f3f36278324fa93d86d67d81bd",
+      "path": "package.json",
+      "blobSha": "b7ffe3def3d3f6e88c9fa08b51196f8f4e250680",
+      "lineCount": 60,
+      "url": "https://github.com/wly8691-jpg/dsh-office-com/blob/494b53e708e342f3f36278324fa93d86d67d81bd/package.json"
+    },
+    {
+      "repository": "AngelosZou/dsh-pdf-reader",
+      "revision": "ffecd361b7f2803fdccd1cf92149aad3e11a3271",
+      "path": "lib/python.js",
+      "blobSha": "964798e8f424d03707f9a8c978c3e9313b526f9e",
+      "lineCount": 101,
+      "url": "https://github.com/AngelosZou/dsh-pdf-reader/blob/ffecd361b7f2803fdccd1cf92149aad3e11a3271/lib/python.js"
+    },
+    {
+      "repository": "AngelosZou/dsh-pdf-reader",
+      "revision": "ffecd361b7f2803fdccd1cf92149aad3e11a3271",
+      "path": "package.json",
+      "blobSha": "929a5c39140c7ad12d6f303c33a514cc89809b06",
+      "lineCount": 51,
+      "url": "https://github.com/AngelosZou/dsh-pdf-reader/blob/ffecd361b7f2803fdccd1cf92149aad3e11a3271/package.json"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "README_zh.md",
+      "blobSha": "416487782c742ff145d812f9bf7c167591566c98",
+      "lineCount": 269,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/README_zh.md"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/LICENSE",
+      "blobSha": "fe6b9036ba1818c79c15f802a586a9711ece2b97",
+      "lineCount": 663,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/LICENSE"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/host/mouse-lease.cjs",
+      "blobSha": "93d19cb13d372bc4e86812356328715631fd19ea",
+      "lineCount": 56,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/host/mouse-lease.cjs"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/package.json",
+      "blobSha": "54b1c1b1e5e9824dbb54ec678fb4259454ebf2d9",
+      "lineCount": 80,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/package.json"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/src/cua/config.ts",
+      "blobSha": "b3fb346fd84b3b2b0bc19cb3c503f2693e306f8a",
+      "lineCount": 81,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/src/cua/config.ts"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/src/cua/cua.ts",
+      "blobSha": "9a680035ada733811261c3691b6864db747fd3b9",
+      "lineCount": 657,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/src/cua/cua.ts"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/src/cua/engine-child.ts",
+      "blobSha": "76deb35ee265f6ef4e8007153173fe47a6555356",
+      "lineCount": 243,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/src/cua/engine-child.ts"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/src/cua/engine-ipc.ts",
+      "blobSha": "b9cc9f61ac88b5b964fe1692a4e3f03bb24b45f8",
+      "lineCount": 110,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/src/cua/engine-ipc.ts"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/src/cua/engine/win32.ts",
+      "blobSha": "dee952bf7e1cd20e0697bba8ff524ce800543d95",
+      "lineCount": 280,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/src/cua/engine/win32.ts"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/src/cua/terminal.ts",
+      "blobSha": "a42258e4cefb413b11c646f913683b104a729fac",
+      "lineCount": 32,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/src/cua/terminal.ts"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/src/cua/tools.ts",
+      "blobSha": "af9994ff52dd6fac984686461a15281d42ef59c6",
+      "lineCount": 130,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/src/cua/tools.ts"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/tests/cua/e2e/core.test.ts",
+      "blobSha": "a2490b86a273f7e3270906b83095c688dada34fe",
+      "lineCount": 76,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/tests/cua/e2e/core.test.ts"
+    },
+    {
+      "repository": "Pal-AI-Lab/Coopanion",
+      "revision": "ed8bdf179d55c69c081a5488035ac86bd71d63e5",
+      "path": "packages/cortico-world-desktop-pet/tests/cua/recovery.test.ts",
+      "blobSha": "b565b9b80c8ffe4bf66a7483c61c34448c5b4741",
+      "lineCount": 80,
+      "url": "https://github.com/Pal-AI-Lab/Coopanion/blob/ed8bdf179d55c69c081a5488035ac86bd71d63e5/packages/cortico-world-desktop-pet/tests/cua/recovery.test.ts"
+    }
+  ],
+  "officialReferences": [
+    {
+      "url": "https://www.zotero.org/support/dev/web_api/v3/local_api",
+      "use": "Local read API, consent for writes and instance identity; current docs vs plugin assumptions"
+    },
+    {
+      "url": "https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/",
+      "use": "API access and rate limits"
+    },
+    {
+      "url": "https://www.crossref.org/documentation/retrieve-metadata/rest-api/",
+      "use": "Metadata vs abstracts reuse conditions"
+    },
+    {
+      "url": "https://github.com/arXiv/arxiv-docs/blob/develop/source/help/api/user-manual.md",
+      "use": "API pacing"
+    },
+    {
+      "url": "https://help.openalex.org/api/authentication/",
+      "use": "Current key and pagination rules; do not assume unlimited free no-key use"
+    },
+    {
+      "url": "https://pymupdf.readthedocs.io/en/latest/about.html#license-and-copyright",
+      "use": "AGPL/commercial dependency licensing in PDF candidates"
+    }
+  ]
+}

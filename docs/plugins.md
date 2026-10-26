@@ -2,6 +2,8 @@
 
 插件书签集中管理本地插件、skills 和外部 MCP。日常动作与候选在日程页处理，设置中的快捷入口只负责打开插件页。
 
+评估新的 DSH 或其他生态插件时，使用 [插件迁入评估规格](plugin-migration-spec.md) 与 [评审模板](templates/plugin-migration-review.md)，分别判断用户价值、迁入路线、核心流程影响、宿主缺口、运行证据和许可。LCA 本地插件、DSH bundle、MCP 与 skill 是不同接入面；可导入或可加载不代表整包可用。该规格是评审流程，不是通用转换器或新增的插件 SDK。
+
 ## 校园助手
 
 当前推荐入口是 [campus-assistant](../plugin-packages/campus-assistant/README.md)，需要 LCA v0.1.10 及另行安装、配置和登录的 Student Hub 后端。插件不附带后端工程、Python、个人数据库、学校账号或登录状态。

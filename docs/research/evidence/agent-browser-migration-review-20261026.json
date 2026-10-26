@@ -1,0 +1,552 @@
+{
+  "schema": 1,
+  "observedDate": "2026-10-26",
+  "review": "../plugin-review-agent-browser-20261026.md",
+  "purpose": "Source-only complete migration review under plugin-migration-spec v0.1; no installation, upstream execution, browser connection, real-model call or runtime code modification.",
+  "upstream": {
+    "repository": "vercel-labs/agent-browser",
+    "revision": "6d6270059bfa34b39719d218486dc9acc7d82823",
+    "declaredVersion": "0.39.3",
+    "artifactSha256": null,
+    "artifactStatus": "Not downloaded or installed; source identity does not attest published binaries.",
+    "sourceAuditDepth": "Key entry points and selected implementation sections; not a full repository security or transitive-license audit.",
+    "fetchedSources": [
+      {
+        "path": "package.json",
+        "blobSha": "bd6ac41b0e019ffdc4b09e70ac0f780494fd6564",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/package.json"
+      },
+      {
+        "path": "LICENSE",
+        "blobSha": "8226d363f88a734e52cc79ead7a5588cc55e76f7",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/LICENSE"
+      },
+      {
+        "path": "cli/Cargo.toml",
+        "blobSha": "ec1cb6b3145c0ccd9c119c01e2c449451f7eb557",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/Cargo.toml"
+      },
+      {
+        "path": "cli/Cargo.lock",
+        "blobSha": "ab00396a226d98b2b6dc697c8877b384c25ac000",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/Cargo.lock"
+      },
+      {
+        "path": "cli/src/mcp.rs",
+        "blobSha": "0f528ac1246e98fc5f15a9b16af7d6d1ec1e7170",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/mcp.rs"
+      },
+      {
+        "path": "cli/src/main.rs",
+        "blobSha": "ec81dc9e9567a79e45c9aa7b118bf170633be43f",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/main.rs"
+      },
+      {
+        "path": "cli/src/flags.rs",
+        "blobSha": "f7470258af696297ae11773176fd40ff581a34e6",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/flags.rs"
+      },
+      {
+        "path": "cli/src/connection.rs",
+        "blobSha": "b8c0abbeea0756233c6c952befb8b92799be05e5",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/connection.rs"
+      },
+      {
+        "path": "cli/src/output.rs",
+        "blobSha": "51458aba88aaf1f90f4180120daa9a669428f17a",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/output.rs"
+      },
+      {
+        "path": "cli/src/read.rs",
+        "blobSha": "e6bb38dc82d1f8641375cb1acdd8c4987595201d",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/read.rs"
+      },
+      {
+        "path": "cli/src/native/actions.rs",
+        "blobSha": "092ed18fd180ab01289fadea6cc2eaa7fa9d8e24",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/native/actions.rs"
+      },
+      {
+        "path": "cli/src/native/browser.rs",
+        "blobSha": "6c4b6d07a9df61efe82e4f40cfc3174679100149",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/native/browser.rs"
+      },
+      {
+        "path": "cli/src/native/daemon.rs",
+        "blobSha": "123c2f7811418d1278bc0d8ce03be61b8327d702",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/native/daemon.rs"
+      },
+      {
+        "path": "cli/src/native/policy.rs",
+        "blobSha": "a34a7cb258202f29ffd3d56ccd91b828fd25ead5",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/native/policy.rs"
+      },
+      {
+        "path": "cli/src/native/snapshot.rs",
+        "blobSha": "46efcbcd018112ba9837a886c908bb484694676b",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/native/snapshot.rs"
+      },
+      {
+        "path": "cli/src/native/screenshot.rs",
+        "blobSha": "dcf6bf0dcb6ac9fdfd27a759bf6fa03b3c0a8b7e",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/native/screenshot.rs"
+      },
+      {
+        "path": "cli/src/native/cdp/windows_process.rs",
+        "blobSha": "6838149c9fcef99036e7496310f9c2dc5a0a5926",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/native/cdp/windows_process.rs"
+      },
+      {
+        "path": "cli/src/native/a11y/LICENSE-axe-core.txt",
+        "blobSha": "be2cc4dfb609fb6c38f6365ec345bded3350dd63",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/native/a11y/LICENSE-axe-core.txt"
+      },
+      {
+        "path": "cli/src/native/a11y/LICENSE-axe-core-THIRD-PARTY.txt",
+        "blobSha": "df5a2c2780baaab2a61128b64f2be5ab7cecf90b",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/cli/src/native/a11y/LICENSE-axe-core-THIRD-PARTY.txt"
+      },
+      {
+        "path": "docs/content/docs/security.mdx",
+        "blobSha": "c4aeae14ce0fe01ca2c8ccf91e9dbba8130ee591",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/docs/content/docs/security.mdx"
+      },
+      {
+        "path": "docs/content/docs/configuration.mdx",
+        "blobSha": "3ed2ed6d3f9059f5c9a7b4590252da25e7d6109f",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/docs/content/docs/configuration.mdx"
+      },
+      {
+        "path": "docs/content/docs/sessions.mdx",
+        "blobSha": "dc09fdb146b013a601419bcfbef625be24ede40a",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/docs/content/docs/sessions.mdx"
+      },
+      {
+        "path": "docs/content/docs/cdp-mode.mdx",
+        "blobSha": "b95de702608aafa27007d1cee04ad65e4f0a0acd",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/docs/content/docs/cdp-mode.mdx"
+      },
+      {
+        "path": "docs/content/docs/snapshots.mdx",
+        "blobSha": "a8e7ce3e217e76e31fc9c0e612c874fe1425c94b",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/docs/content/docs/snapshots.mdx"
+      },
+      {
+        "path": "scripts/postinstall.js",
+        "blobSha": "12281bd2a8527526b0678a70e3b9611cd0705053",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/scripts/postinstall.js"
+      },
+      {
+        "path": "bin/agent-browser.js",
+        "blobSha": "62c74d47c0b13d1ac5c69eb1b65f7bacf8c410cf",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/bin/agent-browser.js"
+      },
+      {
+        "path": "README.md",
+        "blobSha": "a98f730503585832f6330b7455bd1753a721d319",
+        "url": "https://github.com/vercel-labs/agent-browser/blob/6d6270059bfa34b39719d218486dc9acc7d82823/README.md"
+      }
+    ]
+  },
+  "local": {
+    "head": "711af30d0299141d5830d78b51090dd195f9cb31",
+    "dirty": true,
+    "declared": {
+      "dsh": "0.2.1-rc.2",
+      "electron": "44.7.0",
+      "playwrightDevDependency": "1.64.1",
+      "node": ">=24.14.0",
+      "pnpm": "11"
+    },
+    "platform": "Windows",
+    "files": [
+      {
+        "path": "AGENTS.md",
+        "sha256": "3a0f40f8783452d742fc87b18ef87e3df1551283e6cdea7d1be640e48845dbac"
+      },
+      {
+        "path": "package.json",
+        "sha256": "60287408b556086c2268ee5246c7dd611b913211589deda70071a3394788b203"
+      },
+      {
+        "path": "dsh/runtime/package.json",
+        "sha256": "0338679c552ae40b8bdee30dcc44453ae2d2e5c7b90692152990800462452f28"
+      },
+      {
+        "path": "src/main/mcp/connection.ts",
+        "sha256": "17e97a9ea04708078088d4c2ea89f8b7543d6165efb609553d1b7173e11910e1"
+      },
+      {
+        "path": "src/main/mcp/service.ts",
+        "sha256": "d15596e3650fde31dc79136d039a82c1dc7cb4050718eaa39f03e037dc0454c6"
+      },
+      {
+        "path": "src/main/mcp/config.ts",
+        "sha256": "147b8e3666ed8fbd46720490720ec68fb53463ace9931c637c5fbe8863e9c122"
+      },
+      {
+        "path": "src/main/mcp/bounded.ts",
+        "sha256": "37f37c77a2c25b2f613f9ee0d1943ed3bcde5778a58246bd88fa91a22e9b99b8"
+      },
+      {
+        "path": "src/main/dsh/host.ts",
+        "sha256": "b08409e72f7b154f9d40890494ab432cf68e251ab7576228b8aa0d40f4efd897"
+      },
+      {
+        "path": "src/main/dsh/execution.ts",
+        "sha256": "024a4a545a48a225a0f24d823b674059467ce8f2e68e2e25ae4a3d77d6ca0750"
+      },
+      {
+        "path": "src/main/dsh/routes.ts",
+        "sha256": "f435d8e831e8b369200c97aae727fdeff20cc541085d9c85b29d0e22760ac481"
+      },
+      {
+        "path": "src/main/dsh/identity.ts",
+        "sha256": "002fc1a52aa3b15a7d2d2dd745fb5a8a67a3c4d9cc6ed70fed6e1d3678bdc664"
+      },
+      {
+        "path": "src/main/config/model-capabilities.ts",
+        "sha256": "04c667e3c01c5dd56253527ab681e21fc9e406a57c2cbf614d0a64fef4d512a6"
+      },
+      {
+        "path": "src/shared/model-capabilities.ts",
+        "sha256": "9873d4c0b466867ddc0417eb2d21a0aca38f4f981f780ff01eb74994be93bba2"
+      },
+      {
+        "path": "src/shared/dsh-protocol.ts",
+        "sha256": "6a03ce238543382a2dc8e018b4ac956610b125b82b6d765c27340a495e25e941"
+      },
+      {
+        "path": "src/main/harness/tools.ts",
+        "sha256": "764d80bcb2c1e451d02479d68e6d8a4d185307ddf6475987980f5bd12fef369b"
+      },
+      {
+        "path": "src/main/plugins/registry.ts",
+        "sha256": "930e174009d12344ed13fe1c5e46e8c4e7effcbb266b30917ea22432163aeb69"
+      },
+      {
+        "path": "src/main/privacy/filter.ts",
+        "sha256": "c5e726f892d1943e9a2a4891e811f6b922141b366ccbfc3ce47fd1de6fe39abb"
+      },
+      {
+        "path": "src/main/model/client.ts",
+        "sha256": "279ff0231f9c5740d4b36ec8fd227a536d9f6d4751e57191495459048d697ee7"
+      },
+      {
+        "path": "src/main/minecraft/screenshot.ts",
+        "sha256": "96e4caac0609252b5c55d6bbd17478e96b6d459ff6bbd7478e3ca4ad0c78722c"
+      },
+      {
+        "path": "src/main/minecraft/pixels.ts",
+        "sha256": "44681c2a4ac3e8d75e9d5732ee46005867e317b7450f0b11b20cbb5284511951"
+      },
+      {
+        "path": "dsh/lca-bridge/index.js",
+        "sha256": "c8a6faf59653fdcdd5291dde213143a98b637f84857015ccb7a6785c489ca47b"
+      },
+      {
+        "path": "dsh/lca-bridge/policy.js",
+        "sha256": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615"
+      },
+      {
+        "path": "dsh/lca-bridge/provenance.js",
+        "sha256": "8e0db82f008be62831db2862aa69a797bc0cca64889729997d39ba0bf95c04ce"
+      },
+      {
+        "path": "dsh/lca-bridge/family.js",
+        "sha256": "0430d8dc236327b3751b501ff298bc0b68af8fc6378b2c8b8226d6c8d5dff9f6"
+      },
+      {
+        "path": "docs/plugin-migration-spec.md",
+        "sha256": "37dd159760071ba0d4c464c44e8c5a2c8b8c35c518f4cecfe663f3f4967be5d1"
+      },
+      {
+        "path": "docs/templates/plugin-migration-review.md",
+        "sha256": "29502f40598bf82cf1b0bf2f7fce0f64af19a8516e7f2656155eee8b1eabb5cc"
+      },
+      {
+        "path": "docs/privacy-and-data.md",
+        "sha256": "04da984729873a2cc69d1f2c18e4aae3f2311b61ae7acdae040aea58c9915e92"
+      }
+    ]
+  },
+  "facts": [
+    {
+      "id": "AB01",
+      "statement": "MCP core contains 29 tools including eval and interactions; common tool parameters include session, namespace, restore, allowedDomains, extraArgs, timeoutMs.",
+      "source": "cli/src/mcp.rs",
+      "lines": [
+        340,
+        370,
+        1954,
+        2073
+      ]
+    },
+    {
+      "id": "AB02",
+      "statement": "MCP input loop is synchronous; notifications without id are ignored; command timeout kills child CLI, not proven daemon cancellation.",
+      "source": "cli/src/mcp.rs",
+      "lines": [
+        511,
+        538,
+        591,
+        639,
+        4025,
+        4105
+      ]
+    },
+    {
+      "id": "AB03",
+      "statement": "Normal read without URL uses active-page DOM, but llms/requireMd can redirect even URL-less read to HTTP; explicit read URL is a separate fetch.",
+      "source": "cli/src/native/actions.rs",
+      "lines": [
+        5735,
+        5776
+      ]
+    },
+    {
+      "id": "AB04",
+      "statement": "MCP screenshot emits text plus PNG/JPEG image at most 10 MiB; arbitrary output paths require host restriction.",
+      "source": "cli/src/mcp.rs",
+      "lines": [
+        183,
+        932,
+        945,
+        2895,
+        2930,
+        4117,
+        4145,
+        4253,
+        4276
+      ]
+    },
+    {
+      "id": "AB05",
+      "statement": "JSON output directly serializes response; ordinary text max-output is not a transport byte limit.",
+      "source": "cli/src/output.rs",
+      "lines": [
+        36,
+        62,
+        507,
+        528
+      ]
+    },
+    {
+      "id": "AB06",
+      "statement": "Explicit config bypasses automatic user/project config discovery; socket directory and namespaces can be isolated; daemon is independently spawned.",
+      "source": "cli/src/flags.rs + cli/src/connection.rs",
+      "lines": [
+        368,
+        398,
+        99,
+        137,
+        867,
+        990
+      ]
+    },
+    {
+      "id": "AB07",
+      "statement": "Windows owned Chrome has daemon-owned Job Object and headless private desktop; host must still verify daemon/resource identity and termination.",
+      "source": "cli/src/native/cdp/windows_process.rs",
+      "lines": [
+        1,
+        10,
+        63,
+        168
+      ]
+    },
+    {
+      "id": "AB08",
+      "statement": "Domain allowlist rejects pre-existing CDP/profile/restore combinations; content markers and policies are not OS isolation.",
+      "source": "docs/content/docs/security.mdx",
+      "lines": [
+        8,
+        32
+      ]
+    },
+    {
+      "id": "LCA01",
+      "statement": "Ordinary MCP result only accepts text; image adapter is fixed to screenshot PNG and separate protocol; transport buffer exception matches exact screenshot name.",
+      "source": "src/main/mcp/connection.ts",
+      "lines": [
+        16,
+        20,
+        48,
+        69,
+        82,
+        97,
+        123,
+        127
+      ]
+    },
+    {
+      "id": "LCA02",
+      "statement": "Tool origin is validated at host but not passed through onCall; ToolContext lacks member authority; bridge call abort does not send a main-side per-call cancellation.",
+      "source": "src/main/dsh/host.ts + src/main/harness/tools.ts + dsh/lca-bridge/index.js",
+      "lines": [
+        149,
+        175,
+        9,
+        158,
+        173
+      ]
+    },
+    {
+      "id": "LCA03",
+      "statement": "LCA bridge renders generic tool outputs as text and execution only forwards value/source; browser image block path does not yet exist.",
+      "source": "dsh/lca-bridge/index.js + src/main/dsh/execution.ts",
+      "lines": [
+        158,
+        173,
+        332,
+        345
+      ]
+    },
+    {
+      "id": "LCA04",
+      "statement": "Privacy filter is restricted to assignment/event/notice, deadline and short task; it is not a generic DOM/image privacy transform.",
+      "source": "src/main/privacy/filter.ts",
+      "lines": [
+        3,
+        20
+      ]
+    },
+    {
+      "id": "LCA05",
+      "statement": "browser.* source mapping is absent; current MCP is mapped; image admission and route metadata do not implement generic browser image authorization.",
+      "source": "src/main/dsh/execution.ts + src/main/dsh/routes.ts",
+      "lines": [
+        49,
+        50,
+        28,
+        34
+      ]
+    }
+  ],
+  "decision": {
+    "status": "先验证",
+    "scope": "Task-owned fresh browser: explicitly scoped page navigation, bounded text/structure and on-demand region/viewport images.",
+    "route": "M1",
+    "flowImpact": "F2",
+    "interfaces": [
+      "I1 browser object and task lease",
+      "I2 validated caller and per-call cancellation",
+      "I3 bounded main browser supervisor",
+      "I4 source-tagged observation projection",
+      "I5 typed scoped image transport/rendering",
+      "I6 privacy/model/image admission",
+      "I7 finite safe book UI projection"
+    ],
+    "excluded": [
+      "existing user profiles and automatic browser discovery",
+      "credentials and existing logged-in sessions",
+      "form input/submission and uploads/downloads",
+      "arbitrary eval, paths, args or session selection",
+      "cloud providers, WebMCP invocation, upstream chat/dashboard/plugins",
+      "automatic business restore"
+    ]
+  },
+  "estimates": {
+    "unit": "person-days",
+    "confidence": "medium-low planning estimate, not measured",
+    "sameScope": "Windows task-owned browser, bounded text/refs/region screenshots, authorization, source retirement, stopping and local synthetic validation",
+    "agentBrowser": {
+      "backend": [
+        2,
+        3
+      ],
+      "sharedLca": [
+        5,
+        8
+      ],
+      "verification": [
+        2,
+        3
+      ],
+      "total": [
+        9,
+        14
+      ]
+    },
+    "playwrightNative": {
+      "backend": [
+        3,
+        5
+      ],
+      "sharedLca": [
+        5,
+        8
+      ],
+      "verification": [
+        3,
+        4
+      ],
+      "total": [
+        11,
+        17
+      ]
+    },
+    "directCdpNative": {
+      "backend": [
+        8,
+        12
+      ],
+      "sharedLca": [
+        5,
+        8
+      ],
+      "verification": [
+        3,
+        5
+      ],
+      "total": [
+        16,
+        25
+      ]
+    },
+    "expectedMidpointSavingVsPlaywright": 2.5,
+    "tokenSaving": null,
+    "excludes": [
+      "real accounts and real provider acceptance",
+      "legal communication",
+      "packaged installation/upgrade matrix",
+      "long-term daily use"
+    ]
+  },
+  "license": {
+    "root": "Apache-2.0",
+    "sourceLicenseVerified": true,
+    "redistributionCleared": false,
+    "embeddedAxeCore": "MPL-2.0 plus third-party notices; actual executable contents not audited",
+    "binaryDependenciesAndChrome": "pending actual-artifact review"
+  },
+  "evidenceStatus": {
+    "E0": "Listed source review complete; not full repository audit",
+    "E1": "not-run",
+    "E2": "not-run",
+    "E3": "not-run",
+    "E4": "not-run",
+    "E5": "not-run",
+    "E6": "not-run",
+    "comparativeTokenMeasurement": "not-run",
+    "runtimeAcceptance": "not-run"
+  },
+  "externalReferences": [
+    {
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "purpose": "Redistribution conditions and trademark scope"
+    },
+    {
+      "url": "https://playwright.dev/docs/api/class-locator#locator-aria-snapshot",
+      "purpose": "Mature-library alternative has accessibility snapshots"
+    },
+    {
+      "url": "https://playwright.dev/docs/api/class-locator#locator-all-inner-texts",
+      "purpose": "Mature-library alternative has text reads"
+    },
+    {
+      "url": "https://playwright.dev/docs/api/class-page#page-screenshot",
+      "purpose": "Mature-library alternative has screenshots"
+    }
+  ]
+}
