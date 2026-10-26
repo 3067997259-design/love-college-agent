@@ -113,7 +113,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('onboarding/state'), view: onboardingSchema, cause: z.enum(['profile', 'completed', 'reset', 'restored']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/mode'), mode: z.enum(['work', 'quiet', 'rest']), requestId: id, commandHash: id }),
   z.strictObject({ type: z.literal('companion/lights'), lightsOut: z.boolean(), requestId: id, commandHash: id }),
-  z.strictObject({ type: z.literal('companion/sleep'), sleeping: z.boolean(), cause: z.enum(['user', 'day-end', 'interaction']), requestId: id.optional(), commandHash: id.optional() }).refine((row) => !!row.requestId === !!row.commandHash),
+  z.strictObject({ type: z.literal('companion/sleep'), sleeping: z.boolean(), cause: z.enum(['user', 'day-end', 'interaction', 'day-start']), requestId: id.optional(), commandHash: id.optional() }).refine((row) => !!row.requestId === !!row.commandHash),
   z.strictObject({ type: z.literal('voice/settings'), enabled: z.boolean() }),
   z.strictObject({ type: z.literal('flow/web-fetch'), flowId: id, id, urlHash: z.string().regex(/^[a-f0-9]{64}$/), status: z.enum(['requested', 'approved', 'fetched', 'denied', 'failed', 'cancelled']), source: z.enum(['real', 'fake']), receivedBytes: z.number().int().nonnegative().optional(), truncated: z.boolean().optional() }),
   z.strictObject({ type: z.literal('flow/computer-frame'), flowId: id, ref: z.string().regex(/^work-frame:[a-f0-9]{64}$/), asset: binaryAssetSchema.refine((asset) => asset.format === 'png' && asset.byteLength <= 131072), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }),

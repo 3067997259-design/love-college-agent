@@ -506,7 +506,7 @@ void app.whenReady().then(async () => {
     controller.attachLifeWork(lifeWork)
     life = createLife({ store, clock, scheduler, work: lifeWork, restored: restoreReceipt?.status === 'restored', working: () => herBusy() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('mode'), emit: (id, facts) => { postEvent('autonomous', facts, id) } })
     controller.attachLife(life)
-    sleep = createSleep({ store, canSleep: () => !herBusy() && !lifeWork?.active() && !minecraft?.active() && store!.projection().pomodoro.status !== 'running' && life?.view().locationId === 'room' && controller?.getSnapshot().onboarding?.status === 'completed',
+    sleep = createSleep({ store, clock, scheduler, canSleep: () => !herBusy() && !lifeWork?.active() && !minecraft?.active() && store!.projection().pomodoro.status !== 'running' && life?.view().locationId === 'room' && controller?.getSnapshot().onboarding?.status === 'completed',
       changed: () => { voice?.interrupt(); lifeWork?.foreground(); controller?.refresh('mode') } })
     controller.attachSleep(sleep)
     diary = createDiary({ clock, scheduler, store, assets: binaryAssets, get model() { return prepared.developer ? { source: 'fake' as const, write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary }, busy: () => herBusy() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
@@ -805,6 +805,7 @@ app.on('before-quit', (event) => {
     pomodoro?.dispose()
     quill?.dispose()
     companionWindows?.dispose()
+    sleep?.close()
     life?.close()
     notifications?.close()
     const closeCampus = campus?.close()
