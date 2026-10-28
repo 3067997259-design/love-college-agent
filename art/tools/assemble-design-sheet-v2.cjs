@@ -1,6 +1,6 @@
 // Recipe for art/retouch/2026-10-28-design-sheet-v2/design-sheet-v2-candidate-2.png (local, not in git).
 // The full-body block is the Gemini face-fix turnaround (faces redrawn to match the expressions), upscaled 2x at sigma 0.5.
-// Run: pnpm exec electron art/tools/assemble-design-sheet-v2.cjs <blockDir> node_modules/lxgw-wenkai-screen-web/lxgwwenkaiscreen/result.css <out.png>
+// Run: pnpm exec electron art/tools/assemble-design-sheet-v2.cjs <blockDir> node_modules/lxgw-wenkai-screen-web/lxgwwenkaiscreen/result.css <out.png> [fullBodyBlock.png]
 // Assemble design sheet v2 from the four NovelAI-upscaled blocks, with our own text and measured palette.
 // Usage: electron assemble-v2.cjs <blockDir> <fontCss> <out.png>
 const { app, BrowserWindow } = require('electron')
@@ -8,12 +8,12 @@ const { writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 const { pathToFileURL } = require('node:url')
 const args = process.argv.slice(process.argv.findIndex((a) => a.endsWith('.cjs')) + 1)
-const [dir, fontCss, out] = args
+const [dir, fontCss, out, aName = 'block-a-turnaround-facefix-x2.png'] = args
 const url = (name) => pathToFileURL(join(dir, name)).href
 
 const spec = {
   fontCss: pathToFileURL(fontCss).href,
-  A: url('block-a-turnaround-facefix-x2.png'), B: url('block-b-details-x2.png'), C: url('block-c-expressions-x2.png'), D: url('block-d-side-face-study-x2.png'),
+  A: url(aName), B: url('block-b-details-x2.png'), C: url('block-c-expressions-x2.png'), D: url('block-d-side-face-study-x2.png'),
 }
 
 const page = `(async () => {
@@ -28,7 +28,7 @@ const page = `(async () => {
   // Layout (px): header, row 1 = turnaround + details, row 2 = expressions + side faces + palette.
   const titleY = 150, sub1Y = 225, sub2Y = 280, ruleY = 320
   const secY1 = 400, row1Y = 430
-  const A_SRC_W = 2048, A_SRC_H = 1144, A_H = 1400, A_W = Math.round(A_SRC_W * A_H / A_SRC_H)
+  const A_SRC_W = A.naturalWidth, A_SRC_H = A.naturalHeight, A_H = 1400, A_W = Math.round(A_SRC_W * A_H / A_SRC_H)
   const bScale = 1400 / 1380, B_X = M + A_W + 90, B_SRC_X = 60, B_W = Math.round(1300 * bScale)
   const labA = row1Y + A_H + 60
   const secY2 = labA + 110, row2Y = secY2 + 30
@@ -40,6 +40,7 @@ const page = `(async () => {
 
   const c = document.getElementById('c'); c.width = W; c.height = H
   const g = c.getContext('2d'); g.fillStyle = '#fefefe'; g.fillRect(0, 0, W, H)
+  g.imageSmoothingQuality = 'high'  // blocks are scaled down into the layout
   const text = (s, x, y, size, color = INK, align = 'left', weight = '') => { texts.push([s, size, weight]); return () => { g.font = (weight ? weight + ' ' : '') + size + 'px ' + FONT; g.fillStyle = color; g.textAlign = align; g.fillText(s, x, y) } }
   const draws = []
   const T = (...a) => draws.push(text(...a))
@@ -52,7 +53,7 @@ const page = `(async () => {
   // Row 1: turnaround
   T('全身三视图（居家服）与出门服', M, secY1, 44, MUTED)
   g.drawImage(A, 0, 0, A_SRC_W, A_SRC_H, M, row1Y, A_W, A_H)
-  ;[[245, '正面'], [753, '侧面 · 朝左'], [1231, '背面'], [1802, '出门服']].forEach(([x, s]) => T(s, M + x * A_W / A_SRC_W, labA, 46, INK, 'center'))
+  ;[[245, '正面'], [753, '侧面 · 朝左'], [1231, '背面'], [1802, '出门服']].forEach(([x, s]) => T(s, M + x * A_W / 2048, labA, 46, INK, 'center'))
 
   // Row 1: details, each box tagged in place
   T('细节', B_X, secY1, 44, MUTED)

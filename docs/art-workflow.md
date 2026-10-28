@@ -99,3 +99,5 @@ v6 审图后，用户转述 Gemini 对大腿观感、侧面贴片感、腿脚僵
 2026-10-28 起的分工：Gemini 负责构图、设计和局部改色（尺寸约 1024，多次图生图会变糊）；GPT-image 负责一次性精修清晰度，提示词见 [GPT 精修](../art/prompts/2026-10-28-gpt-refine.md)；设定图按块精修后由我们拼版并排文字与色卡。Gemini 的房间已叠回三维底稿核对，透视与已认可机位一致。
 
 2026-10-28 补充：NovelAI 有放大接口（网页端同款，2 倍，`art/tools/novelai-upscale.mjs`）。试用确认它以原图为条件、脸不变，声明模糊 0.5 时线条明显更清楚；宽高需先补到 64 的倍数。清晰度改走这条路，GPT-image 只用于不涉及脸的内容修改。房间 r3 的蓝天用 r2 的天空在本地按颜色补回，再放大到 2048²。记录在本机 `art/retouch/2026-10-28-nai-upscale/`。
+
+2026-10-28 用户采用设定图 v2，存为 [art/design-sheet/design-sheet-v2.webp](../art/design-sheet/design-sheet-v2.webp)，之后出图以它为身份基准；来源、放大参数和无损原图位置见 [角色形象参考](../art/design-sheet/README.md)。
