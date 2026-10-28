@@ -5,7 +5,7 @@
 const { app, BrowserWindow } = require('electron')
 const { writeFileSync } = require('node:fs')
 const { pathToFileURL } = require('node:url')
-const args = process.argv.slice(process.argv.findIndex((a) => a.endsWith('skyfix.cjs')) + 1)
+const args = process.argv.slice(process.argv.findIndex((a) => a.endsWith('.cjs')) + 1)
 const [r3, r2, out, box, glassHex, tol, topLine] = args
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ show: false, webPreferences: { webSecurity: false } })

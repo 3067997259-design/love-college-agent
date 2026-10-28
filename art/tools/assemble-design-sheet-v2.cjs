@@ -1,4 +1,5 @@
-// Recipe for art/retouch/2026-10-28-design-sheet-v2/design-sheet-v2-candidate.png (local, not in git).
+// Recipe for art/retouch/2026-10-28-design-sheet-v2/design-sheet-v2-candidate-2.png (local, not in git).
+// The full-body block is the Gemini face-fix turnaround (faces redrawn to match the expressions), upscaled 2x at sigma 0.5.
 // Run: pnpm exec electron art/tools/assemble-design-sheet-v2.cjs <blockDir> node_modules/lxgw-wenkai-screen-web/lxgwwenkaiscreen/result.css <out.png>
 // Assemble design sheet v2 from the four NovelAI-upscaled blocks, with our own text and measured palette.
 // Usage: electron assemble-v2.cjs <blockDir> <fontCss> <out.png>
@@ -6,13 +7,13 @@ const { app, BrowserWindow } = require('electron')
 const { writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 const { pathToFileURL } = require('node:url')
-const args = process.argv.slice(process.argv.findIndex((a) => a.endsWith('assemble-v2.cjs')) + 1)
+const args = process.argv.slice(process.argv.findIndex((a) => a.endsWith('.cjs')) + 1)
 const [dir, fontCss, out] = args
 const url = (name) => pathToFileURL(join(dir, name)).href
 
 const spec = {
   fontCss: pathToFileURL(fontCss).href,
-  A: url('block-a-turnaround-x2-side-restored.png'), B: url('block-b-details-x2.png'), C: url('block-c-expressions-x2.png'), D: url('block-d-side-face-study-x2.png'),
+  A: url('block-a-turnaround-facefix-x2.png'), B: url('block-b-details-x2.png'), C: url('block-c-expressions-x2.png'), D: url('block-d-side-face-study-x2.png'),
 }
 
 const page = `(async () => {
@@ -23,11 +24,11 @@ const page = `(async () => {
   const [A, B, C, D] = await Promise.all([load(S.A), load(S.B), load(S.C), load(S.D)])
   const FONT = '"LXGW WenKai Screen"', INK = '#3b2f2a', MUTED = '#8a7a72', LINE = '#e6dcd2'
   const texts = []
-  const M = 100, W = 3860
+  const M = 100, W = 4115
   // Layout (px): header, row 1 = turnaround + details, row 2 = expressions + side faces + palette.
   const titleY = 150, sub1Y = 225, sub2Y = 280, ruleY = 320
   const secY1 = 400, row1Y = 430
-  const A_W = 2250, A_H = 1400
+  const A_SRC_W = 2048, A_SRC_H = 1144, A_H = 1400, A_W = Math.round(A_SRC_W * A_H / A_SRC_H)
   const bScale = 1400 / 1380, B_X = M + A_W + 90, B_SRC_X = 60, B_W = Math.round(1300 * bScale)
   const labA = row1Y + A_H + 60
   const secY2 = labA + 110, row2Y = secY2 + 30
@@ -45,13 +46,13 @@ const page = `(async () => {
 
   // Header
   T('桃子 · 角色设定图 v2', M, titleY, 96, INK, 'left', 'bold')
-  T('2026-10-28 · Gemini 出图，NovelAI 放大（声明模糊 0.5），文字与色值由我们排版 · 之后所有出图以此为身份基准', M, sub1Y, 38, MUTED)
+  T('2026-10-28 · Gemini 出图（全身像的脸已按表情差分重画），NovelAI 放大（声明模糊 0.5），文字与色值由我们排版 · 之后所有出图以此为身份基准', M, sub1Y, 38, MUTED)
   T('丝带系在她自己的左侧：正面看在画面右侧，背面看在画面左侧；身体朝画面左边时露出，朝右时在远侧', M, sub2Y, 38, MUTED)
 
   // Row 1: turnaround
   T('全身三视图（居家服）与出门服', M, secY1, 44, MUTED)
-  g.drawImage(A, 0, 0, A_W, A_H, M, row1Y, A_W, A_H)
-  ;[[240, '正面'], [820, '侧面 · 朝左'], [1360, '背面'], [2020, '出门服']].forEach(([x, s]) => T(s, M + x, labA, 46, INK, 'center'))
+  g.drawImage(A, 0, 0, A_SRC_W, A_SRC_H, M, row1Y, A_W, A_H)
+  ;[[245, '正面'], [753, '侧面 · 朝左'], [1231, '背面'], [1802, '出门服']].forEach(([x, s]) => T(s, M + x * A_W / A_SRC_W, labA, 46, INK, 'center'))
 
   // Row 1: details, each box tagged in place
   T('细节', B_X, secY1, 44, MUTED)
