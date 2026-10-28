@@ -1,5 +1,4 @@
 'use strict'
-/* eslint-disable @typescript-eslint/no-require-imports */
 const { createHash } = require('node:crypto')
 const { readFileSync } = require('node:fs')
 const { join } = require('node:path')
