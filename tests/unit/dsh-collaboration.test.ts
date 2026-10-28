@@ -69,6 +69,12 @@ it('unknown actions cannot be replayed and refresh reconciles a durable receipt'
   expect(service.view().operation?.requestId).toBe('request')
   expect(service.view().operation?.outcome).toBe('accepted')
 })
+it('a receipt flush error after execution remains unknown and blocks another action', async () => {
+  const service = createCollaborationState({ run: async () => { throw new Error('LCA_COLLABORATION_OUTCOME_UNKNOWN') }, changed() {}, allowed: () => true })
+  service.accept(view); service.dispatch(command()); await tick()
+  expect(service.view().operation?.outcome).toBe('unknown')
+  expect(service.dispatch(command({ requestId: 'do-not-replay' }))).toBe('unavailable')
+})
 
 it('strips undeclared raw transcript fields and rejects invalid public projection values', () => {
   const scoped = { ...view, members: [{ ...view.members[0], mode: 'root', address: { ...address, sessionId: 'root', parentSessionId: null } }, ...view.members] }

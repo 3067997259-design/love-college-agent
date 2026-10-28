@@ -47,7 +47,9 @@ P5 在包外 bridge 装配 Team service，保留普通 spawn / fork；三个重�
 
 ## 事实、投影与时钟
 
-团队远景的当前步骤来自 bridge 的 `tool/call`、`tool/result`、同伴 `user/message` 和回合边界，在内存 Map 中维护，不因步骤变化增加成员控制 revision，也不逐步改写 root 日志。工具结束按固定运行时的 `message.toolCallId` 配对。主进程 `tool-kinds.ts` 与她自己的活动共用模板；`member-focus.ts` 用注入 Clock 维护 30 秒窗口、6 秒换位门槛与 20 秒思考状态，并到点发布。快照只含 `AgentView.work`，没有工具名与参数。
+团队远景的当前步骤来自 bridge 的 `tool/call`、`tool/result`、同伴 `user/message` 和回合边界，在内存 Map 中维护，不因步骤变化增加成员控制 revision，也不逐步改写 root 日志。工具结束按固定运行时的 `message.toolCallId` 配对；并行调用尚有未返回的工具时继续投影工具阶段，乱序或重复结果不能清掉其他调用，回合结束清空。主进程 `tool-kinds.ts` 与她自己的活动共用模板；`member-focus.ts` 用注入 Clock 维护 30 秒窗口、6 秒换位门槛与 20 秒思考状态，并到点发布。快照只含 `AgentView.work`，没有工具名与参数。
+
+协作控制的 settled 回执在会话 flush 完成后才对外发布，避免 append 事件先触发通知、界面收到回执后断线而尚未落盘。实际动作完成后的落盘失败保留 unknown，不追加错误的 failed 记录；刷新只重试持久化并读取同一 requestId，不重放动作。工具步骤读取仍走独立只读消息通道。
 
 最近 12 个工具步骤由 DSH 自己的 `lca-member-steps-v1` 会话投影保存。`member-steps` 是独立的只读请求，不写协作操作或回执；成员归属由 bridge 的名册 / 后代关系核对，主进程另校验完整地址和控制 revision。已卸载成员通过 DSH persistence 的 read handle 回放日志，不恢复执行或批准。读回后重新校验作用域，迟到结果失效；回复由 zod 限制条数、长度和时间并剥掉未知字段。
 

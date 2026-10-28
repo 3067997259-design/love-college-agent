@@ -15,7 +15,7 @@ export function createCollaboration(ctx, { originOf, safety, send, roots, onHuma
   ctx.sessionProjections.register(memberStepsProjection())
   ctx.systemPrompt.section({ name: 'lca:collaboration', order: ctx.systemPrompt.getSectionOrder('TEAM_POLICY'), text: POLICY, interpolate: false })
   const revisions = new Map(), rendered = new Map(), pending = new Map(), stopping = new Set(), waiting = new Map()
-  const steps = new Map()
+  const steps = new Map(), pendingTools = new Map(), uncertainReceipts = new Set()
   let stepSeq = 0
   let scheduled = false, closed = false
   const rootOf = (agent) => { const origin = originOf(agent); const root = origin && ctx.agents.get(origin.rootSessionId); if (!root) throw new Error('LCA_COLLABORATION_UNAVAILABLE'); return root }
@@ -127,8 +127,12 @@ export function createCollaboration(ctx, { originOf, safety, send, roots, onHuma
         writeScopeLabels: visible ? task.writeScopes.map((scope) => cleanLine(scope)) : [], scopeOverlap: task.writeScopeWarnings.length > 0, sourceStatus: visible ? 'available' : 'retired' }
     })
     const receipt = saved.operations?.[saved.lastOperation]
-    const operation = receipt?.phase === 'running' && ![...pending.values()].some((entry) => entry.requestId === receipt.requestId)
-      ? { ...receipt, phase: 'settled', outcome: 'unknown' } : receipt ?? null
+    const inflight = [...pending.values()].find((entry) => entry.requestId === receipt?.requestId)
+    // appendPluginRecord emits before flush. A settled receipt is public only after it is durable.
+    const operation = receipt && uncertainReceipts.has(receipt.requestId) ? { ...receipt, phase: 'settled', outcome: 'unknown' }
+      : receipt && inflight && !inflight.committed
+      ? { ...receipt, phase: 'running', outcome: 'pending' }
+      : receipt?.phase === 'running' && !inflight ? { ...receipt, phase: 'settled', outcome: 'unknown' } : receipt ?? null
     return { origins, view: { status: 'ready', runtimeId: origin.runtimeId, projectId: origin.projectId, members: publicMembers, tasks, capacity: capacity(root), operation } }
   }
   function notify() {
@@ -141,13 +145,14 @@ export function createCollaboration(ctx, { originOf, safety, send, roots, onHuma
       }
     })
   }
-  const taskUpdate = async (agent, args, exec) => {
+  const taskUpdate = async (agent, args, exec, onApplied) => {
     check(agent)
     const root = rootOf(agent), previous = state(root).tasks[args.task_id], current = lease(agent)
     const task = await ctx.agentTeams.updateTask(agent, { taskId: args.task_id, expectedRevision: args.expected_revision, action: args.action,
       ...(args.subject === undefined ? {} : { subject: args.subject }), ...(args.description === undefined ? {} : { description: args.description }),
       ...(args.blocked_by === undefined ? {} : { blockedBy: args.blocked_by }), ...(args.write_scopes === undefined ? {} : { writeScopes: args.write_scopes }),
       ...(args.owner === undefined ? {} : { owner: (await resolveTarget(agent, args.owner)).name }) })
+    onApplied?.()
     // Another member may have persisted a newer revision while the DSH update was pending.
     // Merge its lease now; never regress the revision or discard its source restrictions.
     stamp(root, 'task', task.id, nextTaskLease(state(root).tasks[task.id] ?? previous, current, task.revision)); await ctx.sessions.flush(root.session); notify()
@@ -204,7 +209,9 @@ export function createCollaboration(ctx, { originOf, safety, send, roots, onHuma
     if (!agent || !originOf(agent)) return
     const origin = originOf(agent)
     const id = String(agent.id), previous = steps.get(id)
-    const next = nextMemberStep(previous, event, stepSeq + 1)
+    if (!pendingTools.has(id)) pendingTools.set(id, new Map())
+    const next = nextMemberStep(previous, event, stepSeq + 1, pendingTools.get(id))
+    if (event.type === 'turn/end') pendingTools.delete(id)
     if (next !== previous) { stepSeq++; if (next) steps.set(id, next); else steps.delete(id) }
     if (origin.parentSessionId) {
       if (event.type === 'turn/start') recordMember(agent, { ...lease(agent), outcome: 'none', resultText: null })
@@ -242,30 +249,44 @@ export function createCollaboration(ctx, { originOf, safety, send, roots, onHuma
     async request({ rootSessionId, command, requestId = randomUUID() }) {
       const root = roots().find((agent) => String(agent.id) === rootSessionId)
       if (!root) throw new Error('LCA_COLLABORATION_UNAVAILABLE')
+      if (command.type === 'agent.refresh') {
+        // Retry persistence only, never the business operation. Cold replay independently reads the durable receipt.
+        await ctx.sessions.flush(root.session)
+        for (const id of Object.keys(state(root).operations ?? {})) uncertainReceipts.delete(id)
+      }
       const before = await snapshot(root)
       if (command.type !== 'agent.refresh') {
         if (state(root).operations?.[requestId]) return snapshot(root)
         const target = before.view.members.find((member) => JSON.stringify(member.address) === JSON.stringify(command.target.address) && (['agent.stop-family', 'team.task.update'].includes(command.type) ? member.mode === 'root' : member.revision === command.target.expectedRevision))
         if (!target) throw new Error('LCA_STALE_MEMBER')
         const targetId = `${target.mode === 'root' || target.mode === 'teammate' ? 'team' : 'agent'}:${target.address.sessionId}`
-        const signal = new AbortController(); pending.set(signal, { rootSessionId, requestId })
-        stamp(root, 'operation', requestId, { requestId, phase: 'running', outcome: 'pending', error: null }); await ctx.sessions.flush(root.session)
+        const signal = new AbortController(), inflight = { rootSessionId, requestId, committed: false }
+        pending.set(signal, inflight)
+        let executed = false
         try {
+          stamp(root, 'operation', requestId, { requestId, phase: 'running', outcome: 'pending', error: null }); await ctx.sessions.flush(root.session)
           if (command.type === 'agent.message') { if (!target.controls.message) throw new Error('LCA_MEMBER_MESSAGE_RELATION'); await message(root, targetId, command.text, signal.signal, true) }
           else if (command.type === 'agent.interrupt') await interrupt(root, targetId, signal.signal)
           else if (command.type === 'agent.stop-family') safety.cancel(rootSessionId)
-          else if (command.type === 'team.task.update') { if (target.mode !== 'root') throw new Error('TEAM_LEAD_REQUIRED'); await taskUpdate(root, { task_id: command.taskId, expected_revision: command.expectedTaskRevision, action: command.action }) }
+          else if (command.type === 'team.task.update') { if (target.mode !== 'root') throw new Error('TEAM_LEAD_REQUIRED'); await taskUpdate(root, { task_id: command.taskId, expected_revision: command.expectedTaskRevision, action: command.action }, undefined, () => { executed = true }) }
           else throw new Error('LCA_COLLABORATION_COMMAND')
+          executed = true
           stamp(root, 'operation', requestId, { requestId, phase: 'settled', outcome: 'accepted', error: null }); await ctx.sessions.flush(root.session)
+          inflight.committed = true
         } catch (error) {
           // A send failure may have followed inbox acceptance. Preserve pending for read-only reconciliation.
-          if (command.type !== 'agent.message') { stamp(root, 'operation', requestId, { requestId, phase: 'settled', outcome: 'failed', error: null }); await ctx.sessions.flush(root.session) }
+          // Persistence/transport failure after execution must never rewrite a successful action as failed.
+          if (executed || command.type === 'agent.message') {
+            uncertainReceipts.add(requestId)
+            throw new Error('LCA_COLLABORATION_OUTCOME_UNKNOWN', { cause: error })
+          }
+          if (!executed && command.type !== 'agent.message') { stamp(root, 'operation', requestId, { requestId, phase: 'settled', outcome: 'failed', error: null }); await ctx.sessions.flush(root.session) }
           throw error
         } finally { pending.delete(signal); notify() }
       }
       return snapshot(root)
     },
-    close() { closed = true; for (const signal of pending.keys()) signal.abort(); pending.clear(); steps.clear() },
+    close() { closed = true; for (const signal of pending.keys()) signal.abort(); pending.clear(); steps.clear(); pendingTools.clear(); uncertainReceipts.clear() },
   }
 }
 import { randomUUID } from 'node:crypto'

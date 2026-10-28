@@ -61,7 +61,7 @@ export function createCollaborationState(options: { run(command: CollaborationCo
         value = { ...view, operation: view.operation ?? { requestId: input.requestId, phase: 'settled', outcome: 'accepted', error: null } }
       }, (error: unknown) => {
         if (token !== generation) return
-        const unknown = /TIMEOUT|EXITED|CLOSED/.test(error instanceof Error ? error.message : '')
+        const unknown = /TIMEOUT|EXITED|CLOSED|OUTCOME_UNKNOWN/.test(error instanceof Error ? error.message : '')
         value.operation = { requestId: input.requestId, phase: 'settled', outcome: unknown ? 'unknown' : 'failed', error: { code: unknown ? 'connection-failed' : 'stale-epoch', retryable: false } }
       }).finally(() => { if (token === generation) { pending = false; options.changed() } })
       return undefined

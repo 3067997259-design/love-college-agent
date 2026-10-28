@@ -68,11 +68,21 @@ export function memberStepsReply(state, fact, current) {
 }
 
 /** Ephemeral current step. Sequence changes even if identical calls were coalesced into one view. */
-export function nextMemberStep(previous, event, seq) {
-  if (event.type === 'turn/end') return null
-  if (event.type === 'turn/start') return { tool: null, phase: 'thinking', seq }
-  if (event.type === 'tool/call') return { tool: cleanLine(event.data.name, 200), phase: 'tool', seq }
-  if (event.type === 'tool/result') return { tool: previous?.tool ?? null, phase: 'thinking', seq }
+export function nextMemberStep(previous, event, seq, pending) {
+  if (event.type === 'turn/end') { pending?.clear(); return null }
+  if (event.type === 'turn/start') { pending?.clear(); return { tool: null, phase: 'thinking', seq } }
+  if (event.type === 'tool/call') {
+    const tool = cleanLine(event.data.name, 200)
+    pending?.set(String(event.data.callId), tool)
+    return { tool, phase: 'tool', seq }
+  }
+  if (event.type === 'tool/result') {
+    // Results can arrive out of order. One finished call does not make the remaining calls idle.
+    if (pending && !pending.delete(String(event.data.message?.toolCallId))) return previous
+    const remaining = pending && [...pending.values()].at(-1)
+    return { tool: remaining ?? previous?.tool ?? null, phase: remaining ? 'tool' : 'thinking', seq }
+  }
+  if (pending?.size) return previous
   if (event.type === 'user/message' && ['agent-message', 'team-message', 'subagent-settled'].includes((event.data.message ?? event.data).source?.kind)) return { tool: previous?.tool ?? null, phase: 'note', seq }
   return previous
 }
