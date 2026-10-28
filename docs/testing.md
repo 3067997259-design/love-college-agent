@@ -40,6 +40,14 @@ pnpm test
 
 表中省略 `pnpm` 前缀。多数 Electron 脚本自带 build；复用构建或指定安装 EXE 时先读对应脚本，不能随意绕过前置检查。
 
+团队远景 V2 补充检查：`tests/unit/dsh-member-focus.test.ts` 用假时钟核对窗口、换位与长思考；`dsh-member-steps.test.ts` 验证有界回放、路径 / URL 摘要、来源退役后仍隐藏旧目标和字段剥离；`team-scene.test.ts` 验证按种类摆位、稳定座位、溢出与家具深度。`test:dsh-collaboration` 新增工具 / 思考 / 同伴消息阶段、最近 12 步、成败、已卸载成员的只读回放、跨根拒绝和受限来源隐藏目标。`test:collaboration` 新增实际子代理读文件后的 `data-station`、中文步骤卡片与快照无目标检查。
+
+`node scripts/team-room-preview.mjs` 用本机已装 Chrome 检查 `team-working` 假场景，保存白天、夜间、减少动画、干净 / 受限卡片和窄窗口截图到 `test-results/team-v2-preview/`。不下载浏览器，不调用真实模型；这些截图用于布局审看，不能替代 Gemini 新素材采用或真实模型日用验收。
+
+若需要单独复核团队房间，可在 build 后运行 `node scripts/smoke-collaboration.mjs --team-room-only`：仍检查消息、停止、任务操作、冷恢复和新书页路径，只把已知不稳定的“丢失回执”故障注入换成正常重开任务。回执写明 `teamOnly: true`；此结果不能称为完整 `test:collaboration` 通过，完整脚本的失败证据仍保留。
+
+2026-10-28 的检查结果、失败证据与美术交接见[团队远景 V2 回执](research/team-room-v2-20261028.md)。
+
 开发者场景的脚本回复由本地模型接口交给 DSH：脚本里不带 `lca_` 前缀的 LCA 工具名会按 DSH 提供的名字发出；`get_context` 是 DSH 最近一次发给模型的请求。她的回合比旧循环慢一点：脚本要等模型请求真正到达（看 `get_context`）再拨时钟，她说话时被拒绝的命令（如导出存档）用 `whenIdle` 重发。
 
 1.1 移除了旧心流、书桌命令、预览电脑、网页读取、分身和任务对象，以及它们的脚本（`test:heart-flow`、`test:task-object`、`test:timeline-safety` 等）与审计探针 `probe-context-continuity`；历史结果留在 git 记录和 [研究记录](research/) 里。旧心流的会话仍可在设置里查阅状态与差异，`test:room` 覆盖。

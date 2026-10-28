@@ -47,6 +47,12 @@ P5 在包外 bridge 装配 Team service，保留普通 spawn / fork；三个重�
 
 ## 事实、投影与时钟
 
+团队远景的当前步骤来自 bridge 的 `tool/call`、`tool/result`、同伴 `user/message` 和回合边界，在内存 Map 中维护，不因步骤变化增加成员控制 revision，也不逐步改写 root 日志。工具结束按固定运行时的 `message.toolCallId` 配对。主进程 `tool-kinds.ts` 与她自己的活动共用模板；`member-focus.ts` 用注入 Clock 维护 30 秒窗口、6 秒换位门槛与 20 秒思考状态，并到点发布。快照只含 `AgentView.work`，没有工具名与参数。
+
+最近 12 个工具步骤由 DSH 自己的 `lca-member-steps-v1` 会话投影保存。`member-steps` 是独立的只读请求，不写协作操作或回执；成员归属由 bridge 的名册 / 后代关系核对，主进程另校验完整地址和控制 revision。已卸载成员通过 DSH persistence 的 read handle 回放日志，不恢复执行或批准。读回后重新校验作用域，迟到结果失效；回复由 zod 限制条数、长度和时间并剥掉未知字段。
+
+目标摘要是白名单：文件只显示项目内相对路径，搜索截 60 字，命令截 80 字，网页只保留 host。成员原标签租约、已保存来源及当前来源均须干净；步骤投影也保留曾接触外部来源的限制，不能因下一轮来源退役而公开旧目标。`readMemberSteps` 只向书本主 frame 开放，不向小窗、诊断窗口或模型开放。书页只缓存打开卡片期间的详情，来源转为受限时立即隐藏旧目标；不写入 LCA 日志、快照、日记或记忆。
+
 会话事件写入 append-only JSONL，SQLite 保存可重建的投影。用户、角色与数据根参与作用域。UI revision / epoch 与日志序号分别使用；renderer 不生成业务事实。
 
 业务时间经 Clock / Scheduler，方便确定性回归。日会话按上海时间 04:00 划分，并等待回合结束、用户空闲和计时条件允许后翻页；不能在任务中途强行切页。加速时钟验证状态转换，不证明真实跨天或长期体验。

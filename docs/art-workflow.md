@@ -96,7 +96,9 @@ v6 审图后，用户转述 Gemini 对大腿观感、侧面贴片感、腿脚僵
 
 2026-10-27 用户把 [设定图 v2 说明](../art/prompts/2026-10-27-design-sheet-v2-gemini.md) 交给 Gemini，得到设定图 v2 和 Q 版精灵表，效果明显好于 NovelAI 的 Q 版试稿。核对结果和转存文件在本机 `art/retouch/2026-10-27-gemini-sheets/`；第二轮的修正、量产精灵表和房间试画提示词在同一份说明的第 6 节。团队画面方案里的 B、C 两步改由 Gemini 出稿。
 
-2026-10-28 用户确认 Gemini 房间图可用（窗外天空从上一轮本地补回，NovelAI 放大 2 倍、声明模糊 0），并给出量产 Q 版精灵表；两者已作为团队远景的运行时素材采用，来源与哈希见 [team/manifest.json](../src/renderer/src/assets/character/taozi/team/manifest.json)。精灵表由 [cut-chibi-sprites.cjs](../art/tools/cut-chibi-sprites.cjs) 去白底切成 9 个姿势，未放大、未改画。房间是一整张背景，没有能挡住小人的前景层，所以帮手只站在矮桌和地毯上的空处；夜里沿用房间调色层，还没有单独的夜景图。
+2026-10-28 用户确认 Gemini 房间图可用（窗外天空从上一轮本地补回，NovelAI 放大 2 倍、声明模糊 0），并给出量产 Q 版精灵表；两者已作为团队远景的运行时素材采用，来源与哈希见 [team/manifest.json](../src/renderer/src/assets/character/taozi/team/manifest.json)。精灵表由 [cut-chibi-sprites.cjs](../art/tools/cut-chibi-sprites.cjs) 去白底切成 9 个姿势，未放大、未改画。V1 只在空处叠人；V2 改为复制原房间图、用多边形裁切家具遮挡人物，不生成或替换房间素材。夜里沿用房间调色层，还没有单独的夜景图。
+
+团队远景第二轮的[小茶桌四姿势提示词](../art/prompts/2026-10-28-team-stations-gemini.md)已准备。切图脚本支持末尾可选的行、列参数（默认 3×3），四张用 `2 2`，仍输出到新候选目录。此轮未调用生成服务、未采用新图；先由用户在 Gemini 出稿，再放进现有座位截图审看，确认后更新 manifest 和正式素材。书架、书桌、地毯、门口与独立出错姿势等首轮审图后再制作。
 
 2026-10-28 起的分工：Gemini 负责构图、设计和局部改色（尺寸约 1024，多次图生图会变糊）；GPT-image 负责一次性精修清晰度，提示词见 [GPT 精修](../art/prompts/2026-10-28-gpt-refine.md)；设定图按块精修后由我们拼版并排文字与色卡。Gemini 的房间已叠回三维底稿核对，透视与已认可机位一致。
 
