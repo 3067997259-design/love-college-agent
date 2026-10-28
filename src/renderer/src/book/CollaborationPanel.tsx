@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { AppBridge, AppSnapshot } from '../../../shared'
 import type { AgentView } from '../../../shared/collaboration'
 import { sendCommand, type CommandBody } from './command'
+import { activityKind } from '../voice/activity-text'
 import './collaboration.css'
 
 const activity = { starting: '正在加入', running: '工作中', waiting: '等待中', inactive: '空闲', stopping: '正在停止', unavailable: '不可用' }
@@ -16,6 +17,8 @@ export const memberText = {
   status: (member: AgentView) => member.waitingFor ? waiting[member.waitingFor] : member.activity === 'inactive' && member.outcome !== 'none' ? outcome[member.outcome] : activity[member.activity],
 }
 export const memberTarget = target
+export const memberWorkText = (member: AgentView): string | null => !member.work ? null : member.work.phase === 'thinking' ? '在想下一步'
+  : member.work.phase === 'note' ? '看同伴的消息' : activityKind({ templateId: member.work.templateId ?? 'dsh.other' }) ?? '处理一步工作'
 
 export function CollaborationPanel({ snapshot, bridge, openRequest = 0, shot }: {
   snapshot: AppSnapshot; bridge: AppBridge
@@ -64,7 +67,7 @@ function Member({ member, disabled, command }: { member: AgentView; disabled: bo
   const [text, setText] = useState('')
   return <details className="collaboration-member"><summary><strong>{member.name}</strong><span>{member.waitingFor ? waiting[member.waitingFor] : activity[member.activity]}</span></summary>
     <small>{modeText(member)}{member.taskLabel ? ` · ${member.taskLabel}` : ''}</small>
-    {member.activityLabel && <p>当前操作：{member.activityLabel}</p>}
+    {memberWorkText(member) && <p>当前操作：{memberWorkText(member)}</p>}
     {member.outcome !== 'none' && <p>{outcome[member.outcome]}</p>}
     {member.resultText && <p className="collaboration-result">{member.resultText}</p>}
     {member.sources.status !== 'clean' && <p className="collaboration-note">涉及外部来源，原文不在这里展开。</p>}

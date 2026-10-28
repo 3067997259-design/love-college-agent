@@ -128,6 +128,11 @@ export function createFamilySafety(ctx, { originOf, send, sourceOf, onWaiting = 
       cancelApprovals(rootId); roots.set(rootId, { trusted: trusted === true, revision: 0, stopped: false, authorizationId: randomUUID() })
     },
     ensure, sources, request, setTrust, recordSource,
+    /** Read-only observers can reconstruct current source restrictions without activating a cold member. */
+    sourcesFromEvents(events) {
+      const projection = sourceProjection(sourceOf)
+      return sourcesIn(events.reduce((state, event) => projection.apply(state, event), projection.init()))
+    },
     status(agent) { const { member, root } = ensure(agent); return { authorized: !root.stopped && !member.stopped && member.scope.authorizationId === root.authorizationId, activationId: member.activationId, sources: sources(agent) } },
     relay(agent, text) { const { member } = ensure(agent); mailbox.publish(member.origin.sessionId, 'relay', text, member.scope, sources(agent)) },
     userMessage(agent, text) { const { member, root } = ensure(agent); if (root.stopped) throw new Error('LCA_FAMILY_STOPPED'); mailbox.publish(member.origin.sessionId, 'relay', text, { ...member.scope, authorizationId: root.authorizationId }, []) },

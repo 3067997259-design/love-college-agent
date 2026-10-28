@@ -443,6 +443,10 @@ export function apply(ctx) {
           const value = await collaboration.request(message.input)
           send({ t: 'collaboration-reply', ref: message.ref, ...value }); break
         }
+        case 'member-steps': {
+          const value = await collaboration.memberSteps(message.input)
+          send({ t: 'member-steps-reply', ref: message.ref, value }); break
+        }
         case 'tools': registerLcaTools(message.tools ?? []); break
         case 'open':
           // Her card and your profile as they are now: onboarding names them after DSH has started.

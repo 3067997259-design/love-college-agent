@@ -21,6 +21,7 @@ import type { ModelSettingsService } from '../config/model-settings'
 import type { ExtensionsService } from '../dsh/extensions'
 import type { SkillsService } from '../dsh/skills'
 import type { CollaborationPort } from '../dsh/collaboration'
+import { agentAddressSchema } from '../dsh/identity'
 import type { ProjectsService } from '../dsh/projects'
 import type { CompanionWindows, WindowSurface } from '../windows/companion'
 import { characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
@@ -540,6 +541,11 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachContextReveal: (port: NonNullable<typeof revealContext>) => { revealContext = port },
     attachVoice: (port: VoiceService) => { voice = port; publish('connection') },
     readVoice: (input: unknown) => { if (!voice || backup?.isBusy()) throw new Error('VOICE_UNAVAILABLE'); return voice.read(input) },
+    readMemberSteps: (input: unknown) => {
+      const parsed = agentAddressSchema.safeParse(input)
+      if (!parsed.success || !collaboration?.readMemberSteps || backup?.isBusy()) throw new Error('LCA_MEMBER_STEPS_UNAVAILABLE')
+      return collaboration.readMemberSteps(parsed.data)
+    },
     readConnectionTest: (slot: unknown) => {
       const parsed = z.enum(['chat', 'work', 'background', 'chat_google', 'chat_claude', 'privacy']).safeParse(slot)
       if (!parsed.success || !modelSettings) throw new Error('CONNECTION_TEST_UNAVAILABLE')

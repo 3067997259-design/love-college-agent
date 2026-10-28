@@ -1,5 +1,6 @@
 import { appendPluginRecord } from '@deepseek-ai/dsh-session'
 import { COLLABORATION_KEY, RETIRED_TASK, cleanLine, collaborationProjection, taskVisible, nextTaskLease, turnOutcome } from './collaboration-state.js'
+import { MEMBER_STEPS_KEY, memberStepsProjection, memberStepsReply, nextMemberStep } from './member-steps.js'
 
 const POLICY = `LCA collaboration: choose by coordination needs, not task size. Use subagent for a self-contained deliverable, subagent_fork only when completed conversation context is needed. Use spawn_teammate when stable responsibilities, peer messages, shared task claims or dependencies are needed. Reuse suitable existing members before creating more. Do not create a team for every small step. Root may delegate independent helper work alongside a team; helpers cannot claim Team tasks. Do not increase delegation depth.
 Use list_agents before creating members. Team roster capacity is permanent for this root session (failed creation also consumes a name/slot); interrupt and inactivity do not free it. Ordinary and Team members share resident execution capacity. Do not interpret running count as available slots. If full, reuse a suitable member or explicitly delegate independent work; do not silently downgrade work requiring Team membership.
@@ -11,8 +12,11 @@ const output = { schema: {}, render: (_args, value) => [{ type: 'text', text: JS
 
 export function createCollaboration(ctx, { originOf, safety, send, roots, onHumanMessage }) {
   ctx.sessionProjections.register(collaborationProjection())
+  ctx.sessionProjections.register(memberStepsProjection())
   ctx.systemPrompt.section({ name: 'lca:collaboration', order: ctx.systemPrompt.getSectionOrder('TEAM_POLICY'), text: POLICY, interpolate: false })
   const revisions = new Map(), rendered = new Map(), pending = new Map(), stopping = new Set(), waiting = new Map()
+  const steps = new Map()
+  let stepSeq = 0
   let scheduled = false, closed = false
   const rootOf = (agent) => { const origin = originOf(agent); const root = origin && ctx.agents.get(origin.rootSessionId); if (!root) throw new Error('LCA_COLLABORATION_UNAVAILABLE'); return root }
   const state = (root) => ctx.sessionProjections.stateOf(root.session, COLLABORATION_KEY)
@@ -109,7 +113,7 @@ export function createCollaboration(ctx, { originOf, safety, send, roots, onHuma
         controls: { message: index !== 0 && !lease(root).stopped && !failed && (row.team || row.parent === String(root.id) && row.mode === 'continuable'), interrupt: index !== 0 && live?.status === 'running' },
         usage: { admittedUnits: fact?.admittedUnits ?? 0, inputTokens: fact?.inputTokens ?? null, outputTokens: fact?.outputTokens ?? null },
         sources: { status: !fact && index !== 0 ? 'unverified' : (current.sources.length || fact?.sources.length) ? 'restricted' : 'clean', kinds: [...new Set([...(fact?.sources ?? []), ...current.sources])] },
-        resultText: fact?.sources.length === 0 ? fact.resultText ?? null : null, activityLabel: live?.status === 'running' ? fact?.activityLabel ?? null : null, error: null }
+        resultText: fact?.sources.length === 0 ? fact.resultText ?? null : null, step: live?.status === 'running' ? steps.get(id) ?? null : null, error: null }
       // Tool activity and token counters must not invalidate a stop/message aimed at the same activation.
       const encoded = JSON.stringify({ address: item.address, mode: item.mode, controls: item.controls, activity: item.activity, authorized: current.authorized, activationId: current.activationId })
       if (rendered.get(id) !== encoded) { rendered.set(id, encoded); revisions.set(id, (revisions.get(id) ?? 0) + 1) }
@@ -199,20 +203,40 @@ export function createCollaboration(ctx, { originOf, safety, send, roots, onHuma
     const agent = ctx.agents.get(session.id)
     if (!agent || !originOf(agent)) return
     const origin = originOf(agent)
+    const id = String(agent.id), previous = steps.get(id)
+    const next = nextMemberStep(previous, event, stepSeq + 1)
+    if (next !== previous) { stepSeq++; if (next) steps.set(id, next); else steps.delete(id) }
     if (origin.parentSessionId) {
       if (event.type === 'turn/start') recordMember(agent, { ...lease(agent), outcome: 'none', resultText: null })
-      if (event.type === 'tool/call') recordMember(agent, { activityLabel: cleanLine(event.data.name, 80) })
       if (event.type === 'assistant/message') {
         const prior = state(rootOf(agent)).members[String(agent.id)] ?? {}, usage = event.data.usage
         const sources = safety.sources(agent), blocks = event.data.message.content ?? []
         recordMember(agent, { ...lease(agent), resultText: sources.length || blocks.some((block) => block.type === 'tool-call') ? null : cleanLine(blocks.filter((block) => block.type === 'text').map((block) => block.text).join(''), 2000), inputTokens: (prior.inputTokens ?? 0) + (usage?.inputTokens ?? 0), outputTokens: (prior.outputTokens ?? 0) + (usage?.outputTokens ?? 0) })
       }
-      if (event.type === 'turn/end') { recordMember(agent, { outcome: turnOutcome(event.data.reason?.kind), activityLabel: null }); waiting.delete(String(agent.id)) }
+      if (event.type === 'turn/end') { recordMember(agent, { outcome: turnOutcome(event.data.reason?.kind) }); waiting.delete(String(agent.id)) }
     }
-    if (['team/member', 'team/task', 'turn/start', 'turn/end', 'tool/call', 'assistant/message', 'plugin:lca/collaboration'].includes(event.type)) notify()
+    if (['team/member', 'team/task', 'turn/start', 'turn/end', 'tool/call', 'tool/result', 'user/message', 'assistant/message', 'plugin:lca/collaboration'].includes(event.type)) notify()
   })
   return {
     notify,
+    async memberSteps({ rootSessionId, sessionId }) {
+      const root = roots().find((agent) => String(agent.id) === rootSessionId)
+      if (!root || !(await entries(root)).some((entry) => String(entry.id) === sessionId && sessionId !== rootSessionId)) throw new Error('LCA_MEMBER_TARGET_UNAVAILABLE')
+      const live = ctx.agents.get(sessionId), session = live?.session ?? ctx.sessions.get(sessionId)
+      if (session && live) return memberStepsReply(ctx.sessionProjections.stateOf(session, MEMBER_STEPS_KEY), state(root).members[sessionId], safety.status(live))
+      // Completed members may have been evicted from the resident pool. Read DSH's log without resuming them.
+      const persistence = ctx.get('sessionPersistence')
+      if (!persistence) throw new Error('LCA_MEMBER_STEPS_UNAVAILABLE')
+      const reader = await persistence.open(sessionId, 'read')
+      try {
+        const { events } = await reader.read(), projection = memberStepsProjection()
+        const history = events.reduce((value, event) => projection.apply(value, event), projection.init(reader.header))
+        if (closed || !(await entries(root)).some((entry) => String(entry.id) === sessionId)) throw new Error('LCA_MEMBER_TARGET_UNAVAILABLE')
+        const current = ctx.agents.get(sessionId)
+        return current ? memberStepsReply(ctx.sessionProjections.stateOf(current.session, MEMBER_STEPS_KEY), state(root).members[sessionId], safety.status(current))
+          : memberStepsReply(history, state(root).members[sessionId], { sources: safety.sourcesFromEvents(events) })
+      } finally { await reader.close() }
+    },
     waiting: (id, reason) => { if (reason) waiting.set(id, reason); else waiting.delete(id); notify() },
     admitted: (agent, units) => { if (originOf(agent)?.parentSessionId) { const previous = state(rootOf(agent)).members[String(agent.id)]; recordMember(agent, { admittedUnits: (previous?.admittedUnits ?? 0) + units }) } },
     async request({ rootSessionId, command, requestId = randomUUID() }) {
@@ -241,7 +265,7 @@ export function createCollaboration(ctx, { originOf, safety, send, roots, onHuma
       }
       return snapshot(root)
     },
-    close() { closed = true; for (const signal of pending.keys()) signal.abort(); pending.clear() },
+    close() { closed = true; for (const signal of pending.keys()) signal.abort(); pending.clear(); steps.clear() },
   }
 }
 import { randomUUID } from 'node:crypto'

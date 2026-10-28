@@ -78,3 +78,14 @@ it('strips undeclared raw transcript fields and rejects invalid public projectio
   const service = createCollaborationState({ run: async () => view, changed() {}, allowed: () => false })
   service.accept(view); expect(service.dispatch(command())).toBe('permission-denied')
 })
+
+it('rejects a late member-detail read after the active collaboration scope is reset', async () => {
+  let finish!: (value: { withheld: boolean; steps: [] }) => void
+  const service = createCollaborationState({ run: async () => view, changed() {}, allowed: () => true,
+    readMemberSteps: () => new Promise((done) => { finish = done }) })
+  service.accept(view)
+  const reading = service.readMemberSteps(address)
+  service.reset(); finish({ withheld: false, steps: [] })
+  await expect(reading).rejects.toThrow('LCA_MEMBER_STEPS_UNAVAILABLE')
+  expect(service.view().operation).toBeNull()
+})

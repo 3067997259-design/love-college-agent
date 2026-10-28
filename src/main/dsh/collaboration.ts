@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { AppCommand, PublicErrorCode } from '../../shared'
-import type { CollaborationCommand, CollaborationView } from '../../shared/collaboration'
+import type { AgentAddress, MemberStepsRead, CollaborationCommand, CollaborationView } from '../../shared/collaboration'
 import { agentAddressSchema } from './identity'
 
 const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
@@ -14,7 +14,8 @@ export const collaborationViewSchema = z.object({
     waitingFor: z.enum(['approval', 'member', 'budget', 'user', 'recovery']).nullable(), controls: z.object({ message: z.boolean(), interrupt: z.boolean() }),
     usage: z.object({ admittedUnits: count, inputTokens: count.nullable(), outputTokens: count.nullable() }),
     sources: z.object({ status: z.enum(['clean', 'restricted', 'unverified']), kinds: z.array(z.enum(['mail', 'document', 'web', 'mcp', 'plugin', 'member'])).max(6) }),
-    resultText: z.string().max(2000).nullable().optional(), activityLabel: label.nullable().optional(), error: z.null(),
+    resultText: z.string().max(2000).nullable().optional(), error: z.null(),
+    step: z.object({ tool: label.nullable(), phase: z.enum(['tool', 'thinking', 'note']), seq: count }).nullable().optional(),
   })).max(512),
   tasks: z.array(z.object({ id, rootSessionId: id, revision: count, subject: label, ownerSessionId: id.nullable(), status: z.enum(['open', 'claimed', 'completed', 'deleted']),
     blockedBy: z.array(id).max(256), writeScopeLabels: z.array(label).max(256), scopeOverlap: z.boolean(), sourceStatus: z.enum(['available', 'retired']).optional() })).max(256),
@@ -28,10 +29,16 @@ export const collaborationViewSchema = z.object({
     || new Set(view.members.map((member) => member.address.sessionId)).size !== view.members.length) ctx.addIssue({ code: 'custom', message: 'Inconsistent collaboration scope' })
 })
 const empty = (): CollaborationView => ({ status: 'unavailable', runtimeId: null, projectId: null, members: [], tasks: [], operation: null })
-export function createCollaborationState(options: { run(command: CollaborationCommand): Promise<CollaborationView>; changed(): void; allowed(): boolean }) {
+export function createCollaborationState(options: { run(command: CollaborationCommand): Promise<CollaborationView>; readMemberSteps?(address: AgentAddress): Promise<MemberStepsRead>; changed(): void; allowed(): boolean }) {
   let value = empty(), generation = 0, pending = false
   return {
     view: (): CollaborationView => structuredClone(value),
+    async readMemberSteps(address: AgentAddress): Promise<MemberStepsRead> {
+      if (value.status !== 'ready' || !options.readMemberSteps || !value.members.some((member) => member.mode !== 'root' && JSON.stringify(member.address) === JSON.stringify(address))) throw new Error('LCA_MEMBER_STEPS_UNAVAILABLE')
+      const token = generation, answer = await options.readMemberSteps(address)
+      if (token !== generation) throw new Error('LCA_MEMBER_STEPS_UNAVAILABLE')
+      return answer
+    },
     busy: () => pending || value.members.some((member) => member.mode !== 'root' && ['running', 'waiting', 'stopping', 'starting'].includes(member.activity)),
     accept(view: CollaborationView) { value = { ...view, operation: view.operation && (!pending || view.operation.requestId === value.operation?.requestId) ? view.operation : value.operation }; options.changed() },
     reset(failed = false) { generation++; pending = false; value = { ...empty(), status: failed ? 'failed' : 'unavailable', operation: value.operation?.phase === 'running' ? { ...value.operation, phase: 'settled', outcome: 'unknown', error: { code: 'connection-failed', retryable: false } } : null }; options.changed() },
@@ -61,4 +68,4 @@ export function createCollaborationState(options: { run(command: CollaborationCo
     },
   }
 }
-export type CollaborationPort = Pick<ReturnType<typeof createCollaborationState>, 'view' | 'dispatch'>
+export type CollaborationPort = Pick<ReturnType<typeof createCollaborationState>, 'view' | 'dispatch'> & Partial<Pick<ReturnType<typeof createCollaborationState>, 'readMemberSteps'>>

@@ -12,6 +12,9 @@ import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost
 import { itemsInput, type QuestionItem } from '../questions/schema'
 import type { DshRoutes } from './routes'
 import { createCollaborationState } from './collaboration'
+import { createMemberFocus } from './member-focus'
+import { publicMemberSteps } from './member-steps'
+import { toolKind } from './tool-kinds'
 import type { CollaborationView } from '../../shared/collaboration'
 import type { DshConversationState } from '../../shared/dsh-protocol'
 
@@ -39,10 +42,6 @@ const daySessions = (saved: Saved, day: string): SavedSession[] => { const value
 const EARLIER_LINES = 40
 const EARLIER_CHARS = 12_000
 const LCA_PREFIX = 'lca_'
-const TEMPLATES: Record<string, string> = { read: 'dsh.read', read_image: 'dsh.read', working_directory: 'dsh.read', write: 'dsh.write', edit: 'dsh.edit', glob: 'dsh.search', grep: 'dsh.search',
-  pwsh: 'dsh.shell', bash: 'dsh.shell', job_output: 'dsh.shell', job_list: 'dsh.shell', job_kill: 'dsh.shell', web_search: 'dsh.web', web_fetch: 'dsh.web', todo_write: 'dsh.plan',
-  get_goal: 'dsh.plan', create_goal: 'dsh.plan', update_goal: 'dsh.plan', exit_plan_mode: 'dsh.plan', skill: 'dsh.skill', subagent: 'dsh.agent', subagent_fork: 'dsh.agent',
-  send_message: 'dsh.agent', list_agents: 'dsh.agent', interrupt_agent: 'dsh.agent', workflow: 'dsh.agent', ask_user_question: 'user.ask' }
 const clip = (text: string, max: number) => (text.length > max ? text.slice(0, max) + '…' : text)
 const parsed = (raw: string): Record<string, unknown> => { try { const value: unknown = JSON.parse(raw); return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {} } catch { return {} } }
 // LCA tools that hand her third-party originals, as in D2 (index.ts thirdPartySources).
@@ -156,6 +155,7 @@ export function createDshExecution(options: {
   // a turn DSH ends after this point is closed at the next start.
   let maintaining = false
   let closed = false
+  const focus = createMemberFocus(clock, (name) => toolKind(name, lcaTools()), (view) => { if (!closed) collaboration.accept(view) })
   const collaboration = createCollaborationState({
     allowed: () => !closed && !maintaining && !store.projection().lightsOut && !store.projection().sleeping,
     changed: () => { if (!closed) options.changed('task') },
@@ -170,10 +170,19 @@ export function createDshExecution(options: {
         const current = await ensureSession()
         const result = await host!.collaboration({ rootSessionId: current.id, command, requestId: 'requestId' in command ? String(command.requestId) : undefined })
         if (closed || session !== current || current.cwd !== resolve(options.project())) throw new Error('DSH_ORIGIN_UNAVAILABLE')
-        return result.view
+        return focus.accept(result.view)
       } finally { if (recovering) maintaining = false }
     },
+    readMemberSteps: async (address) => {
+      const current = session, running = host
+      const member = collaboration.view().members.find((entry) => JSON.stringify(entry.address) === JSON.stringify(address))
+      if (closed || maintaining || !current || !running || !currentScope() || current.id !== address.rootSessionId || !member) throw new Error('LCA_MEMBER_STEPS_UNAVAILABLE')
+      const answer = await running.memberSteps({ address, expectedRevision: member.revision })
+      if (closed || session !== current || host !== running || !currentScope()) throw new Error('LCA_MEMBER_STEPS_UNAVAILABLE')
+      return publicMemberSteps(answer, (name) => toolKind(name, lcaTools()))
+    },
   })
+  const resetCollaboration = (failed = false) => { focus.reset(); collaboration.reset(failed) }
   const record = (input: JournalInput) => { if (!closed) store.append(input) }
   const lcaTools = () => new Map(options.tools().map((tool) => [LCA_PREFIX + tool.definition.name, tool]))
   let host: DshHost | undefined
@@ -365,11 +374,11 @@ export function createDshExecution(options: {
 
   const onEvent = (event: DshEvent) => {
     if (closed) return
-    if (event.t === 'host-unavailable') { collaboration.reset(true); if (turn) fail('connection-failed'); options.disconnected?.(); return }
+    if (event.t === 'host-unavailable') { resetCollaboration(true); if (turn) fail('connection-failed'); options.disconnected?.(); return }
     if (!session || !currentScope() || (event.sessionId && event.sessionId !== session.id)) return
     switch (event.t) {
       case 'collaboration':
-      case 'collaboration-reply': if (currentScope()) collaboration.accept(event.view as CollaborationView); break
+      case 'collaboration-reply': if (currentScope()) collaboration.accept(focus.accept(event.view as CollaborationView)); break
       case 'turn-start': {
         stateChanges = 0
         const start = starts.shift()
@@ -405,7 +414,7 @@ export function createDshExecution(options: {
       case 'tool-call': {
         if (!turn) break
         const name = String(event.name); const callId = String(event.callId); const args = parsed(String(event.args ?? ''))
-        const templateId = lcaTools().get(name)?.templateId ?? TEMPLATES[name] ?? 'dsh.other'
+        const templateId = toolKind(name, lcaTools())
         turn.calls.set(callId, { command: typeof args.command === 'string' ? args.command : null, templateId }); turn.toolsExecuted = true
         record({ type: 'work/activity', turnId: turn.lcaTurnId, callId, templateId, status: 'running' })
         options.changed('task'); break
@@ -528,7 +537,7 @@ export function createDshExecution(options: {
   const openSession = async (day: string, cwd: string) => {
     // A scope-change notification already cleared the old projection. Do not invalidate the refresh
     // that is now opening this scope, or its eventual reply would be discarded as an old operation.
-    if (session?.id && collaboration.view().members.length) collaboration.reset()
+    if (session?.id && collaboration.view().members.length) resetCollaboration()
     const running = ensureHost(cwd)
     if (session?.id) running.cancel(session.id)
     const sessions = daySessions(read<Saved>(sessionsFile, {}), day)
@@ -608,7 +617,7 @@ export function createDshExecution(options: {
       if (closed) return
       syncState()
       if (session && (store.projection().lightsOut || store.projection().sleeping || !currentScope())) host?.cancel(session.id)
-      if (!currentScope()) collaboration.reset()
+      if (!currentScope()) resetCollaboration()
       kick()
     },
     /**
@@ -630,7 +639,7 @@ export function createDshExecution(options: {
       const restart = async () => {
         const previous = host; host = undefined; session = undefined
         await previous?.close()
-        collaboration.reset()
+        resetCollaboration()
         if (closed) throw new Error('DSH_EXECUTION_CLOSED')
         return ensureHost(resolve(options.project()))
       }
@@ -658,7 +667,7 @@ export function createDshExecution(options: {
     probe: async (role: 'chat' | 'work') => { if (closed) throw new Error('DSH_EXECUTION_CLOSED'); return ensureHost(resolve(options.project())).probe(role) },
     /** New thinking levels apply from the next step; no restart. */
     efforts: (efforts: { chat?: string; work?: string }) => { if (!closed) host?.efforts(efforts) },
-    close: async () => { closed = true; turn?.asks.abort(); await host?.close() },
+    close: async () => { closed = true; focus.reset(); turn?.asks.abort(); await host?.close() },
   }
 }
 export type DshExecution = ReturnType<typeof createDshExecution>

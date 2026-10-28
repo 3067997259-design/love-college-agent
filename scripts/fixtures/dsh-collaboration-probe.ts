@@ -8,10 +8,12 @@ import { syncBuiltinESMExports } from 'node:module'
 import { startDshHost, prepareDshProfile, type DshHost, type DshEvent } from '../../src/main/dsh/host'
 import { systemClock } from '../../src/main/clock'
 import type { CollaborationView, CollaborationCommand } from '../../src/shared/collaboration'
+import type { DshMemberStep } from '../../src/shared/dsh-protocol'
 
 const [, , root, repo] = process.argv
 const user = join(root, 'user'), dataDir = join(root, 'data'), workspace = join(root, 'work')
 for (const dir of [user, dataDir, workspace, join(user, 'AppData/Roaming'), join(user, 'AppData/Local')]) mkdirSync(dir, { recursive: true })
+writeFileSync(join(workspace, 'member-steps-proof.txt'), 'Synthetic member step fixture.')
 Object.assign(process.env, { USERPROFILE: user, HOME: user, APPDATA: join(user, 'AppData/Roaming'), LOCALAPPDATA: join(user, 'AppData/Local'), LCA_DSH_NODE: process.execPath, Path: `${process.env.SystemRoot}\\System32;${process.env.SystemRoot}` })
 const events: DshEvent[] = [], requests: { phase: string; request: unknown }[] = [], checks: string[] = []
 const admissions: { phase: string; bucket: string }[] = []
@@ -37,11 +39,18 @@ const server = createServer((req, res) => {
       if (req.url !== '/v1/chat/completions') { res.writeHead(404).end(); return }
       const request = JSON.parse(body), messages = request.messages
       requests.push({ phase, request })
-      const markerIndex = messages.findLastIndex((message: { role: string; content: unknown }) => message.role === 'user' && /\[\[(COEXIST|BOARD|SOURCE|RETIRE|CAPACITY|STOPPED|CHILD|CONTINUE|FORBIDDEN|AUTO|AUTOCHILD|LABEL1|LABEL2)\]\]/.test(text(message.content)))
+      const markerIndex = messages.findLastIndex((message: { role: string; content: unknown }) => message.role === 'user' && /\[\[(COEXIST|BOARD|SOURCE|RETIRE|CAPACITY|STOPPED|CHILD|CONTINUE|FORBIDDEN|AUTO|AUTOCHILD|LABEL1|LABEL2|STEPS|STEPCHILD|STEPRESTRICTED)\]\]/.test(text(message.content)))
       const marker = text(messages[markerIndex]?.content).match(/\[\[(\w+)\]\]/)?.[1]
       const results = messages.slice(markerIndex + 1).filter((message: { role: string }) => message.role === 'tool'), last = results.at(-1), id = last?.tool_call_id
       let reply: Record<string, unknown> = { content: `${marker ?? 'notification'} done` }
-      if (marker === 'COEXIST') {
+      if (marker === 'STEPS') {
+        if (!id) reply = call('spawn_teammate', 'step-worker', { name: 'step-worker', description: 'Synthetic step reader', prompt: '[[STEPCHILD]] read fixture steps' })
+      } else if (marker === 'STEPCHILD') {
+        if (results.length < 14) reply = call('read', `step-${results.length}`, { file_path: results.length === 13 ? 'missing-step-file.txt' : 'member-steps-proof.txt' })
+      } else if (marker === 'STEPRESTRICTED') {
+        if (!id) reply = call('lca_probe_source', 'step-source')
+        else if (id === 'step-source') reply = call('read', 'step-private-read', { file_path: 'member-steps-proof.txt' })
+      } else if (marker === 'COEXIST') {
         if (!id) reply = call('spawn_teammate', 'team', { name: 'reviewer', description: 'Stable review responsibility', prompt: '[[CHILD]] team fixture' })
         else if (id === 'team') { teammate = JSON.parse(text(last.content)).member.target; reply = call('subagent', 'helper', { description: 'Independent helper', prompt: '[[CHILD]] ordinary fixture' }) }
         else if (id === 'helper') reply = call('list_agents', 'list')
@@ -95,7 +104,9 @@ const server = createServer((req, res) => {
       res.write(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: 'assistant', ...reply }, finish_reason: null }] })}\n\n`)
       res.end(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: {}, finish_reason: reply.tool_calls ? 'tool_calls' : 'stop' }], usage: { prompt_tokens: 12, completion_tokens: 7, total_tokens: 19 } })}\n\ndata: [DONE]\n\n`)
       }
-      if (holdChildren && ['CHILD', 'CONTINUE', 'AUTOCHILD'].includes(marker ?? '')) heldReplies.push(respond); else respond()
+      if (holdChildren && ['CHILD', 'CONTINUE', 'AUTOCHILD'].includes(marker ?? '')) heldReplies.push(respond)
+      else if (marker === 'STEPRESTRICTED' && !id) setTimeout(respond, 250) // let the incoming-note projection be observed before the next tool
+      else respond()
     } catch (error) { res.writeHead(500).end(); console.error(error) }
   })
 })
@@ -189,6 +200,30 @@ try {
   assert.ok(!/P5_PRIVATE_SOURCE|p5-private-member/.test(JSON.stringify(requests.filter((row) => row.phase === 'LABEL2'))))
   assert.ok(!/P5_PRIVATE_SOURCE|p5-private-member/.test(JSON.stringify(await view())))
   pass('member-label-inherits-parent-source-before-first-step-and-stays-retired-on-reuse')
+  sessionId = await host.open(workspace)
+  const stepsStart = events.length
+  await turn('STEPS')
+  await until(() => events.slice(stepsStart).some((event) => event.t === 'collaboration' && (event.view as CollaborationView).members.some((row) => row.name === 'step-worker' && row.outcome === 'completed')), 'STEP_WORKER_DONE')
+  snapshot = await view()
+  const stepWorker = snapshot.members.find((row) => row.name === 'step-worker')!
+  const stepTarget = { address: stepWorker.address, expectedRevision: stepWorker.revision }
+  const recent = await host.memberSteps(stepTarget)
+  assert.equal(recent.withheld, false); assert.equal(recent.steps.length, 12)
+  assert.ok(recent.steps.some((step) => step.status === 'completed' && step.target === 'member-steps-proof.txt'))
+  assert.equal(recent.steps.at(-1)?.status, 'failed')
+  const phases = events.slice(stepsStart).filter((event) => event.t === 'collaboration').flatMap((event) => (event.view as CollaborationView).members.map((row) => (row as typeof row & { step?: DshMemberStep }).step?.phase))
+  assert.ok(phases.includes('tool')); assert.ok(phases.includes('thinking'))
+  assert.ok(!JSON.stringify(snapshot).includes('member-steps-proof.txt'))
+  assert.ok(!events.some((event) => event.t === 'member-steps-reply'))
+  await assert.rejects(host.memberSteps({ ...stepTarget, address: { ...stepTarget.address, rootSessionId: 'unrelated-root' } }))
+  pass('member-step-events-bounded-history-failure-and-isolated-read')
+  await control({ type: 'agent.message', target: stepTarget, text: '[[STEPRESTRICTED]] synthetic outside-source step' })
+  await until(() => events.some((event) => event.t === 'collaboration' && (event.view as CollaborationView).members.some((row) => row.address.sessionId === stepWorker.address.sessionId && row.outcome === 'completed' && row.sources.status === 'restricted')), 'STEP_RESTRICTED_DONE')
+  const restricted = (await view()).members.find((row) => row.address.sessionId === stepWorker.address.sessionId)!
+  const hidden = await host.memberSteps({ address: restricted.address, expectedRevision: restricted.revision })
+  assert.equal(hidden.withheld, true); assert.ok(hidden.steps.every((step) => !step.target))
+  assert.ok(events.slice(stepsStart).filter((event) => event.t === 'collaboration').some((event) => (event.view as CollaborationView).members.some((row) => (row as typeof row & { step?: DshMemberStep }).step?.phase === 'note')))
+  pass('member-message-phase-and-restricted-targets-withheld')
   const failedDir = join(root, 'failed-data')
   const failureOptions = { ...options, dataDir: failedDir }
   const failureProfile = prepareDshProfile(failureOptions).profile

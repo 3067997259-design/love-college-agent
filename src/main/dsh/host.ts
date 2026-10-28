@@ -11,6 +11,8 @@ import { createDshIdentities } from './identity'
 import type { DshApprovalScope, DshOrigin, DshConversationState, DshProbeResult } from '../../shared/dsh-protocol'
 import type { DshCollaborationRequest, DshCollaborationReply } from '../../shared/dsh-protocol'
 import { collaborationViewSchema } from './collaboration'
+import { memberStepsSchema } from './member-steps'
+import type { AgentTarget } from '../../shared/collaboration'
 import { z } from 'zod'
 import { CAPABILITY_LEVELS } from '../config/model-capabilities'
 import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
@@ -200,11 +202,12 @@ export function startDshHost(options: DshHostOptions) {
       void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id)) && current()) send({ t: 'question-answer', id: message.id, ...result }) })
     }
     else if (message.t === 'question-cancel') { asking.get(String(message.id))?.abort(); asking.delete(String(message.id)) }
-    else if ((message.t === 'session' || message.t === 'described' || message.t === 'probed' || message.t === 'extensions' || message.t === 'collaboration-reply' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
+    else if ((message.t === 'session' || message.t === 'described' || message.t === 'probed' || message.t === 'extensions' || message.t === 'collaboration-reply' || message.t === 'member-steps-reply' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
       const entry = waiting.get(message.ref)!; waiting.delete(message.ref)
       if (message.t === 'error') entry.fail(new Error(String(message.message))); else entry.done(message)
     }
-    options.onEvent(message)
+    // On-demand details have no event/journal/snapshot consumer.
+    if (message.t !== 'member-steps-reply') options.onEvent(message)
   }
   const request = (command: Record<string, unknown>, timeoutMs?: number) => new Promise<Record<string, unknown>>((done, fail) => {
     const ref = randomUUID()
@@ -215,6 +218,14 @@ export function startDshHost(options: DshHostOptions) {
   return {
     started,
     available: () => !closed && !disconnected,
+    memberSteps: async (target: AgentTarget) => {
+      await started
+      const root = identities.address(target.address.rootSessionId)
+      if (!root || root.parentSessionId !== null || target.address.sessionId === root.sessionId || !identities.acceptsTarget(target, root.projectId)) throw new Error('LCA_STALE_MEMBER')
+      const answer = await request({ t: 'member-steps', input: { rootSessionId: root.sessionId, sessionId: target.address.sessionId } }, 10_000)
+      if (!identities.acceptsTarget(target, root.projectId)) throw new Error('LCA_STALE_MEMBER')
+      return memberStepsSchema.parse(answer.value)
+    },
     collaboration: async (input: DshCollaborationRequest): Promise<DshCollaborationReply> => {
       await started
       const root = identities.address(input.rootSessionId)
