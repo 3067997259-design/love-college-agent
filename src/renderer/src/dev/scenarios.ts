@@ -34,6 +34,18 @@ const agent = (sessionId: string, name: string, patch: Partial<AgentView> = {}):
   controls: { message: true, interrupt: true }, usage: { admittedUnits: 1200, inputTokens: null, outputTokens: null },
   sources: { status: 'clean', kinds: [] }, error: null, ...patch,
 })
+const agentWork = (templateId: string | null, focus: 'files' | 'research' | 'team', phase: 'tool' | 'thinking' | 'note' = 'tool', long = false) =>
+  ({ templateId, focus, phase, long, sinceMs: T.sat1420 + 12 * MIN - (long ? 24_000 : 8_000) })
+/** On-demand fake details live outside the fake snapshot, just like production. */
+export const fakeMemberSteps = (member: AgentView) => ({
+  withheld: member.sources.status !== 'clean',
+  steps: [
+    { templateId: 'dsh.read', status: 'completed' as const, durationMs: 1200, ...(member.sources.status === 'clean' ? { target: 'src/pages/index.html' } : {}) },
+    { templateId: 'dsh.search', status: 'completed' as const, durationMs: 1800, ...(member.sources.status === 'clean' ? { target: 'navigation' } : {}) },
+    { templateId: member.work?.templateId ?? 'dsh.edit', status: member.activity === 'running' && member.work?.phase === 'tool' ? 'running' as const : member.outcome === 'failed' ? 'failed' as const : 'completed' as const,
+      durationMs: member.activity === 'running' && member.work?.phase === 'tool' ? null : 3200, ...(member.sources.status === 'clean' ? { target: 'src/pages/index.html' } : {}) },
+  ],
+})
 
 const msg = (id: string, role: MessageView['role'], text: string, createdAtMs: number, extra: Partial<MessageView> = {}): MessageView =>
   ({ id, role, text, createdAtMs, status: 'complete', ...extra })
@@ -514,14 +526,18 @@ export const SCENARIOS = {
     messages: [msg('t1', 'user', '把课程网站的三个页面分给帮手一起改，改完汇总给我', T.sat1420 + 10 * MIN), msg('t2', 'assistant', '好，我叫几位帮手一起来。', T.sat1420 + 10 * MIN + 5_000)],
     collaboration: {
       status: 'ready', runtimeId: 'fake', projectId: 'fake', tasks: [],
-      capacity: { teamUsed: 5, teamLimit: 8, resident: 3, activeLimit: 4 },
+      capacity: { teamUsed: 6, teamLimit: 8, resident: 6, activeLimit: 8 },
       members: [
         agent('root', '桃子', { mode: 'root', activity: 'running' }),
-        agent('m1', '首页', { taskLabel: '改首页的导航和配色', activity: 'running', activityLabel: '编辑 index.html' }),
-        agent('m2', '课表页', { taskLabel: '课表页加上周次切换', activity: 'waiting', waitingFor: 'approval', activityLabel: '想运行 pnpm install' }),
+        agent('m1', '首页', { taskLabel: '改首页的导航和配色', activity: 'running', work: agentWork('dsh.edit', 'files') }),
+        agent('m2', '课表页', { taskLabel: '课表页加上周次切换', activity: 'waiting', waitingFor: 'approval' }),
         agent('m3', '作业页', { taskLabel: '作业页列出截止时间', outcome: 'completed', resultText: '作业页已列出 6 项截止时间，按日期排好；没有改动其他页面。' }),
-        agent('m4', '检查', { mode: 'subagent', taskLabel: '检查三个页面的链接', activity: 'running', activityLabel: '读 schedule.html' }),
+        agent('m4', '检查', { mode: 'subagent', taskLabel: '检查三个页面的链接', activity: 'running', work: agentWork('dsh.search', 'research'), sources: { status: 'restricted', kinds: ['web'] } }),
         agent('m5', '图片', { mode: 'subagent', taskLabel: '压缩首页图片', outcome: 'failed', error: { code: 'internal', retryable: true } }),
+        agent('m6', '协调', { taskLabel: '和同伴核对任务', activity: 'running', work: agentWork(null, 'team', 'note') }),
+        agent('m7', '布局', { taskLabel: '整理页面布局', activity: 'running', work: agentWork(null, 'files', 'thinking', true) }),
+        agent('m8', '样式', { taskLabel: '修改公共样式', activity: 'running', work: agentWork('dsh.write', 'files') }),
+        agent('m9', '校验', { mode: 'subagent', taskLabel: '运行页面检查', activity: 'running', work: agentWork('dsh.shell', 'files') }),
       ],
     },
   })),

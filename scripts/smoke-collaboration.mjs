@@ -14,6 +14,7 @@ const profile = join(data, 'developer', scene), user = join(data, 'user'), evide
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19594', LCA_MCP_PORT: '0', USERPROFILE: user, HOME: user, APPDATA: join(user, 'AppData/Roaming'), LOCALAPPDATA: join(user, 'AppData/Local') }
 let instance, page, client
 const checks = []
+const teamOnly = process.argv.includes('--team-room-only')
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const state = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, epoch: state.epoch, requestId: crypto.randomUUID(), ...body }) }, body)
 async function until(test, label) { for (let i = 0; i < 400; i++) { if (await test(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(label) }
@@ -76,6 +77,7 @@ try {
   await until((state) => state.collaboration.members.some((member) => member.mode === 'teammate' && member.activity === 'inactive' && member.outcome === 'aborted'), 'MEMBER_STOPPED')
   await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'close') // everyone stopped: back to the desk
   pass('single-member-interrupt-observes-real-aborted-outcome')
+  if (!teamOnly) {
   const oldRuntime = (await snapshot()).collaboration.runtimeId
   // Fault injection only into the test app's own, already-started DSH child.
   assert.equal(await instance.evaluate((_electron, oldId) => {
@@ -99,6 +101,12 @@ try {
   assert.equal(recovered.operation.requestId, unknownId); assert.notEqual(recovered.runtimeId, oldRuntime)
   assert.equal(recovered.tasks[0].status, 'open'); assert.ok(recovered.members.every((member) => member.activity === 'inactive'))
   pass('lost-receipt-refresh-reconnects-and-reconciles-same-operation-without-replay')
+  } else {
+    // Independent visual acceptance when the known P5 transport-loss fixture is under investigation.
+    await panel.getByRole('button', { name: '重新打开', exact: true }).click()
+    await until((state) => state.collaboration.tasks[0]?.status === 'open', 'DIRECT_REOPEN')
+    pass('direct-reopen-without-transport-fault-injection')
+  }
   await panel.getByRole('button', { name: '主角色领取', exact: true }).click()
   await until((state) => state.collaboration.tasks[0].status === 'claimed', 'RECLAIM')
   await panel.getByRole('button', { name: '确认任务完成', exact: true }).click()
@@ -111,7 +119,7 @@ try {
   await panel.screenshot({ path: join(evidence, 'tasks.png') })
   await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()).setSize(1100, 760))
   assert.ok(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)); await page.screenshot({ path: join(evidence, 'book-narrow.png') })
-  const safe = JSON.stringify((await snapshot()).collaboration); assert.ok(!safe.includes('cwd')); assert.ok(!safe.includes('transcript')); assert.ok(!safe.includes('Bearer '))
+  const safe = JSON.stringify((await snapshot()).collaboration); assert.ok(!safe.includes('cwd')); assert.ok(!safe.includes('transcript')); assert.ok(!safe.includes('Bearer ')); assert.ok(!safe.includes('"target"')); assert.ok(!safe.includes('"activityLabel"')); assert.ok(!safe.includes('"step"'))
   pass('narrow-page-and-safe-projection')
   await client.close(); client = null; await instance.close(); instance = null
   await launch(); await page.getByRole('button', { name: '协作', exact: true }).click()
@@ -135,7 +143,51 @@ try {
   await page.getByRole('button', { name: '回到桌前', exact: true }).click()
   await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'close')
   pass('team-room-toggle-and-card-follow-recovered-members')
-  await writeFile(join(evidence, 'evidence.json'), JSON.stringify({ checks, syntheticOnly: true, executable: process.env.LCA_TEST_EXECUTABLE ?? electronPath, data, evidence }, null, 2)); console.log('P5_UI_EVIDENCE', evidence)
+  // V2: a real child read -> thinking, main-clock focus -> tea table, on-demand Chinese history.
+  const project = (await snapshot()).work.current.path
+  assert.ok(resolve(project).startsWith(resolve(profile) + '\\'), 'fixture writes must stay inside this isolated profile')
+  await writeFile(join(project, 'team-step-proof.txt'), 'Synthetic team-room step fixture.')
+  await send({ type: 'mode.set', mode: 'work' })
+  await debug('set_fake_model', { script: [{ text: 'Room setup ready', toolCalls: [], delayMs: 0 }] })
+  await send({ type: 'message.send', text: 'Prepare for the next synthetic helper task.' })
+  await until((state) => state.messages.some((message) => message.text === 'Room setup ready') && state.collaboration.members.every((member) => member.activity === 'inactive'), 'ROOM_SETUP_IDLE')
+  await new Promise((done) => setTimeout(done, 300))
+  await debug('set_fake_model', { script: [
+    { text: '', toolCalls: [{ id: 'room-read', name: 'read', arguments: JSON.stringify({ file_path: 'team-step-proof.txt' }) }], delayMs: 0 },
+    { text: 'Room read complete', toolCalls: [], delayMs: 15000 },
+    { text: 'Room result delivered', toolCalls: [], delayMs: 0 },
+  ] })
+  const reader = (await snapshot()).collaboration.members.find((member) => member.mode === 'teammate')
+  assert.equal((await send({ type: 'agent.message', target: { address: reader.address, expectedRevision: reader.revision }, text: 'Read team-step-proof.txt and report.' })).status, 'accepted')
+  await until(async (state) => {
+    const row = state.collaboration.members.find((member) => member.address.sessionId === reader.address.sessionId)
+    if (row?.work?.phase !== 'thinking') return false
+    const steps = await page.evaluate((address) => window.lca.readMemberSteps(address).catch(() => null), reader.address)
+    return steps?.steps.some((step) => step.templateId === 'dsh.read' && step.status === 'completed')
+  }, 'ROOM_CHILD_READ_THEN_THINKING')
+  await debug('set_clock', { nowMs: (await snapshot()).clock.nowMs + 7000 })
+  await until((state) => state.collaboration.members.some((member) => member.address.sessionId === reader.address.sessionId && member.work?.focus === 'files'), 'ROOM_FILES_FOCUS')
+  await page.getByRole('button', { name: '收起协作', exact: true }).click()
+  // The earlier manual desk choice persists; select the room explicitly.
+  const showRoom = page.getByRole('button', { name: '看看房间', exact: true })
+  if (await showRoom.count()) await showRoom.click()
+  const mini = page.getByRole('button', { name: new RegExp(`^${reader.name}：`) })
+  assert.equal(await mini.getAttribute('data-station'), 'table')
+  await mini.click()
+  const progress = page.getByRole('dialog', { name: reader.name, exact: true })
+  await progress.locator('.team-card-history li').first().waitFor()
+  assert.ok((await progress.textContent()).includes('在想下一步'))
+  assert.ok((await progress.locator('.team-card-history').textContent()).includes('翻看项目里的文件'))
+  const detailed = await page.evaluate((address) => window.lca.readMemberSteps(address), reader.address)
+  assert.ok(detailed.steps.length <= 12); assert.ok(detailed.steps.some((step) => step.templateId === 'dsh.read'))
+  assert.ok(!JSON.stringify(detailed).includes('"tool"'))
+  const projected = JSON.stringify(await snapshot())
+  assert.ok(!projected.includes('"target":"team-step-proof.txt"')); assert.ok(!JSON.stringify((await snapshot()).collaboration).includes('team-step-proof.txt'))
+  await page.locator('.page-left').screenshot({ path: join(evidence, 'team-v2-progress.png') })
+  await progress.getByRole('button', { name: '停止当前工作', exact: true }).click()
+  await until((state) => state.collaboration.members.some((member) => member.address.sessionId === reader.address.sessionId && member.outcome === 'aborted'), 'ROOM_CHILD_STOP')
+  pass('team-station-chinese-history-and-no-target-in-snapshot')
+  await writeFile(join(evidence, 'evidence.json'), JSON.stringify({ checks, teamOnly, syntheticOnly: true, executable: process.env.LCA_TEST_EXECUTABLE ?? electronPath, data, evidence }, null, 2)); console.log('P5_UI_EVIDENCE', evidence)
 } catch (error) {
   if (page && !page.isClosed()) { await writeFile(join(evidence, 'failure.json'), JSON.stringify({ error: String(error), snapshot: await snapshot() }, null, 2)); await page.screenshot({ path: join(evidence, 'failure.png') }) }
   throw error

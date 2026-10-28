@@ -1,22 +1,27 @@
-// Cut a 3x3 chibi sprite sheet on a white background into nine transparent PNGs.
+// Cut a regular chibi sprite sheet on a white background into transparent PNGs (default 3x3).
 // The background is flood-filled from each cell's border, so white inside the figure (collar, socks, paper) survives
 // as long as the outline is closed; edge pixels fade with their lightness so no white halo is left.
-// Run: pnpm exec electron art/tools/cut-chibi-sprites.cjs <sheet> <outDir> <name1,...,name9>
+// Run: pnpm exec electron art/tools/cut-chibi-sprites.cjs <sheet> <outDir> <name1,...> [rows=3] [columns=3]
 const { app, BrowserWindow } = require('electron')
 const { writeFileSync, mkdirSync } = require('node:fs')
 const { join } = require('node:path')
 const { pathToFileURL } = require('node:url')
 const args = process.argv.slice(process.argv.findIndex((a) => a.endsWith('.cjs')) + 1)
-const [sheet, outDir, namesArg] = args
-const names = namesArg.split(',')
+const [sheet, outDir, namesArg, rowsArg = '3', columnsArg = '3'] = args
+const rows = Number(rowsArg), columns = Number(columnsArg), names = namesArg?.split(',') ?? []
+if (!sheet || !outDir || !Number.isInteger(rows) || !Number.isInteger(columns) || rows < 1 || columns < 1 || rows * columns > 64
+  || names.length !== rows * columns || new Set(names).size !== names.length || names.some((name) => !/^[a-zA-Z0-9_-]+$/.test(name))) {
+  console.error('Expected sheet, output directory, one safe unique name per cell, and positive rows/columns (max 64 cells).')
+  app.exit(1)
+} else
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ show: false, webPreferences: { webSecurity: false } })
   try {
     await win.loadURL('data:text/html,<canvas id=c></canvas>')
     const result = await win.webContents.executeJavaScript(`(async () => {
       const img = await new Promise((done, fail) => { const i = new Image(); i.onload = () => done(i); i.onerror = () => fail(new Error('decode')); i.src = ${JSON.stringify(pathToFileURL(sheet).href)} })
-      const W = img.naturalWidth, H = img.naturalHeight, cw = W / 3, ch = H / 3, out = []
-      for (let r = 0; r < 3; r++) for (let q = 0; q < 3; q++) {
+      const W = img.naturalWidth, H = img.naturalHeight, cw = W / ${columns}, ch = H / ${rows}, out = []
+      for (let r = 0; r < ${rows}; r++) for (let q = 0; q < ${columns}; q++) {
         const x0 = Math.round(q * cw), y0 = Math.round(r * ch), w = Math.round((q + 1) * cw) - x0, h = Math.round((r + 1) * ch) - y0
         const c = new OffscreenCanvas(w, h), g = c.getContext('2d'); g.drawImage(img, x0, y0, w, h, 0, 0, w, h)
         const im = g.getImageData(0, 0, w, h), d = im.data, light = (k) => Math.min(d[k], d[k + 1], d[k + 2])
@@ -36,6 +41,7 @@ app.whenReady().then(async () => {
           if (d[k + 3] > 24) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y }
         }
         g.putImageData(im, 0, 0)
+        if (minX > maxX || minY > maxY) throw new Error('Empty sprite cell: ' + r + ',' + q)
         const pad = 4, bx = Math.max(0, minX - pad), by = Math.max(0, minY - pad), bw = Math.min(w, maxX + pad + 1) - bx, bh = Math.min(h, maxY + pad + 1) - by
         const o = new OffscreenCanvas(bw, bh); o.getContext('2d').drawImage(c, bx, by, bw, bh, 0, 0, bw, bh)
         const blob = await o.convertToBlob({ type: 'image/png' }), buf = new Uint8Array(await blob.arrayBuffer())

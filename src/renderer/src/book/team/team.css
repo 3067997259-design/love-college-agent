@@ -12,6 +12,7 @@
   pointer-events: none;
 }
 .team-room[data-visible='true'] { opacity: 1; transform: none; pointer-events: auto; }
+.team-occluder { pointer-events: none; }
 .team-room-art {
   position: absolute;
   inset: 0;
@@ -36,11 +37,12 @@
   background: none;
   transform: translate(-50%, -100%);
   cursor: pointer;
-  transition: transform 220ms var(--ease-in-out);
+  transition: left 1.2s var(--ease-in-out), top 1.2s var(--ease-in-out), height 1.2s var(--ease-in-out), transform 220ms var(--ease-in-out);
 }
 .team-mini img { position: relative; display: block; height: 100%; width: auto; user-select: none; }
 .team-mini:hover { transform: translate(-50%, calc(-100% - 3px)); }
 .team-mini:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 3px; border-radius: 14px; }
+.team-failure-mark { position: absolute; right: -3%; top: 1%; display: grid; place-items: center; width: 1.2rem; height: 1.2rem; border: 2px solid #624a3a; border-radius: 3px; color: #624a3a; background: #fff8e9; font-weight: bold; }
 .team-mini-shadow {
   position: absolute;
   left: 50%;
@@ -52,11 +54,12 @@
   background: radial-gradient(closest-side, color-mix(in oklab, var(--lavender-shadow) 80%, transparent), transparent);
 }
 /* 正在干活的帮手轻轻起伏；其余状态不动，免得满屋子都在晃 */
-.team-mini[data-busy] img { animation: team-bob 2.6s var(--ease-in-out) infinite; }
+.team-mini[data-busy][data-tool] img { animation: team-bob 2.6s var(--ease-in-out) infinite; }
 @keyframes team-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.5%); } }
 
 .team-offstage {
   position: absolute;
+  z-index: 1;
   left: 4%;
   bottom: 4%;
   padding: .3rem .7rem;
@@ -73,7 +76,9 @@
 .team-card {
   position: absolute;
   z-index: 3;
-  width: 15rem;
+  width: min(17rem, 92%);
+  max-height: 60%;
+  overflow: auto;
   box-sizing: border-box;
   padding: .7rem .8rem .6rem;
   font-size: .82rem;
@@ -94,6 +99,13 @@
 .team-card header small { color: #786958; }
 .team-card p { margin: .35rem 0; }
 .team-card-status { font-weight: 600; }
+.team-card-current { font-weight: 600; }
+.team-card-target { font-size: .76rem; }
+.team-card-history { margin: .4rem 0; padding-top: .4rem; border-top: 1px solid #d9cdb8; }
+.team-card-history > strong { font-size: .76rem; }
+.team-card-history ol { padding-left: 1.2rem; margin: .25rem 0; max-height: 7.8rem; overflow: auto; }
+.team-card-history li { padding: .15rem 0; }
+.team-card-history small { display: block; color: #786958; }
 .team-card-result { max-height: 6.2em; overflow: auto; white-space: pre-wrap; }
 .team-card-note { font-size: .76rem; color: #786958; }
 .team-card-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
@@ -104,5 +116,5 @@
 @media (prefers-reduced-motion: reduce) {
   .team-room, .team-mini { transition: none; }
   .team-room { transform: none; }
-  .team-mini[data-busy] img { animation: none; }
+  .team-mini[data-busy][data-tool] img { animation: none; }
 }

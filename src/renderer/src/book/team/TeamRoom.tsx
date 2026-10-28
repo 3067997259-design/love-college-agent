@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { AppBridge, AppSnapshot } from '../../../../shared'
 import type { AgentView } from '../../../../shared/collaboration'
 import { sendCommand } from '../command'
-import { memberTarget, memberText } from '../CollaborationPanel'
-import { assignSlots, memberKey, poseOf, TEAM_SLOTS, type TeamPose, type TeamSlot } from './teamScene'
+import { memberTarget, memberText, memberWorkText } from '../CollaborationPanel'
+import { activityKind } from '../../voice/activity-text'
+import { durationText, useMemberElapsed, useMemberSteps } from './useMemberProgress'
+import { assignStations, depthOf, memberFailed, memberKey, OCCLUDERS, poseOf, slotOf, type Place, type TeamPose, type TeamSlot } from './teamScene'
 import './team.css'
 
 const files = import.meta.glob('../../assets/character/taozi/team/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>
@@ -21,16 +23,17 @@ const pct = (value: number) => `${(value * 100).toFixed(2)}%`
 export function TeamRoom({ snapshot, bridge, members, visible, onMore }: {
   snapshot: AppSnapshot; bridge: AppBridge; members: readonly AgentView[]; visible: boolean; onMore(): void
 }) {
-  const keys = members.map(memberKey)
-  const slotsRef = useRef<ReadonlyMap<string, number>>(new Map())
-  // Recompute places only when the set of helpers changes, never on each status event.
-  const joined = keys.join('|')
-  const slots = useMemo(() => assignSlots(slotsRef.current, joined ? joined.split('|') : []), [joined])
+  const slotsRef = useRef<ReadonlyMap<string, Place>>(new Map())
+  const posesRef = useRef<ReadonlyMap<string, TeamPose>>(new Map())
+  const slots = assignStations(slotsRef.current, members)
   slotsRef.current = slots
   const placed = members.flatMap((member) => {
-    const slot = slots.get(memberKey(member))
-    return slot === undefined ? [] : [{ member, slot: TEAM_SLOTS[slot], pose: poseOf(member, slot) }]
-  }).sort((a, b) => a.slot.y - b.slot.y) // nearer helpers are drawn over farther ones
+    const key = memberKey(member), place = slots.get(key)
+    return place === undefined ? [] : [{ member, place, slot: slotOf(place), pose: poseOf(member, posesRef.current.get(key)) }]
+  })
+  posesRef.current = new Map(placed.map(({ member, pose }) => [memberKey(member), pose]))
+  const layers = [...placed.map((entry) => ({ kind: 'member' as const, depth: depthOf(entry.slot), entry })),
+    ...OCCLUDERS.map((entry) => ({ kind: 'furniture' as const, depth: entry.depth, entry }))].sort((a, b) => a.depth - b.depth)
   const offstage = members.length - placed.length
   const [openKey, setOpenKey] = useState<string | null>(null)
   const buttons = useRef(new Map<string, HTMLButtonElement>())
@@ -41,21 +44,26 @@ export function TeamRoom({ snapshot, bridge, members, visible, onMore }: {
   return (
     <div className="team-room" data-visible={visible} aria-hidden={visible ? undefined : true} aria-label={visible ? '房间里的帮手' : undefined} role={visible ? 'group' : undefined}>
       <img className="team-room-art" src={roomSrc} alt="" draggable={false} />
-      {placed.map(({ member, slot, pose }) => {
+      {layers.map((layer) => {
+        if (layer.kind === 'furniture') return <img key={layer.entry.id} className="team-room-art team-occluder" data-occluder={layer.entry.id}
+          src={roomSrc} alt="" aria-hidden draggable={false} style={{ clipPath: `polygon(${layer.entry.polygon})` }} />
+        const { member, slot, pose, place } = layer.entry
         const key = memberKey(member)
         return (
           <button key={key} ref={(node) => { if (node) buttons.current.set(key, node); else buttons.current.delete(key) }}
-            type="button" className="team-mini" data-pose={pose} data-busy={member.activity === 'running' || undefined}
+            type="button" className="team-mini" data-pose={pose} data-station={place.station} data-facing={slot.facing} data-failed={memberFailed(member) || undefined}
+            data-busy={member.activity === 'running' || undefined} data-tool={member.work?.phase === 'tool' || undefined}
             style={{ left: pct(slot.x), top: pct(slot.y), height: pct(slot.h) }} tabIndex={visible ? 0 : -1}
             aria-label={`${member.name}：${memberText.status(member)}`} aria-haspopup="dialog" aria-expanded={openKey === key}
             onClick={() => setOpenKey(openKey === key ? null : key)}>
             <span className="team-mini-shadow" aria-hidden />
             <img src={spriteSrc(pose)} alt="" draggable={false} />
+            {memberFailed(member) && <span className="team-failure-mark" aria-hidden>!</span>}
           </button>
         )
       })}
       {offstage > 0 && <button type="button" className="team-offstage" tabIndex={visible ? 0 : -1} onClick={onMore}>还有 {offstage} 位帮手</button>}
-      {open && <MemberCard key={memberKey(open.member)} member={open.member} slot={open.slot} snapshot={snapshot} bridge={bridge} onClose={close} onMore={() => { setOpenKey(null); onMore() }} />}
+      {visible && open && <MemberCard key={`${snapshot.epoch}:${memberKey(open.member)}`} member={open.member} slot={open.slot} snapshot={snapshot} bridge={bridge} onClose={close} onMore={() => { setOpenKey(null); onMore() }} />}
     </div>
   )
 }
@@ -66,6 +74,8 @@ function MemberCard({ member, slot, snapshot, bridge, onClose, onMore }: {
 }) {
   const ref = useRef<HTMLElement>(null)
   const [sent, setSent] = useState<'accepted' | 'failed' | null>(null)
+  const elapsed = useMemberElapsed(snapshot, member)
+  const details = useMemberSteps(bridge, member, snapshot.epoch)
   const closeRef = useRef(onClose); closeRef.current = onClose
   useEffect(() => {
     ref.current?.focus()
@@ -85,13 +95,26 @@ function MemberCard({ member, slot, snapshot, bridge, onClose, onMore }: {
   const ended = member.outcome === 'none' ? null : memberText.outcome[member.outcome]
   return (
     <section ref={ref} className="team-card" role="dialog" aria-label={member.name} tabIndex={-1} data-side={side} data-photo-omit
-      style={{ left: pct(slot.x), top: pct(slot.y - slot.h) }}>
+      style={{ left: pct(Math.max(.18, Math.min(.82, slot.x))), top: pct(Math.max(.61, slot.y - slot.h)) }}>
       <header><strong>{member.name}</strong><small>{memberText.mode(member)}</small></header>
       {member.taskLabel && <p className="team-card-task">{member.taskLabel}</p>}
-      <p className="team-card-status">{status}{member.activityLabel ? ` · ${member.activityLabel}` : ''}</p>
+      <p className="team-card-status">{status}</p>
+      {member.work && <p className="team-card-current">{memberWorkText(member)} · {durationText(elapsed)}</p>}
+      {details.value?.steps.at(-1)?.status === 'running' && member.work?.phase === 'tool' && details.value.steps.at(-1)?.templateId === member.work.templateId && details.value.steps.at(-1)?.target
+        && <p className="team-card-target">{details.value.steps.at(-1)?.target}</p>}
+      <section className="team-card-history" aria-label="最近几步">
+        <strong>最近几步</strong>
+        {!details.value && <p className="team-card-note">{details.failed ? '暂时读不到步骤，请收起后重试。' : '正在读取…'}</p>}
+        {details.value && !details.value.steps.length && <p className="team-card-note">还没有工具步骤。</p>}
+        {!!details.value?.steps.length && <ol>{details.value.steps.map((step, index) => <li key={index}>
+          <span>{activityKind(step) ?? '处理一步工作'} · {{ running: '进行中', completed: '已完成', failed: '未完成' }[step.status]}{step.durationMs !== null ? ` · ${durationText(step.durationMs)}` : ''}</span>
+          {step.target && <small>{step.target}</small>}
+        </li>)}</ol>}
+      </section>
+      <p className="team-card-note">已预留 {member.usage.admittedUnits.toLocaleString()} 单位{member.usage.inputTokens !== null && ` · 输入 ${member.usage.inputTokens} / 输出 ${member.usage.outputTokens ?? '未知'} tokens`}</p>
       {ended && ended !== status && <p>{ended}</p>}
       {member.resultText && <p className="team-card-result">{member.resultText}</p>}
-      {member.sources.status !== 'clean' && <p className="team-card-note">涉及外部来源，原文不在这里展开。</p>}
+      {(member.sources.status !== 'clean' || details.value?.withheld) && <p className="team-card-note">涉及外部来源，只显示步骤种类。</p>}
       {sent === 'accepted' && <p className="team-card-note" role="status">已请求停止；是否停下，以她的状态为准。</p>}
       {sent === 'failed' && <p className="team-card-note" role="alert">停止请求没有发出，请在协作面板里刷新核对。</p>}
       <div className="team-card-actions">
