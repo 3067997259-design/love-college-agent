@@ -13,3 +13,4 @@
 .collaboration-member textarea { display: block; box-sizing: border-box; width: 100%; resize: vertical; margin: .3rem 0; background: #fffdf7; color: inherit; border: 1px solid #cbbca6; border-radius: .2rem; padding: .4rem; font: inherit; }
 .collaboration-task > span { display: block; font-size: .8rem; }.collaboration-result { white-space: pre-wrap; line-height: 1.6; }
 @media (max-width: 700px) { .collaboration { right: .75rem; bottom: .75rem; }.collaboration-sheet { max-height: 55vh; width: min(20rem, calc(100vw - 3rem)); } }
+.collaboration-shot { margin-right: .5rem; }

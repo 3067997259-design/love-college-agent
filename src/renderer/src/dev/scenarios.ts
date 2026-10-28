@@ -4,7 +4,7 @@
  * 这些数据是演示数据，capabilities 一律标 source: 'fake'，不代表任何真实调用通过。
  */
 import type {
-  ActivityView, AppSnapshot, CandidateView, CapabilityView, DeliveryView, EvidenceView, MessageView, PomodoroPlanView,
+  ActivityView, AgentView, AppSnapshot, CandidateView, CapabilityView, DeliveryView, EvidenceView, MessageView, PomodoroPlanView,
 } from '../../../shared'
 
 // 2026-10-17（周六）各时刻，UTC+8
@@ -26,6 +26,14 @@ const capabilities = (overrides: Partial<Record<CapabilityView['id'], Partial<Ca
 
 const act = (id: string, templateId: string, status: ActivityView['status'], fields: ActivityView['fields'] = {}, extra: Partial<ActivityView> = {}): ActivityView =>
   ({ id, taskId: 'task-mail', toolCallId: `tc-${id}`, templateId, status, fields, ...extra })
+
+/** 协作成员：只有预览用的假身份，不对应任何真实 DSH 会话 */
+const agent = (sessionId: string, name: string, patch: Partial<AgentView> = {}): AgentView => ({
+  address: { runtimeId: 'fake', projectId: 'fake', rootSessionId: 'root', sessionId, parentSessionId: sessionId === 'root' ? null : 'root' },
+  revision: 1, mode: 'teammate', name, taskLabel: null, activity: 'inactive', outcome: 'none', waitingFor: null,
+  controls: { message: true, interrupt: true }, usage: { admittedUnits: 1200, inputTokens: null, outputTokens: null },
+  sources: { status: 'clean', kinds: [] }, error: null, ...patch,
+})
 
 const msg = (id: string, role: MessageView['role'], text: string, createdAtMs: number, extra: Partial<MessageView> = {}): MessageView =>
   ({ id, role, text, createdAtMs, status: 'complete', ...extra })
@@ -496,6 +504,25 @@ export const SCENARIOS = {
       desk: { path: String.raw`C:\Users\demo\Documents\桃子的房间\demo\书桌`, name: '书桌', desk: true, trusted: true },
       recent: [],
       status: 'idle',
+    },
+  })),
+  /** 团队远景：她把作业拆给几位帮手，房间里每位帮手按她的实际状态摆姿势（打字/等批准/交回结果/出错） */
+  'team-working': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1420 + 12 * MIN },
+    companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'think' },
+    task: { id: 'turn-3', status: 'running', steps: [] },
+    messages: [msg('t1', 'user', '把课程网站的三个页面分给帮手一起改，改完汇总给我', T.sat1420 + 10 * MIN), msg('t2', 'assistant', '好，我叫几位帮手一起来。', T.sat1420 + 10 * MIN + 5_000)],
+    collaboration: {
+      status: 'ready', runtimeId: 'fake', projectId: 'fake', tasks: [],
+      capacity: { teamUsed: 5, teamLimit: 8, resident: 3, activeLimit: 4 },
+      members: [
+        agent('root', '桃子', { mode: 'root', activity: 'running' }),
+        agent('m1', '首页', { taskLabel: '改首页的导航和配色', activity: 'running', activityLabel: '编辑 index.html' }),
+        agent('m2', '课表页', { taskLabel: '课表页加上周次切换', activity: 'waiting', waitingFor: 'approval', activityLabel: '想运行 pnpm install' }),
+        agent('m3', '作业页', { taskLabel: '作业页列出截止时间', outcome: 'completed', resultText: '作业页已列出 6 项截止时间，按日期排好；没有改动其他页面。' }),
+        agent('m4', '检查', { mode: 'subagent', taskLabel: '检查三个页面的链接', activity: 'running', activityLabel: '读 schedule.html' }),
+        agent('m5', '图片', { mode: 'subagent', taskLabel: '压缩首页图片', outcome: 'failed', error: { code: 'internal', retryable: true } }),
+      ],
     },
   })),
   /** 第一次用：还没说过话，输入框上方是几个可以直接点的开头 */

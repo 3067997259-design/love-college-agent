@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AppBridge, AppSnapshot } from '../../../shared'
 import type { AgentView } from '../../../shared/collaboration'
 import { sendCommand, type CommandBody } from './command'
@@ -8,8 +8,22 @@ const activity = { starting: '正在加入', running: '工作中', waiting: '等
 const outcome = { none: '', completed: '本次运行已结束', aborted: '已中止', failed: '执行失败', refused: '未获批准', unknown: '结果待核对' }
 const waiting = { approval: '等你批准', member: '等同伴', budget: '额度不足', user: '需要新的明确指令', recovery: '等待恢复' }
 const target = (member: AgentView) => ({ address: member.address, expectedRevision: member.revision })
+const modeText = (member: AgentView) => member.mode === 'teammate' ? '团队成员' : member.mode === 'fork' ? '上下文委派' : '临时助手'
+/** Shared with the team room's member card, so both say the same thing about a member. A member with no turn now is
+ * described by how her last run ended, not as merely idle. */
+export const memberText = {
+  activity, outcome, waiting, mode: modeText,
+  status: (member: AgentView) => member.waitingFor ? waiting[member.waitingFor] : member.activity === 'inactive' && member.outcome !== 'none' ? outcome[member.outcome] : activity[member.activity],
+}
+export const memberTarget = target
 
-export function CollaborationPanel({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: AppBridge }) {
+export function CollaborationPanel({ snapshot, bridge, openRequest = 0, shot }: {
+  snapshot: AppSnapshot; bridge: AppBridge
+  /** Bumped by the team room's "更多": opens the sheet and re-checks the members. */
+  openRequest?: number
+  /** The left page's room / desk view switch, shown beside the tab while there are helpers. */
+  shot?: { team: boolean; onToggle(): void }
+}) {
   const [open, setOpen] = useState(false)
   const [failed, setFailed] = useState(false)
   const view = snapshot.collaboration
@@ -18,7 +32,10 @@ export function CollaborationPanel({ snapshot, bridge }: { snapshot: AppSnapshot
   const busy = view?.operation?.phase === 'running'
   const command = async (body: CommandBody) => { const result = await sendCommand(bridge, snapshot.epoch, body); setFailed(!result.ok); return result.ok }
   const refresh = () => { void command({ type: 'agent.refresh' }) }
+  // Only a new request opens the sheet.
+  useEffect(() => { if (openRequest) { setOpen(true); refresh() } }, [openRequest])
   return <div className="collaboration room-ui" data-photo-omit>
+    {shot && <button type="button" className="collaboration-tab collaboration-shot" aria-pressed={shot.team} onClick={shot.onToggle}>{shot.team ? '回到桌前' : '看看房间'}</button>}
     <button type="button" className="collaboration-tab" aria-expanded={open} aria-controls="collaboration-panel" onClick={() => { setOpen(!open); if (!open) refresh() }}>协作{members.length ? ` · ${members.length}` : ''}</button>
     {open && <section id="collaboration-panel" className="collaboration-sheet" aria-label="成员与共同任务">
       <header><h2>一起做的事</h2><button type="button" aria-label="收起协作" onClick={() => setOpen(false)}>收起</button></header>
@@ -46,7 +63,7 @@ export function CollaborationPanel({ snapshot, bridge }: { snapshot: AppSnapshot
 function Member({ member, disabled, command }: { member: AgentView; disabled: boolean; command(body: CommandBody): Promise<boolean> }) {
   const [text, setText] = useState('')
   return <details className="collaboration-member"><summary><strong>{member.name}</strong><span>{member.waitingFor ? waiting[member.waitingFor] : activity[member.activity]}</span></summary>
-    <small>{member.mode === 'teammate' ? '团队成员' : member.mode === 'fork' ? '上下文委派' : '临时助手'}{member.taskLabel ? ` · ${member.taskLabel}` : ''}</small>
+    <small>{modeText(member)}{member.taskLabel ? ` · ${member.taskLabel}` : ''}</small>
     {member.activityLabel && <p>当前操作：{member.activityLabel}</p>}
     {member.outcome !== 'none' && <p>{outcome[member.outcome]}</p>}
     {member.resultText && <p className="collaboration-result">{member.resultText}</p>}

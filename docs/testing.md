@@ -31,7 +31,7 @@ pnpm test
 | `test:dsh-extensions` | P3：隔离 HOME / profile / 本地合成 bundle，生产 main 服务和 bridge、Electron Node 模式与随附 pnpm；PATH 排除系统 Node / pnpm。完整生命周期、独立脚本批准、运行中取消、丢失 IPC 回执冷恢复、核心保护与加载失败状态。不是页面或安装升级验收，见 [P3 回执](research/v1.2-p3-20261023.md) |
 | `test:extensions` | P4：隔离 Electron 书页、原生选择的合成目录与逐次审批；本地 bundle 安装 / 启停 / 重启 / 移除、独立构建批准、丢失回执后同 ID 核对，Markdown 技能导入 / 优先级 / 修改删除 / 跨项目 / 冷启，以及实际 DSH 技能与 MCP 调用。仅本机合成模型与服务，截图和回执写到 `test-results/p4-*`，见 [P4 回执](research/v1.2-p4-20261023.md) |
 | `test:dsh-collaboration` | P5：固定 DSH 的普通委派 / Team 共存、单一控制路由、成员关系、任务 revision / 依赖 / 范围提示、持久来源退役、两类容量、失败占位、断连回执、冷恢复及整组自主额度；Electron Node 模式，隔离 HOME / profile，PATH 排除系统 Node / pnpm |
-| `test:collaboration` | P5：实际书页中的成员和任务、消息、单成员停止、整组停止、断连后刷新核对同一操作、冷恢复及窄窗口；只用本机脚本模型。复用已构建产物可运行 `node scripts/smoke-collaboration.mjs`；设置 `LCA_TEST_EXECUTABLE` 可指定包内 EXE。证据在 `test-results/p5-*`，见 [P5 回执](research/v1.2-p5-20261024.md) |
+| `test:collaboration` | P5：实际书页中的成员和任务、消息、单成员停止、整组停止、断连后刷新核对同一操作、冷恢复及窄窗口；V1：有成员干活时左页拉远、人数与忙碌者对应，全部停下回近景，冷恢复后手动看房间、点帮手的卡片与“更多”；只用本机脚本模型。复用已构建产物可运行 `node scripts/smoke-collaboration.mjs`；设置 `LCA_TEST_EXECUTABLE` 可指定包内 EXE。证据在 `test-results/p5-*`，见 [P5 回执](research/v1.2-p5-20261024.md) |
 | `test:v12-recovery` | P6：跨项目、冷启动、审批中取消、成员忙碌边界、DSH 退出、来源退役的实际请求、可控时钟日切、私人存档恢复及再次冷启。隔离 profile / HOME / 项目、本机脚本模型；可用 `LCA_TEST_EXECUTABLE` 复跑包内 EXE。不是实际跨日长期使用，见 [P6 回执](research/v1.2-p6-20261024.md) |
 | `test:sleep` | 隔离 Electron 与合成时钟 / 模型：手动睡眠、夜灯 / 熄灯、夜间安全日切、06:00 自动醒来、08:22 恢复时校正、手动存档保留、最终素材与动画完成截图 |
 | `test:life-port`、`test:life-work`、`test:room` | 生活状态、实际产物、日记与重启 |

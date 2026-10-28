@@ -23,6 +23,8 @@ import { HistoryPhoto, type PhotoOverlay } from './history/HistoryPhoto'
 import { VoiceMark } from './VoiceMark'
 import { voiceLevel } from '../voice/level'
 import { CollaborationPanel } from './CollaborationPanel'
+import { TeamRoom, teamArtReady } from './team/TeamRoom'
+import { teamActive, teamMembers } from './team/teamScene'
 
 const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
 
@@ -75,6 +77,16 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   const mailIcon = uiSrc('mail')
   const lastLine = [...messages].reverse().find((m) => m.role === 'assistant')
   const timerOn = pomodoro.phase !== 'idle'
+  // 团队远景（用户 2026-10-28 选定）：有帮手开始干活时拉远到整个房间，大家都停下后回到近景；你手动切过的视角在这一轮里不再被抢。
+  // 新手、外出、睡着、熄灯、翻旧照片和自定义角色包都留在近景（团队素材只有桃子的，不拿她顶替别的角色）。
+  const helpers = teamMembers(snapshot.collaboration)
+  const helpersActive = teamActive(helpers)
+  const teamPossible = !intro && !away && pose !== 'sleeping' && !companion.lightsOut && !historyPhoto && !importedScene && teamArtReady && helpers.length > 0
+  const [manualShot, setManualShot] = useState<'close' | 'team' | null>(null)
+  const wasActive = useRef(helpersActive)
+  useEffect(() => { if (helpersActive && !wasActive.current) setManualShot(null); wasActive.current = helpersActive }, [helpersActive])
+  const team = teamPossible && (manualShot ? manualShot === 'team' : helpersActive)
+  const [panelRequest, setPanelRequest] = useState(0)
   // 恢复完成后应用会重启；新页面第一次看到这次恢复，就让颜色重新长回来
   const backup = snapshot.backup
   const restoreId = backup?.status === 'restored' ? (backup.restoreId ?? backup.operationId ?? null) : null
@@ -116,12 +128,14 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
         新手流程和平常是同一个房间节点：画布不重建。点“开始吧”进书时，房间不会闪白，只把她的表情交叉淡化一次，
         钟、门牌这些房间里的东西再淡进来。
       */}
-      <div ref={roomRef} className="room" data-photo-scene={intro ? undefined : true} data-session-id={intro ? undefined : snapshot.scope.sessionId} data-shot="close"
-        data-location={intro ? 'room' : companion.locationId} data-pose={intro ? art.key.split('_')[0] : awayArt ? 'away' : pose} data-lighting={awayArt ? awayArt.lighting : packageArt?.lighting ?? art.lighting} data-away={awayArt ? companion.locationId : undefined} data-arriving={(!intro && arriving) || undefined}>
+      <div ref={roomRef} className="room" data-photo-scene={intro ? undefined : true} data-session-id={intro ? undefined : snapshot.scope.sessionId} data-shot={team ? 'team' : 'close'}
+        data-location={intro ? 'room' : companion.locationId} data-pose={intro ? art.key.split('_')[0] : awayArt ? 'away' : pose} data-lighting={team ? 'ambient' : awayArt ? awayArt.lighting : packageArt?.lighting ?? art.lighting} data-away={awayArt ? companion.locationId : undefined} data-arriving={(!intro && arriving) || undefined}>
         {/* 精修整景：颜色聚在她周围，往外褪成从彩图实时提取的铅笔线（体验设计 §7.1，用户批准） */}
         {scene}
+        {/* 团队远景盖在近景上交叉淡入；切回近景时淡出，不重建画布 */}
+        {!intro && !importedScene && teamArtReady && helpers.length > 0 && <TeamRoom snapshot={snapshot} bridge={bridge} members={helpers} visible={team} onMore={() => setPanelRequest((n) => n + 1)} />}
         {/* 差分贴片（眨眼/抬头/嘴型）：只在白天 approved 底图上贴回面部小矩形；夜里整帧重光不适用 */}
-        {!intro && !awayArt && !importedScene && <CharacterPatches art={art} snapshot={snapshot} />}
+        {!intro && !awayArt && !importedScene && !team && <CharacterPatches art={art} snapshot={snapshot} />}
         {intro ? furniture && (
           <svg className="furniture-hits" viewBox="0 0 1 1" preserveAspectRatio="none" aria-label="房间里的家具">
             {FURNITURE.map((item) => {
@@ -157,7 +171,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
           {/* 外出用桌上纸条，睡着不挂“休息”牌。 */}
           {!away && pose !== 'sleeping' && <DoorSign snapshot={snapshot} onCommand={command} failed={commandFailed} />}
           {/* 新邮件：近景是桌上的一封信（2026-10-17 晚换成冻结包的邮件图标），远景是门上的信箱口。只有邮箱连着的时候才显示；连不上不能显示成“没有信” */}
-          {newMail && !awayArt && (
+          {newMail && !awayArt && !team && (
             <div className="mail-slot room-ui" title={`${companion.mailboxUnseen} 封新邮件`}>
               <span className="mail-letter" data-icon={mailIcon ? true : undefined}>
                 {mailIcon ? <img className="mail-icon" src={mailIcon} alt="" draggable={false} /> : null}
@@ -165,11 +179,11 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
             </div>
           )}
           {/* 生活瞬间：有新邮件时，她抬头注意到信的那一刻别在页角（用户 2026-10-17 晚同意接入） */}
-          {newMail && !awayArt && !historyPhoto && <MailMoment snapshot={snapshot} />}
+          {newMail && !awayArt && !historyPhoto && !team && <MailMoment snapshot={snapshot} />}
 
           {away && !awayArt && <AwayNote snapshot={snapshot} writing={moved} />}
           {/* 她出门带回来的东西摆在窗台上，跟着房间一起进照片、一起变暗；外景页不是房间，不摆 */}
-          {!awayArt && <SillItems snapshot={snapshot} onOpenDiary={(dayKey) => onOpenDiary?.(dayKey)} />}
+          {!awayArt && !team && <SillItems snapshot={snapshot} onOpenDiary={(dayKey) => onOpenDiary?.(dayKey)} />}
 
           {/* 光线层在最上面：钟、门牌、信都是房间里的东西，跟着房间一起暗。重光的夜图自带光线，调色层淡出（不叠两次夜色） */}
           <div className="room-tint" /><div className="room-lamp" />
@@ -177,7 +191,8 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
       </div>
       {/* 房间之外的兄弟节点：盖在上面，但不进实时拍照的根 */}
       {!intro && historyPhoto && <HistoryPhoto view={historyPhoto} />}
-      {!intro && !historyPhoto && <CollaborationPanel snapshot={snapshot} bridge={bridge} />}
+      {!intro && !historyPhoto && <CollaborationPanel snapshot={snapshot} bridge={bridge} openRequest={panelRequest}
+        shot={teamPossible ? { team, onToggle: () => setManualShot(team ? 'close' : 'team') } : undefined} />}
 
       {!intro && lastLine && historyPhoto?.mode !== 'page' && <VoiceMark snapshot={snapshot} bridge={bridge} messageId={lastLine.id} />}
       {!intro && showSpeech && lastLine && historyPhoto?.mode !== 'page' && (

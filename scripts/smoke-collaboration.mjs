@@ -66,8 +66,15 @@ try {
   await memberCard.getByRole('textbox').fill('P5 interruptible work')
   await memberCard.getByRole('button', { name: '发送指令', exact: true }).click()
   await until((state) => state.collaboration.operation?.phase === 'settled' && state.collaboration.members.some((member) => member.mode === 'teammate' && member.activity === 'running'), 'MEMBER_RUNNING')
+  // V1: a helper starting work pulls the left page back to the whole room; every helper stands there, the busy one drawn busy.
+  await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'team')
+  assert.equal(await page.locator('.team-room[data-visible="true"] .team-mini').count(), 2)
+  assert.equal(await page.locator('.team-mini[data-busy]').count(), 1)
+  await page.locator('.page-left').screenshot({ path: join(evidence, 'team-room.png') })
+  // Clicking in the room is checked at the end: extra steps here shift the timing of the lost-receipt step below.
   await memberCard.getByRole('button', { name: '停止当前工作', exact: true }).click()
   await until((state) => state.collaboration.members.some((member) => member.mode === 'teammate' && member.activity === 'inactive' && member.outcome === 'aborted'), 'MEMBER_STOPPED')
+  await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'close') // everyone stopped: back to the desk
   pass('single-member-interrupt-observes-real-aborted-outcome')
   const oldRuntime = (await snapshot()).collaboration.runtimeId
   // Fault injection only into the test app's own, already-started DSH child.
@@ -111,6 +118,23 @@ try {
   await until((state) => state.collaboration?.members.filter((member) => member.mode !== 'root').length === 2, 'COLD_RECOVERY')
   assert.equal((await snapshot()).collaboration.tasks[0].status, 'completed')
   pass('cold-recovery-restores-members-and-board-without-executing-them')
+  // Nobody is working after recovery, so the desk stays; the room is one click away and every helper is still there.
+  await page.getByRole('button', { name: '收起协作', exact: true }).click()
+  await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'close')
+  await page.getByRole('button', { name: '看看房间', exact: true }).click()
+  await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'team')
+  assert.equal(await page.locator('.team-room[data-visible="true"] .team-mini').count(), 2)
+  const teammate = (await snapshot()).collaboration.members.find((member) => member.mode === 'teammate')
+  await page.getByRole('button', { name: new RegExp(`^${teammate.name}：`) }).click()
+  const card = page.getByRole('dialog', { name: teammate.name, exact: true })
+  const ended = { completed: '本次运行已结束', aborted: '已中止', failed: '执行失败', refused: '未获批准', unknown: '结果待核对' }[teammate.outcome]
+  if (ended) assert.ok((await card.textContent()).includes(ended))
+  await page.locator('.page-left').screenshot({ path: join(evidence, 'team-card.png') })
+  await card.getByRole('button', { name: '更多', exact: true }).click()
+  await page.getByRole('region', { name: '成员与共同任务', exact: true }).waitFor()
+  await page.getByRole('button', { name: '回到桌前', exact: true }).click()
+  await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'close')
+  pass('team-room-toggle-and-card-follow-recovered-members')
   await writeFile(join(evidence, 'evidence.json'), JSON.stringify({ checks, syntheticOnly: true, executable: process.env.LCA_TEST_EXECUTABLE ?? electronPath, data, evidence }, null, 2)); console.log('P5_UI_EVIDENCE', evidence)
 } catch (error) {
   if (page && !page.isClosed()) { await writeFile(join(evidence, 'failure.json'), JSON.stringify({ error: String(error), snapshot: await snapshot() }, null, 2)); await page.screenshot({ path: join(evidence, 'failure.png') }) }

@@ -1,0 +1,108 @@
+/* 团队远景：书左页拉远到整个房间，她在书桌前，Q 版小桃子代表帮手。盖在近景上，交叉淡入；夜色和台灯由 .room 的调色层负责 */
+.room[data-shot='team'] { --lamp-x: 55%; --lamp-y: 35%; --lamp-on: 1; }
+/* 钟挂在书架和窗帘之间那段空墙上 */
+.room[data-shot='team'] .wall-clock { left: 33.6%; top: 11.5%; width: 62px; height: 62px; }
+.room[data-shot='team'] .wall-clock-time { font-size: 16px; }
+.team-room {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(1.05);
+  transition: opacity 700ms var(--ease-in-out), transform 900ms var(--ease-in-out);
+  pointer-events: none;
+}
+.team-room[data-visible='true'] { opacity: 1; transform: none; pointer-events: auto; }
+.team-room-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  /* 四边淡进纸里，和近景的铅笔边一致 */
+  -webkit-mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent), linear-gradient(to bottom, transparent, black 3%, black 97%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent), linear-gradient(to bottom, transparent, black 3%, black 97%, transparent);
+  mask-composite: intersect;
+}
+
+/* 一位帮手：按脚底定位，高度按房间里的远近给 */
+.team-mini {
+  position: absolute;
+  display: block;
+  width: max-content;
+  padding: 0;
+  border: 0;
+  background: none;
+  transform: translate(-50%, -100%);
+  cursor: pointer;
+  transition: transform 220ms var(--ease-in-out);
+}
+.team-mini img { position: relative; display: block; height: 100%; width: auto; user-select: none; }
+.team-mini:hover { transform: translate(-50%, calc(-100% - 3px)); }
+.team-mini:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 3px; border-radius: 14px; }
+.team-mini-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -3%;
+  width: 72%;
+  height: 9%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--lavender-shadow) 80%, transparent), transparent);
+}
+/* 正在干活的帮手轻轻起伏；其余状态不动，免得满屋子都在晃 */
+.team-mini[data-busy] img { animation: team-bob 2.6s var(--ease-in-out) infinite; }
+@keyframes team-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.5%); } }
+
+.team-offstage {
+  position: absolute;
+  left: 4%;
+  bottom: 4%;
+  padding: .3rem .7rem;
+  font: inherit;
+  font-size: .82rem;
+  color: #54483d;
+  background: #f7eedc;
+  border: 1px solid #b9a38a;
+  border-radius: 1rem;
+  cursor: pointer;
+}
+
+/* 点开一位帮手：她的名字、任务、在做或在等什么、实际结果，和“停止当前工作” */
+.team-card {
+  position: absolute;
+  z-index: 3;
+  width: 15rem;
+  box-sizing: border-box;
+  padding: .7rem .8rem .6rem;
+  font-size: .82rem;
+  line-height: 1.55;
+  color: #54483d;
+  background: #fbf5e8;
+  border: 1px solid #cbbb9f;
+  border-radius: .45rem;
+  box-shadow: var(--shadow-card);
+  transform: translate(-50%, calc(-100% - 10px));
+  overflow-wrap: anywhere;
+}
+.team-card[data-side='left'] { transform: translate(-18%, calc(-100% - 10px)); }
+.team-card[data-side='right'] { transform: translate(-82%, calc(-100% - 10px)); }
+.team-card:focus { outline: none; }
+.team-card header { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.team-card header strong { font-size: .95rem; }
+.team-card header small { color: #786958; }
+.team-card p { margin: .35rem 0; }
+.team-card-status { font-weight: 600; }
+.team-card-result { max-height: 6.2em; overflow: auto; white-space: pre-wrap; }
+.team-card-note { font-size: .76rem; color: #786958; }
+.team-card-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.team-card-actions button { color: inherit; font: inherit; background: #fffaf0; border: 1px solid #cbbca6; border-radius: .25rem; padding: .2rem .5rem; cursor: pointer; }
+.team-card-actions button:disabled { opacity: .5; cursor: default; }
+.team-card-actions button:focus-visible, .team-offstage:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .team-room, .team-mini { transition: none; }
+  .team-room { transform: none; }
+  .team-mini[data-busy] img { animation: none; }
+}
