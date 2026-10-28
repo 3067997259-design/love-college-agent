@@ -41,6 +41,17 @@ export interface DshApprovalCancellation { t: 'approval-cancel'; id: string }
 /** Main-owned scope. The child independently checks the visible member revision. */
 export interface DshCollaborationRequest { rootSessionId: string; command: CollaborationCommand; requestId?: string }
 export interface DshCollaborationReply { view: CollaborationView }
+/** A member's current step as the bridge sees it, sent beside each member view. Main turns it into AgentView.work
+ * and never forwards the tool name. `tool`: the current tool in phase 'tool', otherwise the last one.
+ * `seq` counts steps in this DSH run, so main notices steps that two coalesced views would hide. */
+export interface DshMemberStep { tool: string | null; phase: 'tool' | 'thinking' | 'note'; seq: number }
+/** Bridge `member-steps` -> `member-steps-reply`: a member's recent tool steps from its own session log.
+ * `target` only when the member has no outside sources; DSH times are its own epoch milliseconds. */
+export interface DshMemberStepsRequest { rootSessionId: string; sessionId: string }
+export interface DshMemberStepsReply {
+  steps: readonly { tool: string; status: 'running' | 'completed' | 'failed'; startedAt: number; endedAt: number | null; target?: string }[]
+  withheld: boolean
+}
 /** Provenance refers to an authorization and session-local turn, never to raw content.
  * Child turn numbers cannot be compared with root turn numbers. Unknown ancestry stays restricted. */
 export interface DshSourceLease {

@@ -13,6 +13,31 @@ export type AgentMode = 'root' | 'subagent' | 'fork' | 'teammate'
 export type AgentActivity = 'starting' | 'running' | 'waiting' | 'inactive' | 'stopping' | 'unavailable'
 export type AgentOutcome = 'none' | 'completed' | 'aborted' | 'failed' | 'refused' | 'unknown'
 export type AgentSource = 'mail' | 'document' | 'web' | 'mcp' | 'plugin' | 'member'
+/** Broad kind of work: local files and commands, looking things up, or coordinating with other members. */
+export type AgentWorkArea = 'files' | 'research' | 'team'
+/** What a running member is doing, derived in main from the same tool-kind table as her own steps.
+ * No tool names, arguments or output; changes here never bump the member revision. */
+export interface AgentWork {
+  /** Calling a tool, thinking between steps, or reading a note from another member. */
+  phase: 'tool' | 'thinking' | 'note'
+  /** Activity template of the current tool, such as 'dsh.edit'; null outside phase 'tool'. */
+  templateId: string | null
+  /** Main clock time this phase began. */
+  sinceMs: number
+  /** Where she has mostly been working lately. Switches only after new work has held a few seconds; null before any. */
+  focus: AgentWorkArea | null
+  /** Thinking for 20 seconds or more without calling a tool. */
+  long: boolean
+}
+/** Book-only, read when a member's card opens: recent tool steps from DSH's own log. Never in the snapshot, diary or memory. */
+export interface MemberStepsRead {
+  /** Oldest first, at most 12. The last one may still be running. */
+  steps: readonly { templateId: string; status: 'running' | 'completed' | 'failed'; durationMs: number | null
+    /** Project-relative file, search pattern, clipped command or site host. Only for members with no outside sources. */
+    target?: string }[]
+  /** Targets were left out because this member read mail, web pages or other outside content. */
+  withheld: boolean
+}
 export interface AgentView {
   address: AgentAddress
   revision: number
@@ -30,7 +55,10 @@ export interface AgentView {
   error: PublicError | null
   /** Final user-facing text only when no restricted source contributed; never reasoning or tool output. */
   resultText?: string | null
+  /** @deprecated Raw DSH tool name; replaced by `work`. */
   activityLabel?: string | null
+  /** Present while the member runs and main has seen its steps. */
+  work?: AgentWork | null
 }
 export interface TeamTaskView {
   id: string

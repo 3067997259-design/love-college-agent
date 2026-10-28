@@ -52,6 +52,8 @@ onboarding 的状态与名字归主进程；修改名字不是共同经历。res
 
 成员控制同时绑定 AppCommand epoch、DSH runtimeId、projectId、root/parent/member ID 和显示 revision；进程重启、换项目、恢复后旧目标必须失效。activity 与最近一次 outcome 分开，inactive 不表示完成。Team 写入范围仅作协作提示。成员消息不能自动成为主角色对用户的发言或新经历。
 
+成员的 `work` 只有阶段、活动模板、开始时间、大致在做哪类事和是否想了很久，由主进程按她自己步骤的同一张对照表算出；不含工具名、参数或输出，变化也不增加成员 revision。`readMemberSteps` 仅限书页在打开帮手卡片时读取最近几步，事实来自 DSH 日志；文件名、搜索词、截短的命令和网站域名只给没碰过外部内容的帮手，不进快照、日记和记忆。
+
 `dsh-protocol.ts` 仅供 main 与受信任的 DSH 子进程，故不从通用 barrel 导出；其中 cwd、来源授权与会话局部轮次不能直接进 renderer 或调试快照。主进程建立映射后才接受成员的审批、工具和额度请求，未知来源拒绝。
 
 MCP 视图只暴露服务器身份、状态、工具白名单和 fingerprint；实际启动命令、环境或地址由原生对话框核对。路径导入按 server id 合并，重启不自动连接，断开使迟到确认失效。
