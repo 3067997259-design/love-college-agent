@@ -1,0 +1,26 @@
+{
+  "_说明": "团队远景：书左页拉远到整个房间，她在书桌前，Q 版小桃子代表帮手成员。房间与小桃子分层，成员人数变化不重画房间。用户 2026-10-28 采用房间图并给出量产精灵表。映射与位置见 src/renderer/src/book/team/teamScene.ts。",
+  "assets": [
+    {
+      "runtime": "room-day.webp",
+      "from": "art/retouch/2026-10-28-nai-upscale/room-r3-sky-from-r2-v2-nai-upscale-image-x2-s0.png",
+      "fromSha256": "00c7baaac00b156d06f3621fb650dfdf42bb04df92ca23afd97bedbf30d7dec4",
+      "sha256": "1d4bcd1e7265104c1d76dc7ae6899ba79cf27052c797219e00cc151701ea6241",
+      "use": "团队远景房间（白天；夜里用房间调色层）。Gemini 按已认可三维机位出图，窗外天空从上一轮本地补回，NovelAI 放大 2 倍；转 WebP 质量 0.9。"
+    },
+    { "runtime": "mini-idle.png", "sha256": "7f527f61b0728a8bfb3b04273c5ded56b18864bf032f7023703bbac1e912ba84", "use": "待机 / 已停下" },
+    { "runtime": "mini-happy.png", "sha256": "cfb15aaf18391a3ae0ac9e5f4e20eb3c1c01bc1e84bd64e0616a6861a8691b75", "use": "刚加入" },
+    { "runtime": "mini-typing.png", "sha256": "951d83c59bb5948eee7a10ad0bf9539e0f5ed5d8d4c625aeb5670f5912364761", "use": "工作中：打字" },
+    { "runtime": "mini-reading.png", "sha256": "6bc085ed682438a157d7cc8f0a05fc25396d5a6eb0c9642eada833768d30d3f2", "use": "工作中：查资料" },
+    { "runtime": "mini-carrying.png", "sha256": "e24cbe8702c4da6b6a20a44c5cf6a72c3a605b9fa6cd4c381a755d7442d15ab8", "use": "工作中：搬资料" },
+    { "runtime": "mini-waiting.png", "sha256": "ca6a719d2910c9027cb22263bff28a86790150b69bba9cf67224c891aebfc453", "use": "等你批准或回答" },
+    { "runtime": "mini-handing.png", "sha256": "513850bae95cfa37d6128eb2c07315cca2ae348ae5f7f8e5037ae2e6e01d5546", "use": "上一段工作已完成（以运行结果为准）" },
+    { "runtime": "mini-puzzled.png", "sha256": "591b380505c81a1b0cf0481ea040fadb11378e02ae62eda461922e022cc55bcc", "use": "失败、未获批准、结果待核对、额度或恢复受阻" },
+    { "runtime": "mini-resting.png", "sha256": "b567308c25eb6abfb3e9ad56f045f514bc22170a213a68fe26c489fd430e37f1", "use": "空闲（当前没有回合，不代表完成）" }
+  ],
+  "spriteSheet": {
+    "from": "art/retouch/2026-10-28-chibi-sprites/gemini-chibi-sprites-received.webp",
+    "fromSha256": "e146ea250fc391ea738d55f821a4baa334c81e0b6a896c1dbc50a223ef336cb5",
+    "tool": "Gemini 内置生图（用户称 nano banana），按 art/prompts/2026-10-27-design-sheet-v2-gemini.md §6.1；art/tools/cut-chibi-sprites.cjs 去白底切图，未放大、未改画。"
+  }
+}
