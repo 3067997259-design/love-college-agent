@@ -1,23 +1,23 @@
 import type { AgentView, CollaborationView } from '../../../../shared/collaboration'
 
-/** Approved sprites are placeholders until the station-specific art is reviewed. Never mirror them. */
-export type TeamPose = 'idle' | 'happy' | 'typing' | 'reading' | 'carrying' | 'waiting' | 'handing' | 'puzzled' | 'resting'
+/** Identity and ribbon side are baked into directional art; never mirror sprites. */
+export type TeamPose = 'idle' | 'entering' | 'typing' | 'reading' | 'carrying' | 'waiting' | 'completed' | 'thinking' | 'resting' | 'failed' | 'stopping' | 'blocked'
 export type Station = 'table' | 'bookshelf' | 'desk' | 'rug' | 'rest' | 'door'
 export interface TeamSlot { x: number; y: number; h: number; facing: 'front' | 'left' | 'right' | 'back'; behind?: 'table' | 'desk' | 'chair' }
 export interface Place { station: Station; index: number }
 /** Feet in the approved square room image. Four seats beside the tea table, never on its top. */
 export const STATIONS: Readonly<Record<Station, readonly TeamSlot[]>> = {
   table: [
-    { x: .20, y: .735, h: .155, facing: 'front', behind: 'table' },
-    { x: .34, y: .758, h: .155, facing: 'front', behind: 'table' },
-    { x: .075, y: .83, h: .17, facing: 'right', behind: 'table' },
-    { x: .475, y: .88, h: .17, facing: 'left' },
+    { x: .21, y: .80, h: .25, facing: 'front', behind: 'table' },
+    { x: .35, y: .82, h: .25, facing: 'front', behind: 'table' },
+    { x: .095, y: .845, h: .28, facing: 'right', behind: 'table' },
+    { x: .50, y: .87, h: .31, facing: 'left' },
   ],
-  bookshelf: [{ x: .10, y: .68, h: .14, facing: 'back' }, { x: .30, y: .66, h: .13, facing: 'left' }],
-  desk: [{ x: .56, y: .79, h: .18, facing: 'right', behind: 'desk' }, { x: .895, y: .80, h: .19, facing: 'left', behind: 'chair' }],
-  rug: [{ x: .66, y: .945, h: .18, facing: 'front' }, { x: .83, y: .95, h: .18, facing: 'front' }, { x: .52, y: .98, h: .18, facing: 'front' }],
-  rest: [{ x: .20, y: .96, h: .19, facing: 'front' }, { x: .38, y: .98, h: .19, facing: 'front' }],
-  door: [{ x: .055, y: .94, h: .20, facing: 'right' }],
+  bookshelf: [{ x: .10, y: .74, h: .29, facing: 'left', behind: 'table' }, { x: .29, y: .70, h: .26, facing: 'back', behind: 'table' }],
+  desk: [{ x: .65, y: .85, h: .24, facing: 'right' }, { x: .91, y: .83, h: .24, facing: 'left' }],
+  rug: [{ x: .69, y: .965, h: .24, facing: 'front' }, { x: .87, y: .96, h: .24, facing: 'front' }, { x: .51, y: .98, h: .24, facing: 'front' }],
+  rest: [{ x: .20, y: .98, h: .24, facing: 'front' }, { x: .38, y: .98, h: .24, facing: 'front' }],
+  door: [{ x: .055, y: .96, h: .24, facing: 'right' }],
 }
 /** Copies of the same room, clipped to furniture silhouettes: no generated or replaced asset. */
 export const OCCLUDERS = [
@@ -44,13 +44,15 @@ export function placeOf(member: AgentView, previous?: Station): Station {
   return areaPlace(member, previous)
 }
 export function poseOf(member: AgentView, previous: TeamPose = 'idle'): TeamPose {
-  if (memberFailed(member)) return 'puzzled' // a shape badge distinguishes errors until the new pose is approved
-  if (member.activity === 'inactive') return member.outcome === 'completed' ? 'handing' : member.outcome === 'aborted' ? 'idle' : 'resting'
+  if (memberFailed(member)) return 'failed'
+  if (member.activity === 'inactive') return member.outcome === 'completed' ? 'completed' : member.outcome === 'aborted' ? 'idle' : 'resting'
+  if (member.activity === 'stopping') return 'stopping'
   if (member.waitingFor === 'approval' || member.waitingFor === 'user') return 'waiting'
-  if (member.waitingFor === 'budget' || member.waitingFor === 'recovery') return 'puzzled'
-  if (member.waitingFor === 'member' || member.activity === 'stopping') return 'idle'
-  if (member.activity === 'starting') return 'happy'
-  if (member.work?.phase === 'thinking') return member.work.long ? 'puzzled' : previous
+  if (member.waitingFor === 'budget' || member.waitingFor === 'recovery') return 'blocked'
+  if (member.waitingFor === 'member') return 'idle'
+  if (member.activity === 'starting') return 'entering'
+  // A new turn must never inherit the previous turn's completed/failed/waiting gesture.
+  if (member.work?.phase === 'thinking') return !member.work.long && ['typing', 'reading', 'carrying'].includes(previous) ? previous : 'thinking'
   if (member.work?.phase === 'note') return 'carrying'
   const template = member.work?.templateId
   if (['dsh.read', 'dsh.write', 'dsh.edit', 'dsh.shell'].includes(template ?? '')) return 'typing'

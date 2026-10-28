@@ -1,0 +1,36 @@
+{
+  "scope": "team room art, member state and collaboration completion",
+  "date": "2026-10-28",
+  "source": "Observed local command output and saved tool receipts from this implementation run",
+  "syntheticOnly": true,
+  "realProviderCalls": 0,
+  "newImagegenCallsInCompletion": 2,
+  "priorStoolImagegenCalls": 2,
+  "activeNewSprites": 16,
+  "assetAndSourceSha256Verified": 16,
+  "checks": {
+    "typecheck": "passed",
+    "lint": "passed",
+    "build": "passed",
+    "unitFiles": 91,
+    "unitTests": 673,
+    "unitCommand": "pnpm exec vitest run --maxWorkers=1",
+    "dshCollaboration": 12,
+    "electronCollaboration": 11,
+    "visualGroups": 8,
+    "teamOnly": false
+  },
+  "artifacts": {
+    "manifest": "src/renderer/src/assets/character/taozi/team/manifest.json",
+    "dsh": ".cache/team-v2-temp/lca-collaboration-probe-sdMuX4/",
+    "electron": "test-results/p5-9ae27dd7-a457-457b-8745-0d30e67ea179/",
+    "preview": "test-results/team-v2-preview/",
+    "firstFixedReceiptFullPass": "test-results/p5-693c026d-a2fb-4695-8389-9faa72e7f0a8/",
+    "intermediateOldClickFailure": "test-results/p5-d903080e-4202-4583-9b37-3e77c4c2c2b5/"
+  },
+  "limitations": [
+    "Main character versus chibi style harmonization deferred by user",
+    "No new packaged installer, real provider acceptance or long-running use",
+    "First concurrent unit run had one Windows temporary-file rename EPERM; isolated 8 tests and subsequent complete 673 tests passed"
+  ]
+}

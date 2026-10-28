@@ -136,8 +136,35 @@ const base: AppSnapshot = {
 }
 
 const scenario = (patch: (s: AppSnapshot) => Partial<AppSnapshot>): AppSnapshot => ({ ...base, ...patch(base) })
+const teamPreview = (members: AgentView[]) => scenario((s) => ({
+  clock: { ...s.clock, nowMs: T.sat1420 + 12 * MIN },
+  companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'think' },
+  collaboration: { status: 'ready', runtimeId: 'fake', projectId: 'fake', tasks: [], members: [agent('root', '桃子', { mode: 'root', activity: 'running' }), ...members] },
+}))
 
 export const SCENARIOS = {
+  'team-workstations': teamPreview([
+    ...Array.from({ length: 4 }, (_, i) => agent(`file-${i}`, `茶桌${i + 1}`, { activity: 'running', work: agentWork('dsh.edit', 'files') })),
+    ...Array.from({ length: 2 }, (_, i) => agent(`research-${i}`, `书架${i + 1}`, { activity: 'running', work: agentWork('dsh.search', 'research') })),
+    ...Array.from({ length: 2 }, (_, i) => agent(`team-${i}`, `书桌${i + 1}`, { activity: 'running', work: agentWork('dsh.agent', 'team') })),
+    agent('entering', '刚加入', { activity: 'starting' }),
+  ]),
+  'team-statuses': teamPreview([
+    agent('thinking', '长思考', { activity: 'running', work: agentWork(null, 'files', 'thinking', true) }),
+    agent('waiting', '等待批准', { activity: 'waiting', waitingFor: 'approval' }),
+    agent('failed', '失败', { outcome: 'failed' }),
+    agent('completed', '完成', { outcome: 'completed' }),
+    agent('resting', '空闲'),
+    agent('stopping', '停止中', { activity: 'stopping', work: agentWork('dsh.plan', 'team') }),
+  ]),
+  'team-blocked': teamPreview([
+    agent('budget', '额度', { activity: 'waiting', waitingFor: 'budget', work: agentWork('dsh.read', 'files') }),
+    agent('recovery', '恢复', { activity: 'waiting', waitingFor: 'recovery', work: agentWork('dsh.read', 'files') }),
+    agent('peer', '同伴', { activity: 'waiting', waitingFor: 'member', work: agentWork('dsh.agent', 'team') }),
+    agent('unknown', '结果未知', { outcome: 'unknown' }),
+    agent('refused', '未获批准', { outcome: 'refused' }),
+    agent('aborted', '已停止', { outcome: 'aborted' }),
+  ]),
   /** 早晨，她在房间里，面向你；有一封新邮件，信箱口露出一封信 */
   'morning-idle': scenario((s) => ({
     clock: { ...s.clock, nowMs: T.sat0810 },

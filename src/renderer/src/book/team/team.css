@@ -37,12 +37,26 @@
   background: none;
   transform: translate(-50%, -100%);
   cursor: pointer;
+  pointer-events: none;
   transition: left 1.2s var(--ease-in-out), top 1.2s var(--ease-in-out), height 1.2s var(--ease-in-out), transform 220ms var(--ease-in-out);
 }
-.team-mini img { position: relative; display: block; height: 100%; width: auto; user-select: none; }
+.team-mini img { position: relative; display: block; height: 100%; width: auto; user-select: none; pointer-events: none; }
+/* Hit the visible head, not a transparent rectangle or the legs hidden by a desk. Keyboard still focuses the button. */
+.team-mini-hit { position: absolute; left: 5%; top: 2%; width: 90%; height: 44%; border-radius: 50%; pointer-events: auto; }
+.team-room:not([data-visible='true']) .team-mini-hit { pointer-events: none; }
+.team-mini[data-sprite='table-far-left'] .team-mini-hit { left: 0; width: 75%; height: 39%; }
+.team-mini[data-sprite='table-far-right'] .team-mini-hit { left: 0; width: 93%; height: 40%; }
+.team-mini[data-sprite='table-left'] .team-mini-hit { left: 0; width: 72%; }
+.team-mini[data-sprite='table-right'] .team-mini-hit { left: 21%; width: 79%; }
 .team-mini:hover { transform: translate(-50%, calc(-100% - 3px)); }
 .team-mini:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 3px; border-radius: 14px; }
-.team-failure-mark { position: absolute; right: -3%; top: 1%; display: grid; place-items: center; width: 1.2rem; height: 1.2rem; border: 2px solid #624a3a; border-radius: 3px; color: #624a3a; background: #fff8e9; font-weight: bold; }
+.team-status-mark { position: absolute; left: 50%; top: -1.1rem; transform: translateX(-50%); white-space: nowrap; padding: .05rem .3rem; border: 1px solid #9d836a; border-radius: .3rem; color: #624a3a; background: #fff8e9; font: 11px/1.35 sans-serif; }
+.team-mini[data-failed] .team-status-mark { border-style: double; border-width: 3px; }
+.team-tabletop { position: absolute; display: block; width: auto; transform: translate(-50%, -100%); pointer-events: none; user-select: none; }
+/* These sprites touch the tabletop. Moving only the base would split arms from the body. */
+.team-mini[data-station='table'] { transition: none; }
+.team-mini[data-station='table']:hover { transform: translate(-50%, -100%); }
+.team-mini[data-station='table'] img { animation: none; }
 .team-mini-shadow {
   position: absolute;
   left: 50%;
@@ -54,7 +68,9 @@
   background: radial-gradient(closest-side, color-mix(in oklab, var(--lavender-shadow) 80%, transparent), transparent);
 }
 /* 正在干活的帮手轻轻起伏；其余状态不动，免得满屋子都在晃 */
-.team-mini[data-busy][data-tool] img { animation: team-bob 2.6s var(--ease-in-out) infinite; }
+@media (prefers-reduced-motion: no-preference) {
+  .team-mini[data-busy][data-tool]:not([data-station='table']) img { animation: team-bob 2.6s var(--ease-in-out) infinite; }
+}
 @keyframes team-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.5%); } }
 
 .team-offstage {

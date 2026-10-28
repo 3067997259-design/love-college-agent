@@ -6,13 +6,14 @@ import { memberTarget, memberText, memberWorkText } from '../CollaborationPanel'
 import { activityKind } from '../../voice/activity-text'
 import { durationText, useMemberElapsed, useMemberSteps } from './useMemberProgress'
 import { assignStations, depthOf, memberFailed, memberKey, OCCLUDERS, poseOf, slotOf, type Place, type TeamPose, type TeamSlot } from './teamScene'
+import { artOf, badgeOf, TEAM_SPRITES } from './teamArt'
 import './team.css'
 
-const files = import.meta.glob('../../assets/character/taozi/team/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>
+const files = import.meta.glob(['../../assets/character/taozi/team/room-day.webp', '../../assets/character/taozi/team/mini-v2-*.png'], { eager: true, query: '?url', import: 'default' }) as Record<string, string>
 const roomSrc = files['../../assets/character/taozi/team/room-day.webp']
-const spriteSrc = (pose: TeamPose) => files[`../../assets/character/taozi/team/mini-${pose}.png`]
+const spriteSrc = (sprite: string) => files[`../../assets/character/taozi/team/mini-v2-${sprite}.png`]
 /** The built-in character has team art; a custom character package without it keeps the close view. */
-export const teamArtReady = !!roomSrc
+export const teamArtReady = !!roomSrc && TEAM_SPRITES.every((sprite) => !!spriteSrc(sprite))
 const pct = (value: number) => `${(value * 100).toFixed(2)}%`
 
 /**
@@ -29,11 +30,16 @@ export function TeamRoom({ snapshot, bridge, members, visible, onMore }: {
   slotsRef.current = slots
   const placed = members.flatMap((member) => {
     const key = memberKey(member), place = slots.get(key)
-    return place === undefined ? [] : [{ member, place, slot: slotOf(place), pose: poseOf(member, posesRef.current.get(key)) }]
+    if (!place) return []
+    const pose = poseOf(member, posesRef.current.get(key))
+    const slot = slotOf(place)
+    return [{ member, place, slot: pose === 'resting' ? { ...slot, h: slot.h * .75 } : slot, pose, art: artOf(pose, place) }]
   })
   posesRef.current = new Map(placed.map(({ member, pose }) => [memberKey(member), pose]))
-  const layers = [...placed.map((entry) => ({ kind: 'member' as const, depth: depthOf(entry.slot), entry })),
-    ...OCCLUDERS.map((entry) => ({ kind: 'furniture' as const, depth: entry.depth, entry }))].sort((a, b) => a.depth - b.depth)
+  const layers = [...OCCLUDERS.map((entry) => ({ kind: 'furniture' as const, depth: entry.depth, entry })),
+    ...placed.map((entry) => ({ kind: 'member' as const, depth: depthOf(entry.slot), entry })),
+    ...placed.filter((entry) => entry.art.foreground).map((entry) => ({ kind: 'tabletop' as const, depth: .8701, entry }))]
+    .sort((a, b) => a.depth - b.depth)
   const offstage = members.length - placed.length
   const [openKey, setOpenKey] = useState<string | null>(null)
   const buttons = useRef(new Map<string, HTMLButtonElement>())
@@ -47,18 +53,23 @@ export function TeamRoom({ snapshot, bridge, members, visible, onMore }: {
       {layers.map((layer) => {
         if (layer.kind === 'furniture') return <img key={layer.entry.id} className="team-room-art team-occluder" data-occluder={layer.entry.id}
           src={roomSrc} alt="" aria-hidden draggable={false} style={{ clipPath: `polygon(${layer.entry.polygon})` }} />
-        const { member, slot, pose, place } = layer.entry
+        const { member, slot, pose, place, art } = layer.entry
         const key = memberKey(member)
+        if (layer.kind === 'tabletop') return <img key={`${key}:tabletop`} className="team-tabletop" src={spriteSrc(art.sprite)} alt="" aria-hidden draggable={false}
+          style={{ left: pct(slot.x), top: pct(slot.y), height: pct(slot.h), clipPath: art.foreground }} />
+        const badge = badgeOf(member)
         return (
           <button key={key} ref={(node) => { if (node) buttons.current.set(key, node); else buttons.current.delete(key) }}
             type="button" className="team-mini" data-pose={pose} data-station={place.station} data-facing={slot.facing} data-failed={memberFailed(member) || undefined}
             data-busy={member.activity === 'running' || undefined} data-tool={member.work?.phase === 'tool' || undefined}
+            data-sprite={art.sprite} data-activity={member.activity} data-outcome={member.outcome}
             style={{ left: pct(slot.x), top: pct(slot.y), height: pct(slot.h) }} tabIndex={visible ? 0 : -1}
             aria-label={`${member.name}：${memberText.status(member)}`} aria-haspopup="dialog" aria-expanded={openKey === key}
             onClick={() => setOpenKey(openKey === key ? null : key)}>
             <span className="team-mini-shadow" aria-hidden />
-            <img src={spriteSrc(pose)} alt="" draggable={false} />
-            {memberFailed(member) && <span className="team-failure-mark" aria-hidden>!</span>}
+            <img src={spriteSrc(art.sprite)} alt="" draggable={false} />
+            <span className="team-mini-hit" aria-hidden />
+            {badge && <span className="team-status-mark" aria-hidden>{badge}</span>}
           </button>
         )
       })}
@@ -107,7 +118,7 @@ function MemberCard({ member, slot, snapshot, bridge, onClose, onMore }: {
         {!details.value && <p className="team-card-note">{details.failed ? '暂时读不到步骤，请收起后重试。' : '正在读取…'}</p>}
         {details.value && !details.value.steps.length && <p className="team-card-note">还没有工具步骤。</p>}
         {!!details.value?.steps.length && <ol>{details.value.steps.map((step, index) => <li key={index}>
-          <span>{activityKind(step) ?? '处理一步工作'} · {{ running: '进行中', completed: '已完成', failed: '未完成' }[step.status]}{step.durationMs !== null ? ` · ${durationText(step.durationMs)}` : ''}</span>
+          <span>{activityKind(step) ?? '处理一步工作'} · {step.status === 'running' && member.activity !== 'running' ? '未收到结果' : { running: '进行中', completed: '已完成', failed: '未完成' }[step.status]}{step.durationMs !== null ? ` · ${durationText(step.durationMs)}` : ''}</span>
           {step.target && <small>{step.target}</small>}
         </li>)}</ol>}
       </section>

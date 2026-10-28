@@ -133,7 +133,7 @@ try {
   await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'team')
   assert.equal(await page.locator('.team-room[data-visible="true"] .team-mini').count(), 2)
   const teammate = (await snapshot()).collaboration.members.find((member) => member.mode === 'teammate')
-  await page.getByRole('button', { name: new RegExp(`^${teammate.name}：`) }).click()
+  await page.getByRole('button', { name: new RegExp(`^${teammate.name}：`) }).locator('.team-mini-hit').click()
   const card = page.getByRole('dialog', { name: teammate.name, exact: true })
   const ended = { completed: '本次运行已结束', aborted: '已中止', failed: '执行失败', refused: '未获批准', unknown: '结果待核对' }[teammate.outcome]
   if (ended) assert.ok((await card.textContent()).includes(ended))
@@ -173,7 +173,7 @@ try {
   if (await showRoom.count()) await showRoom.click()
   const mini = page.getByRole('button', { name: new RegExp(`^${reader.name}：`) })
   assert.equal(await mini.getAttribute('data-station'), 'table')
-  await mini.click()
+  await mini.locator('.team-mini-hit').click()
   const progress = page.getByRole('dialog', { name: reader.name, exact: true })
   await progress.locator('.team-card-history li').first().waitFor()
   assert.ok((await progress.textContent()).includes('在想下一步'))

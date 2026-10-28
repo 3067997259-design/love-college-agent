@@ -1,6 +1,6 @@
 # 小桃子在房间里工作：先试小茶桌
 
-状态：提示词已准备，尚未生成、审图或采用。由维护者在 Gemini 出稿；先完成四个茶桌坐姿，在应用中审图通过后再制作其他位置。
+状态：2026-10-28 原四个地坐姿完成切图和试摆，未采用，记录在 `art/retouch/2026-10-28-team-table-candidate/`。抬至桌面后缺少支撑，随后改为 [imagegen 带凳子坐姿](2026-10-28-team-stools-imagegen.md)。维护者认可凳子版后授权补齐其他位置，现已接入 16 张版本化素材，见[补齐记录](2026-10-28-team-complete-imagegen.md)。本文件保留首轮 Gemini 提示词。
 
 附两张**自己的已采用素材**作为身份和机位参考：
 
@@ -27,7 +27,7 @@
 输出先存入新的 `art/retouch/` 候选目录，不覆盖已采用精灵。切图命令（末尾为行、列）：
 
 ```powershell
-pnpm exec electron art/tools/cut-chibi-sprites.cjs <sheet> <candidate-dir> table-far-left,table-far-right,table-left,table-right 2 2
+pnpm exec electron art/tools/cut-chibi-sprites.cjs <sheet> <candidate-dir> 'table-far-left,table-far-right,table-left,table-right' 2 2
 ```
 
 核对脸与丝带、俯视角、完整身体和手持电脑；先在现有房间的四个座位截图，检查人物坐在桌旁、桌子遮住下半身、电脑在桌面、没有站在桌上或悬空。维护者确认后才更新 `team/manifest.json` 与正式素材。

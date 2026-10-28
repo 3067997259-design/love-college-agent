@@ -8,19 +8,218 @@
       "sha256": "1d4bcd1e7265104c1d76dc7ae6899ba79cf27052c797219e00cc151701ea6241",
       "use": "团队远景房间（白天；夜里用房间调色层）。Gemini 按已认可三维机位出图，窗外天空从上一轮本地补回，NovelAI 放大 2 倍；转 WebP 质量 0.9。"
     },
-    { "runtime": "mini-idle.png", "sha256": "7f527f61b0728a8bfb3b04273c5ded56b18864bf032f7023703bbac1e912ba84", "use": "待机 / 已停下" },
-    { "runtime": "mini-happy.png", "sha256": "cfb15aaf18391a3ae0ac9e5f4e20eb3c1c01bc1e84bd64e0616a6861a8691b75", "use": "刚加入" },
-    { "runtime": "mini-typing.png", "sha256": "951d83c59bb5948eee7a10ad0bf9539e0f5ed5d8d4c625aeb5670f5912364761", "use": "工作中：打字" },
-    { "runtime": "mini-reading.png", "sha256": "6bc085ed682438a157d7cc8f0a05fc25396d5a6eb0c9642eada833768d30d3f2", "use": "工作中：查资料" },
-    { "runtime": "mini-carrying.png", "sha256": "e24cbe8702c4da6b6a20a44c5cf6a72c3a605b9fa6cd4c381a755d7442d15ab8", "use": "工作中：搬资料" },
-    { "runtime": "mini-waiting.png", "sha256": "ca6a719d2910c9027cb22263bff28a86790150b69bba9cf67224c891aebfc453", "use": "等你批准或回答" },
-    { "runtime": "mini-handing.png", "sha256": "513850bae95cfa37d6128eb2c07315cca2ae348ae5f7f8e5037ae2e6e01d5546", "use": "上一段工作已完成（以运行结果为准）" },
-    { "runtime": "mini-puzzled.png", "sha256": "591b380505c81a1b0cf0481ea040fadb11378e02ae62eda461922e022cc55bcc", "use": "失败、未获批准、结果待核对、额度或恢复受阻" },
-    { "runtime": "mini-resting.png", "sha256": "b567308c25eb6abfb3e9ad56f045f514bc22170a213a68fe26c489fd430e37f1", "use": "空闲（当前没有回合，不代表完成）" }
+    {
+      "runtime": "mini-idle.png",
+      "sha256": "7f527f61b0728a8bfb3b04273c5ded56b18864bf032f7023703bbac1e912ba84",
+      "use": "待机 / 已停下"
+    },
+    {
+      "runtime": "mini-happy.png",
+      "sha256": "cfb15aaf18391a3ae0ac9e5f4e20eb3c1c01bc1e84bd64e0616a6861a8691b75",
+      "use": "刚加入"
+    },
+    {
+      "runtime": "mini-typing.png",
+      "sha256": "951d83c59bb5948eee7a10ad0bf9539e0f5ed5d8d4c625aeb5670f5912364761",
+      "use": "工作中：打字"
+    },
+    {
+      "runtime": "mini-reading.png",
+      "sha256": "6bc085ed682438a157d7cc8f0a05fc25396d5a6eb0c9642eada833768d30d3f2",
+      "use": "工作中：查资料"
+    },
+    {
+      "runtime": "mini-carrying.png",
+      "sha256": "e24cbe8702c4da6b6a20a44c5cf6a72c3a605b9fa6cd4c381a755d7442d15ab8",
+      "use": "工作中：搬资料"
+    },
+    {
+      "runtime": "mini-waiting.png",
+      "sha256": "ca6a719d2910c9027cb22263bff28a86790150b69bba9cf67224c891aebfc453",
+      "use": "等你批准或回答"
+    },
+    {
+      "runtime": "mini-handing.png",
+      "sha256": "513850bae95cfa37d6128eb2c07315cca2ae348ae5f7f8e5037ae2e6e01d5546",
+      "use": "上一段工作已完成（以运行结果为准）"
+    },
+    {
+      "runtime": "mini-puzzled.png",
+      "sha256": "591b380505c81a1b0cf0481ea040fadb11378e02ae62eda461922e022cc55bcc",
+      "use": "失败、未获批准、结果待核对、额度或恢复受阻"
+    },
+    {
+      "runtime": "mini-resting.png",
+      "sha256": "b567308c25eb6abfb3e9ad56f045f514bc22170a213a68fe26c489fd430e37f1",
+      "use": "空闲（当前没有回合，不代表完成）"
+    },
+    {
+      "runtime": "mini-v2-completed.png",
+      "sha256": "5e3434e26d61242e3bfd985a4716ab2a352f426a9610c89a7c906718a0799769",
+      "from": "art/retouch/2026-10-28-team-complete/status-sheet.png",
+      "fromSha256": "c2a8a3d9a35d7c2c622833ce1883880006cbe9b4f60ebe6f7ea4b3a39b84a2f5",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "completed"
+    },
+    {
+      "runtime": "mini-v2-entering.png",
+      "sha256": "ae9a72c70d2400a51804ee30a2a33afd86fb2e289cfd516053a858ffe1d0be27",
+      "from": "art/retouch/2026-10-28-team-complete/work-sheet.png",
+      "fromSha256": "f1117e1cf185ca02e7eb3d9371764c0798478da77906b7dad221aaa6c4af2198",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "entering"
+    },
+    {
+      "runtime": "mini-v2-failed.png",
+      "sha256": "2839fef4bdc982302daedddb0eaa67013362bc0797d572aef58243b642d368d9",
+      "from": "art/retouch/2026-10-28-team-complete/status-sheet.png",
+      "fromSha256": "c2a8a3d9a35d7c2c622833ce1883880006cbe9b4f60ebe6f7ea4b3a39b84a2f5",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "failed"
+    },
+    {
+      "runtime": "mini-v2-idle.png",
+      "sha256": "c49c5619fb444d4a1d728aa4fef613055945fc00eb94f457058688f3ef10babd",
+      "from": "art/retouch/2026-10-28-team-complete/work-sheet.png",
+      "fromSha256": "f1117e1cf185ca02e7eb3d9371764c0798478da77906b7dad221aaa6c4af2198",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "idle"
+    },
+    {
+      "runtime": "mini-v2-note-left.png",
+      "sha256": "100026c3bae47e11b05aeb619af49c97d8404325476c4c16e0030b24206b8966",
+      "from": "art/retouch/2026-10-28-team-complete/work-sheet.png",
+      "fromSha256": "f1117e1cf185ca02e7eb3d9371764c0798478da77906b7dad221aaa6c4af2198",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "note-left"
+    },
+    {
+      "runtime": "mini-v2-note-right.png",
+      "sha256": "3c8120d7dc17be23d0bc9a42d5faa3f6450038215a47b6e449ceba147a8fc961",
+      "from": "art/retouch/2026-10-28-team-complete/work-sheet.png",
+      "fromSha256": "f1117e1cf185ca02e7eb3d9371764c0798478da77906b7dad221aaa6c4af2198",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "note-right"
+    },
+    {
+      "runtime": "mini-v2-reading-back.png",
+      "sha256": "434539aa27cbe971a049cb78228b495c45a37adef36e726694b8d71c369cae45",
+      "from": "art/retouch/2026-10-28-team-complete/work-sheet.png",
+      "fromSha256": "f1117e1cf185ca02e7eb3d9371764c0798478da77906b7dad221aaa6c4af2198",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "reading-back"
+    },
+    {
+      "runtime": "mini-v2-resting.png",
+      "sha256": "d47a67674667d5408fe280025721b6358e29da2e638fc1dd30402918c83fec28",
+      "from": "art/retouch/2026-10-28-team-complete/status-sheet.png",
+      "fromSha256": "c2a8a3d9a35d7c2c622833ce1883880006cbe9b4f60ebe6f7ea4b3a39b84a2f5",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "resting"
+    },
+    {
+      "runtime": "mini-v2-shelf-reach.png",
+      "sha256": "3f44cec63f8fd8dea2e0d79b60cd6bdc89a16e38b18ad48477f139f0f65e166e",
+      "from": "art/retouch/2026-10-28-team-complete/work-sheet.png",
+      "fromSha256": "f1117e1cf185ca02e7eb3d9371764c0798478da77906b7dad221aaa6c4af2198",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "shelf-reach"
+    },
+    {
+      "runtime": "mini-v2-stopping.png",
+      "sha256": "949064ff0ea61b2bbe911a9c9d024134b5c10f8ac04b15dc1a2a52e09525f656",
+      "from": "art/retouch/2026-10-28-team-complete/status-sheet.png",
+      "fromSha256": "c2a8a3d9a35d7c2c622833ce1883880006cbe9b4f60ebe6f7ea4b3a39b84a2f5",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "stopping"
+    },
+    {
+      "runtime": "mini-v2-table-far-left.png",
+      "sha256": "0aec316a8f03ea212cceca65f472f5c6a7389667bf8f8ca00e6b8344de8b7dd0",
+      "from": "art/retouch/2026-10-28-team-table-imagegen-v2/generated-sheet.png",
+      "fromSha256": "8d95792879719e0901ef4ebeb809ced22989fdf317cd53f15f6320882c1c3195",
+      "prompt": "art/prompts/2026-10-28-team-stools-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "table-far-left"
+    },
+    {
+      "runtime": "mini-v2-table-far-right.png",
+      "sha256": "100f28e616e06ce0e78517e29f65cb16807acaec8cd0688183efd5a51579bccb",
+      "from": "art/retouch/2026-10-28-team-table-imagegen-v2/generated-sheet.png",
+      "fromSha256": "8d95792879719e0901ef4ebeb809ced22989fdf317cd53f15f6320882c1c3195",
+      "prompt": "art/prompts/2026-10-28-team-stools-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "table-far-right"
+    },
+    {
+      "runtime": "mini-v2-table-left.png",
+      "sha256": "051f22633b09b89ec78be2bf1972bc370715c683e6d9c54f1538e5efc84413d0",
+      "from": "art/retouch/2026-10-28-team-table-imagegen-v2/generated-sheet.png",
+      "fromSha256": "8d95792879719e0901ef4ebeb809ced22989fdf317cd53f15f6320882c1c3195",
+      "prompt": "art/prompts/2026-10-28-team-stools-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "table-left"
+    },
+    {
+      "runtime": "mini-v2-table-right.png",
+      "sha256": "c7849c007dbc5d07487f85e8c16761806af6c9de349e049e2854e41b84dfcec4",
+      "from": "art/retouch/2026-10-28-team-table-imagegen-v2/generated-sheet.png",
+      "fromSha256": "8d95792879719e0901ef4ebeb809ced22989fdf317cd53f15f6320882c1c3195",
+      "prompt": "art/prompts/2026-10-28-team-stools-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "table-right"
+    },
+    {
+      "runtime": "mini-v2-thinking.png",
+      "sha256": "ef6185f2879a6eb13fb9a542c70600db75286a4d90dd63165e3fb355bfcc06af",
+      "from": "art/retouch/2026-10-28-team-complete/status-sheet.png",
+      "fromSha256": "c2a8a3d9a35d7c2c622833ce1883880006cbe9b4f60ebe6f7ea4b3a39b84a2f5",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "thinking"
+    },
+    {
+      "runtime": "mini-v2-waiting.png",
+      "sha256": "fd7774c2cfe05cb0ae79970068db50b612765ee20715beace43445bacd3b98f1",
+      "from": "art/retouch/2026-10-28-team-complete/status-sheet.png",
+      "fromSha256": "c2a8a3d9a35d7c2c622833ce1883880006cbe9b4f60ebe6f7ea4b3a39b84a2f5",
+      "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
+      "tool": "内置 imagegen；去白底裁切，无镜像",
+      "use": "waiting"
+    }
   ],
   "spriteSheet": {
     "from": "art/retouch/2026-10-28-chibi-sprites/gemini-chibi-sprites-received.webp",
     "fromSha256": "e146ea250fc391ea738d55f821a4baa334c81e0b6a896c1dbc50a223ef336cb5",
     "tool": "Gemini 内置生图（用户称 nano banana），按 art/prompts/2026-10-27-design-sheet-v2-gemini.md §6.1；art/tools/cut-chibi-sprites.cjs 去白底切图，未放大、未改画。"
-  }
+  },
+  "activeSprites": [
+    "mini-v2-completed.png",
+    "mini-v2-entering.png",
+    "mini-v2-failed.png",
+    "mini-v2-idle.png",
+    "mini-v2-note-left.png",
+    "mini-v2-note-right.png",
+    "mini-v2-reading-back.png",
+    "mini-v2-resting.png",
+    "mini-v2-shelf-reach.png",
+    "mini-v2-stopping.png",
+    "mini-v2-table-far-left.png",
+    "mini-v2-table-far-right.png",
+    "mini-v2-table-left.png",
+    "mini-v2-table-right.png",
+    "mini-v2-thinking.png",
+    "mini-v2-waiting.png"
+  ],
+  "adoption": "2026-10-28 用户确认凳子版效果后授权补齐团队艺术资源并接入；mini-v2 为当前使用，旧 mini 文件保留，大小桃子画风统一后置。"
 }

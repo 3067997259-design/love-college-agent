@@ -42,9 +42,9 @@ pnpm test
 
 团队远景 V2 补充检查：`tests/unit/dsh-member-focus.test.ts` 用假时钟核对窗口、换位与长思考；`dsh-member-steps.test.ts` 验证有界回放、路径 / URL 摘要、来源退役后仍隐藏旧目标和字段剥离；`team-scene.test.ts` 验证按种类摆位、稳定座位、溢出与家具深度。`test:dsh-collaboration` 新增工具 / 思考 / 同伴消息阶段、最近 12 步、成败、已卸载成员的只读回放、跨根拒绝和受限来源隐藏目标。`test:collaboration` 新增实际子代理读文件后的 `data-station`、中文步骤卡片与快照无目标检查。
 
-`node scripts/team-room-preview.mjs` 用本机已装 Chrome 检查 `team-working` 假场景，保存白天、夜间、减少动画、干净 / 受限卡片和窄窗口截图到 `test-results/team-v2-preview/`。不下载浏览器，不调用真实模型；这些截图用于布局审看，不能替代 Gemini 新素材采用或真实模型日用验收。
+`node scripts/team-room-preview.mjs` 用本机已装 Chrome 检查 `team-working`、`team-workstations`、`team-statuses`、`team-blocked` 假场景，保存工位 / 状态、白天、夜间、减少动画、干净 / 受限卡片和窄窗口截图到 `test-results/team-v2-preview/`。验证全部 16 张素材、可见头部点击、键盘与焦点返回，并检查隐藏房间不截获点击。开发场景切换条在检查书页切镜前移到顶部；实际安装包不带此工具条。`--serve` 只启动预览服务，端口由 `LCA_SHOT_PORT` 指定。不下载浏览器，不调用真实模型；这些截图不代表真实模型日用验收。
 
-若需要单独复核团队房间，可在 build 后运行 `node scripts/smoke-collaboration.mjs --team-room-only`：仍检查消息、停止、任务操作、冷恢复和新书页路径，只把已知不稳定的“丢失回执”故障注入换成正常重开任务。回执写明 `teamOnly: true`；此结果不能称为完整 `test:collaboration` 通过，完整脚本的失败证据仍保留。
+若需要单独复核团队房间，可在 build 后运行 `node scripts/smoke-collaboration.mjs --team-room-only`：仍检查消息、停止、任务操作、冷恢复和新书页路径，只把“丢失回执”故障注入换成正常重开任务。回执写明 `teamOnly: true`，不能称为完整验收。2026-10-28 已修复回执先通知后落盘的竞态并通过完整脚本，旧失败证据保留。
 
 2026-10-28 的检查结果、失败证据与美术交接见[团队远景 V2 回执](research/team-room-v2-20261028.md)。
 
