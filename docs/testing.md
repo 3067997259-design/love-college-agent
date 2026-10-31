@@ -12,6 +12,8 @@ pnpm test
 
 纯文档改动检查链接、命令、一致性和 `git diff --check`，无需为文案重跑所有 Electron 场景。代码改动先跑相关单测与场景，扩大检查须有具体原因。
 
+GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型、lint 和单元测试。旧心流的 `probe:desk-command:runtime` 已随功能移除，不再作为 CI 入口；DSH、包内流程和实际升级仍按下文单独验收，不由静态 CI 结果替代。
+
 ## 主要场景
 
 | 命令 | 核验重点 |
