@@ -100,6 +100,8 @@ v6 审图后，用户转述 Gemini 对大腿观感、侧面贴片感、腿脚僵
 
 团队远景第二轮的[小茶桌四姿势提示词](../art/prompts/2026-10-28-team-stations-gemini.md)已收到用户出稿。切图脚本支持末尾可选的行、列参数（默认 3×3），四张用 `2 2`，文件名列表在 PowerShell 中需加引号。原图、去白底四张和书页试摆保存在本机 `art/retouch/2026-10-28-team-table-candidate/`。左右两位整体抬高后缺少坐姿支撑，用户提出凳子方案并授权 image 重画与测试。[imagegen 重画记录](../art/prompts/2026-10-28-team-stools-imagegen.md)保存两轮提示词与来源：第一轮透明杂边稿保留，第二轮白底按实际间隔切图。维护者认可凳子版后要求补齐团队素材；四张坐姿和后续两张六格表切出的十二张均已接入 `mini-v2-*`，旧图与原稿保留。新增工作 / 状态原稿位于 `art/retouch/2026-10-28-team-complete/`，实际提示词见[补齐记录](../art/prompts/2026-10-28-team-complete-imagegen.md)。共四次内置 imagegen 调用（凳子两次、补齐两次），没有新增 API CLI / NovelAI 请求。全部工位、各状态、夜间、窄窗口和交互验收见[回执](research/team-room-art-complete-20261028.md)；大小桃子画风统一按用户要求后置。
 
+2026-10-31 用户指出合成很乱。原因是尺寸按整张图高逐位手调，茶桌坐姿图（电脑在腿上）要放大两倍多才够到桌面，位置也和家具冲突。现改为按头部大小和远近统一尺寸，由 [measure-team-sprites.mjs](../art/tools/measure-team-sprites.mjs) 量图；四张坐姿停用，用户选定改画站在小凳上，[提示词](../art/prompts/2026-10-31-team-stool-standing.md)待出图。经过与验收见[回执](research/team-room-scale-20261031.md)。
+
 2026-10-28 起的分工：Gemini 负责构图、设计和局部改色（尺寸约 1024，多次图生图会变糊）；GPT-image 负责一次性精修清晰度，提示词见 [GPT 精修](../art/prompts/2026-10-28-gpt-refine.md)；设定图按块精修后由我们拼版并排文字与色卡。Gemini 的房间已叠回三维底稿核对，透视与已认可机位一致。
 
 2026-10-28 补充：NovelAI 有放大接口（网页端同款，2 倍，`art/tools/novelai-upscale.mjs`）。试用确认它以原图为条件、脸不变，声明模糊 0.5 时线条明显更清楚；宽高需先补到 64 的倍数。清晰度改走这条路，GPT-image 只用于不涉及脸的内容修改。房间 r3 的蓝天用 r2 的天空在本地按颜色补回，再放大到 2048²。记录在本机 `art/retouch/2026-10-28-nai-upscale/`。
