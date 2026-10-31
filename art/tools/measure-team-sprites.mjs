@@ -1,6 +1,6 @@
 // Measure the team-room sprites so the room can size every helper by her head, not by the size of her picture.
 // Head = the hair box (her bob outline); foot = centre of the lowest opaque rows; bottom = lowest opaque row.
-// Writes src/renderer/src/assets/character/taozi/team/sprite-metrics.json for the sprites listed in manifest.activeSprites.
+// Writes src/renderer/src/assets/character/taozi/team/sprite-metrics.json for manifest.activeSprites and manifest.activeProps.
 // Run: node art/tools/measure-team-sprites.mjs [--check]   (--check fails if the file is stale instead of writing it)
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -81,12 +81,31 @@ function measure(file) {
   }
 }
 
+// A prop (a laptop) has no hair. It was drawn on the same sheet as some of the girls and at their scale, so its size
+// in heads is its pixels over the mean head of the active sprites cut from that sheet.
+function measureProp(file, entry, sprites) {
+  const bytes = readFileSync(join(dir, file)), { width, height, rgba } = decodePng(bytes)
+  let bottom = -1
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (rgba[(y * width + x) * 4 + 3] >= 128) bottom = y
+  if (bottom < 0) throw new Error(`${file}: no opaque pixels`)
+  const peers = manifest.assets.filter((asset) => asset.from === entry.from && manifest.activeSprites.includes(asset.runtime))
+  if (!peers.length) throw new Error(`${file}: no active sprite cut from ${entry.from}, so its scale is unknown`)
+  const headPx = Math.round(peers.reduce((sum, asset) => sum + sprites[asset.runtime.replace(/^mini-v2-|\.png$/g, '')].head.height, 0) / peers.length)
+  return { file, sha256: createHash('sha256').update(bytes).digest('hex'), width, height, bottom, headPx }
+}
+
 const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'))
-const sprites = {}
-for (const file of manifest.activeSprites) sprites[file.replace(/^mini-v2-|\.png$/g, '')] = measure(file)
+const entryOf = (file) => manifest.assets.find((asset) => asset.runtime === file) ?? {}
+const sprites = {}, props = {}
+for (const file of manifest.activeSprites) {
+  // `hands` is read by eye on a magnified grid (the lowest row of her hands); detectors confuse them with the cardigan.
+  const hands = entryOf(file).hands
+  sprites[file.replace(/^mini-v2-|\.png$/g, '')] = { ...measure(file), ...(hands === undefined ? {} : { hands }) }
+}
+for (const file of manifest.activeProps ?? []) props[file.replace(/^prop-|\.png$/g, '')] = measureProp(file, entryOf(file), sprites)
 const text = `${JSON.stringify({
-  _说明: '由 art/tools/measure-team-sprites.mjs 生成，不要手改。head 是发型外框（像素），用来按头部大小定尺寸和点击范围；footX 是脚底中心，bottom 是最低的不透明行。尺寸规则见 src/renderer/src/book/team/teamScene.ts。',
-  sprites,
+  _说明: '由 art/tools/measure-team-sprites.mjs 生成，不要手改。head 是发型外框（像素），用来按头部大小定尺寸和点击范围；footX 是脚底中心，bottom 是最低的不透明行；hands 是双手最低行（manifest 里人工量取）。道具没有头，headPx 是同一张原图里小桃子的平均头高，用来换算大小。尺寸规则见 src/renderer/src/book/team/teamScene.ts。',
+  sprites, props,
 }, null, 2)}\n`
 if (process.argv.includes('--check')) {
   let current = ''
@@ -95,5 +114,7 @@ if (process.argv.includes('--check')) {
   console.log('sprite-metrics.json is current')
 } else {
   writeFileSync(output, text)
-  for (const [name, m] of Object.entries(sprites)) console.log(name.padEnd(16), `${m.width}x${m.height}`, 'head', `${m.head.height}px (${(m.head.height / m.height).toFixed(3)})`, 'footX', (m.footX / m.width).toFixed(3))
+  for (const [name, m] of Object.entries(sprites)) console.log(name.padEnd(16), `${m.width}x${m.height}`, 'head', `${m.head.height}px (${(m.head.height / m.height).toFixed(3)})`, 'footX', (m.footX / m.width).toFixed(3),
+    m.hands === undefined ? '' : `hands ${((m.bottom - m.hands) / m.head.height).toFixed(2)} heads above the floor`)
+  for (const [name, m] of Object.entries(props)) console.log(name.padEnd(16), `${m.width}x${m.height}`, `${(m.width / m.headPx).toFixed(2)} x ${(m.height / m.headPx).toFixed(2)} heads`)
 }

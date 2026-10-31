@@ -1,5 +1,5 @@
 {
-  "_说明": "由 art/tools/measure-team-sprites.mjs 生成，不要手改。head 是发型外框（像素），用来按头部大小定尺寸和点击范围；footX 是脚底中心，bottom 是最低的不透明行。尺寸规则见 src/renderer/src/book/team/teamScene.ts。",
+  "_说明": "由 art/tools/measure-team-sprites.mjs 生成，不要手改。head 是发型外框（像素），用来按头部大小定尺寸和点击范围；footX 是脚底中心，bottom 是最低的不透明行；hands 是双手最低行（manifest 里人工量取）。道具没有头，headPx 是同一张原图里小桃子的平均头高，用来换算大小。尺寸规则见 src/renderer/src/book/team/teamScene.ts。",
   "sprites": {
     "completed": {
       "file": "mini-v2-completed.png",
@@ -168,6 +168,69 @@
       },
       "footX": 156,
       "bottom": 580
+    },
+    "stool-back-right": {
+      "file": "mini-v2-stool-back-right.png",
+      "sha256": "37e278bb08d98a4ef4f4435849749d29fece577900f9cb915d64ebe5ecc05bc3",
+      "width": 277,
+      "height": 700,
+      "head": {
+        "top": 11,
+        "height": 212,
+        "left": 12,
+        "width": 257
+      },
+      "footX": 143,
+      "bottom": 695,
+      "hands": 292
+    },
+    "stool-end-left": {
+      "file": "mini-v2-stool-end-left.png",
+      "sha256": "2243b56555c4593c15ecc76eb35952df405442e0dc59ce18b47c378ef6c61b14",
+      "width": 280,
+      "height": 646,
+      "head": {
+        "top": 10,
+        "height": 195,
+        "left": 8,
+        "width": 241
+      },
+      "footX": 155,
+      "bottom": 641,
+      "hands": 270
+    },
+    "stool-end-right": {
+      "file": "mini-v2-stool-end-right.png",
+      "sha256": "06afaba6d7c9839a7e0012fb6ccbc6052e34f4bb51bdb5db5c194db42e18ccf3",
+      "width": 274,
+      "height": 648,
+      "head": {
+        "top": 10,
+        "height": 195,
+        "left": 23,
+        "width": 242
+      },
+      "footX": 126,
+      "bottom": 643,
+      "hands": 272
+    }
+  },
+  "props": {
+    "laptop-back": {
+      "file": "prop-laptop-back.png",
+      "sha256": "d825ff325a498ee92fea9c078403500f2f5a1085cb595bb4413d33d1b194e63c",
+      "width": 224,
+      "height": 140,
+      "bottom": 135,
+      "headPx": 201
+    },
+    "laptop-side": {
+      "file": "prop-laptop-side.png",
+      "sha256": "701d4396de27b6562a3aaf5221bedf87076c6f3cd3644c98ef10a63c6aa2a1d2",
+      "width": 217,
+      "height": 153,
+      "bottom": 147,
+      "headPx": 201
     }
   }
 }

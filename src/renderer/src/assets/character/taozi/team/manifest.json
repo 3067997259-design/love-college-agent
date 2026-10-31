@@ -196,6 +196,54 @@
       "prompt": "art/prompts/2026-10-28-team-complete-imagegen.md",
       "tool": "内置 imagegen；去白底裁切，无镜像",
       "use": "waiting"
+    },
+    {
+      "runtime": "mini-v2-stool-back-right.png",
+      "sha256": "37e278bb08d98a4ef4f4435849749d29fece577900f9cb915d64ebe5ecc05bc3",
+      "from": "art/retouch/2026-10-31-team-stool-standing/generated-sheet-v2.png",
+      "fromSha256": "57cadd192a01475cc1cea87916d690e2f9ad96f035dc192c50580be08653a97d",
+      "prompt": "art/prompts/2026-10-31-team-stool-standing.md",
+      "tool": "内置 imagegen（经 Codex）；去白底裁切，无镜像；凳腿从第 489 行到底整段按行拉长 91 行（art/retouch/2026-10-31-team-stool-standing/stretched/stretch-stool.mjs），让双手落到茶桌桌面高度，人物未改",
+      "use": "stool-back-right：茶桌远侧右位打字，侧身朝画面左",
+      "hands": 292
+    },
+    {
+      "runtime": "mini-v2-stool-end-left.png",
+      "sha256": "2243b56555c4593c15ecc76eb35952df405442e0dc59ce18b47c378ef6c61b14",
+      "from": "art/retouch/2026-10-31-team-stool-standing/generated-sheet-v2.png",
+      "fromSha256": "57cadd192a01475cc1cea87916d690e2f9ad96f035dc192c50580be08653a97d",
+      "prompt": "art/prompts/2026-10-31-team-stool-standing.md",
+      "tool": "内置 imagegen（经 Codex）；去白底裁切，无镜像；凳腿从第 454 行到底整段按行拉长 63 行（art/retouch/2026-10-31-team-stool-standing/stretched/stretch-stool.mjs），让双手落到茶桌桌面高度，人物未改",
+      "use": "stool-end-left：茶桌左端打字，正侧面朝画面右",
+      "hands": 270
+    },
+    {
+      "runtime": "mini-v2-stool-end-right.png",
+      "sha256": "06afaba6d7c9839a7e0012fb6ccbc6052e34f4bb51bdb5db5c194db42e18ccf3",
+      "from": "art/retouch/2026-10-31-team-stool-standing/generated-sheet-v2.png",
+      "fromSha256": "57cadd192a01475cc1cea87916d690e2f9ad96f035dc192c50580be08653a97d",
+      "prompt": "art/prompts/2026-10-31-team-stool-standing.md",
+      "tool": "内置 imagegen（经 Codex）；去白底裁切，无镜像；凳腿从第 454 行到底整段按行拉长 65 行（art/retouch/2026-10-31-team-stool-standing/stretched/stretch-stool.mjs），让双手落到茶桌桌面高度，人物未改",
+      "use": "stool-end-right：茶桌右端打字，正侧面朝画面左",
+      "hands": 272
+    },
+    {
+      "runtime": "prop-laptop-back.png",
+      "sha256": "d825ff325a498ee92fea9c078403500f2f5a1085cb595bb4413d33d1b194e63c",
+      "from": "art/retouch/2026-10-31-team-stool-standing/generated-sheet-v2.png",
+      "fromSha256": "57cadd192a01475cc1cea87916d690e2f9ad96f035dc192c50580be08653a97d",
+      "prompt": "art/prompts/2026-10-31-team-stool-standing.md",
+      "tool": "内置 imagegen（经 Codex）；去白底裁切，未改画；道具可以镜像",
+      "use": "laptop-back：茶桌远侧两位面前的电脑，看到屏幕背面"
+    },
+    {
+      "runtime": "prop-laptop-side.png",
+      "sha256": "701d4396de27b6562a3aaf5221bedf87076c6f3cd3644c98ef10a63c6aa2a1d2",
+      "from": "art/retouch/2026-10-31-team-stool-standing/generated-sheet-v2.png",
+      "fromSha256": "57cadd192a01475cc1cea87916d690e2f9ad96f035dc192c50580be08653a97d",
+      "prompt": "art/prompts/2026-10-31-team-stool-standing.md",
+      "tool": "内置 imagegen（经 Codex）；去白底裁切，未改画；道具可以镜像",
+      "use": "laptop-side：茶桌两端的电脑，侧面；右端镜像"
     }
   ],
   "spriteSheet": {
@@ -215,7 +263,14 @@
     "mini-v2-shelf-reach.png",
     "mini-v2-stopping.png",
     "mini-v2-thinking.png",
-    "mini-v2-waiting.png"
+    "mini-v2-waiting.png",
+    "mini-v2-stool-back-right.png",
+    "mini-v2-stool-end-left.png",
+    "mini-v2-stool-end-right.png"
   ],
-  "adoption": "2026-10-28 用户确认凳子版效果后授权补齐团队艺术资源并接入；mini-v2 为当前使用，旧 mini 文件保留，大小桃子画风统一后置。2026-10-31 改为按头部大小和远近统一尺寸（sprite-metrics.json 由 art/tools/measure-team-sprites.mjs 生成）；四张茶桌坐姿停用，用户选定改画站在小凳上。"
+  "activeProps": [
+    "prop-laptop-back.png",
+    "prop-laptop-side.png"
+  ],
+  "adoption": "2026-10-28 用户确认凳子版效果后授权补齐团队艺术资源并接入；mini-v2 为当前使用，旧 mini 文件保留，大小桃子画风统一后置。2026-10-31 改为按头部大小和远近统一尺寸（sprite-metrics.json 由 art/tools/measure-team-sprites.mjs 生成）；四张茶桌坐姿停用，用户选定改画站在小凳上。 2026-10-31 下午用户采用站凳子试摆：三张站在小凳上的小桃子（凳腿由程序拉长到手够得着桌面，人物未改）与两台电脑道具，茶桌改为三座；远侧左位那张未用，留在本机候选目录。"
 }
