@@ -1,0 +1,1752 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-31T13:01:18.900Z",
+  "scope": {
+    "localCandidate": true,
+    "realServices": false,
+    "paidServices": false,
+    "summaryPolish": "deferred-by-user",
+    "realProjectAndContinuousUse": "deferred-pending-separate-authorization-and-budget",
+    "publicRelease": false,
+    "secondWindows": false
+  },
+  "baseline": "2d66b12aaa1ecbe16b8b42a4a7c2e3518c57bcb6",
+  "fixes": [
+    "7d8600bb37b12ee1c93a48045f3664e97ce8b628",
+    "4ad39315fc5a98de9580d1b73bc67ae4938281d2"
+  ],
+  "candidate": {
+    "version": 1,
+    "appVersion": "1.2.0-rc.3",
+    "installerFileName": "Love-College-Agent-1.2.0-rc.3-Setup.exe",
+    "sourceRevision": "4ad39315fc5a98de9580d1b73bc67ae4938281d2",
+    "trackedDirty": false,
+    "runtimePreparation": "reused-prepared-tree",
+    "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+    "builtAtIso": "2026-10-31T12:34:47.670Z",
+    "installerBytes": 303001035,
+    "installerSha256": "17dc777c90ffabbbcb01622cfc402852ece5cbadd2c3db65ffefd39f9cc13868",
+    "asarSha256": "fbab3018ab3243e0beaf50fdc6d8105eadd313889563aa16cd2c94cfb9ddd710"
+  },
+  "installerDirectory": "C:/.lca-cache/releases/lca-release-1.2.0-rc.3-20261031-r2",
+  "unsigned": true,
+  "steps": [
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\unit-request-hook.json",
+      "sha256": "b721ed29ec3509096260ed019016ee48b03f4bcc9f5f69dfd134ca2c4d1bab3d",
+      "name": "unit-request-hook",
+      "startedAt": "2026-10-31T12:29:18.041Z",
+      "finishedAt": "2026-10-31T12:29:41.279Z",
+      "exitCode": 0,
+      "scriptSha256": "39db22f579acf5639bbb17a261408debbde03f4692c0c439e77e7f13aeba74d6",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\unit-request-hook.log",
+        "sha256": "dad3d039ef5cad1717a1fc4f560ccca9e87b8273b558a0534215505687cbddbc"
+      },
+      "executable": null
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\lint-request-hook.json",
+      "sha256": "da8e50f40e0ebea9a2675a75ac22985d59fed307e1264a8c09035e9cc3472ec2",
+      "name": "lint-request-hook",
+      "startedAt": "2026-10-31T12:29:41.376Z",
+      "finishedAt": "2026-10-31T12:29:50.219Z",
+      "exitCode": 0,
+      "scriptSha256": "bb07a179294caee1175397035fef38347782cb8fbf00356ca8c6fd2c87a989fa",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\lint-request-hook.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "executable": null
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\typecheck-node-request-hook.json",
+      "sha256": "9fedcc18eac1148b7b4d12919fed8a3837fd38e1cb2e9ce6fb7aa78b96fa2e45",
+      "name": "typecheck-node-request-hook",
+      "startedAt": "2026-10-31T12:29:50.310Z",
+      "finishedAt": "2026-10-31T12:30:01.107Z",
+      "exitCode": 0,
+      "scriptSha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\typecheck-node-request-hook.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "executable": null
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\typecheck-web-request-hook.json",
+      "sha256": "fa423dfcd7b56df4b53b6782ff4f8c1aba25dbb0cc7f6de32b6e146178909cf8",
+      "name": "typecheck-web-request-hook",
+      "startedAt": "2026-10-31T12:30:01.207Z",
+      "finishedAt": "2026-10-31T12:30:05.234Z",
+      "exitCode": 0,
+      "scriptSha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\typecheck-web-request-hook.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "executable": null
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\sqlite-preflight.json",
+      "sha256": "fc600b0a4d171c4524cb3d9ec98b179c9e4a8f501521ddfc5702e96cc693d44c",
+      "name": "sqlite-preflight",
+      "startedAt": "2026-10-31T11:16:47.523Z",
+      "finishedAt": "2026-10-31T11:16:48.946Z",
+      "exitCode": 0,
+      "scriptSha256": "009322e718199a6ba5c4094458048bed27c253ce05e7e45852c8b8e4118b24a3",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\sqlite-preflight.log",
+        "sha256": "083d85c3f9495dca1d2b899eba728b3c9a16197ab52135a6c47497116549733d"
+      },
+      "executable": null
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\bridge-final.json",
+      "sha256": "2018efad63c54678ff64a28af6100332c048ff5b982c6384f80c285e7cdecbb2",
+      "name": "bridge-final",
+      "startedAt": "2026-10-31T12:30:03.034Z",
+      "finishedAt": "2026-10-31T12:30:51.836Z",
+      "exitCode": 0,
+      "scriptSha256": "33b902e24fa7cc144b9fd2f738a54382443009cbf5c61700e5cd27b6b8dcb660",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\bridge-final.log",
+        "sha256": "062daf3b3993d00838aa0aaf153203128e557081457ec76bd5fc81b12535f068"
+      },
+      "executable": null
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-final.json",
+      "sha256": "fa8e20a8f33d56d3da14f51e3521a7c0ec3b38a61e174e61a50c017315659bf9",
+      "name": "model-routing-final",
+      "startedAt": "2026-10-31T12:30:51.933Z",
+      "finishedAt": "2026-10-31T12:31:19.944Z",
+      "exitCode": 0,
+      "scriptSha256": "edb1c56056ea036cbe591c4c50bd15ef6060ab9ab84a42125cc1d139d6ab142a",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-final.log",
+        "sha256": "f987e5cb547c5fe170aba2e73bced425cf645ebf205c3510f296b12de3c9256f"
+      },
+      "executable": null
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\family-final.json",
+      "sha256": "eb8d5c6dad58776a8ef2e583d7bdeda54ab3475f952cf2e2629e7667d0890a1a",
+      "name": "family-final",
+      "startedAt": "2026-10-31T12:31:20.039Z",
+      "finishedAt": "2026-10-31T12:32:43.011Z",
+      "exitCode": 0,
+      "scriptSha256": "48d661833cf34317a3e315ed89a3907178bac8423395651df10048b98dfa0d92",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\family-final.log",
+        "sha256": "2d7dce5bfe159663f5c3291196e076f9a68abd9d12930ee9686a923467924245"
+      },
+      "executable": null
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\dsh-collaboration-final.json",
+      "sha256": "d8da60b96ff6142121792554541800ec6942feb72887821dabb7231a66c41e69",
+      "name": "dsh-collaboration-final",
+      "startedAt": "2026-10-31T12:32:43.088Z",
+      "finishedAt": "2026-10-31T12:32:57.492Z",
+      "exitCode": 0,
+      "scriptSha256": "a6369d6cd55d1af291b97dc178d758ef4bb8b7cbe92ffd95ad7d7c1f146d3fd1",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\dsh-collaboration-final.log",
+        "sha256": "af4695e625686b3175904e98bdfa06524d35a1ac51693b8403f828d185da62ee"
+      },
+      "executable": null
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\team-preview.json",
+      "sha256": "730b8bf757b04f52830ac343f354a4d7c3ee5f3127c627951c48f4d32d78a73c",
+      "name": "team-preview",
+      "startedAt": "2026-10-31T11:17:45.335Z",
+      "finishedAt": "2026-10-31T11:18:04.395Z",
+      "exitCode": 0,
+      "scriptSha256": "dd2f9dabc842677425815f04023e2f06097308b184e070fd03a15019c5658a73",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\team-preview.log",
+        "sha256": "2501a67f99ecaf4c2d9df2bb6474640b8bfdefe65df88c80cd0da2fbc2cd0732"
+      },
+      "executable": null
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\package-final.json",
+      "sha256": "d738136f0c174e12abb8afc3b581875f4d43355d47c3a808ea56c3a994c9be5d",
+      "name": "package-final",
+      "startedAt": "2026-10-31T12:33:12.812Z",
+      "finishedAt": "2026-10-31T12:34:48.179Z",
+      "exitCode": 0,
+      "scriptSha256": "c24bd10457fef28451ed129ecfa8a7b0cdcd878999d5387b39927a2b990f0eb5",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\package-final.log",
+        "sha256": "8722de5b774f489e79b5fc842737451f5b3141d75be396ea9b36ab68bc20ec7a"
+      },
+      "executable": null
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\showcase-package.json",
+      "sha256": "8c02788418cece1fb16df065633f43c72e3ce8856adf543de73b648e5737aa40",
+      "name": "showcase-package",
+      "startedAt": "2026-10-31T12:45:00.687Z",
+      "finishedAt": "2026-10-31T12:45:19.634Z",
+      "exitCode": 0,
+      "scriptSha256": "0fe53aa5a39c00f4ceefbe29dee71add682abdf26594aad313006cb0a83030d6",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\showcase-package.log",
+        "sha256": "1a5ed0e1be87ce2aae3d8a8a6304ad224444d0d079ac097838d21a483e7727bc"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\life-port-package.json",
+      "sha256": "fbab4967ee4589aa4995cd3d377568c240d9584d591ae92e5749358482020797",
+      "name": "life-port-package",
+      "startedAt": "2026-10-31T12:45:57.959Z",
+      "finishedAt": "2026-10-31T12:46:26.596Z",
+      "exitCode": 0,
+      "scriptSha256": "434cbd9a673e8932c578b2fd25c7fb260d76afacfdc8e9d57778841152139702",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\life-port-package.log",
+        "sha256": "5a53a69f4655bd02ee38473fffc89d909e04eb47119dd6a5a8c49b65f50eb11b"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\resources-package.json",
+      "sha256": "32d1cc9e94d10f4fb9efbedc1992fadb2188d22b95aee6de4b4293f8f161c2bd",
+      "name": "resources-package",
+      "startedAt": "2026-10-31T12:46:26.720Z",
+      "finishedAt": "2026-10-31T12:47:04.865Z",
+      "exitCode": 0,
+      "scriptSha256": "1112b19c4ef5b94fae4508b0e7ee6aa56731058ab73cc0fd517eaf76053efa56",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\resources-package.log",
+        "sha256": "e05b21e50df357f1768c66e334100e02900a2e132cb93ccfde82aff718f0f20c"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\questions-package.json",
+      "sha256": "6717fc0c22403b9f74876b2c38594f4d56be8410c9005bd505f30672991eb766",
+      "name": "questions-package",
+      "startedAt": "2026-10-31T12:47:05.033Z",
+      "finishedAt": "2026-10-31T12:47:33.270Z",
+      "exitCode": 0,
+      "scriptSha256": "3cc2aa4a7fd8787c80f6b5604df9d0a06a82965514c0bf90b976b618ce60698b",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\questions-package.log",
+        "sha256": "6c07b79ed66b37db162dbc1fadb85ffde522409b8bda10aac26a0c95fac76185"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\settings-package.json",
+      "sha256": "7af9dc0d530d26b6f16251d4a473923d4ca7fc13f2b36759f14bedaec8f1a3bc",
+      "name": "settings-package",
+      "startedAt": "2026-10-31T12:47:33.387Z",
+      "finishedAt": "2026-10-31T12:47:42.720Z",
+      "exitCode": 0,
+      "scriptSha256": "dc2788c7256805b9e5031e6046e87e6ec083c7a4406b8a1daf09cf3e5fa2317d",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\settings-package.log",
+        "sha256": "084072dff961958376b4ba5e0e539c62c63e1e5f465f485a1da78cb78698dcf8"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\failure-narrator-package.json",
+      "sha256": "6bc95590fc6298f654ae6f8050e5feee1e199572d8ac454d37b3e0e012f7ad0d",
+      "name": "failure-narrator-package",
+      "startedAt": "2026-10-31T12:47:42.808Z",
+      "finishedAt": "2026-10-31T12:48:32.941Z",
+      "exitCode": 0,
+      "scriptSha256": "b7c2dda58b08b4055289a48af69ef5a7d0eae8d1311482ce79170e7f7a533df9",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\failure-narrator-package.log",
+        "sha256": "e88515ce9b71a7180af10ea57151135bf38dc25035b7595f29cb564ccce7e5a2"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\privacy-probe-package.json",
+      "sha256": "385c7349a1b408e8167a3c41eba763ff968605279b4f5e46d654425eecf2174b",
+      "name": "privacy-probe-package",
+      "startedAt": "2026-10-31T12:48:33.052Z",
+      "finishedAt": "2026-10-31T12:48:43.500Z",
+      "exitCode": 0,
+      "scriptSha256": "d6581ca6756f7a24097b8c606c82bb60aca0dc699c50d0626444b5ef66cda67a",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\privacy-probe-package.log",
+        "sha256": "9a1850c33e32859e1f65b0c2a1b3701f20f3934cc4add7e3babfe3c5de7688bd"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\providers-package.json",
+      "sha256": "f7ae5b0fad718c494b0b61d4bda624423745ee7179eb26cddbc6d6251e2b6ed7",
+      "name": "providers-package",
+      "startedAt": "2026-10-31T12:48:43.595Z",
+      "finishedAt": "2026-10-31T12:48:54.954Z",
+      "exitCode": 0,
+      "scriptSha256": "6bf7adf55948e1e01cbc2a2867ea98523966f513723e979ec24274f6a3ff461c",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\providers-package.log",
+        "sha256": "9c4afc0459a0e661ff40c262627ec814f3522bd696ddf5320080a769a06e0361"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\plugins-package.json",
+      "sha256": "778cd46ecaaa92a3ce23041378afa6f8dae5037d4d12e3d3c382bf20b4270f1a",
+      "name": "plugins-package",
+      "startedAt": "2026-10-31T12:48:55.051Z",
+      "finishedAt": "2026-10-31T12:49:03.220Z",
+      "exitCode": 0,
+      "scriptSha256": "64c1d5a6c4ec692d87b81e0701fb0e879d3cd195ebccf0d0d1b54e0fe339d42f",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\plugins-package.log",
+        "sha256": "b77a28add7085b32f19a6535b7b19dd59d35cb65854b0b5af9277e308fc4b3e8"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\student-hub-package-package.json",
+      "sha256": "bb4d33ac960e220e5abe07a7f199af52ebf5313deb75ef9ee77a5117b467abbb",
+      "name": "student-hub-package-package",
+      "startedAt": "2026-10-31T12:49:03.338Z",
+      "finishedAt": "2026-10-31T12:49:10.067Z",
+      "exitCode": 0,
+      "scriptSha256": "f19fbf213d4fe46b4e76e1485478479ba39f8af46a64b7c0c7b2f7736ac33393",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\student-hub-package-package.log",
+        "sha256": "fccb7681e438054adb891d6207f86fc97e91aad54322649819c5589b8ea08e60"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\student-hub-candidates-package.json",
+      "sha256": "4cf037a52171bb03c4ece7f772be1026acc565bca65713f404aa3d3222357e3d",
+      "name": "student-hub-candidates-package",
+      "startedAt": "2026-10-31T12:49:10.170Z",
+      "finishedAt": "2026-10-31T12:49:19.808Z",
+      "exitCode": 0,
+      "scriptSha256": "abb453cbaae072b08abea491152c58f6102a8a43c184b5f6ab51a25de0e5b643",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\student-hub-candidates-package.log",
+        "sha256": "0c2a747664828d9fc8a0642cd87a1070ef28ec0a8e12a1b3de0b29f7098156ad"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\pomodoro-package.json",
+      "sha256": "9323698cb1e722549237ba5e2ba47d7ba68a8f37d07f7c0da733ca9bf022f33d",
+      "name": "pomodoro-package",
+      "startedAt": "2026-10-31T12:49:19.921Z",
+      "finishedAt": "2026-10-31T12:49:37.322Z",
+      "exitCode": 0,
+      "scriptSha256": "93e4d5bf23ee1e5599ab52721d4b85c3927b4c011e239f16c5fb4eb93e35e2e9",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\pomodoro-package.log",
+        "sha256": "5c444971c08b6468c4eb8f7cb845e25ff1f3f92bb692a6058d86bcfbc239c39f"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\room-package.json",
+      "sha256": "30a8421e62caaa742ef5f0f4e7e81aa3066ff7dc16043950a15638d92a8bd554",
+      "name": "room-package",
+      "startedAt": "2026-10-31T12:49:37.416Z",
+      "finishedAt": "2026-10-31T12:49:46.802Z",
+      "exitCode": 0,
+      "scriptSha256": "3ae92239ebddeacdec290d68619f0f01a418bc0e74d24f8f0de9c2fcba442681",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\room-package.log",
+        "sha256": "103e810350e1e02e54f129fb40e1e4c7d486fd3ba7fa4ac7d608a2ed7f6d5b6e"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\extensions-package.json",
+      "sha256": "7f977fa63ff7c1b54e2ccbb5ebf5aea062195b16d2b689ab22bd56d0106bb2a1",
+      "name": "extensions-package",
+      "startedAt": "2026-10-31T12:49:46.911Z",
+      "finishedAt": "2026-10-31T12:51:05.906Z",
+      "exitCode": 0,
+      "scriptSha256": "c2c6f4bb4207a2b6c35bcd532b47e3b6992122ed7416cf084f7e97d66144e55f",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\extensions-package.log",
+        "sha256": "a0e69e8ce6207a1c5ca220833412caf9617d4e94dc0857cc3d9502091c58f62e"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\collaboration-package.json",
+      "sha256": "b9d9e0b5aa679de652358c061ea313fe9c73bb0eae67c5e9774ad869fce3c330",
+      "name": "collaboration-package",
+      "startedAt": "2026-10-31T12:51:06.000Z",
+      "finishedAt": "2026-10-31T12:51:27.641Z",
+      "exitCode": 0,
+      "scriptSha256": "0f5b0cf5457a1432a18ec4b11a126e349e9711eb86d3c44494cdb7ca46e09db6",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\collaboration-package.log",
+        "sha256": "544a1786013698ff60e5bca2cec749293aff86ada043cd7430cb1b2a6960d6d8"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\v12-recovery-package.json",
+      "sha256": "a52eac8562f80b047ea28f0be04c6985c9999f889867889c1356fcc6fe2fb375",
+      "name": "v12-recovery-package",
+      "startedAt": "2026-10-31T12:51:27.762Z",
+      "finishedAt": "2026-10-31T12:52:08.742Z",
+      "exitCode": 0,
+      "scriptSha256": "bda8479804ffdae8c003e1b94c25ccfc96aab227fc618621a71d6911f8c90a43",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\v12-recovery-package.log",
+        "sha256": "d513f6757715a07b890dd6cc14c0df4d797c006f689a5ce3235de2f7cde9f253"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\state-routing-package.json",
+      "sha256": "f64975f55c86cb8b102ef113f5dc20ea794f1e17e779741f23100b64113d675b",
+      "name": "state-routing-package",
+      "startedAt": "2026-10-31T12:52:08.811Z",
+      "finishedAt": "2026-10-31T12:52:19.484Z",
+      "exitCode": 0,
+      "scriptSha256": "a97460d96bf9fc912d5f380cd148c2afc81da61b727a5d8acfb425ff5cf5567a",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\state-routing-package.log",
+        "sha256": "8a7b08a0e99c0fdf0885955602b5608238f46ccd1570c0d57c96b5a9471f29fb"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-capabilities-package.json",
+      "sha256": "db3fe0f1904848ea416de7c73b44194ef381f4827d98c0c0c81a3db1d14c90cc",
+      "name": "model-capabilities-package",
+      "startedAt": "2026-10-31T12:52:19.588Z",
+      "finishedAt": "2026-10-31T12:52:56.079Z",
+      "exitCode": 0,
+      "scriptSha256": "f7ad6f9ec9a3cffeeb35ed415f3954c6c1bc01f531b15ee117cc3ba867c94906",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-capabilities-package.log",
+        "sha256": "32a5634c3e73f671c91f5fdb398061297ef8c3f4c36eb434d9d99c56c92cb4fe"
+      },
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\upgrade-final.json",
+      "sha256": "0e018334f4ccac628318a4d59b8bd0660224ff61249061e275738070585eadbf",
+      "name": "upgrade-final",
+      "startedAt": "2026-10-31T12:53:08.387Z",
+      "finishedAt": "2026-10-31T12:58:09.229Z",
+      "exitCode": 0,
+      "scriptSha256": "4ae6695c381297481dceb74d278ee588661b8e0c8da964d7ca49440fb5199acf",
+      "runtimeHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "log": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\upgrade-final.log",
+        "sha256": "efa9dca4326caff11f3aeac1470e72e7117656e2498c0b639c36057855ca49b4"
+      },
+      "executable": null
+    }
+  ],
+  "sourceChecks": {
+    "unitFiles": 93,
+    "unitTests": 684,
+    "bridgeScenarios": 18,
+    "familyScenarios": 15,
+    "dshCollaborationChecks": 12,
+    "previewGroups": 8
+  },
+  "packageAudit": {
+    "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\package-audit.json",
+    "sha256": "194bad167506c33f5f6a59aa00f14e3e1c7ba938f0fcf6a8ad370a8819d876db",
+    "bridgeTreeSha256": "716b94fa961c2b696bb2d9833777e0090cab80fc8b9324870b08ed6dce4645da",
+    "bridge": [
+      {
+        "path": "collaboration-state.js",
+        "sha256": "2efbb43f1952247547f0bcb1a124dd8c4f94b36b3e1a8e58c3e872168734ebbb"
+      },
+      {
+        "path": "collaboration.js",
+        "sha256": "6ab5bb25ac1783404d46305dd6a315f3ae719a42d3616b58f2b0086909501301"
+      },
+      {
+        "path": "cordis.patch.yml",
+        "sha256": "3e3aaf2f4afe35b84adc511c90c5303e26d25dd7feec49f9793ebf428401e861"
+      },
+      {
+        "path": "extension-files.d.ts",
+        "sha256": "03ab7412ddf5481e81b5b180aac5e7d5cf152a4915d563c4091884f91f1e2033"
+      },
+      {
+        "path": "extension-files.js",
+        "sha256": "63b7688e980ccca2cccbf958062b792f9adfd9dd21e1fa8e5d9f22f79cae013d"
+      },
+      {
+        "path": "extensions.js",
+        "sha256": "2468a59c52456661a4e2cbfa1fae83a464caa757a142c6fb37f7baad31ad4d5f"
+      },
+      {
+        "path": "family.js",
+        "sha256": "988fc0630075b39eb272309dab3cd5618ad16a531f2648fa106d31192a3a5996"
+      },
+      {
+        "path": "index.js",
+        "sha256": "4b0739b791ef80b38547c1f0f42bbd00586e0ac237be53caf524508205c879d0"
+      },
+      {
+        "path": "member-steps.js",
+        "sha256": "a7b537de9ed536fe351bf934418126abdce19d0fc7d15dda4f41d0db03179d1a"
+      },
+      {
+        "path": "package.json",
+        "sha256": "3f27f9efac1db3f5c784405ed2e14e8d5a0e4919bb71df59fab2798e7acdbf29"
+      },
+      {
+        "path": "policy.js",
+        "sha256": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615"
+      },
+      {
+        "path": "profile.d.ts",
+        "sha256": "7343dd7de15d7f1014c155721545d683e82239f80f676034f8cbf9e399cae5f9"
+      },
+      {
+        "path": "profile.js",
+        "sha256": "24249a7d08d50edf32a526d461f9b2168c34abe7466f4f01aedd344bc80a1a5b"
+      },
+      {
+        "path": "provenance.js",
+        "sha256": "2713f0b6d72299cee4ad415770dda60b0c2f50016caa9f45bbf30861412e4ec0"
+      },
+      {
+        "path": "runtime-tools.d.ts",
+        "sha256": "4b9eb83731715f4738261b99e21f03caaad669d45d62e997bb6fd5595517bd10"
+      },
+      {
+        "path": "runtime-tools.js",
+        "sha256": "389ad836950dd9d8dfe0f02f7e28e81f49d150910202fad9e330a2606cc2843e"
+      },
+      {
+        "path": "skill-files.d.ts",
+        "sha256": "093356b1438e4152cbb3b0a250e0bcf4b7b36c8d599a43a13665251b3dcdf9f2"
+      },
+      {
+        "path": "skill-files.js",
+        "sha256": "1450e051165840056963977cb8de90ef69fd45a6c7ba9aef7cdfd9557cd8c503"
+      },
+      {
+        "path": "skills.js",
+        "sha256": "ceac29dbb832b513bf89b8f18cb76d2854878d71510a2b695f621c56d33cddaa"
+      },
+      {
+        "path": "state.js",
+        "sha256": "66af79ffa42d100987602e4ab68670c6a2985de653afb59a2c5a5ec8d56ae8c8"
+      }
+    ],
+    "activeSprites": 15,
+    "laptopProps": 2,
+    "retiredTableSpritesAbsent": true,
+    "assets": [
+      {
+        "source": "mini-v2-shelf-reach.png",
+        "packaged": "out/renderer/assets/mini-v2-shelf-reach-B4UK0gv9.png",
+        "sha256": "3f44cec63f8fd8dea2e0d79b60cd6bdc89a16e38b18ad48477f139f0f65e166e"
+      },
+      {
+        "source": "mini-v2-reading-back.png",
+        "packaged": "out/renderer/assets/mini-v2-reading-back-BBChobs4.png",
+        "sha256": "434539aa27cbe971a049cb78228b495c45a37adef36e726694b8d71c369cae45"
+      },
+      {
+        "source": "mini-v2-note-right.png",
+        "packaged": "out/renderer/assets/mini-v2-note-right-oAVDoD_L.png",
+        "sha256": "3c8120d7dc17be23d0bc9a42d5faa3f6450038215a47b6e449ceba147a8fc961"
+      },
+      {
+        "source": "mini-v2-note-left.png",
+        "packaged": "out/renderer/assets/mini-v2-note-left-A7wRSh8E.png",
+        "sha256": "100026c3bae47e11b05aeb619af49c97d8404325476c4c16e0030b24206b8966"
+      },
+      {
+        "source": "mini-v2-entering.png",
+        "packaged": "out/renderer/assets/mini-v2-entering-C3HaegMC.png",
+        "sha256": "ae9a72c70d2400a51804ee30a2a33afd86fb2e289cfd516053a858ffe1d0be27"
+      },
+      {
+        "source": "mini-v2-idle.png",
+        "packaged": "out/renderer/assets/mini-v2-idle-B_-_cldo.png",
+        "sha256": "c49c5619fb444d4a1d728aa4fef613055945fc00eb94f457058688f3ef10babd"
+      },
+      {
+        "source": "mini-v2-thinking.png",
+        "packaged": "out/renderer/assets/mini-v2-thinking-CPBh_GyK.png",
+        "sha256": "ef6185f2879a6eb13fb9a542c70600db75286a4d90dd63165e3fb355bfcc06af"
+      },
+      {
+        "source": "mini-v2-waiting.png",
+        "packaged": "out/renderer/assets/mini-v2-waiting-ssc_JvXo.png",
+        "sha256": "fd7774c2cfe05cb0ae79970068db50b612765ee20715beace43445bacd3b98f1"
+      },
+      {
+        "source": "mini-v2-failed.png",
+        "packaged": "out/renderer/assets/mini-v2-failed-CTWs4Djw.png",
+        "sha256": "2839fef4bdc982302daedddb0eaa67013362bc0797d572aef58243b642d368d9"
+      },
+      {
+        "source": "mini-v2-completed.png",
+        "packaged": "out/renderer/assets/mini-v2-completed-CIfQXiD4.png",
+        "sha256": "5e3434e26d61242e3bfd985a4716ab2a352f426a9610c89a7c906718a0799769"
+      },
+      {
+        "source": "mini-v2-resting.png",
+        "packaged": "out/renderer/assets/mini-v2-resting-BeYOR2qC.png",
+        "sha256": "d47a67674667d5408fe280025721b6358e29da2e638fc1dd30402918c83fec28"
+      },
+      {
+        "source": "mini-v2-stopping.png",
+        "packaged": "out/renderer/assets/mini-v2-stopping-DXRxKqQj.png",
+        "sha256": "949064ff0ea61b2bbe911a9c9d024134b5c10f8ac04b15dc1a2a52e09525f656"
+      },
+      {
+        "source": "mini-v2-stool-back-right.png",
+        "packaged": "out/renderer/assets/mini-v2-stool-back-right-UBGknOfu.png",
+        "sha256": "37e278bb08d98a4ef4f4435849749d29fece577900f9cb915d64ebe5ecc05bc3"
+      },
+      {
+        "source": "mini-v2-stool-end-left.png",
+        "packaged": "out/renderer/assets/mini-v2-stool-end-left--G6Z_F6z.png",
+        "sha256": "2243b56555c4593c15ecc76eb35952df405442e0dc59ce18b47c378ef6c61b14"
+      },
+      {
+        "source": "mini-v2-stool-end-right.png",
+        "packaged": "out/renderer/assets/mini-v2-stool-end-right-HpUd5Mya.png",
+        "sha256": "06afaba6d7c9839a7e0012fb6ccbc6052e34f4bb51bdb5db5c194db42e18ccf3"
+      },
+      {
+        "source": "prop-laptop-back.png",
+        "packaged": "out/renderer/assets/prop-laptop-back-BzHcdSus.png",
+        "sha256": "d825ff325a498ee92fea9c078403500f2f5a1085cb595bb4413d33d1b194e63c"
+      },
+      {
+        "source": "prop-laptop-side.png",
+        "packaged": "out/renderer/assets/prop-laptop-side-PYB6unE-.png",
+        "sha256": "701d4396de27b6562a3aaf5221bedf87076c6f3cd3644c98ef10a63c6aa2a1d2"
+      }
+    ],
+    "scripts": [
+      {
+        "path": "scripts/audit-dsh-plugin-compatibility.mjs",
+        "sha256": "4cc2d447ad0b294388d6e43458b1d026e7436e6773f7cdeda69134c322f7082a"
+      },
+      {
+        "path": "scripts/audit-real-collaboration.mjs",
+        "sha256": "085a537db61d51b690301c6577957c3b9551bf206c735cd856c20f7e6218df28"
+      },
+      {
+        "path": "scripts/build-offline-acceptance.mjs",
+        "sha256": "6d50ca047394e5fc970f3d73cf2db1003ed36f9ff8ba2db0eb97042ecd742344"
+      },
+      {
+        "path": "scripts/dsh-bridge-check.mjs",
+        "sha256": "d5a04248116cea8846e64a52f6fd2988fe3fbe9f07fa1d9799f8fa8c509a9002"
+      },
+      {
+        "path": "scripts/dsh-collaboration-check.mjs",
+        "sha256": "a6369d6cd55d1af291b97dc178d758ef4bb8b7cbe92ffd95ad7d7c1f146d3fd1"
+      },
+      {
+        "path": "scripts/dsh-extension-check.mjs",
+        "sha256": "458cde0ed36a62f8ea0f2c34eae6968717e643cd0e4c1e5e01bc003305efdfea"
+      },
+      {
+        "path": "scripts/dsh-family-check.mjs",
+        "sha256": "48d661833cf34317a3e315ed89a3907178bac8423395651df10048b98dfa0d92"
+      },
+      {
+        "path": "scripts/dsh-spike.mjs",
+        "sha256": "40f474d5f7b9fedd5e074f80adec4d58967845134bb447ce94e65b57c1b4859e"
+      },
+      {
+        "path": "scripts/experiment-deeptech-grounding.mjs",
+        "sha256": "7c4a830bac4f6011c251ad7543248bb83715c94f43fc564cb3dadd8022b2d7d8"
+      },
+      {
+        "path": "scripts/experiment-deeptech-memory.mjs",
+        "sha256": "7b71f97987ecab9a7ff63d0c930f9bc45db805324e05b867c0d38d2b2844bca9"
+      },
+      {
+        "path": "scripts/install-student-hub-candidates.mjs",
+        "sha256": "d7e920afb6c510258fb6615496f58fd58e3e432817067c98b8148bd461a68f70"
+      },
+      {
+        "path": "scripts/package-win.mjs",
+        "sha256": "c24bd10457fef28451ed129ecfa8a7b0cdcd878999d5387b39927a2b990f0eb5"
+      },
+      {
+        "path": "scripts/prepare-dsh-runtime.mjs",
+        "sha256": "e8ea57abd8fc573118c0ba1db45322ff1d97f97bc9a9cb877f05463c6788fde7"
+      },
+      {
+        "path": "scripts/probe-deeptech-audit.mjs",
+        "sha256": "7a13aeb6858e85cf6cdc1b377ce485c015b51fadfcc20db9c7837c509554e4de"
+      },
+      {
+        "path": "scripts/probe-electron.mjs",
+        "sha256": "009322e718199a6ba5c4094458048bed27c253ce05e7e45852c8b8e4118b24a3"
+      },
+      {
+        "path": "scripts/probe-live-readiness.mjs",
+        "sha256": "b28302c8c655913400d13ee1b2be9e99f2855df5a92ae3614ddeb3749e340017"
+      },
+      {
+        "path": "scripts/probe-network-private-head.mjs",
+        "sha256": "be42a856f68017e2c937ee830527e3a3029acfa095b2460fabc2982cf1ed790f"
+      },
+      {
+        "path": "scripts/probe-privacy-live.mjs",
+        "sha256": "af9a7aa6a6afd8b9ffaf7479c307a84622eaa3a9b632640abc847b7374ae1cac"
+      },
+      {
+        "path": "scripts/probe-student-hub-live.mjs",
+        "sha256": "7c84defc7ebe69948fa6ae88aa2c3ecf6aede273632985b21d428070332fe169"
+      },
+      {
+        "path": "scripts/run-real-model-tests.mjs",
+        "sha256": "2f5e0108b0405799d446ceb0a8ff972bb5bbc1c142c79f0da046d2e5e38bbf93"
+      },
+      {
+        "path": "scripts/run.mjs",
+        "sha256": "0bbaf3c64713b6617d0c59ed5bddd7f7334d4c25ebc795967e821f36011d7e09"
+      },
+      {
+        "path": "scripts/runtime-env.mjs",
+        "sha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb"
+      },
+      {
+        "path": "scripts/smoke-backup.mjs",
+        "sha256": "dd9fc1ecae26e5ca0091f4b2405a3fcc10a11a7ff8e3a7e1ee581fd25bba991c"
+      },
+      {
+        "path": "scripts/smoke-booth.mjs",
+        "sha256": "32c95f7ca7511b3f39bc763f7f09ef3a9e43a50110d0ca6bab96ec7f35b1984a"
+      },
+      {
+        "path": "scripts/smoke-campus.mjs",
+        "sha256": "26dd61365202b27bef2c8e4fa140b42d3f61feeab43f2fd3dac42571a6c20ce2"
+      },
+      {
+        "path": "scripts/smoke-characters.mjs",
+        "sha256": "4526829e798cbd637e0beac496303b7342c7118edbc78fb1da1bece7d1a00c5a"
+      },
+      {
+        "path": "scripts/smoke-collaboration.mjs",
+        "sha256": "0f5b0cf5457a1432a18ec4b11a126e349e9711eb86d3c44494cdb7ca46e09db6"
+      },
+      {
+        "path": "scripts/smoke-developer.mjs",
+        "sha256": "ad5bfe42200130cf90428d6961e1c323891528948ca5dda6c7777bc0118f593c"
+      },
+      {
+        "path": "scripts/smoke-documents.mjs",
+        "sha256": "90d4fa8ffa3ec5f8f56699b88c5f5153094ebce26cd47c4de940739cfcf41077"
+      },
+      {
+        "path": "scripts/smoke-electron.mjs",
+        "sha256": "72cc96a93bcfb72676f097c5fcaa002d6ec1d10913f984a79b5a4db0c08c8fb2"
+      },
+      {
+        "path": "scripts/smoke-extensions.mjs",
+        "sha256": "c2c6f4bb4207a2b6c35bcd532b47e3b6992122ed7416cf084f7e97d66144e55f"
+      },
+      {
+        "path": "scripts/smoke-failure-narrator.mjs",
+        "sha256": "b7c2dda58b08b4055289a48af69ef5a7d0eae8d1311482ce79170e7f7a533df9"
+      },
+      {
+        "path": "scripts/smoke-gifts.mjs",
+        "sha256": "76d59848e57b6d541f1c9183481fa9433cf4e31fa7f990144b925c5f6942a308"
+      },
+      {
+        "path": "scripts/smoke-harness.mjs",
+        "sha256": "c2149545ea9c9f0257279f3b8a9b9a222c9a7601e9b6c9ae36b49a843adb3b73"
+      },
+      {
+        "path": "scripts/smoke-history.mjs",
+        "sha256": "54cb6ec8a248441745fc3732b802393eec1eb43b3424b5070aa3d375df3b48e6"
+      },
+      {
+        "path": "scripts/smoke-life-port.mjs",
+        "sha256": "434cbd9a673e8932c578b2fd25c7fb260d76afacfdc8e9d57778841152139702"
+      },
+      {
+        "path": "scripts/smoke-life-work.mjs",
+        "sha256": "66a4167b4a69e9f7a1459853c76ab31da9c94f30bf80d796d061fc8fbde65355"
+      },
+      {
+        "path": "scripts/smoke-mcp.mjs",
+        "sha256": "d94bacd8bbcb4d678533c99ad8f55914ba60fa945f80d3b2b39e2e57d2df3e64"
+      },
+      {
+        "path": "scripts/smoke-memory.mjs",
+        "sha256": "edae1b0146089b28f4fa77c2490bfd3edf9f171b75eca8002d7e30c5d2d68a87"
+      },
+      {
+        "path": "scripts/smoke-minecraft-images.mjs",
+        "sha256": "7820d481a421227475410f647bf45a90234912a47b7c31db548e940175526b8c"
+      },
+      {
+        "path": "scripts/smoke-minecraft-mining.mjs",
+        "sha256": "3a5a29558ef246ab4230d2553edb7ec28ae9c0b07175d160f5e09f1c95d575e9"
+      },
+      {
+        "path": "scripts/smoke-minecraft-stdio.mjs",
+        "sha256": "c65ad771f9a38c4fdbc66ff683cfd05b914e913509c98ac1bcb8cd795f767c07"
+      },
+      {
+        "path": "scripts/smoke-minecraft.mjs",
+        "sha256": "e5a24a3a575e28b22e351a4c34e886ca3255fa25f8e9ee940f7ac08f22cf001e"
+      },
+      {
+        "path": "scripts/smoke-mini.mjs",
+        "sha256": "ac69e065724ea587b3a033d46195fbf7f48af5ce4dc9099c33cdcae13f948bad"
+      },
+      {
+        "path": "scripts/smoke-model-capabilities.mjs",
+        "sha256": "f7ad6f9ec9a3cffeeb35ed415f3954c6c1bc01f531b15ee117cc3ba867c94906"
+      },
+      {
+        "path": "scripts/smoke-model-routing.mjs",
+        "sha256": "edb1c56056ea036cbe591c4c50bd15ef6060ab9ab84a42125cc1d139d6ab142a"
+      },
+      {
+        "path": "scripts/smoke-model-slots.mjs",
+        "sha256": "f2110b01aef87ea9036943dea88c4df76d223d9a2309550201a95767b81cd8d3"
+      },
+      {
+        "path": "scripts/smoke-notifications.mjs",
+        "sha256": "836752b8b8e2347dfec3b8aa970f69abe9759084ee3c74cac50518726d667449"
+      },
+      {
+        "path": "scripts/smoke-onboarding.mjs",
+        "sha256": "99b21cf8a8527383b6a8f802ce985a91180568c8510a7a5354d8dd193182d95c"
+      },
+      {
+        "path": "scripts/smoke-optical.mjs",
+        "sha256": "5e3388a92fb837d769a22c80eb32383ca430d6f8a600d75d5e107f55a1e7f873"
+      },
+      {
+        "path": "scripts/smoke-package.mjs",
+        "sha256": "52d9f0afe75b831588d4bb42d2f7ab0c3d655240c8a35401305cd9eb196e0286"
+      },
+      {
+        "path": "scripts/smoke-plugins.mjs",
+        "sha256": "64c1d5a6c4ec692d87b81e0701fb0e879d3cd195ebccf0d0d1b54e0fe339d42f"
+      },
+      {
+        "path": "scripts/smoke-pomodoro.mjs",
+        "sha256": "93e4d5bf23ee1e5599ab52721d4b85c3927b4c011e239f16c5fb4eb93e35e2e9"
+      },
+      {
+        "path": "scripts/smoke-privacy-inspect.mjs",
+        "sha256": "67779706566646aae7278c5e16b9d80d5f5e4c268da6eab87f15ba977435320b"
+      },
+      {
+        "path": "scripts/smoke-privacy-probe.mjs",
+        "sha256": "d6581ca6756f7a24097b8c606c82bb60aca0dc699c50d0626444b5ef66cda67a"
+      },
+      {
+        "path": "scripts/smoke-providers.mjs",
+        "sha256": "6bf7adf55948e1e01cbc2a2867ea98523966f513723e979ec24274f6a3ff461c"
+      },
+      {
+        "path": "scripts/smoke-questions.mjs",
+        "sha256": "3cc2aa4a7fd8787c80f6b5604df9d0a06a82965514c0bf90b976b618ce60698b"
+      },
+      {
+        "path": "scripts/smoke-real-collaboration-reuse.mjs",
+        "sha256": "1040830545861027fdfd521a80ccf860e3c52cde716744bf9a7850966507de0e"
+      },
+      {
+        "path": "scripts/smoke-real-collaboration.mjs",
+        "sha256": "d6b15226d77b90da85445f6db51117fb064d6b7f17329b573fd1698a5944c5f4"
+      },
+      {
+        "path": "scripts/smoke-real-model.mjs",
+        "sha256": "cbbf03bd8533b46cc5d86478c926a6b7e972181da2e06e44085ed02a0e46c094"
+      },
+      {
+        "path": "scripts/smoke-resource-concurrency.mjs",
+        "sha256": "72699a2b4c2333d4dcc63ac2dd1e696096df5ee247d9d65a47249609d76bddaf"
+      },
+      {
+        "path": "scripts/smoke-resources.mjs",
+        "sha256": "1112b19c4ef5b94fae4508b0e7ee6aa56731058ab73cc0fd517eaf76053efa56"
+      },
+      {
+        "path": "scripts/smoke-room-upgrade.mjs",
+        "sha256": "f614a287e2933b09f622d6456c11e1a8f6ccffa63708768c542dd3997a7df8c8"
+      },
+      {
+        "path": "scripts/smoke-room.mjs",
+        "sha256": "3ae92239ebddeacdec290d68619f0f01a418bc0e74d24f8f0de9c2fcba442681"
+      },
+      {
+        "path": "scripts/smoke-settings.mjs",
+        "sha256": "dc2788c7256805b9e5031e6046e87e6ec083c7a4406b8a1daf09cf3e5fa2317d"
+      },
+      {
+        "path": "scripts/smoke-showcase.mjs",
+        "sha256": "648732b39937e34ae9708082adaab5b95e5736ef72219c8239c67ddcf6269681"
+      },
+      {
+        "path": "scripts/smoke-sleep.mjs",
+        "sha256": "53953c00f928bd247f3d8a916e63656d600e15c4b320a310b680eaf64852c161"
+      },
+      {
+        "path": "scripts/smoke-state-routing.mjs",
+        "sha256": "a97460d96bf9fc912d5f380cd148c2afc81da61b727a5d8acfb425ff5cf5567a"
+      },
+      {
+        "path": "scripts/smoke-student-hub-candidates.mjs",
+        "sha256": "abb453cbaae072b08abea491152c58f6102a8a43c184b5f6ab51a25de0e5b643"
+      },
+      {
+        "path": "scripts/smoke-student-hub-package.mjs",
+        "sha256": "f19fbf213d4fe46b4e76e1485478479ba39f8af46a64b7c0c7b2f7736ac33393"
+      },
+      {
+        "path": "scripts/smoke-v12-recovery.mjs",
+        "sha256": "bda8479804ffdae8c003e1b94c25ccfc96aab227fc618621a71d6911f8c90a43"
+      },
+      {
+        "path": "scripts/smoke-v12-upgrade.mjs",
+        "sha256": "4ae6695c381297481dceb74d278ee588661b8e0c8da964d7ca49440fb5199acf"
+      },
+      {
+        "path": "scripts/smoke-voice.mjs",
+        "sha256": "e556457f976e41dac411f38df9fd8686883d03fadfad50b60a2d955fe46739e4"
+      },
+      {
+        "path": "scripts/team-room-preview.mjs",
+        "sha256": "dd2f9dabc842677425815f04023e2f06097308b184e070fd03a15019c5658a73"
+      },
+      {
+        "path": "scripts/ui-preview.mjs",
+        "sha256": "018899127f63834dbf6d28516aab30b1b1f93d984fe940f01cecf90ad56d42b1"
+      },
+      {
+        "path": "scripts/ui-shot.mjs",
+        "sha256": "3192b6d0d5fa7c1ac0bb7e27e9d6773ae8c3971cd8c0ff771416b0e779941232"
+      }
+    ],
+    "runtime": {
+      "files": 11489,
+      "bytes": 146727376,
+      "treeSha256": "d590062cf691e4d7e41033c07777ce7dbad887e4c39b821e37e6fefd97e4a321",
+      "report": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\dsh-integrity-final-package.json",
+        "sha256": "994ad0d748d5673c95107e6154f33852fcfcfefb527909fe59142c4c3ef4d143"
+      }
+    }
+  },
+  "matrix": {
+    "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\final-package-matrix-failure.json",
+    "sha256": "bd46360f575fca108937bcf45298a3cc30921e32c1c1c0c18fb0418d61c28f5f",
+    "report": {
+      "status": "completed-by-continuation",
+      "originalFullCommandExitCode": 1,
+      "originalFailedStage": "scenario:showcase",
+      "unpackedProbesPassed": 9,
+      "bookColdRestartAndHistoryPassed": true,
+      "thirdCircleScenarios": [
+        "model-routing",
+        "model-slots",
+        "documents",
+        "campus",
+        "memory",
+        "harness",
+        "gifts",
+        "onboarding",
+        "life-work",
+        "sleep",
+        "optical",
+        "minecraft",
+        "minecraft-images",
+        "minecraft-stdio",
+        "minecraft-mining",
+        "voice",
+        "booth",
+        "mini",
+        "showcase",
+        "life-port",
+        "resources",
+        "questions",
+        "settings",
+        "failure-narrator",
+        "privacy-probe",
+        "providers",
+        "plugins",
+        "student-hub-package",
+        "student-hub-candidates",
+        "pomodoro",
+        "room",
+        "extensions",
+        "collaboration",
+        "v12-recovery"
+      ],
+      "firstPassScenarios": [
+        "model-routing",
+        "model-slots",
+        "documents",
+        "campus",
+        "memory",
+        "harness",
+        "gifts",
+        "onboarding",
+        "life-work",
+        "sleep",
+        "optical",
+        "minecraft",
+        "minecraft-images",
+        "minecraft-stdio",
+        "minecraft-mining",
+        "voice",
+        "booth",
+        "mini"
+      ],
+      "continuedScenarios": [
+        "showcase",
+        "life-port",
+        "resources",
+        "questions",
+        "settings",
+        "failure-narrator",
+        "privacy-probe",
+        "providers",
+        "plugins",
+        "student-hub-package",
+        "student-hub-candidates",
+        "pomodoro",
+        "room",
+        "extensions",
+        "collaboration",
+        "v12-recovery"
+      ],
+      "initialReport": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\final-package-matrix-failure.json",
+        "sha256": "bd46360f575fca108937bcf45298a3cc30921e32c1c1c0c18fb0418d61c28f5f"
+      },
+      "initialRunnerReceipt": {
+        "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\package-unpacked-final.json",
+        "sha256": "f09a9f5902c4b1a396e90c18c3bb43e36d2b25d351dbe4ba55fc500afb6e0dfb"
+      },
+      "fixtureFix": "0a1c546a698ff90614c9d231b088321e5324f764"
+    }
+  },
+  "collaboration": {
+    "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\p5-08b450f4-b132-4c7b-98e2-8a2cb692342a\\evidence.json",
+    "sha256": "eae86a69e014147d9d070ab4a194a668027ecc9540caf6e8b0f363313a676e3c",
+    "report": {
+      "checks": [
+        "empty-catalog-refresh-through-book",
+        "team-and-helper-states-results-and-capacity-visible",
+        "task-claim-and-complete-with-revision-check",
+        "direct-member-message-runs-after-root-is-idle",
+        "single-member-interrupt-observes-real-aborted-outcome",
+        "lost-receipt-refresh-reconnects-and-reconciles-same-operation-without-replay",
+        "family-stop-keeps-roster-and-revokes-continuation-until-new-work",
+        "narrow-page-and-safe-projection",
+        "cold-recovery-restores-members-and-board-without-executing-them",
+        "team-room-toggle-and-card-follow-recovered-members",
+        "team-station-chinese-history-and-no-target-in-snapshot"
+      ],
+      "teamOnly": false,
+      "syntheticOnly": true,
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe",
+      "data": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\.local-data\\p5-smoke-08b450f4-b132-4c7b-98e2-8a2cb692342a",
+      "evidence": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\p5-08b450f4-b132-4c7b-98e2-8a2cb692342a"
+    }
+  },
+  "recovery": {
+    "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\p6-8668ceba-a17d-4a03-b14c-f0bc45c33c41\\evidence.json",
+    "sha256": "bb9f32f92e17b406126c55f69da3f65ac0039a4d444bc7d76f5c313adb778806",
+    "report": {
+      "checks": [
+        "cross-project-state-address-isolation-and-return-without-member-execution",
+        "cold-start-keeps-board-and-roster-but-rejects-old-runtime-address",
+        "member-interrupt-cancels-risk-approval-and-preserves-unexecuted-artifact",
+        "idle-lead-active-member-blocks-project-switch-extension-restart-and-save",
+        "dsh-exit-during-member-work-and-read-only-reconnect-without-replay",
+        "source-derived-board-retires-in-actual-model-request-and-public-view",
+        "retired-task-source-cannot-return-through-project-switch-and-resident-reopen",
+        "clock-driven-day-rollover-revokes-old-roster-controls-and-source-context",
+        "private-save-rewinds-journal-starts-new-family-and-never-replays-old-members",
+        "second-cold-start-after-restore-has-no-background-resurrection"
+      ],
+      "syntheticOnly": true,
+      "simulatedDay": true,
+      "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.3-20261031-r2\\win-unpacked\\LoveCollegeAgent.exe",
+      "data": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\.local-data\\p6-smoke-8668ceba-a17d-4a03-b14c-f0bc45c33c41",
+      "projects": "%TEMP%/lca-p6-projects-nPAa6t",
+      "archiveSha256": "9b2aa57547dbc1501580cf7425a2c67235a985a4e4eb9c2095b00cbcef632324",
+      "canceledQuestionId": "f61e817a-6499-4434-89fe-58fb9b265554"
+    }
+  },
+  "state": {
+    "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\state-routing-438430f7-2a9d-4791-b124-d020440368e4\\report.json",
+    "sha256": "0656b609b6bbd3013350c34dae3f8eacd2e7ae89cef538f016540b3c1252ad66",
+    "report": {
+      "ok": true,
+      "kind": "synthetic-local-http",
+      "checks": [
+        "text handoff in same turn",
+        "manual work entry",
+        "stale response refused",
+        "restart persists mode without replay",
+        "LCA clock tool roundtrip"
+      ],
+      "requests": [
+        {
+          "task": "state-probe:handoff",
+          "model": "mock-chat"
+        },
+        {
+          "task": "state-probe:handoff",
+          "model": "mock-work"
+        },
+        {
+          "task": "state-probe:handoff",
+          "model": "mock-work"
+        },
+        {
+          "task": "state-probe:direct",
+          "model": "mock-work"
+        },
+        {
+          "task": "state-probe:direct",
+          "model": "mock-work"
+        },
+        {
+          "task": "state-probe:stale",
+          "model": "mock-chat"
+        },
+        {
+          "task": "state-probe:restart",
+          "model": "mock-work"
+        },
+        {
+          "task": "state-probe:restart",
+          "model": "mock-work"
+        }
+      ]
+    }
+  },
+  "capabilities": {
+    "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\model-capabilities-92775a77-23c8-49ef-9273-3bd1f673f8a7\\report.json",
+    "sha256": "3dedf78edeaa36210fb8c456a0140185195e10f3672fb6bd17436c3b88ed2b98",
+    "report": {
+      "ok": true,
+      "synthetic": true,
+      "checks": [
+        "saved declaration reported separately from actual DSH metadata without a probe",
+        "actual HTTP reasoning value mapped and output bounded",
+        "off can omit the parameter or send the explicitly declared API value",
+        "declared image capability reaches a real multimodal HTTP request",
+        "text-only declaration rejects image tool locally and sends only its text error",
+        "model switch does not inherit declarations; switching back restores its saved declaration",
+        "runtime default off mapping is stated in UI and verified on the wire",
+        "restart persistence, zero replay and credential-safe projection",
+        "reset removes manual request behavior even when the unsaved draft is invalid"
+      ],
+      "requests": [
+        {
+          "task": "caps-wire:text",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_medium",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:off-omitted",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": null,
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:off-mapped",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_off",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:image",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_medium",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:image",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_medium",
+          "imageCount": 1
+        },
+        {
+          "task": "caps-wire:image-denied",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_medium",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:image-denied",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_medium",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:default-mapped-off",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_off",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:reset",
+          "model": "caps-model-a",
+          "outputLimit": 32768,
+          "reasoning": null,
+          "imageCount": 0
+        }
+      ]
+    }
+  },
+  "upgrade": {
+    "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\p6-upgrade-0f8edf18-c860-49ba-8e4e-392ce7e7d1b8\\report.json",
+    "sha256": "7522a28298750907b9a54b98aeaa48bea6be3a52ce9bd6ec20b900f7a8ae4291",
+    "report": {
+      "syntheticOnly": true,
+      "installed": true,
+      "upgraded": true,
+      "secondMachine": false,
+      "baselineVersion": "1.1.0",
+      "candidate": {
+        "version": 1,
+        "appVersion": "1.2.0-rc.3",
+        "installerFileName": "Love-College-Agent-1.2.0-rc.3-Setup.exe",
+        "sourceRevision": "4ad39315fc5a98de9580d1b73bc67ae4938281d2",
+        "trackedDirty": false,
+        "runtimePreparation": "reused-prepared-tree",
+        "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+        "builtAtIso": "2026-10-31T12:34:47.670Z",
+        "installerBytes": 303001035,
+        "installerSha256": "17dc777c90ffabbbcb01622cfc402852ece5cbadd2c3db65ffefd39f9cc13868",
+        "asarSha256": "fbab3018ab3243e0beaf50fdc6d8105eadd313889563aa16cd2c94cfb9ddd710"
+      },
+      "checks": [
+        "actual-1.1.0-installer-and-normal-book-with-synthetic-chat-project-and-save",
+        "same-install-path-upgrade-preserves-onboarding-mode-project-session-and-append-only-history",
+        "upgraded-book-can-complete-a-new-DSH-turn-and-preserve-user-profile-configuration",
+        "upgraded-cold-restart-preserves-new-history-without-model-replay",
+        "1.1.0-private-save-restores-in-candidate-with-safety-backup-and-no-replay"
+      ],
+      "cleanup": "owned-test-install-uninstalled",
+      "profileConfigurationPreserved": true,
+      "ok": true,
+      "modelRequests": 2,
+      "archiveBytes": 5193
+    }
+  },
+  "failures": [
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\final-package-matrix-failure.json",
+      "sha256": "bd46360f575fca108937bcf45298a3cc30921e32c1c1c0c18fb0418d61c28f5f",
+      "status": "failed",
+      "exitCode": null,
+      "failedStage": "scenario:showcase"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\first-package-unpacked-report.json",
+      "sha256": "544a184cd6c55deb312ecf97bdd7de63e7c961c39004d9e7fd675399196c6783",
+      "status": "failed",
+      "exitCode": null,
+      "failedStage": "scenario:model-routing"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-diagnostic-resumed.json",
+      "sha256": "01510e95bf9ab79a933c2dd1030cefa133b87150bff82e7b88ae25253e99b7bf",
+      "name": "model-routing-diagnostic-resumed",
+      "status": "failed",
+      "exitCode": 1,
+      "logPath": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-diagnostic-resumed.log"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-diagnostic.json",
+      "sha256": "ffd5972182ed884766e1464307c25a09bf829bdd4cf985ae0f9b05b6ee09d63a",
+      "name": "model-routing-diagnostic",
+      "status": "interrupted-no-completion-receipt",
+      "exitCode": null,
+      "logPath": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-diagnostic.log"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-plugin-fixed.json",
+      "sha256": "59e54fee42a3d401391ecf8d114397e1572e9b3124def08ee4d94911e9397e11",
+      "name": "model-routing-plugin-fixed",
+      "status": "failed",
+      "exitCode": 1,
+      "logPath": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-plugin-fixed.log"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-resume-cause.json",
+      "sha256": "9d660c74161240481afbbeddd892918a056969ee40d5626351dcbb5e44622035",
+      "name": "model-routing-resume-cause",
+      "status": "failed",
+      "exitCode": 1,
+      "logPath": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-resume-cause.log"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-resume-fixed.json",
+      "sha256": "197dcfbfc457c4aa503161cc13ff37b1c5fda2354d9164856fc6e84065a09549",
+      "name": "model-routing-resume-fixed",
+      "status": "failed",
+      "exitCode": 1,
+      "logPath": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-resume-fixed.log"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-resume-stack.json",
+      "sha256": "84b7cde27bddd23cdf9e36b380e73d572e5f25ccc8853fa16fe2bc2a39562dbe",
+      "name": "model-routing-resume-stack",
+      "status": "failed",
+      "exitCode": 1,
+      "logPath": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\model-routing-resume-stack.log"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\package-unpacked-final.json",
+      "sha256": "f09a9f5902c4b1a396e90c18c3bb43e36d2b25d351dbe4ba55fc500afb6e0dfb",
+      "name": "package-unpacked-final",
+      "status": "failed",
+      "exitCode": 1,
+      "logPath": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\package-unpacked-final.log"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\package-unpacked.json",
+      "sha256": "87a8ccbbc886875e11b982526dee4f0155ea0f63b918a5aa146ca884d9206c18",
+      "name": "package-unpacked",
+      "status": "failed",
+      "exitCode": 1,
+      "logPath": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\package-unpacked.log"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\state-source-request-hook.json",
+      "sha256": "aea4d6dbf999c5e80a12c516fca34d840198b002259fe4e54f3f672b9f6d0b19",
+      "name": "state-source-request-hook",
+      "status": "failed",
+      "exitCode": 1,
+      "logPath": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\state-source-request-hook.log"
+    },
+    {
+      "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\state-source-restart-before.json",
+      "sha256": "ee06000ff6212ef2156f269e03eae889504b235ccf6d54aaaeb7249d97787447",
+      "name": "state-source-restart-before",
+      "status": "failed",
+      "exitCode": 1,
+      "logPath": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\state-source-restart-before.log"
+    }
+  ],
+  "limitations": [
+    "Synthetic loopback services only; no real-model acceptance for this package.",
+    "Preview is source evidence; packaged collaboration is separate.",
+    "Existing corrupt DSH histories are preserved, not automatically repaired.",
+    "First failed installer retained separately; same app.asar does not mean same bridge or installer.",
+    "No second Windows or long-term real-time acceptance; no public publication."
+  ],
+  "redactedFields": [
+    "recovery.report.projects: local Windows profile replaced by TEMP; original report hash retained"
+  ],
+  "date": "2026-10-31",
+  "status": "local-candidate-acceptance-passed",
+  "published": false,
+  "extensions": {
+    "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\p4-a997c966-ad50-4bcb-a604-79bbd49206e7\\evidence.json",
+    "sha256": "695ffba27f40c7eb1e277eda541b44ae342c88ba08d6d0b1fe276d4b8b24fa83",
+    "report": {
+      "ok": true,
+      "checks": [
+        "protected-core-has-no-mutation-controls",
+        "cancel-approval-without-installing",
+        "install-enable-restart-loads-real-bundle-skill",
+        "markdown-import-scope-priority-invalid-missing-and-no-ambient-home",
+        "remove-falls-back-delete-and-edit-refresh-model-content",
+        "cross-project-catalog-does-not-retain-old-project",
+        "mcp-page-connects-single-lca-owner-and-dsh-executes-tool",
+        "disable-restart-remove-through-page",
+        "separate-build-approval-visible-and-refusable",
+        "approved-node-build-uses-bundled-electron-and-removes-cleanly",
+        "lost-receipt-unknown-ui-blocks-retry-and-reconciles-same-id",
+        "cold-restart-preserves-skill-and-removal-no-mcp-reconnect",
+        "safe-projection-and-narrow-page"
+      ],
+      "data": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\.local-data\\p4-smoke-a997c966-ad50-4bcb-a604-79bbd49206e7",
+      "screenshots": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\p4-a997c966-ad50-4bcb-a604-79bbd49206e7",
+      "syntheticOnly": true,
+      "nodeBuildWithoutSystemNode": true
+    }
+  },
+  "fixtureFix": "0a1c546a698ff90614c9d231b088321e5324f764",
+  "postTestPackageAudit": {
+    "path": "D:\\lca-workspace\\worktrees\\lca-rc3-20261031\\test-results\\rc3-release\\package-audit-after-tests.json",
+    "sha256": "83802ac6a6b2d05e6c0c837237490bedcf14f0d93eab4087c933ab1c29b29162"
+  },
+  "postTestScripts": [
+    {
+      "path": "scripts/audit-dsh-plugin-compatibility.mjs",
+      "sha256": "4cc2d447ad0b294388d6e43458b1d026e7436e6773f7cdeda69134c322f7082a"
+    },
+    {
+      "path": "scripts/audit-real-collaboration.mjs",
+      "sha256": "085a537db61d51b690301c6577957c3b9551bf206c735cd856c20f7e6218df28"
+    },
+    {
+      "path": "scripts/build-offline-acceptance.mjs",
+      "sha256": "6d50ca047394e5fc970f3d73cf2db1003ed36f9ff8ba2db0eb97042ecd742344"
+    },
+    {
+      "path": "scripts/dsh-bridge-check.mjs",
+      "sha256": "d5a04248116cea8846e64a52f6fd2988fe3fbe9f07fa1d9799f8fa8c509a9002"
+    },
+    {
+      "path": "scripts/dsh-collaboration-check.mjs",
+      "sha256": "a6369d6cd55d1af291b97dc178d758ef4bb8b7cbe92ffd95ad7d7c1f146d3fd1"
+    },
+    {
+      "path": "scripts/dsh-extension-check.mjs",
+      "sha256": "458cde0ed36a62f8ea0f2c34eae6968717e643cd0e4c1e5e01bc003305efdfea"
+    },
+    {
+      "path": "scripts/dsh-family-check.mjs",
+      "sha256": "48d661833cf34317a3e315ed89a3907178bac8423395651df10048b98dfa0d92"
+    },
+    {
+      "path": "scripts/dsh-spike.mjs",
+      "sha256": "40f474d5f7b9fedd5e074f80adec4d58967845134bb447ce94e65b57c1b4859e"
+    },
+    {
+      "path": "scripts/experiment-deeptech-grounding.mjs",
+      "sha256": "7c4a830bac4f6011c251ad7543248bb83715c94f43fc564cb3dadd8022b2d7d8"
+    },
+    {
+      "path": "scripts/experiment-deeptech-memory.mjs",
+      "sha256": "7b71f97987ecab9a7ff63d0c930f9bc45db805324e05b867c0d38d2b2844bca9"
+    },
+    {
+      "path": "scripts/install-student-hub-candidates.mjs",
+      "sha256": "d7e920afb6c510258fb6615496f58fd58e3e432817067c98b8148bd461a68f70"
+    },
+    {
+      "path": "scripts/package-win.mjs",
+      "sha256": "c24bd10457fef28451ed129ecfa8a7b0cdcd878999d5387b39927a2b990f0eb5"
+    },
+    {
+      "path": "scripts/prepare-dsh-runtime.mjs",
+      "sha256": "e8ea57abd8fc573118c0ba1db45322ff1d97f97bc9a9cb877f05463c6788fde7"
+    },
+    {
+      "path": "scripts/probe-deeptech-audit.mjs",
+      "sha256": "7a13aeb6858e85cf6cdc1b377ce485c015b51fadfcc20db9c7837c509554e4de"
+    },
+    {
+      "path": "scripts/probe-electron.mjs",
+      "sha256": "009322e718199a6ba5c4094458048bed27c253ce05e7e45852c8b8e4118b24a3"
+    },
+    {
+      "path": "scripts/probe-live-readiness.mjs",
+      "sha256": "b28302c8c655913400d13ee1b2be9e99f2855df5a92ae3614ddeb3749e340017"
+    },
+    {
+      "path": "scripts/probe-network-private-head.mjs",
+      "sha256": "be42a856f68017e2c937ee830527e3a3029acfa095b2460fabc2982cf1ed790f"
+    },
+    {
+      "path": "scripts/probe-privacy-live.mjs",
+      "sha256": "af9a7aa6a6afd8b9ffaf7479c307a84622eaa3a9b632640abc847b7374ae1cac"
+    },
+    {
+      "path": "scripts/probe-student-hub-live.mjs",
+      "sha256": "7c84defc7ebe69948fa6ae88aa2c3ecf6aede273632985b21d428070332fe169"
+    },
+    {
+      "path": "scripts/run-real-model-tests.mjs",
+      "sha256": "2f5e0108b0405799d446ceb0a8ff972bb5bbc1c142c79f0da046d2e5e38bbf93"
+    },
+    {
+      "path": "scripts/run.mjs",
+      "sha256": "0bbaf3c64713b6617d0c59ed5bddd7f7334d4c25ebc795967e821f36011d7e09"
+    },
+    {
+      "path": "scripts/runtime-env.mjs",
+      "sha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb"
+    },
+    {
+      "path": "scripts/smoke-backup.mjs",
+      "sha256": "dd9fc1ecae26e5ca0091f4b2405a3fcc10a11a7ff8e3a7e1ee581fd25bba991c"
+    },
+    {
+      "path": "scripts/smoke-booth.mjs",
+      "sha256": "32c95f7ca7511b3f39bc763f7f09ef3a9e43a50110d0ca6bab96ec7f35b1984a"
+    },
+    {
+      "path": "scripts/smoke-campus.mjs",
+      "sha256": "26dd61365202b27bef2c8e4fa140b42d3f61feeab43f2fd3dac42571a6c20ce2"
+    },
+    {
+      "path": "scripts/smoke-characters.mjs",
+      "sha256": "4526829e798cbd637e0beac496303b7342c7118edbc78fb1da1bece7d1a00c5a"
+    },
+    {
+      "path": "scripts/smoke-collaboration.mjs",
+      "sha256": "0f5b0cf5457a1432a18ec4b11a126e349e9711eb86d3c44494cdb7ca46e09db6"
+    },
+    {
+      "path": "scripts/smoke-developer.mjs",
+      "sha256": "ad5bfe42200130cf90428d6961e1c323891528948ca5dda6c7777bc0118f593c"
+    },
+    {
+      "path": "scripts/smoke-documents.mjs",
+      "sha256": "90d4fa8ffa3ec5f8f56699b88c5f5153094ebce26cd47c4de940739cfcf41077"
+    },
+    {
+      "path": "scripts/smoke-electron.mjs",
+      "sha256": "72cc96a93bcfb72676f097c5fcaa002d6ec1d10913f984a79b5a4db0c08c8fb2"
+    },
+    {
+      "path": "scripts/smoke-extensions.mjs",
+      "sha256": "c2c6f4bb4207a2b6c35bcd532b47e3b6992122ed7416cf084f7e97d66144e55f"
+    },
+    {
+      "path": "scripts/smoke-failure-narrator.mjs",
+      "sha256": "b7c2dda58b08b4055289a48af69ef5a7d0eae8d1311482ce79170e7f7a533df9"
+    },
+    {
+      "path": "scripts/smoke-gifts.mjs",
+      "sha256": "76d59848e57b6d541f1c9183481fa9433cf4e31fa7f990144b925c5f6942a308"
+    },
+    {
+      "path": "scripts/smoke-harness.mjs",
+      "sha256": "c2149545ea9c9f0257279f3b8a9b9a222c9a7601e9b6c9ae36b49a843adb3b73"
+    },
+    {
+      "path": "scripts/smoke-history.mjs",
+      "sha256": "54cb6ec8a248441745fc3732b802393eec1eb43b3424b5070aa3d375df3b48e6"
+    },
+    {
+      "path": "scripts/smoke-life-port.mjs",
+      "sha256": "434cbd9a673e8932c578b2fd25c7fb260d76afacfdc8e9d57778841152139702"
+    },
+    {
+      "path": "scripts/smoke-life-work.mjs",
+      "sha256": "66a4167b4a69e9f7a1459853c76ab31da9c94f30bf80d796d061fc8fbde65355"
+    },
+    {
+      "path": "scripts/smoke-mcp.mjs",
+      "sha256": "d94bacd8bbcb4d678533c99ad8f55914ba60fa945f80d3b2b39e2e57d2df3e64"
+    },
+    {
+      "path": "scripts/smoke-memory.mjs",
+      "sha256": "edae1b0146089b28f4fa77c2490bfd3edf9f171b75eca8002d7e30c5d2d68a87"
+    },
+    {
+      "path": "scripts/smoke-minecraft-images.mjs",
+      "sha256": "7820d481a421227475410f647bf45a90234912a47b7c31db548e940175526b8c"
+    },
+    {
+      "path": "scripts/smoke-minecraft-mining.mjs",
+      "sha256": "3a5a29558ef246ab4230d2553edb7ec28ae9c0b07175d160f5e09f1c95d575e9"
+    },
+    {
+      "path": "scripts/smoke-minecraft-stdio.mjs",
+      "sha256": "c65ad771f9a38c4fdbc66ff683cfd05b914e913509c98ac1bcb8cd795f767c07"
+    },
+    {
+      "path": "scripts/smoke-minecraft.mjs",
+      "sha256": "e5a24a3a575e28b22e351a4c34e886ca3255fa25f8e9ee940f7ac08f22cf001e"
+    },
+    {
+      "path": "scripts/smoke-mini.mjs",
+      "sha256": "ac69e065724ea587b3a033d46195fbf7f48af5ce4dc9099c33cdcae13f948bad"
+    },
+    {
+      "path": "scripts/smoke-model-capabilities.mjs",
+      "sha256": "f7ad6f9ec9a3cffeeb35ed415f3954c6c1bc01f531b15ee117cc3ba867c94906"
+    },
+    {
+      "path": "scripts/smoke-model-routing.mjs",
+      "sha256": "edb1c56056ea036cbe591c4c50bd15ef6060ab9ab84a42125cc1d139d6ab142a"
+    },
+    {
+      "path": "scripts/smoke-model-slots.mjs",
+      "sha256": "f2110b01aef87ea9036943dea88c4df76d223d9a2309550201a95767b81cd8d3"
+    },
+    {
+      "path": "scripts/smoke-notifications.mjs",
+      "sha256": "836752b8b8e2347dfec3b8aa970f69abe9759084ee3c74cac50518726d667449"
+    },
+    {
+      "path": "scripts/smoke-onboarding.mjs",
+      "sha256": "99b21cf8a8527383b6a8f802ce985a91180568c8510a7a5354d8dd193182d95c"
+    },
+    {
+      "path": "scripts/smoke-optical.mjs",
+      "sha256": "5e3388a92fb837d769a22c80eb32383ca430d6f8a600d75d5e107f55a1e7f873"
+    },
+    {
+      "path": "scripts/smoke-package.mjs",
+      "sha256": "52d9f0afe75b831588d4bb42d2f7ab0c3d655240c8a35401305cd9eb196e0286"
+    },
+    {
+      "path": "scripts/smoke-plugins.mjs",
+      "sha256": "64c1d5a6c4ec692d87b81e0701fb0e879d3cd195ebccf0d0d1b54e0fe339d42f"
+    },
+    {
+      "path": "scripts/smoke-pomodoro.mjs",
+      "sha256": "93e4d5bf23ee1e5599ab52721d4b85c3927b4c011e239f16c5fb4eb93e35e2e9"
+    },
+    {
+      "path": "scripts/smoke-privacy-inspect.mjs",
+      "sha256": "67779706566646aae7278c5e16b9d80d5f5e4c268da6eab87f15ba977435320b"
+    },
+    {
+      "path": "scripts/smoke-privacy-probe.mjs",
+      "sha256": "d6581ca6756f7a24097b8c606c82bb60aca0dc699c50d0626444b5ef66cda67a"
+    },
+    {
+      "path": "scripts/smoke-providers.mjs",
+      "sha256": "6bf7adf55948e1e01cbc2a2867ea98523966f513723e979ec24274f6a3ff461c"
+    },
+    {
+      "path": "scripts/smoke-questions.mjs",
+      "sha256": "3cc2aa4a7fd8787c80f6b5604df9d0a06a82965514c0bf90b976b618ce60698b"
+    },
+    {
+      "path": "scripts/smoke-real-collaboration-reuse.mjs",
+      "sha256": "1040830545861027fdfd521a80ccf860e3c52cde716744bf9a7850966507de0e"
+    },
+    {
+      "path": "scripts/smoke-real-collaboration.mjs",
+      "sha256": "d6b15226d77b90da85445f6db51117fb064d6b7f17329b573fd1698a5944c5f4"
+    },
+    {
+      "path": "scripts/smoke-real-model.mjs",
+      "sha256": "cbbf03bd8533b46cc5d86478c926a6b7e972181da2e06e44085ed02a0e46c094"
+    },
+    {
+      "path": "scripts/smoke-resource-concurrency.mjs",
+      "sha256": "72699a2b4c2333d4dcc63ac2dd1e696096df5ee247d9d65a47249609d76bddaf"
+    },
+    {
+      "path": "scripts/smoke-resources.mjs",
+      "sha256": "1112b19c4ef5b94fae4508b0e7ee6aa56731058ab73cc0fd517eaf76053efa56"
+    },
+    {
+      "path": "scripts/smoke-room-upgrade.mjs",
+      "sha256": "f614a287e2933b09f622d6456c11e1a8f6ccffa63708768c542dd3997a7df8c8"
+    },
+    {
+      "path": "scripts/smoke-room.mjs",
+      "sha256": "3ae92239ebddeacdec290d68619f0f01a418bc0e74d24f8f0de9c2fcba442681"
+    },
+    {
+      "path": "scripts/smoke-settings.mjs",
+      "sha256": "dc2788c7256805b9e5031e6046e87e6ec083c7a4406b8a1daf09cf3e5fa2317d"
+    },
+    {
+      "path": "scripts/smoke-showcase.mjs",
+      "sha256": "0fe53aa5a39c00f4ceefbe29dee71add682abdf26594aad313006cb0a83030d6"
+    },
+    {
+      "path": "scripts/smoke-sleep.mjs",
+      "sha256": "53953c00f928bd247f3d8a916e63656d600e15c4b320a310b680eaf64852c161"
+    },
+    {
+      "path": "scripts/smoke-state-routing.mjs",
+      "sha256": "a97460d96bf9fc912d5f380cd148c2afc81da61b727a5d8acfb425ff5cf5567a"
+    },
+    {
+      "path": "scripts/smoke-student-hub-candidates.mjs",
+      "sha256": "abb453cbaae072b08abea491152c58f6102a8a43c184b5f6ab51a25de0e5b643"
+    },
+    {
+      "path": "scripts/smoke-student-hub-package.mjs",
+      "sha256": "f19fbf213d4fe46b4e76e1485478479ba39f8af46a64b7c0c7b2f7736ac33393"
+    },
+    {
+      "path": "scripts/smoke-v12-recovery.mjs",
+      "sha256": "bda8479804ffdae8c003e1b94c25ccfc96aab227fc618621a71d6911f8c90a43"
+    },
+    {
+      "path": "scripts/smoke-v12-upgrade.mjs",
+      "sha256": "4ae6695c381297481dceb74d278ee588661b8e0c8da964d7ca49440fb5199acf"
+    },
+    {
+      "path": "scripts/smoke-voice.mjs",
+      "sha256": "e556457f976e41dac411f38df9fd8686883d03fadfad50b60a2d955fe46739e4"
+    },
+    {
+      "path": "scripts/team-room-preview.mjs",
+      "sha256": "dd2f9dabc842677425815f04023e2f06097308b184e070fd03a15019c5658a73"
+    },
+    {
+      "path": "scripts/ui-preview.mjs",
+      "sha256": "018899127f63834dbf6d28516aab30b1b1f93d984fe940f01cecf90ad56d42b1"
+    },
+    {
+      "path": "scripts/ui-shot.mjs",
+      "sha256": "3192b6d0d5fa7c1ac0bb7e27e9d6773ae8c3971cd8c0ff771416b0e779941232"
+    }
+  ],
+  "postInstallReconciliation": {
+    "atIso": "2026-10-31T12:58:35.4689904Z",
+    "installDirectory": "C:\\.lca-cache\\upgrade-tests\\0f8edf18-c860-49ba-8e4e-392ce7e7d1b8\\installed",
+    "registryEntries": 0,
+    "runningApps": 0,
+    "executableExists": false,
+    "uninstallerExists": false,
+    "ok": true
+  }
+}

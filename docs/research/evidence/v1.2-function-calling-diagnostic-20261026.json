@@ -1,0 +1,215 @@
+{
+  "date": "2026-10-26",
+  "status": "upstream-chat-function-calling-contract-failed",
+  "authorization": {
+    "source": "user-in-this-chat",
+    "answer": "确定一下问题所在。",
+    "scope": "bounded-function-calling-diagnosis",
+    "selectedModel": "saved-chat",
+    "maximumLiveRequests": 4,
+    "maximumReservedUnits": 8000,
+    "maximumOutputTokensPerRequest": 128,
+    "requestTimeoutMs": 45000,
+    "automaticRetries": false
+  },
+  "budget": {
+    "limitUnits": 8000,
+    "reservedUnits": 8000,
+    "calls": 4
+  },
+  "reports": [
+    {
+      "file": "auto-report.json",
+      "path": ".local-data\\function-calling-a72e4f3c-560c-4736-bbf6-887ed00f47f7\\auto-report.json",
+      "sha256": "a4505a3d22cb81b2e33b2627b4d7ae131ef241d3354090ea3fcf730d4c4bcb89",
+      "value": {
+        "case": "auto",
+        "error": "TimeoutError",
+        "elapsedMs": 45016,
+        "budget": {
+          "limitUnits": 8000,
+          "reservedUnits": 2000,
+          "calls": 1
+        }
+      }
+    },
+    {
+      "file": "named-report.json",
+      "path": ".local-data\\function-calling-a72e4f3c-560c-4736-bbf6-887ed00f47f7\\named-report.json",
+      "sha256": "2d9ffe068f1f80f4994e1915f6fb345491e8079ab3de6f834c7f67d477e5a02d",
+      "value": {
+        "case": "named",
+        "httpStatus": 200,
+        "contentType": "text/event-stream",
+        "toolDefinitionsSent": 1,
+        "toolChoice": "named",
+        "modelAlias": "saved-chat",
+        "maxOutputTokens": 128,
+        "toolCallCount": 0,
+        "expectedToolReturned": false,
+        "validArguments": false,
+        "finishReasons": [
+          "stop"
+        ],
+        "plainReplyChars": 69,
+        "mentionsToolUnavailable": false,
+        "usage": {
+          "inputTokens": 36,
+          "outputTokens": 254
+        },
+        "elapsedMs": 16637,
+        "budget": {
+          "limitUnits": 8000,
+          "reservedUnits": 4000,
+          "calls": 2
+        }
+      }
+    },
+    {
+      "file": "named-nonstream-report.json",
+      "path": ".local-data\\function-calling-a72e4f3c-560c-4736-bbf6-887ed00f47f7\\named-nonstream-report.json",
+      "sha256": "da8ad4ca58aff676703449d6f5a7cea43eae1491c4368ebf6aa901049cbfabaf",
+      "value": {
+        "case": "named-nonstream",
+        "error": "TimeoutError",
+        "elapsedMs": 45017,
+        "budget": {
+          "limitUnits": 8000,
+          "reservedUnits": 6000,
+          "calls": 3
+        }
+      }
+    },
+    {
+      "file": "required-report.json",
+      "path": ".local-data\\function-calling-a72e4f3c-560c-4736-bbf6-887ed00f47f7\\required-report.json",
+      "sha256": "dab401e75a411380212915e0e7a6af7a376e8fad8eb5ff7f28344ab1c393952e",
+      "value": {
+        "case": "required",
+        "error": "TimeoutError",
+        "elapsedMs": 45010,
+        "budget": {
+          "limitUnits": 8000,
+          "reservedUnits": 8000,
+          "calls": 4
+        }
+      }
+    },
+    {
+      "file": "wire-report.json",
+      "path": ".local-data\\function-calling-a72e4f3c-560c-4736-bbf6-887ed00f47f7\\wire-report.json",
+      "sha256": "c6ba2e58372287488d1a7a68435c651ffe65085045ef376abc9fdfa1ef761f5f",
+      "value": {
+        "synthetic": true,
+        "realServices": false,
+        "realModelRequests": 0,
+        "lcaToolDefinitions": 15,
+        "requests": 1,
+        "capture": [
+          {
+            "path": "/v1/chat/completions",
+            "method": "POST",
+            "keys": [
+              "model",
+              "messages",
+              "stream",
+              "stream_options",
+              "store",
+              "max_completion_tokens",
+              "tools"
+            ],
+            "toolCount": 47,
+            "toolNames": [
+              "ask_user_question",
+              "create_goal",
+              "edit",
+              "exit_plan_mode",
+              "get_goal",
+              "glob",
+              "grep",
+              "interrupt_agent",
+              "job_kill",
+              "job_list",
+              "job_output",
+              "lca_check_mail",
+              "lca_get_campus_items",
+              "lca_get_clock",
+              "lca_get_first_gift",
+              "lca_get_processed_files",
+              "lca_get_timer",
+              "lca_pause",
+              "lca_plan_pomodoros",
+              "lca_propose_gift",
+              "lca_propose_notification_rule",
+              "lca_read_uploaded_file",
+              "lca_recall_seen",
+              "lca_search_memory",
+              "lca_start_focus",
+              "lca_stop",
+              "list_agents",
+              "pwsh",
+              "read",
+              "read_image",
+              "send_message",
+              "skill",
+              "spawn_teammate",
+              "subagent",
+              "subagent_fork",
+              "team_task_create",
+              "team_task_get",
+              "team_task_list",
+              "team_task_update",
+              "todo_write",
+              "update_goal",
+              "wait_agent",
+              "web_fetch",
+              "web_search",
+              "workflow",
+              "working_directory",
+              "write"
+            ],
+            "toolChoice": "not-specified",
+            "stream": true,
+            "hasLegacyFunctions": false,
+            "messagesWithTools": false,
+            "maxTokens": 32768
+          }
+        ],
+        "turnEnded": true
+      }
+    }
+  ],
+  "sourceReview": {
+    "route": "src/main/dsh/routes.ts",
+    "routeUses": "openai-completions",
+    "adapter": "dsh/runtime/node_modules/@earendil-works/pi-ai/dist/api/openai-completions.js",
+    "adapterSha256": "4b3875e5ec18c5e2d06ce12409feb2554563fd2c392a5c1773af968b265e2bea",
+    "adapterSerializesTools": true,
+    "upstreamRuntimeUnmodified": true
+  },
+  "findings": {
+    "directRequestsBypassLcaAndDsh": true,
+    "namedStreamingRequestIgnoredRequiredFunctionCall": true,
+    "namedStreamingResponseHttpStatus": 200,
+    "namedStreamingResponseToolCalls": 0,
+    "namedStreamingFinishReason": "stop",
+    "otherThreeConditionsTimedOut": true,
+    "syntheticDshWireCaptureTools": 47,
+    "syntheticDshWireContainsSubagent": true,
+    "syntheticWireIsRealProviderPacketCapture": false,
+    "workModelTested": false,
+    "internalVendorCauseProven": false,
+    "mainConfigUnmodified": true,
+    "noRealToolExecution": true,
+    "rawReasoningIncluded": false,
+    "rawRequestHeadersIncluded": false,
+    "credentialsIncluded": false
+  },
+  "conclusion": "The saved chat endpoint failed the minimal OpenAI-compatible function-calling contract independently of LCA/DSH. The DSH local synthetic wire capture confirms that its adapter serializes collaboration tool definitions. Whether this model channel disables tools or its vendor translation drops tools/tool_choice remains vendor-internal and is not proven by client-side evidence.",
+  "remainingGates": [
+    "independent-delegation",
+    "team-final-delivery",
+    "same-member-reuse",
+    "coding-model-validation"
+  ]
+}

@@ -4,8 +4,29 @@ import { createManualClock } from '../../src/main/clock'
 import type { AppEvent } from '../../src/shared'
 import type { BackupService } from '../../src/main/backup/service'
 import type { DiagnosticsView } from '../../src/shared'
+import type { ExtensionsService } from '../../src/main/dsh/extensions'
+import type { SkillsService } from '../../src/main/dsh/skills'
 
 describe('public bridge controller', () => {
+  it('keeps skill import/remove on the book with no renderer paths and deduplicates import clicks', () => {
+    const controller = createAppController(createManualClock()); let calls = 0
+    controller.attachSkills({ view: () => ({ status: 'ready', items: [], projectKey: 'project', operation: null, error: null }), dispatch: () => { calls++; return undefined } } as unknown as SkillsService)
+    const input = { protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId: 'skill-import', type: 'skills.import', scope: 'project' }
+    for (const surface of ['mini', 'diagnostics'] as const) expect(controller.dispatch(input, surface).status).toBe('rejected')
+    expect(controller.dispatch({ ...input, path: 'C:/arbitrary' }).status).toBe('rejected')
+    expect(controller.dispatch({ ...input, scope: 'global' }).status).toBe('rejected')
+    expect(controller.dispatch(input).status).toBe('accepted'); expect(controller.dispatch(input).status).toBe('accepted'); expect(calls).toBe(1)
+  })
+  it('routes only bounded book extension commands and deduplicates accepted requests', () => {
+    const controller = createAppController(createManualClock()); let calls = 0
+    controller.attachExtensions({ view: () => ({ status: 'ready', items: [], operations: [], proposal: null }), dispatch: () => { calls++; return undefined } } as unknown as ExtensionsService)
+    const input = { protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId: 'extension-refresh', type: 'extension.refresh' }
+    expect(controller.dispatch({ ...input, requestId: 'debug' }, 'diagnostics').status).toBe('rejected')
+    expect(controller.dispatch({ ...input, requestId: 'mini' }, 'mini').status).toBe('rejected')
+    expect(controller.dispatch({ ...input, path: 'C:/arbitrary' }).status).toBe('rejected')
+    expect(controller.dispatch(input).status).toBe('accepted'); expect(controller.dispatch(input).status).toBe('accepted')
+    expect(calls).toBe(1); expect(controller.getSnapshot().extensions?.status).toBe('ready')
+  })
   it('refuses diagnostics outside developer mode before invoking the reader', () => {
     const controller = createAppController(createManualClock()); let reads = 0
     controller.attachDiagnostics(() => { reads++; return {} as DiagnosticsView })
@@ -33,6 +54,16 @@ describe('public bridge controller', () => {
     expect(controller.dispatch({ ...base, requestId: 'r2', type: 'privacy.set', enabled: true })).toMatchObject({ status: 'rejected', error: { code: 'privacy-unavailable' } })
     expect(controller.dispatch({ ...base, epoch: 'old', type: 'lights.set', lightsOut: true })).toMatchObject({ status: 'rejected', error: { code: 'stale-epoch' } })
     expect(controller.getSnapshot().messages).toEqual([])
+  })
+  it('keeps collaboration commands book-only, closed-schema and deduplicated', () => {
+    const controller = createAppController(createManualClock()); let calls = 0
+    controller.attachCollaboration({ view: () => ({ status: 'unavailable', runtimeId: null, projectId: null, members: [], tasks: [] }), dispatch: () => { calls++; return undefined } })
+    const command = { protocolVersion: 1, requestId: 'collaboration-refresh', epoch: controller.getSnapshot().epoch, type: 'agent.refresh' }
+    expect(controller.dispatch(command, 'mini').status).toBe('rejected')
+    expect(controller.dispatch({ ...command, path: 'arbitrary' }).status).toBe('rejected')
+    expect(controller.dispatch(command).status).toBe('accepted')
+    expect(controller.dispatch(command).status).toBe('accepted')
+    expect(calls).toBe(1)
   })
   it('deduplicates commands, publishes ordered immutable snapshots, and unsubscribes', () => {
     const clock = createManualClock()

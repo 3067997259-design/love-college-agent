@@ -1,0 +1,633 @@
+{
+  "date": "2026-10-24",
+  "status": "real-probe-budget-limited-incomplete",
+  "realServices": true,
+  "syntheticTaskInputs": true,
+  "authorization": {
+    "source": "user-in-this-chat",
+    "selectedConfiguration": "existing-chat-and-work",
+    "dailyTotalUnits": 480000,
+    "dailyAutonomousUnits": 0,
+    "maxWallMinutes": 12,
+    "automaticApprovals": false
+  },
+  "target": {
+    "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.2-p6\\win-unpacked\\LoveCollegeAgent.exe",
+    "appVersion": "1.2.0-rc.2",
+    "asarSha256": "2b593acfd5ee319bcde97be3f97b58040d6ee0e7eabf934a2019d548928fbe72"
+  },
+  "scriptSha256": "171de66ba8b32d73d89f929ceadaa6072ddf87f558e4fa5f1cf784756ca6f816",
+  "targetHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+  "preflight": {
+    "path": "test-results/real-collaboration-8f02ab5f-e9be-414f-9bcd-6cb7cea5d4cc/report.json",
+    "realServices": false,
+    "workRoutingAndEffortsPreserved": true,
+    "modelRequests": 0
+  },
+  "report": {
+    "path": "test-results/real-collaboration-61a059cb-9bea-42fa-a8c1-6fd76b0ade81/report.json",
+    "sha256": "2b225a19e42927c40c5589b1b791bedac355963004ae6889b10284a37ea46232",
+    "value": {
+      "realServices": true,
+      "preflight": false,
+      "syntheticTaskInputs": true,
+      "homeIsolated": true,
+      "cases": [
+        {
+          "name": "independent",
+          "addedModes": [
+            "subagent"
+          ],
+          "memberCount": 2,
+          "teamTasks": 0,
+          "dependentTasks": 0,
+          "completedTasks": 0,
+          "attempts": 4,
+          "reservedUnits": 61069,
+          "members": [
+            {
+              "sessionId": "session-d816d4a5-57a4-464a-a2d0-993940f73904",
+              "mode": "root",
+              "name": "主角色",
+              "activity": "inactive",
+              "outcome": "none",
+              "waitingFor": null,
+              "usage": {
+                "admittedUnits": 0,
+                "inputTokens": null,
+                "outputTokens": null
+              },
+              "errorCode": null,
+              "resultText": null
+            },
+            {
+              "sessionId": "3efc846b-611b-4828-a27c-936aa92044ef",
+              "mode": "subagent",
+              "name": "协作者 1",
+              "activity": "inactive",
+              "outcome": "completed",
+              "waitingFor": "user",
+              "usage": {
+                "admittedUnits": 14837,
+                "inputTokens": 12569,
+                "outputTokens": 234
+              },
+              "errorCode": null,
+              "resultText": null
+            }
+          ],
+          "tasks": [],
+          "responses": [
+            "独立校验的结果如下：\n\n- 红：7（3 + 4）\n- 蓝：2\n- 总数：9（7 + 2）\n\n核验无误，已完成整合。"
+          ],
+          "resumedSessionIds": [],
+          "selectionPassed": true
+        }
+      ],
+      "limits": {
+        "dailyTotalUnits": 480000,
+        "dailyAutonomousUnits": 0
+      },
+      "maxWallMinutes": 12,
+      "capacityStress": "synthetic-regression-only",
+      "selectedModel": "existing-chat-and-work-slots",
+      "automaticApprovals": false,
+      "scriptSha256": "171de66ba8b32d73d89f929ceadaa6072ddf87f558e4fa5f1cf784756ca6f816",
+      "targetHelperSha256": "ada1086aa91c0e2ead0addf283b59ed6e706fa75c5fa9cbecf90899d451d43eb",
+      "stage": "team",
+      "configurationSelectionPreserved": true,
+      "target": {
+        "executable": "C:\\.lca-cache\\releases\\lca-release-1.2.0-rc.2-p6\\win-unpacked\\LoveCollegeAgent.exe",
+        "appVersion": "1.2.0-rc.2",
+        "asarSha256": "2b593acfd5ee319bcde97be3f97b58040d6ee0e7eabf934a2019d548928fbe72"
+      },
+      "startedAtIso": "2026-10-24T02:41:50.387Z",
+      "ok": false,
+      "error": "TURN_FAILED",
+      "finalState": {
+        "taskStatus": "failed",
+        "errorCode": "budget-exceeded",
+        "questionPending": false,
+        "members": [
+          {
+            "sessionId": "session-d816d4a5-57a4-464a-a2d0-993940f73904",
+            "mode": "root",
+            "name": "主角色",
+            "activity": "inactive",
+            "outcome": "none",
+            "waitingFor": null,
+            "usage": {
+              "admittedUnits": 0,
+              "inputTokens": null,
+              "outputTokens": null
+            },
+            "errorCode": null,
+            "resultText": null
+          },
+          {
+            "sessionId": "3efc846b-611b-4828-a27c-936aa92044ef",
+            "mode": "subagent",
+            "name": "协作者 1",
+            "activity": "inactive",
+            "outcome": "completed",
+            "waitingFor": "user",
+            "usage": {
+              "admittedUnits": 14837,
+              "inputTokens": 12569,
+              "outputTokens": 234
+            },
+            "errorCode": null,
+            "resultText": null
+          },
+          {
+            "sessionId": "68ac6c14-3aed-4436-aa71-1fb71f334f72",
+            "mode": "teammate",
+            "name": "协作者 2",
+            "activity": "inactive",
+            "outcome": "completed",
+            "waitingFor": "user",
+            "usage": {
+              "admittedUnits": 81153,
+              "inputTokens": 68740,
+              "outputTokens": 982
+            },
+            "errorCode": null,
+            "resultText": null
+          },
+          {
+            "sessionId": "6c7166c2-7eee-471d-8c58-3728e256c3d9",
+            "mode": "teammate",
+            "name": "协作者 3",
+            "activity": "inactive",
+            "outcome": "refused",
+            "waitingFor": "user",
+            "usage": {
+              "admittedUnits": 103093,
+              "inputTokens": 66232,
+              "outputTokens": 917
+            },
+            "errorCode": null,
+            "resultText": null
+          }
+        ],
+        "usage": {
+          "dayKey": "2026-10-24",
+          "totalReservedUnits": 474368,
+          "autonomousReservedUnits": 0,
+          "totalLimitUnits": 480000,
+          "autonomousLimitUnits": 0,
+          "attemptCount": 29,
+          "legacyReservedUnits": 0
+        }
+      },
+      "temporaryCredentialsRemoved": true,
+      "completedAtIso": "2026-10-24T02:43:18.813Z"
+    }
+  },
+  "readOnlyAudit": {
+    "path": "test-results/real-collaboration-61a059cb-9bea-42fa-a8c1-6fd76b0ade81/audit.json",
+    "sha256": "4374b97388232da9bbb4e3beeaad2a9da2fd6f3c568d52028da03f4a8ee37687",
+    "decoderScriptSha256": "cd1297beb0588e021adcfefe5190de809917d220dcc829fbe06e136a4669a8fb",
+    "rawReasoningIncluded": false,
+    "rawRequestHeadersIncluded": false
+  },
+  "elapsedSeconds": 88.426,
+  "budget": {
+    "dayKey": "2026-10-24",
+    "totalReservedUnits": 474368,
+    "autonomousReservedUnits": 0,
+    "totalLimitUnits": 480000,
+    "autonomousLimitUnits": 0,
+    "attemptCount": 29,
+    "legacyReservedUnits": 0,
+    "remainingUnits": 5632
+  },
+  "reportedTokens": {
+    "uncachedInputTokens": 407897,
+    "cacheReadTokens": 13339,
+    "cacheWriteTokens": 0,
+    "outputTokens": 5954
+  },
+  "persistedBudget": {
+    "path": ".local-data/real-collaboration-61a059cb-9bea-42fa-a8c1-6fd76b0ade81/runtime-resources/usage.jsonl",
+    "sha256": "0c130602d579f8f3fbc9437b1196f1387c6de462d116b85cab96a84f6130fdd0",
+    "modelReservations": 29,
+    "reservedUnits": 474368,
+    "autonomousCalls": 0
+  },
+  "cases": [
+    {
+      "name": "independent",
+      "status": "passed",
+      "requests": 4,
+      "reservedUnits": 61069,
+      "membersAdded": [
+        "subagent"
+      ],
+      "arithmeticVerified": {
+        "red": 7,
+        "blue": 2,
+        "total": 9
+      },
+      "childAndLeadFinalTextVerified": true
+    },
+    {
+      "name": "team",
+      "status": "incomplete",
+      "requests": 25,
+      "reservedUnits": 413299,
+      "correctTeamMode": true,
+      "teammates": 2,
+      "tasksCompleted": 2,
+      "dependencyObserved": true,
+      "memberAndLeadFinalDeliveryPassed": false,
+      "blockingCode": "budget-exceeded"
+    },
+    {
+      "name": "reuse",
+      "status": "not-run",
+      "requiredIdentity": "same-rule-officer-from-team-case"
+    }
+  ],
+  "findings": {
+    "oneUpstream400EmptyResponse": true,
+    "checkerContinuedWithSameIdentity": true,
+    "bothTasksCompleted": true,
+    "teamFinalReplyDelivered": false,
+    "prescribedRuleOfficerReuseRan": false,
+    "allObservedCollaborationToolResultsSuccessful": true,
+    "noFileShellOrWebToolCalls": true,
+    "budgetEnforced": true,
+    "automaticApprovals": false,
+    "temporaryCredentialsRemoved": true
+  },
+  "teamMembers": [
+    {
+      "id": "68ac6c14-3aed-4436-aa71-1fb71f334f72",
+      "name": "rule-officer"
+    },
+    {
+      "id": "6c7166c2-7eee-471d-8c58-3728e256c3d9",
+      "name": "checker-officer"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "revision": 3,
+      "ownerId": "68ac6c14-3aed-4436-aa71-1fb71f334f72",
+      "blockedBy": [],
+      "status": "completed"
+    },
+    {
+      "id": "task-2",
+      "revision": 3,
+      "ownerId": "6c7166c2-7eee-471d-8c58-3728e256c3d9",
+      "blockedBy": [
+        "task-1"
+      ],
+      "status": "completed"
+    }
+  ],
+  "sessionEvidence": [
+    {
+      "sessionId": "3efc846b-611b-4828-a27c-936aa92044ef",
+      "path": ".local-data\\real-collaboration-61a059cb-9bea-42fa-a8c1-6fd76b0ade81\\dsh-home\\sessions\\--D-love~002C~0020college~0026agent-.local-data-real-collaboration-61a059cb-9bea-42fa-a8c1-6fd76b0ade81-rooms-2be6da680dca6cf2a82e1bc2c01c88fdc27619baa3c91a8496c130a67daddb7e-~4E66~684C--\\3efc846b-611b-4828-a27c-936aa92044ef\\session.v4.jsonl.zstd",
+      "sha256": "66a10629293011d1baa9ef81758178b59cbe00b0e4ea469592baf0b8084c6bf0",
+      "rowCount": 20,
+      "toolCalls": [],
+      "toolErrors": [],
+      "turnEnds": [
+        {
+          "seq": 18,
+          "turn": 1,
+          "kind": "completed",
+          "upstream400EmptyResponse": false
+        }
+      ],
+      "tokenUsage": {
+        "uncachedInputTokens": 12569,
+        "outputTokens": 234,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      }
+    },
+    {
+      "sessionId": "68ac6c14-3aed-4436-aa71-1fb71f334f72",
+      "path": ".local-data\\real-collaboration-61a059cb-9bea-42fa-a8c1-6fd76b0ade81\\dsh-home\\sessions\\--D-love~002C~0020college~0026agent-.local-data-real-collaboration-61a059cb-9bea-42fa-a8c1-6fd76b0ade81-rooms-2be6da680dca6cf2a82e1bc2c01c88fdc27619baa3c91a8496c130a67daddb7e-~4E66~684C--\\68ac6c14-3aed-4436-aa71-1fb71f334f72\\session.v4.jsonl.zstd",
+      "sha256": "d45d4ecfe584270b2d3b768053e11db86f876f9d461f9138a02baee3675ec4a0",
+      "rowCount": 50,
+      "toolCalls": [
+        {
+          "seq": 17,
+          "turn": 1,
+          "name": "team_task_list",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 20,
+          "turn": 1,
+          "name": "list_agents",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 27,
+          "turn": 1,
+          "name": "team_task_update",
+          "taskId": "task-1",
+          "action": "claim",
+          "target": null
+        },
+        {
+          "seq": 34,
+          "turn": 1,
+          "name": "team_task_update",
+          "taskId": "task-1",
+          "action": "complete",
+          "target": null
+        },
+        {
+          "seq": 41,
+          "turn": 1,
+          "name": "send_message",
+          "taskId": null,
+          "action": null,
+          "target": "team:session-d816d4a5-57a4-464a-a2d0-993940f73904"
+        }
+      ],
+      "toolErrors": [],
+      "turnEnds": [
+        {
+          "seq": 48,
+          "turn": 1,
+          "kind": "completed",
+          "upstream400EmptyResponse": false
+        }
+      ],
+      "tokenUsage": {
+        "uncachedInputTokens": 68740,
+        "outputTokens": 982,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      }
+    },
+    {
+      "sessionId": "6c7166c2-7eee-471d-8c58-3728e256c3d9",
+      "path": ".local-data\\real-collaboration-61a059cb-9bea-42fa-a8c1-6fd76b0ade81\\dsh-home\\sessions\\--D-love~002C~0020college~0026agent-.local-data-real-collaboration-61a059cb-9bea-42fa-a8c1-6fd76b0ade81-rooms-2be6da680dca6cf2a82e1bc2c01c88fdc27619baa3c91a8496c130a67daddb7e-~4E66~684C--\\6c7166c2-7eee-471d-8c58-3728e256c3d9\\session.v4.jsonl.zstd",
+      "sha256": "5896dfed3127f9bdf93514081f3d3c652e7059e03bee434e22b0450d5f16b470",
+      "rowCount": 71,
+      "toolCalls": [
+        {
+          "seq": 17,
+          "turn": 1,
+          "name": "list_agents",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 22,
+          "turn": 1,
+          "name": "team_task_list",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 28,
+          "turn": 1,
+          "name": "wait_agent",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 50,
+          "turn": 2,
+          "name": "team_task_list",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 57,
+          "turn": 2,
+          "name": "team_task_update",
+          "taskId": "task-2",
+          "action": "claim",
+          "target": null
+        },
+        {
+          "seq": 64,
+          "turn": 2,
+          "name": "team_task_update",
+          "taskId": "task-2",
+          "action": "complete",
+          "target": null
+        }
+      ],
+      "toolErrors": [],
+      "turnEnds": [
+        {
+          "seq": 35,
+          "turn": 1,
+          "kind": "error",
+          "upstream400EmptyResponse": true
+        },
+        {
+          "seq": 69,
+          "turn": 2,
+          "kind": "blocked",
+          "upstream400EmptyResponse": false
+        }
+      ],
+      "tokenUsage": {
+        "uncachedInputTokens": 66232,
+        "outputTokens": 917,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      }
+    },
+    {
+      "sessionId": "session-d816d4a5-57a4-464a-a2d0-993940f73904",
+      "path": ".local-data\\real-collaboration-61a059cb-9bea-42fa-a8c1-6fd76b0ade81\\dsh-home\\sessions\\--D-love~002C~0020college~0026agent-.local-data-real-collaboration-61a059cb-9bea-42fa-a8c1-6fd76b0ade81-rooms-2be6da680dca6cf2a82e1bc2c01c88fdc27619baa3c91a8496c130a67daddb7e-~4E66~684C--\\session-d816d4a5-57a4-464a-a2d0-993940f73904\\session.v4.jsonl.zstd",
+      "sha256": "e589485245bfc47a8e263550edacdbdd8a4dc0cb54ee0ec7164fcbdd2978a5b4",
+      "rowCount": 211,
+      "toolCalls": [
+        {
+          "seq": 15,
+          "turn": 1,
+          "name": "subagent",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 28,
+          "turn": 1,
+          "name": "list_agents",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 53,
+          "turn": 2,
+          "name": "list_agents",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 59,
+          "turn": 2,
+          "name": "team_task_list",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 65,
+          "turn": 2,
+          "name": "team_task_create",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 73,
+          "turn": 2,
+          "name": "team_task_create",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 81,
+          "turn": 2,
+          "name": "spawn_teammate",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 93,
+          "turn": 2,
+          "name": "spawn_teammate",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 109,
+          "turn": 2,
+          "name": "wait_agent",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 126,
+          "turn": 2,
+          "name": "team_task_list",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 139,
+          "turn": 2,
+          "name": "wait_agent",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 151,
+          "turn": 2,
+          "name": "team_task_list",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 164,
+          "turn": 2,
+          "name": "list_agents",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 174,
+          "turn": 2,
+          "name": "send_message",
+          "taskId": null,
+          "action": null,
+          "target": "team:6c7166c2-7eee-471d-8c58-3728e256c3d9"
+        },
+        {
+          "seq": 185,
+          "turn": 2,
+          "name": "wait_agent",
+          "taskId": null,
+          "action": null,
+          "target": null
+        },
+        {
+          "seq": 202,
+          "turn": 2,
+          "name": "team_task_list",
+          "taskId": null,
+          "action": null,
+          "target": null
+        }
+      ],
+      "toolErrors": [],
+      "turnEnds": [
+        {
+          "seq": 38,
+          "turn": 1,
+          "kind": "completed",
+          "upstream400EmptyResponse": false
+        },
+        {
+          "seq": 209,
+          "turn": 2,
+          "kind": "blocked",
+          "upstream400EmptyResponse": false
+        }
+      ],
+      "tokenUsage": {
+        "uncachedInputTokens": 260356,
+        "outputTokens": 3821,
+        "cacheReadTokens": 13339,
+        "cacheWriteTokens": 0
+      }
+    }
+  ],
+  "diagnosis": {
+    "upstream": "One checker activation ended with HTTP 400 empty_response_error. The lead sent fresh instructions to the same checker; both shared tasks reached completed, but the checker final report and lead delivery were blocked by the configured budget.",
+    "coordination": "The team case required 25 admitted model steps, including 14 lead steps, 5 rule-officer steps and 6 checker steps. All 27 observed collaboration tool results across both cases were successful.",
+    "boundary": "Board completion and observed mode selection do not satisfy final delivery or the separate rule-officer reuse case."
+  },
+  "cleanup": {
+    "runningAppProcesses": 0,
+    "temporaryCredentialsRemoved": true,
+    "originalProviderFileModified": false
+  },
+  "productionModified": false,
+  "candidateRebuilt": false,
+  "offlineBundleChanged": false,
+  "artModified": false,
+  "remaining": [
+    "real-model-team-final-delivery-and-rule-officer-reuse",
+    "second-windows-offline-results",
+    "real-time-day-use",
+    "V1-art-and-wiring"
+  ]
+}

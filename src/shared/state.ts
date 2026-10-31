@@ -1,4 +1,7 @@
 /** Public, serializable UI projections. Never put credentials or raw tool results here. */
+import type { CollaborationView } from './collaboration'
+import type { ExtensionsView } from './extensions'
+import type { SkillsView } from './skills'
 export const PROTOCOL_VERSION = 1 as const
 export const EXPRESSION_IDS = ['calm', 'smile', 'think', 'worried'] as const
 export const DEFAULT_EXPRESSION = 'calm' as const
@@ -119,7 +122,7 @@ export interface TaskView {
   error?: PublicError
 }
 /** D2 safety state for the currently running turn: third-party originals were part of its request. */
-export interface DegradedView { active: boolean; turnId: string; sources: readonly ('mail' | 'document' | 'web' | 'mcp' | 'plugin')[] }
+export interface DegradedView { active: boolean; turnId: string; sources: readonly ('mail' | 'document' | 'web' | 'mcp' | 'plugin' | 'member')[] }
 export interface MessageView {
   id: string
   role: 'user' | 'assistant' | 'narrator'
@@ -376,7 +379,45 @@ export interface ModelRouting { background: 'follow-main' | 'independent'; priva
 /** Thinking levels in escalation order (DSH / pi-ai). A model offers some of them; none means the provider decides. */
 export type ReasoningEffort = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 /** What the book may show about a configured slot: a known vendor's name or a masked host, and the model id. Never the URL path or key. */
-export interface ModelSlotDetail { vendor: string | null; host: string; model: string }
+export interface ModelSlotDetail {
+  vendor: string | null; host: string; model: string
+  /** Opaque equality reference for the current connection/model, never a credential or editable address. */
+  modelRef?: string
+  capabilities?: import('./model-capabilities').ModelCapabilityView
+}
+/** A closed reason for a failed connection test; the settings show one plain sentence per kind. */
+export type ConnectionIssueKind = 'key-rejected' | 'forbidden' | 'model-not-found' | 'endpoint-not-found' | 'bad-request' | 'quota' | 'rate-limited'
+  | 'server-error' | 'dns' | 'refused' | 'tls' | 'timeout' | 'bad-response' | 'engine-unavailable' | 'unknown'
+/**
+ * What one connection test did, as far as the snapshot may say: the path, the DSH route name, a closed reason and codes.
+ * Chat and work are tested through DSH, the path her turns use; memory, diary and the privacy filter through LCA's
+ * own client. Addresses and the provider's own text stay out; the book reads them on demand (`readConnectionTest`).
+ */
+export interface ConnectionProbeDetail {
+  path: 'dsh' | 'direct'
+  /** The DSH provider route, a route name such as `lca-chat` or `deepseek-official`. */
+  adapter?: string
+  durationMs: number
+  issue?: {
+    kind: ConnectionIssueKind
+    httpStatus?: number
+    /** DSH failure code, provider error code, or network code such as ENOTFOUND. */
+    code?: string
+  }
+}
+/** The user's own read of a slot's latest test, fetched when they open its details. Key-redacted; never a key. */
+export interface ConnectionTestRead {
+  slot: ModelProviderSlot
+  atMs: number
+  model: string
+  /** The URL that was called, when LCA knows it. A native vendor's DSH adapter calls its own endpoint instead. */
+  endpoint?: string
+  /** The provider's or the transport's own message. */
+  message?: string
+  /** Start of the raw error response. */
+  body?: string
+  requestId?: string
+}
 export interface ModelSettingsView {
   routing?: ModelRouting
   details?: Partial<Record<ModelProviderSlot, ModelSlotDetail>>
@@ -387,8 +428,8 @@ export interface ModelSettingsView {
   status: 'idle' | 'selecting' | 'saved' | 'failed'
   configuredSlots: readonly ModelProviderSlot[]
   restartRequired: boolean
-  /** Latest user-requested connectivity probe; never carries URL, model name, key or response text. */
-  probe?: { slot: ModelProviderSlot; status: 'testing' | 'ok' | 'failed'; code?: PublicErrorCode; atMs: number }
+  /** Latest user-requested connection test. `detail` carries no address, provider text or key. */
+  probe?: { slot: ModelProviderSlot; status: 'testing' | 'ok' | 'failed'; code?: PublicErrorCode; detail?: ConnectionProbeDetail; atMs: number }
   /** Presence only: never URLs, mail user, voices or keys. */
   services?: { tts: boolean; rodin: boolean; mail: boolean }
   error?: PublicError
@@ -432,6 +473,10 @@ export interface GeneratedGiftView {
 export interface GiftsView { configured: boolean; dailyLimit: number; items: readonly GeneratedGiftView[] }
 
 export interface AppSnapshot {
+  /** Absent until the 1.2 adapters are available; absence never means an empty ready catalog. */
+  extensions?: ExtensionsView
+  skills?: SkillsView
+  collaboration?: CollaborationView
   characterPack?: CharacterPackView
   notifications?: NotificationsView
   diary?: DiaryView

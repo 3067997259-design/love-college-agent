@@ -4,7 +4,7 @@
  * 这些数据是演示数据，capabilities 一律标 source: 'fake'，不代表任何真实调用通过。
  */
 import type {
-  ActivityView, AppSnapshot, CandidateView, CapabilityView, DeliveryView, EvidenceView, MessageView, PomodoroPlanView,
+  ActivityView, AgentView, AppSnapshot, CandidateView, CapabilityView, DeliveryView, EvidenceView, MessageView, PomodoroPlanView,
 } from '../../../shared'
 
 // 2026-10-17（周六）各时刻，UTC+8
@@ -26,6 +26,26 @@ const capabilities = (overrides: Partial<Record<CapabilityView['id'], Partial<Ca
 
 const act = (id: string, templateId: string, status: ActivityView['status'], fields: ActivityView['fields'] = {}, extra: Partial<ActivityView> = {}): ActivityView =>
   ({ id, taskId: 'task-mail', toolCallId: `tc-${id}`, templateId, status, fields, ...extra })
+
+/** 协作成员：只有预览用的假身份，不对应任何真实 DSH 会话 */
+const agent = (sessionId: string, name: string, patch: Partial<AgentView> = {}): AgentView => ({
+  address: { runtimeId: 'fake', projectId: 'fake', rootSessionId: 'root', sessionId, parentSessionId: sessionId === 'root' ? null : 'root' },
+  revision: 1, mode: 'teammate', name, taskLabel: null, activity: 'inactive', outcome: 'none', waitingFor: null,
+  controls: { message: true, interrupt: true }, usage: { admittedUnits: 1200, inputTokens: null, outputTokens: null },
+  sources: { status: 'clean', kinds: [] }, error: null, ...patch,
+})
+const agentWork = (templateId: string | null, focus: 'files' | 'research' | 'team', phase: 'tool' | 'thinking' | 'note' = 'tool', long = false) =>
+  ({ templateId, focus, phase, long, sinceMs: T.sat1420 + 12 * MIN - (long ? 24_000 : 8_000) })
+/** On-demand fake details live outside the fake snapshot, just like production. */
+export const fakeMemberSteps = (member: AgentView) => ({
+  withheld: member.sources.status !== 'clean',
+  steps: [
+    { templateId: 'dsh.read', status: 'completed' as const, durationMs: 1200, ...(member.sources.status === 'clean' ? { target: 'src/pages/index.html' } : {}) },
+    { templateId: 'dsh.search', status: 'completed' as const, durationMs: 1800, ...(member.sources.status === 'clean' ? { target: 'navigation' } : {}) },
+    { templateId: member.work?.templateId ?? 'dsh.edit', status: member.activity === 'running' && member.work?.phase === 'tool' ? 'running' as const : member.outcome === 'failed' ? 'failed' as const : 'completed' as const,
+      durationMs: member.activity === 'running' && member.work?.phase === 'tool' ? null : 3200, ...(member.sources.status === 'clean' ? { target: 'src/pages/index.html' } : {}) },
+  ],
+})
 
 const msg = (id: string, role: MessageView['role'], text: string, createdAtMs: number, extra: Partial<MessageView> = {}): MessageView =>
   ({ id, role, text, createdAtMs, status: 'complete', ...extra })
@@ -116,8 +136,35 @@ const base: AppSnapshot = {
 }
 
 const scenario = (patch: (s: AppSnapshot) => Partial<AppSnapshot>): AppSnapshot => ({ ...base, ...patch(base) })
+const teamPreview = (members: AgentView[]) => scenario((s) => ({
+  clock: { ...s.clock, nowMs: T.sat1420 + 12 * MIN },
+  companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'think' },
+  collaboration: { status: 'ready', runtimeId: 'fake', projectId: 'fake', tasks: [], members: [agent('root', '桃子', { mode: 'root', activity: 'running' }), ...members] },
+}))
 
 export const SCENARIOS = {
+  'team-workstations': teamPreview([
+    ...Array.from({ length: 4 }, (_, i) => agent(`file-${i}`, `茶桌${i + 1}`, { activity: 'running', work: agentWork('dsh.edit', 'files') })),
+    ...Array.from({ length: 2 }, (_, i) => agent(`research-${i}`, `书架${i + 1}`, { activity: 'running', work: agentWork('dsh.search', 'research') })),
+    ...Array.from({ length: 2 }, (_, i) => agent(`team-${i}`, `书桌${i + 1}`, { activity: 'running', work: agentWork('dsh.agent', 'team') })),
+    agent('entering', '刚加入', { activity: 'starting' }),
+  ]),
+  'team-statuses': teamPreview([
+    agent('thinking', '长思考', { activity: 'running', work: agentWork(null, 'files', 'thinking', true) }),
+    agent('waiting', '等待批准', { activity: 'waiting', waitingFor: 'approval' }),
+    agent('failed', '失败', { outcome: 'failed' }),
+    agent('completed', '完成', { outcome: 'completed' }),
+    agent('resting', '空闲'),
+    agent('stopping', '停止中', { activity: 'stopping', work: agentWork('dsh.plan', 'team') }),
+  ]),
+  'team-blocked': teamPreview([
+    agent('budget', '额度', { activity: 'waiting', waitingFor: 'budget', work: agentWork('dsh.read', 'files') }),
+    agent('recovery', '恢复', { activity: 'waiting', waitingFor: 'recovery', work: agentWork('dsh.read', 'files') }),
+    agent('peer', '同伴', { activity: 'waiting', waitingFor: 'member', work: agentWork('dsh.agent', 'team') }),
+    agent('unknown', '结果未知', { outcome: 'unknown' }),
+    agent('refused', '未获批准', { outcome: 'refused' }),
+    agent('aborted', '已停止', { outcome: 'aborted' }),
+  ]),
   /** 早晨，她在房间里，面向你；有一封新邮件，信箱口露出一封信 */
   'morning-idle': scenario((s) => ({
     clock: { ...s.clock, nowMs: T.sat0810 },
@@ -496,6 +543,29 @@ export const SCENARIOS = {
       desk: { path: String.raw`C:\Users\demo\Documents\桃子的房间\demo\书桌`, name: '书桌', desk: true, trusted: true },
       recent: [],
       status: 'idle',
+    },
+  })),
+  /** 团队远景：她把作业拆给几位帮手，房间里每位帮手按她的实际状态摆姿势（打字/等批准/交回结果/出错） */
+  'team-working': scenario((s) => ({
+    clock: { ...s.clock, nowMs: T.sat1420 + 12 * MIN },
+    companion: { ...s.companion, mode: 'work', pose: 'desk-computer', expression: 'think' },
+    task: { id: 'turn-3', status: 'running', steps: [] },
+    messages: [msg('t1', 'user', '把课程网站的三个页面分给帮手一起改，改完汇总给我', T.sat1420 + 10 * MIN), msg('t2', 'assistant', '好，我叫几位帮手一起来。', T.sat1420 + 10 * MIN + 5_000)],
+    collaboration: {
+      status: 'ready', runtimeId: 'fake', projectId: 'fake', tasks: [],
+      capacity: { teamUsed: 6, teamLimit: 8, resident: 6, activeLimit: 8 },
+      members: [
+        agent('root', '桃子', { mode: 'root', activity: 'running' }),
+        agent('m1', '首页', { taskLabel: '改首页的导航和配色', activity: 'running', work: agentWork('dsh.edit', 'files') }),
+        agent('m2', '课表页', { taskLabel: '课表页加上周次切换', activity: 'waiting', waitingFor: 'approval' }),
+        agent('m3', '作业页', { taskLabel: '作业页列出截止时间', outcome: 'completed', resultText: '作业页已列出 6 项截止时间，按日期排好；没有改动其他页面。' }),
+        agent('m4', '检查', { mode: 'subagent', taskLabel: '检查三个页面的链接', activity: 'running', work: agentWork('dsh.search', 'research'), sources: { status: 'restricted', kinds: ['web'] } }),
+        agent('m5', '图片', { mode: 'subagent', taskLabel: '压缩首页图片', outcome: 'failed', error: { code: 'internal', retryable: true } }),
+        agent('m6', '协调', { taskLabel: '和同伴核对任务', activity: 'running', work: agentWork(null, 'team', 'note') }),
+        agent('m7', '布局', { taskLabel: '整理页面布局', activity: 'running', work: agentWork(null, 'files', 'thinking', true) }),
+        agent('m8', '样式', { taskLabel: '修改公共样式', activity: 'running', work: agentWork('dsh.write', 'files') }),
+        agent('m9', '校验', { mode: 'subagent', taskLabel: '运行页面检查', activity: 'running', work: agentWork('dsh.shell', 'files') }),
+      ],
     },
   })),
   /** 第一次用：还没说过话，输入框上方是几个可以直接点的开头 */

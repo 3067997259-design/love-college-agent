@@ -34,7 +34,7 @@ async function accept(body) { const ack = await send(body); assert.equal(ack.sta
 async function waitFor(test, message) { for (let i = 0; i < 150; i++) { if (test(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(message) }
 async function debug(name, args = {}) { const value = await client.callTool({ name, arguments: args }); assert.ok(!value.isError); return JSON.parse(value.content[0].text) }
 async function reply(text = 'SYNTHETIC_ORDINARY_REPLY') { await debug('set_fake_model', { script: [{ text, toolCalls: [], delayMs: 0 }] }) }
-async function chat(text) { await accept({ type: 'message.send', text }); await waitFor((s) => s.task?.status === 'completed', 'CHAT_FAILED') }
+async function chat(text) { const previous = (await snapshot()).task?.id; await accept({ type: 'message.send', text }); await waitFor((s) => s.task?.id !== previous && s.task?.status === 'completed', 'CHAT_FAILED') }
 try {
   await profile(Date.parse('2026-10-16T12:00:00+08:00')); await launch(); assert.equal((await snapshot()).opticalMemory.enabled, false)
   const source = '2026年10月16日，我们一起折了蓝色的纸桥。作者叫林青，编号 B-104。\n我今天不交作业。\n' + '合成观察：我们把纸桥放回书桌，准备明天再看。'.repeat(45)

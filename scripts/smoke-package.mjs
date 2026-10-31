@@ -9,14 +9,16 @@ import { _electron } from 'playwright'
 import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const { version: appVersion } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
 const unpackedOnly = process.argv.includes('--unpacked-only')
-const release = join(root, 'release')
-const installer = join(release, `Love-College-Agent-${appVersion}-Setup.exe`)
+const release = resolve(process.env.LCA_RELEASE_DIR ?? join(root, 'release'))
+const buildReceipt = JSON.parse(await readFile(join(release, 'build-receipt.json'), 'utf8'))
+const appVersion = buildReceipt.appVersion
+assert.match(appVersion, /^\d+\.\d+\.\d+(?:-[a-z0-9.]+)?$/)
+assert.equal(buildReceipt.installerFileName, `Love-College-Agent-${appVersion}-Setup.exe`)
+const installer = join(release, buildReceipt.installerFileName)
 const reportPath = join(root, `test-results/package${unpackedOnly ? '-unpacked' : ''}-report.json`)
 await mkdir(dirname(reportPath), { recursive: true })
 await writeFile(reportPath, JSON.stringify({ ok: false, status: 'not-completed', attemptStartedAtIso: new Date().toISOString(), installer }, null, 2))
-const buildReceipt = JSON.parse(await readFile(join(release, 'build-receipt.json'), 'utf8'))
 assert.equal(buildReceipt.version, 1); assert.match(buildReceipt.sourceRevision, /^[a-f0-9]{40}$/)
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex')
 assert.equal(digest(await readFile(installer)), buildReceipt.installerSha256)
@@ -88,14 +90,14 @@ try {
   stage = 'history'
   await run(process.execPath, [join(root, 'scripts/smoke-history.mjs')])
   delete env.LCA_HISTORY_EXECUTABLE
-  const thirdCircleScenarios = [...new Set(['model-routing', 'model-slots', 'documents', 'campus', 'memory', 'harness', 'gifts', 'onboarding', 'life-work', 'sleep', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'booth', 'mini', 'showcase', 'life-port', 'resources', 'questions', 'settings', 'failure-narrator', 'privacy-probe', 'providers', 'plugins', 'student-hub-package', 'student-hub-candidates', 'documents', 'campus', 'pomodoro', 'model-routing', 'model-slots', 'gifts', 'room'])]
+  const thirdCircleScenarios = [...new Set(['model-routing', 'model-slots', 'documents', 'campus', 'memory', 'harness', 'gifts', 'onboarding', 'life-work', 'sleep', 'optical', 'minecraft', 'minecraft-images', 'minecraft-stdio', 'minecraft-mining', 'voice', 'booth', 'mini', 'showcase', 'life-port', 'resources', 'questions', 'settings', 'failure-narrator', 'privacy-probe', 'providers', 'plugins', 'student-hub-package', 'student-hub-candidates', 'pomodoro', 'room', 'extensions', 'collaboration', 'v12-recovery'])]
   env.LCA_TEST_EXECUTABLE = exe
-  for (const name of thirdCircleScenarios) { stage = 'scenario:' + name; await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs')]); completedScenarios.push(name); console.log(`${unpackedOnly ? 'Unpacked' : 'Installed'} Electron scenario passed: ${name}`); await new Promise((done) => setTimeout(done, 1500)) }
+  for (const name of thirdCircleScenarios) { stage = 'scenario:' + name; await run(process.execPath, [join(root, 'scripts/smoke-' + name + '.mjs'), ...(name === 'extensions' ? ['--verify-node-build'] : [])]); completedScenarios.push(name); console.log(`${unpackedOnly ? 'Unpacked' : 'Installed'} Electron scenario passed: ${name}`); await new Promise((done) => setTimeout(done, 1500)) }
   delete env.LCA_TEST_EXECUTABLE
   const bytes = await readFile(installer)
   const report = { ok: true, status: 'passed', atIso: new Date().toISOString(), installer, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
     executionTarget: unpackedOnly ? 'unpacked' : 'installed', appVersion,
-    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: !unpackedOnly, privateSaveProbe: true, installedUiRestart: !unpackedOnly, unpackedUiRestart: unpackedOnly, historyQuoteAndPhoto: true, secondCircleProbes: ['memory', 'life', 'heart-flow'], buildReceipt, thirdCircleScenarios,
+    unsigned: true, secretsExcluded: true, nativeUnpacked: true, unpackedProbes: true, installedProbes: !unpackedOnly, privateSaveProbe: true, installedUiRestart: !unpackedOnly, unpackedUiRestart: unpackedOnly, historyQuoteAndPhoto: true, secondCircleProbes: ['memory', 'life'], buildReceipt, thirdCircleScenarios,
     syntheticServices: true, realProviderQualityAccepted: false }
   await writeFile(reportPath, JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report))

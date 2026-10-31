@@ -9,7 +9,7 @@ import { sessionDayKey } from '../journal/file'
 
 type Cause = Extract<JournalInput, { type: 'question/closed' }>['cause']
 type Reply = { id: string; turnId: string; callId: string; answerId: string; unlisten(): void }
-type Pending = { id: string; turnId: string; callId: string; question: string; choices: string[]; items?: QuestionItem[]; approval: boolean; createdAtMs: number;
+type Pending = { id: string; turnId: string; callId: string; question: string; choices: string[]; items?: QuestionItem[]; approval: boolean; detached: boolean; createdAtMs: number;
   remainingMs: number; expiresAtMs?: number; shown: boolean; cancelTimer?: () => void; unlisten(): void; resolve(result: ToolResult): void }
 const result = (value: Record<string, string | readonly QuestionAnswer[]>, ok = false): ToolResult => { const json = JSON.parse(JSON.stringify(value)) as ToolResult['raw']; return { ok, raw: json, visible: json } }
 
@@ -51,7 +51,7 @@ export function createQuestions(options: { store: SessionStore; clock: Clock; ch
     const job = pending; if (!job) return
     const state = store.projection()
     if (closed || !enabled) { finish('disabled'); return }
-    if (state.lightsOut || state.sleeping || state.task?.id !== job.turnId || !['running', 'waiting-user'].includes(state.task.status)) { finish('cancelled'); return }
+    if (state.lightsOut || state.sleeping || !job.detached && (state.task?.id !== job.turnId || !['running', 'waiting-user'].includes(state.task.status))) { finish('cancelled'); return }
     const quiet = state.mode === 'quiet' || state.pomodoro.phase === 'focus'
     if (quiet && job.expiresAtMs !== undefined) {
       job.remainingMs = Math.max(0, job.expiresAtMs - clock.nowMs()); job.cancelTimer?.(); delete job.cancelTimer; delete job.expiresAtMs; options.changed()
@@ -72,9 +72,9 @@ export function createQuestions(options: { store: SessionStore; clock: Clock; ch
   }
   // An approval is LCA asking the user on her behalf (DSH permissions): answered by one of its choices, and not
   // counted against the questions she may ask, so a busy work day never turns approvals into silent refusals.
-  const open = async (request: { question: string; choices: string[]; items?: QuestionItem[] }, context: ToolContext, approval: boolean): Promise<ToolResult> => {
+  const open = async (request: { question: string; choices: string[]; items?: QuestionItem[] }, context: ToolContext, approval: boolean, detached = false): Promise<ToolResult> => {
     const state = store.projection(); const callId = context.callId
-    if (!callId || context.signal.aborted || pending || closed || !enabled || state.lightsOut || state.sleeping || state.task?.id !== context.turnId) return result({ status: 'unavailable' })
+    if (!callId || context.signal.aborted || pending || closed || !enabled || state.lightsOut || state.sleeping || !detached && state.task?.id !== context.turnId) return result({ status: 'unavailable' })
     const values = [request.question, ...request.choices, ...(request.items ?? []).flatMap((item) => [item.header ?? '', item.question, ...item.options.flatMap((option) => [option.label, option.description ?? ''])])]
     if (values.some((text) => options.safeText(text) !== text)) return result({ status: 'invalid-question' })
     // A busy session may span 04:00 and rotate later. Count by event time across scoped pages.
@@ -86,7 +86,7 @@ export function createQuestions(options: { store: SessionStore; clock: Clock; ch
     return new Promise<ToolResult>((resolve) => {
       const aborted = () => { if (pending?.id === id) finish('cancelled'); const reply = ready.get(id); if (reply) dropReply(reply) }
       context.signal.addEventListener('abort', aborted, { once: true })
-      pending = { id, turnId: context.turnId, callId, question: request.question, choices: request.choices, ...(request.items ? { items: request.items } : {}), approval, createdAtMs: clock.nowMs(), remainingMs: 600_000, shown: false,
+      pending = { id, turnId: context.turnId, callId, question: request.question, choices: request.choices, ...(request.items ? { items: request.items } : {}), approval, detached, createdAtMs: clock.nowMs(), remainingMs: 600_000, shown: false,
         unlisten: () => context.signal.removeEventListener('abort', aborted), resolve }
       stateChanged(); options.changed()
     })
@@ -117,9 +117,9 @@ export function createQuestions(options: { store: SessionStore; clock: Clock; ch
       const parsed = itemsInput.safeParse(items)
       return parsed.success ? open({ question: parsed.data[0].question, choices: [], items: parsed.data }, context, false) : Promise.resolve(result({ status: 'invalid-question' }))
     },
-    approve: (input: { question: string; choices: string[] }, context: ToolContext) => {
+    approve: (input: { question: string; choices: string[] }, context: ToolContext, member = false) => {
       const parsed = questionInput.safeParse(input)
-      return parsed.success ? open({ question: parsed.data.question, choices: parsed.data.choices ?? [] }, context, true) : Promise.resolve(result({ status: 'unavailable' }))
+      return parsed.success ? open({ question: parsed.data.question, choices: parsed.data.choices ?? [] }, context, true, member) : Promise.resolve(result({ status: 'unavailable' }))
     },
     dispatch: (command: AppCommand, signature: string): PublicErrorCode | undefined => {
       stateChanged(); const job = pending

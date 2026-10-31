@@ -8,7 +8,7 @@ import { runtimeEnv, electronLaunchTarget } from './runtime-env.mjs'
 
 /**
  * Install/enable the local Student Hub candidate plugin into an existing profile.
- * Usage: node scripts/install-student-hub-candidates.mjs "D:\lca-live-test\data-live-2"
+ * Usage: node scripts/install-student-hub-candidates.mjs "D:\lca-workspace\test-runs\lca-live-test\data-live-2"
  * This never starts a visible window: LCA_TEST_SILENT=1 makes the book transparent/inactive.
  */
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')

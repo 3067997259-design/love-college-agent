@@ -3,6 +3,8 @@ import type { AppBridge, AppSnapshot, ModelProviderSlot, ModelSettingsView, Mode
 import { sendCommand, type CommandBody } from '../book/command'
 import { SettingsIssue } from './SettingsIssue'
 import { ServiceControls } from './ServiceControls'
+import { ModelCapabilities } from './ModelCapabilities'
+import { ProbeOutcome } from './ProbeOutcome'
 import words from '../voice/settings.zh.json'
 import copy from '../voice/providers.zh.json'
 import './providers.css'
@@ -128,6 +130,8 @@ function ProviderCard({ slot, bridge, epoch, configured, mainConfigured, mode, p
   // The model this slot runs on: its own, or the chat model's when it follows. A privacy filter that
   // follows is no filter at all (the chat model reads the originals), so it names no model.
   const effective = followsMain ? mainConfigured && slot !== 'privacy' ? chatDetail : undefined : configured ? detail : undefined
+  const manualReasoning = effective?.capabilities?.declared?.reasoning
+  const mappedDefault = manualReasoning && typeof manualReasoning.off === 'string'
   return <section className="provider-card" data-slot={slot} data-probe={probe?.status ?? 'none'}>
     <header className="provider-head"><strong>{label}</strong><span className="provider-state" data-ok={probe?.status === 'ok'}>{status}</span></header>
     {(slot === 'privacy' || slot === 'background' || slot === 'work') && <label className="provider-field">{copy.routing}
@@ -146,13 +150,15 @@ function ProviderCard({ slot, bridge, epoch, configured, mainConfigured, mode, p
       <label className="provider-field">{copy.effort}
         {levels?.length
           ? <select aria-label={copy.effort} value={effort && levels.includes(effort) ? effort : ''} onChange={(event) => void selectEffort(event.target.value)}>
-            <option value="">{copy.effortDefault}</option>
+            <option value="">{mappedDefault ? 'DSH 默认（使用关闭档位映射）' : copy.effortDefault}</option>
             {levels.map((level) => <option key={level} value={level}>{copy.efforts[level]}</option>)}
           </select>
-          : <span className="provider-effort-none">{levelsKnown ? copy.effortUnknown : copy.effortWaiting}</span>}
+          : <span className="provider-effort-none">{manualReasoning === false ? '已手动声明不提供思考档位。' : levelsKnown ? copy.effortUnknown : copy.effortWaiting}</span>}
       </label>
       {levels?.length ? <p className="provider-hint">{copy.effortHint[role]}</p> : null}
+      {mappedDefault && <p className="provider-hint">DSH 的默认请求也会使用你填写的关闭档位 API 值；其他档位使用各自的映射。</p>}
     </div>}
+    {role && effective?.modelRef && effective.capabilities && !showForm && <ModelCapabilities key={effective.modelRef} bridge={bridge} epoch={epoch} slot={followsMain ? 'chat' : slot} detail={effective} status={settingsStatus} />}
     {showForm && <>
     <label className="provider-field">{copy.preset}
       <select aria-label={copy.preset} value="" onChange={(event) => {
@@ -182,7 +188,7 @@ function ProviderCard({ slot, bridge, epoch, configured, mainConfigured, mode, p
     </div>
     {dirty && configured && !testing && <p className="provider-note">{copy.saveBeforeTest}</p>}
     {notice && (notice !== copy.saved || settingsStatus === 'saved') && <p className="provider-note" role="status">{notice}</p>}
-    {probe?.status === 'failed' && <div className="provider-probe-failed"><p>{copy.probeFailed}</p><SettingsIssue code={probe.code} /></div>}
+    {probe && <ProbeOutcome probe={probe} slot={slot} slotLabel={label} bridge={bridge} />}
     {error && <SettingsIssue code={error} />}
   </section>
 }

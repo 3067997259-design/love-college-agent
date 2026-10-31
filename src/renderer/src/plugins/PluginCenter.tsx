@@ -2,6 +2,9 @@ import { useState } from 'react'
 import type { AppBridge, AppSnapshot, McpServerView, PluginView } from '../../../shared'
 import { sendCommand, type CommandBody } from '../book/command'
 import { MinecraftControls } from '../tools/MinecraftControls'
+import { QuestionControls } from '../book/QuestionControls'
+import { ExtensionPanel } from './ExtensionPanel'
+import { SkillsPanel } from './SkillsPanel'
 import { SettingsIssue, settingStatus } from '../tools/SettingsIssue'
 import copy from '../voice/plugins.zh.json'
 import './plugins.css'
@@ -64,6 +67,7 @@ export function PluginCenter({ snapshot, bridge }: { snapshot: AppSnapshot; brid
   const mode = snapshot.runtime?.developer.mode ?? 'normal'
   const plugins = snapshot.runtime?.plugins ?? []
   const servers = snapshot.mcp?.servers ?? []
+  const managementBusy = snapshot.extensions?.status === 'reconciling' || snapshot.extensions?.operations.some((operation) => operation.outcome === 'pending') || snapshot.skills?.status === 'loading'
 
   const builtinRows: Row[] = plugins
     .filter((plugin) => plugin.source === 'builtin' && (BUILTIN[plugin.id] || plugin.id === 'developer' && mode === 'developer'))
@@ -85,12 +89,6 @@ export function PluginCenter({ snapshot, bridge }: { snapshot: AppSnapshot; brid
     const query = search.trim().toLowerCase()
     return !query || row.name.toLowerCase().includes(query) || row.description.toLowerCase().includes(query)
   })
-  const skills = [
-    ...plugins.filter((plugin) => plugin.source === 'folder' && plugin.status === 'enabled')
-      .flatMap((plugin) => plugin.tools.map((name) => ({ key: `${plugin.id}:${name}`, name, source: plugin.name }))),
-    ...servers.filter((server) => server.status === 'ready')
-      .flatMap((server) => server.tools.map((name) => ({ key: `${server.id}:${name}`, name, source: server.id }))),
-  ]
 
   const dispatch = async (body: CommandBody, key: string) => {
     setBusy(key); setRowError('')
@@ -101,7 +99,7 @@ export function PluginCenter({ snapshot, bridge }: { snapshot: AppSnapshot; brid
   }
 
   const toggle = (row: Row) => {
-    if (busy) return
+    if (busy || managementBusy) return
     if (row.kind === 'mcp') {
       const server = row.server
       if (server.status === 'ready' || server.status === 'connecting') void dispatch({ type: 'mcp.disconnect', serverId: server.id }, row.key)
@@ -129,7 +127,7 @@ export function PluginCenter({ snapshot, bridge }: { snapshot: AppSnapshot; brid
   }
 
   const submitAdd = async () => {
-    if (!addMode || !path.trim() || busy) return
+    if (!addMode || !path.trim() || busy || managementBusy) return
     setBusy('add'); setDialogError('')
     const body: CommandBody = addMode === 'mcp'
       ? { type: 'mcp.configure.path', path: path.trim() }
@@ -146,7 +144,7 @@ export function PluginCenter({ snapshot, bridge }: { snapshot: AppSnapshot; brid
     const enabled = row.kind === 'mcp'
       ? row.server.status === 'ready' || row.server.status === 'connecting'
       : row.plugin.status === 'enabled'
-    const disabled = busy === row.key
+    const disabled = busy === row.key || managementBusy
       || row.kind === 'folder' && ['incompatible', 'failed'].includes(row.plugin.status)
       || row.kind === 'builtin' && ['incompatible', 'failed'].includes(row.plugin.status)
     return (
@@ -154,7 +152,7 @@ export function PluginCenter({ snapshot, bridge }: { snapshot: AppSnapshot; brid
         <div className="plugin-row-head">
           <button type="button" className="plugin-row-main" onClick={() => setExpanded(open && expanded === row.key ? null : row.key)} aria-expanded={open}>
             <PluginIcon kind={row.icon} />
-            <span className="plugin-row-text"><strong>{row.name}</strong><small>{row.description}</small></span>
+            <span className="plugin-row-text"><strong>{row.name}</strong><small>{row.description}</small><small>{row.kind === 'mcp' ? `MCP · LCA 管理 · ${settingStatus(row.server.status)}` : `LCA 插件 · ${settingStatus(row.plugin.status)}`}</small></span>
           </button>
           <button type="button" className="plugin-switch" role="switch" aria-checked={enabled} aria-label={`${row.name} · ${enabled ? (row.kind === 'mcp' ? copy.disconnect : copy.disable) : (row.kind === 'mcp' ? copy.connect : copy.enable)}`}
             data-on={enabled} disabled={disabled} onClick={() => toggle(row)}>
@@ -199,6 +197,7 @@ export function PluginCenter({ snapshot, bridge }: { snapshot: AppSnapshot; brid
           <input className="plugin-search" type="search" aria-label={copy.search} placeholder={copy.search} value={search} onChange={(event) => setSearch(event.target.value)} />
           {notice && <p className="plugin-notice" role="status">{notice}</p>}
           <div className="plugin-scroll">
+            <ExtensionPanel snapshot={snapshot} bridge={bridge} search={search} />
             <h3 className="plugin-section">{copy.builtin}</h3>
             <ul className="plugin-list">{visible(builtinRows).map(renderRow)}</ul>
             <h3 className="plugin-section">{copy.installedPlugins}</h3>
@@ -209,15 +208,8 @@ export function PluginCenter({ snapshot, bridge }: { snapshot: AppSnapshot; brid
                 : <ul className="plugin-list">{visible(externalRows).map(renderRow)}</ul>}
             <SettingsIssue code={rowError || snapshot.mcp?.error?.code} />
           </div>
-        </> : (
-          <div className="plugin-scroll">
-            {skills.length === 0 ? <p className="plugin-empty">{copy.skillsEmpty}</p> : (
-              <ul className="plugin-skills">
-                {skills.map((skill) => <li key={skill.key}><span className="plugin-skill-name">{skill.name}</span><small>{skill.source}</small></li>)}
-              </ul>
-            )}
-          </div>
-        )}
+        </> : <SkillsPanel snapshot={snapshot} bridge={bridge} />}
+        {snapshot.question && <div className="plugin-question"><QuestionControls snapshot={snapshot} bridge={bridge} /></div>}
       </div>
 
       {addMode && <div className="plugin-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setAddMode(null) }}>
@@ -230,7 +222,7 @@ export function PluginCenter({ snapshot, bridge }: { snapshot: AppSnapshot; brid
           <p className="plugin-dialog-note">{copy.addNote}</p>
           {dialogError && <p className="plugin-dialog-error" role="alert">{addMode === 'mcp' ? copy.mcpFailed : copy.installFailed} <code>{dialogError}</code></p>}
           <div className="card-actions">
-            <button type="button" className="btn btn-primary btn-small" disabled={!path.trim() || busy === 'add'} onClick={() => void submitAdd()}>{copy.install}</button>
+            <button type="button" className="btn btn-primary btn-small" disabled={!path.trim() || busy === 'add' || managementBusy} onClick={() => void submitAdd()}>{copy.install}</button>
             <button type="button" className="btn btn-ghost btn-small" onClick={() => setAddMode(null)}>{copy.cancel}</button>
           </div>
         </section>
@@ -284,6 +276,8 @@ function McpConfig({ row, snapshot, bridge, approving, onApprove, onCancel }: {
   const gameMode = snapshot.runtime?.developer.mode !== 'normal'
   return <div className="plugin-config">
     <p className="plugin-meta">{settingStatus(server.status)} · {server.transport === 'stdio' ? '本地服务' : '远程服务'} · {server.tools.length} 项工具</p>
+    <p className="plugin-meta">来源：{server.source === 'fake' ? '合成测试服务' : '已导入的 MCP 配置'} · 由 LCA 连接并提供给 DSH · 重启后需重新连接</p>
+    <SettingsIssue code={server.error?.code} />
     <p className="plugin-meta">{copy.privacy}：{server.privacy === 'always' ? copy.privacyAlways : copy.privacyNone}</p>
     <details className="plugin-details"><summary>{copy.fingerprint}</summary><code>{server.fingerprint}</code></details>
     {server.tools.length > 0 && <details className="plugin-details"><summary>{copy.toolsLabel} · {server.tools.length}</summary><p>{server.tools.join('、')}</p></details>}

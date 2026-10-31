@@ -11,7 +11,7 @@ import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } fr
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', 'routing-smoke-' + randomUUID())
-const calls = []; let denyPrivacy = false; let holdOrganization = false; let releaseOrganization
+const calls = []; const mainDiagnostics = []; let denyPrivacy = false; let holdOrganization = false; let releaseOrganization
 // Her conversation runs on DSH: LCA tools carry the lca_ prefix, your words are the last text block of their message
 // (LCA's references come first), and DSH adds its own reminders and runtime context as user messages.
 const partsOf = (content) => typeof content === 'string' ? [content] : (content ?? []).map((part) => part?.text ?? '')
@@ -61,7 +61,11 @@ let instance; let page
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) }, body)
 const waitFor = async (check, label) => { for (let i = 0; i < 200; i++) { if (await check(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(label) }
-async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env }); page = await instance.firstWindow(); page.setDefaultTimeout(15000); await initializeTestBook(page) }
+async function launch() {
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env })
+  instance.process().stderr?.on('data', (chunk) => mainDiagnostics.push(...(chunk.toString().match(/DSH_SESSION_FAILED[^\r\n]*/g) ?? [])))
+  page = await instance.firstWindow(); page.setDefaultTimeout(15000); await initializeTestBook(page)
+}
 async function configure(slot) {
   assert.equal((await send({ type: 'models.provider.save', slot, baseUrl: `http://127.0.0.1:${server.address().port}/v1`, model: 'synthetic-' + slot, apiKey: 'synthetic-routing-secret' })).status, 'accepted')
   await waitFor((s) => s.modelSettings.status === 'saved' && s.modelSettings.configuredSlots.includes(slot), 'CONFIG_NOT_APPLIED')
@@ -69,7 +73,18 @@ async function configure(slot) {
 async function chat(text) {
   const previous = (await snapshot()).task?.id
   assert.equal((await send({ type: 'message.send', text })).status, 'accepted')
-  await waitFor((s) => s.task?.id !== previous && s.task?.status === 'completed', 'CHAT_FAILED')
+  let approvedRead = false
+  await waitFor(async (s) => {
+    // P2 gates the second LCA tool after mail-derived results. Drive that real approval in this synthetic fixture.
+    if (text === '立即读这份刚上传的文件。' && s.question?.status === 'queued') await send({ type: 'mode.set', mode: 'rest' })
+    if (text === '立即读这份刚上传的文件。' && !approvedRead && s.question?.status === 'waiting' && s.question.kind === 'approval') {
+      assert.ok(s.question.question.includes('读过邮件原文')); assert.ok(s.question.choices.includes('允许这一次'))
+      approvedRead = true
+      assert.equal((await send({ type: 'question.answer', questionId: s.question.id, answer: '允许这一次' })).status, 'accepted')
+      await send({ type: 'mode.set', mode: 'quiet' })
+    }
+    return s.task?.id !== previous && s.task?.status === 'completed'
+  }, 'CHAT_FAILED')
   return calls.filter((call) => call.tools?.length).at(-1)
 }
 async function file(name, content, status = 'ready') {
@@ -117,6 +132,10 @@ class StudentHubAssistant:
   for (const action of ['health', 'scan', 'status', 'collect']) {
     const request = await chat('校园助手测试：' + action)
     assert.ok(!JSON.stringify(request).includes('UNIFIED_SOURCE_ONLY'), 'PLUGIN_EVIDENCE_LEAKED_TO_TOOL_CONTEXT')
+    const names = request.tools.map((tool) => tool.function?.name ?? tool.name)
+    assert.equal(new Set(names).size, names.length, 'DUPLICATE_TOOL_NAMES')
+    assert.equal(names.filter((name) => /^(?:lca_)?campus_assistant$/.test(name)).length, 1, 'CAMPUS_ENTRY_NOT_UNIQUE')
+    assert.ok(!names.some((name) => name.includes('import_student_hub_candidates') || name.includes('mcp_student-hub_')), 'LEGACY_CAMPUS_TOOL_DUPLICATED')
   }
   await waitFor((s) => s.candidates.some((candidate) => candidate.status === 'candidate'), 'SCANNED_EVIDENCE_NOT_TRIAGED')
   const proposed = (await snapshot()).candidates.find((candidate) => candidate.status === 'candidate')
@@ -166,4 +185,12 @@ class StudentHubAssistant:
     for (const marker of ['UNIFIED_SOURCE_ONLY', 'IMMEDIATE_UPLOAD_SOURCE', 'IGNORED_MAIL_SOURCE', 'FOLLOW_MAIN_SOURCE', 'ISOLATED_SOURCE', 'FAILED_PRIVATE_SOURCE', 'synthetic-routing-secret']) assert.ok(!journal.includes(marker), 'RAW_SOURCE_IN_JOURNAL')
   }
   console.log(JSON.stringify({ ok: true, probe: 'model-routing', unifiedCampusPlugin: true, scanToCandidateAndLocalDelivery: true, ignoredMailThenImmediateUpload: true, processingSourceReadable: true, progressVisible: true, hotChat: true, followsMainRaw: true, isolatedNoRaw: true, failedClosed: true, historicalIsolation: true, restart: true, noRawSourceJournal: true, syntheticOnly: true }))
+} catch (error) {
+  const state = page && !page.isClosed() ? await snapshot().catch(() => null) : null
+  const evidence = join(root, 'test-results', 'model-routing-' + randomUUID())
+  await mkdir(evidence, { recursive: true })
+  await writeFile(join(evidence, 'failure.json'), JSON.stringify({ error: String(error), data, executable: process.env.LCA_TEST_EXECUTABLE ?? electronPath, mainDiagnostics,
+    task: state?.task, question: state?.question, modelSettingsStatus: state?.modelSettings.status, syntheticOnly: true }, null, 2))
+  console.error('MODEL_ROUTING_FAILURE', evidence, mainDiagnostics)
+  throw error
 } finally { releaseOrganization?.(); await instance?.close().catch(() => {}); server.closeAllConnections(); await new Promise((done) => server.close(done)) }

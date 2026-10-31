@@ -12,6 +12,8 @@ pnpm test
 
 纯文档改动检查链接、命令、一致性和 `git diff --check`，无需为文案重跑所有 Electron 场景。代码改动先跑相关单测与场景，扩大检查须有具体原因。
 
+GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型、lint 和单元测试。旧心流的 `probe:desk-command:runtime` 已随功能移除，不再作为 CI 入口；DSH、包内流程和实际升级仍按下文单独验收，不由静态 CI 结果替代。
+
 ## 主要场景
 
 | 命令 | 核验重点 |
@@ -19,17 +21,36 @@ pnpm test
 | `test:electron`、`probe:sqlite`、`probe:journal` | 原生模块、受限 IPC、日志和重启 |
 | `test:harness`、`test:failure-narrator`、`test:questions` | 工具回合、取消、失败与有界询问 |
 | `test:developer` | 开发者 profile、调试 MCP、脚本模型经本地接口跑在 DSH 上、场景导出与展位拒绝 |
-| `test:providers`、`test:model-slots`、`test:model-routing` | 配置、热路由、隔离、上下文、候选和重启 |
+| `test:providers`、`test:model-slots`、`test:model-routing` | 配置、热路由、隔离、上下文、候选和重启；`test:providers` 另覆盖经 DSH 的连接测试、错误密钥的三角警示与详情对话框（服务商原话、请求地址、Esc 关闭后焦点返回）及快照不含密钥 |
 | `test:documents`、`test:campus` | 文件解析、原文边界、版本确认与真实本地交付 |
 | `test:plugins`、`test:mcp`、`test:student-hub`、`test:student-hub-candidates` | 安装、指纹、工具白名单与兼容入口 |
 | `test:memory`、`test:history`、`test:optical` | 来源、摘要、旧页、可选光学守卫和恢复 |
 | `test:pomodoro`、`test:mini`、`test:resources` | 计时、双窗口、显示器边界与资源准入 |
-| `test:dsh-bridge` | 真实 DSH 运行时 + 本地脚本模型：引用随开场消息、下一轮退役（含重启后）；第三方结果降级本轮、下一轮退役（含重启后）；聊天与工作模型交接、思考档位、自主额度、事件步数上限、项目信任 |
-| `test:life-port`、`test:life-work`、`test:sleep`、`test:room` | 生活状态、实际产物、日记与重启 |
+| `test:dsh-bridge` | 真实 DSH 运行时 + 本地脚本模型：引用及本地时间 / 时区随开场消息、下一轮退役（含重启后）；第三方结果降级本轮、下一轮退役（含重启后）；聊天与工作模型交接、思考档位、自主额度、事件步数上限、项目信任；`probe` 场景经真实适配器做连接测试（一条路由通过，另一条返回 401 与服务商原话） |
+| `test:state-routing` | 隔离 Electron + 本地 HTTP：门牌直接工作、文本状态交接、过期回复拒绝、状态持久化与无重放重启。DSH bridge 的 `state-*` 场景另覆盖截断、主进程拒绝及交接后来源限制不降级 |
+| `test:model-capabilities` | 隔离 Electron / HOME + 本地 HTTP：手动能力保存及 DSH 元数据、思考参数映射、off 的省略 / 显式值 / 默认语义、输出上限、图片正反路径、模型切换、重启、恢复自动与凭据隔离 |
+| `test:dsh-family` | 1.2 P2：临时项目／HOME／profile、本机脚本模型；真实 DSH + 生产 bridge 的成员审批、撤销、闲置主角色、多层委派、跨项目拒绝、迟到消息、摘要与冷恢复，原 14 场景，加 P3 的 `spawn-manager` 权限绕过回归，共 15 场景。fixture 不代改权限或退役内容；合成证据边界见 [P2 回执](research/v1.2-p2-20261023.md)。原反例保留在 [P0 / P1 回执](research/v1.2-p0-p1-20261023.md)对应提交 |
+| `test:dsh-extensions` | P3：隔离 HOME / profile / 本地合成 bundle，生产 main 服务和 bridge、Electron Node 模式与随附 pnpm；PATH 排除系统 Node / pnpm。完整生命周期、独立脚本批准、运行中取消、丢失 IPC 回执冷恢复、核心保护与加载失败状态。不是页面或安装升级验收，见 [P3 回执](research/v1.2-p3-20261023.md) |
+| `test:extensions` | P4：隔离 Electron 书页、原生选择的合成目录与逐次审批；本地 bundle 安装 / 启停 / 重启 / 移除、独立构建批准、丢失回执后同 ID 核对，Markdown 技能导入 / 优先级 / 修改删除 / 跨项目 / 冷启，以及实际 DSH 技能与 MCP 调用。仅本机合成模型与服务，截图和回执写到 `test-results/p4-*`，见 [P4 回执](research/v1.2-p4-20261023.md) |
+| `test:dsh-collaboration` | P5：固定 DSH 的普通委派 / Team 共存、单一控制路由、成员关系、任务 revision / 依赖 / 范围提示、持久来源退役、两类容量、失败占位、断连回执、冷恢复及整组自主额度；Electron Node 模式，隔离 HOME / profile，PATH 排除系统 Node / pnpm |
+| `test:collaboration` | P5：实际书页中的成员和任务、消息、单成员停止、整组停止、断连后刷新核对同一操作、冷恢复及窄窗口；V1：有成员干活时左页拉远、人数与忙碌者对应，全部停下回近景，冷恢复后手动看房间、点帮手的卡片与“更多”；只用本机脚本模型。复用已构建产物可运行 `node scripts/smoke-collaboration.mjs`；设置 `LCA_TEST_EXECUTABLE` 可指定包内 EXE。证据在 `test-results/p5-*`，见 [P5 回执](research/v1.2-p5-20261024.md) |
+| `test:v12-recovery` | P6：跨项目、冷启动、审批中取消、成员忙碌边界、DSH 退出、来源退役的实际请求、可控时钟日切、私人存档恢复及再次冷启。隔离 profile / HOME / 项目、本机脚本模型；可用 `LCA_TEST_EXECUTABLE` 复跑包内 EXE。不是实际跨日长期使用，见 [P6 回执](research/v1.2-p6-20261024.md) |
+| `test:sleep` | 隔离 Electron 与合成时钟 / 模型：手动睡眠、夜灯 / 熄灯、夜间安全日切、06:00 自动醒来、08:22 恢复时校正、手动存档保留、最终素材与动画完成截图 |
+| `test:life-port`、`test:life-work`、`test:room` | 生活状态、实际产物、日记与重启 |
 | `test:gifts`、`test:backup`、`test:characters` | 礼物同意、存档与角色作用域 |
 | `test:package --unpacked-only` | 构建回执、包内 EXE 和独立测试数据 |
 
 表中省略 `pnpm` 前缀。多数 Electron 脚本自带 build；复用构建或指定安装 EXE 时先读对应脚本，不能随意绕过前置检查。
+
+`dsh-bridge-check.mjs state-source-restart` 覆盖读外部来源后切换状态、下一轮来源退役并执行新命令、第三轮冷恢复。系统 / 开发者提示的替换记录必须在 DSH 已打开的步骤内写入当前坐标：桥在 `agent/request` 钩子完成退役，再允许模型请求；不能在 `session/event` 内递归追加。会话不存在才允许新建，损坏或不可读的既有日志保留原错误和文件。此修复防止生成新的损坏记录，不自动修复旧日志。
+
+团队远景 V2 补充检查：`tests/unit/dsh-member-focus.test.ts` 用假时钟核对窗口、换位与长思考；`dsh-member-steps.test.ts` 验证有界回放、路径 / URL 摘要、来源退役后仍隐藏旧目标和字段剥离；`team-scene.test.ts` 验证按种类摆位、稳定座位、溢出与家具深度。`test:dsh-collaboration` 新增工具 / 思考 / 同伴消息阶段、最近 12 步、成败、已卸载成员的只读回放、跨根拒绝和受限来源隐藏目标。`test:collaboration` 新增实际子代理读文件后的 `data-station`、中文步骤卡片与快照无目标检查。
+
+`node scripts/team-room-preview.mjs` 用本机已装 Chrome 检查 `team-working`、`team-workstations`、`team-statuses`、`team-blocked` 假场景，保存工位 / 状态、白天、夜间、减少动画、干净 / 受限卡片和窄窗口截图到 `test-results/team-v2-preview/`。验证全部 15 张小桃子与 2 台电脑、每个茶桌座位一台电脑、可见头部点击、键盘与焦点返回，并检查隐藏房间不截获点击。开发场景切换条在检查书页切镜前移到顶部；实际安装包不带此工具条。`--serve` 只启动预览服务，端口由 `LCA_SHOT_PORT` 指定。不下载浏览器，不调用真实模型；这些截图不代表真实模型日用验收。
+
+若需要单独复核团队房间，可在 build 后运行 `node scripts/smoke-collaboration.mjs --team-room-only`：仍检查消息、停止、任务操作、冷恢复和新书页路径，只把“丢失回执”故障注入换成正常重开任务。回执写明 `teamOnly: true`，不能称为完整验收。2026-10-28 已修复回执先通知后落盘的竞态并通过完整脚本，旧失败证据保留。
+
+2026-10-28 的检查结果、失败证据与美术交接见[团队远景 V2 回执](research/team-room-v2-20261028.md)。
 
 开发者场景的脚本回复由本地模型接口交给 DSH：脚本里不带 `lca_` 前缀的 LCA 工具名会按 DSH 提供的名字发出；`get_context` 是 DSH 最近一次发给模型的请求。她的回合比旧循环慢一点：脚本要等模型请求真正到达（看 `get_context`）再拨时钟，她说话时被拒绝的命令（如导出存档）用 `whenIdle` 重发。
 
@@ -51,6 +72,32 @@ pnpm test
 ## 安装与发布
 
 `test:package --unpacked-only` 不安装 / 卸载，不能称为安装器升级验收。默认 `test:package` 发现已有同名用户安装会拒绝，不覆盖用户实例。
+
+所有支持 `LCA_TEST_EXECUTABLE` 的书页检查都必须启动指定的包内 EXE；共同初始化还会核对实际页面来自该 EXE 的 `resources/app.asar`。不能把源码 Electron 的结果记到候选包上。若完整检查中断，保留失败回执；只有固定同一个 app.asar 哈希、逐项记录脚本与辅助函数哈希，才能续跑未完成的矩阵。续跑集合通过不等于原来中断的整条命令退出码为 0。
+
+包内矩阵的扩展场景加 `--verify-node-build`：应用 PATH 仅保留 Windows 目录，确认 `node` / `pnpm` 无法解析，再经书页分别批准安装和 JavaScript 构建，核对实际构建产物与执行二进制属于同一 Electron。可以用 `node scripts/smoke-extensions.mjs --verify-node-build` 单独复跑；此项仍是本机隔离证据，不代替第二机验收。
+
+rc.2 之后的候选还需补跑门牌 / 文本状态交接与模型能力书页；它们目前未列入 `smoke-package.mjs` 的 34 项矩阵。完整矩阵已包含 `smoke-collaboration.mjs`（不加 `--team-room-only`）及 `smoke-v12-recovery.mjs`，应核对报告中的实际 EXE、完整协作的 `teamOnly: false` 和同一 app.asar 哈希。以下命令按顺序执行，`LCA_RELEASE_DIR` 先指向本轮候选的干净绝对输出目录：
+
+```powershell
+node scripts/smoke-package.mjs --unpacked-only
+$env:LCA_TEST_EXECUTABLE = Join-Path $env:LCA_RELEASE_DIR 'win-unpacked/LoveCollegeAgent.exe'
+node scripts/smoke-state-routing.mjs
+node scripts/smoke-model-capabilities.mjs
+Remove-Item Env:LCA_TEST_EXECUTABLE
+# 核对固定 1.1.0 安装器并设置 LCA_BASELINE_INSTALLER 后，串行运行：
+node scripts/smoke-v12-upgrade.mjs
+```
+
+每一步确认成功再继续；失败时保留原报告与日志，不用后一条命令的退出码覆盖前一条。团队素材另核对包内活跃图片哈希及旧坐姿未打包，预览截图仍属于源码合成视觉证据，不能替代包内协作流程。
+
+DSH 运行时与 `resources/lca-bridge` 位于 asar 外；修改桥接时 app.asar 可以不变。候选身份和续跑还须固定安装器及这些目录的逐文件哈希，不能把相同 app.asar 当作整包相同。
+
+`node scripts/smoke-v12-upgrade.mjs` 使用 `LCA_RELEASE_DIR` 的候选回执和 `LCA_BASELINE_INSTALLER` 指定的固定 1.1.0 安装器，在独立目录真实安装、覆盖升级、冷启和恢复旧版存档；聊天只连接本地合成接口。安装器会处理同名运行进程，安装检查必须与所有包内 EXE 测试串行；发现已有安装或运行中的同名应用时拒绝。临时目录须有至少 3 GiB 可用空间，退出码不替代包文件哈希和状态核对。
+
+升级检查还会在旧运行时关闭后写入合成的既有 profile 配置，核对候选启动及新回合后，manifest 用户字段、既有依赖与 bundle 声明、Cordis patch 和 workspace 配置均保留。卸载后等待注册状态收敛；没有确定结果时保留 `needs-reconciliation`，不重复卸载。
+
+`node scripts/smoke-real-collaboration.mjs` 为单独授权的三场景真实探针，需 `LCA_REAL_MODEL=1` 和获授权的 `LCA_PROVIDERS_FILE`。只由 Electron 主进程提取既有 chat/work 槽位，保留工作路由与两项思考强度；独立数据根，默认 48 万预留单位、零自主预算、12 分钟总时限。另获明确额度授权时可设置 `LCA_REAL_MODEL_BUDGET_UNITS`，该参数本身不构成授权，不自动扩额或重试。出现需要用户回答的问题或审批就停止，不自动批准。结果记录实际成员模式、完成状态、普通最终回复、续用身份、用量及包身份；触及预算不能换新数据根自动重跑，失败也不能以任务板完成替代最终交付。容量满额仍由合成回归证明。`--preflight` 仅核对启动与配置接入，不发送任务；它不是实际模型质量验收。
 
 每次发布核对源码 revision、trackedDirty、构建回执、安装器哈希与该包结果。第二机、真实账号和长期日用另行记录。v0.1.10 的历史证据见 [版本记录](releases/0.1.10.md)，不自动代表当前 main 已重新验收。
 

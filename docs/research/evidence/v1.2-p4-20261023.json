@@ -1,0 +1,263 @@
+{
+  "date": "2026-10-23",
+  "interfaceCommit": "3e56b43",
+  "implementationCommit": "a85327e0e8d576d2338ce296fce05319198e74d7",
+  "presentationFixCommit": "3fae9aafd55b12549f04b13a860e2050998428e6",
+  "runtime": "0.2.1-rc.2",
+  "sourceHashes": {
+    "dsh/lca-bridge/cordis.patch.yml": "fa47d16999e3457c99169708fb9d69650725c6cde9dac4bfcc68d43d719a6288",
+    "dsh/lca-bridge/index.js": "a2dcb830d0cca2bf193c7390811e99b57bc982014f81f297cec068a0e21ea700",
+    "dsh/lca-bridge/package.json": "068cf6c695aba1c7d7aa285a99e62f69e9068a72cac84da89b35747cc837bb68",
+    "dsh/lca-bridge/policy.js": "75d3c731d7d74e90bce85efd3df69dcfa3aca8b49385d4e65b18149e1e5e61e8",
+    "dsh/lca-bridge/skill-files.d.ts": "ba076b57117aa73aba8d83b3bc5e62535ead3394d1112dd6c905c43af7348291",
+    "dsh/lca-bridge/skill-files.js": "3d96dbb9af9072295242c768b27b4b0a57260456f7711dcca014b1440baaec7a",
+    "dsh/lca-bridge/skills.js": "380b3c6312a0b6157adec06089cbb92a598e748ae93f7a2c6d3e20449ddbc98d",
+    "package.json": "d414934f9c5c395a02062ce1b73a600697a56c0c3dee7bb2fd0c975a89ba89b6",
+    "scripts/smoke-extensions.mjs": "8c4b09ba2024cdfb3ccfe178c6065bfdad112ac950985058c417c7df8b465ae4",
+    "scripts/smoke-model-routing.mjs": "dfad3abc476259ae22e6f6b92292f6f3f11f2e1e6f5b8c074dd897456ea29be7",
+    "scripts/smoke-plugins.mjs": "64c1d5a6c4ec692d87b81e0701fb0e879d3cd195ebccf0d0d1b54e0fe339d42f",
+    "src/main/bridge/controller.ts": "3bded93a428d496dd31461a010ca5aa90af9907ca1bb526b623372f04b26a139",
+    "src/main/bridge/v12-commands.ts": "fdd8ed64468ae7e2889ffc29f257f114059058508252dbd3a203903f3ce094b0",
+    "src/main/dsh/extensions.ts": "734da0efd4100050e3dfcf7d3d4041ca57b2b0f906255b85cde41eda1de65b29",
+    "src/main/dsh/host.ts": "ac3e0322e7d6e40990270191cba60eb65294d55f2569f2882a3f74a0cfd9c5ee",
+    "src/main/dsh/skills.ts": "9acbacdb5b3371e12ddca44f4b7d204f77833905843fe13ad68aab870c33e80d",
+    "src/main/index.ts": "aebf0d3ef38007d996e3b1ab85ecc6f8c82e0d53c7c77d000099fa8c13e5c8bc",
+    "src/renderer/src/plugins/ExtensionPanel.tsx": "da62fd16325043a96ad96d7f0a914fc86d1fde992d98b4f1d0e1cbfe3a5d9dbd",
+    "src/renderer/src/plugins/PluginCenter.tsx": "fb70071fc0b7398cfa5020ee7fb7cd9093e0e5142ba69d4ac45453138db6bcb9",
+    "src/renderer/src/plugins/SkillsPanel.tsx": "9eac89d241193dbd7871aaba4afdcb131858f70e398a9806a67c3059e9426940",
+    "src/renderer/src/plugins/plugins.css": "ec5657e991e24f554ea234fb5a339f4a581ec100f05fe9ec146ae9059aa51fef",
+    "src/renderer/src/voice/plugins.zh.json": "75d7a67af3ed22464eae4f62f8b1bde53b3db406799cee84ce851cda29c60b5d",
+    "tests/unit/bridge.test.ts": "caea9b60441f0fe41a3937860b829dafe9f307573f667940b700853e0b0d0f4c",
+    "tests/unit/dsh-bridge-policy.test.ts": "1918cfcc064f76d9dc5341dfa38859e183125f37a3fa24db5f6d712c241e14ef",
+    "tests/unit/dsh-extensions.test.ts": "8b39df66f6814cb2014c4d248f08d0684bb9b7e99a7aa0b768064f8e2a5ac6ef",
+    "tests/unit/dsh-skills.test.ts": "0d1ce6c979af5663bb19a8977a125b7020bb065c1a47a5b65a411eb898f4eebf",
+    "src/shared/skills.ts": "fe34b0f368d4c62a282e5cf894046cb6255504bdf9eb20f39d1b17d8298ef20b",
+    "src/shared/dsh-extensions.ts": "021061efd4676a5a5aa385c38d9cc1160e2d8617a420585b9835a9b9b34eca31"
+  },
+  "static": {
+    "typecheck": "passed",
+    "scopedEslint": "passed",
+    "productionBuild": "passed",
+    "diffCheck": "passed"
+  },
+  "unit": {
+    "files": 18,
+    "tests": 166,
+    "passed": 166
+  },
+  "electronPage": {
+    "localArtifact": "test-results/p4-1441df4f-4bc5-444b-9428-7e8470c39b0f",
+    "ok": true,
+    "checks": [
+      "protected-core-has-no-mutation-controls",
+      "cancel-approval-without-installing",
+      "install-enable-restart-loads-real-bundle-skill",
+      "markdown-import-scope-priority-invalid-missing-and-no-ambient-home",
+      "remove-falls-back-delete-and-edit-refresh-model-content",
+      "cross-project-catalog-does-not-retain-old-project",
+      "mcp-page-connects-single-lca-owner-and-dsh-executes-tool",
+      "disable-restart-remove-through-page",
+      "separate-build-approval-visible-and-refusable",
+      "lost-receipt-unknown-ui-blocks-retry-and-reconciles-same-id",
+      "cold-restart-preserves-skill-and-removal-no-mcp-reconnect",
+      "safe-projection-and-narrow-page"
+    ],
+    "rawEvidenceSha256": "0e5950b787ece5421b9fcf8a9d60e4d08f12ee7dec7ac9b5299766bfccb5d938",
+    "screenshotSha256": {
+      "build-approval.png": "299e86a4e5ccb274d3e4c8e27e8fb1fb3ca44361ad4c2a5421a3f41b08c51af1",
+      "extensions.png": "1f1caeaa87d05cb3a198aedf5d471a59e9f728679b25a4e0b29e68253bd25fc0",
+      "skills-narrow.png": "de15d705b23400de5e11a3d01079fb8440096e34ad9f8abe1fb241e0ef9f0a7f",
+      "skills.png": "7a55082ce2f88fdea3a37c286c9f224872db2343d3d94fce320de9349ba30164",
+      "unknown.png": "204c454d2c2e11b8316bc02d6b0a2008860ed8f1a0edb2c8c16a4321f7ff6341"
+    },
+    "captureCommit": "a85327e0e8d576d2338ce296fce05319198e74d7",
+    "afterCapture": "Only the generic configuration error under unknown outcomes was hidden; labels, commands, locks and reconciliation unchanged. Scoped lint and build passed after that presentation fix."
+  },
+  "extensionLifecycle": {
+    "localArtifact": "%TEMP%/lca-extension-probe-9SSZod",
+    "rawEvidenceSha256": "cffa7e511867059fdd551ea1a3b37781e834ddf7274e5ef97e8ed753fd55dd57",
+    "exit": {
+      "code": 0
+    },
+    "checks": [
+      "install-disabled-and-deduplicate",
+      "enable-restart-actual-module-loaded",
+      "refuse-removal-of-running-code",
+      "disable-persists-across-cold-start",
+      "remove-restart-preserves-user-configuration",
+      "separate-build-approval-without-standing-grant",
+      "cancel-running-build-and-observe-restoration",
+      "lost-ipc-receipt-cold-main-dsh-reconcile-without-replay",
+      "bundle-cannot-override-safety-rows",
+      "activation-failure-never-shown-ready",
+      "protected-core-at-runtime-port"
+    ],
+    "approvals": 19,
+    "modelRequests": 0,
+    "electron": true,
+    "systemNodeAndPnpmOnPath": false
+  },
+  "familySafety": {
+    "localArtifact": "%TEMP%/lca-family-probe-GfhtoK",
+    "rawEvidenceSha256": "234d2a62fe09f20eee77d64498c04089bcbf0140cf88387204e166f4c6b21ee1",
+    "scenarios": [
+      {
+        "name": "spawn",
+        "ok": true,
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "fork",
+        "ok": true,
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "team",
+        "ok": true,
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-revoke",
+        "ok": true,
+        "modelRequests": 17,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-decline",
+        "ok": true,
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-idle",
+        "ok": true,
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-late",
+        "ok": true,
+        "modelRequests": 21,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-summary",
+        "ok": true,
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-cross",
+        "ok": true,
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-trust",
+        "ok": true,
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-trust-decline",
+        "ok": true,
+        "modelRequests": 21,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "fork-seeded",
+        "ok": true,
+        "modelRequests": 15,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-nested",
+        "ok": true,
+        "modelRequests": 34,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-corrupt",
+        "ok": true,
+        "modelRequests": 15,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-manager",
+        "ok": true,
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ]
+      }
+    ],
+    "passed": 15,
+    "modelRequests": 298,
+    "exitsZero": true
+  },
+  "compatibility": {
+    "smoke-plugins": "passed",
+    "smoke-mcp": "passed",
+    "smoke-model-routing": "passed; asserts one campus_assistant and no legacy duplicate; explicitly answers the existing queued P2 approval"
+  },
+  "notRun": [
+    "real models or external school/email/paid services",
+    "installer or upgrade",
+    "second Windows machine",
+    "private save export/restore",
+    "cross-day and long-term use",
+    "new art or full-room camera"
+  ],
+  "limits": [
+    "local bundles only",
+    "existing LCA-owned MCP connections only",
+    "only unchanged imported skill directories are removable via page",
+    "profile skill resource files remain under private dsh-home protection; import to project for file/script access"
+  ]
+}

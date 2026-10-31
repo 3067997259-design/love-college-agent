@@ -1,0 +1,375 @@
+{
+  "date": "2026-10-24",
+  "implementationCommit": "d98572a657095e421a60fef92c71abf0f17d167d",
+  "interfaceCommits": [
+    "a90a6ca72a380991c60238f2edbd04ecc87451db",
+    "8ee30c176c8b37ad453a144ed3cb42c762b5d231"
+  ],
+  "implementationCommits": [
+    "bb034eb58b90a834a919a0fb17dea60d3f067d08",
+    "b5cb9edb23eb3052e426a2209d49c250c9d7e8c4",
+    "d98572a657095e421a60fef92c71abf0f17d167d"
+  ],
+  "runtime": "0.2.1-rc.2",
+  "sourceHashes": {
+    "dsh/lca-bridge/collaboration-state.js": "5ac36e7fad96b19b22bbc847cfcd8b9ce67d13d99b5d9560f89435891bb0515a",
+    "dsh/lca-bridge/collaboration.js": "21a1685bacf937b1d406a20faa3e5f0c130a9cd6f9ed4cfd09441b574b6d99b5",
+    "dsh/lca-bridge/cordis.patch.yml": "3e3aaf2f4afe35b84adc511c90c5303e26d25dd7feec49f9793ebf428401e861",
+    "dsh/lca-bridge/family.js": "0430d8dc236327b3751b501ff298bc0b68af8fc6378b2c8b8226d6c8d5dff9f6",
+    "dsh/lca-bridge/index.js": "96bf056c9c5c7ed5925ba3fb2e5b2584cfe4110beee0e4d9d5b19bac759040c4",
+    "dsh/lca-bridge/policy.js": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615",
+    "dsh/lca-bridge/provenance.js": "8e0db82f008be62831db2862aa69a797bc0cca64889729997d39ba0bf95c04ce",
+    "package.json": "609052b792aac3ceaacb943aa0c7d7f6aac276f254b15e3cd52f79be8688bf52",
+    "scripts/dsh-collaboration-check.mjs": "69fb9e87852fffe120d41f0abb92a626aba5444034184b4fb394526bb2cd075b",
+    "scripts/dsh-family-check.mjs": "48d661833cf34317a3e315ed89a3907178bac8423395651df10048b98dfa0d92",
+    "scripts/fixtures/dsh-collaboration-probe.ts": "644579dd089a91745ec971bcbd956672f32e45bc22a9a6bfc0dd1623ea054a32",
+    "scripts/smoke-collaboration.mjs": "358c2a73fce3cfea5309abfefe3d208a48012ec7ff91edc81fb3e81d9cb94690",
+    "src/main/bridge/controller.ts": "88f82ee526165732130dc38dae2be40d57bf2c5c6e2b0f8ac11e458c6ceb1d58",
+    "src/main/bridge/v12-commands.ts": "5c96f0a6917d04c4fa54633d4f75e11d71e8ed153f94a14d2869acc060b66353",
+    "src/main/dsh/collaboration.ts": "ed6b27e714ecc67bf5d100d53c83453bf81b3eaecdf4ce41419279a57582c0ba",
+    "src/main/dsh/execution.ts": "0a45940824e13e8c99258386a68e4082bcbd01e35600cf91254c6f307fd235cd",
+    "src/main/dsh/host.ts": "ae58dfad0579892a2256ddbc6cbb8a1deacb89cddff41e3e0e754ee4a2ae9bc2",
+    "src/main/dsh/identity.ts": "002fc1a52aa3b15a7d2d2dd745fb5a8a67a3c4d9cc6ed70fed6e1d3678bdc664",
+    "src/main/index.ts": "6ddd637968fe9f3fbf3780cba0e886b1705627e3b93dd561df1f1d1e7a90c083",
+    "src/renderer/src/book/CollaborationPanel.tsx": "4d93eba4e5a1db4c45881a6e3786a5e45f279591217c427bead41be76e406d98",
+    "src/renderer/src/book/LeftPage.tsx": "3c08a339fa1df22a9960337b0fbc655af097268c96a3cc60e3249001a94d3fb5",
+    "src/renderer/src/book/collaboration.css": "59ec41d1263426ca5f34f4d13802567f049210c246e0cd28dec602412b237a7b",
+    "src/shared/README.md": "4d1472b1a226967f6e06ec6b5eefba077be04671346248890e02fb8f79cad6c0",
+    "src/shared/collaboration.ts": "12e500d4cb9f9bb8b14410d0cf8945adb24c27def3ec1fbc45551517ad18fbbf",
+    "src/shared/dsh-protocol.ts": "23f417334dc47d108da527e300d5276b6499c2136b4a6b9a249fdef9bfa73055",
+    "tests/unit/bridge.test.ts": "e7ad530d0038462a0f85f1953a09d40e111ec394fa69fe6db714801d5aeea092",
+    "tests/unit/dsh-collaboration.test.ts": "fdecc9b84b859bf86d6003c8d018921b5a5d727c7c8cb8b4ab51278aef727dd4",
+    "tests/unit/dsh-journal.test.ts": "a28f267ddb6c0e80fe418c3b91942446571ed4381237db6181ead208990014cf",
+    "tests/unit/dsh-provenance.test.ts": "cdbbfdeda59911d5369b7373e17fafda564fc455134ff9f257127f4fed56d3bf"
+  },
+  "static": {
+    "typecheck": "passed",
+    "scopedEslint": "passed",
+    "productionBuild": "passed",
+    "diffAndLinks": "passed"
+  },
+  "unit": {
+    "uniqueFiles": 19,
+    "uniqueTests": 171,
+    "firstRun": {
+      "files": 19,
+      "tests": 168,
+      "log": ".local-data/p5-unit.log",
+      "sha256": "bb9e424d0dab97b40c31db2b270629c1c555f414c13bf851c9603b9a20a53015"
+    },
+    "finalAffectedRerun": {
+      "files": 2,
+      "tests": 45,
+      "log": ".local-data/p5-final-unit.log",
+      "sha256": "0d304ea2d369db54c16f908b8c3bad2780284999e6471adc46d93e5e324d9b11"
+    }
+  },
+  "collaborationRuntime": {
+    "localArtifact": "%TEMP%/lca-collaboration-probe-YNXMpF",
+    "checks": [
+      "ordinary-and-team-coexist-with-single-controls-and-selection-guidance",
+      "main-rejects-cross-project-and-stale-targets",
+      "team-revision-dependency-cycle-and-write-overlap-with-helper-membership-denied",
+      "task-text-retired-before-model-read-and-stays-retired-after-claim",
+      "distinct-roster-and-resident-limits-and-existing-member-reuse",
+      "family-stop-does-not-free-roster",
+      "cold-recovery-keeps-source-retirement-and-operation-receipt-without-replay",
+      "autonomous-family-shares-six-step-cap-and-bucket-after-lead-is-idle",
+      "member-label-inherits-parent-source-before-first-step-and-stays-retired-on-reuse",
+      "failed-creation-retains-roster-slot"
+    ],
+    "modelRequests": 64,
+    "exit": {
+      "code": 0
+    },
+    "rawEvidenceSha256": "84c1ab806f8181b7e8cf63c1cd7a955594ba450e2fd3c9b7e7546c965023f907",
+    "electronNode": true,
+    "systemNodeAndPnpmOnPath": false
+  },
+  "familyRegression": {
+    "localArtifact": "%TEMP%/lca-family-probe-4B9xzl",
+    "checks": [
+      {
+        "name": "spawn",
+        "ok": true,
+        "modelRequests": 18,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "fork",
+        "ok": true,
+        "modelRequests": 18,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "team",
+        "ok": true,
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-revoke",
+        "ok": true,
+        "modelRequests": 17,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-decline",
+        "ok": true,
+        "modelRequests": 18,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-idle",
+        "ok": true,
+        "modelRequests": 18,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-late",
+        "ok": true,
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-summary",
+        "ok": true,
+        "modelRequests": 18,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-cross",
+        "ok": true,
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-trust",
+        "ok": true,
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-trust-decline",
+        "ok": true,
+        "modelRequests": 19,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "fork-seeded",
+        "ok": true,
+        "modelRequests": 15,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-nested",
+        "ok": true,
+        "modelRequests": 33,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-corrupt",
+        "ok": true,
+        "modelRequests": 14,
+        "exits": [
+          0,
+          0
+        ]
+      },
+      {
+        "name": "spawn-manager",
+        "ok": true,
+        "modelRequests": 20,
+        "exits": [
+          0,
+          0
+        ]
+      }
+    ],
+    "modelRequests": 285,
+    "rawEvidenceSha256": "eb6fa93075992763bcd4ad47677525a788bba8edc9311aa22566d9def3ef6960"
+  },
+  "extensionRegression": {
+    "localArtifact": "%TEMP%/lca-extension-probe-mArXtU",
+    "checks": [
+      {
+        "check": "install-disabled-and-deduplicate",
+        "outcome": "succeeded"
+      },
+      {
+        "check": "enable-restart-actual-module-loaded",
+        "outcome": "succeeded"
+      },
+      {
+        "check": "refuse-removal-of-running-code",
+        "outcome": "failed"
+      },
+      {
+        "check": "disable-persists-across-cold-start",
+        "outcome": "succeeded"
+      },
+      {
+        "check": "remove-restart-preserves-user-configuration",
+        "outcome": "succeeded"
+      },
+      {
+        "check": "separate-build-approval-without-standing-grant",
+        "outcome": "succeeded"
+      },
+      {
+        "check": "cancel-running-build-and-observe-restoration",
+        "outcome": "cancelled"
+      },
+      {
+        "check": "lost-ipc-receipt-cold-main-dsh-reconcile-without-replay",
+        "outcome": "succeeded"
+      },
+      {
+        "check": "bundle-cannot-override-safety-rows",
+        "outcome": "refused"
+      },
+      {
+        "check": "activation-failure-never-shown-ready",
+        "outcome": "failed"
+      },
+      {
+        "check": "protected-core-at-runtime-port",
+        "outcome": "refused"
+      }
+    ],
+    "approvals": 19,
+    "modelRequests": 0,
+    "exit": {
+      "code": 0
+    },
+    "rawEvidenceSha256": "1094a8a2fb8af5e18a54b3b914c851e26959534bc810f79a347cd76580732b21",
+    "afterRun": "Final additive collaboration-only fixes were covered by the dedicated runtime and book checks; extension lifecycle code did not change."
+  },
+  "extensionPageRegression": {
+    "localArtifact": "test-results/p4-a07e754a-202a-4153-9c6f-8ce0ad7fcb21",
+    "checks": [
+      "protected-core-has-no-mutation-controls",
+      "cancel-approval-without-installing",
+      "install-enable-restart-loads-real-bundle-skill",
+      "markdown-import-scope-priority-invalid-missing-and-no-ambient-home",
+      "remove-falls-back-delete-and-edit-refresh-model-content",
+      "cross-project-catalog-does-not-retain-old-project",
+      "mcp-page-connects-single-lca-owner-and-dsh-executes-tool",
+      "disable-restart-remove-through-page",
+      "separate-build-approval-visible-and-refusable",
+      "lost-receipt-unknown-ui-blocks-retry-and-reconciles-same-id",
+      "cold-restart-preserves-skill-and-removal-no-mcp-reconnect",
+      "safe-projection-and-narrow-page"
+    ],
+    "rawEvidenceSha256": "6b0423116bd6338da38ef701859b0b7d53f432ce0737af18f0ad5a33542e3c4e",
+    "afterRun": "Subsequent changes only withdraw stale collaboration projections and preserve collaboration provenance; extension page and lifecycle code unchanged."
+  },
+  "packagedBook": {
+    "localArtifact": "test-results/p5-73107cfb-fafc-4beb-a9f3-963d8eaeda8a",
+    "checks": [
+      "empty-catalog-refresh-through-book",
+      "team-and-helper-states-results-and-capacity-visible",
+      "task-claim-and-complete-with-revision-check",
+      "direct-member-message-runs-after-root-is-idle",
+      "single-member-interrupt-observes-real-aborted-outcome",
+      "lost-receipt-refresh-reconnects-and-reconciles-same-operation-without-replay",
+      "family-stop-keeps-roster-and-revokes-continuation-until-new-work",
+      "narrow-page-and-safe-projection",
+      "cold-recovery-restores-members-and-board-without-executing-them"
+    ],
+    "rawEvidenceSha256": "036208b4aed20109d4475a69c96807539f1ccf20954f29d035da5c113e2ce5a8",
+    "screenshotSha256": {
+      "book-narrow.png": "7735cd7ab2950e1a0bd26955ec1a8162d5a549b8e4e070f47954b57d9c129160",
+      "members.png": "de16ced0adf7e38772ff2587f94302cdeeb0e99907296466992df812a8b27f3e",
+      "tasks.png": "7feee7fd047494e4376a8feea873d77a701177161ce564bf479ed7d5445bb53e"
+    }
+  },
+  "packaging": {
+    "mode": "electron-builder --win --x64 --dir --publish never",
+    "sourceRevision": "d98572a657095e421a60fef92c71abf0f17d167d",
+    "codeCleanAtBuild": true,
+    "documentationDirtyAtBuild": true,
+    "localArtifact": ".local-data/p5-package-b66e945c-5843-42c5-b823-f4ed7559d193",
+    "installed": false,
+    "published": false,
+    "fixedInputsUnchanged": [
+      "dsh/runtime/package.json",
+      "dsh/runtime/package-lock.json",
+      "pnpm-lock.yaml",
+      "scripts/prepare-dsh-runtime.mjs",
+      "electron-builder.yml"
+    ],
+    "exeBytes": 246302720,
+    "exeSha256": "5b6b85aeff5fa8cee5e3172d37f99d6fe822504d38bce38e64a1b0e76622b613",
+    "asarSha256": "92f52f5e2315053b5af8d093e1bab38f1e14d3e2b82963ca213c36b75b91347a",
+    "shippedHashes": {
+      "resources/lca-bridge/collaboration-state.js": "5ac36e7fad96b19b22bbc847cfcd8b9ce67d13d99b5d9560f89435891bb0515a",
+      "resources/lca-bridge/collaboration.js": "21a1685bacf937b1d406a20faa3e5f0c130a9cd6f9ed4cfd09441b574b6d99b5",
+      "resources/lca-bridge/cordis.patch.yml": "3e3aaf2f4afe35b84adc511c90c5303e26d25dd7feec49f9793ebf428401e861",
+      "resources/lca-bridge/extension-files.js": "f90e3a2c23dd4bcc177dacbeb900647a194823bf90b9a3eeb4a1f8735564eef5",
+      "resources/lca-bridge/extensions.js": "9e5d8203e8abb9b8d1c071dfe9000f6711137041bda9de20cf3e1f8e42de1a4b",
+      "resources/lca-bridge/family.js": "0430d8dc236327b3751b501ff298bc0b68af8fc6378b2c8b8226d6c8d5dff9f6",
+      "resources/lca-bridge/index.js": "96bf056c9c5c7ed5925ba3fb2e5b2584cfe4110beee0e4d9d5b19bac759040c4",
+      "resources/lca-bridge/package.json": "068cf6c695aba1c7d7aa285a99e62f69e9068a72cac84da89b35747cc837bb68",
+      "resources/lca-bridge/policy.js": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615",
+      "resources/lca-bridge/profile.js": "398a94ba8213d488d00e54fc9d55e906ef722a287faf833980814d626c69b957",
+      "resources/lca-bridge/provenance.js": "8e0db82f008be62831db2862aa69a797bc0cca64889729997d39ba0bf95c04ce",
+      "resources/lca-bridge/skill-files.js": "3d96dbb9af9072295242c768b27b4b0a57260456f7711dcca014b1440baaec7a",
+      "resources/lca-bridge/skills.js": "380b3c6312a0b6157adec06089cbb92a598e748ae93f7a2c6d3e20449ddbc98d",
+      "resources/dsh-runtime/THIRD_PARTY_NOTICES.txt": "bbf0b752185e2d2be533ea4914444eff728b3d7bd69b1c4a1505a5bbb4246a3d",
+      "resources/dsh-runtime/node_modules/@deepseek-ai/dsh-experimental-agent-team/lib/index.js": "b2d337d10c841773e4e69836475f5c21dce8cd87beb70d73413a7868e9403322",
+      "resources/dsh-runtime/node_modules/@deepseek-ai/dsh-subagent/lib/index.js": "9a9572e70fffdb100deb63326167f32bbf63016ce49c0017495dabcb95b44168",
+      "resources/dsh-runtime/node_modules/@deepseek-ai/dsh-tool-subagent/lib/index.js": "de7b10aaf52b1b1616d13a831a9ece1f820b8a6302fe94667f31b6d641b2f46e",
+      "resources/dsh-runtime/node_modules/@deepseek-ai/dsh-subagent-spawn-in-process/lib/index.js": "249df2c7bdc046c1dd7149acbb40e604eabcba28a7e07ffa4226c2a03f0a3aaa",
+      "resources/dsh-runtime/node_modules/@deepseek-ai/dsh-subagent-fork-in-process/lib/index.js": "2ce7fff41b6e0f634087ccd1a11a9e1538e7619b1fb936cb990ea3a11564cb99"
+    }
+  },
+  "notValidated": [
+    "real model selection quality",
+    "real providers or school services",
+    "installation or upgrade",
+    "second Windows machine",
+    "cross-day and long-term experience",
+    "private save restore",
+    "full-room art"
+  ]
+}

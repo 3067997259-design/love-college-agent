@@ -69,6 +69,25 @@
 - id: hmr
   disabled: true
 
+# LCA registers a bounded filesystem provider using DSH's parser. Only the exact selected
+# project's two skill roots and this save's DSH_HOME/skills are read; no ambient ~/.agents.
+- id: skill-filesystem
+  disabled: true
+
+# Preserve spawn/fork; LCA routes the three shared control names over both services.
+- id: tool-subagent-control
+  disabled: true
+- id: tool-subagent-list-agents
+  disabled: true
+- insert:
+    - id: agent-team
+      name: '@deepseek-ai/dsh-experimental-agent-team'
+      config:
+        maxMembers: 8
+        maxTasks: 256
+        maxMessageBytes: 65536
+        disposalTimeoutMs: 5000
+
 # Her questions to you: DSH's own ask_user_question (dsh-base has only the user-questions service). lca-bridge
 # answers its requests from the book's question card; a subagent's questions never reach you.
 - insert:

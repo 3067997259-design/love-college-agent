@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import type { ReasoningEffort } from '../../shared'
+import type { ManualModelCapabilities } from '../../shared/model-capabilities'
+import { capabilityRegistrySchema, declaredCapabilities } from './model-capabilities'
 
 const mailSchema = z.object({
   host: z.string().min(1), port: z.number().int().min(1).max(65535), tls: z.literal(true),
@@ -29,12 +31,12 @@ export async function readPrivateCredentialValues(filename: string): Promise<rea
     return [...keys, ...(mail.success && mail.data.auth_code ? [mail.data.auth_code] : [])]
   } catch { return [] }
 }
-export interface ProviderConfig { base_url: string; api_key: string; model: string }
+export interface ProviderConfig { base_url: string; api_key: string; model: string; capabilities?: ManualModelCapabilities }
 
 /** Called only by main. Empty/malformed slots remain unavailable; values never leave this boundary. */
 export async function readModelProviders(filename: string): Promise<ReadonlyMap<ProviderSlot, ProviderConfig>> {
   try {
-    const parsed = z.object({ providers: z.record(z.string(), z.unknown()) }).parse(JSON.parse(await readFile(filename, 'utf8')))
+    const parsed = z.object({ providers: z.record(z.string(), z.unknown()), modelCapabilities: capabilityRegistrySchema.optional() }).parse(JSON.parse(await readFile(filename, 'utf8')))
     const result = new Map<ProviderSlot, ProviderConfig>()
     const schema = z.object({ base_url: z.string().url(), api_key: z.string().min(1), model: z.string().min(1) })
     for (const slot of PROVIDER_SLOTS) {
@@ -42,7 +44,8 @@ export async function readModelProviders(filename: string): Promise<ReadonlyMap<
       if (!entry.success) continue
       const url = new URL(entry.data.base_url)
       if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) continue
-      result.set(slot, Object.freeze(entry.data))
+      const capabilities = declaredCapabilities(parsed.modelCapabilities, entry.data)
+      result.set(slot, Object.freeze({ ...entry.data, ...(capabilities ? { capabilities } : {}) }))
     }
     return result
   } catch { return new Map() }

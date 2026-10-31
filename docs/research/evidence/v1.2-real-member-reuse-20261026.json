@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-26",
+  "kind": "real-source-build-cold-restart-member-reuse",
+  "sourceId": "22d5f474-6665-40da-99e6-3edc9bc3fa15",
+  "reuseId": "d2115cc6-3619-4981-88e7-9b47fda1da5d",
+  "rootSessionId": "session-e7016407-0a92-4bc2-ac14-2b90b7c3b6ca",
+  "ruleSessionId": "cb446d2a-551c-429b-8b93-20c8aa4bf5f3",
+  "beforeSessionIds": [
+    "session-e7016407-0a92-4bc2-ac14-2b90b7c3b6ca",
+    "1411e15e-de22-4014-899c-4a33791fddaa",
+    "cb446d2a-551c-429b-8b93-20c8aa4bf5f3",
+    "c4d6aba0-cd25-485b-9036-2a6d2371d47c"
+  ],
+  "afterSessionIds": [
+    "session-e7016407-0a92-4bc2-ac14-2b90b7c3b6ca",
+    "1411e15e-de22-4014-899c-4a33791fddaa",
+    "cb446d2a-551c-429b-8b93-20c8aa4bf5f3",
+    "c4d6aba0-cd25-485b-9036-2a6d2371d47c"
+  ],
+  "addedMembers": 0,
+  "checks": {
+    "recoveredSameRootAndRoster": true,
+    "noModelCallsDuringRestore": true,
+    "exactOriginalTargetMessaged": true,
+    "newMemberToolsCalled": false,
+    "oldRuleMemberActuallyReplied": true,
+    "otherMembersNotRun": true,
+    "mainDeliveredSummary": true,
+    "toolErrors": 0
+  },
+  "result": {
+    "a": 4,
+    "b": 1,
+    "sum": 5,
+    "oldIndividualValuesMatch": false
+  },
+  "contentCaveat": "The rule member correctly says the new individual values fail the old per-item test. The lead summary misuses a negation in one sentence, although surrounding arithmetic and the no-pass conclusion are correct.",
+  "usage": {
+    "beforeUnits": 131892,
+    "afterUnits": 168762,
+    "addedReservedUnits": 36870,
+    "addedAdmissions": 6,
+    "totalIncludingEarlierHandoff": 204319,
+    "originalTotalLimitUnits": 480000
+  },
+  "backup": "D:\\love, college&agent\\.local-data\\real-collaboration-22d5f474-6665-40da-99e6-3edc9bc3fa15-before-reuse-d2115cc6-3619-4981-88e7-9b47fda1da5d",
+  "cleanup": {
+    "temporaryCredentialsRemoved": true,
+    "isolatedInstanceClosed": true
+  },
+  "report": "test-results/real-collaboration-reuse-d2115cc6-3619-4981-88e7-9b47fda1da5d/report.json",
+  "reportSha256": "9bb41596566192b2c945de630b6b8b26e0da333f1d6d5c4df26b1fdb099a6d24",
+  "audit": "test-results/real-collaboration-reuse-d2115cc6-3619-4981-88e7-9b47fda1da5d/audit.json",
+  "auditSha256": "b54cd3026228a2dbe78207411de68c5241517c474db5491d2b6a1343ed7f6736",
+  "backupManifest": "test-results/real-collaboration-reuse-d2115cc6-3619-4981-88e7-9b47fda1da5d/backup-manifest.json",
+  "backupManifestSha256": "0061818654e91e9875476661b0b72268c372c9aa0da385ab98a252969cf595dd",
+  "readonlyProbeRuns": [
+    "08392926-c6fd-4e78-a0ab-034fc76ff277",
+    "0a1d9e28-29fd-4680-897c-f1081c9bfc7c"
+  ],
+  "startedAtIso": "2026-10-26T01:19:24.392Z",
+  "completedAtIso": "2026-10-26T01:19:49.083Z"
+}

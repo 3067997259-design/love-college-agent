@@ -30,10 +30,16 @@ function applyPendingRestoreUnchecked(root: string, owner: SaveManifest['owner']
   const manifest = manifestSchema.parse(JSON.parse(bytes.toString('utf8')))
   if (manifest.owner.userId !== owner.userId || manifest.owner.characterId !== owner.characterId || manifest.source !== source) throw new BackupFailure('backup-scope-mismatch')
   const key = sha256(JSON.stringify([owner.userId, owner.characterId]))
-  const targets = ['journals/' + key, ...DATABASES, ...DATABASES.flatMap((name) => [name + '-wal', name + '-shm']), ...manifest.files.filter((file) => file.path.startsWith('artifacts/')).map((file) => file.path)]
+  const legacyTargets = ['journals/' + key, ...DATABASES, ...DATABASES.flatMap((name) => [name + '-wal', name + '-shm']), ...manifest.files.filter((file) => file.path.startsWith('artifacts/')).map((file) => file.path)]
+  // Retiring the session index belongs to the same reversible transaction as the book. Otherwise a failed
+  // best-effort rename could reconnect restored journals to members and originals from after the save.
+  const targets = [...legacyTargets, 'dsh-sessions.json']
   const ledgerPath = join(stage, 'transaction.json')
   let transaction: z.infer<typeof transactionSchema> | undefined
-  if (existsSync(ledgerPath)) { transaction = transactionSchema.parse(JSON.parse(readFileSync(regular(root, ledgerPath, 1024 * 1024), 'utf8'))); if (JSON.stringify(transaction.targets) !== JSON.stringify(targets)) throw new BackupFailure('backup-invalid') }
+  if (existsSync(ledgerPath)) {
+    transaction = transactionSchema.parse(JSON.parse(readFileSync(regular(root, ledgerPath, 1024 * 1024), 'utf8')))
+    if (![targets, legacyTargets].some((expected) => JSON.stringify(transaction!.targets) === JSON.stringify(expected))) throw new BackupFailure('backup-invalid')
+  }
   const move = (from: string, to: string) => { inside(root, from); inside(root, to); directory(root, dirname(to)); renameSync(from, to) }
   const recover = () => {
     if (!transaction) return
@@ -59,16 +65,17 @@ function applyPendingRestoreUnchecked(root: string, owner: SaveManifest['owner']
       }
       const previous = targets.filter((name) => existsSync(join(root, name)))
       for (const name of previous) if (lstatSync(join(root, name)).isSymbolicLink()) throw new BackupFailure('backup-invalid')
+      if (previous.includes('dsh-sessions.json')) regular(root, join(root, 'dsh-sessions.json'), 1024 * 1024)
       transaction = { phase: 'applying', targets, previous }; writeJson(ledgerPath, transaction)
       for (const name of previous) move(join(root, name), join(rollback, name))
       for (const name of targets) if (existsSync(join(payload, name))) move(join(payload, name), join(root, name))
       transaction.phase = 'committed'; writeJson(ledgerPath, transaction); success = true
     }
   } catch { if (transaction?.phase === 'applying') recover() }
-  // Her DSH sessions hold the conversation since the save: a restored book starts new ones, which bring today's
-  // conversation from the restored journal (dsh/execution.ts). The old list stays with this restore's rollback copies.
+  // Finish an already-committed pre-1.2 transaction too. Failure here must block startup, never reconnect
+  // old members to the restored book; the pending receipt allows a later retry without repeating the restore.
   const sessions = join(root, 'dsh-sessions.json')
-  if (success && existsSync(sessions)) try { regular(root, sessions, 1024 * 1024); move(sessions, join(rollback, 'dsh-sessions-' + clock.nowMs() + '.json')) } catch { /* Not a plain file: left alone, the book is restored all the same. */ }
+  if (success && existsSync(sessions)) { regular(root, sessions, 1024 * 1024); move(sessions, join(rollback, 'dsh-sessions.json')) }
   const receipt: RestoreReceipt = { status: success ? 'restored' : 'failed', restoreId: pending.restoreId, safetyBackupId: pending.safetyBackupId, restoredAtMs: clock.nowMs(), manifest }
   writeJson(join(root, '.restore-receipt.json'), receipt); regular(root, pendingPath, 2048); unlinkSync(pendingPath)
   return receipt
@@ -82,7 +89,10 @@ export function applyPendingRestore(root: string, owner: SaveManifest['owner'], 
       const parsed = pendingSchema.safeParse(JSON.parse(readFileSync(regular(root, activePending, 2048), 'utf8')))
       if (parsed.success) {
         const ledger = join(root, '.backup-staging', parsed.data.restoreId, 'transaction.json')
-        if (existsSync(ledger) && transactionSchema.parse(JSON.parse(readFileSync(regular(root, ledger, 1024 * 1024), 'utf8'))).phase === 'applying') throw new BackupFailure('restore-failed')
+        if (existsSync(ledger)) {
+          const phase = transactionSchema.parse(JSON.parse(readFileSync(regular(root, ledger, 1024 * 1024), 'utf8'))).phase
+          if (phase === 'applying' || phase === 'committed' && existsSync(join(root, 'dsh-sessions.json'))) throw new BackupFailure('restore-failed')
+        }
       }
     }
     // A rejected pending plan must not trap the application in a restart loop. Preserve data and the rejected material.

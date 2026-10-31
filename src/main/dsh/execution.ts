@@ -2,14 +2,21 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import type { AppEvent, PublicErrorCode } from '../../shared'
-import type { Clock } from '../clock'
+import { readClock, type Clock } from '../clock'
 import { failureNarration } from '../harness/failure'
 import type { HarnessTool } from '../harness/tools'
 import type { JournalInput } from '../journal/schema'
 import type { SessionStore } from '../store/session'
+import type { ExtensionRuntime } from './extensions'
 import { dshSources, startDshHost, type DshApproval, type DshEvent, type DshHost, type DshHostOptions, type DshSource } from './host'
 import { itemsInput, type QuestionItem } from '../questions/schema'
 import type { DshRoutes } from './routes'
+import { createCollaborationState } from './collaboration'
+import { createMemberFocus } from './member-focus'
+import { publicMemberSteps } from './member-steps'
+import { toolKind } from './tool-kinds'
+import type { CollaborationView } from '../../shared/collaboration'
+import type { DshConversationState } from '../../shared/dsh-protocol'
 
 /**
  * `seen`: the conversation of this turn, in order, as she saw it: your lines and her replies, never tool traffic.
@@ -35,10 +42,6 @@ const daySessions = (saved: Saved, day: string): SavedSession[] => { const value
 const EARLIER_LINES = 40
 const EARLIER_CHARS = 12_000
 const LCA_PREFIX = 'lca_'
-const TEMPLATES: Record<string, string> = { read: 'dsh.read', read_image: 'dsh.read', working_directory: 'dsh.read', write: 'dsh.write', edit: 'dsh.edit', glob: 'dsh.search', grep: 'dsh.search',
-  pwsh: 'dsh.shell', bash: 'dsh.shell', job_output: 'dsh.shell', job_list: 'dsh.shell', job_kill: 'dsh.shell', web_search: 'dsh.web', web_fetch: 'dsh.web', todo_write: 'dsh.plan',
-  get_goal: 'dsh.plan', create_goal: 'dsh.plan', update_goal: 'dsh.plan', exit_plan_mode: 'dsh.plan', skill: 'dsh.skill', subagent: 'dsh.agent', subagent_fork: 'dsh.agent',
-  send_message: 'dsh.agent', list_agents: 'dsh.agent', interrupt_agent: 'dsh.agent', workflow: 'dsh.agent', ask_user_question: 'user.ask' }
 const clip = (text: string, max: number) => (text.length > max ? text.slice(0, max) + '…' : text)
 const parsed = (raw: string): Record<string, unknown> => { try { const value: unknown = JSON.parse(raw); return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {} } catch { return {} } }
 // LCA tools that hand her third-party originals, as in D2 (index.ts thirdPartySources).
@@ -66,7 +69,7 @@ const UNANSWERED: Record<string, string> = {
   'invalid-question': 'The question could not be shown. Ask in plain text, without secrets or credentials.',
   superseded: 'The user wrote to you instead of answering. Read their new message.',
 }
-const SOURCE_TEXT: Record<DshSource, string> = { web: '网页', mcp: '外部工具给的内容', mail: '邮件原文', document: '附件原文', plugin: '插件资料' }
+const SOURCE_TEXT: Record<DshSource, string> = { web: '网页', mcp: '外部工具给的内容', mail: '邮件原文', document: '附件原文', plugin: '插件资料', member: '协作者的消息' }
 const ACTION_TEXT: Record<string, string> = { write: '写文件', edit: '改文件', pwsh: '运行命令', bash: '运行命令', web_fetch: '再上网', web_search: '再上网' }
 /**
  * A DSH turn error as LCA's closed failure vocabulary (narrator/failure). Only DSH's error code and the HTTP status
@@ -78,7 +81,7 @@ export const failureOf = (reason: unknown): { code: PublicErrorCode; httpStatus?
   const status = Number(message.match(/\b([45]\d\d)\b/)?.[1]); const httpStatus = Number.isInteger(status) ? status : undefined
   const result = (value: PublicErrorCode) => ({ code: value, ...(httpStatus !== undefined ? { httpStatus } : {}) })
   if (/QUOTA/.test(code)) return result('quota-exhausted')
-  if (/AUTH|CREDENTIAL|UNKNOWN_MODEL|INVALID_CONFIG|NO_ADAPTER/.test(code)) return result('configuration-failed')
+  if (/AUTH|CREDENTIAL|UNKNOWN_MODEL|INVALID_CONFIG|NO_ADAPTER|UNSUPPORTED_CONTENT|UNSUPPORTED_REASONING_EFFORT|INVALID_MODEL_/.test(code)) return result('configuration-failed')
   // Only an explicit filter verdict counts (a vendor code or finish reason); a word in an error body is no evidence.
   if (/CONTENT_FILTER/.test(code) || /\bcontent_policy_violation\b|\bcontent_filter\b|"finish_reason"\s*:\s*"content_filter"/.test(message)) return result('content-filtered')
   if (/INVALID_REQUEST/.test(code)) return result('configuration-failed')
@@ -102,7 +105,7 @@ export function createDshExecution(options: {
   /** 'fake' when the routes lead to developer scenes' scripted model (developer/endpoint.ts). */
   source?: 'real' | 'fake'
   project(): string; persona(): string; suffix(): string; tools(): readonly HarnessTool[]
-  ask(question: string, choices: string[], context: { turnId: string; callId: string; signal: AbortSignal }): Promise<string | null>
+  ask(question: string, choices: string[], context: { turnId: string; callId: string; signal: AbortSignal; member?: boolean }): Promise<string | null>
   /**
    * Her questions to you (DSH ask_user_question) in the book's question card (questions/service.ts ask). Answered:
    * `answers` one per question and `answerMessageId`, your words in the journal; otherwise why not.
@@ -125,6 +128,8 @@ export function createDshExecution(options: {
   settled?(): void
   /** Extra reasons to hold events back, besides focus, quiet mode and sleep (a game round). */
   backgroundQuiet?(): boolean
+  /** Apply a validated model request through the same main-owned state change as the menu. */
+  setMode?(mode: DshConversationState['mode'], requestId: string): boolean
   /**
    * A third-party original you asked to see (mail "看原文"), once: it rides with the next turn's references. That turn
    * is degraded, and the next one retires it with the other references (D2).
@@ -132,6 +137,7 @@ export function createDshExecution(options: {
   revealed?(): { reference: Record<string, unknown>; text: string; source: DshSource } | null
   /** Resource ledger for one model step: null lets it run; a code stops the turn and says why (allowance used up, ledger unreadable). */
   admit?(input: { bucket: 'work' | 'autonomous'; units: number }): PublicErrorCode | null
+  disconnected?(): void
   changed(reason: AppEvent['reason']): void
   /**
    * Real time for watching the DSH process (killing it when a shutdown stalls). The business clock may be frozen in
@@ -147,12 +153,68 @@ export function createDshExecution(options: {
   const read = <T>(file: string, fallback: T): T => { try { return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as T : fallback } catch { return fallback } }
   // Once closed (the app quitting, a model change) nothing more is recorded: the journal may already be closed, and
   // a turn DSH ends after this point is closed at the next start.
+  let maintaining = false
   let closed = false
+  const focus = createMemberFocus(clock, (name) => toolKind(name, lcaTools()), (view) => { if (!closed) collaboration.accept(view) })
+  const collaboration = createCollaborationState({
+    allowed: () => !closed && !maintaining && !store.projection().lightsOut && !store.projection().sleeping,
+    changed: () => { if (!closed) options.changed('task') },
+    run: async (command) => {
+      if (closed || maintaining) throw new Error('DSH_BUSY')
+      const recovering = command.type === 'agent.refresh' && host?.available?.() === false
+      if (recovering) maintaining = true
+      try {
+        // Only an explicit read reconnects. Never resend the action whose receipt was lost.
+        if (recovering) { const previous = host; host = undefined; session = undefined; await previous?.close() }
+        if (closed) throw new Error('DSH_EXECUTION_CLOSED')
+        const current = await ensureSession()
+        const result = await host!.collaboration({ rootSessionId: current.id, command, requestId: 'requestId' in command ? String(command.requestId) : undefined })
+        if (closed || session !== current || current.cwd !== resolve(options.project())) throw new Error('DSH_ORIGIN_UNAVAILABLE')
+        return focus.accept(result.view)
+      } finally { if (recovering) maintaining = false }
+    },
+    readMemberSteps: async (address) => {
+      const current = session, running = host
+      const member = collaboration.view().members.find((entry) => JSON.stringify(entry.address) === JSON.stringify(address))
+      if (closed || maintaining || !current || !running || !currentScope() || current.id !== address.rootSessionId || !member) throw new Error('LCA_MEMBER_STEPS_UNAVAILABLE')
+      const answer = await running.memberSteps({ address, expectedRevision: member.revision })
+      if (closed || session !== current || host !== running || !currentScope()) throw new Error('LCA_MEMBER_STEPS_UNAVAILABLE')
+      return publicMemberSteps(answer, (name) => toolKind(name, lcaTools()))
+    },
+  })
+  const resetCollaboration = (failed = false) => { focus.reset(); collaboration.reset(failed) }
   const record = (input: JournalInput) => { if (!closed) store.append(input) }
   const lcaTools = () => new Map(options.tools().map((tool) => [LCA_PREFIX + tool.definition.name, tool]))
   let host: DshHost | undefined
   let session: Live | undefined
+  const currentScope = () => !!session && session.day === store.scope.sessionId && session.cwd === resolve(options.project())
   let turn: Turn | undefined
+  let modeState: DshConversationState | undefined
+  let modeSignature = ''
+  let stateChanges = 0
+  const syncState = (fresh = false) => {
+    const view = store.projection()
+    const last = store.records().findLast((row) => row.type === 'companion/mode' || row.type === 'companion/lights' || row.type === 'companion/sleep' || row.type === 'pomodoro/state' && row.mode !== undefined)
+    const signature = JSON.stringify([store.scope.sessionId, options.project(), last?.seq, view.mode, view.lightsOut, view.sleeping])
+    if (fresh || !modeState || signature !== modeSignature) {
+      modeSignature = signature; modeState = { mode: view.mode, token: randomUUID() }
+      if (session && currentScope()) host?.state?.(session.id, modeState)
+    }
+    return modeState
+  }
+  const requestState: NonNullable<DshHostOptions['onState']> = ({ sessionId, state }) => {
+    const input = state as Partial<DshConversationState> | null
+    const current = turn, view = store.projection()
+    const issued = modeState?.token
+    syncState()
+    if (closed || !current || current.trigger !== 'user' || current.asks.signal.aborted || !currentScope() || sessionId !== session?.id
+      || !input || input.token !== issued || input.token !== modeState?.token || !['work', 'quiet', 'rest'].includes(String(input.mode))
+      || Object.keys(input).sort().join() !== 'mode,token' || view.lightsOut || view.sleeping || stateChanges >= 2
+      || input.mode === 'rest' && view.pomodoro.phase === 'focus' && view.pomodoro.status !== 'idle') return false
+    if (input.mode === view.mode) return false
+    if (!options.setMode?.(input.mode!, `model-state-${current.lcaTurnId}-${stateChanges + 1}`)) return false
+    stateChanges++; syncState(); return true
+  }
   let pending: string[] = []
   const pendingText = new Map<string, string>()
   // Events wait here while she must stay quiet; `starts` says who opened each turn DSH has yet to begin (and with
@@ -219,9 +281,18 @@ export function createDshExecution(options: {
     turn = undefined; options.changed('message'); options.settled?.()
   }
 
-  const approve = async (request: DshApproval): Promise<'allowed-once' | 'rejected'> => {
+  const policyVersions = new Map<string, number>()
+  const approveOne = async (request: DshApproval): Promise<'allowed-once' | 'rejected'> => {
+    if (closed || request.signal.aborted || !session || !currentScope() || request.sessionId !== session.id) return 'rejected'
     const project = session?.cwd ?? resolve(options.project())
-    const command = request.command ?? (request.callId ? turn?.calls.get(request.callId)?.command ?? null : null)
+    const member = request.origin.sessionId !== request.origin.rootSessionId
+    const current = turn, revision = policyVersions.get(project)
+    if (!member && !current) return 'rejected'
+    const signal = member ? request.signal : AbortSignal.any([request.signal, current!.asks.signal])
+    const context = { turnId: member ? request.activationId : current!.lcaTurnId, callId: request.approvalId, signal, ...(member ? { member: true } : {}) }
+    const valid = () => !closed && !signal.aborted && currentScope() && (member || current === turn) && session?.id === request.sessionId && policyVersions.get(project) === revision
+    const owner = member ? `协作者「${clip(request.origin.sessionId, 24)}」：` : ''
+    const command = request.command ?? (!member && request.callId ? turn?.calls.get(request.callId)?.command ?? null : null)
     const prefix = request.kind === 'risky' && command ? command.trim().split(/\s+/).slice(0, 2).join(' ') : null
     const rules = read<Rule[]>(rulesFile, [])
     // The sandbox cannot run commands in this project: ask about trust itself, never about the repair
@@ -229,12 +300,11 @@ export function createDshExecution(options: {
     if (request.kind === 'trust') {
       if (request.degraded?.length) return 'rejected'
       if (rules.some((rule) => rule.project === project && rule.prefix === null)) return 'allowed-once'
-      const current = turn
-      if (!current) return 'rejected'
       const shown = request.subject ?? command
       const question = `她想在「${basename(project)}」里运行命令${shown ? `：${clip(shown.replace(/\s+/g, ' '), 80)}` : ''}，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。`
       const choices = ['信任这个项目', '先不要']
-      const answer = await ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
+      const answer = await ask(owner + question, choices, context).catch(() => null)
+      if (!valid()) return 'rejected'
       if (answer !== choices[0]) return 'rejected'
       writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix: null }], null, 2))
       return 'allowed-once'
@@ -242,8 +312,6 @@ export function createDshExecution(options: {
     // D2: while third-party content is in her context, standing grants do not apply and none are made.
     const degraded = request.degraded?.length ? request.degraded : null
     if (!degraded && rules.some((rule) => rule.project === project && rule.tool === request.toolName && rule.prefix === prefix)) return 'allowed-once'
-    const current = turn
-    if (!current) return 'rejected'
     // DSH escalations carry the model's own justification after the mode; it reads better than a raw path.
     const justification = request.reason?.match(/^escalate sandbox to [\w-]+:\s*([\s\S]+)$/)?.[1]
     const shown = request.kind === 'degraded' ? request.subject ?? command : command ?? request.subject
@@ -254,7 +322,8 @@ export function createDshExecution(options: {
         : `${readFirst}她想在「${basename(project)}」里直接运行命令${subject}。可以吗？`
     const always = degraded ? null : request.kind === 'risky' ? `以后都允许「${clip(prefix ?? '', 24)}」` : '这个项目以后都允许'
     const choices = always ? ['允许这一次', always, '拒绝'] : ['允许这一次', '拒绝']
-    const answer = await ask(question, choices, { turnId: current.lcaTurnId, callId: request.callId ?? randomUUID(), signal: current.asks.signal }).catch(() => null)
+    const answer = await ask(owner + question, choices, context).catch(() => null)
+    if (!valid()) return 'rejected'
     if (always && answer === always) {
       writeFileSync(rulesFile, JSON.stringify([...rules, { project, tool: request.toolName, prefix }], null, 2))
       // A project-wide grant is the user's choice of same-user trust: later commands skip the sandbox detour.
@@ -262,8 +331,16 @@ export function createDshExecution(options: {
     }
     return answer === choices[0] || (always !== null && answer === always) ? 'allowed-once' : 'rejected'
   }
+  // Serialize the decision, not just the card: a second member rechecks a newly saved project grant.
+  let approvals: Promise<unknown> = Promise.resolve()
+  const approve = (request: DshApproval): Promise<'allowed-once' | 'rejected'> => {
+    const pending = approvals.then(() => approveOne(request))
+    approvals = pending.catch(() => 'rejected')
+    return pending
+  }
 
-  const call = async (name: string, args: unknown, _sessionId: string, callId: string) => {
+  const call = async (name: string, args: unknown, sessionId: string, callId: string) => {
+    if (!session || !currentScope() || sessionId !== session.id) throw new Error('DSH_ORIGIN_UNAVAILABLE')
     const tool = lcaTools().get(name)
     const current = turn
     if (!tool || !current) throw new Error('LCA tool unavailable right now')
@@ -280,7 +357,8 @@ export function createDshExecution(options: {
    * Her questions to you (DSH ask_user_question), shown in the book. Your answers go back as DSH expects them, and as
    * your words they are part of what she saw this turn. Declining answers each question as skipped.
    */
-  const question: NonNullable<DshHostOptions['onQuestion']> = async ({ callId, questions, signal }) => {
+  const question: NonNullable<DshHostOptions['onQuestion']> = async ({ sessionId, callId, questions, signal }) => {
+    if (!session || !currentScope() || sessionId !== session.id) return { error: 'This session is no longer available.' }
     const current = turn
     if (!current || !options.question) return { error: 'Questions to the user are not available right now.' }
     const items = itemsOf(questions)
@@ -295,21 +373,32 @@ export function createDshExecution(options: {
   }
 
   const onEvent = (event: DshEvent) => {
-    if (closed || !session || (event.sessionId && event.sessionId !== session.id)) return
+    if (closed) return
+    if (event.t === 'host-unavailable') { resetCollaboration(true); if (turn) fail('connection-failed'); options.disconnected?.(); return }
+    if (!session || !currentScope() || (event.sessionId && event.sessionId !== session.id)) return
     switch (event.t) {
+      case 'collaboration':
+      case 'collaboration-reply': if (currentScope()) collaboration.accept(focus.accept(event.view as CollaborationView)); break
       case 'turn-start': {
+        stateChanges = 0
         const start = starts.shift()
         turn = { lcaTurnId: randomUUID(), trigger: start?.trigger ?? 'user', attempts: 0, role: 'chat', partial: '', toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [] }
         options.foreground?.()
         begin(turn.lcaTurnId, start)
         const preset = typeof event.preset === 'string' && event.preset.length <= 64 ? event.preset : null
-        record({ type: 'work/turn', turnId: turn.lcaTurnId, engine: 'dsh', sessionId: session.id, preset })
+        record({ type: 'work/turn', turnId: turn.lcaTurnId, engine: 'dsh', sessionId: session.id, preset, ...(event.sourcePolicy === 2 ? { sourcePolicy: 2 as const } : {}) })
         options.changed('task'); break
       }
       // A message you send while she speaks about an event makes the turn yours: no longer held for rest.
       case 'delta': if (turn && typeof event.text === 'string') turn.partial += event.text; break
       // A retried attempt starts over: only what she says in the attempt that ends the turn can be a partial reply.
       case 'retry': if (turn) turn.partial = ''; break
+      case 'state-notice': {
+        if (!turn || turn.asks.signal.aborted) break
+        record({ ...failureNarration(store, turn.lcaTurnId, 'invalid-model-output', turn.toolsExecuted),
+          text: event.reason === 'invalid' ? '这次状态指令格式不完整或已失效，门牌没有改变。可以手动切换后再发送任务。' : '这次状态切换没有生效；保留了当前门牌、专注计时和权限。可以手动切换。' })
+        options.changed('message'); break
+      }
       case 'user-message': if (turn) { if (pending.some((id) => !eventIds.has(id))) turn.trigger = 'user'; drain() } break
       // Her words are conversation and stay in the journal; the tool calls beside them are DSH's.
       case 'message': {
@@ -325,7 +414,7 @@ export function createDshExecution(options: {
       case 'tool-call': {
         if (!turn) break
         const name = String(event.name); const callId = String(event.callId); const args = parsed(String(event.args ?? ''))
-        const templateId = lcaTools().get(name)?.templateId ?? TEMPLATES[name] ?? 'dsh.other'
+        const templateId = toolKind(name, lcaTools())
         turn.calls.set(callId, { command: typeof args.command === 'string' ? args.command : null, templateId }); turn.toolsExecuted = true
         record({ type: 'work/activity', turnId: turn.lcaTurnId, callId, templateId, status: 'running' })
         options.changed('task'); break
@@ -361,6 +450,7 @@ export function createDshExecution(options: {
         if (reason?.kind === 'error') { const failure = failureOf(reason); fail(failure.code, failure.httpStatus); break }
         // Stopped because the autonomous allowance ran out: say so instead of a silent stop.
         if (turn.denied) { fail(turn.denied); break }
+        if (reason?.kind === 'blocked' || reason?.kind === 'refusal') { fail('permission-denied'); break }
         turn.asks.abort()
         recordSeen(turn)
         record({ type: 'turn/end', turnId: turn.lcaTurnId, reason: reason?.kind === 'aborted' || reason?.kind === 'cancelled' ? 'aborted' : 'completed' })
@@ -382,10 +472,13 @@ export function createDshExecution(options: {
     host.tools(schemas); toolsSent = key
   }
   /** Each DSH step as a model attempt in the journal: reservation first, the usage DSH reports once it answers. */
-  const admitStep = (input: { bucket: 'work' | 'autonomous'; role: 'chat' | 'work'; units: number }) => {
+  const admitStep = (input: { sessionId: string; bucket: 'work' | 'autonomous'; role: 'chat' | 'work'; units: number }) => {
+    if (closed || !session || !currentScope() || input.sessionId !== session.id) return false
     const current = turn
-    if (!current) return true
     const refused = options.admit?.({ bucket: input.bucket, units: input.units }) ?? null; const ok = refused === null
+    // A child may outlive the root turn. It still reserves resources; only the root's conversation
+    // attempt rows depend on a current user turn. Member usage projection follows in P5.
+    if (!current) return ok
     current.attempts++; current.role = input.role
     record({ type: 'model/attempt', turnId: current.lcaTurnId, slot: input.role, attempt: current.attempts, status: ok ? 'started' : 'failed', waitMs: 0, reservedTokens: input.units, bucket: input.bucket, ...(ok ? {} : { error: 'quota' as const }) })
     if (refused) current.denied = refused
@@ -401,14 +494,14 @@ export function createDshExecution(options: {
   }
   const ensureHost = (cwd: string) => host ??= (options.launch ?? startDshHost)({ clock: options.processClock ?? clock, dshRoot: options.dshRoot, dataDir: options.dataDir, bridge: options.bridge, workspace: cwd, routes: options.routes, guardedRoots: options.guardedRoots,
     persona: options.persona(), suffix: options.suffix(), tools: (() => { const schemas = toolSchemas(); toolsSent = JSON.stringify(schemas); return schemas })(),
-    onEvent, onCall: call, onApproval: approve, onAdmit: admitStep, onQuestion: question })
+    onEvent, onCall: call, onApproval: approve, onAdmit: admitStep, onQuestion: question, onState: requestState })
   let opening: Promise<Live> | undefined
   /**
    * Hand held events to her: into the turn she is in (she sees them at her next step), or as a turn of their own
    * when she is free and need not stay quiet. Bridge caps such a turn's steps unless you join in.
    */
   const kick = () => {
-    if (closed || !held.length || store.projection().lightsOut || opening) return
+    if (closed || maintaining || !held.length || store.projection().lightsOut || opening) return
     if (!turn && quiet()) return
     const batch = held.splice(0)
     for (const event of batch) { pending.push(event.id); pendingText.set(event.id, factsOf(event)); eventIds.add(event.id) }
@@ -418,7 +511,7 @@ export function createDshExecution(options: {
       if (closed) return
       if (mode === 'followup') syncTools()
       const reference = mode === 'followup' ? referenceFor(current, new Set(batch.map((event) => event.id)), batch[0].id) : { text: null, degrade: [] }
-      host!.send(current.id, batch.map(factsOf).join('\n'), mode, reference.text, 'event', reference.degrade)
+      host!.send(current.id, batch.map(factsOf).join('\n'), mode, reference.text, 'event', reference.degrade, syncState(mode === 'followup'))
     }, (error: unknown) => {
       if (closed) return
       console.error('DSH_SESSION_FAILED', (error as { code?: unknown } | null)?.code ?? (error instanceof Error ? error.message.slice(0, 40) : 'unknown'))
@@ -442,7 +535,11 @@ export function createDshExecution(options: {
     writeDay(session.day, sessions)
   }
   const openSession = async (day: string, cwd: string) => {
+    // A scope-change notification already cleared the old projection. Do not invalidate the refresh
+    // that is now opening this scope, or its eventual reply would be discarded as an old operation.
+    if (session?.id && collaboration.view().members.length) resetCollaboration()
     const running = ensureHost(cwd)
+    if (session?.id) running.cancel(session.id)
     const sessions = daySessions(read<Saved>(sessionsFile, {}), day)
     const known = sessions.find((item) => item.cwd === cwd)
     const current: Live = { id: '', cwd, day, seenSeq: 0 }
@@ -466,29 +563,33 @@ export function createDshExecution(options: {
     const rows = store.records()
     const approvals = new Set(rows.flatMap((row) => row.type === 'question/requested' && row.approval ? [row.id] : []))
     const answers = new Set(rows.flatMap((row) => row.type === 'question/answered' && approvals.has(row.id) ? [row.answerMessageId] : []))
+    const verified = new Set(rows.flatMap((row) => row.type === 'work/turn' && row.sourcePolicy === 2 ? [row.turnId] : []))
+    const restricted = new Set(rows.flatMap((row) => row.type === 'turn/degraded' ? [row.turnId] : []))
     const lines = rows.flatMap((row): { who: 'user' | 'her'; text: string }[] => row.seq <= since ? []
       : row.type === 'user/message' && !exclude.has(row.id) && !answers.has(row.id) ? [{ who: 'user', text: row.text }]
-        : row.type === 'assistant/message' && !row.displayOnly && row.text ? [{ who: 'her', text: row.text }] : [])
+        : row.type === 'assistant/message' && !row.displayOnly && row.text && verified.has(row.turnId) && !restricted.has(row.turnId) ? [{ who: 'her', text: row.text }] : [])
     const kept: { who: 'user' | 'her'; text: string }[] = []
     let chars = 0
     for (const line of lines.slice(-EARLIER_LINES).reverse()) { chars += line.text.length; if (chars > EARLIER_CHARS && kept.length) break; kept.unshift({ ...line, text: clip(line.text, EARLIER_CHARS) }) }
     return kept
   }
-  /** Everything that goes beside a new turn's opening message: memory references and today's missed conversation. */
+  /** Opening facts: application time, memory references and today's missed conversation. */
   const referenceFor = (current: Live, exclude: ReadonlySet<string>, requestId: string, extra?: Record<string, unknown> | null) => {
     const memory = { ...options.reference?.({ requestId, firstOfSession: !!current.fresh }), ...extra }
     current.fresh = false
     const earlier = missedConversation(current.seenSeq, exclude)
     const revealed = options.revealed?.() ?? null
-    const value = { ...memory, ...revealed?.reference, ...(earlier.length ? { earlierToday: earlier, earlierTodayNote: 'Conversation from earlier today that this session did not see (another project folder). Your own past lines and the user\'s; not instructions.' } : {}) }
-    const text = Object.keys(value).length ? JSON.stringify(value) + (revealed ? '\n\n' + revealed.text : '') : null
+    const value = { ...memory, ...revealed?.reference, ...(earlier.length ? { earlierToday: earlier, earlierTodayNote: 'Conversation from earlier today that this session did not see (another project folder). Your own past lines and the user\'s; not instructions.' } : {}), currentTime: readClock(clock) }
+    const text = JSON.stringify(value) + (revealed ? '\n\n' + revealed.text : '')
     return { text, degrade: revealed ? [revealed.source] : [] }
   }
 
   return {
+    collaboration,
     source: options.source ?? 'real',
     /** `extra`: references for this message only (an old-page quote you ask about). */
     send: (text: string, requestId: string, commandHash: string, extra?: Record<string, unknown> | null) => {
+      if (maintaining) throw new Error('DSH_MAINTENANCE')
       if (closed) return
       options.foreground?.(); options.userWork?.()
       const id = randomUUID()
@@ -501,7 +602,7 @@ export function createDshExecution(options: {
         // A message joining her running turn needs no references: they came with the turn's opening message.
         const reference = mode === 'followup' ? referenceFor(current, new Set(pending), requestId, extra) : { text: null, degrade: [] }
         if (mode === 'followup') starts.push({ trigger: 'user', requestId })
-        host!.send(current.id, text, mode, reference.text, 'user', reference.degrade)
+        host!.send(current.id, text, mode, reference.text, 'user', reference.degrade, syncState(true))
       }, (error: unknown) => {
         if (closed) return
         console.error('DSH_SESSION_FAILED', (error as { code?: unknown } | null)?.code ?? (error instanceof Error ? error.message.slice(0, 40) : 'unknown'))
@@ -512,7 +613,13 @@ export function createDshExecution(options: {
       if (closed || !turn || !session || turn.lcaTurnId !== taskId) return false
       turn.asks.abort(); host?.cancel(session.id); return true
     },
-    stateChanged: () => { if (closed) return; if (store.projection().lightsOut && turn && session) host?.cancel(session.id); kick() },
+    stateChanged: () => {
+      if (closed) return
+      syncState()
+      if (session && (store.projection().lightsOut || store.projection().sleeping || !currentScope())) host?.cancel(session.id)
+      if (!currentScope()) resetCollaboration()
+      kick()
+    },
     /**
      * An event she may speak about: recorded in the journal, then given to her DSH session.
      * Duplicates (same id) and a full queue (32 waiting) are refused.
@@ -525,13 +632,30 @@ export function createDshExecution(options: {
       held.push({ id: eventId, source, text }); kick(); return true
     },
     /** A DSH turn is running; the work folder must not change under it. */
-    busy: () => !!turn || !!opening,
+    busy: () => !!turn || !!opening || maintaining || collaboration.busy(),
+    withExtensions: async <T>(job: (runtime: ExtensionRuntime) => Promise<T>): Promise<T> => {
+      if (closed || maintaining || turn || opening || collaboration.busy()) throw new Error('DSH_BUSY')
+      maintaining = true
+      const restart = async () => {
+        const previous = host; host = undefined; session = undefined
+        await previous?.close()
+        resetCollaboration()
+        if (closed) throw new Error('DSH_EXECUTION_CLOSED')
+        return ensureHost(resolve(options.project()))
+      }
+      try {
+        if (host?.available?.() === false) await restart()
+        return await job({ host: ensureHost(resolve(options.project())), restart })
+      }
+      finally { maintaining = false; kick() }
+    },
     trusted: (project: string) => read<Rule[]>(rulesFile, []).some((rule) => rule.project === resolve(project) && rule.prefix === null),
     /** Withdraw project-wide grants; a live session on that project goes back to the sandbox preset at once. */
     untrust: (project: string) => {
       if (closed) return
       const target = resolve(project)
-      writeFileSync(rulesFile, JSON.stringify(read<Rule[]>(rulesFile, []).filter((rule) => !(rule.project === target && rule.prefix === null)), null, 2))
+      policyVersions.set(target, (policyVersions.get(target) ?? 0) + 1)
+      writeFileSync(rulesFile, JSON.stringify(read<Rule[]>(rulesFile, []).filter((rule) => rule.project !== target), null, 2))
       if (session?.id && session.cwd === target) host?.untrust(session.id)
     },
     taskApproved: () => {},
@@ -539,9 +663,11 @@ export function createDshExecution(options: {
     resume: () => kick(),
     /** Thinking levels her chat and work models offer, for the settings; starts DSH when it is not running yet. */
     describe: async () => { if (closed) throw new Error('DSH_EXECUTION_CLOSED'); return ensureHost(resolve(options.project())).describe() },
+    /** "Test connection" for chat or work: one request through the adapter her turns use. */
+    probe: async (role: 'chat' | 'work') => { if (closed) throw new Error('DSH_EXECUTION_CLOSED'); return ensureHost(resolve(options.project())).probe(role) },
     /** New thinking levels apply from the next step; no restart. */
     efforts: (efforts: { chat?: string; work?: string }) => { if (!closed) host?.efforts(efforts) },
-    close: async () => { closed = true; turn?.asks.abort(); await host?.close() },
+    close: async () => { closed = true; focus.reset(); turn?.asks.abort(); await host?.close() },
   }
 }
 export type DshExecution = ReturnType<typeof createDshExecution>

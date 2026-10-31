@@ -5,7 +5,7 @@ type Table = Record<string, Record<string, string>>
 const table = templates as unknown as Table
 
 /** 折叠时用的种类名：模板“进行中”那句；带占位符的不用。 */
-export function activityKind(view: ActivityView): string | null {
+export function activityKind(view: Pick<ActivityView, 'templateId'>): string | null {
   const running = table[view.templateId]?.running
   return running && !running.includes('{') ? running : null
 }

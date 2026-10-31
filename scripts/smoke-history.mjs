@@ -32,7 +32,8 @@ try {
   await debug('set_fake_model', { script: [{ text: '合成经历：周五桥放在窗边。', toolCalls: [], delayMs: 0 }] })
   await send({ type: 'message.send', text: '我把纸桥放在窗边，取名叫周五桥。' }); await waitFor((s) => s.task?.status === 'completed', 'HISTORY_CHAT_FAILED')
   const quotedMessage = (await snapshot()).messages.find((message) => message.role === 'user')
-  await send({ type: 'message.send', text: '窗边那座桥是我们一起折的。' }); await waitFor((s) => s.task?.status === 'completed' && s.messages.filter((message) => message.role === 'user').length === 2, 'HISTORY_SECOND_TURN_FAILED')
+  const firstTurnId = (await snapshot()).task.id
+  await send({ type: 'message.send', text: '窗边那座桥是我们一起折的。' }); await waitFor((s) => s.task?.id !== firstTurnId && s.task?.status === 'completed' && s.messages.filter((message) => message.role === 'user').length === 2, 'HISTORY_SECOND_TURN_FAILED')
   const sessionId = (await snapshot()).scope.sessionId
   await page.waitForFunction(() => document.querySelector('[data-photo-scene] canvas')?.getAttribute('data-photo-ready') === 'true' || !!document.querySelector('[data-photo-scene] img')?.complete)
   await page.addStyleTag({ content: '.wall-clock,.door{background:rgb(255,0,255)!important;z-index:99999!important;opacity:1!important;filter:none!important;mix-blend-mode:normal!important;backdrop-filter:none!important}' })
@@ -99,7 +100,9 @@ try {
   assert.equal((await send({ type: 'history.recall', anchor: { ...anchor, sessionId: 'foreign-session' }, question: '越界' })).status, 'rejected')
   // Real second old page: selection from A cannot remain while viewing/loading/failed B (#19).
   await debug('set_fake_model', { script: [{ text: '第二页合成回应。', toolCalls: [], delayMs: 0 }] })
-  await send({ type: 'message.send', text: '第二页独立经历。' }); await waitFor((s) => s.task?.status === 'completed' && s.messages.some((m) => m.text === '第二页独立经历。'), 'SECOND_PAGE_CHAT_FAILED')
+  // The new user line is journaled before DSH starts. A previous completed task is not this turn's completion.
+  const previousTurnId = (await snapshot()).task.id
+  await send({ type: 'message.send', text: '第二页独立经历。' }); await waitFor((s) => s.task?.id !== previousTurnId && s.task?.status === 'completed' && s.messages.some((m) => m.text === '第二页独立经历。'), 'SECOND_PAGE_CHAT_FAILED')
   const secondId = (await snapshot()).scope.sessionId
   await debug('set_clock', { nowMs: Date.parse('2026-10-18T12:00:00+08:00') }); await waitFor((s) => s.session.dayKey === '2026-10-18', 'THIRD_PAGE_ROLLOVER_FAILED')
   await page.locator('.turn-back').click(); await page.locator('.old-page .msg-text', { hasText: '第二页独立经历。' }).waitFor()

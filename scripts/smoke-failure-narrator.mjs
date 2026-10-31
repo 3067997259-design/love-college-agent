@@ -114,9 +114,14 @@ try {
   assert.equal((await snapshot()).activities.filter((activity) => activity.taskId === tools.failure.turnId && activity.status === 'completed').length, 1)
   assert.ok((await page.locator(`[data-failure-turn="${tools.failure.turnId}"]`).innerText()).includes('已尝试调用工具'))
   const count = (await records()).filter((row) => row.type === 'narrator/failure').length
-  mode = 'waiting'; phase = 0; await accept({ type: 'message.send', text: 'stop pending request' }); const stopped = (await snapshot()).task.id
+  previousTask = (await snapshot()).task?.id
+  mode = 'waiting'; phase = 0; await accept({ type: 'message.send', text: 'stop pending request' })
+  await waitFor((s) => s.task?.id !== previousTask && s.task?.status === 'running', 'STOP_TURN_NOT_STARTED')
+  const stopped = (await snapshot()).task.id
   for (let i = 0; i < 100 && phase === 0; i++) await new Promise((done) => setTimeout(done, 20)); assert.equal(phase, 1)
-  await accept({ type: 'turn.stop', taskId: stopped }); await waitFor((s) => s.task?.status === 'aborted', 'STOP_FAILED'); assert.equal((await records()).filter((row) => row.type === 'narrator/failure').length, count)
+  assert.equal((await send({ type: 'turn.stop', taskId: previousTask })).status, 'rejected', 'STALE_STOP_ACCEPTED')
+  assert.equal((await snapshot()).task?.id, stopped)
+  await accept({ type: 'turn.stop', taskId: stopped }); await waitFor((s) => s.task?.id === stopped && s.task?.status === 'aborted', 'STOP_FAILED'); assert.equal((await records()).filter((row) => row.type === 'narrator/failure').length, count)
   const archive = join(data, 'failures.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive)
   assert.equal((await whenIdle(send, { type: 'backup.export' })).status, 'accepted'); await waitFor((s) => s.backup.status === 'exported', 'EXPORT_FAILED')
   const attempts = (await records()).filter((row) => row.type === 'model/attempt' && row.status === 'started').length; const failures = (await records()).filter((row) => row.type === 'narrator/failure').length; const httpCount = requests.length

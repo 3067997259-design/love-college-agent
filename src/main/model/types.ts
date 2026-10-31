@@ -2,8 +2,13 @@ import type { ContextMessage } from '../journal/schema'
 import type { ProviderSlot } from '../config/providers'
 
 export type ModelFailureKind = 'configuration' | 'network' | 'timeout' | 'upstream' | 'quota' | 'cancelled' | 'invalid-output' | 'interrupted' | 'content-filtered'
+/**
+ * What the provider or the network said, key-redacted and bounded. Only the user's own connection test shows it;
+ * it never goes into the journal, a model's context or logs.
+ */
+export interface ModelFailureDiagnostic { code?: string; message?: string; body?: string }
 export class ModelFailure extends Error {
-  constructor(readonly kind: ModelFailureKind, readonly partialText = '', readonly httpStatus?: number, readonly retryAfterMs?: number) {
+  constructor(readonly kind: ModelFailureKind, readonly partialText = '', readonly httpStatus?: number, readonly retryAfterMs?: number, readonly diagnostic?: ModelFailureDiagnostic) {
     super('MODEL_REQUEST_FAILED')
   }
 }
@@ -26,6 +31,8 @@ export interface ModelRequest {
   signal: AbortSignal
   toolsExecuted: boolean
   maxOutputTokens?: number
+  /** At most this many attempts per slot (default 4). A connection test uses 1 to report the first failure as it is. */
+  attempts?: number
 }
 export interface ModelAttempt {
   slot: ProviderSlot; attempt: number; status: 'started' | 'success' | 'failed' | 'retry'; waitMs: number

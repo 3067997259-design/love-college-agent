@@ -50,10 +50,13 @@ export async function probeBackup(root: string) {
     const safety = await exportPrivateSave({ root, store, clock, source: 'fake', fileFilteringEnabled: false }); writeFileSync(join(root, 'safety.lca-save'), safety.bytes)
     const otherDocuments = openDocumentVault(root, otherOwner); const otherRef = otherDocuments.put(new Uint8Array(Buffer.from('OTHER_USER_AFTER_SAVE')), 'text'); otherDocuments.close()
     memory.close(); evidence.close(); documents.close(); store.close()
+    const sessionIndex = JSON.stringify({ day: [{ id: 'P6_POST_SAVE_MEMBER_ROOT', cwd: 'synthetic-project' }] })
+    writeFileSync(join(root, 'dsh-sessions.json'), sessionIndex)
     const oldBytes = readFileSync(join(journalLocation(root, owner, clock).folder, '2026-10-16.jsonl'))
     queueRestore(root, staged.restoreId, safety.manifest.archiveId); clock.advanceBy(24 * 60 * 60_000)
     const applied = applyPendingRestore(root, owner, 'fake', clock)
     if (applied?.status !== 'restored') throw new Error('SAVE_RESTORE_FAILED'); stage = 3
+    if (existsSync(join(root, 'dsh-sessions.json')) || readFileSync(join(root, '.backup-staging', staged.restoreId, 'rollback', 'dsh-sessions.json'), 'utf8') !== sessionIndex) throw new Error('SAVE_DSH_INDEX_NOT_RETIRED')
     const nextStore = openSessionStore(root, owner, clock); const nextDocuments = openDocumentVault(root, owner); const nextEvidence = openEvidenceVault(root, owner)
     try {
       const restoredDesk = createDesk(join(root, 'restored-desk'))
@@ -75,12 +78,26 @@ export async function probeBackup(root: string) {
     writeFileSync(join(interrupted.stage, 'transaction.json'), JSON.stringify({ phase: 'applying', targets, previous: targets.filter((name) => name === relativeJournal || existsSync(join(root, name))) }))
     const rejected = applyPendingRestore(root, owner, 'fake', clock)
     if (rejected?.status !== 'failed' || !existsSync(join(root, relativeJournal))) throw new Error('SAVE_CRASH_RECOVERY_FAILED')
+    // An unsafe DSH index must reject the restore before replacing the book, not silently keep old members.
+    const unsafe = await stagePrivateSave(root, saved.bytes, owner, 'fake'); queueRestore(root, unsafe.restoreId, randomUUID())
+    const currentJournal = readFileSync(join(root, relativeJournal, '2026-10-16.jsonl'))
+    mkdirSync(join(root, 'dsh-sessions.json'))
+    const unsafeResult = applyPendingRestore(root, owner, 'fake', clock)
+    if (unsafeResult?.status !== 'failed' || !readFileSync(join(root, relativeJournal, '2026-10-16.jsonl')).equals(currentJournal)) throw new Error('SAVE_UNSAFE_INDEX_PARTIAL_RESTORE')
+    renameSync(join(root, 'dsh-sessions.json'), join(root, 'unsafe-index-probe-preserved'))
+    const interruptedIndex = await stagePrivateSave(root, saved.bytes, owner, 'fake'); queueRestore(root, interruptedIndex.restoreId, randomUUID())
+    writeFileSync(join(root, 'dsh-sessions.json'), sessionIndex)
+    const indexTargets = [...targets, 'dsh-sessions.json'], indexPrevious = indexTargets.filter((name) => existsSync(join(root, name)))
+    mkdirSync(join(interruptedIndex.stage, 'rollback'), { recursive: true })
+    renameSync(join(root, 'dsh-sessions.json'), join(interruptedIndex.stage, 'rollback/dsh-sessions.json'))
+    writeFileSync(join(interruptedIndex.stage, 'transaction.json'), JSON.stringify({ phase: 'applying', targets: indexTargets, previous: indexPrevious }))
+    if (applyPendingRestore(root, owner, 'fake', clock)?.status !== 'failed' || readFileSync(join(root, 'dsh-sessions.json'), 'utf8') !== sessionIndex) throw new Error('SAVE_INDEX_CRASH_ROLLBACK_FAILED')
     const credentialStore = openSessionStore(root, owner, clock); const credentialVault = openDocumentVault(root, owner)
     try {
       credentialVault.put(new Uint8Array(Buffer.from('APPLICATION_CREDENTIAL_CANARY')), 'text')
       if (!(await exportPrivateSave({ root, store: credentialStore, clock, source: 'fake', fileFilteringEnabled: false, credentials: ['APPLICATION_CREDENTIAL_CANARY'] }).then(() => false, () => true))) throw new Error('SAVE_EMBEDDED_CREDENTIAL_EXPORTED')
     } finally { credentialVault.close(); credentialStore.close() }
-    return { ok: true, probe: 'backup', sqliteBackupApi: true, privateSourcesPreserved: true, applicationSecretsExcluded: true, embeddedKnownCredentialRefused: true, manifestHashesChecked: true, scopeChecked: true, otherUserPreserved: true, actualRestore: true, preRestoreDataPreserved: true, interruptedRestoreRolledBack: true, rejectedDeskWritesNotRestored: true, multibyteDeskBoundary: true }
+    return { ok: true, probe: 'backup', sqliteBackupApi: true, privateSourcesPreserved: true, applicationSecretsExcluded: true, embeddedKnownCredentialRefused: true, manifestHashesChecked: true, scopeChecked: true, otherUserPreserved: true, actualRestore: true, preRestoreDataPreserved: true, interruptedRestoreRolledBack: true, rejectedDeskWritesNotRestored: true, multibyteDeskBoundary: true, dshSessionsRetiredTransactionally: true, unsafeSessionIndexRefusesRestore: true, interruptedSessionRetirementRolledBack: true }
   } catch { return { ok: false, probe: 'backup', stage } }
   finally { try { memory.close(); evidence.close(); documents.close(); store.close() } catch { /* Probe may have closed all handles before replacement. */ } }
 }

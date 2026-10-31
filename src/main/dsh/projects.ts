@@ -41,6 +41,7 @@ export function createProjects(options: {
       const recent = (draft.workProjects?.recent ?? []).filter((entry) => key(entry) !== key(full))
       draft.workProjects = { current: key(full) === key(desk) ? null : full, recent: key(full) === key(desk) ? recent : [full, ...recent].slice(0, RECENT) }
     })
+    options.changed()
   }
 
   return {

@@ -18,7 +18,7 @@ it('imports explicit TTS fields, preserves mixed chat/privacy slots, and reads t
   const reopened = createModelSettings(options); expect(await readVoiceConfig(saved)).toEqual(tts); expect((await readModelProviders(saved)).has('chat')).toBe(true); expect((await readModelProviders(saved)).has('privacy')).toBe(false)
   const shown = JSON.stringify(reopened.view())
   for (const secret of ['synthetic-chat-only', 'synthetic-speech-only', 'chat.invalid', 'speech.invalid', 'synthetic-stock-voice']) expect(shown).not.toContain(secret)
-  expect(reopened.view().details?.chat).toEqual({ vendor: null, host: 'cha•••.invalid', model: 'synthetic-chat-model' }); await reopened.close()
+  expect(reopened.view().details?.chat).toMatchObject({ vendor: null, host: 'cha•••.invalid', model: 'synthetic-chat-model' }); await reopened.close()
 // Real Windows filesystem import/readback can exceed 5s on a hosted worker.
 // Assertions and application deadlines stay unchanged; this fixture has no network.
 }, 15000)
@@ -97,7 +97,7 @@ it('keeps a thinking level per role, applies it without a restart, and drops it 
   let applied = 0; const changes: unknown[] = []
   // Busy work must not block a level change: it applies from her next step.
   const settings = createModelSettings({ root, apply: async () => { applied++ }, developer: false, slots: ['chat'], clock: createManualClock(), canConfigure: () => false, choose: async () => null, changed: () => {}, effortsChanged: (efforts) => { changes.push(efforts) } })
-  expect(settings.view().details?.chat).toEqual({ vendor: 'DeepSeek', host: 'api•••.com', model: 'deepseek-flash' })
+  expect(settings.view().details?.chat).toMatchObject({ vendor: 'DeepSeek', host: 'api•••.com', model: 'deepseek-flash' })
   expect(settings.view().routing?.work).toBe('follow-main')
   expect(settings.dispatch({ type: 'models.effort.set', role: 'work', effort: 'max' } as AppCommand)).toBeUndefined(); await settings.idle()
   expect(settings.dispatch({ type: 'models.effort.set', role: 'chat', effort: 'low' } as AppCommand)).toBeUndefined(); await settings.idle()
@@ -112,7 +112,7 @@ it('keeps a thinking level per role, applies it without a restart, and drops it 
   free.dispatch({ type: 'models.provider.save', slot: 'chat', baseUrl: '', model: 'deepseek-v4-pro' } as AppCommand); await free.idle()
   expect(JSON.parse(readFileSync(file, 'utf8')).efforts).toEqual({}); expect(free.view().levels).toBeUndefined()
   free.dispatch({ type: 'models.provider.save', slot: 'work', baseUrl: 'https://api.moonshot.cn/v1', model: 'kimi-k3', apiKey: 'synthetic-work-secret' } as AppCommand); await free.idle()
-  expect(free.view().routing?.work).toBe('independent'); expect(free.view().details?.work).toEqual({ vendor: 'Kimi', host: 'api•••.cn', model: 'kimi-k3' })
+  expect(free.view().routing?.work).toBe('independent'); expect(free.view().details?.work).toMatchObject({ vendor: 'Kimi', host: 'api•••.cn', model: 'kimi-k3' })
   expect(JSON.stringify(free.view())).not.toContain('synthetic-work-secret')
   expect(resolveModelProviders(await readModelProviders(file), await readModelRouting(file)).get('work')?.model).toBe('kimi-k3')
   await free.close()

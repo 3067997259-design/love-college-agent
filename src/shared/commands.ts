@@ -1,4 +1,7 @@
 import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, MinecraftScope, ModelProviderSlot, OpticalTier, PomodoroPlanInput, PublicError, QuestionAnswer, ReasoningEffort, RecallAnchor } from './state'
+import type { CollaborationCommand } from './collaboration'
+import type { ExtensionCommand } from './extensions'
+import type { SkillCommand } from './skills'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -7,6 +10,9 @@ interface CommandEnvelope {
 }
 /** Only main decides availability and permission. Undeveloped operations reject explicitly. */
 export type AppCommand = CommandEnvelope & (
+  | CollaborationCommand
+  | ExtensionCommand
+  | SkillCommand
   | { type: 'message.send'; text: string }
   | { type: 'turn.stop'; taskId: string }
   | { type: 'voice.set'; enabled: boolean }
@@ -81,10 +87,11 @@ export type AppCommand = CommandEnvelope & (
   /** GUI save. Blank fields keep the saved value; credentials never return to the renderer. */
   | { type: 'models.provider.save'; slot: ModelProviderSlot; baseUrl: string; model: string; apiKey?: string }
   | { type: 'models.provider.remove'; slot: ModelProviderSlot }
+  | { type: 'models.capabilities.save'; slot: ModelProviderSlot; modelRef: string; capabilities: import('./model-capabilities').ManualModelCapabilities | null }
   | { type: 'models.routing.set'; slot: 'background' | 'privacy' | 'work'; mode: 'follow-main' | 'independent' }
   /** null returns the role to the provider's default thinking level. */
   | { type: 'models.effort.set'; role: 'chat' | 'work'; effort: ReasoningEffort | null }
-  /** User-requested fixed-prompt probe of the saved slot; no URL/key/response text returns. */
+  /** User-requested fixed-prompt test of the saved slot, on the path that slot really uses; the result never carries a key. */
   | { type: 'models.probe'; slot: ModelProviderSlot }
   /** TTS / Rodin service connections; blank fields keep saved values. */
   | { type: 'models.service.save'; service: 'tts' | 'rodin'; baseUrl: string; model: string; apiKey?: string; voice?: string }

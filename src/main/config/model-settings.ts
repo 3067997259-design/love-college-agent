@@ -1,7 +1,9 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { z } from 'zod'
-import type { AppCommand, ModelProviderSlot, ModelSettingsView, ModelSlotDetail, PublicErrorCode, ReasoningEffort } from '../../shared'
+import type { AppCommand, ConnectionTestRead, ModelProviderSlot, ModelSettingsView, ModelSlotDetail, PublicErrorCode, ReasoningEffort } from '../../shared'
+import type { DshProbeResult } from '../../shared/dsh-protocol'
+import { chatEndpoint, directProbe, dshProbe, engineUnavailable, publicCodeOf, type ProbeOutcome } from './connection-issue'
 import { PROVIDER_SLOTS, REASONING_EFFORTS, readModelProviders, inferModelRouting, type ModelEfforts, type ProviderSlot } from './providers'
 import { maskedHost, vendorOf } from './vendors'
 import { voiceConfigSchema } from '../voice/port'
@@ -9,12 +11,15 @@ import type { Clock } from '../clock'
 import { createModelClient } from '../model/client'
 import { ModelFailure, type ModelFailureKind } from '../model/types'
 import { ResourceFailure } from '../resources/ledger'
+import { capabilityRegistrySchema, manualCapabilitiesSchema, modelCapabilityRef, canDeclareCapabilities, declaredCapabilities } from './model-capabilities'
+import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
 
 export const providerConfigPath = (root: string, fallback: string) => existsSync(join(root, 'connections/providers.json')) ? join(root, 'connections/providers.json') : fallback
 const entry = z.strictObject({ base_url: z.string().max(4096).default(''), api_key: z.string().max(8192).default(''), model: z.string().max(256).default('') })
 const schema = z.strictObject({ providers: z.record(z.string().regex(/^[A-Za-z0-9_-]{1,40}$/), z.union([entry, voiceConfigSchema])).refine((value) => Object.keys(value).length <= 16 && Object.entries(value).every(([slot, config]) => (slot === 'tts' ? voiceConfigSchema : entry).safeParse(config).success)),
   routing: z.strictObject({ background: z.enum(['follow-main', 'independent']).optional(), privacy: z.enum(['follow-main', 'independent']).optional(), work: z.enum(['follow-main', 'independent']).optional() }).optional(),
   efforts: z.strictObject({ chat: z.enum(REASONING_EFFORTS).optional(), work: z.enum(REASONING_EFFORTS).optional() }).optional(),
+  modelCapabilities: capabilityRegistrySchema.optional(),
   mail: z.strictObject({ host: z.string().max(256), port: z.number().int().min(1).max(65535), tls: z.literal(true), user: z.string().max(320), auth_code: z.string().max(8192), folder: z.literal('桃子') }).optional() })
 type Config = z.infer<typeof schema>
 // Bootstrap readers historically accept annotated configs. Import and GUI edits must
@@ -23,11 +28,13 @@ type Config = z.infer<typeof schema>
 const fields = (value: unknown, allowed: readonly string[]): unknown => value && typeof value === 'object' && !Array.isArray(value)
   ? Object.fromEntries(allowed.filter((key) => Object.hasOwn(value, key)).map((key) => [key, (value as Record<string, unknown>)[key]])) : value
 const parseConfig = (text: string): Config => {
-  const raw = z.object({ providers: z.record(z.string(), z.unknown()), mail: z.unknown().optional(), routing: z.unknown().optional(), efforts: z.unknown().optional() }).parse(JSON.parse(text.replace(/^\uFEFF/, '')))
-  return schema.parse({ ...raw,
+  const raw = z.object({ providers: z.record(z.string(), z.unknown()), mail: z.unknown().optional(), routing: z.unknown().optional(), efforts: z.unknown().optional(), modelCapabilities: z.unknown().optional() }).parse(JSON.parse(text.replace(/^\uFEFF/, '')))
+  const parsed = schema.parse({ ...raw,
     providers: Object.fromEntries(Object.entries(raw.providers).map(([slot, value]) => [slot, fields(value, slot === 'tts' ? ['base_url', 'api_key', 'model', 'protocol', 'voice'] : ['base_url', 'api_key', 'model'])])),
     ...(Object.hasOwn(raw, 'mail') ? { mail: fields(raw.mail, ['host', 'port', 'tls', 'user', 'auth_code', 'folder']) } : {}),
   })
+  for (const [slot, config] of Object.entries(parsed.providers)) if (slot !== 'tts') declaredCapabilities(parsed.modelCapabilities, config)
+  return parsed
 }
 const MODEL_SLOTS = new Set<ModelProviderSlot>(PROVIDER_SLOTS)
 const probeCode = (kind: ModelFailureKind): PublicErrorCode => {
@@ -44,13 +51,19 @@ const roleOf = (slot: ModelProviderSlot): 'chat' | 'work' | null => slot === 'ch
 /** What the book may show about each configured model slot: vendor or masked host, and the model id. */
 const detailsOf = (value: Config): Partial<Record<ModelProviderSlot, ModelSlotDetail>> => Object.fromEntries([...MODEL_SLOTS].flatMap((slot) => {
   const config = value.providers[slot]
-  return config && 'base_url' in config && config.base_url && config.model ? [[slot, { vendor: vendorOf(config.base_url)?.label ?? null, host: maskedHost(config.base_url), model: config.model }]] : []
+  if (!config || !('base_url' in config) || !config.base_url || !config.model) return []
+  const declared = declaredCapabilities(value.modelCapabilities, config)
+  return [[slot, { vendor: vendorOf(config.base_url)?.label ?? null, host: maskedHost(config.base_url), model: config.model, modelRef: modelCapabilityRef(config),
+    capabilities: { editable: canDeclareCapabilities(config), ...(declared ? { declared } : {}) } }]]
 }))
 
 export function createModelSettings(options: { root: string; fallback?: string; apply?(): Promise<void>; developer: boolean; slots: readonly ProviderSlot[]; clock: Clock; canConfigure(): boolean; budget?: { reserveModel(units: number, bucket: 'work' | 'autonomous'): void }; choose(): Promise<string | null>; changed(): void
   /** A thinking level changed: DSH applies it from the next step, no restart. */
-  effortsChanged?(efforts: ModelEfforts): void }) {
+  effortsChanged?(efforts: ModelEfforts): void
+  /** Test chat or work through DSH, the path her turns use. Rejects when DSH is not running. */
+  probeDsh?(role: 'chat' | 'work'): Promise<DshProbeResult> }) {
   let view: ModelSettingsView = { status: 'idle', configuredSlots: [...options.slots], restartRequired: false }; let worker: Promise<void> | undefined; let disposed = false
+  let lastProbeRead: ConnectionTestRead | undefined
   const path = () => join(options.root, 'connections', 'providers.json')
   const readCurrent = (): Config => {
     const file = options.fallback ? providerConfigPath(options.root, options.fallback) : path()
@@ -60,10 +73,12 @@ export function createModelSettings(options: { root: string; fallback?: string; 
   }
   const writeCurrent = (value: Config) => {
     const parsed = schema.parse(value)
+    const serialized = JSON.stringify(parsed)
+    if (Buffer.byteLength(serialized, 'utf8') > 256_000) throw new Error('MODEL_CONFIGURATION_INVALID')
     const folder = join(options.root, 'connections'); mkdirSync(folder, { recursive: true })
     if (realpathSync(folder) !== resolve(folder) || lstatSync(folder).isSymbolicLink()) throw new Error('MODEL_CONFIGURATION_INVALID')
     const file = path(); if (existsSync(file) && (lstatSync(file).isSymbolicLink() || !lstatSync(file).isFile())) throw new Error('MODEL_CONFIGURATION_INVALID')
-    writeFileSync(file + '.tmp', JSON.stringify(parsed), { mode: 0o600 }); renameSync(file + '.tmp', file)
+    writeFileSync(file + '.tmp', serialized, { mode: 0o600 }); renameSync(file + '.tmp', file)
   }
   const presence = (value: Config) => ({ tts: !!value.providers.tts, rodin: !!value.providers.rodin, mail: !!value.mail })
   const described = (value: Config) => ({ routing: inferModelRouting(value), details: detailsOf(value), efforts: { ...value.efforts } })
@@ -71,17 +86,56 @@ export function createModelSettings(options: { root: string; fallback?: string; 
   const refreshSlots = async () => { const applied = await readModelProviders(path()); const current = readCurrent(); view = { ...view, configuredSlots: [...applied.keys()], services: presence(current), ...described(current) }; delete view.levels; await options.apply?.() }
   const fail = (code: PublicErrorCode) => { view = { ...view, status: 'failed', error: { code, retryable: true } } }
   return { view: () => structuredClone(view), isBusy: () => !!worker,
+    /** The book's details for the test it is showing; gone once the settings drop or replace that test. */
+    readProbe: (slot: ModelProviderSlot): ConnectionTestRead => {
+      const shown = view.probe
+      if (!lastProbeRead || !shown || shown.status === 'testing' || shown.slot !== slot || lastProbeRead.slot !== slot || shown.atMs !== lastProbeRead.atMs) throw new Error('CONNECTION_TEST_UNAVAILABLE')
+      return structuredClone(lastProbeRead)
+    },
     /** Levels DSH reported for each role's model (null: unknown). */
-    setLevels: (levels: { chat: readonly string[] | null; work: readonly string[] | null } | null) => {
+    setLevels: (levels: { chat: readonly string[] | null; work: readonly string[] | null; capabilities?: { chat?: ResolvedModelCapabilities; work?: ResolvedModelCapabilities } } | null) => {
       const known = (list: readonly string[] | null | undefined) => list?.filter((level): level is ReasoningEffort => (REASONING_EFFORTS as readonly string[]).includes(level))
       const chat = known(levels?.chat); const work = known(levels?.work)
       view = { ...view, levels: { ...(chat?.length ? { chat } : {}), ...(work?.length ? { work } : {}) } }
+      const details = { ...view.details }
+      for (const role of ['chat', 'work'] as const) {
+        const detail = details[role]
+        if (detail?.capabilities) details[role] = { ...detail, capabilities: { ...detail.capabilities, ...(levels?.capabilities?.[role] ? { resolved: levels.capabilities[role] } : {}) } }
+      }
+      view.details = details
       options.changed()
     },
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       if (options.developer) return 'permission-denied'
       // A thinking level may change mid-work: it applies from her next step and restarts nothing.
       if (disposed || worker || (command.type !== 'models.effort.set' && !options.canConfigure())) return 'unavailable'
+      if (command.type === 'models.capabilities.save') {
+        let value: Config
+        try { value = readCurrent() } catch { return 'configuration-failed' }
+        const current = value.providers[command.slot]
+        if (!current || !('base_url' in current) || !current.base_url || !current.model || !canDeclareCapabilities(current)) return 'unavailable'
+        const ref = modelCapabilityRef(current)
+        if (command.modelRef !== ref) return 'stale-epoch'
+        const parsed = command.capabilities === null ? null : manualCapabilitiesSchema.safeParse(command.capabilities)
+        if (parsed && !parsed.success) return 'invalid-command'
+        const oldReasoning = value.modelCapabilities?.[ref]?.reasoning
+        const registry = { ...value.modelCapabilities }
+        if (parsed?.success) registry[ref] = parsed.data; else delete registry[ref]
+        if (Object.keys(registry).length > 128) return 'invalid-command'
+        value.modelCapabilities = registry
+        for (const role of ['chat', 'work'] as const) {
+          const slot = role === 'work' && inferModelRouting(value).work === 'follow-main' ? 'chat' : role
+          const config = value.providers[slot]
+          if (config && 'base_url' in config && modelCapabilityRef(config) === ref && value.efforts?.[role]) {
+            const reasoning = registry[ref]?.reasoning
+            if (reasoning === false || reasoning && !Object.hasOwn(reasoning, value.efforts[role]!) || oldReasoning !== undefined && reasoning === undefined) delete value.efforts[role]
+          }
+        }
+        view = { ...view, status: 'idle' }; delete view.error; delete view.probe; options.changed()
+        worker = (async () => { writeCurrent(value); await refreshSlots(); view = { ...view, status: 'saved', restartRequired: options.apply ? view.restartRequired : true } })()
+          .catch(() => fail('configuration-failed')).finally(() => { worker = undefined; options.changed() })
+        return
+      }
       if (command.type === 'models.provider.save') {
         if (!MODEL_SLOTS.has(command.slot)) return 'invalid-command'
         view = { ...view, status: 'idle' }; delete view.error; delete view.probe; options.changed()
@@ -175,19 +229,40 @@ export function createModelSettings(options: { root: string; fallback?: string; 
         if (!MODEL_SLOTS.has(command.slot)) return 'invalid-command'
         view = { ...view, probe: { slot: command.slot, status: 'testing', atMs: options.clock.nowMs() } }; delete view.error; options.changed()
         worker = (async () => {
-          let code: PublicErrorCode | undefined
+          const startedMs = options.clock.nowMs()
+          let code: PublicErrorCode | undefined; let outcome: ProbeOutcome | undefined
+          lastProbeRead = undefined
           try {
             const value = readCurrent(); const routing = inferModelRouting(value); const effective = (command.slot === 'privacy' || command.slot === 'background' || command.slot === 'work') && routing[command.slot] === 'follow-main' ? 'chat' : command.slot; const config = value.providers[effective]
             if (!config || !('base_url' in config) || !config.base_url || !config.api_key || !config.model) throw new ModelFailure('configuration')
+            const keys = Object.values(value.providers).flatMap((entry) => entry.api_key ? [entry.api_key] : [])
             // 固定小请求也走资源账本：按保守的 2000 单位预留，失败同样计入尝试。
             options.budget?.reserveModel(2_000, 'work')
-            const providers = new Map([[command.slot, { base_url: config.base_url, api_key: config.api_key, model: config.model }]])
-            const abort = new AbortController(); const stop = options.clock.after(20_000, () => abort.abort())
-            try {
-              await createModelClient(providers, [command.slot], options.clock).complete({ messages: [{ role: 'user', content: 'Reply with OK only.' }], tools: [], signal: abort.signal, toolsExecuted: false, maxOutputTokens: 16 }, () => {})
-            } finally { stop() }
+            const role = roleOf(command.slot)
+            if (role && options.probeDsh) {
+              // Her chat and work run in DSH: test that path, not a client her turns never use. A native vendor's
+              // adapter calls its own endpoint, so the configured path is shown only for OpenAI-compatible routes.
+              const endpoint = vendorOf(config.base_url)?.native ? undefined : chatEndpoint(config.base_url)
+              try { outcome = dshProbe({ result: await options.probeDsh(role), model: config.model, endpoint, keys }) }
+              catch (error) { outcome = engineUnavailable({ model: config.model, endpoint, reason: error, durationMs: options.clock.nowMs() - startedMs, keys }) }
+            } else {
+              // Memory, diary and the privacy filter use LCA's own client: test exactly that, once, without retries.
+              const providers = new Map([[command.slot, { base_url: config.base_url, api_key: config.api_key, model: config.model }]])
+              const abort = new AbortController(); let timedOut = false
+              const stop = options.clock.after(20_000, () => { timedOut = true; abort.abort() })
+              let failure: unknown
+              try {
+                await createModelClient(providers, [command.slot], options.clock).complete({ messages: [{ role: 'user', content: 'Reply with OK only.' }], tools: [], signal: abort.signal, toolsExecuted: false, maxOutputTokens: 16, attempts: 1 }, () => {})
+              } catch (error) { failure = timedOut ? new ModelFailure('timeout', '', undefined, undefined, { code: 'TIMEOUT', message: 'No reply within 20 s' }) : error }
+              finally { stop() }
+              outcome = directProbe({ model: config.model, endpoint: chatEndpoint(config.base_url), durationMs: options.clock.nowMs() - startedMs, failure, keys })
+            }
+            if (outcome.detail.issue) code = publicCodeOf(outcome.detail.issue.kind)
           } catch (error) { code = error instanceof ModelFailure ? probeCode(error.kind) : error instanceof ResourceFailure ? error.code : 'configuration-failed' }
-          view = { ...view, probe: { slot: command.slot, status: code ? 'failed' : 'ok', ...(code ? { code } : {}), atMs: options.clock.nowMs() } }
+          const atMs = options.clock.nowMs()
+          // The address and the provider's words wait here until the book asks for this exact test.
+          if (outcome) lastProbeRead = { slot: command.slot, atMs, ...outcome.read }
+          view = { ...view, probe: { slot: command.slot, status: code ? 'failed' : 'ok', ...(code ? { code } : {}), ...(outcome ? { detail: outcome.detail } : {}), atMs } }
         })().catch(() => { view = { ...view, probe: { slot: command.slot, status: 'failed', code: 'configuration-failed', atMs: options.clock.nowMs() } } }).finally(() => { worker = undefined; options.changed() })
         return
       }

@@ -1,0 +1,157 @@
+/* 团队远景：书左页拉远到整个房间，她在书桌前，Q 版小桃子代表帮手。盖在近景上，交叉淡入；夜色和台灯由 .room 的调色层负责 */
+.room[data-shot='team'] { --lamp-x: 55%; --lamp-y: 35%; --lamp-on: 1; }
+/* 钟挂在书架和窗帘之间那段空墙上 */
+.room[data-shot='team'] .wall-clock { left: 33.6%; top: 11.5%; width: 62px; height: 62px; }
+.room[data-shot='team'] .wall-clock-time { font-size: 16px; }
+.team-room {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(1.05);
+  transition: opacity 700ms var(--ease-in-out), transform 900ms var(--ease-in-out);
+  pointer-events: none;
+}
+.team-room[data-visible='true'] { opacity: 1; transform: none; pointer-events: auto; }
+.team-occluder { pointer-events: none; }
+.team-room-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  /* 四边淡进纸里，和近景的铅笔边一致 */
+  -webkit-mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent), linear-gradient(to bottom, transparent, black 3%, black 97%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent), linear-gradient(to bottom, transparent, black 3%, black 97%, transparent);
+  mask-composite: intersect;
+}
+
+/* 一位帮手：脚底中心落在位置上；大小只按头的高度和远近算（teamArt.ts），不同姿势一样大 */
+.team-mini, .team-over {
+  --anchor: translate(calc(var(--foot-x, .5) * -100%), calc((var(--foot-pad, 0) - 1) * 100%));
+  position: absolute;
+  display: block;
+  width: max-content;
+  transform: var(--anchor);
+  pointer-events: none;
+}
+/* Behind the table with her hands on the laptop: the same picture again above the table, cut just below her hands. */
+.team-over img { display: block; height: 100%; width: auto; user-select: none; clip-path: inset(0 0 var(--over-cut, 100%) 0); }
+.team-mini {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  /* Height follows the picture, so it changes with the pose; animating it would zoom the new picture in from the old size. */
+  transition: left 1.2s var(--ease-in-out), top 1.2s var(--ease-in-out), transform 220ms var(--ease-in-out);
+}
+.team-mini img { position: relative; display: block; height: 100%; width: auto; user-select: none; pointer-events: none; clip-path: inset(0 0 var(--cut, 0%) 0); }
+/* Standing on a stool the tabletop hides: no floor shadow under her lifted feet. */
+.team-mini[data-lifted] .team-mini-shadow { display: none; }
+/* Hit the visible head (measured head box), not a transparent rectangle or legs hidden by furniture. Keyboard still focuses the button. */
+.team-mini-hit {
+  position: absolute;
+  left: calc(var(--hit-l, .05) * 100%);
+  top: calc(var(--hit-t, .02) * 100%);
+  width: calc(var(--hit-w, .9) * 100%);
+  height: calc(var(--hit-h, .44) * 100%);
+  border-radius: 50%;
+  pointer-events: auto;
+}
+.team-room:not([data-visible='true']) .team-mini-hit { pointer-events: none; }
+.team-mini:hover { transform: var(--anchor) translateY(-3px); }
+.team-mini:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 3px; border-radius: 14px; }
+.team-status-mark { position: absolute; left: 50%; top: -1.1rem; transform: translateX(-50%); white-space: nowrap; padding: .05rem .3rem; border: 1px solid #9d836a; border-radius: .3rem; color: #624a3a; background: #fff8e9; font: 11px/1.35 sans-serif; }
+.team-mini[data-failed] .team-status-mark { border-style: double; border-width: 3px; }
+/* At the tea table she stands on a stool at the laptop; lifting her on hover would float her off it. */
+.team-mini[data-station='table'] { transition: none; }
+.team-mini[data-station='table']:hover { transform: var(--anchor); }
+.team-mini[data-station='table'] img { animation: none; }
+/* 茶桌上的电脑：底边中点放在桌面上；道具可以镜像，人不行 */
+.team-laptop {
+  position: absolute;
+  display: block;
+  width: auto;
+  transform: translate(-50%, calc((var(--foot-pad, 0) - 1) * 100%));
+  pointer-events: none;
+  user-select: none;
+}
+.team-laptop[data-mirror] { transform: translate(-50%, calc((var(--foot-pad, 0) - 1) * 100%)) scaleX(-1); }
+.team-mini-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -3%;
+  width: 72%;
+  height: 9%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--lavender-shadow) 80%, transparent), transparent);
+}
+/* 正在干活的帮手轻轻起伏；其余状态不动，免得满屋子都在晃 */
+@media (prefers-reduced-motion: no-preference) {
+  .team-mini[data-busy][data-tool]:not([data-station='table']) img { animation: team-bob 2.6s var(--ease-in-out) infinite; }
+}
+@keyframes team-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.5%); } }
+
+.team-offstage {
+  position: absolute;
+  z-index: 1;
+  left: 4%;
+  bottom: 4%;
+  padding: .3rem .7rem;
+  font: inherit;
+  font-size: .82rem;
+  color: #54483d;
+  background: #f7eedc;
+  border: 1px solid #b9a38a;
+  border-radius: 1rem;
+  cursor: pointer;
+}
+
+/* 点开一位帮手：她的名字、任务、在做或在等什么、实际结果，和“停止当前工作” */
+.team-card {
+  position: absolute;
+  z-index: 3;
+  width: min(17rem, 92%);
+  max-height: 60%;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: .7rem .8rem .6rem;
+  font-size: .82rem;
+  line-height: 1.55;
+  color: #54483d;
+  background: #fbf5e8;
+  border: 1px solid #cbbb9f;
+  border-radius: .45rem;
+  box-shadow: var(--shadow-card);
+  transform: translate(-50%, calc(-100% - 10px));
+  overflow-wrap: anywhere;
+}
+.team-card[data-side='left'] { transform: translate(-18%, calc(-100% - 10px)); }
+.team-card[data-side='right'] { transform: translate(-82%, calc(-100% - 10px)); }
+.team-card:focus { outline: none; }
+.team-card header { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.team-card header strong { font-size: .95rem; }
+.team-card header small { color: #786958; }
+.team-card p { margin: .35rem 0; }
+.team-card-status { font-weight: 600; }
+.team-card-current { font-weight: 600; }
+.team-card-target { font-size: .76rem; }
+.team-card-history { margin: .4rem 0; padding-top: .4rem; border-top: 1px solid #d9cdb8; }
+.team-card-history > strong { font-size: .76rem; }
+.team-card-history ol { padding-left: 1.2rem; margin: .25rem 0; max-height: 7.8rem; overflow: auto; }
+.team-card-history li { padding: .15rem 0; }
+.team-card-history small { display: block; color: #786958; }
+.team-card-result { max-height: 6.2em; overflow: auto; white-space: pre-wrap; }
+.team-card-note { font-size: .76rem; color: #786958; }
+.team-card-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.team-card-actions button { color: inherit; font: inherit; background: #fffaf0; border: 1px solid #cbbca6; border-radius: .25rem; padding: .2rem .5rem; cursor: pointer; }
+.team-card-actions button:disabled { opacity: .5; cursor: default; }
+.team-card-actions button:focus-visible, .team-offstage:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .team-room, .team-mini { transition: none; }
+  .team-room { transform: none; }
+  .team-mini[data-busy][data-tool] img { animation: none; }
+}

@@ -1,0 +1,308 @@
+{
+  "schema": 1,
+  "observedDate": "2026-10-26",
+  "method": "Purposive source review of five added samples; no installation or execution. Not a statistical compatibility-rate estimate.",
+  "catalog": {
+    "repo": "awesome-dsh-plugin/awesome-dsh-plugin",
+    "revision": "a7ae7b2a1295e96b2a84268ed0443f1aead14f33",
+    "records": 6896,
+    "license": "CC0-1.0",
+    "licenseScope": "Catalog license only; does not license linked projects."
+  },
+  "host": {
+    "dsh": "0.2.1-rc.2",
+    "lcaLicense": "MIT",
+    "productSemanticsAuthority": "LCA main process and its existing DSH bridge"
+  },
+  "samples": [
+    {
+      "repository": "liustack/modlens",
+      "revision": "ac278f885386f785dc1a35ddfbd8994bb5e744d7",
+      "name": "@liustack/modlens",
+      "version": "3.27.2",
+      "manifestLicense": "MIT",
+      "rootLicenseVerified": "MIT",
+      "licenseReviewScope": "Root LICENSE and package.json checked; transitive dependencies, all assets, release bundles and combination obligations not fully reviewed.",
+      "dsh": {
+        "bundle": {
+          "patch": "./cordis.patch.yml"
+        },
+        "client": {
+          "inject": [],
+          "platform": "web",
+          "immediately": true
+        }
+      },
+      "sources": [
+        {
+          "path": "package.json",
+          "blobSha": "76e85a2c33018288e3f4a0cd7f7f05085c2845ad",
+          "url": "https://github.com/liustack/modlens/blob/ac278f885386f785dc1a35ddfbd8994bb5e744d7/package.json"
+        },
+        {
+          "path": "LICENSE",
+          "blobSha": "d97d8d656a0d8894786faab277ec0134fad2016e",
+          "url": "https://github.com/liustack/modlens/blob/ac278f885386f785dc1a35ddfbd8994bb5e744d7/LICENSE"
+        },
+        {
+          "path": "cordis.patch.yml",
+          "blobSha": "2b828e2b98e0da9f1f79094fb7ae6fed97e13da3",
+          "url": "https://github.com/liustack/modlens/blob/ac278f885386f785dc1a35ddfbd8994bb5e744d7/cordis.patch.yml"
+        },
+        {
+          "path": "dsh/index.js",
+          "blobSha": "973432feaf0852a2e185899e05ae39be03655218",
+          "url": "https://github.com/liustack/modlens/blob/ac278f885386f785dc1a35ddfbd8994bb5e744d7/dsh/index.js"
+        },
+        {
+          "path": "README.md",
+          "blobSha": "c74e80cc3898eb3fa115e82c0e2703fc0ee753d7",
+          "url": "https://github.com/liustack/modlens/blob/ac278f885386f785dc1a35ddfbd8994bb5e744d7/README.md"
+        }
+      ],
+      "runtimeAcceptance": "not-run",
+      "redistributionClearance": "not-determined",
+      "integrationDecision": "case-specific-review-required"
+    },
+    {
+      "repository": "bowenliang123/dsh-context",
+      "revision": "aae7f62080a8c63379a1eaddc8a577349a6f4a1f",
+      "name": "dsh-context",
+      "version": "0.77.0",
+      "manifestLicense": "Apache-2.0",
+      "rootLicenseVerified": "Apache-2.0",
+      "licenseReviewScope": "Root LICENSE and package.json checked; transitive dependencies, all assets, release bundles and combination obligations not fully reviewed.",
+      "dsh": {
+        "bundle": {
+          "patch": "./cordis.patch.yml"
+        },
+        "client": {
+          "inject": [
+            "@deepseek-ai/dsh-api-remotes",
+            "@deepseek-ai/dsh-client-connection",
+            "@deepseek-ai/dsh-client-locale",
+            "@deepseek-ai/dsh-client-ui-conversation",
+            "@deepseek-ai/dsh-client-ui-settings",
+            "@deepseek-ai/dsh-client-ui-sidebar-right"
+          ],
+          "platform": "web"
+        },
+        "compatibility": {
+          "dshReleases": {
+            "0.2.0-rc.2": "compatible",
+            "0.2.1-rc.2": "compatible"
+          }
+        }
+      },
+      "sources": [
+        {
+          "path": "package.json",
+          "blobSha": "c93560224399b1ec47e865e5110a5ba0a5cf1191",
+          "url": "https://github.com/bowenliang123/dsh-context/blob/aae7f62080a8c63379a1eaddc8a577349a6f4a1f/package.json"
+        },
+        {
+          "path": "LICENSE",
+          "blobSha": "5debdb3a579cf3f60dd9f82c87987173d1c56356",
+          "url": "https://github.com/bowenliang123/dsh-context/blob/aae7f62080a8c63379a1eaddc8a577349a6f4a1f/LICENSE"
+        },
+        {
+          "path": "cordis.patch.yml",
+          "blobSha": "2cbb50ff369596efeb506a9ab91c216e58f894eb",
+          "url": "https://github.com/bowenliang123/dsh-context/blob/aae7f62080a8c63379a1eaddc8a577349a6f4a1f/cordis.patch.yml"
+        },
+        {
+          "path": "src/host/index.ts",
+          "blobSha": "477690788b632938aee8f926000e322309c047ae",
+          "url": "https://github.com/bowenliang123/dsh-context/blob/aae7f62080a8c63379a1eaddc8a577349a6f4a1f/src/host/index.ts"
+        },
+        {
+          "path": "src/host/promptInjection.ts",
+          "blobSha": "4f505209cc78bf66d235b6fb6328e241dec59d52",
+          "url": "https://github.com/bowenliang123/dsh-context/blob/aae7f62080a8c63379a1eaddc8a577349a6f4a1f/src/host/promptInjection.ts"
+        },
+        {
+          "path": "src/host/detail.ts",
+          "blobSha": "ede9667f53b7e713a602a48d2f17286c18d94b11",
+          "url": "https://github.com/bowenliang123/dsh-context/blob/aae7f62080a8c63379a1eaddc8a577349a6f4a1f/src/host/detail.ts"
+        }
+      ],
+      "runtimeAcceptance": "not-run",
+      "redistributionClearance": "not-determined",
+      "integrationDecision": "case-specific-review-required"
+    },
+    {
+      "repository": "omdsh-dev/DSH-better-sidebar",
+      "revision": "83faf70940160e5cd4c5332f5400aa8f4dbbb6d6",
+      "name": "dsh-better-sidebar",
+      "version": "0.28.0",
+      "manifestLicense": "MIT",
+      "rootLicenseVerified": "MIT",
+      "licenseReviewScope": "Root LICENSE and package.json checked; transitive dependencies, all assets, release bundles and combination obligations not fully reviewed.",
+      "dsh": {
+        "bundle": {
+          "patch": "./cordis.patch.yml"
+        },
+        "client": {
+          "inject": [
+            "@deepseek-ai/dsh-client-locale",
+            "@deepseek-ai/dsh-client-ui-slots",
+            "@deepseek-ai/dsh-client-ui-conversation",
+            "@deepseek-ai/dsh-client-ui-sidebar-right",
+            "@deepseek-ai/dsh-client-modules"
+          ],
+          "platform": "web"
+        },
+        "manifestVersion": 1
+      },
+      "sources": [
+        {
+          "path": "package.json",
+          "blobSha": "bd7362386b133735f74434cad3693107664e7d00",
+          "url": "https://github.com/omdsh-dev/DSH-better-sidebar/blob/83faf70940160e5cd4c5332f5400aa8f4dbbb6d6/package.json"
+        },
+        {
+          "path": "LICENSE",
+          "blobSha": "a2078e705ad7307cf0f5d20085a5c264895829b5",
+          "url": "https://github.com/omdsh-dev/DSH-better-sidebar/blob/83faf70940160e5cd4c5332f5400aa8f4dbbb6d6/LICENSE"
+        },
+        {
+          "path": "cordis.patch.yml",
+          "blobSha": "4090f16e5f0ffcc0c088a521121fd8acde137ae1",
+          "url": "https://github.com/omdsh-dev/DSH-better-sidebar/blob/83faf70940160e5cd4c5332f5400aa8f4dbbb6d6/cordis.patch.yml"
+        },
+        {
+          "path": "src/index.ts",
+          "blobSha": "e7bb19ced05dab9ed4ad88fe0069a93017eb906d",
+          "url": "https://github.com/omdsh-dev/DSH-better-sidebar/blob/83faf70940160e5cd4c5332f5400aa8f4dbbb6d6/src/index.ts"
+        },
+        {
+          "path": "src/path-security.ts",
+          "blobSha": "2c341f70442357a4bd65c9e19ad068a7160e76da",
+          "url": "https://github.com/omdsh-dev/DSH-better-sidebar/blob/83faf70940160e5cd4c5332f5400aa8f4dbbb6d6/src/path-security.ts"
+        }
+      ],
+      "runtimeAcceptance": "not-run",
+      "redistributionClearance": "not-determined",
+      "integrationDecision": "case-specific-review-required"
+    },
+    {
+      "repository": "GooDAnDReaDY/dsh-cron",
+      "revision": "c0b19d917b6921ed890166cf48eadda26b93b8d4",
+      "name": "@goodandready/dsh-cron",
+      "version": "0.3.20",
+      "manifestLicense": "MIT",
+      "rootLicenseVerified": "MIT",
+      "licenseReviewScope": "Root LICENSE and package.json checked; transitive dependencies, all assets, release bundles and combination obligations not fully reviewed.",
+      "dsh": {
+        "bundle": {
+          "patch": "./cordis.patch.yml"
+        },
+        "client": {
+          "platform": "web",
+          "inject": [
+            "@deepseek-ai/dsh-client-locale",
+            "@deepseek-ai/dsh-client-ui-slots"
+          ]
+        }
+      },
+      "sources": [
+        {
+          "path": "package.json",
+          "blobSha": "2a73e95c8fe214e7345e613497f66da89ffce7f7",
+          "url": "https://github.com/GooDAnDReaDY/dsh-cron/blob/c0b19d917b6921ed890166cf48eadda26b93b8d4/package.json"
+        },
+        {
+          "path": "LICENSE",
+          "blobSha": "38807e43b23ba160e98959ca0fc856ef9cb67322",
+          "url": "https://github.com/GooDAnDReaDY/dsh-cron/blob/c0b19d917b6921ed890166cf48eadda26b93b8d4/LICENSE"
+        },
+        {
+          "path": "cordis.patch.yml",
+          "blobSha": "6e92a62bf7ba445504eff0322b2405cb8214245b",
+          "url": "https://github.com/GooDAnDReaDY/dsh-cron/blob/c0b19d917b6921ed890166cf48eadda26b93b8d4/cordis.patch.yml"
+        },
+        {
+          "path": "lib/index.js",
+          "blobSha": "a8d49d85cce3441bfc0162db13c834bd63f3cd98",
+          "url": "https://github.com/GooDAnDReaDY/dsh-cron/blob/c0b19d917b6921ed890166cf48eadda26b93b8d4/lib/index.js"
+        },
+        {
+          "path": "lib/runner.js",
+          "blobSha": "0d07339f342d02ad18481edf92d3bd2b47d83a78",
+          "url": "https://github.com/GooDAnDReaDY/dsh-cron/blob/c0b19d917b6921ed890166cf48eadda26b93b8d4/lib/runner.js"
+        },
+        {
+          "path": "lib/scheduler.js",
+          "blobSha": "1e2124d18903c7a6cdb3d6cfe42e778e2a932fb8",
+          "url": "https://github.com/GooDAnDReaDY/dsh-cron/blob/c0b19d917b6921ed890166cf48eadda26b93b8d4/lib/scheduler.js"
+        }
+      ],
+      "runtimeAcceptance": "not-run",
+      "redistributionClearance": "not-determined",
+      "integrationDecision": "case-specific-review-required"
+    },
+    {
+      "repository": "00080000/dsh-project-memory",
+      "revision": "f5aa9dcfd815edf4256e619648e9455889b316a7",
+      "name": "@yolk_vat-y/dsh-project-memory",
+      "version": "0.6.5",
+      "manifestLicense": "MIT",
+      "rootLicenseVerified": "MIT",
+      "licenseReviewScope": "Root LICENSE and package.json checked; transitive dependencies, all assets, release bundles and combination obligations not fully reviewed.",
+      "dsh": {
+        "engines": {
+          "dsh": ">=0.0.1-rc.1 <0.1.0 || >=0.1.0-rc.1 <0.3.0-0"
+        },
+        "bundle": {
+          "patch": "./cordis.patch.yml"
+        },
+        "client": {
+          "inject": [
+            "@deepseek-ai/dsh-client-locale"
+          ],
+          "platform": "web"
+        }
+      },
+      "sources": [
+        {
+          "path": "package.json",
+          "blobSha": "ffdca17ee121d6a9a44996288e010f30e94b5aaf",
+          "url": "https://github.com/00080000/dsh-project-memory/blob/f5aa9dcfd815edf4256e619648e9455889b316a7/package.json"
+        },
+        {
+          "path": "LICENSE",
+          "blobSha": "c86b831cfcc5b6b801e83061bd940a98ab0e096f",
+          "url": "https://github.com/00080000/dsh-project-memory/blob/f5aa9dcfd815edf4256e619648e9455889b316a7/LICENSE"
+        },
+        {
+          "path": "cordis.patch.yml",
+          "blobSha": "dac7205e91f03cfa454bf5e1df82e8e6d6f58164",
+          "url": "https://github.com/00080000/dsh-project-memory/blob/f5aa9dcfd815edf4256e619648e9455889b316a7/cordis.patch.yml"
+        },
+        {
+          "path": "src/index.js",
+          "blobSha": "19e0e5513d75492ed1d417aae7b85f6c39fc5c14",
+          "url": "https://github.com/00080000/dsh-project-memory/blob/f5aa9dcfd815edf4256e619648e9455889b316a7/src/index.js"
+        },
+        {
+          "path": "src/lazy.js",
+          "blobSha": "6ca7cbfa1d8472ed40af688b7080748c9d33f1ac",
+          "url": "https://github.com/00080000/dsh-project-memory/blob/f5aa9dcfd815edf4256e619648e9455889b316a7/src/lazy.js"
+        },
+        {
+          "path": "src/auto-inject.js",
+          "blobSha": "42c1e286777daffea03cb49c3032026009b3980c",
+          "url": "https://github.com/00080000/dsh-project-memory/blob/f5aa9dcfd815edf4256e619648e9455889b316a7/src/auto-inject.js"
+        },
+        {
+          "path": "src/watch.js",
+          "blobSha": "1dbac55d400b07d977154ed24b5026212f1233da",
+          "url": "https://github.com/00080000/dsh-project-memory/blob/f5aa9dcfd815edf4256e619648e9455889b316a7/src/watch.js"
+        }
+      ],
+      "runtimeAcceptance": "not-run",
+      "redistributionClearance": "not-determined",
+      "integrationDecision": "case-specific-review-required"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { manualCapabilitiesSchema } from '../config/model-capabilities'
 import type { AppCommand, AppEvent, AppSnapshot, CommandAck, DiagnosticsView, PublicErrorCode, RuntimeView, ClockView } from '../../shared'
 import { DEFAULT_EXPRESSION, PROTOCOL_VERSION } from '../../shared'
 import type { Clock } from '../clock'
@@ -17,6 +18,10 @@ import type { McpService } from '../mcp/service'
 import type { BackupService } from '../backup/service'
 import type { QuillService } from '../gifts/quill'
 import type { ModelSettingsService } from '../config/model-settings'
+import type { ExtensionsService } from '../dsh/extensions'
+import type { SkillsService } from '../dsh/skills'
+import type { CollaborationPort } from '../dsh/collaboration'
+import { agentAddressSchema } from '../dsh/identity'
 import type { ProjectsService } from '../dsh/projects'
 import type { CompanionWindows, WindowSurface } from '../windows/companion'
 import { characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
@@ -42,12 +47,14 @@ import type { MinecraftChat } from '../minecraft/chat'
 import type { ResourceBudget } from '../resources/service'
 import type { QuestionService } from '../questions/service'
 import { answerInput, answersInput } from '../questions/schema'
+import { v12CommandSchemas } from './v12-commands'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
   // An approval's choice (`answer`) or her questions' answers (`answers`), never both; questions/service.ts checks them against the question.
   z.strictObject({ ...envelope, type: z.literal('question.answer'), questionId: z.string().uuid(), answer: answerInput.optional(), answers: answersInput.optional() })
     .refine((command) => (command.answer === undefined) !== (command.answers === undefined)),
+  ...v12CommandSchemas(envelope),
   z.strictObject({ ...envelope, type: z.literal('question.dismiss'), questionId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('project.pick') }),
   z.strictObject({ ...envelope, type: z.literal('project.select'), path: z.string().min(1).max(1024) }),
@@ -123,6 +130,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('models.configure') }),
   z.strictObject({ ...envelope, type: z.literal('models.provider.save'), slot: z.enum(['chat', 'work', 'background', 'chat_google', 'chat_claude', 'privacy']), baseUrl: z.string().max(4096).default(''), model: z.string().max(256).default(''), apiKey: z.string().max(8192).optional() }),
   z.strictObject({ ...envelope, type: z.literal('models.provider.remove'), slot: z.enum(['chat', 'work', 'background', 'chat_google', 'chat_claude', 'privacy']) }),
+  z.strictObject({ ...envelope, type: z.literal('models.capabilities.save'), slot: z.enum(['chat', 'work', 'background', 'chat_google', 'chat_claude', 'privacy']), modelRef: z.string().regex(/^[a-f0-9]{64}$/), capabilities: manualCapabilitiesSchema.nullable() }),
   z.strictObject({ ...envelope, type: z.literal('models.routing.set'), slot: z.enum(['background', 'privacy', 'work']), mode: z.enum(['follow-main', 'independent']) }),
   z.strictObject({ ...envelope, type: z.literal('models.effort.set'), role: z.enum(['chat', 'work']), effort: z.enum(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']).nullable() }),
   z.strictObject({ ...envelope, type: z.literal('models.probe'), slot: z.enum(['chat', 'work', 'background', 'chat_google', 'chat_claude', 'privacy']) }),
@@ -173,6 +181,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let quill: QuillService | undefined
   let diagnostics: (() => DiagnosticsView) | undefined
   let modelSettings: ModelSettingsService | undefined
+  let extensions: ExtensionsService | undefined
+  let skills: SkillsService | undefined
+  let collaboration: CollaborationPort | undefined
   let projects: ProjectsService | undefined
   let windows: CompanionWindows | undefined
   let gifts: GiftService | undefined
@@ -295,6 +306,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       if (minecraft.active() && minecraftChat) { const game = minecraftChat.view(); snapshot.messages = [...game.messages]; snapshot.activities = [...game.activities]; snapshot.task = game.task }
     }
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
+    if (extensions) snapshot.extensions = extensions.view()
+    if (skills) snapshot.skills = skills.view()
+    if (collaboration) snapshot.collaboration = collaboration.view(); else delete snapshot.collaboration
     if (projects) snapshot.work = projects.view(); else delete snapshot.work
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
@@ -311,6 +325,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     // The schema checks each command's shape; an answer's two forms are told apart by the field it has.
     const command = parsed.data as AppCommand
     if (command.epoch !== snapshot.epoch) return reject(command.requestId, 'stale-epoch')
+    if (/^(extension\.|skills\.|agent\.|team\.)/.test(command.type) && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (surface === 'diagnostics' || (command.type === 'window.mini.hover' || command.type === 'window.mini.move' || command.type === 'window.mini.moveBy') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'context.reveal' && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -449,6 +464,15 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (windows && command.type.startsWith('window.')) {
       try { const error = windows.dispatch(command, surface); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('mode', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
+    } else if (extensions && command.type.startsWith('extension.')) {
+      try { const error = extensions.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
+    } else if (skills && command.type.startsWith('skills.')) {
+      try { const error = skills.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
+    } else if (collaboration && /^(agent\.|team\.)/.test(command.type)) {
+      try { const error = collaboration.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
     } else if (projects && command.type.startsWith('project.')) {
       try { const error = projects.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -517,6 +541,16 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachContextReveal: (port: NonNullable<typeof revealContext>) => { revealContext = port },
     attachVoice: (port: VoiceService) => { voice = port; publish('connection') },
     readVoice: (input: unknown) => { if (!voice || backup?.isBusy()) throw new Error('VOICE_UNAVAILABLE'); return voice.read(input) },
+    readMemberSteps: (input: unknown) => {
+      const parsed = agentAddressSchema.safeParse(input)
+      if (!parsed.success || !collaboration?.readMemberSteps || backup?.isBusy()) throw new Error('LCA_MEMBER_STEPS_UNAVAILABLE')
+      return collaboration.readMemberSteps(parsed.data)
+    },
+    readConnectionTest: (slot: unknown) => {
+      const parsed = z.enum(['chat', 'work', 'background', 'chat_google', 'chat_claude', 'privacy']).safeParse(slot)
+      if (!parsed.success || !modelSettings) throw new Error('CONNECTION_TEST_UNAVAILABLE')
+      return modelSettings.readProbe(parsed.data)
+    },
     attachLife: (port: LifeService) => { life = port; publish('mode') },
     attachSleep: (port: SleepService) => { sleep = port },
     attachLifeWork: (port: LifeWorkService) => { lifeWork = port },
@@ -530,6 +564,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     readDiary: (id: unknown) => { if (!diary || typeof id !== 'string' || !/^diary:[a-f0-9]{64}$/.test(id)) throw new Error('DIARY_UNAVAILABLE'); return diary.read(id) },
     readHeartFlow: (input: unknown) => { const parsed = z.strictObject({ section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128) }).parse(input); if (!legacyFlows) throw new Error('FLOW_UNAVAILABLE'); return legacyFlows.inspect(parsed) },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
+    attachExtensions: (port: ExtensionsService) => { extensions = port; publish('connection') },
+    attachSkills: (port: SkillsService) => { skills = port; publish('connection') },
+    attachCollaboration: (port?: CollaborationPort) => { collaboration = port; publish('task') },
     attachProjects: (port: ProjectsService) => { projects = port; publish('task') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },

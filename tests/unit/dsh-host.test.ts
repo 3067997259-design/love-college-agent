@@ -21,6 +21,25 @@ const deferred = <T>() => {
   const promise = new Promise<T>((done) => { resolve = done })
   return { promise, resolve }
 }
+
+it('bounds a silent extension request and ignores its late reply', async () => {
+  const f = setup(); await f.start()
+  const result = f.host.extensions({ action: 'reconcile', operationId: 'op' })
+  const rejected = expect(result).rejects.toThrow('DSH_REQUEST_TIMEOUT')
+  await Promise.resolve(); const request = f.child.send.mock.calls.at(-1)![0]
+  f.clock.advanceBy(30_000); await rejected
+  f.emit({ t: 'extensions', ref: request.ref, value: { items: [] } })
+  expect(f.host.available()).toBe(true)
+})
+
+it('disconnect rejects in-flight management without replaying the operation', async () => {
+  const f = setup(); await f.start()
+  const result = f.host.extensions({ action: 'remove', operationId: 'op', target: 'fixture', fingerprint: 'hash' })
+  const rejected = expect(result).rejects.toThrow('DSH_HOST_EXITED')
+  await Promise.resolve(); f.child.connected = false; f.child.emit('disconnect'); await rejected
+  expect(f.host.available()).toBe(false)
+  expect(f.child.send.mock.calls.filter(([input]) => input.t === 'extensions')).toHaveLength(1)
+})
 function setup(patch: Partial<DshHostOptions> = {}) {
   const root = mkdtempSync(join(tmpdir(), 'lca-dsh-host-')); roots.push(root)
   const bridge = join(root, 'bridge'); mkdirSync(bridge)
@@ -40,7 +59,7 @@ function setup(patch: Partial<DshHostOptions> = {}) {
 
 it('preserves startup and request/reply while IPC is connected', async () => {
   const f = setup(); await f.start()
-  const opening = f.host.open('project')
+  const opening = f.host.open('project', 's')
   await Promise.resolve()
   const command = f.child.send.mock.calls.at(-1)![0]
   expect(command).toMatchObject({ t: 'open', cwd: 'project' })
@@ -49,6 +68,24 @@ it('preserves startup and request/reply while IPC is connected', async () => {
   f.host.send('s', 'hello')
   expect(f.child.send.mock.calls.at(-1)![0]).toMatchObject({ t: 'send', sessionId: 's', text: 'hello' })
   const closing = f.host.close(); f.child.emit('exit', 0); expect(await closing).toBe(0)
+})
+
+it('only passes state requests from the current registered root to main', async () => {
+  const onState = vi.fn(() => true), f = setup({ onState }); await f.start()
+  const opening = f.host.open('project', 's'); await Promise.resolve()
+  const command = f.child.send.mock.calls.at(-1)![0]
+  const origin = { ...command.binding as object, rootSessionId: 's', sessionId: 's', parentSessionId: null }
+  f.emit({ t: 'session', ref: command.ref, sessionId: 's' }); await opening
+  const request = { t: 'state-request', id: 'state', sessionId: 's', origin, state: { mode: 'work', token: 'token' } }
+  f.emit(request); expect(onState).toHaveBeenCalledTimes(1)
+  expect(f.child.send.mock.calls.at(-1)![0]).toMatchObject({ t: 'state-answer', ok: true })
+  const child = { ...origin, sessionId: 'child', parentSessionId: 's' }
+  f.emit({ t: 'member', origin: child }); f.emit({ ...request, origin: child })
+  f.emit({ ...request, origin: { ...origin, runtimeId: 'old-runtime' } })
+  f.host.cancel('s'); f.emit(request)
+  expect(onState).toHaveBeenCalledTimes(1)
+  expect(f.child.send.mock.calls.at(-1)![0]).toMatchObject({ t: 'state-answer', ok: false })
+  const closing = f.host.close(); f.child.emit('exit', 0); await closing
 })
 
 it('rejects pending requests and stops all commands after disconnect', async () => {
@@ -89,9 +126,13 @@ it.each(['close', 'disconnect'] as const)('drops late tool, approval and questio
   let signal!: AbortSignal
   const f = setup({ onCall: () => tool.promise, onApproval: () => approval.promise, onQuestion: (request) => { signal = request.signal; return question.promise } })
   await f.start()
-  f.emit({ t: 'lca-call', id: 'tool', sessionId: 's', callId: 'c', name: 'read' })
-  f.emit({ t: 'approval', id: 'approval', sessionId: 's' })
-  f.emit({ t: 'question', id: 'question', sessionId: 's', questions: [] })
+  const opening = f.host.open('project', 's'); await Promise.resolve()
+  const command = f.child.send.mock.calls.at(-1)![0]
+  const origin = { ...command.binding as object, rootSessionId: 's', sessionId: 's', parentSessionId: null }
+  f.emit({ t: 'session', ref: command.ref, sessionId: 's' }); await opening
+  f.emit({ t: 'lca-call', id: 'tool', sessionId: 's', origin, callId: 'c', name: 'read' })
+  f.emit({ t: 'approval', id: 'approval', approvalId: 'approval', activationId: 'a1', policyRevision: 0, sessionId: 's', origin })
+  f.emit({ t: 'question', id: 'question', sessionId: 's', origin, questions: [] })
   const closing = mode === 'close' ? f.host.close() : undefined
   if (mode === 'disconnect') { f.child.connected = false; f.child.emit('disconnect') }
   expect(signal.aborted).toBe(true)
@@ -121,4 +162,87 @@ it('handles a spawn failure before startup without waiting for an exit event', a
   f.child.emit('close', null)
   await rejected; expect(await f.host.close()).toBe(null)
   f.clock.advanceBy(10_000); expect(f.child.kill).not.toHaveBeenCalled()
+})
+
+it('admits registered descendants and refuses stale, foreign and unregistered origins before invoking handlers', async () => {
+  const onAdmit = vi.fn(() => true), f = setup({ onAdmit }); await f.start()
+  const opening = f.host.open('project', 'root'); await Promise.resolve()
+  const command = f.child.send.mock.calls.at(-1)![0]
+  f.emit({ t: 'session', ref: command.ref, sessionId: 'root' }); await opening
+  const origin = { ...command.binding as object, rootSessionId: 'root', sessionId: 'child', parentSessionId: 'root' }
+  const request = { t: 'admit', id: 'admit', sessionId: 'root', origin, units: 15 }
+  f.emit(request); expect(onAdmit).not.toHaveBeenCalled()
+  f.emit({ t: 'member', origin }); f.emit(request); expect(onAdmit).toHaveBeenCalledOnce()
+  for (const patch of [{ runtimeId: 'old' }, { projectId: 'other' }, { cwd: 'other' }, { parentSessionId: null }, { protocolVersion: 1 }]) {
+    f.emit({ ...request, origin: { ...origin, ...patch } })
+    f.emit({ t: 'approval', id: 'approval', sessionId: 'root', origin: { ...origin, ...patch } })
+    f.emit({ t: 'lca-call', id: 'call', sessionId: 'root', origin: { ...origin, ...patch } })
+  }
+  expect(onAdmit).toHaveBeenCalledOnce(); expect(f.options.onApproval).not.toHaveBeenCalled(); expect(f.options.onCall).not.toHaveBeenCalled()
+  f.emit({ ...request, sessionId: 'another-root' }); expect(onAdmit).toHaveBeenCalledOnce()
+  const closing = f.host.close(); f.child.emit('exit', 0); await closing
+})
+
+it('refuses a step if the resource handler throws', async () => {
+  const f = setup({ onAdmit: () => { throw new Error('ledger unavailable') } }); await f.start()
+  const opening = f.host.open('project', 'root'); await Promise.resolve()
+  const command = f.child.send.mock.calls.at(-1)![0]
+  f.emit({ t: 'session', ref: command.ref, sessionId: 'root' }); await opening
+  f.emit({ t: 'admit', id: 'admit', sessionId: 'root', origin: { ...command.binding as object, rootSessionId: 'root', sessionId: 'root', parentSessionId: null } })
+  expect(f.child.send.mock.calls.at(-1)![0]).toMatchObject({ t: 'admit-answer', ok: false })
+  const closing = f.host.close(); f.child.emit('exit', 0); await closing
+})
+
+it.each(['cancel', 'untrust', 'withdraw'] as const)('cancels the member approval on %s and drops old replies after reactivation', async (action) => {
+  const answer = deferred<'allowed-once' | 'rejected'>()
+  let signal!: AbortSignal
+  const onApproval = vi.fn((request) => { signal = request.signal; return answer.promise })
+  const f = setup({ onApproval }); await f.start()
+  const opening = f.host.open('project', 'root'); await Promise.resolve()
+  const command = f.child.send.mock.calls.at(-1)![0]
+  f.emit({ t: 'session', ref: command.ref, sessionId: 'root' }); await opening
+  const origin = { ...command.binding as object, rootSessionId: 'root', sessionId: 'member', parentSessionId: 'root' }
+  f.emit({ t: 'member', origin })
+  const request = { t: 'approval', id: 'a', approvalId: 'a', activationId: 'member-turn', policyRevision: 0, sessionId: 'root', origin }
+  f.emit(request); expect(onApproval).toHaveBeenCalledOnce(); expect(signal.aborted).toBe(false)
+  if (action === 'withdraw') f.emit({ t: 'approval-cancel', id: 'a' }); else f.host[action]('root')
+  expect(signal.aborted).toBe(true)
+  f.host.send('root', 'new authorization')
+  f.emit({ ...request, id: 'old', approvalId: 'old' })
+  expect(onApproval).toHaveBeenCalledOnce()
+  answer.resolve('allowed-once'); await Promise.resolve(); await Promise.resolve()
+  expect(f.child.send.mock.calls.some(([message]) => message.t === 'approval-answer' && message.outcome === 'allowed-once')).toBe(false)
+  const closing = f.host.close(); f.child.emit('exit', 0); await closing
+})
+
+it('does not reuse a pending approval when the same root is reopened', async () => {
+  const answer = deferred<'allowed-once' | 'rejected'>(); let signal!: AbortSignal
+  const f = setup({ onApproval: (request) => { signal = request.signal; return answer.promise } }); await f.start()
+  const opening = f.host.open('project', 'root'); await Promise.resolve()
+  const first = f.child.send.mock.calls.at(-1)![0]
+  f.emit({ t: 'session', ref: first.ref, sessionId: 'root' }); await opening
+  f.emit({ t: 'approval', id: 'a', approvalId: 'a', activationId: 'old', policyRevision: 0, sessionId: 'root', origin: { ...first.binding as object, rootSessionId: 'root', sessionId: 'root', parentSessionId: null } })
+  const reopened = f.host.open('project', 'root'); await Promise.resolve()
+  expect(signal.aborted).toBe(true)
+  const second = f.child.send.mock.calls.at(-1)![0]
+  f.emit({ t: 'session', ref: second.ref, sessionId: 'root' }); await reopened
+  answer.resolve('allowed-once'); await Promise.resolve(); await Promise.resolve()
+  expect(f.child.send.mock.calls.some(([message]) => message.t === 'approval-answer' && message.outcome === 'allowed-once')).toBe(false)
+  const closing = f.host.close(); f.child.emit('exit', 0); await closing
+})
+
+it('asks the bridge for one connection test and bounds what comes back', async () => {
+  const f = setup(); await f.start()
+  const probing = f.host.probe('work')
+  await Promise.resolve()
+  const command = f.child.send.mock.calls.at(-1)![0]
+  expect(command).toMatchObject({ t: 'probe', role: 'work' })
+  f.emit({ t: 'probed', ref: command.ref, ok: false, durationMs: 1200, route: { provider: 'lca-work', model: 'synthetic' },
+    failure: { code: 'AUTH', message: 'x'.repeat(9000), status: 401, requestId: 'req-1' } })
+  const result = await probing
+  expect(result).toMatchObject({ ok: false, durationMs: 1200, route: { provider: 'lca-work', model: 'synthetic' }, failure: { code: 'AUTH', status: 401, requestId: 'req-1' } })
+  expect(result.failure!.message).toHaveLength(4000)
+  // The bridge stops its own request after 30 s; the host gives up on a silent bridge after 45 s.
+  const silent = f.host.probe('chat'); const rejected = expect(silent).rejects.toThrow('DSH_REQUEST_TIMEOUT')
+  await Promise.resolve(); f.clock.advanceBy(45_000); await rejected
 })

@@ -1,0 +1,156 @@
+{
+  "receipts": [
+    {
+      "check": "install-disabled-and-deduplicate",
+      "outcome": "succeeded",
+      "items": [
+        {
+          "id": "lca-synthetic-fixture",
+          "revision": 1,
+          "owner": "dsh",
+          "kind": "bundle",
+          "name": "lca-synthetic-fixture",
+          "source": {
+            "kind": "local",
+            "label": "本地扩展",
+            "fingerprint": "76541a8ed2bd0a76a4503f63bd61e8dbcc80e1df2db08aff9e737748dd69c608"
+          },
+          "version": "1.0.0",
+          "scope": {
+            "kind": "profile",
+            "projectId": null
+          },
+          "installation": "installed",
+          "enabledIntent": false,
+          "applied": "disabled",
+          "protected": false,
+          "restartReason": null,
+          "error": null
+        }
+      ]
+    },
+    {
+      "check": "enable-restart-actual-module-loaded",
+      "outcome": "succeeded",
+      "items": [
+        {
+          "id": "lca-synthetic-fixture",
+          "revision": 3,
+          "owner": "dsh",
+          "kind": "bundle",
+          "name": "lca-synthetic-fixture",
+          "source": {
+            "kind": "local",
+            "label": "本地扩展",
+            "fingerprint": "5ba739c904427c4ca5c15b99f8df99342ff9b64fbcaad46007dfe51039ea5ad4"
+          },
+          "version": "1.0.0",
+          "scope": {
+            "kind": "profile",
+            "projectId": null
+          },
+          "installation": "installed",
+          "enabledIntent": true,
+          "applied": "ready",
+          "protected": false,
+          "restartReason": null,
+          "error": null
+        }
+      ]
+    },
+    {
+      "check": "refuse-removal-of-running-code",
+      "outcome": "failed",
+      "items": [
+        {
+          "id": "lca-synthetic-fixture",
+          "revision": 3,
+          "owner": "dsh",
+          "kind": "bundle",
+          "name": "lca-synthetic-fixture",
+          "source": {
+            "kind": "local",
+            "label": "本地扩展",
+            "fingerprint": "5ba739c904427c4ca5c15b99f8df99342ff9b64fbcaad46007dfe51039ea5ad4"
+          },
+          "version": "1.0.0",
+          "scope": {
+            "kind": "profile",
+            "projectId": null
+          },
+          "installation": "installed",
+          "enabledIntent": true,
+          "applied": "ready",
+          "protected": false,
+          "restartReason": null,
+          "error": null
+        }
+      ]
+    },
+    {
+      "check": "disable-persists-across-cold-start",
+      "outcome": "succeeded",
+      "items": [
+        {
+          "id": "lca-synthetic-fixture",
+          "revision": 5,
+          "owner": "dsh",
+          "kind": "bundle",
+          "name": "lca-synthetic-fixture",
+          "source": {
+            "kind": "local",
+            "label": "本地扩展",
+            "fingerprint": "76541a8ed2bd0a76a4503f63bd61e8dbcc80e1df2db08aff9e737748dd69c608"
+          },
+          "version": "1.0.0",
+          "scope": {
+            "kind": "profile",
+            "projectId": null
+          },
+          "installation": "installed",
+          "enabledIntent": false,
+          "applied": "disabled",
+          "protected": false,
+          "restartReason": null,
+          "error": null
+        }
+      ]
+    },
+    {
+      "check": "remove-restart-preserves-user-configuration",
+      "outcome": "succeeded",
+      "items": []
+    },
+    {
+      "check": "separate-build-approval-without-standing-grant",
+      "outcome": "succeeded"
+    },
+    {
+      "check": "cancel-running-build-and-observe-restoration",
+      "outcome": "cancelled"
+    },
+    {
+      "check": "lost-ipc-receipt-cold-main-dsh-reconcile-without-replay",
+      "outcome": "succeeded"
+    },
+    {
+      "check": "bundle-cannot-override-safety-rows",
+      "outcome": "refused"
+    },
+    {
+      "check": "activation-failure-never-shown-ready",
+      "outcome": "failed"
+    },
+    {
+      "check": "protected-core-at-runtime-port",
+      "outcome": "refused"
+    }
+  ],
+  "approvals": 19,
+  "runtime": "0.2.1-rc.2",
+  "pnpm": "11.24.0",
+  "bridgeHash": "7358488f95f004ef713cc7e111b9abac88737c2a0397c774c816e87689380403",
+  "modelRequests": 0,
+  "electron": true,
+  "systemNodeAndPnpmOnPath": false
+}

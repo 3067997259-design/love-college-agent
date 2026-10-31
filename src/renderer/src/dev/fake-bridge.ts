@@ -5,7 +5,7 @@
  * 真正的计时、落盘和阶段事件都在主进程，这里点通不代表真实运行通过。
  */
 import type { AppBridge, AppCommand, AppEvent, AppSnapshot, CommandAck, HistoryPhotoView, LifeView, OutingPlace, OutingView, PomodoroView, PublicErrorCode } from '../../../shared'
-import { DEFAULT_SCENARIO, evidence, fakeDiary, fakeImpressions, fakePages, SCENARIOS, type ScenarioId } from './scenarios'
+import { DEFAULT_SCENARIO, evidence, fakeDiary, fakeImpressions, fakeMemberSteps, fakePages, SCENARIOS, type ScenarioId } from './scenarios'
 
 /** 预览用：把几行对话排成一张白底印刷页，返回 data URL（CSP 允许 img-src data:） */
 function printedPage(lines: readonly string[]): string {
@@ -329,6 +329,11 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
       const view = evidence[ref]
       if (!view) throw new Error('evidence not found')
       return view
+    },
+    async readMemberSteps(address) {
+      const member = current.collaboration?.members.find((entry) => JSON.stringify(entry.address) === JSON.stringify(address) && entry.mode !== 'root')
+      if (!member) throw new Error('LCA_MEMBER_STEPS_UNAVAILABLE')
+      return fakeMemberSteps(member)
     },
     async readSession(id) {
       const page = fakePages[id]

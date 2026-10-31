@@ -1,0 +1,214 @@
+{
+  "date": "2026-10-26",
+  "scope": "source-development-build",
+  "realServices": false,
+  "interfaceCommit": "711af30",
+  "source": {
+    "head": "711af30d0299141d5830d78b51090dd195f9cb31",
+    "dirty": [
+      "M README.md",
+      " M docs/experience-design.md",
+      " M docs/getting-started.md",
+      " M docs/maintenance.md",
+      " M docs/research/README.md",
+      " M docs/research/v1.2-development-plan-20261023.md",
+      " M docs/tech-design.md",
+      " M docs/testing.md",
+      " M dsh/lca-bridge/index.js",
+      " M package.json",
+      " M scripts/dsh-bridge-check.mjs",
+      " M scripts/smoke-real-collaboration.mjs",
+      " M src/main/bridge/controller.ts",
+      " M src/main/config/model-settings.ts",
+      " M src/main/config/providers.ts",
+      " M src/main/dsh/execution.ts",
+      " M src/main/dsh/host.ts",
+      " M src/main/dsh/routes.ts",
+      " M src/main/index.ts",
+      " M src/main/model/client.ts",
+      " M src/renderer/src/book/LeftPage.tsx",
+      " M src/renderer/src/tools/ModelControls.tsx",
+      " M src/renderer/src/tools/providers.css",
+      " M src/renderer/src/voice/providers.zh.json",
+      " M src/shared/dsh-protocol.ts",
+      " M tests/unit/dsh-host.test.ts",
+      " M tests/unit/dsh-journal.test.ts",
+      " M tests/unit/dsh-routes.test.ts",
+      " M tests/unit/model-settings.test.ts",
+      "?? docs/research/dsh-plugin-compatibility-coopanion-20261026.md",
+      "?? docs/research/dsh-plugin-host-semantics-licenses-20261026.md",
+      "?? docs/research/evidence/dsh-extension-baseline-20261026.json",
+      "?? docs/research/evidence/dsh-plugin-compatibility-20261026.json",
+      "?? docs/research/evidence/dsh-plugin-samples-20261026.json",
+      "?? docs/research/evidence/dsh-plugin-semantic-samples-20261026.json",
+      "?? docs/research/evidence/v1.2-function-calling-diagnostic-20261026.json",
+      "?? docs/research/evidence/v1.2-real-collaboration-20261026.json",
+      "?? docs/research/evidence/v1.2-real-member-reuse-20261026.json",
+      "?? docs/research/evidence/v1.2-real-state-collaboration-20261026.json",
+      "?? docs/research/v1.2-function-calling-diagnostic-20261026.md",
+      "?? docs/research/v1.2-model-capabilities-20261026.md",
+      "?? docs/research/v1.2-real-collaboration-20261026.md",
+      "?? docs/research/v1.2-real-member-reuse-20261026.md",
+      "?? docs/research/v1.2-real-state-collaboration-20261026.md",
+      "?? docs/research/v1.2-state-routing-20261026.md",
+      "?? dsh/lca-bridge/state.js",
+      "?? scripts/audit-dsh-plugin-compatibility.mjs",
+      "?? scripts/audit-real-collaboration.mjs",
+      "?? scripts/fixtures/dsh-plugin-compatibility-probe.ts",
+      "?? scripts/smoke-model-capabilities.mjs",
+      "?? scripts/smoke-real-collaboration-reuse.mjs",
+      "?? scripts/smoke-state-routing.mjs",
+      "?? src/main/config/model-capabilities.ts",
+      "?? src/renderer/src/tools/ModelCapabilities.tsx",
+      "?? tests/unit/dsh-state.test.ts",
+      "?? tests/unit/model-capabilities.test.ts"
+    ],
+    "mainSha256": "b62ed5ee4cb70859b16a56a0de2e0679b49b7121522f4c0ca262a51600661b4c",
+    "rendererEntrySha256": "c7605d17cbe429c32dc96dcaba983fc967cade8352e223edd7fb0b782a85b120"
+  },
+  "validation": {
+    "typecheck": true,
+    "scopedEslint": true,
+    "build": true,
+    "unitFiles": 7,
+    "unitTests": 125,
+    "electron": {
+      "ok": true,
+      "synthetic": true,
+      "checks": [
+        "saved declaration reported separately from actual DSH metadata without a probe",
+        "actual HTTP reasoning value mapped and output bounded",
+        "off can omit the parameter or send the explicitly declared API value",
+        "declared image capability reaches a real multimodal HTTP request",
+        "text-only declaration rejects image tool locally and sends only its text error",
+        "model switch does not inherit declarations; switching back restores its saved declaration",
+        "runtime default off mapping is stated in UI and verified on the wire",
+        "restart persistence, zero replay and credential-safe projection",
+        "reset removes manual request behavior even when the unsaved draft is invalid"
+      ],
+      "requests": [
+        {
+          "task": "caps-wire:text",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_medium",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:off-omitted",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": null,
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:off-mapped",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_off",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:image",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_medium",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:image",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_medium",
+          "imageCount": 1
+        },
+        {
+          "task": "caps-wire:image-denied",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_medium",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:image-denied",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_medium",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:default-mapped-off",
+          "model": "caps-model-a",
+          "outputLimit": 512,
+          "reasoning": "vendor_off",
+          "imageCount": 0
+        },
+        {
+          "task": "caps-wire:reset",
+          "model": "caps-model-a",
+          "outputLimit": 32768,
+          "reasoning": null,
+          "imageCount": 0
+        }
+      ]
+    },
+    "legacyRouting": [
+      {
+        "name": "handoff",
+        "ok": true,
+        "checks": {
+          "turnsCompleted": true,
+          "turn1StartedOnChat": true,
+          "handedOffOnce": true,
+          "chatWriteNotRun": true,
+          "workModelWrote": true,
+          "turn2BackOnChat": true
+        },
+        "modelRequests": 4,
+        "exitCode": 0
+      },
+      {
+        "name": "levels",
+        "ok": true,
+        "checks": {
+          "chatLevelsFromCatalog": true,
+          "workLevelsFromAdapter": true,
+          "noModelRequest": true
+        },
+        "modelRequests": 0,
+        "exitCode": 0
+      }
+    ],
+    "lastScopedRecheck": {
+      "files": 2,
+      "tests": 30,
+      "passed": true
+    }
+  },
+  "artifacts": {
+    "report": "test-results/model-capabilities-0425c13b-dabd-41a4-ae3e-619ee3d84b7e/report.json",
+    "reportSha256": "3dedf78edeaa36210fb8c456a0140185195e10f3672fb6bd17436c3b88ed2b98",
+    "screenshot": "test-results/model-capabilities-0425c13b-dabd-41a4-ae3e-619ee3d84b7e/manual-capabilities.png",
+    "screenshotSha256": "5d459495f280249435640eb631d804330db7721646710b28db126600c12c89b3",
+    "bridgeReport": "test-results/dsh-bridge-349a7b3c-f7a3-4942-96bd-efb67909cfe6/report.json",
+    "bridgeReportSha256": "651fb63399782340d66613a09d09ee8c44e3958ac8d5decb6a2282dc455a90a0",
+    "testScriptSha256": "09361d0556ef72562caeeee457decbe507b62952df64ca239662046b59dbffb8"
+  },
+  "configuration": {
+    "realUserFileUnmodified": true,
+    "length": 1750,
+    "mtime": "2026-10-25T16:12:32.861Z",
+    "userDeclarationsNotPopulatedFromReferenceScreenshot": true,
+    "nativeDeepSeekManualOverrides": false
+  },
+  "limits": [
+    "No live supplier compatibility or image understanding acceptance",
+    "No installed package or upgrade acceptance",
+    "Background/privacy task context retains its existing bounded policy"
+  ],
+  "preview": {
+    "restarted": false,
+    "existingPid": 44064,
+    "reason": "Existing source instance retains the profile lock; its window is unavailable to the UI controller. Full exit and relaunch is required."
+  }
+}

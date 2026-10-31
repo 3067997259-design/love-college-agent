@@ -39,3 +39,14 @@ it('names known vendors and masks other hosts', () => {
   expect(maskedHost('http://127.0.0.1:11434/v1')).toBe('127.0.0.1')
   expect(maskedHost('https://intranet/v1')).toBe('int•••')
 })
+
+it('keeps per-model capabilities separate on a shared connection and preserves native catalog routing', () => {
+  const main = { ...config('https://api.moonshot.cn/v1', 'custom-main'), capabilities: { contextWindow: 65536, maxOutputTokens: 1024 } }
+  const work = { ...main, model: 'custom-work', capabilities: { contextWindow: 131072, maxOutputTokens: 2048 } }
+  const r = dshRoutes(main, work, {})
+  expect(routesOf(r.env).providers['moonshotai-cn'].models).toEqual([
+    { id: 'custom-main', contextWindow: 65536, maxTokens: 1024 }, { id: 'custom-work', contextWindow: 131072, maxTokens: 2048 },
+  ])
+  expect(() => dshRoutes(main, { ...main, capabilities: { contextWindow: 3 } }, {})).toThrow('CONFLICTING_MODEL_CAPABILITIES')
+  expect(() => dshRoutes({ ...config('https://api.deepseek.com/v1', 'deepseek-flash'), capabilities: { contextWindow: 3 } }, work, {})).toThrow('NATIVE_MODEL_CAPABILITIES_MANAGED_BY_ADAPTER')
+})

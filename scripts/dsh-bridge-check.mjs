@@ -17,23 +17,107 @@
 //   see turn 1's references retired.
 // - event-cap: a turn LCA opened for an event (pomodoro, mail, her life) stops after its step cap.
 // - allowance: every step asks LCA's resource ledger first; an event turn refused there stops before its model call.
-// Usage: node scripts/dsh-bridge-check.mjs [degrade|degrade-restart|trust|decline|handoff|levels|reference|reference-restart|event-cap|allowance ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
+// - probe: "Test connection" through the real adapter: one route answers, the other returns 401 with the provider's message.
+// Usage: node scripts/dsh-bridge-check.mjs [probe|degrade|degrade-restart|trust|decline|handoff|levels|reference|reference-restart|event-cap|allowance ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import { prepareDshProfile } from '../dsh/profile.mjs'
 
 const repo = resolve(import.meta.dirname, '..')
 const dshRoot = resolve(process.env.DSH_ROOT ?? join(repo, 'dsh', 'runtime'))
-const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(repo, '.local-data'))
+const dataDir = resolve(process.env.LCA_DATA_DIR ?? join(repo, 'test-results', `dsh-bridge-${randomUUID()}`))
 const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part?.text ?? '').join('')
 const pwsh = (id, command) => ({ tool: 'pwsh', id, args: { description: 'Print a number', command } })
 const resultOf = (seen, id) => seen.results.find((result) => result.callId === id)
 const write = (id, content) => ({ tool: 'write', id, args: { file_path: 'note.txt', content } })
 
 const SCENARIOS = {
+  'state-source-restart': {
+    trusted: true, answer: 'allowed-once', work: 'mock-work', restart: true, restartAfter: 2,
+    state: { mode: 'quiet', token: 'degraded-token' }, turns: ['[[T1]] read the page and run a command', '[[T2]] retire old sources', '[[T3]] continue after restart'],
+    script(input) {
+      const { turn, messages, notes, lastTool } = input
+      if (turn > 1) {
+        notes.retired ??= []
+        notes.retired.push(messages.some((message) => textOf(message.content).includes('[LCA retired earlier source-derived content')))
+        return turn === 2 && !lastTool ? pwsh('fresh-command-2', 'Write-Output 42') : { text: 'continued without replay' }
+      }
+      return SCENARIOS['state-degraded'].script(input)
+    },
+    check: (seen, notes) => ({ turnsCompleted: seen.turnEnds.join() === 'completed,completed,completed', restarted: seen.restarted === 0,
+      stateChanged: seen.states.length === 1, oldSourcesRetired: notes.retired?.length === 3 && notes.retired.every(Boolean),
+      nextTurnCommandExecuted: resultOf(seen, 'fresh-command-2')?.isError === false,
+      firstTurnStillAsked: seen.approvals.length === 1 && seen.approvals[0].kind === 'degraded', originalCommandNotReplayed: seen.results.filter((row) => row.callId === 'state-command').length === 1 }),
+  },
+  // "Test connection" for chat and work goes through DSH's own adapter: a reply passes, a 401 comes back with the provider's words.
+  probe: {
+    probe: ['chat', 'work'], work: 'mock-rejected', turns: [],
+    script({ model, notes }) {
+      notes.models.push(model)
+      return model === 'mock-rejected'
+        ? { status: 401, body: { error: { message: 'Incorrect API key provided: mock-key-tail.', type: 'invalid_request_error', code: 'invalid_api_key' } } }
+        : { text: 'OK' }
+    },
+    check: (seen, notes) => ({
+      chatPassed: seen.probed.chat?.ok === true && !seen.probed.chat.failure && seen.probed.chat.route?.provider === 'lca-chat',
+      workFailedWithProviderWords: seen.probed.work?.ok === false && seen.probed.work.failure?.code === 'AUTH' && /Incorrect API key/.test(seen.probed.work.failure.message ?? ''),
+      oneRequestEach: notes.models.toSorted().join() === 'mock-chat,mock-rejected',
+      timed: [seen.probed.chat, seen.probed.work].every((result) => Number.isInteger(result?.durationMs)),
+    }),
+  },
+  'state-truncated': {
+    trusted: true, work: 'mock-work', state: { mode: 'quiet', token: 'length-token' }, turns: ['[[T1]] write a note'],
+    script({ model, notes }) { notes.models.push(model); return { finish: 'length', text: '{"lca_state":{"mode":"work","token":"length-token"},"reply":"稍等。"}' } },
+    check: (seen, notes) => ({ noSwitch: notes.models.join() === 'mock-chat' && seen.states.length === 0, warned: seen.stateNotices.length === 1, noRetry: notes.requests === 1 }),
+  },
+  'state-degraded': {
+    trusted: true, answer: 'allowed-once', work: 'mock-work', state: { mode: 'quiet', token: 'degraded-token' }, turns: ['[[T1]] read the page and run a command'],
+    script({ model, lastTool, notes }) {
+      notes.models.push(model)
+      if (!lastTool) return { tool: 'web_fetch', id: 'state-fetch', args: { url: 'http://127.0.0.1:9/notes' } }
+      if (model === 'mock-chat') return { text: '{"lca_state":{"mode":"work","token":"degraded-token"},"reply":"我接着处理。"}' }
+      return lastTool === 'state-fetch' ? pwsh('state-command', 'Write-Output 41') : { text: 'done' }
+    },
+    check: (seen, notes) => ({ oneSwitch: seen.states.length === 1, stayedDegraded: seen.approvals.length === 1 && seen.approvals[0].kind === 'degraded',
+      workExecuted: resultOf(seen, 'state-command')?.isError === false && notes.models.at(-1) === 'mock-work', sameTurn: seen.turnEnds.join() === 'completed' }),
+  },
+  'state-work': {
+    trusted: true, work: 'mock-work', state: { mode: 'work', token: 'state-work-token' }, turns: ['[[T1]] write a note'],
+    script({ model, lastTool, notes }) {
+      notes.models.push(model)
+      return lastTool ? { text: 'done' } : write('work-direct', 'direct work')
+    },
+    check: (seen, notes, work) => ({ direct: notes.models.length === 2 && notes.models.every((model) => model === 'mock-work'),
+      wrote: readFileSync(join(work, 'note.txt'), 'utf8') === 'direct work', completed: seen.turnEnds.join() === 'completed', noHandoff: seen.handoffs.length === 0 }),
+  },
+  'state-text-handoff': {
+    trusted: true, work: 'mock-work', state: { mode: 'quiet', token: 'state-text-token' }, turns: ['[[T1]] write a note'],
+    script({ model, lastTool, messages, notes }) {
+      notes.models.push(model)
+      if (model === 'mock-chat') {
+        notes.prompt = messages.some((message) => textOf(message.content).includes('本次状态凭据=state-text-token'))
+        return { text: JSON.stringify({ lca_state: { mode: 'work', token: 'state-text-token' }, reply: '我来处理。' }) }
+      }
+      notes.continuation = messages.some((message) => textOf(message.content).includes('LCA 已确认切换到工作中'))
+      return lastTool ? { text: 'done' } : write('work-after-text', 'text handoff work')
+    },
+    check: (seen, notes, work) => ({ oneChatThenWork: notes.models.join() === 'mock-chat,mock-work,mock-work', sameTurn: seen.turnEnds.join() === 'completed',
+      stateApproved: seen.states.length === 1, prompt: notes.prompt, continuation: notes.continuation,
+      wrote: readFileSync(join(work, 'note.txt'), 'utf8') === 'text handoff work', noProtocolInBook: seen.messages.join().includes('我来处理。') && !seen.messages.join().includes('lca_state') }),
+  },
+  'state-stale': {
+    trusted: true, work: 'mock-work', state: { mode: 'quiet', token: 'current-token' }, turns: ['[[T1]] write a note'],
+    script({ model, notes }) { notes.models.push(model); return { text: '{"lca_state":{"mode":"work","token":"old-token"},"reply":"稍等。"}' } },
+    check: (seen, notes) => ({ noSwitch: notes.models.join() === 'mock-chat' && seen.states.length === 0, completed: seen.turnEnds.join() === 'completed', warned: seen.stateNotices.length === 1 }),
+  },
+  'state-refused': {
+    trusted: true, work: 'mock-work', state: { mode: 'quiet', token: 'refused-token' }, refuseState: true, turns: ['[[T1]] write a note'],
+    script({ model, notes }) { notes.models.push(model); return { text: '{"lca_state":{"mode":"work","token":"refused-token"},"reply":"稍等。"}' } },
+    check: (seen, notes) => ({ noSwitch: notes.models.join() === 'mock-chat', oneDecision: seen.states.length === 1, warned: seen.stateNotices.length === 1, completed: seen.turnEnds.join() === 'completed' }),
+  },
   get 'reference-restart'() { return { ...this.reference, restart: true } },
   get 'degrade-restart'() { return { ...this.degrade, restart: true } },
   allowance: {
@@ -41,7 +125,7 @@ const SCENARIOS = {
     script() { return { text: 'should never be asked' } },
     check: (seen, notes) => ({
       askedAsAutonomous: seen.admits.length >= 1 && seen.admits.every((admit) => admit.bucket === 'autonomous'),
-      stoppedBeforeModel: notes.requests === 0 && seen.turnEnds.length === 1 && seen.turnEnds[0] === 'aborted',
+      stoppedBeforeModel: notes.requests === 0 && seen.turnEnds.length === 1 && seen.turnEnds[0] === 'blocked',
     }),
   },
   'event-cap': {
@@ -54,7 +138,8 @@ const SCENARIOS = {
     }),
   },
   reference: {
-    trusted: true, answer: 'allowed-once', turns: ['[[T1]] what did we do yesterday', '[[T2]] and today?'], reference: '{"previousDaysReference":[{"text":"LCA_REFERENCE_PROBE"}]}',
+    trusted: true, answer: 'allowed-once', turns: ['[[T1]] what did we do yesterday', '[[T2]] and today?'],
+    reference: JSON.stringify({ previousDaysReference: [{ text: 'LCA_REFERENCE_PROBE' }], currentTime: { iso: '2026-10-26T02:59:00.000Z', local: '2026/10/26 10:59', timeZone: 'Asia/Shanghai' } }),
     script({ turn, messages, notes }) {
       if (turn === 1) {
         // DSH may add its own reminders after your message; take the one carrying your words.
@@ -66,7 +151,9 @@ const SCENARIOS = {
     check: (seen, notes) => ({
       turnsCompleted: seen.turnEnds.length === 2 && seen.turnEnds.every((kind) => kind === 'completed'),
       referenceBeforeWords: notes.userText.indexOf('LCA_REFERENCE_PROBE') >= 0 && notes.userText.indexOf('LCA_REFERENCE_PROBE') < notes.userText.indexOf('[[T1]]'),
-      retiredNextTurn: !notes.later.includes('LCA_REFERENCE_PROBE') && notes.later.includes('[[T1]]') && notes.later.includes('LCA references for an earlier turn'),
+      clockProvided: notes.userText.includes('2026/10/26 10:59') && notes.userText.includes('Asia/Shanghai'),
+      oldClockRetired: !notes.later.includes('2026/10/26 10:59'),
+      retiredNextTurn: !notes.later.includes('LCA_REFERENCE_PROBE') && notes.later.includes('[[T1]]') && notes.later.includes('LCA retired earlier source-derived content'),
     }),
   },
   levels: {
@@ -114,7 +201,7 @@ const SCENARIOS = {
       turnsCompleted: seen.turnEnds.length === 2 && seen.turnEnds.every((kind) => kind === 'completed'),
       degradedOnceInTurn1: seen.degraded.length === 1 && seen.degraded[0].turn === 1 && seen.degraded[0].sources.join() === 'web',
       turn1CommandAskedAsDegraded: seen.approvals.length === 1 && seen.approvals[0].turn === 1 && seen.approvals[0].kind === 'degraded' && seen.approvals[0].toolName === 'pwsh',
-      retiredAtTurn2: seen.retired.length === 1 && seen.retired[0].turn === 2 && seen.retired[0].count === 1,
+      retiredAtTurn2: seen.retired.length === 1 && seen.retired[0].turn === 2 && seen.retired[0].count >= 1,
       modelSawRetiredResult: notes.retiredSeen === true,
       commandsRan: ['call_pwsh_1', 'call_pwsh_2'].every((id) => resultOf(seen, id)?.isError === false),
     }),
@@ -170,12 +257,13 @@ async function run(name) {
       const turn = marker < 0 ? 0 : Number(textOf(messages[marker].content).match(/\[\[T(\d)\]\]/)[1])
       const last = messages.slice(marker + 1).filter((message) => message.role === 'tool').at(-1)
       const reply = scenario.script({ turn, lastTool: last?.tool_call_id ?? null, toolText: textOf(last?.content), messages, model: request.model, notes })
+      if (reply.status) { res.writeHead(reply.status, { 'content-type': 'application/json' }).end(JSON.stringify(reply.body ?? {})); return }
       const base = { id: `mock-${requests}`, object: 'chat.completion.chunk', created: 0, model: 'mock' }
       const send = (choices, extra = {}) => res.write(`data: ${JSON.stringify({ ...base, choices, ...extra })}\n\n`)
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       if (reply.tool) send([{ index: 0, delta: { role: 'assistant', content: null, tool_calls: [{ index: 0, id: reply.id, type: 'function', function: { name: reply.tool, arguments: JSON.stringify(reply.args) } }] }, finish_reason: null }])
       else send([{ index: 0, delta: { role: 'assistant', content: reply.text }, finish_reason: null }])
-      send([{ index: 0, delta: {}, finish_reason: reply.tool ? 'tool_calls' : 'stop' }])
+      send([{ index: 0, delta: {}, finish_reason: reply.tool ? 'tool_calls' : reply.finish ?? 'stop' }])
       send([], { usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } })
       res.end('data: [DONE]\n\n')
     })
@@ -183,7 +271,7 @@ async function run(name) {
   await new Promise((done) => server.listen(0, '127.0.0.1', done))
   const { home, cli } = prepareDshProfile({ dshRoot, dataDir, bridge: join(repo, 'dsh', 'lca-bridge') })
   let stderr = ''
-  const seen = { approvals: [], degraded: [], retired: [], trusted: [], results: [], turnEnds: [], handoffs: [], switched: [], admits: [] }
+  const seen = { states: [], stateNotices: [], messages: [], approvals: [], degraded: [], retired: [], trusted: [], results: [], turnEnds: [], handoffs: [], switched: [], admits: [], probed: {} }
   let sessionId
   let restarting = false
   let child
@@ -203,15 +291,20 @@ async function run(name) {
     switch (message.t) {
       case 'hello': child.send({ t: 'init', persona: 'You are a test agent.', suffix: '', tools: [] }); break
       case 'init-ok':
-        if (scenario.describe) child.send({ t: 'describe', ref: 'levels' })
-        else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted, ...(sessionId ? { sessionId } : {}) })
+        if (scenario.probe) for (const role of scenario.probe) child.send({ t: 'probe', ref: `probe-${role}`, role })
+        else if (scenario.describe) child.send({ t: 'describe', ref: 'levels' })
+        else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted, binding: { protocolVersion: 2, runtimeId: 'bridge-check', projectId: 'bridge-project', cwd: work }, ...(sessionId ? { sessionId } : {}) })
         break
       case 'described': seen.described = { chat: message.chat, work: message.work }; child.send({ t: 'shutdown' }); break
+      case 'probed':
+        seen.probed[String(message.ref).replace('probe-', '')] = { ok: message.ok, durationMs: message.durationMs, route: message.route, failure: message.failure }
+        if (Object.keys(seen.probed).length === scenario.probe.length) child.send({ t: 'shutdown' })
+        break
       case 'session': {
         const resumed = !!sessionId
         sessionId = message.sessionId
         if (resumed) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })
-        else child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', ...(scenario.reference ? { reference: scenario.reference } : {}), ...(scenario.origin ? { origin: scenario.origin } : {}) })
+        else child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', ...(scenario.state ? { state: scenario.state } : {}), ...(scenario.reference ? { reference: scenario.reference } : {}), ...(scenario.origin ? { origin: scenario.origin } : {}) })
         break
       }
       case 'approval':
@@ -225,14 +318,20 @@ async function run(name) {
       // LCA's resource ledger: allow everything unless the scenario refuses a bucket.
       case 'admit': seen.admits.push({ bucket: message.bucket, units: message.units }); child.send({ t: 'admit-answer', id: message.id, ok: message.bucket !== scenario.refuse }); break
       case 'model': seen.switched.push(message.role); break
+      case 'message': seen.messages.push(message.text); break
+      case 'state-notice': seen.stateNotices.push(message.reason); break
+      case 'state-request':
+        seen.states.push(message.state)
+        if (!scenario.refuseState) child.send({ t: 'state', sessionId, state: { mode: message.state.mode, token: 'new-state-token' } })
+        child.send({ t: 'state-answer', id: message.id, ok: !scenario.refuseState }); break
       case 'turn-end':
         seen.turnEnds.push(message.reason?.kind ?? null)
         // A restart scenario stops DSH after turn 1; the next process resumes the session for the rest.
-        if (scenario.restart && seen.turnEnds.length === 1 && scenario.turns.length > 1) { restarting = true; child.send({ t: 'shutdown' }) }
+        if (scenario.restart && seen.turnEnds.length === (scenario.restartAfter ?? 1) && scenario.turns.length > seen.turnEnds.length) { restarting = true; child.send({ t: 'shutdown' }) }
         else if (seen.turnEnds.length < scenario.turns.length) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })
         else child.send({ t: 'shutdown' })
         break
-      case 'error': seen.error = message.message; break
+      case 'error': seen.error = message.message; child.send({ t: 'shutdown' }); break
       default: break
     }
   })
@@ -245,9 +344,9 @@ async function run(name) {
   if (scenario.skip?.(seen)) return { name, ok: true, skipped: 'the OS sandbox ran the command here', seen }
   notes.requests = requests
   const checks = scenario.check(seen, notes, work)
-  const ok = Object.values(checks).every(Boolean) && !seen.timeout
+  const ok = Object.values(checks).every(Boolean) && !seen.timeout && !seen.error
   if (!ok && stderr) seen.stderr = stderr.split('\n').filter((line) => /error|warn/i.test(line)).slice(-20)
-  return { name, ok, checks, ...(ok ? {} : { seen, notes }), modelRequests: requests, exitCode: code }
+  return { name, ok, checks, ...(ok ? {} : { seen, notes }), ...(scenario.probe ? { probed: seen.probed } : {}), modelRequests: requests, exitCode: code }
 }
 
 const names = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SCENARIOS)
@@ -257,4 +356,5 @@ for (const name of names) {
   reports.push(await run(name))
 }
 console.log(JSON.stringify(reports, null, 2))
+writeFileSync(join(dataDir, 'report.json'), JSON.stringify(reports, null, 2))
 process.exitCode = reports.every((report) => report.ok) ? 0 : 1

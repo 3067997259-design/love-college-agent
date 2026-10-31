@@ -30,6 +30,9 @@ import { definitionSchema } from './characters/package'
 import { BUILTIN_CARD, briefPersona } from './characters/builtin-persona'
 import { createDshExecution, type DshExecution } from './dsh/execution'
 import { dshLocations } from './dsh/locations'
+import { startDshHost, type DshHost } from './dsh/host'
+import { createExtensions, type ExtensionsService, type ExtensionRuntime } from './dsh/extensions'
+import { createSkills, type SkillsService } from './dsh/skills'
 import { createProjects } from './dsh/projects'
 import harnessPolicy from './harness/policy.json'
 import { profileContext } from './onboarding/context'
@@ -145,13 +148,16 @@ let store: SessionStore | undefined
 let lifeWork: LifeWorkService | undefined
 let optical: OpticalMemoryService | undefined
 let questions: ReturnType<typeof createQuestions> | undefined
+let extensionHost: DshHost | undefined
+let extensions: ExtensionsService | undefined
+let skills: SkillsService | undefined
 let dshExecution: DshExecution | undefined
 /** Developer scenes: the scripted model as a local endpoint her DSH session talks to. */
 let scriptedEndpoint: ScriptedEndpoint | undefined
 /** Every service is up: quitting closes them in order first. */
 let servicesStarted = false
 /** She is in a turn of her DSH session (a game round has its own loop, minecraft/round.ts). */
-const herBusy = (): boolean => !!dshExecution?.busy()
+const herBusy = (): boolean => !!dshExecution?.busy() || !!extensions?.busy() || !!skills?.busy()
 /**
  * Her own life as she may know it in a turn: where she is, recent outings and things she brought back, her own works
  * (fictional, never actual offline work). Her DSH session gets it with each turn's opening message.
@@ -500,7 +506,7 @@ void app.whenReady().then(async () => {
     controller.attachLifeWork(lifeWork)
     life = createLife({ store, clock, scheduler, work: lifeWork, restored: restoreReceipt?.status === 'restored', working: () => herBusy() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('mode'), emit: (id, facts) => { postEvent('autonomous', facts, id) } })
     controller.attachLife(life)
-    sleep = createSleep({ store, canSleep: () => !herBusy() && !lifeWork?.active() && !minecraft?.active() && store!.projection().pomodoro.status !== 'running' && life?.view().locationId === 'room' && controller?.getSnapshot().onboarding?.status === 'completed',
+    sleep = createSleep({ store, clock, scheduler, canSleep: () => !herBusy() && !lifeWork?.active() && !minecraft?.active() && store!.projection().pomodoro.status !== 'running' && life?.view().locationId === 'room' && controller?.getSnapshot().onboarding?.status === 'completed',
       changed: () => { voice?.interrupt(); lifeWork?.foreground(); controller?.refresh('mode') } })
     controller.attachSleep(sleep)
     diary = createDiary({ clock, scheduler, store, assets: binaryAssets, get model() { return prepared.developer ? { source: 'fake' as const, write: async () => ({ entry: diaryPrompts.fake }) } : taskModels.diary }, busy: () => herBusy() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('task'), projected: () => roomProjection.rebuild() })
@@ -582,16 +588,16 @@ void app.whenReady().then(async () => {
     // DSH: your chat and her own events go to her DSH session. The runtime ships with the app (resources/dsh-runtime,
     // prepared by scripts/prepare-dsh-runtime.mjs).
     // LCA private data never becomes her working material, whatever folder the user picks.
-    const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'runtime-resources', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
+    const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'extensions.json', 'extension-events.jsonl', 'extension-candidates', 'skills-imports.json', 'skill-events.jsonl', 'skill-candidates', 'runtime-resources', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
     const projects = createProjects({ settings: prepared.pluginSettings, desk: join(roomRoot, '书桌'), privateRoots: guardedRoots,
-      trusted: (path) => dshExecution?.trusted(path) ?? false, untrust: (path) => dshExecution?.untrust(path), busy: () => dshExecution?.busy() ?? false,
+      trusted: (path) => dshExecution?.trusted(path) ?? false, untrust: (path) => dshExecution?.untrust(path), busy: herBusy,
       choose: async () => {
         const options = { title: '选一个项目文件夹：她写代码、运行命令都在里面', defaultPath: projects.current(), properties: ['openDirectory' as const] }
         const parent = BrowserWindow.getFocusedWindow()
         const selected = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options)
         return selected.canceled ? null : selected.filePaths[0] ?? null
       },
-      changed: () => controller?.refresh('task') })
+      changed: () => { dshExecution?.stateChanged(); controller?.refresh('task') } })
     const persona = () => {
       const character = (store!.history?.() ?? store!.records()).findLast((row) => row.type === 'character/definition')
       const card = character?.type === 'character/definition' ? character.definition : BUILTIN_CARD
@@ -616,7 +622,7 @@ void app.whenReady().then(async () => {
     const createDsh = () => {
       const chat = chatModel()
       if (!dshPresent || !chat) return undefined
-      const execution = createDshExecution({ store: store!, clock, processClock: systemClock, dataDir, dshRoot, bridge: dshBridge, guardedRoots, source: scriptedEndpoint ? 'fake' : 'real',
+      const execution = createDshExecution({ store: store!, clock, processClock: systemClock, dataDir, dshRoot, bridge: dshBridge, guardedRoots, source: scriptedEndpoint ? 'fake' : 'real', disconnected: () => { extensions?.disconnected(); skills?.disconnected() },
         routes: dshRoutes(chat, (scriptedEndpoint ? undefined : providers.get('work')) ?? chat, efforts),
         project: () => projects.current(), persona,
         // After DSH's first-party guidance: how she talks in the book outranks the coding-agent style.
@@ -629,7 +635,7 @@ void app.whenReady().then(async () => {
         ask: async (question, choices, context) => {
           // One line of at most 240 characters, or the question would be refused as invalid (questions/schema.ts).
           const line = [...question.replace(/\s+/g, ' ').trim()]
-          const asked = await questions!.approve({ question: line.length > 240 ? line.slice(0, 239).join('') + '…' : line.join(''), choices }, { clock, store: store!, turnId: context.turnId, callId: context.callId, signal: context.signal })
+          const asked = await questions!.approve({ question: line.length > 240 ? line.slice(0, 239).join('') + '…' : line.join(''), choices }, { clock, store: store!, turnId: context.turnId, callId: context.callId, signal: context.signal }, context.member)
           const raw = asked.raw as { status?: string; answerMessageId?: string }
           if (raw.status !== 'answered' || !raw.answerMessageId) return null
           const answer = store!.records().findLast((row) => row.type === 'user/message' && row.id === raw.answerMessageId)
@@ -638,6 +644,10 @@ void app.whenReady().then(async () => {
         },
         question: (items, context) => questions!.ask(items, { clock, store: store!, ...context }).then((result) => result.raw as { status?: unknown; answers?: unknown; answerMessageId?: unknown }),
         backgroundQuiet: () => !!minecraft?.active(),
+        setMode: (mode, requestId) => {
+          const snapshot = controller!.getSnapshot()
+          return controller!.dispatch({ protocolVersion: 1, epoch: snapshot.epoch, requestId, type: 'mode.set', mode }).status === 'accepted'
+        },
         // Spending safety: turns that run without you are held to the autonomous allowance. Your own turns are held to
         // the daily caps only when someone set them on purpose (a booth operator; a cap set at a booth binds personal
         // mode too); with the defaults they are recorded, as DSH work has been since 1.0. Scripted replies cost nothing:
@@ -674,12 +684,40 @@ void app.whenReady().then(async () => {
       return execution
     }
     dshExecution = createDsh()
+    const withExtensionRuntime = async <T>(job: (runtime: ExtensionRuntime) => Promise<T>): Promise<T> => {
+      if (!dshPresent) throw new Error('DSH_UNAVAILABLE')
+      if (dshExecution) return dshExecution.withExtensions(job)
+      // Extension setup is available before a model is configured. This host opens no agent session.
+      const start = () => extensionHost = startDshHost({ clock: systemClock, dshRoot, bridge: dshBridge, dataDir, workspace: projects.current(), routes: null, guardedRoots,
+        persona: '', tools: [], onEvent: (event) => { if (event.t === 'host-unavailable') { extensions?.disconnected(); skills?.disconnected() } },
+        onCall: async () => { throw new Error('DSH_NO_AGENT') }, onApproval: async () => 'rejected' })
+      const restart = async () => { await extensionHost?.close(); return start() }
+      if (extensionHost?.available() === false) await restart()
+      return job({ host: extensionHost ?? start(), restart })
+    }
+    const approveExtension = async ({ id, question, signal }: { id: string; question: string; signal: AbortSignal }) => {
+      const asked = await questions!.approve({ question, choices: ['本次允许', '拒绝'] }, { clock, store: store!, turnId: id, callId: id, signal }, true)
+      const raw = asked.raw as { status?: string; answerMessageId?: string }
+      if (raw.status !== 'answered' || !raw.answerMessageId) return false
+      const answer = store!.records().findLast((row) => row.type === 'user/message' && row.id === raw.answerMessageId)
+      questions!.commit(id, [id])
+      return answer?.type === 'user/message' && answer.text === '本次允许'
+    }
+    extensions = createExtensions({ dataDir, clock: systemClock, blocked: () => !!skills?.busy(), withRuntime: withExtensionRuntime, approve: approveExtension,
+      choose: async () => { const selected = await dialog.showOpenDialog({ title: '选择 DSH 本地扩展目录', properties: ['openDirectory'] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
+      changed: () => controller?.refresh('connection') })
+    controller.attachExtensions(extensions)
+    skills = createSkills({ dataDir, clock: systemClock, project: projects.current, blocked: () => !!extensions?.busy(), withRuntime: withExtensionRuntime, approve: approveExtension,
+      choose: async () => { const selected = await dialog.showOpenDialog({ title: '选择技能目录（含 SKILL.md）', properties: ['openDirectory'] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
+      changed: () => controller?.refresh('connection') })
+    controller.attachSkills(skills)
     servicesStarted = true
     if (dshPresent) controller.attachProjects(projects)
     // No DSH session: the book still takes your message command and says the model is not set up.
     const noExecution = { source: 'real' as const, send: () => { throw new Error('EXECUTION_UNAVAILABLE') }, stop: () => false, stateChanged: () => {} }
     const chatPort = () => dshExecution ?? noExecution
     controller.attachExecution(chatPort(), !!dshExecution)
+    controller.attachCollaboration(dshExecution?.collaboration)
     modelSettings = createModelSettings({ root: dataRoot, fallback: prepared.developer ? undefined : providersFile, developer: prepared.developer, slots: [...rawProviders.keys()], clock, budget: resourceBudget,
       canConfigure: () => !herBusy() && !backup?.isBusy() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
       apply: async () => {
@@ -696,13 +734,18 @@ void app.whenReady().then(async () => {
         taskModels = createTaskModelPorts(providers, clock, store!, undefined, resourceBudget, !privacyEnabled())
         if (!privacyEnabled()) prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = false })
         modelReady = prepared.developer || providers.has('chat')
-        await dshExecution?.close(); dshExecution = createDsh()
+        await dshExecution?.close(); await extensionHost?.close(); extensionHost = undefined; dshExecution = createDsh()
         if (!dshExecution) modelSettings?.setLevels(null)
         controller!.attachExecution(chatPort(), !!dshExecution)
+        controller!.attachCollaboration(dshExecution?.collaboration)
         documents?.stateChanged(); campus?.stateChanged()
         } finally { scheduler!.pauseBackground(store!.projection().lightsOut) }
       },
       effortsChanged: (next) => { efforts = next; dshExecution?.efforts(next) },
+      probeDsh: async (role) => {
+        if (!dshExecution) throw new Error(dshPresent ? 'DSH starts once a chat model is saved; save the chat model first' : 'The DSH runtime is missing from this installation')
+        return dshExecution.probe(role)
+      },
       choose: async () => { const selected = await dialog.showOpenDialog({ title: '导入模型槽位配置（内容仅由主进程读取）', properties: ['openFile'], filters: [{ name: '模型配置', extensions: ['json'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null }, changed: () => controller?.refresh('connection') })
     controller.attachModelSettings(modelSettings)
     // Without DSH nothing sends a thinking level; the settings say the provider decides.
@@ -762,11 +805,15 @@ app.on('before-quit', (event) => {
     closing = true
     // Her DSH session stops first: from here it records nothing, so what DSH sends while it stops never reaches the
     // journal closed below. The quit does not wait for DSH to exit; it exits on the shutdown message or when we go.
+    extensions?.close()
+    skills?.close()
+    void extensionHost?.close()
     void dshExecution?.close()
     questions?.close()
     pomodoro?.dispose()
     quill?.dispose()
     companionWindows?.dispose()
+    sleep?.close()
     life?.close()
     notifications?.close()
     const closeCampus = campus?.close()

@@ -8,6 +8,7 @@
 - `commands.ts`：白名单命令与回执；accepted 只表示接收，完成由后续状态与证据确定。
 - `events.ts`：主进程发布投影事件，revision / epoch 与原始日志序号分开。
 - `bridge.ts`：preload 与显式假适配共同实现 `getSnapshot / subscribe / dispatch` 等入口，renderer 使用 `window.lca`。
+- `collaboration.ts`：成员与任务安全视图；名册容量与运行容量分别表示，无法观测用 null。受限来源不提供成员结果原文；操作 accepted 不等于消息已处理或停止已完成。`dsh-protocol.ts` 的协作请求只在主进程与子进程之间传输。
 
 接线先订阅并缓冲，再获取快照。同代次中丢弃 revision 不高于快照的事件；断线、缺口或 epoch 改变时重新取快照，清除旧代次缓冲和请求。组件卸载时退订，不在 renderer 再维护一份业务事实 reducer。
 
@@ -44,6 +45,16 @@ backup.import 先校验并显示 incoming 概要；backup.restore 必须携带�
 onboarding 的状态与名字归主进程；修改名字不是共同经历。reset 保留名字、聊天和业务数据；恢复已完成的存档不强迫重新走向导。
 
 ## 扩展、工作与礼物
+
+1.2 的 `extensions.ts` / `collaboration.ts` 定义安全投影和有限命令。P3 接入扩展快照和窄命令，P4 接入插件书签；协作适配器未接入时字段缺省、命令明确拒绝。扩展安装先由原生入口生成提案，再按提案 ID 与 fingerprint 确认；启停与移除检查显示版本。operation 的 accepted、cancelling、unknown 不表示已生效或已撤销。
+
+`skills.ts` 只投影名称、描述、来源、覆盖 / 解析状态与调用开关，不传正文和绝对文件位置。`skills.import` 只接受项目 / 存档作用域，由原生窗口选择；移除绑定目录归属、projectKey 和 fingerprint。`skills.*` 与 `extension.*` 均限书页，诊断 / 迷你窗和任意路径字段被拒绝。导入与移除逐次审批；旧允许在取消、关闭和项目切换后失效。
+
+成员控制同时绑定 AppCommand epoch、DSH runtimeId、projectId、root/parent/member ID 和显示 revision；进程重启、换项目、恢复后旧目标必须失效。activity 与最近一次 outcome 分开，inactive 不表示完成。Team 写入范围仅作协作提示。成员消息不能自动成为主角色对用户的发言或新经历。
+
+成员的 `work` 只有阶段、活动模板、开始时间、大致在做哪类事和是否想了很久，由主进程按她自己步骤的同一张对照表算出；不含工具名、参数或输出，变化也不增加成员 revision。`readMemberSteps` 仅限书页在打开帮手卡片时读取最近几步，事实来自 DSH 日志；文件名、搜索词、截短的命令和网站域名只给没碰过外部内容的帮手，不进快照、日记和记忆。
+
+`dsh-protocol.ts` 仅供 main 与受信任的 DSH 子进程，故不从通用 barrel 导出；其中 cwd、来源授权与会话局部轮次不能直接进 renderer 或调试快照。主进程建立映射后才接受成员的审批、工具和额度请求，未知来源拒绝。
 
 MCP 视图只暴露服务器身份、状态、工具白名单和 fingerprint；实际启动命令、环境或地址由原生对话框核对。路径导入按 server id 合并，重启不自动连接，断开使迟到确认失效。
 

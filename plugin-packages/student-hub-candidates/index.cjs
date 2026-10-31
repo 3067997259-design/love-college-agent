@@ -1,6 +1,5 @@
 'use strict'
 
-/* eslint-disable @typescript-eslint/no-require-imports */
 const { execFile } = require('node:child_process')
 const { createHash } = require('node:crypto')
 const { existsSync, readFileSync } = require('node:fs')
