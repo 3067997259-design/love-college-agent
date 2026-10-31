@@ -3,21 +3,44 @@ import type { AgentView, CollaborationView } from '../../../../shared/collaborat
 /** Identity and ribbon side are baked into directional art; never mirror sprites. */
 export type TeamPose = 'idle' | 'entering' | 'typing' | 'reading' | 'carrying' | 'waiting' | 'completed' | 'thinking' | 'resting' | 'failed' | 'stopping' | 'blocked'
 export type Station = 'table' | 'bookshelf' | 'desk' | 'rug' | 'rest' | 'door'
-export interface TeamSlot { x: number; y: number; h: number; facing: 'front' | 'left' | 'right' | 'back'; behind?: 'table' | 'desk' | 'chair' }
+/**
+ * A place in the approved square room image: her feet at (x, y) as fractions of the room. `behind` names the furniture
+ * drawn over her. `stool` marks a tea-table place where she stands on a little stool to reach the laptop on the table;
+ * 'hidden' where the tabletop covers the stool from this camera.
+ */
+export interface TeamSlot { x: number; y: number; facing: 'front' | 'left' | 'right' | 'back'; behind?: 'table' | 'desk' | 'chair'; stool?: 'hidden' | 'visible' }
 export interface Place { station: Station; index: number }
-/** Feet in the approved square room image. Four seats beside the tea table, never on its top. */
+/**
+ * One size rule for every helper and every pose: her head height depends only on how low her feet are in the picture.
+ * The room art draws its furniture with weak perspective (the tea table's four legs and the chair put the horizon near
+ * y = .06), so a helper at the back is only about a third smaller than one at the front. A front-row head is 50 px of a
+ * 600 px room: small enough for nine helpers, and the farthest place still keeps a standing helper about 84 px tall.
+ * Sizing by the whole picture instead let seated and reaching poses grow by half or more.
+ */
+export const DEPTH = { horizon: .06, frontY: .96, frontHead: 50 / 600 } as const
+export const headAt = (y: number) => DEPTH.frontHead * (y - DEPTH.horizon) / (DEPTH.frontY - DEPTH.horizon)
+/** A stool lifts her by about a quarter of her standing height: some .6 of her head height. */
+export const STOOL_HEADS = .6
+/**
+ * Places follow the room's free floor (measured on the 2048 px room image). The tea table nearly touches the bookshelf,
+ * so research happens in the strip of floor between them; helpers who need you come forward onto the sunlit floor.
+ */
 export const STATIONS: Readonly<Record<Station, readonly TeamSlot[]>> = {
+  // Two places behind the far side of the tea table, one at each short end.
   table: [
-    { x: .21, y: .80, h: .25, facing: 'front', behind: 'table' },
-    { x: .35, y: .82, h: .25, facing: 'front', behind: 'table' },
-    { x: .095, y: .845, h: .28, facing: 'right', behind: 'table' },
-    { x: .50, y: .87, h: .31, facing: 'left' },
+    { x: .27, y: .80, facing: 'front', behind: 'table', stool: 'hidden' },
+    { x: .38, y: .825, facing: 'front', behind: 'table', stool: 'hidden' },
+    { x: .095, y: .845, facing: 'right', behind: 'table', stool: 'visible' },
+    { x: .50, y: .885, facing: 'left', stool: 'visible' },
   ],
-  bookshelf: [{ x: .10, y: .74, h: .29, facing: 'left', behind: 'table' }, { x: .29, y: .70, h: .26, facing: 'back', behind: 'table' }],
-  desk: [{ x: .65, y: .85, h: .24, facing: 'right' }, { x: .91, y: .83, h: .24, facing: 'left' }],
-  rug: [{ x: .69, y: .965, h: .24, facing: 'front' }, { x: .87, y: .96, h: .24, facing: 'front' }, { x: .51, y: .98, h: .24, facing: 'front' }],
-  rest: [{ x: .20, y: .98, h: .24, facing: 'front' }, { x: .38, y: .98, h: .24, facing: 'front' }],
-  door: [{ x: .055, y: .96, h: .24, facing: 'right' }],
+  bookshelf: [{ x: .215, y: .685, facing: 'left' }, { x: .33, y: .675, facing: 'back' }],
+  // Beside her: by the desk's near leg, and in front of her chair.
+  desk: [{ x: .655, y: .815, facing: 'right' }, { x: .80, y: .82, facing: 'left' }],
+  rug: [{ x: .58, y: .945, facing: 'front' }, { x: .73, y: .95, facing: 'front' }, { x: .88, y: .945, facing: 'front' }],
+  // In front of the tea table, clear of the helper at its left end.
+  rest: [{ x: .175, y: .955, facing: 'front' }, { x: .30, y: .96, facing: 'front' }],
+  // There is no door in the art: newcomers walk in from the front edge.
+  door: [{ x: .43, y: .962, facing: 'right' }],
 }
 /** Copies of the same room, clipped to furniture silhouettes: no generated or replaced asset. */
 export const OCCLUDERS = [

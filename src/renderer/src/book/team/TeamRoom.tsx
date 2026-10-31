@@ -1,20 +1,23 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { AppBridge, AppSnapshot } from '../../../../shared'
 import type { AgentView } from '../../../../shared/collaboration'
 import { sendCommand } from '../command'
 import { memberTarget, memberText, memberWorkText } from '../CollaborationPanel'
 import { activityKind } from '../../voice/activity-text'
 import { durationText, useMemberElapsed, useMemberSteps } from './useMemberProgress'
-import { assignStations, depthOf, memberFailed, memberKey, OCCLUDERS, poseOf, slotOf, type Place, type TeamPose, type TeamSlot } from './teamScene'
-import { artOf, badgeOf, TEAM_SPRITES } from './teamArt'
+import { assignStations, depthOf, memberFailed, memberKey, OCCLUDERS, poseOf, slotOf, type Place, type TeamPose } from './teamScene'
+import { artOf, badgeOf, figureOf, SPRITES, TEAM_SPRITES } from './teamArt'
 import './team.css'
 
-const files = import.meta.glob(['../../assets/character/taozi/team/room-day.webp', '../../assets/character/taozi/team/mini-v2-*.png'], { eager: true, query: '?url', import: 'default' }) as Record<string, string>
+// The 2026-10-28 seated table sprites are retired (they only reached the tabletop when drawn at twice the size); keep them out of the bundle.
+const files = import.meta.glob(['../../assets/character/taozi/team/room-day.webp', '../../assets/character/taozi/team/mini-v2-*.png', '!../../assets/character/taozi/team/mini-v2-table-*.png'],
+  { eager: true, query: '?url', import: 'default' }) as Record<string, string>
 const roomSrc = files['../../assets/character/taozi/team/room-day.webp']
 const spriteSrc = (sprite: string) => files[`../../assets/character/taozi/team/mini-v2-${sprite}.png`]
 /** The built-in character has team art; a custom character package without it keeps the close view. */
-export const teamArtReady = !!roomSrc && TEAM_SPRITES.every((sprite) => !!spriteSrc(sprite))
+export const teamArtReady = !!roomSrc && TEAM_SPRITES.every((sprite) => !!spriteSrc(sprite) && !!SPRITES[sprite])
 const pct = (value: number) => `${(value * 100).toFixed(2)}%`
+const fraction = (value: number) => value.toFixed(4)
 
 /**
  * The team view on the left page: the whole room, her at the desk, one mini 桃子 per helper. Places are stable, the pose
@@ -32,13 +35,12 @@ export function TeamRoom({ snapshot, bridge, members, visible, onMore }: {
     const key = memberKey(member), place = slots.get(key)
     if (!place) return []
     const pose = poseOf(member, posesRef.current.get(key))
-    const slot = slotOf(place)
-    return [{ member, place, slot: pose === 'resting' ? { ...slot, h: slot.h * .75 } : slot, pose, art: artOf(pose, place) }]
+    const slot = slotOf(place), art = artOf(pose, place, slot)
+    return [{ member, place, slot, pose, art, figure: figureOf(slot, art) }]
   })
   posesRef.current = new Map(placed.map(({ member, pose }) => [memberKey(member), pose]))
   const layers = [...OCCLUDERS.map((entry) => ({ kind: 'furniture' as const, depth: entry.depth, entry })),
-    ...placed.map((entry) => ({ kind: 'member' as const, depth: depthOf(entry.slot), entry })),
-    ...placed.filter((entry) => entry.art.foreground).map((entry) => ({ kind: 'tabletop' as const, depth: .8701, entry }))]
+    ...placed.map((entry) => ({ kind: 'member' as const, depth: depthOf(entry.slot), entry }))]
     .sort((a, b) => a.depth - b.depth)
   const offstage = members.length - placed.length
   const [openKey, setOpenKey] = useState<string | null>(null)
@@ -53,17 +55,17 @@ export function TeamRoom({ snapshot, bridge, members, visible, onMore }: {
       {layers.map((layer) => {
         if (layer.kind === 'furniture') return <img key={layer.entry.id} className="team-room-art team-occluder" data-occluder={layer.entry.id}
           src={roomSrc} alt="" aria-hidden draggable={false} style={{ clipPath: `polygon(${layer.entry.polygon})` }} />
-        const { member, slot, pose, place, art } = layer.entry
+        const { member, slot, pose, place, art, figure } = layer.entry
         const key = memberKey(member)
-        if (layer.kind === 'tabletop') return <img key={`${key}:tabletop`} className="team-tabletop" src={spriteSrc(art.sprite)} alt="" aria-hidden draggable={false}
-          style={{ left: pct(slot.x), top: pct(slot.y), height: pct(slot.h), clipPath: art.foreground }} />
         const badge = badgeOf(member)
         return (
           <button key={key} ref={(node) => { if (node) buttons.current.set(key, node); else buttons.current.delete(key) }}
             type="button" className="team-mini" data-pose={pose} data-station={place.station} data-facing={slot.facing} data-failed={memberFailed(member) || undefined}
             data-busy={member.activity === 'running' || undefined} data-tool={member.work?.phase === 'tool' || undefined}
             data-sprite={art.sprite} data-activity={member.activity} data-outcome={member.outcome}
-            style={{ left: pct(slot.x), top: pct(slot.y), height: pct(slot.h) }} tabIndex={visible ? 0 : -1}
+            style={{ left: pct(figure.x), top: pct(figure.feet), height: pct(figure.height), '--foot-x': fraction(figure.footX), '--foot-pad': fraction(figure.footPad),
+              '--hit-l': fraction(figure.hit.left), '--hit-t': fraction(figure.hit.top), '--hit-w': fraction(figure.hit.width), '--hit-h': fraction(figure.hit.height) } as CSSProperties}
+            tabIndex={visible ? 0 : -1}
             aria-label={`${member.name}：${memberText.status(member)}`} aria-haspopup="dialog" aria-expanded={openKey === key}
             onClick={() => setOpenKey(openKey === key ? null : key)}>
             <span className="team-mini-shadow" aria-hidden />
@@ -74,14 +76,15 @@ export function TeamRoom({ snapshot, bridge, members, visible, onMore }: {
         )
       })}
       {offstage > 0 && <button type="button" className="team-offstage" tabIndex={visible ? 0 : -1} onClick={onMore}>还有 {offstage} 位帮手</button>}
-      {visible && open && <MemberCard key={`${snapshot.epoch}:${memberKey(open.member)}`} member={open.member} slot={open.slot} snapshot={snapshot} bridge={bridge} onClose={close} onMore={() => { setOpenKey(null); onMore() }} />}
+      {visible && open && <MemberCard key={`${snapshot.epoch}:${memberKey(open.member)}`} member={open.member} anchor={{ x: open.figure.x, top: open.figure.feet - open.figure.height }}
+        snapshot={snapshot} bridge={bridge} onClose={close} onMore={() => { setOpenKey(null); onMore() }} />}
     </div>
   )
 }
 
 /** What is known about one helper, and the one direct action: stop her current work. Everything else lives in the panel. */
-function MemberCard({ member, slot, snapshot, bridge, onClose, onMore }: {
-  member: AgentView; slot: TeamSlot; snapshot: AppSnapshot; bridge: AppBridge; onClose(): void; onMore(): void
+function MemberCard({ member, anchor, snapshot, bridge, onClose, onMore }: {
+  member: AgentView; anchor: { x: number; top: number }; snapshot: AppSnapshot; bridge: AppBridge; onClose(): void; onMore(): void
 }) {
   const ref = useRef<HTMLElement>(null)
   const [sent, setSent] = useState<'accepted' | 'failed' | null>(null)
@@ -101,12 +104,12 @@ function MemberCard({ member, slot, snapshot, bridge, onClose, onMore }: {
     const result = await sendCommand(bridge, snapshot.epoch, { type: 'agent.interrupt', target: memberTarget(member) })
     setSent(result.ok ? 'accepted' : 'failed')
   }
-  const side = slot.x < 0.3 ? 'left' : slot.x > 0.7 ? 'right' : 'center'
+  const side = anchor.x < 0.3 ? 'left' : anchor.x > 0.7 ? 'right' : 'center'
   const status = memberText.status(member)
   const ended = member.outcome === 'none' ? null : memberText.outcome[member.outcome]
   return (
     <section ref={ref} className="team-card" role="dialog" aria-label={member.name} tabIndex={-1} data-side={side} data-photo-omit
-      style={{ left: pct(Math.max(.18, Math.min(.82, slot.x))), top: pct(Math.max(.61, slot.y - slot.h)) }}>
+      style={{ left: pct(Math.max(.18, Math.min(.82, anchor.x))), top: pct(Math.max(.61, anchor.top)) }}>
       <header><strong>{member.name}</strong><small>{memberText.mode(member)}</small></header>
       {member.taskLabel && <p className="team-card-task">{member.taskLabel}</p>}
       <p className="team-card-status">{status}</p>
