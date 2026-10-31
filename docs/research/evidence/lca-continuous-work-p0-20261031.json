@@ -1,0 +1,409 @@
+{
+  "schemaVersion": 1,
+  "experimentDate": "2026-10-31",
+  "status": "P0-partial-local-synthetic-evidence",
+  "branch": "codex/continuous-work-p0",
+  "baseMain": "227e759dd403653119587ec68c0976d6ad1155b7",
+  "previousResearchBase": "b4f1183fd35227061ffaa1264ef70ef119448a7a",
+  "runtime": {
+    "node": "24.14.0",
+    "dsh": "0.2.1-rc.2",
+    "platform": "win32-x64",
+    "independentInstall": true,
+    "installScripts": false,
+    "rootElectronDependenciesInstalled": false
+  },
+  "scope": {
+    "models": "scripted 127.0.0.1 only",
+    "data": "fresh test-results profiles and child HOME",
+    "realServices": false,
+    "electron": false,
+    "mainModified": false
+  },
+  "setupNotes": [
+    "Managed worktree created detached at verified main, then local experiment branch created.",
+    "Offline npm ci first failed ENOTCACHED for zod 4.4.3; normal locked npm ci with install scripts disabled installed 564 packages.",
+    "A sandbox cwd access error affected git switch; scoped elevated command succeeded without changing Git configuration."
+  ],
+  "baseline": [
+    {
+      "artifact": "test-results/continuous-work-p0/run-ysb9pP/serial-open/report.json",
+      "sha256": "1dcef8d2ef5e152e2d9e74bdd29474ea3e528ac600f61c0375a212b9a9604085",
+      "name": "serial-open",
+      "ok": true,
+      "checks": {
+        "noHarnessFailure": true,
+        "bothRootsOpened": true,
+        "bCompletesWhileAHeld": true,
+        "personaIsolated": true,
+        "suffixIsolated": true,
+        "conversationIsolated": true,
+        "callbacksBoundToOwner": true,
+        "rawSourceReachedAOnly": true,
+        "bothRootsResumed": true,
+        "coldResumeRetiresRaw": true
+      },
+      "modelRequests": 6,
+      "failures": [],
+      "processExits": [
+        {
+          "phase": 1,
+          "code": 0,
+          "signal": null
+        },
+        {
+          "phase": 2,
+          "code": 0,
+          "signal": null
+        }
+      ]
+    },
+    {
+      "artifact": "test-results/continuous-work-p0/run-ysb9pP/concurrent-open/report.json",
+      "sha256": "917cc851198d71d57e64909cc7aa7200c4cbc10a0192a4cbd55d7139edf4c672",
+      "name": "concurrent-open",
+      "ok": false,
+      "checks": {
+        "noHarnessFailure": true,
+        "bothRootsOpened": true,
+        "bCompletesWhileAHeld": true,
+        "personaIsolated": false,
+        "suffixIsolated": false,
+        "conversationIsolated": true,
+        "callbacksBoundToOwner": true,
+        "rawSourceReachedAOnly": true,
+        "bothRootsResumed": true,
+        "coldResumeRetiresRaw": true
+      },
+      "modelRequests": 6,
+      "failures": [],
+      "processExits": [
+        {
+          "phase": 1,
+          "code": 0,
+          "signal": null
+        },
+        {
+          "phase": 2,
+          "code": 0,
+          "signal": null
+        }
+      ]
+    },
+    {
+      "artifact": "test-results/continuous-work-p0/run-ysb9pP/inbox-crash/report.json",
+      "sha256": "fd2a27aebe0606413f835d9ccc81908bc21137fe51d7e15a6ad0eb1ed86f999e",
+      "name": "inbox-crash",
+      "ok": true,
+      "checks": {
+        "noHarnessFailure": true,
+        "bothRootsOpened": true,
+        "flushBeforeCrash": true,
+        "queuedBeforeCrash": true,
+        "pendingSurvivesColdResume": true,
+        "noColdModelAdmission": true
+      },
+      "modelRequests": 1,
+      "failures": [],
+      "processExits": [
+        {
+          "phase": 1,
+          "code": null,
+          "signal": "SIGKILL"
+        },
+        {
+          "phase": 2,
+          "code": 0,
+          "signal": null
+        }
+      ]
+    },
+    {
+      "artifact": "test-results/continuous-work-p0/run-ysb9pP/cancel-late/report.json",
+      "sha256": "ad3859321f203d32af54d4d65e4f7d0190554cead09ead531357003e4e7fd1d3",
+      "name": "cancel-late",
+      "ok": false,
+      "checks": {
+        "noHarnessFailure": true,
+        "bothRootsOpened": true,
+        "bCompletesWhileAHeld": true,
+        "personaIsolated": true,
+        "suffixIsolated": true,
+        "conversationIsolated": true,
+        "callbacksBoundToOwner": true,
+        "cancelledTurnEnded": true,
+        "lateResultCannotResume": false
+      },
+      "modelRequests": 3,
+      "failures": [],
+      "processExits": [
+        {
+          "phase": 1,
+          "code": 0,
+          "signal": null
+        }
+      ]
+    }
+  ],
+  "baselineCorrectedCancel": {
+    "artifact": "test-results/continuous-work-p0/run-wvdyPM/cancel-late/report.json",
+    "sha256": "9c03cfa2d81e0a62f6d0a45c418835af0f31cafb75db8c0394e30e5e024e0cb8",
+    "name": "cancel-late",
+    "ok": true,
+    "checks": {
+      "noHarnessFailure": true,
+      "bothRootsOpened": true,
+      "bContinuesAfterACancel": true,
+      "personaIsolated": true,
+      "suffixIsolated": true,
+      "conversationIsolated": true,
+      "callbacksBoundToOwner": true,
+      "cancelledTurnEnded": true,
+      "lateResultCannotResume": true
+    },
+    "modelRequests": 3,
+    "failures": [],
+    "processExits": [
+      {
+        "phase": 1,
+        "code": 0,
+        "signal": null
+      }
+    ]
+  },
+  "harnessCorrection": "Initial cancel assertion included A tool-request message emitted before cancellation; corrected to inspect events after the cancellation boundary. Initial report retained. No production cancellation defect found in this probe.",
+  "afterPatch": [
+    {
+      "artifact": "test-results/continuous-work-p0/run-zfVg2J/serial-open/report.json",
+      "sha256": "04ec03b9d247b8bc2d525221f35e32e3c2586fa4f1a6219944be84ecd9267c1e",
+      "name": "serial-open",
+      "ok": true,
+      "checks": {
+        "noHarnessFailure": true,
+        "bothRootsOpened": true,
+        "bCompletesWhileAHeld": true,
+        "personaIsolated": true,
+        "suffixIsolated": true,
+        "conversationIsolated": true,
+        "callbacksBoundToOwner": true,
+        "rawSourceReachedAOnly": true,
+        "bothRootsResumed": true,
+        "coldResumeRetiresRaw": true
+      },
+      "modelRequests": 6,
+      "failures": [],
+      "processExits": [
+        {
+          "phase": 1,
+          "code": 0,
+          "signal": null
+        },
+        {
+          "phase": 2,
+          "code": 0,
+          "signal": null
+        }
+      ]
+    },
+    {
+      "artifact": "test-results/continuous-work-p0/run-zfVg2J/concurrent-open/report.json",
+      "sha256": "8fd3789dfab91faf564f11a0d264d8da2ab0071b0be88871c4eefc7b6984d8f7",
+      "name": "concurrent-open",
+      "ok": true,
+      "checks": {
+        "noHarnessFailure": true,
+        "bothRootsOpened": true,
+        "bCompletesWhileAHeld": true,
+        "personaIsolated": true,
+        "suffixIsolated": true,
+        "conversationIsolated": true,
+        "callbacksBoundToOwner": true,
+        "rawSourceReachedAOnly": true,
+        "bothRootsResumed": true,
+        "coldResumeRetiresRaw": true
+      },
+      "modelRequests": 6,
+      "failures": [],
+      "processExits": [
+        {
+          "phase": 1,
+          "code": 0,
+          "signal": null
+        },
+        {
+          "phase": 2,
+          "code": 0,
+          "signal": null
+        }
+      ]
+    },
+    {
+      "artifact": "test-results/continuous-work-p0/run-zfVg2J/inbox-crash/report.json",
+      "sha256": "d4bd9cc99c59839e8678d20c3293c572e37d6352f1ee86231701ef6a0ba5d228",
+      "name": "inbox-crash",
+      "ok": true,
+      "checks": {
+        "noHarnessFailure": true,
+        "bothRootsOpened": true,
+        "flushBeforeCrash": true,
+        "queuedBeforeCrash": true,
+        "pendingSurvivesColdResume": true,
+        "noColdModelAdmission": true
+      },
+      "modelRequests": 1,
+      "failures": [],
+      "processExits": [
+        {
+          "phase": 1,
+          "code": null,
+          "signal": "SIGKILL"
+        },
+        {
+          "phase": 2,
+          "code": 0,
+          "signal": null
+        }
+      ]
+    },
+    {
+      "artifact": "test-results/continuous-work-p0/run-zfVg2J/cancel-late/report.json",
+      "sha256": "f347f92b9aceca6616807897ac1597933f1bb4a834d31e3f1d81fbc8c2a05466",
+      "name": "cancel-late",
+      "ok": true,
+      "checks": {
+        "noHarnessFailure": true,
+        "bothRootsOpened": true,
+        "bContinuesAfterACancel": true,
+        "personaIsolated": true,
+        "suffixIsolated": true,
+        "conversationIsolated": true,
+        "callbacksBoundToOwner": true,
+        "cancelledTurnEnded": true,
+        "lateResultCannotResume": true
+      },
+      "modelRequests": 3,
+      "failures": [],
+      "processExits": [
+        {
+          "phase": 1,
+          "code": 0,
+          "signal": null
+        }
+      ]
+    }
+  ],
+  "pendingIdentityFollowup": {
+    "artifact": "test-results/continuous-work-p0/run-QHPAiB/inbox-crash/report.json",
+    "sha256": "1b80e82fcb80821be1396deef79492fa7ba3c62ff8e72b999ceaeb3612f4a68f",
+    "name": "inbox-crash",
+    "ok": true,
+    "checks": {
+      "noHarnessFailure": true,
+      "bothRootsOpened": true,
+      "flushBeforeCrash": true,
+      "queuedBeforeCrash": true,
+      "pendingSurvivesColdResume": true,
+      "samePendingMessageId": true,
+      "noColdModelRequests": true
+    },
+    "modelRequests": 1,
+    "failures": [],
+    "processExits": [
+      {
+        "phase": 1,
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      {
+        "phase": 2,
+        "code": 0,
+        "signal": null
+      }
+    ]
+  },
+  "existingControls": {
+    "artifact": "test-results/continuous-work-p0/controls-wDfSnV/report.json",
+    "sha256": "28d7a2ec9230fd22c17f02f16c83602dc2fa7ada1b0f76f1cb95fff77062dc4f",
+    "reports": [
+      {
+        "name": "reference-restart",
+        "ok": true,
+        "checks": {
+          "turnsCompleted": true,
+          "referenceBeforeWords": true,
+          "clockProvided": true,
+          "oldClockRetired": true,
+          "retiredNextTurn": true
+        },
+        "modelRequests": 2,
+        "exitCode": 0
+      },
+      {
+        "name": "degrade-restart",
+        "ok": true,
+        "checks": {
+          "turnsCompleted": true,
+          "degradedOnceInTurn1": true,
+          "turn1CommandAskedAsDegraded": true,
+          "retiredAtTurn2": true,
+          "modelSawRetiredResult": true,
+          "commandsRan": true
+        },
+        "modelRequests": 5,
+        "exitCode": 0
+      },
+      {
+        "name": "event-cap",
+        "ok": true,
+        "checks": {
+          "cancelledByCap": true,
+          "stoppedNearCap": true
+        },
+        "modelRequests": 6,
+        "exitCode": 0
+      },
+      {
+        "name": "handoff",
+        "ok": true,
+        "checks": {
+          "turnsCompleted": true,
+          "turn1StartedOnChat": true,
+          "handedOffOnce": true,
+          "chatWriteNotRun": true,
+          "workModelWrote": true,
+          "turn2BackOnChat": true
+        },
+        "modelRequests": 4,
+        "exitCode": 0
+      }
+    ]
+  },
+  "sourceAtCompletion": [
+    {
+      "path": "dsh/lca-bridge/index.js",
+      "sha256": "46fc94e2a93c72a618b56d1dcb0da1febfb0d250c29e6dc35325b952663d7053"
+    },
+    {
+      "path": "scripts/dsh-continuity-probe.mjs",
+      "sha256": "d5e44fe05904a60c5de116b8c7dced605bc3027c63f65db34d3964feeac1c709"
+    },
+    {
+      "path": "scripts/fixtures/dsh-continuity-observer.mjs",
+      "sha256": "7f56bb2ba1511a5056b473a708acf6a73673595f904d156e202e2b824b79ed31"
+    },
+    {
+      "path": "dsh/runtime/package-lock.json",
+      "sha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8"
+    }
+  ],
+  "limitations": [
+    "No durable WorkItem/subscription/outbox exists in this experiment.",
+    "Inbox durability tested only after explicit test-observer sessionPersistence.flush; production bridge has no durable producer acknowledgement yet.",
+    "No retry deduplication, exactly-once execution or approved-action replay claim.",
+    "Cold crash-resume model admission was refused by test parent; recovery execution and main-process recovery not validated.",
+    "Two distinct temporary project roots were used to observe isolation, not to authorize cross-project parallel work in the product.",
+    "Cancellation late-result observation is bounded to 500 ms after B completed; OS jobs, subagents and long-delayed callbacks remain open.",
+    "Both roots share the current tool registry and fixture model; role capability separation, mixed-model isolation, scheduler priority and global budget contention remain open.",
+    "No full build, Electron, packaged install, genuine cross-day run, real-model/service or daily-use acceptance."
+  ]
+}

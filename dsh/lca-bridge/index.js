@@ -200,7 +200,7 @@ export function apply(ctx) {
   // Only LCA decides trust, and only for a project the user granted in the book.
   const presetOf = (session) => ctx.get('permissionPresets')?.current(session) ?? null
 
-  const open = async ({ sessionId, cwd, trusted, binding, resume }) => {
+  const open = async ({ sessionId, cwd, trusted, binding, resume, persona: sessionPersona = persona, suffix: sessionSuffix = suffix }) => {
     if (binding?.protocolVersion !== 2 || !['runtimeId', 'projectId', 'cwd'].every((key) => typeof binding[key] === 'string' && binding[key]) || canonical(binding.cwd) !== canonical(cwd)) throw new Error('DSH_BINDING_REQUIRED')
     await ctx.get('loader')?.await()
     if (routes && !picked) await pick()
@@ -215,8 +215,8 @@ export function apply(ctx) {
     safety.bind(String(id), trusted)
     const setup = (agentCtx) => {
       installModelSelection(agentCtx, selection)
-      if (persona) agentCtx.systemPrompt.section({ name: 'deployment:persona-prefix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX'), text: persona, interpolate: false })
-      if (suffix) agentCtx.systemPrompt.section({ name: 'deployment:persona-suffix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX'), text: suffix, interpolate: false })
+      if (sessionPersona) agentCtx.systemPrompt.section({ name: 'deployment:persona-prefix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX'), text: sessionPersona, interpolate: false })
+      if (sessionSuffix) agentCtx.systemPrompt.section({ name: 'deployment:persona-suffix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX'), text: sessionSuffix, interpolate: false })
       agentCtx.systemPrompt.section({ name: 'deployment:lca-state', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX') + 1,
         text: () => statePrompt(states.get(String(id)), models.get(String(id))?.role ?? 'chat'), interpolate: false })
     }
@@ -455,9 +455,8 @@ export function apply(ctx) {
         }
         case 'tools': registerLcaTools(message.tools ?? []); break
         case 'open':
-          // Her card and your profile as they are now: onboarding names them after DSH has started.
-          if (typeof message.persona === 'string') persona = message.persona
-          if (typeof message.suffix === 'string') suffix = message.suffix
+          // Capture each root's current card before awaiting loader/model/session setup.
+          // Concurrent opens must not overwrite another root's pending prompt.
           send({ t: 'session', ref: message.ref, ...(await open(message)) }); break
         case 'send': {
           const agent = agentOf(message.sessionId)

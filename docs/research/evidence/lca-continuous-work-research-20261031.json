@@ -1,0 +1,285 @@
+{
+  "schemaVersion": 1,
+  "researchDate": "2026-10-31",
+  "status": "source-research-and-proposed-plan-only",
+  "article": {
+    "title": "Super-agent 设计探索：迈向更自主的 Agent 系统",
+    "source": "user-supplied full text and 14 figures",
+    "originalUrl": "https://mp.weixin.qq.com/s/zoS7GlReWPhfCjENGxXCdg",
+    "originalPageDirectlyRead": false
+  },
+  "upstream": {
+    "repository": "deepseek-ai/dsh-superagent-prototype",
+    "commit": "6337fc823ce20251c8de8085948165c81aaa701e",
+    "tree": "3efbb036e5a56183c6bf642e2e1856a1f64e7be3",
+    "commitDate": "2026-10-31T12:05:39Z",
+    "version": "0.1.0",
+    "declaredDshRange": "^0.2.1-alpha.2",
+    "developmentDshVersion": "0.2.1-alpha.2",
+    "rootLicense": "MIT",
+    "retrieval": "GitHub connector; added-file patches verified against addition counts where used, otherwise commit-pinned file reads",
+    "reviewed": [
+      {
+        "path": "README.md",
+        "scope": "定位与范围",
+        "gitBlobSha": "39e1c4af122f11dd72ac0d2b34b79d6f8ae259ea",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/README.md"
+      },
+      {
+        "path": "LICENSE",
+        "scope": "根许可",
+        "gitBlobSha": "df5ef0e6d9cf2989975742db0a13ad15050ee89b",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/LICENSE"
+      },
+      {
+        "path": "package.json",
+        "scope": "包与依赖",
+        "gitBlobSha": "6afd24bce2aebd6858e37d00aab4505a070bfce3",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/package.json"
+      },
+      {
+        "path": "docs/001-domain.md",
+        "scope": "领域职责",
+        "gitBlobSha": "fd5300132e85f69ab794bbd3685db2c4fd87a5e0",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/001-domain.md"
+      },
+      {
+        "path": "docs/003-execution.md",
+        "scope": "生命周期文档",
+        "gitBlobSha": "6cb33a88c5d728dd4c9e72cae5f8d5c22fd82d02",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/003-execution.md"
+      },
+      {
+        "path": "docs/007-architecture.md",
+        "scope": "部分架构与上下文接口",
+        "gitBlobSha": "184ea543da47267f3f81285e38fb5355dcc3bcdd",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/007-architecture.md"
+      },
+      {
+        "path": "src/core/intake.ts",
+        "scope": "完整输入链",
+        "gitBlobSha": "145c72192087afb10c150649780cf0a97ccb3983",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/core/intake.ts"
+      },
+      {
+        "path": "src/core/engine.ts",
+        "scope": "领域命令入口",
+        "gitBlobSha": "c2198adf9c7a10837bec5f4789129bf576e39395",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/core/engine.ts"
+      },
+      {
+        "path": "src/core/tickets.ts",
+        "scope": "订阅、停止、重开与策略变化片段",
+        "gitBlobSha": "21376e17fc896af45fa2c06f7a7d6aa17d6e8aa2",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/core/tickets.ts"
+      },
+      {
+        "path": "src/app/effects.ts",
+        "scope": "完整持久效果队列",
+        "gitBlobSha": "9255cda8f7a63ed0e7ab70bb023a5927fe5218d5",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/app/effects.ts"
+      },
+      {
+        "path": "src/app/delivery.ts",
+        "scope": "完整内部消息去重与flush",
+        "gitBlobSha": "c64aeac9f55213d191826b844391ca70870516fb",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/app/delivery.ts"
+      },
+      {
+        "path": "src/app/sessions.ts",
+        "scope": "角色、权限、工具与投递片段",
+        "gitBlobSha": "1a22388dfa3a402ff3b181c0ca3655a0fd50061f",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/app/sessions.ts"
+      },
+      {
+        "path": "src/app/cards.ts",
+        "scope": "完整有界卡片",
+        "gitBlobSha": "134c2b8138fa4c02afe49e33e95939b96b1abca2",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/app/cards.ts"
+      },
+      {
+        "path": "src/app/resources.ts",
+        "scope": "对象与原始来源读取、分页片段",
+        "gitBlobSha": "f19f7423e2a3a05c77e559aa58894b477d66c247",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/app/resources.ts"
+      },
+      {
+        "path": "src/app/assessment.ts",
+        "scope": "读取缓存与上下文编排片段",
+        "gitBlobSha": "11d2f5b6c9ed68b932f03da5d97a2c03741a2cc3",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/app/assessment.ts"
+      },
+      {
+        "path": "src/app/runtime.ts",
+        "scope": "装配、恢复与关闭片段",
+        "gitBlobSha": "a8cfe52df7b41611c4c4b1952f5dbd407c328d0e",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/app/runtime.ts"
+      },
+      {
+        "path": "src/app/store.ts",
+        "scope": "事务与持久化入口片段",
+        "gitBlobSha": "6dcb8b09d9cab2b60b6b7725ee2982ec3dc502ed",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/app/store.ts"
+      },
+      {
+        "path": "src/executor/dsh.ts",
+        "scope": "启动、输入、槽位、后台与恢复片段",
+        "gitBlobSha": "26234f3aa510bdb6501fbf49f3425753354fe284",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/executor/dsh.ts"
+      },
+      {
+        "path": "src/executor/background.ts",
+        "scope": "后台等待与取消入口片段",
+        "gitBlobSha": "792bd69f64e3423988cbc4de57a90c7720adb4f6",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/executor/background.ts"
+      },
+      {
+        "path": "src/infra/health.ts",
+        "scope": "完整健康注册表",
+        "gitBlobSha": "75d19fc4225e8687d7b135c5909cc33733f8aa97",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/infra/health.ts"
+      },
+      {
+        "path": "src/sources/github-channel.ts",
+        "scope": "外发标记去重片段",
+        "gitBlobSha": "34c4aea2ada0c8f44c72da7f192058e1cfdbc568",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/src/sources/github-channel.ts"
+      },
+      {
+        "path": "tests/delivery.spec.ts",
+        "scope": "消息重复和持久化屏障用例源码",
+        "gitBlobSha": "82f349e70102047765f08f6fec43768995593a05",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/tests/delivery.spec.ts"
+      },
+      {
+        "path": "tests/followups.spec.ts",
+        "scope": "后续归属与订阅用例源码",
+        "gitBlobSha": "b4d04c8fb9a3e979109510a7eea8d4b4aef51bdd",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/tests/followups.spec.ts"
+      },
+      {
+        "path": "tests/background.spec.ts",
+        "scope": "后台取消与等待用例源码",
+        "gitBlobSha": "958c7cdeec5fec369a90c9a4dca3c812c7f67265",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/tests/background.spec.ts"
+      },
+      {
+        "path": "tests/runtime-concurrency.spec.ts",
+        "scope": "并发与恢复用例源码",
+        "gitBlobSha": "1a7eac3548217bd15f110b2a078a994fa61e5617",
+        "url": "https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/tests/runtime-concurrency.spec.ts"
+      }
+    ]
+  },
+  "lca": {
+    "head": "b4f1183fd35227061ffaa1264ef70ef119448a7a",
+    "branch": "codex/1.2-development-plan",
+    "packageVersion": "1.1.0",
+    "dsh": "0.2.1-rc.2",
+    "electron": "44.7.0",
+    "pnpm": "11.24.0",
+    "preexistingChanges": [
+      "docs/plugin-migration-spec.md",
+      "docs/research/README.md",
+      "docs/research/plugin-migration-selection-20261026.md",
+      "docs/research/plugin-review-agent-browser-20261026.md",
+      ".claude/",
+      "docs/research/agent-browser-validation-20261028.md",
+      "docs/research/evidence/agent-browser-validation-20261028.json",
+      "scripts/agent-browser-cli-control.mjs",
+      "scripts/agent-browser-launch-control.mjs",
+      "scripts/agent-browser-probe.mjs",
+      "scripts/fixtures/agent-browser-native.ts"
+    ],
+    "sourceFiles": [
+      {
+        "path": "src/main/dsh/execution.ts",
+        "sha256": "52c576cc3aaf643dffa5b629fb603a1a1e403c2b9811e18ae7cc41002d073869",
+        "bytes": 49945
+      },
+      {
+        "path": "src/main/dsh/host.ts",
+        "sha256": "940ce2038749cac9e02d6b74bb39af529b86aec5bf7c00547251e47aab515fd0",
+        "bytes": 23165
+      },
+      {
+        "path": "src/main/dsh/identity.ts",
+        "sha256": "002fc1a52aa3b15a7d2d2dd745fb5a8a67a3c4d9cc6ed70fed6e1d3678bdc664",
+        "bytes": 4720
+      },
+      {
+        "path": "dsh/lca-bridge/index.js",
+        "sha256": "4b0739b791ef80b38547c1f0f42bbd00586e0ac237be53caf524508205c879d0",
+        "bytes": 36046
+      },
+      {
+        "path": "dsh/lca-bridge/family.js",
+        "sha256": "2f651aab714c7e392b0542a99ca393f419fcb574642dde2b853957eb25ba4ce8",
+        "bytes": 13027
+      },
+      {
+        "path": "dsh/lca-bridge/provenance.js",
+        "sha256": "accd30bdf78cb5664572b715292f90d298a30da39dd8097a1db6a74d3f20fbeb",
+        "bytes": 11946
+      },
+      {
+        "path": "src/main/index.ts",
+        "sha256": "9a4761a8ce0cb1e334376272d60abe733f4a08bd2650b2adb507052b26eb5701",
+        "bytes": 72236
+      },
+      {
+        "path": "src/main/store/session.ts",
+        "sha256": "8b936ed14c84687988f6c1bc092e4558c7e5004d4ae13a09b2c716010bc50739",
+        "bytes": 5452
+      },
+      {
+        "path": "src/main/journal/file.ts",
+        "sha256": "2f0267fbf607ac4fc46f4f3d643fd98938d1e02f052094f866923692ec27fa63",
+        "bytes": 4501
+      },
+      {
+        "path": "src/main/backup/schema.ts",
+        "sha256": "49a4a634a7fe2e652ead709f7682665105bacc3b29a0d91ec1782d19d674e490",
+        "bytes": 1777
+      },
+      {
+        "path": "src/main/backup/archive.ts",
+        "sha256": "4a382a57ab6c8a1dc9058398ae72d064d488a04b9521bc84effd6db58a9f3ba8",
+        "bytes": 17654
+      },
+      {
+        "path": "src/shared/dsh-protocol.ts",
+        "sha256": "fe1e5dbf49f0db07bb0f4206513b17877e40e7a13d2e06a6b43fa165e841410a",
+        "bytes": 3377
+      },
+      {
+        "path": "src/main/scheduler/index.ts",
+        "sha256": "e89b77dd577f4e607a7401366b6d559be643dbda4611ceac984f16d47ff41877",
+        "bytes": 2486
+      },
+      {
+        "path": "src/main/memory/seen.ts",
+        "sha256": "4670f3cb3dd066c71e57f39fea121a6fa3752794c0ffd29f02bb150e32a44ac4",
+        "bytes": 8161
+      },
+      {
+        "path": "src/main/dsh/projects.ts",
+        "sha256": "306080ede1081c6aa6d7d6a5e7c103aa5b788f43990ba5bf06806445d61ee4c3",
+        "bytes": 4660
+      }
+    ]
+  },
+  "evidence": {
+    "sourceReview": "performed",
+    "upstreamTests": "read selected source, not run",
+    "runtimeInstallation": "not performed",
+    "runtimeChanges": "none",
+    "realModelCalls": "none",
+    "schoolScans": "none",
+    "externalWrites": "none",
+    "packagingOrInstallTests": "not performed",
+    "documentValidation": "local Markdown links resolved; JSON parsed; audited local source SHA-256 and LCA HEAD unchanged; git diff --check passed; no runtime tests performed"
+  },
+  "recommendedRoute": "M4; first-party mechanism reference with LCA-owned lifecycle and existing DSH execution",
+  "flowImpact": "F3 proposed architectural change, not ordinary plugin installation"
+}
