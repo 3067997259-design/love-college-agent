@@ -89,6 +89,8 @@ node scripts/smoke-v12-upgrade.mjs
 
 每一步确认成功再继续；失败时保留原报告与日志，不用后一条命令的退出码覆盖前一条。团队素材另核对包内活跃图片哈希及旧坐姿未打包，预览截图仍属于源码合成视觉证据，不能替代包内协作流程。
 
+DSH 运行时与 `resources/lca-bridge` 位于 asar 外；修改桥接时 app.asar 可以不变。候选身份和续跑还须固定安装器及这些目录的逐文件哈希，不能把相同 app.asar 当作整包相同。
+
 `node scripts/smoke-v12-upgrade.mjs` 使用 `LCA_RELEASE_DIR` 的候选回执和 `LCA_BASELINE_INSTALLER` 指定的固定 1.1.0 安装器，在独立目录真实安装、覆盖升级、冷启和恢复旧版存档；聊天只连接本地合成接口。安装器会处理同名运行进程，安装检查必须与所有包内 EXE 测试串行；发现已有安装或运行中的同名应用时拒绝。临时目录须有至少 3 GiB 可用空间，退出码不替代包文件哈希和状态核对。
 
 升级检查还会在旧运行时关闭后写入合成的既有 profile 配置，核对候选启动及新回合后，manifest 用户字段、既有依赖与 bundle 声明、Cordis patch 和 workspace 配置均保留。卸载后等待注册状态收敛；没有确定结果时保留 `needs-reconciliation`，不重复卸载。
