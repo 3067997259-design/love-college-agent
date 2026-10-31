@@ -17,7 +17,7 @@ const proof = []; const sha = (text) => createHash('sha256').update(text).digest
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body, target = page) => target.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), ...body }) }, body)
 async function accepted(body, target) { const result = await send(body, target); assert.equal(result.status, 'accepted', body.type) }
-async function waitFor(predicate, code) { for (let i = 0; i < 180; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(code) }
+async function waitFor(predicate, code) { for (let i = 0; i < 180; i++) { if (await predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(code) }
 async function debug(name, args = {}) { const result = await client.callTool({ name, arguments: args }); assert.ok(!result.isError, name); return JSON.parse(result.content[0].text) }
 async function advance(ms) { now += ms; await debug('set_clock', { nowMs: now, frozen: true }) }
 async function script(steps) { await debug('set_fake_model', { script: steps }) }
@@ -65,11 +65,20 @@ try {
   await accepted({ type: 'window.mini.hover', over: true }, mini); const miniClosed = mini.waitForEvent('close'); await mini.getByRole('button', { name: '休息了，点一下回到书本', exact: true }).click(); await miniClosed
   assert.equal((await snapshot()).windows.mode, 'book'); await advance(20001); await waitFor((s) => s.pomodoro.phase === 'idle', 'PLAN_NOT_FINISHED'); await accepted({ type: 'mode.set', mode: 'quiet' })
   await accepted({ type: 'life.work.start', kind: 'write' })
-  while ((await snapshot()).life.work.jobs.find((job) => job.kind === 'write').status !== 'completed') {
+  // Rest-end narration and memory extraction can preempt a work tick. With a
+  // frozen clock, settling that foreground work does not schedule the next tick.
+  // Drain it, then advance the scheduler again; never force a checkpoint/resume.
+  const settled = async (s) => !['queued', 'running', 'waiting-user', 'cancelling'].includes(s.task?.status)
+    && !['extracting', 'compacting'].includes(s.memory.status) && !s.life.work.runningId && (await debug('get_diagnostics')).inbox.length === 0
+  for (let tick = 0; tick < 12 && (await snapshot()).life.work.jobs.find((job) => job.kind === 'write').status !== 'completed'; tick++) {
+    await waitFor(settled, 'FOREGROUND_NOT_SETTLED_BEFORE_WRITE_TICK')
     const before = (await snapshot()).life.work.jobs.find((job) => job.kind === 'write').completedSteps
-    await advance(5000); await waitFor((s) => s.life.work.jobs.some((job) => job.kind === 'write' && job.completedSteps > before), 'WRITE_CHECKPOINT_MISSING')
+    await advance(5000); await waitFor(settled, 'WRITE_TICK_NOT_SETTLED')
+    const current = (await snapshot()).life.work.jobs.find((job) => job.kind === 'write')
+    assert.ok(current.completedSteps >= before, 'WRITE_CHECKPOINT_REGRESSED')
+    assert.ok(!['failed', 'interrupted'].includes(current.status) && current.reason !== 'budget', 'WRITE_TICK_FAILED')
   }
-  const writing = (await snapshot()).life.work.jobs.find((job) => job.kind === 'write'); assert.equal(sha(await readFile(join(desk, writing.output.path), 'utf8')), writing.output.sha256)
+  const writing = (await snapshot()).life.work.jobs.find((job) => job.kind === 'write'); assert.equal(writing.status, 'completed', 'WRITE_CHECKPOINT_MISSING'); assert.equal(sha(await readFile(join(desk, writing.output.path), 'utf8')), writing.output.sha256)
   await mark('focus-mini-real-reading-writing-and-rest-expand')
   await chat('我给纸桥取名叫晚风桥。', 'SYNTHETIC_SHARED_REPLY'); await chat('这座纸桥叫晚风桥。', 'SYNTHETIC_SECOND_REPLY')
   const firstMessage = (await snapshot()).messages.find((message) => message.role === 'user' && message.text === '我给纸桥取名叫晚风桥。')
@@ -117,4 +126,7 @@ try {
   safe(await snapshot()); await mark('safe-day-rollover-recall-restart-and-exact-restore')
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results/showcase.png') })
   await writeFile(join(root, 'test-results/showcase-report.json'), JSON.stringify({ ok: true, atIso: new Date().toISOString(), stages: proof, oneProfile: true, syntheticServices: true, acceleratedClock: true, executable: process.env.LCA_TEST_EXECUTABLE ? 'explicit-build' : 'source-electron', longTermRuntimeAccepted: false }, null, 2))
+} catch (error) {
+  await writeFile(join(data, 'failure.json'), JSON.stringify({ error: String(error), proof, executable: process.env.LCA_TEST_EXECUTABLE ?? electronPath, snapshot: page && !page.isClosed() ? await snapshot() : null, syntheticOnly: true }, null, 2))
+  throw error
 } finally { await stop() }
