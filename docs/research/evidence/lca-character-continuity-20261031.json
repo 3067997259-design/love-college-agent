@@ -1,0 +1,313 @@
+{
+  "version": 1,
+  "node": "v24.14.0",
+  "date": "2026-10-31",
+  "kind": "source-audit-and-pure-function-examples",
+  "userObservation": "User reports never perceiving the world/life and diary effects triggering; no personal runtime profile was inspected.",
+  "lexicalExamples": [
+    {
+      "fact": "我偏爱猫咪",
+      "query": "喜欢什么宠物？",
+      "expected": "relevant-paraphrase",
+      "relevance": 0,
+      "retrieved": false
+    },
+    {
+      "fact": "咖啡会让我睡不着",
+      "query": "晚上要不要准备拿铁？",
+      "expected": "relevant-paraphrase",
+      "relevance": 0,
+      "retrieved": false
+    },
+    {
+      "fact": "我偏爱猫咪",
+      "query": "猫咪",
+      "expected": "literal-positive-control",
+      "relevance": 0.5,
+      "retrieved": true
+    },
+    {
+      "fact": "我偏爱咖啡色",
+      "query": "咖啡",
+      "expected": "lexical-overlap-with-different-meaning",
+      "relevance": 0.4472135954999579,
+      "retrieved": true
+    }
+  ],
+  "groundingExamples": [
+    {
+      "source": "我偏爱猫咪",
+      "text": "我更喜欢猫",
+      "expected": "valid-paraphrase-is-not-an-exact-quote",
+      "verdict": {
+        "entailed": false,
+        "reason": "not-a-substring"
+      }
+    },
+    {
+      "source": "我不喜欢咖啡",
+      "text": "喜欢咖啡",
+      "expected": "unsafe-negation-removal-control",
+      "verdict": {
+        "entailed": false,
+        "reason": "scope-operator",
+        "detail": "dominating negator outside the span: 不"
+      }
+    },
+    {
+      "source": "我偏爱猫咪",
+      "text": "我偏爱猫咪",
+      "expected": "exact-quote-positive-control",
+      "verdict": {
+        "entailed": true,
+        "reason": "included"
+      }
+    }
+  ],
+  "airiPureMechanisms": {
+    "approvedPinnedFactWithoutVector": true,
+    "pendingExcluded": true,
+    "supersededExcluded": true,
+    "directoryStableAcrossAccessCounters": true,
+    "normalizedFactShapeAccepted": true
+  },
+  "limits": [
+    "These hand-selected examples are counterexamples, not a representative retrieval benchmark.",
+    "AIRI extraction parser acceptance does not prove semantic grounding, successful persistence or model behavior.",
+    "No actual embedding, remote mirror, model, Electron, database or user save was loaded.",
+    "Life and diary findings are source-level reachability/lifecycle findings, not a reproduction of the user daily-use environment."
+  ],
+  "sources": {
+    "lca": [
+      {
+        "path": "src/main/memory/retrieval.ts",
+        "sha256": "ef1c2a61c04d86d4d2adf5866fc7c6d5a40fc58ea95ebced10748552374e56b9",
+        "bytes": 1461
+      },
+      {
+        "path": "src/main/memory/grounding.ts",
+        "sha256": "47017532a9eeeb0645fe4b142e2029e60a18b4bc4bfaf78b3d2e20efc67eb6bb",
+        "bytes": 9223
+      },
+      {
+        "path": "src/main/memory/model.ts",
+        "sha256": "12019542ed9a0667f6b9fea4910fda82af1bd33dd51679aa24d6bec985a81a3c",
+        "bytes": 6598
+      },
+      {
+        "path": "src/main/memory/service.ts",
+        "sha256": "d95d30d64a258976f5f45c962799f0443a24e59cea24e24736ad60e8e9a946df",
+        "bytes": 18927
+      },
+      {
+        "path": "src/main/memory/projection.ts",
+        "sha256": "d03e992c3addbd99bf693267703144a17dc5996a364972b739d78dc5fa4e6b64",
+        "bytes": 2366
+      },
+      {
+        "path": "src/main/memory/seen.ts",
+        "sha256": "4670f3cb3dd066c71e57f39fea121a6fa3752794c0ffd29f02bb150e32a44ac4",
+        "bytes": 8161
+      },
+      {
+        "path": "src/main/diary/service.ts",
+        "sha256": "ef281385c7635504ab5003a33ac14f561d05b49b652794df70e838c435fb56ee",
+        "bytes": 5605
+      },
+      {
+        "path": "src/main/diary/prompts.json",
+        "sha256": "4c0949c4bc3bf17fc50a09a0b4bd26750f7bc139bdf79887835784bb2104a280",
+        "bytes": 1088
+      },
+      {
+        "path": "src/main/life/service.ts",
+        "sha256": "384f2501a6a38d1e3ab3ece42a893b0bff84f0ac1ac937393061d818480a7ca6",
+        "bytes": 10091
+      },
+      {
+        "path": "src/main/life/work/service.ts",
+        "sha256": "679b2686685c599019d33cf9e9ecbbd23ffb941497745d772dccbe43ee317931",
+        "bytes": 14704
+      },
+      {
+        "path": "src/main/life/work/schema.ts",
+        "sha256": "e6d8056ab8a0f0dd0a247c10583e420ba0af88cdf0c8cf94705e24291e111576",
+        "bytes": 2217
+      },
+      {
+        "path": "src/main/life/work/protocol.json",
+        "sha256": "3e99f3987cc7b36be6ca1a04100acd7fdce04f673f1c150b85ab9c99cd200034",
+        "bytes": 922
+      },
+      {
+        "path": "src/main/attention/service.ts",
+        "sha256": "164c67e8103a88cfabc7b2cfdda86cad2e33216b243348b9ef9a11e11f9451de",
+        "bytes": 2367
+      },
+      {
+        "path": "src/main/index.ts",
+        "sha256": "9a4761a8ce0cb1e334376272d60abe733f4a08bd2650b2adb507052b26eb5701",
+        "bytes": 72236
+      },
+      {
+        "path": "src/main/model/task-ports.ts",
+        "sha256": "828a95b487ba35bde12a45e0b8ca9d896fc1c485266816bba3f6833622bdc453",
+        "bytes": 7029
+      }
+    ],
+    "airi": [
+      {
+        "path": "packages/memory-core/src/interaction.ts",
+        "sha256": "10832a033af31c70beda1b9828a8d202adc4e6921e7d6c25a9cd60691327bbfb",
+        "bytes": 5824
+      },
+      {
+        "path": "packages/memory-core/src/extraction.ts",
+        "sha256": "37bc8b1267dd90414679efd6ffd0ab8c2cbe176fc537f45352f2aecb79ec7906",
+        "bytes": 2867
+      },
+      {
+        "path": "packages/memory-core/src/types.ts",
+        "sha256": "d73642e0a36392d27bfffc5856888e4fdd507b3d6a3fe9a3562dfdc83e77886c",
+        "bytes": 13345
+      },
+      {
+        "path": "packages/memory-core/src/score.ts",
+        "sha256": "fa0b2a9a840dc4b0e92c3661fa79afdae42e6a25b2059506349d5a43ec4f9737",
+        "bytes": 2326
+      },
+      {
+        "path": "packages/memory-core/src/promotion.ts",
+        "sha256": "5df1f2461191d5e7bed6ccfd688275c2e972117071773401977825eaa03ed9ba",
+        "bytes": 1222
+      },
+      {
+        "path": "packages/memory-core/src/dream.ts",
+        "sha256": "d98db948f6c3c265365735d4f14c88b23c28f2f3e6677a30d24e2aa4899f62b5",
+        "bytes": 1375
+      },
+      {
+        "path": "packages/memory-core/src/source-context.ts",
+        "sha256": "0b41495dc9b274983ae0b30b2271a7d96576d09c22ef88bc43b5bfec0c122303",
+        "bytes": 2652
+      },
+      {
+        "path": "packages/stage-ui/src/stores/modules/memory.ts",
+        "sha256": "bcab7e7ed28c883934dd8385373c2080c70f95e49ed92dcfd654229fbd3db848",
+        "bytes": 101964
+      },
+      {
+        "path": "packages/stage-ui/src/services/memory/local-memory.ts",
+        "sha256": "eea75c56c909ed0740c1d0827fa883b3ec46b03257c63d5ae402ca5fea148705",
+        "bytes": 46466
+      },
+      {
+        "path": "packages/stage-ui/src/services/memory/interactions.ts",
+        "sha256": "d4ded9e4746cec239035029c32169c81a7f92fad8f4b8b0ad210c72285ca25da",
+        "bytes": 10633
+      },
+      {
+        "path": "packages/stage-ui/src/tools/memory.ts",
+        "sha256": "091676a5d9c5015ccda37f3f0d18a28b50afdc1814c3ec626171bd7a38208771",
+        "bytes": 8560
+      },
+      {
+        "path": "packages/memory-pgvector/src/repository.ts",
+        "sha256": "318e76279e94b8f7f976c57c08c5958b61aa603919556ca83cb1541f497c0465",
+        "bytes": 33345
+      },
+      {
+        "path": "docs/fork/memory-v3-state-repair-20261029.md",
+        "sha256": "8a4b5ce22dc54275c7c6cfe9d19e05b95f9450fae82717d54a73300515926b6e",
+        "bytes": 8145
+      },
+      {
+        "path": "LICENSE",
+        "sha256": "11535fc9a00d682ce6a3e32f4c2c2e8a210426f2003439e690e17540c1c04fb0",
+        "bytes": 1096
+      }
+    ]
+  },
+  "researchContext": {
+    "lcaBranch": "codex/continuous-work-p0",
+    "lcaHead": "aa54d060cd2439a273e65a7871df1ae7bea2cd85",
+    "mainBase": "227e759dd403653119587ec68c0976d6ad1155b7",
+    "airiHead": "229ac0de5ef03035d596387ba0a150c875344353",
+    "airiWorkingTree": "Modified and untracked memory implementation files were read. Per-file hashes below identify the actual inspected content; HEAD alone is insufficient.",
+    "referenceLicense": "AIRI root LICENSE and memory-core package declare MIT; attribution must be preserved if code is later reused.",
+    "reproduction": "node scripts/research-character-continuity.mjs <AIRI checkout>",
+    "status": "Source research and pure-function examples complete; no production migration or live acceptance performed."
+  },
+  "sourceFindings": [
+    {
+      "id": "life-material-entry",
+      "file": "src/main/life/work/service.ts",
+      "lines": [
+        146,
+        151
+      ],
+      "finding": "The application material writer is developer.life.seed; no ordinary material registration path was found.",
+      "evidenceLevel": "source-inspection-not-user-profile-reproduction"
+    },
+    {
+      "id": "life-material-contract",
+      "file": "src/main/life/work/schema.ts",
+      "lines": [
+        8,
+        18
+      ],
+      "finding": "Materials accept only source=fake; read/write work has exactly three steps.",
+      "evidenceLevel": "source-inspection-not-user-profile-reproduction"
+    },
+    {
+      "id": "outing-one-shot",
+      "file": "src/main/life/service.ts",
+      "lines": [
+        79,
+        85
+      ],
+      "finding": "The agenda is settled before checking 15-minute user inactivity; later ticks skip the settled item and do not automatically retry the proposed outing.",
+      "evidenceLevel": "source-inspection-not-user-profile-reproduction"
+    },
+    {
+      "id": "diary-past-day-only",
+      "file": "src/main/diary/service.ts",
+      "lines": [
+        23,
+        31
+      ],
+      "finding": "Only completed source days within three days are eligible, with at most the final twelve fragments selected.",
+      "evidenceLevel": "source-inspection-not-user-profile-reproduction"
+    },
+    {
+      "id": "diary-attempt-blocks-auto-retry",
+      "file": "src/main/diary/service.ts",
+      "lines": [
+        28,
+        32
+      ],
+      "finding": "An attempt is appended before generation, and a prior attempt prevents subsequent automatic writing for that day, including an interrupted attempt.",
+      "evidenceLevel": "source-inspection-not-user-profile-reproduction"
+    },
+    {
+      "id": "diary-delayed-visibility",
+      "file": "src/main/diary/service.ts",
+      "lines": [
+        39,
+        40
+      ],
+      "finding": "Unlock time is the next day boundary of the generation session day, although the source day is already in the past.",
+      "evidenceLevel": "source-inspection-not-user-profile-reproduction"
+    },
+    {
+      "id": "foreground-aborts-background",
+      "file": "src/main/index.ts",
+      "lines": [
+        632,
+        632
+      ],
+      "finding": "Foreground dispatch interrupts memory, diary, life work and optical work.",
+      "evidenceLevel": "source-inspection-not-user-profile-reproduction"
+    }
+  ]
+}
