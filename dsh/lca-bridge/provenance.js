@@ -67,13 +67,18 @@ export function sourceProjection(sourceOf) {
   }
 }
 
-export function retireSources(session, state, authorizationId) {
+export function retireSources(session, state, authorizationId, position) {
   if (!validState(state)) throw new Error('LCA_SOURCE_STATE_INVALID')
+  if (position && (!Number.isSafeInteger(position.turn) || position.turn < 1 || !Number.isSafeInteger(position.step) || position.step < 1)) throw new Error('LCA_SOURCE_STEP_INVALID')
   let count = 0
   const nodes = new Set(session.surface.nodes)
   const stale = state.entries.filter((entry) => nodes.has(entry.seq) && (entry.turn < state.turns || entry.authorizationId !== authorizationId))
   const removedCalls = new Set(stale.filter((entry) => entry.type === 'assistant/message').flatMap((entry) => (entry.data.message.content ?? []).filter((block) => block.type === 'tool-call').map((block) => String(block.id))))
   for (const entry of stale) {
+    // DSH V4 requires system/developer replacements inside an open step. Pre-step
+    // retirement defers these to agent/request after step/start, before model input.
+    const needsStep = entry.type === 'system/message' || entry.type === 'developer/message'
+    if (needsStep && !position) continue
     const raw = entry.data.message ?? entry.data
     // Preserve the user's own words in a reference message. Derived calls retire together with
     // their results; copied arguments and streams remain only in the original execution log.
@@ -86,6 +91,7 @@ export function retireSources(session, state, authorizationId) {
     // derived assistant and its results as user notices, like compaction; keep clean call/result pairs.
     const notice = entry.type === 'assistant/message' || entry.type === 'tool/result' && removedCalls.has(String(raw.toolCallId))
     const data = notice ? { role: 'user', id: randomUUID(), content, source } : entry.data.message ? { ...entry.data, message } : message
+    if (needsStep) { data.turn = position.turn; data.step = position.step }
     session.append(notice ? 'user/message' : entry.type, data, { surfaceOp: { op: 'replace', startSeq: entry.seq, endSeq: entry.seq }, sourceEventSeqs: [entry.seq] })
     count++
   }

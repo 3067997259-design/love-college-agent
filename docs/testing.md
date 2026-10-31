@@ -40,6 +40,8 @@ pnpm test
 
 表中省略 `pnpm` 前缀。多数 Electron 脚本自带 build；复用构建或指定安装 EXE 时先读对应脚本，不能随意绕过前置检查。
 
+`dsh-bridge-check.mjs state-source-restart` 覆盖读外部来源后切换状态、下一轮来源退役并执行新命令、第三轮冷恢复。系统 / 开发者提示的替换记录必须在 DSH 已打开的步骤内写入当前坐标：桥在 `agent/request` 钩子完成退役，再允许模型请求；不能在 `session/event` 内递归追加。会话不存在才允许新建，损坏或不可读的既有日志保留原错误和文件。此修复防止生成新的损坏记录，不自动修复旧日志。
+
 团队远景 V2 补充检查：`tests/unit/dsh-member-focus.test.ts` 用假时钟核对窗口、换位与长思考；`dsh-member-steps.test.ts` 验证有界回放、路径 / URL 摘要、来源退役后仍隐藏旧目标和字段剥离；`team-scene.test.ts` 验证按种类摆位、稳定座位、溢出与家具深度。`test:dsh-collaboration` 新增工具 / 思考 / 同伴消息阶段、最近 12 步、成败、已卸载成员的只读回放、跨根拒绝和受限来源隐藏目标。`test:collaboration` 新增实际子代理读文件后的 `data-station`、中文步骤卡片与快照无目标检查。
 
 `node scripts/team-room-preview.mjs` 用本机已装 Chrome 检查 `team-working`、`team-workstations`、`team-statuses`、`team-blocked` 假场景，保存工位 / 状态、白天、夜间、减少动画、干净 / 受限卡片和窄窗口截图到 `test-results/team-v2-preview/`。验证全部 15 张小桃子与 2 台电脑、每个茶桌座位一台电脑、可见头部点击、键盘与焦点返回，并检查隐藏房间不截获点击。开发场景切换条在检查书页切镜前移到顶部；实际安装包不带此工具条。`--serve` 只启动预览服务，端口由 `LCA_SHOT_PORT` 指定。不下载浏览器，不调用真实模型；这些截图不代表真实模型日用验收。
@@ -72,6 +74,20 @@ pnpm test
 所有支持 `LCA_TEST_EXECUTABLE` 的书页检查都必须启动指定的包内 EXE；共同初始化还会核对实际页面来自该 EXE 的 `resources/app.asar`。不能把源码 Electron 的结果记到候选包上。若完整检查中断，保留失败回执；只有固定同一个 app.asar 哈希、逐项记录脚本与辅助函数哈希，才能续跑未完成的矩阵。续跑集合通过不等于原来中断的整条命令退出码为 0。
 
 包内矩阵的扩展场景加 `--verify-node-build`：应用 PATH 仅保留 Windows 目录，确认 `node` / `pnpm` 无法解析，再经书页分别批准安装和 JavaScript 构建，核对实际构建产物与执行二进制属于同一 Electron。可以用 `node scripts/smoke-extensions.mjs --verify-node-build` 单独复跑；此项仍是本机隔离证据，不代替第二机验收。
+
+rc.2 之后的候选还需补跑门牌 / 文本状态交接与模型能力书页；它们目前未列入 `smoke-package.mjs` 的 34 项矩阵。完整矩阵已包含 `smoke-collaboration.mjs`（不加 `--team-room-only`）及 `smoke-v12-recovery.mjs`，应核对报告中的实际 EXE、完整协作的 `teamOnly: false` 和同一 app.asar 哈希。以下命令按顺序执行，`LCA_RELEASE_DIR` 先指向本轮候选的干净绝对输出目录：
+
+```powershell
+node scripts/smoke-package.mjs --unpacked-only
+$env:LCA_TEST_EXECUTABLE = Join-Path $env:LCA_RELEASE_DIR 'win-unpacked/LoveCollegeAgent.exe'
+node scripts/smoke-state-routing.mjs
+node scripts/smoke-model-capabilities.mjs
+Remove-Item Env:LCA_TEST_EXECUTABLE
+# 核对固定 1.1.0 安装器并设置 LCA_BASELINE_INSTALLER 后，串行运行：
+node scripts/smoke-v12-upgrade.mjs
+```
+
+每一步确认成功再继续；失败时保留原报告与日志，不用后一条命令的退出码覆盖前一条。团队素材另核对包内活跃图片哈希及旧坐姿未打包，预览截图仍属于源码合成视觉证据，不能替代包内协作流程。
 
 `node scripts/smoke-v12-upgrade.mjs` 使用 `LCA_RELEASE_DIR` 的候选回执和 `LCA_BASELINE_INSTALLER` 指定的固定 1.1.0 安装器，在独立目录真实安装、覆盖升级、冷启和恢复旧版存档；聊天只连接本地合成接口。安装器会处理同名运行进程，安装检查必须与所有包内 EXE 测试串行；发现已有安装或运行中的同名应用时拒绝。临时目录须有至少 3 GiB 可用空间，退出码不替代包文件哈希和状态核对。
 

@@ -106,6 +106,16 @@ export function createFamilySafety(ctx, { originOf, send, sourceOf, onWaiting = 
       return decision
     } catch { return { kind: 'reject' } } // unreadable projection/mailbox never becomes a clean context
   }, { prepend: true })
+  // DSH has opened the step here, but has not projected or sent model input.
+  // session/event observers cannot append recursively and contain their errors;
+  // the request waterfall allows durable retirement and fails the request closed.
+  ctx.on('agent/request', async (payload, next) => {
+    const { member, root } = ensure(payload.agent)
+    if (root.stopped || member.stopped || payload.signal?.aborted || member.scope.authorizationId !== root.authorizationId) throw new Error('LCA_FAMILY_STOPPED')
+    const count = retireSources(payload.agent.session, state(payload.agent), member.scope.authorizationId, payload)
+    if (count && !member.origin.parentSessionId) send({ t: 'retired', sessionId: member.origin.rootSessionId, count })
+    return next()
+  }, { prepend: true })
   ctx.on('session/event', (session, event) => {
     if (event.surfaceOp?.op === 'replace') return
     const member = members.get(String(session.id))

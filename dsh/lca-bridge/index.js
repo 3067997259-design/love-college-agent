@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
+import { SessionPersistenceNotFoundError } from '@deepseek-ai/dsh-session-persistence'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { ReasoningEffortId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { DELEGATION, HANDOFF_FEEDBACK, TRUST_FEEDBACK, createLineage, gatedWhileDegraded, handoffOf, isRisky, parseRoutes, sameModel, sandboxDenied, sourceOf, subjectOf } from './policy.js'
@@ -223,7 +224,12 @@ export function apply(ctx) {
     // Project switching leaves inactive roots resident. Reuse their handle instead of asking DSH to
     // resume/create a duplicate session id. bind above retires grants without running any member.
     const handle = resident?.handle ?? (sessionId && resume !== false && ctx.get('sessionQuery')
-      ? await ctx.agents.resume({ resumeSessionId: id, agentOptions, setup }).catch(() => ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup }))
+      ? await ctx.agents.resume({ resumeSessionId: id, agentOptions, setup }).catch((error) => {
+        // Corrupt/unreadable history is not an absent session. Keep its original
+        // error and bytes; never mask it by trying to create the same identity.
+        if (!(error instanceof SessionPersistenceNotFoundError)) throw error
+        return ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup })
+      })
       : await ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup }))
     live.set(String(id), { handle, cwd })
     if (!originOf(handle.agent)) { live.delete(String(id)); bindings.delete(String(id)); await handle.dispose(); throw new Error('DSH_PROJECT_MISMATCH') }

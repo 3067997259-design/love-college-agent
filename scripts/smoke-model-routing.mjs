@@ -11,7 +11,7 @@ import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } fr
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const data = join(root, '.local-data', 'routing-smoke-' + randomUUID())
-const calls = []; let denyPrivacy = false; let holdOrganization = false; let releaseOrganization
+const calls = []; const mainDiagnostics = []; let denyPrivacy = false; let holdOrganization = false; let releaseOrganization
 // Her conversation runs on DSH: LCA tools carry the lca_ prefix, your words are the last text block of their message
 // (LCA's references come first), and DSH adds its own reminders and runtime context as user messages.
 const partsOf = (content) => typeof content === 'string' ? [content] : (content ?? []).map((part) => part?.text ?? '')
@@ -61,7 +61,11 @@ let instance; let page
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) }, body)
 const waitFor = async (check, label) => { for (let i = 0; i < 200; i++) { if (await check(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(label) }
-async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env }); page = await instance.firstWindow(); page.setDefaultTimeout(15000); await initializeTestBook(page) }
+async function launch() {
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env })
+  instance.process().stderr?.on('data', (chunk) => mainDiagnostics.push(...(chunk.toString().match(/DSH_SESSION_FAILED[^\r\n]*/g) ?? [])))
+  page = await instance.firstWindow(); page.setDefaultTimeout(15000); await initializeTestBook(page)
+}
 async function configure(slot) {
   assert.equal((await send({ type: 'models.provider.save', slot, baseUrl: `http://127.0.0.1:${server.address().port}/v1`, model: 'synthetic-' + slot, apiKey: 'synthetic-routing-secret' })).status, 'accepted')
   await waitFor((s) => s.modelSettings.status === 'saved' && s.modelSettings.configuredSlots.includes(slot), 'CONFIG_NOT_APPLIED')
@@ -181,4 +185,12 @@ class StudentHubAssistant:
     for (const marker of ['UNIFIED_SOURCE_ONLY', 'IMMEDIATE_UPLOAD_SOURCE', 'IGNORED_MAIL_SOURCE', 'FOLLOW_MAIN_SOURCE', 'ISOLATED_SOURCE', 'FAILED_PRIVATE_SOURCE', 'synthetic-routing-secret']) assert.ok(!journal.includes(marker), 'RAW_SOURCE_IN_JOURNAL')
   }
   console.log(JSON.stringify({ ok: true, probe: 'model-routing', unifiedCampusPlugin: true, scanToCandidateAndLocalDelivery: true, ignoredMailThenImmediateUpload: true, processingSourceReadable: true, progressVisible: true, hotChat: true, followsMainRaw: true, isolatedNoRaw: true, failedClosed: true, historicalIsolation: true, restart: true, noRawSourceJournal: true, syntheticOnly: true }))
+} catch (error) {
+  const state = page && !page.isClosed() ? await snapshot().catch(() => null) : null
+  const evidence = join(root, 'test-results', 'model-routing-' + randomUUID())
+  await mkdir(evidence, { recursive: true })
+  await writeFile(join(evidence, 'failure.json'), JSON.stringify({ error: String(error), data, executable: process.env.LCA_TEST_EXECUTABLE ?? electronPath, mainDiagnostics,
+    task: state?.task, question: state?.question, modelSettingsStatus: state?.modelSettings.status, syntheticOnly: true }, null, 2))
+  console.error('MODEL_ROUTING_FAILURE', evidence, mainDiagnostics)
+  throw error
 } finally { releaseOrganization?.(); await instance?.close().catch(() => {}); server.closeAllConnections(); await new Promise((done) => server.close(done)) }

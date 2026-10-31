@@ -89,6 +89,25 @@ it('does not assign late results to the new authorization', () => {
   expect(f.visible()).not.toContain('LATE_MARKER')
 })
 
+it('defers restricted system and developer replacements until an open step and uses its coordinates', () => {
+  const f = fixture(); f.start(); f.user()
+  const head = f.session.append('system/message', { turn: 1, step: 1, message: { role: 'system', content: text('CONFIGURED_HEAD') } })
+  const developer = f.session.append('developer/message', { turn: 1, step: 1, message: { role: 'developer', content: text('CONFIGURED_CONTEXT') } })
+  f.read()
+  f.session.append('system/message', { turn: 1, step: 2, message: { role: 'system', content: text('RESTRICTED_HEAD') } }, { surfaceOp: { op: 'replace', startSeq: head, endSeq: head }, sourceEventSeqs: [head] })
+  f.session.append('developer/message', { turn: 1, step: 2, message: { role: 'developer', content: text('RESTRICTED_CONTEXT') } }, { surfaceOp: { op: 'replace', startSeq: developer, endSeq: developer }, sourceEventSeqs: [developer] })
+  f.start(); f.user('grant-2')
+  expect(retireSources(f.session, f.state(), 'grant-2')).toBe(1)
+  expect(f.visible()).toContain('RESTRICTED_HEAD')
+  expect(sourcesIn(f.state())).toEqual(['web'])
+  expect(() => retireSources(f.session, f.state(), 'grant-2', { turn: 2, step: 0 })).toThrow('LCA_SOURCE_STEP_INVALID')
+  expect(retireSources(f.session, f.state(), 'grant-2', { turn: 2, step: 1 })).toBe(2)
+  expect(f.events.slice(-2).map((event) => [event.type, event.data.turn, event.data.step])).toEqual([['system/message', 2, 1], ['developer/message', 2, 1]])
+  expect(f.visible()).not.toMatch(/RESTRICTED_HEAD|RESTRICTED_CONTEXT|RAW_MARKER/)
+  expect(sourcesIn(f.state())).toEqual([])
+  expect(JSON.stringify(f.events)).toContain('RESTRICTED_HEAD')
+})
+
 it('replays original tool source declarations after plugin removal, and restricts legacy unknown LCA results', () => {
   const f = fixture(); f.start(); f.user()
   f.session.append('tool/call', { name: 'lca_removed_mail', callId: 'mail' })

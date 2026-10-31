@@ -35,6 +35,23 @@ const resultOf = (seen, id) => seen.results.find((result) => result.callId === i
 const write = (id, content) => ({ tool: 'write', id, args: { file_path: 'note.txt', content } })
 
 const SCENARIOS = {
+  'state-source-restart': {
+    trusted: true, answer: 'allowed-once', work: 'mock-work', restart: true, restartAfter: 2,
+    state: { mode: 'quiet', token: 'degraded-token' }, turns: ['[[T1]] read the page and run a command', '[[T2]] retire old sources', '[[T3]] continue after restart'],
+    script(input) {
+      const { turn, messages, notes, lastTool } = input
+      if (turn > 1) {
+        notes.retired ??= []
+        notes.retired.push(messages.some((message) => textOf(message.content).includes('[LCA retired earlier source-derived content')))
+        return turn === 2 && !lastTool ? pwsh('fresh-command-2', 'Write-Output 42') : { text: 'continued without replay' }
+      }
+      return SCENARIOS['state-degraded'].script(input)
+    },
+    check: (seen, notes) => ({ turnsCompleted: seen.turnEnds.join() === 'completed,completed,completed', restarted: seen.restarted === 0,
+      stateChanged: seen.states.length === 1, oldSourcesRetired: notes.retired?.length === 3 && notes.retired.every(Boolean),
+      nextTurnCommandExecuted: resultOf(seen, 'fresh-command-2')?.isError === false,
+      firstTurnStillAsked: seen.approvals.length === 1 && seen.approvals[0].kind === 'degraded', originalCommandNotReplayed: seen.results.filter((row) => row.callId === 'state-command').length === 1 }),
+  },
   // "Test connection" for chat and work goes through DSH's own adapter: a reply passes, a 401 comes back with the provider's words.
   probe: {
     probe: ['chat', 'work'], work: 'mock-rejected', turns: [],
@@ -310,11 +327,11 @@ async function run(name) {
       case 'turn-end':
         seen.turnEnds.push(message.reason?.kind ?? null)
         // A restart scenario stops DSH after turn 1; the next process resumes the session for the rest.
-        if (scenario.restart && seen.turnEnds.length === 1 && scenario.turns.length > 1) { restarting = true; child.send({ t: 'shutdown' }) }
+        if (scenario.restart && seen.turnEnds.length === (scenario.restartAfter ?? 1) && scenario.turns.length > seen.turnEnds.length) { restarting = true; child.send({ t: 'shutdown' }) }
         else if (seen.turnEnds.length < scenario.turns.length) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })
         else child.send({ t: 'shutdown' })
         break
-      case 'error': seen.error = message.message; break
+      case 'error': seen.error = message.message; child.send({ t: 'shutdown' }); break
       default: break
     }
   })
@@ -327,7 +344,7 @@ async function run(name) {
   if (scenario.skip?.(seen)) return { name, ok: true, skipped: 'the OS sandbox ran the command here', seen }
   notes.requests = requests
   const checks = scenario.check(seen, notes, work)
-  const ok = Object.values(checks).every(Boolean) && !seen.timeout
+  const ok = Object.values(checks).every(Boolean) && !seen.timeout && !seen.error
   if (!ok && stderr) seen.stderr = stderr.split('\n').filter((line) => /error|warn/i.test(line)).slice(-20)
   return { name, ok, checks, ...(ok ? {} : { seen, notes }), ...(scenario.probe ? { probed: seen.probed } : {}), modelRequests: requests, exitCode: code }
 }
