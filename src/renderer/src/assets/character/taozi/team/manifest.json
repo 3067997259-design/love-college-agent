@@ -150,7 +150,7 @@
       "fromSha256": "8d95792879719e0901ef4ebeb809ced22989fdf317cd53f15f6320882c1c3195",
       "prompt": "art/prompts/2026-10-28-team-stools-imagegen.md",
       "tool": "内置 imagegen；去白底裁切，无镜像",
-      "use": "table-far-left"
+      "use": "table-far-left（2026-10-31 停用：腿上的电脑只有放大到其他小桃子两倍多才够到茶桌桌面，统一尺寸后改为站在小凳上；文件留作记录，不再打包）"
     },
     {
       "runtime": "mini-v2-table-far-right.png",
@@ -159,7 +159,7 @@
       "fromSha256": "8d95792879719e0901ef4ebeb809ced22989fdf317cd53f15f6320882c1c3195",
       "prompt": "art/prompts/2026-10-28-team-stools-imagegen.md",
       "tool": "内置 imagegen；去白底裁切，无镜像",
-      "use": "table-far-right"
+      "use": "table-far-right（2026-10-31 停用：腿上的电脑只有放大到其他小桃子两倍多才够到茶桌桌面，统一尺寸后改为站在小凳上；文件留作记录，不再打包）"
     },
     {
       "runtime": "mini-v2-table-left.png",
@@ -168,7 +168,7 @@
       "fromSha256": "8d95792879719e0901ef4ebeb809ced22989fdf317cd53f15f6320882c1c3195",
       "prompt": "art/prompts/2026-10-28-team-stools-imagegen.md",
       "tool": "内置 imagegen；去白底裁切，无镜像",
-      "use": "table-left"
+      "use": "table-left（2026-10-31 停用：腿上的电脑只有放大到其他小桃子两倍多才够到茶桌桌面，统一尺寸后改为站在小凳上；文件留作记录，不再打包）"
     },
     {
       "runtime": "mini-v2-table-right.png",
@@ -177,7 +177,7 @@
       "fromSha256": "8d95792879719e0901ef4ebeb809ced22989fdf317cd53f15f6320882c1c3195",
       "prompt": "art/prompts/2026-10-28-team-stools-imagegen.md",
       "tool": "内置 imagegen；去白底裁切，无镜像",
-      "use": "table-right"
+      "use": "table-right（2026-10-31 停用：腿上的电脑只有放大到其他小桃子两倍多才够到茶桌桌面，统一尺寸后改为站在小凳上；文件留作记录，不再打包）"
     },
     {
       "runtime": "mini-v2-thinking.png",
@@ -214,12 +214,8 @@
     "mini-v2-resting.png",
     "mini-v2-shelf-reach.png",
     "mini-v2-stopping.png",
-    "mini-v2-table-far-left.png",
-    "mini-v2-table-far-right.png",
-    "mini-v2-table-left.png",
-    "mini-v2-table-right.png",
     "mini-v2-thinking.png",
     "mini-v2-waiting.png"
   ],
-  "adoption": "2026-10-28 用户确认凳子版效果后授权补齐团队艺术资源并接入；mini-v2 为当前使用，旧 mini 文件保留，大小桃子画风统一后置。"
+  "adoption": "2026-10-28 用户确认凳子版效果后授权补齐团队艺术资源并接入；mini-v2 为当前使用，旧 mini 文件保留，大小桃子画风统一后置。2026-10-31 改为按头部大小和远近统一尺寸（sprite-metrics.json 由 art/tools/measure-team-sprites.mjs 生成）；四张茶桌坐姿停用，用户选定改画站在小凳上。"
 }
