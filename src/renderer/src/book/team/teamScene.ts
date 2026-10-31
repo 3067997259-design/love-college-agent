@@ -4,11 +4,19 @@ import type { AgentView, CollaborationView } from '../../../../shared/collaborat
 export type TeamPose = 'idle' | 'entering' | 'typing' | 'reading' | 'carrying' | 'waiting' | 'completed' | 'thinking' | 'resting' | 'failed' | 'stopping' | 'blocked'
 export type Station = 'table' | 'bookshelf' | 'desk' | 'rug' | 'rest' | 'door'
 /**
- * A place in the approved square room image: her feet at (x, y) as fractions of the room. `behind` names the furniture
- * drawn over her. `stool` marks a tea-table place where she stands on a little stool to reach the laptop on the table;
- * 'hidden' where the tabletop covers the stool from this camera.
+ * A tea-table place: she types standing on a stool (drawn in her picture) at a laptop prop on the tabletop.
+ * `laptop` is the laptop's foot on the floor plan; it is drawn on the tabletop straight above it. Props may be mirrored.
+ * `stool: 'hidden'` where the tabletop covers the stool from this camera, so other poses stand on it unseen.
+ * `over` redraws her from the hands up above the table: she stands behind it, but her hands rest on the laptop.
  */
-export interface TeamSlot { x: number; y: number; facing: 'front' | 'left' | 'right' | 'back'; behind?: 'table' | 'desk' | 'chair'; stool?: 'hidden' | 'visible' }
+export interface TableSeat {
+  sprite: 'stool-back-right' | 'stool-end-left' | 'stool-end-right'
+  laptop: { prop: 'laptop-back' | 'laptop-side'; x: number; y: number; mirror?: boolean }
+  stool: 'hidden' | 'visible'
+  over?: boolean
+}
+/** A place in the approved square room image: her feet at (x, y) as fractions of the room. `behind` names the furniture drawn over her. */
+export interface TeamSlot { x: number; y: number; facing: 'front' | 'left' | 'right' | 'back'; behind?: 'table' | 'desk' | 'chair'; seat?: TableSeat }
 export interface Place { station: Station; index: number }
 /**
  * One size rule for every helper and every pose: her head height depends only on how low her feet are in the picture.
@@ -19,21 +27,24 @@ export interface Place { station: Station; index: number }
  */
 export const DEPTH = { horizon: .06, frontY: .96, frontHead: 50 / 600 } as const
 export const headAt = (y: number) => DEPTH.frontHead * (y - DEPTH.horizon) / (DEPTH.frontY - DEPTH.horizon)
-/** A stool lifts her by about a quarter of her standing height: some .6 of her head height. */
-export const STOOL_HEADS = .6
+/** The tea table's legs measure 1.85 heads at every depth (same horizon as the size rule), so its top is this high. */
+export const TABLE_HEADS = 1.85
+export const tabletopAt = (y: number) => y - TABLE_HEADS * headAt(y)
+/** Her stool is about 1.05 heads tall: standing on it, her hands (held at her waist) reach the tabletop. */
+export const STOOL_HEADS = 1.05
 /**
  * Places follow the room's free floor (measured on the 2048 px room image). The tea table nearly touches the bookshelf,
  * so research happens in the strip of floor between them; helpers who need you come forward onto the sunlit floor.
  */
 export const STATIONS: Readonly<Record<Station, readonly TeamSlot[]>> = {
-  // Two places behind the far side of the tea table, one at each short end.
+  // One place behind the far side of the tea table and one at each short end; the left half of the far side stays clear
+  // so the helpers at the bookshelf behind it are not hidden.
   table: [
-    { x: .27, y: .80, facing: 'front', behind: 'table', stool: 'hidden' },
-    { x: .38, y: .825, facing: 'front', behind: 'table', stool: 'hidden' },
-    { x: .095, y: .845, facing: 'right', behind: 'table', stool: 'visible' },
-    { x: .50, y: .885, facing: 'left', stool: 'visible' },
+    { x: .355, y: .826, facing: 'left', behind: 'table', seat: { sprite: 'stool-back-right', laptop: { prop: 'laptop-back', x: .33, y: .85 }, stool: 'hidden' } },
+    { x: .462, y: .871, facing: 'left', seat: { sprite: 'stool-end-right', laptop: { prop: 'laptop-side', x: .415, y: .868, mirror: true }, stool: 'visible' } },
+    { x: .107, y: .841, facing: 'right', behind: 'table', seat: { sprite: 'stool-end-left', laptop: { prop: 'laptop-side', x: .16, y: .855 }, stool: 'hidden', over: true } },
   ],
-  bookshelf: [{ x: .215, y: .685, facing: 'left' }, { x: .33, y: .675, facing: 'back' }],
+  bookshelf: [{ x: .20, y: .685, facing: 'left' }, { x: .275, y: .668, facing: 'back' }],
   // Beside her: by the desk's near leg, and in front of her chair.
   desk: [{ x: .655, y: .815, facing: 'right' }, { x: .80, y: .82, facing: 'left' }],
   rug: [{ x: .58, y: .945, facing: 'front' }, { x: .73, y: .95, facing: 'front' }, { x: .88, y: .945, facing: 'front' }],

@@ -26,13 +26,16 @@ try {
   await page.locator('.team-mini[data-station="table"]').first().waitFor()
   await page.evaluate(() => document.fonts.ready)
   await page.waitForTimeout(1400)
-  assert.equal(await page.locator('.team-mini[data-station="table"]').count(), 4)
+  // Three tea-table seats, each with its laptop; the helper at the left end is redrawn above the table from her hands up.
+  assert.equal(await page.locator('.team-mini[data-station="table"]').count(), 3)
+  assert.equal(await page.locator('.team-laptop').count(), 3)
+  assert.equal(await page.locator('.team-over').count(), 1)
   assert.equal(await page.locator('.team-mini[data-station="bookshelf"]').count(), 1)
   assert.equal(await page.locator('.team-mini[data-station="desk"]').count(), 1)
   assert.equal(await page.locator('.team-occluder').count(), 3)
   await page.locator('.page-left').screenshot({ path: join(output, 'day.png') })
   await page.locator('.team-room').screenshot({ path: join(output, 'room.png') })
-  checks.push('station-counts-and-three-occlusion-layers')
+  checks.push('station-counts-laptops-and-three-occlusion-layers')
   await page.getByRole('button', { name: /^首页：/ }).locator('.team-mini-hit').click()
   const card = page.getByRole('dialog', { name: '首页', exact: true })
   await card.getByText('src/pages/index.html', { exact: true }).first().waitFor()
@@ -81,7 +84,8 @@ try {
     await page.waitForTimeout(1400)
     const expected = scene === 'team-workstations' ? 9 : 6
     assert.equal(await page.locator('.team-mini').count(), expected)
-    assert.ok(await page.locator('.team-mini img').evaluateAll((images) => images.every((img) => img.complete && img.naturalWidth > 0)))
+    assert.ok(await page.locator('.team-mini img, .team-laptop').evaluateAll((images) => images.every((img) => img.complete && img.naturalWidth > 0)))
+    assert.equal(await page.locator('.team-laptop').count(), await page.locator('.team-mini[data-station="table"]').count())
     await page.locator('.page-left').screenshot({ path: join(output, `${scene}.png`) })
     for (const mini of await page.locator('.team-mini').all()) {
       await mini.locator('.team-mini-hit').click()

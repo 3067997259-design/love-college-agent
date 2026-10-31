@@ -6,16 +6,17 @@ import { memberTarget, memberText, memberWorkText } from '../CollaborationPanel'
 import { activityKind } from '../../voice/activity-text'
 import { durationText, useMemberElapsed, useMemberSteps } from './useMemberProgress'
 import { assignStations, depthOf, memberFailed, memberKey, OCCLUDERS, poseOf, slotOf, type Place, type TeamPose } from './teamScene'
-import { artOf, badgeOf, figureOf, SPRITES, TEAM_SPRITES } from './teamArt'
+import { artOf, badgeOf, figureOf, laptopOf, OVER_DEPTH, PROPS, SPRITES, TEAM_PROPS, TEAM_SPRITES } from './teamArt'
 import './team.css'
 
 // The 2026-10-28 seated table sprites are retired (they only reached the tabletop when drawn at twice the size); keep them out of the bundle.
-const files = import.meta.glob(['../../assets/character/taozi/team/room-day.webp', '../../assets/character/taozi/team/mini-v2-*.png', '!../../assets/character/taozi/team/mini-v2-table-*.png'],
-  { eager: true, query: '?url', import: 'default' }) as Record<string, string>
+const files = import.meta.glob(['../../assets/character/taozi/team/room-day.webp', '../../assets/character/taozi/team/mini-v2-*.png', '../../assets/character/taozi/team/prop-*.png',
+  '!../../assets/character/taozi/team/mini-v2-table-*.png'], { eager: true, query: '?url', import: 'default' }) as Record<string, string>
 const roomSrc = files['../../assets/character/taozi/team/room-day.webp']
 const spriteSrc = (sprite: string) => files[`../../assets/character/taozi/team/mini-v2-${sprite}.png`]
+const propSrc = (prop: string) => files[`../../assets/character/taozi/team/prop-${prop}.png`]
 /** The built-in character has team art; a custom character package without it keeps the close view. */
-export const teamArtReady = !!roomSrc && TEAM_SPRITES.every((sprite) => !!spriteSrc(sprite) && !!SPRITES[sprite])
+export const teamArtReady = !!roomSrc && TEAM_SPRITES.every((sprite) => !!spriteSrc(sprite) && !!SPRITES[sprite]) && TEAM_PROPS.every((prop) => !!propSrc(prop) && !!PROPS[prop])
 const pct = (value: number) => `${(value * 100).toFixed(2)}%`
 const fraction = (value: number) => value.toFixed(4)
 
@@ -39,8 +40,12 @@ export function TeamRoom({ snapshot, bridge, members, visible, onMore }: {
     return [{ member, place, slot, pose, art, figure: figureOf(slot, art) }]
   })
   posesRef.current = new Map(placed.map(({ member, pose }) => [memberKey(member), pose]))
+  // Furniture copies hide whoever stands behind them; laptops sit on the tabletop; a helper whose hands reach over the
+  // table from behind it is drawn again above the laptops from the hands up.
   const layers = [...OCCLUDERS.map((entry) => ({ kind: 'furniture' as const, depth: entry.depth, entry })),
-    ...placed.map((entry) => ({ kind: 'member' as const, depth: depthOf(entry.slot), entry }))]
+    ...placed.map((entry) => ({ kind: 'member' as const, depth: depthOf(entry.slot), entry })),
+    ...placed.flatMap((entry) => entry.slot.seat ? [{ kind: 'laptop' as const, depth: laptopOf(entry.slot.seat).depth, entry }] : []),
+    ...placed.flatMap((entry) => entry.figure.over !== undefined ? [{ kind: 'over' as const, depth: OVER_DEPTH, entry }] : [])]
     .sort((a, b) => a.depth - b.depth)
   const offstage = members.length - placed.length
   const [openKey, setOpenKey] = useState<string | null>(null)
@@ -57,14 +62,24 @@ export function TeamRoom({ snapshot, bridge, members, visible, onMore }: {
           src={roomSrc} alt="" aria-hidden draggable={false} style={{ clipPath: `polygon(${layer.entry.polygon})` }} />
         const { member, slot, pose, place, art, figure } = layer.entry
         const key = memberKey(member)
+        const placeStyle = { left: pct(figure.x), top: pct(figure.feet), height: pct(figure.height), '--foot-x': fraction(figure.footX), '--foot-pad': fraction(figure.footPad) }
+        if (layer.kind === 'laptop') {
+          const laptop = laptopOf(slot.seat!)
+          return <img key={`${key}:laptop`} className="team-laptop" data-prop={laptop.prop} data-mirror={laptop.mirror || undefined} src={propSrc(laptop.prop)} alt="" aria-hidden draggable={false}
+            style={{ left: pct(laptop.x), top: pct(laptop.feet), height: pct(laptop.height), '--foot-pad': fraction(laptop.footPad) } as CSSProperties} />
+        }
+        if (layer.kind === 'over') return (
+          <span key={`${key}:over`} className="team-over" aria-hidden style={{ ...placeStyle, '--over-cut': pct(1 - figure.over!) } as CSSProperties}>
+            <img src={spriteSrc(art.sprite)} alt="" draggable={false} />
+          </span>
+        )
         const badge = badgeOf(member)
         return (
           <button key={key} ref={(node) => { if (node) buttons.current.set(key, node); else buttons.current.delete(key) }}
             type="button" className="team-mini" data-pose={pose} data-station={place.station} data-facing={slot.facing} data-failed={memberFailed(member) || undefined}
             data-busy={member.activity === 'running' || undefined} data-tool={member.work?.phase === 'tool' || undefined}
-            data-sprite={art.sprite} data-activity={member.activity} data-outcome={member.outcome}
-            style={{ left: pct(figure.x), top: pct(figure.feet), height: pct(figure.height), '--foot-x': fraction(figure.footX), '--foot-pad': fraction(figure.footPad),
-              '--hit-l': fraction(figure.hit.left), '--hit-t': fraction(figure.hit.top), '--hit-w': fraction(figure.hit.width), '--hit-h': fraction(figure.hit.height) } as CSSProperties}
+            data-sprite={art.sprite} data-activity={member.activity} data-outcome={member.outcome} data-lifted={art.lift > 0 || undefined}
+            style={{ ...placeStyle, '--cut': pct(figure.cut), '--hit-l': fraction(figure.hit.left), '--hit-t': fraction(figure.hit.top), '--hit-w': fraction(figure.hit.width), '--hit-h': fraction(figure.hit.height) } as CSSProperties}
             tabIndex={visible ? 0 : -1}
             aria-label={`${member.name}：${memberText.status(member)}`} aria-haspopup="dialog" aria-expanded={openKey === key}
             onClick={() => setOpenKey(openKey === key ? null : key)}>

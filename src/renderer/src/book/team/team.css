@@ -28,21 +28,27 @@
 }
 
 /* 一位帮手：脚底中心落在位置上；大小只按头的高度和远近算（teamArt.ts），不同姿势一样大 */
-.team-mini {
+.team-mini, .team-over {
   --anchor: translate(calc(var(--foot-x, .5) * -100%), calc((var(--foot-pad, 0) - 1) * 100%));
   position: absolute;
   display: block;
   width: max-content;
+  transform: var(--anchor);
+  pointer-events: none;
+}
+/* Behind the table with her hands on the laptop: the same picture again above the table, cut just below her hands. */
+.team-over img { display: block; height: 100%; width: auto; user-select: none; clip-path: inset(0 0 var(--over-cut, 100%) 0); }
+.team-mini {
   padding: 0;
   border: 0;
   background: none;
-  transform: var(--anchor);
   cursor: pointer;
-  pointer-events: none;
   /* Height follows the picture, so it changes with the pose; animating it would zoom the new picture in from the old size. */
   transition: left 1.2s var(--ease-in-out), top 1.2s var(--ease-in-out), transform 220ms var(--ease-in-out);
 }
-.team-mini img { position: relative; display: block; height: 100%; width: auto; user-select: none; pointer-events: none; }
+.team-mini img { position: relative; display: block; height: 100%; width: auto; user-select: none; pointer-events: none; clip-path: inset(0 0 var(--cut, 0%) 0); }
+/* Standing on a stool the tabletop hides: no floor shadow under her lifted feet. */
+.team-mini[data-lifted] .team-mini-shadow { display: none; }
 /* Hit the visible head (measured head box), not a transparent rectangle or legs hidden by furniture. Keyboard still focuses the button. */
 .team-mini-hit {
   position: absolute;
@@ -62,6 +68,16 @@
 .team-mini[data-station='table'] { transition: none; }
 .team-mini[data-station='table']:hover { transform: var(--anchor); }
 .team-mini[data-station='table'] img { animation: none; }
+/* 茶桌上的电脑：底边中点放在桌面上；道具可以镜像，人不行 */
+.team-laptop {
+  position: absolute;
+  display: block;
+  width: auto;
+  transform: translate(-50%, calc((var(--foot-pad, 0) - 1) * 100%));
+  pointer-events: none;
+  user-select: none;
+}
+.team-laptop[data-mirror] { transform: translate(-50%, calc((var(--foot-pad, 0) - 1) * 100%)) scaleX(-1); }
 .team-mini-shadow {
   position: absolute;
   left: 50%;
