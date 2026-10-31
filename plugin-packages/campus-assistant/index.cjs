@@ -5,7 +5,7 @@ const { join } = require('node:path')
 const { execFile } = require('node:child_process')
 const { promisify } = require('node:util')
 const run = promisify(execFile)
-const pinned = { 'bridge.py': 'b4a5654245796e7962391f45736167c4eea6837997b0a37b4a01c160ab2032ab', 'candidates.cjs': 'd6394b0ec58ec9900a3176008d62d7083df749ea4ca23eb0d4d20426e5800d1a' }
+const pinned = { 'bridge.py': 'b4a5654245796e7962391f45736167c4eea6837997b0a37b4a01c160ab2032ab', 'candidates.cjs': '4c199057d579db19e04b578701ecafd32c3891391fd54575c2808492114180a3' }
 for (const [name, hash] of Object.entries(pinned)) if (createHash('sha256').update(readFileSync(join(__dirname, name), 'utf8').replace(/\r\n/g, '\n')).digest('hex') !== hash) throw new Error('CAMPUS_PLUGIN_CHANGED')
 const candidates = require('./candidates.cjs')
 const receipt = (ok, value) => ({ ok, raw: value, visible: value })
