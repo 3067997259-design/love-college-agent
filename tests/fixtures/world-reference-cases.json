@@ -1,0 +1,8 @@
+[
+  { "id": "planned", "status": "proposed", "elapsedMinutes": 4, "hasItem": false, "group": "plannedOutings", "meaning": "尚未出发的计划" },
+  { "id": "overdue-plan", "status": "proposed", "elapsedMinutes": 90, "hasItem": false, "group": "plannedOutings", "meaning": "尚未出发的计划" },
+  { "id": "away", "status": "away", "elapsedMinutes": 10, "hasItem": false, "group": "currentOutings", "meaning": "已经出发，尚未返回", "afterForeground": "cut_short" },
+  { "id": "returned", "status": "returned", "elapsedMinutes": 60, "hasItem": true, "group": "completedOutings", "meaning": "已经返回" },
+  { "id": "early-return", "status": "cut_short", "elapsedMinutes": 10, "hasItem": false, "group": "completedOutings", "meaning": "提前结束并已返回" },
+  { "id": "cancelled", "status": "cancelled", "elapsedMinutes": 90, "hasItem": false, "group": "cancelledOutings", "meaning": "计划已取消，没有因此出发" }
+]

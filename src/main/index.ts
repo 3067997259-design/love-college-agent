@@ -13,6 +13,7 @@ import { syntheticGlb } from './gifts/fixture'
 import { randomUUID } from 'node:crypto'
 import { contentHash, createDesk } from './legacy-flow/desk'
 import { createLife, type LifeService } from './life/service'
+import { lifeReference } from './life/reference'
 import { createSleep, type SleepService } from './life/sleep'
 import { createLifeWork, type LifeWorkService } from './life/work/service'
 import { createFakeLifeWorkModel } from './life/work/fake'
@@ -177,9 +178,7 @@ const herBusy = (): boolean => !!dshExecution?.busy() || !!continuousWork?.busy(
  */
 const worldReference = (): Record<string, unknown> | null => {
   const world = life?.view(); if (!world) return null
-  return { worldFacts: { locationId: world.locationId, outings: world.outings.slice(-3), items: world.items.slice(-3) },
-    actualWorks: world.work?.jobs.slice(-6).map(({ id, kind, source, materialId, status, completedSteps, totalSteps, completedAtMs }) => ({ id, kind, source, materialSource: world.work?.materials.find((material) => material.id === materialId)?.source ?? 'unknown', status, completedSteps, totalSteps, completedAtMs })),
-    fictional: true, actualOfflineWork: false }
+  return lifeReference(world, clock)
 }
 /**
  * Something happened she may speak about (pomodoro, mail, documents, her own life, a game round ending). It goes to

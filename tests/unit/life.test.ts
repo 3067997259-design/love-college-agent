@@ -26,6 +26,11 @@ it('codes the full outing at departure and returns empty-handed before acquisiti
   expect(f.life.view().locationId).toBe('room'); f.dispatch({ type: 'life.depart', outingId: outing.id }); expect(f.life.view().locationId).toBe('coast')
   f.clock.advanceBy(10 * 60000); f.life.foreground(); expect(f.life.view().locationId).toBe('room'); expect(f.life.view().items).toHaveLength(0)
   expect(f.life.view().outings[0].status).toBe('cut_short')
+  const event = JSON.parse(f.emit.mock.calls[0][1])
+  expect(event.fictionalOuting.statusMeaning).toBe('提前结束并已返回')
+  expect(event.fictionalOuting.broughtItems).toEqual([])
+  expect(event.fictionalOuting).not.toHaveProperty('item')
+  expect(event.broughtItem).toBeNull()
 })
 it('settles once with provenance; work and lights override fiction', () => {
   const f = fixture(); f.dispatch({ type: 'life.propose', place: 'swing' }); f.dispatch({ type: 'life.depart', outingId: f.life.view().outings[0].id }); f.clock.advanceBy(60 * 60000); f.life.reconcile(); f.life.reconcile()

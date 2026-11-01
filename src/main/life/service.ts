@@ -4,6 +4,7 @@ import type { Clock } from '../clock'
 import type { Scheduler } from '../scheduler'
 import type { SessionStore } from '../store/session'
 import { lifeSchema } from './schema'
+import { outingReference, worldFactsNote } from './reference'
 import type { LifeWorkService } from './work/service'
 const DAY = 86_400_000
 export const calendarDay = (clock: Clock, at = clock.nowMs()) => clock.iso(at + 8 * 3600000).slice(0, 10)
@@ -40,7 +41,7 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
       state.items.push({ id: 'item:' + outing.id, outingId: outing.id, dayKey: calendarDay(clock, outing.startsAtMs), place: outing.place, kind: outing.item, acquiredAtMs: outing.acquiredAtMs, display: 'desk' })
       state.items.forEach((item, index) => { item.display = index >= state.items.length - 3 ? 'desk' : 'drawer' })
     }
-    pendingFacts.set(outing.id + ':return', JSON.stringify({ fictionalOuting: outing, broughtItem: state.items.find((item) => item.outingId === outing.id)?.kind ?? null, actualWorkWhileOffline: false }))
+    pendingFacts.set(outing.id + ':return', JSON.stringify({ fictionalOuting: outingReference(outing, state.items, clock), broughtItem: state.items.find((item) => item.outingId === outing.id)?.kind ?? null, worldFactsNote, actualWorkWhileOffline: false }))
   }
   const reconcile = (startup = false) => {
     const now = clock.nowMs(); const wasLightsOut = store.projection().lightsOut; let changed = expireProposals(now)
