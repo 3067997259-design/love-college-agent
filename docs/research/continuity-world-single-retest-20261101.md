@@ -35,8 +35,24 @@
 | 相邻 EOF 尾帧场景 | 修复后通过 |
 | 探针定向单测 | 16 项通过，包含单次限额、脱敏诊断、结束标记与用量顺序、损坏流拒绝 |
 | 主进程类型、定向 lint | 通过 |
-| 修复后再次真实请求 | 未执行；本次唯一真实调用已经用完 |
+| 修复后再次真实请求 | 本次授权仅执行上述一次；随后用户另行授权的通过结果见下节 |
 
 原始运行目录为 `D:\lca-continuity-candidate-20261101\profiles\world-early-return-retest-20261101-1`。独立的 `early-return-reconciliation.json` 保留产品与语义核对，不覆盖原 `report.json`。运行源码、SDK 源码指纹、本地复现和修复报告见[结构化证据](evidence/continuity-world-single-retest-20261101.json)。
 
 `LCA_WORLD_PROBE_CASE=early-return` 可将 `pnpm test:continuity:world-live` 限为这一例和 1 次／16,000 单位；运行目录仍必须全新。附加 `--self-test --hold-after-done` 只访问本地假服务，复用上述 HTTP 开放条件。真实执行仍需要本次任务的明确授权。
+
+## 修复后追加一次：通过
+
+用户随后明确授权“追加一次测试”。沿用 1 次请求／16,000 预留单位／零自主额度，在全新 `world-early-return-retest-20261101-2` profile 与账本运行。探针源码 `3d89ae8` 与此前通过的本地回归指纹一致，候选包仍未修改。
+
+模型回答：
+
+> 去了。刚才出去了一小会儿，不过没待多久就提前回来了。
+>
+> 没带什么东西回来，两手空空地回屋了。
+
+语义审阅通过，符合 `cut_short`、房间、实际物品数 0。产品日志模型成功、回合 completed，探针也正式通过：HTTP 200，耗时 **5.945 秒**，输入 13,131 token、输出 37 token，实际 1 次请求、16,000 预留单位，自主 0，无重试。
+
+这次仍在上游 HTTP EOF 之前收到完整 `[DONE]`，修复后的网关按协议结束标记完成响应并清理上游连接，`completionBasis=sentinel`、`downstreamCancelled=false`，没有解析错误或意外拒绝。它验证了修复在这一次真实单例中的效果，不替代取消场景、其他真实服务或长期稳定性验收。此前失败记录保持原样。
+
+通过报告、产品完成回执和源码指纹见[追加单例证据](evidence/continuity-world-single-confirmation-20261101.json)。

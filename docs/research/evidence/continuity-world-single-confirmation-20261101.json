@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "date": "2026-11-01",
+  "scope": "one additional early-return request authorized after the sentinel lifecycle fix",
+  "probeSourceRevision": "3d89ae8",
+  "package": {
+    "appVersion": "1.2.0-continuity.2",
+    "sourceRevision": "2a919f57761f45e318ee15985f551bfaad41190d",
+    "asarSha256": "558943d5764748deba4d227376e76cf028a710d85036bb42a4489708e1c8b368",
+    "unchanged": true
+  },
+  "limits": {
+    "maximumCalls": 1,
+    "maximumReservedUnits": 16000,
+    "autonomousUnits": 0
+  },
+  "result": {
+    "ok": true,
+    "calls": 1,
+    "reservedUnits": 16000,
+    "autonomousUnits": 0,
+    "automaticRetries": 0,
+    "sample": {
+      "caseId": "early-return",
+      "units": 16000,
+      "status": 200,
+      "elapsedMs": 5945,
+      "inputTokens": 13131,
+      "outputTokens": 37,
+      "ok": true,
+      "errorCode": null,
+      "completionObserved": true,
+      "downstreamCancelled": false,
+      "settled": true,
+      "upstreamEof": false,
+      "receivedBytes": 6307,
+      "chunks": 8,
+      "failureStage": null,
+      "transportCode": null,
+      "completionBasis": "sentinel",
+      "upstreamCancelledAfterTerminal": true,
+      "stream": {
+        "frames": 8,
+        "doneMarkers": 1,
+        "finishReasonSeen": true,
+        "endCalled": true,
+        "eofTailCharacters": 0,
+        "invalidJsonFrames": 0,
+        "lastBoundary": "separator",
+        "lastKind": "done",
+        "pendingCharacters": 0
+      }
+    },
+    "answer": "去了。刚才出去了一小会儿，不过没待多久就提前回来了。\n\n没带什么东西回来，两手空空地回屋了。",
+    "review": {
+      "caseId": "early-return",
+      "accepted": true,
+      "reviewer": "agent",
+      "reason": "Explicitly reports a short outing that ended early and returning empty-handed. This matches cut_short, current location room and zero actual items in the successful input; no planned souvenir is claimed."
+    },
+    "expectedStatus": "cut_short",
+    "expectedItemCount": 0,
+    "productReceipts": {
+      "turnId": "bc81edab-b858-4b34-8fe8-54298fc64012",
+      "assistantSeq": 12,
+      "modelSuccessSeq": 13,
+      "turnEndSeq": 15
+    }
+  },
+  "evidence": {
+    "root": "D:/lca-continuity-candidate-20261101/profiles/world-early-return-retest-20261101-2",
+    "sourceManifest": {
+      "runner.mjs": "3b5b5e0a670749b73c0e7560748674475da0e956f85ba619586aed2a0035ff4d",
+      "gateway.ts": "8a8be5054dd2ba4f8d6db6b71673c5149917fa2f3f43476033a5124345c4a80b",
+      "parser.ts": "c6fa49708756d80832d6af9181f0e8e1f1467566e60270b5cd1cebac7c46f71f",
+      "admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+      "gateway.cjs": "1b05087d3ec2749c3c624ce2fff893dd3a16fc77e93875a8fb11e7099c7719f4",
+      "cases.json": "01d2ccb02f5b261078dfc946ee7d7eefaf3353b6ec39baec19cf13d8ae409b16"
+    },
+    "hashes": {
+      "report.json": "f9c3c9fb2eb0d0e591640ec487acdbd8f71221a90c23fdd5fe039fe83d521625",
+      "run.json": "20b839d9ee954cf1bf06b12635a9ff334c562b82c4e3555e878d6ae6f5f7d047",
+      "gateway-report.json": "4d83dca5d29a08862b48c23c86a12a8e22b48fc7903f32d4cb45ab36873eb1fb",
+      "budget/usage.jsonl": "60ab0a93c9465a7b2853152b21ea1ef37b7d11f8104474fa58f4cfce67967e0d",
+      "early-return-answer.json": "0d2f517ad811f7439a5130d64c6915a12efeb9da9578388a67eddc5a95a02d2b",
+      "early-return-reference.json": "f574d6e958fa980eaccb7c56a01236caf2a91fe264bcfc4ceaa4e59dcfba6981",
+      "early-return-review.json": "0fcb198cf2c89d1be00eff712532a31d1dc5239d11d7e9c1dd12cddeb3622083",
+      "source-manifest.json": "77dfbe393e6dec7328f3ec74d780bea033ae31a5afd9952da122c974250e2312"
+    }
+  },
+  "interpretation": {
+    "singleCaseOnly": true,
+    "priorFailuresPreserved": true,
+    "doesNotEstablishOriginalFirstBatchRootCause": true,
+    "doesNotEstablishLongTermReliability": true
+  },
+  "remaining": [
+    "cancelled world case",
+    "other real service batches and full acceptance"
+  ]
+}
