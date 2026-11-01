@@ -74,6 +74,8 @@ export interface TeamTaskView {
   sourceStatus?: 'available' | 'retired'
 }
 export interface CollaborationView {
+  /** Main-owned selector for the foreground or one persistent work's family. */
+  workSelection?: { workId: string | null; choices: readonly { workId: string; label: string; available: boolean }[] }
   status: 'unavailable' | 'ready' | 'recovering' | 'failed'
   runtimeId: string | null
   projectId: string | null
@@ -86,7 +88,7 @@ export interface CollaborationView {
 export interface AgentTarget { address: AgentAddress; expectedRevision: number }
 /** Accepted means queued, never evidence that a member stopped or processed a message. */
 export type CollaborationCommand =
-  | { type: 'agent.refresh' }
+  | { type: 'agent.refresh'; workId?: string | null }
   | { type: 'agent.message'; target: AgentTarget; text: string }
   | { type: 'agent.interrupt'; target: AgentTarget }
   | { type: 'agent.stop-family'; target: AgentTarget }
