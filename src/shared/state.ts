@@ -3,7 +3,7 @@ import type { CollaborationView } from './collaboration'
 import type { ContinuousWorksView } from './continuity'
 import type { ExtensionsView } from './extensions'
 import type { SkillsView } from './skills'
-import type { MemoryEngineStatus, MemoryFactView, MemoryReviewView, RootCompactionOutcome } from './continuity'
+import type { MemoryEngineStatus, MemoryFactView, MemoryReviewView, MemorySettingsView, RootCompactionOutcome } from './continuity'
 export const PROTOCOL_VERSION = 1 as const
 export const EXPRESSION_IDS = ['calm', 'smile', 'think', 'worried'] as const
 export const DEFAULT_EXPRESSION = 'calm' as const
@@ -532,6 +532,7 @@ export interface AppSnapshot {
   backup?: BackupView
   quill?: QuillView
   modelSettings?: ModelSettingsView
+  memorySettings?: MemorySettingsView
   windows?: WindowsView
   /** Main-owned, persisted per private profile/owner. Booth always projects completed. */
   onboarding?: OnboardingView

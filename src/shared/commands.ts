@@ -2,7 +2,7 @@ import type { DocumentScenarioId, GiftMotif, GiftObjectId, MailScenarioId, Minec
 import type { CollaborationCommand } from './collaboration'
 import type { ExtensionCommand } from './extensions'
 import type { SkillCommand } from './skills'
-import type { ContinuousWorkCommand } from './continuity'
+import type { ContinuousWorkCommand, MemorySettingsCommand } from './continuity'
 
 interface CommandEnvelope {
   protocolVersion: 1
@@ -15,6 +15,7 @@ export type AppCommand = CommandEnvelope & (
   | ExtensionCommand
   | SkillCommand
   | ContinuousWorkCommand
+  | MemorySettingsCommand
   | { type: 'message.send'; text: string }
   | { type: 'turn.stop'; taskId: string }
   | { type: 'voice.set'; enabled: boolean }

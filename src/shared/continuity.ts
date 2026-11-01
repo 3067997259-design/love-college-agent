@@ -166,3 +166,18 @@ export interface MemoryReviewView {
   status: 'pending_review' | 'applied' | 'rejected' | 'conflict'
   updatedAtMs: number
 }
+
+/** Connection secrets are write-only. Snapshots contain no endpoint paths,
+ * database names, credentials, or remote exception text. */
+export interface MemorySettingsView {
+  status: 'idle' | 'saving' | 'failed'
+  embedding: { configured: boolean; model: string | null; host: string | null }
+  mirror: { configured: boolean; enabled: boolean }
+  interaction: { directoryEnabled: boolean; toolsEnabled: boolean }
+  error?: 'configuration' | 'connection' | 'embedding' | 'storage'
+}
+
+export type MemorySettingsCommand =
+  | { type: 'memory.settings.configure'; embedding?: { baseUrl: string; apiKey?: string; model: string } | null; mirror?: { connectionString?: string; enabled: boolean } | null }
+  | { type: 'memory.settings.retry'; target: 'embedding' | 'mirror' }
+  | { type: 'memory.settings.interaction'; directoryEnabled: boolean; toolsEnabled: boolean }
