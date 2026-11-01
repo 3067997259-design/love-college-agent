@@ -1,0 +1,350 @@
+{
+  "schema": 1,
+  "upstream": "https://github.com/moeru-ai/airi",
+  "commit": "3a84a4fbaf6a54defe385e050be86fcb5436745b",
+  "selection": "fixed mods plus memory directory, interaction, reconciliation and V3 host recovery increment",
+  "files": [
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/decay.test.ts",
+      "sha256": "badccf0ec4a373399c03a76c7b38e7916f9ca06aeaf299bd25273950b7728f94",
+      "bytes": 763
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/decay.ts",
+      "sha256": "5c5fa593627ec83a6c40bf5e3e3b16f025aa65e19e3011d88f286103108a8cc4",
+      "bytes": 906
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/dream.test.ts",
+      "sha256": "949d87fdd23b2381c2416fc567df846f9e70a86d96838fcdc7bda80b87198ddc",
+      "bytes": 1501
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/dream.ts",
+      "sha256": "d98db948f6c3c265365735d4f14c88b23c28f2f3e6677a30d24e2aa4899f62b5",
+      "bytes": 1375
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/emotion.ts",
+      "sha256": "e58bac9161a9b3ffbc7601fd2bc9b99aeb2a67ce70af66f4623f122656bd3613",
+      "bytes": 670
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/evaluation.test.ts",
+      "sha256": "f320bba384db9b5e6c4043ceeb9f541095ce236131a7e2ae6d3db2d85a0e7aa5",
+      "bytes": 2113
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/evaluation.ts",
+      "sha256": "7dd4717ff6539edfa4c5bf4b45400ea30df9299268e2a2d28b1c295a0d5ea609",
+      "bytes": 16972
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/events.test.ts",
+      "sha256": "88232973cfcb63d80d0a5b5e19a4fda7a40a6edc603faca3d16bb370ef5718c8",
+      "bytes": 1341
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/events.ts",
+      "sha256": "35c490ee88dbb7507e8961b682c65746a6a3049ec3148939cb13c47f090efc93",
+      "bytes": 1630
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/extraction.test.ts",
+      "sha256": "ea4a29eb0b04137238fc345a6aa94556d71996efb8a2067c9e03aec759d8e6bf",
+      "bytes": 3839
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/extraction.ts",
+      "sha256": "37bc8b1267dd90414679efd6ffd0ab8c2cbe176fc537f45352f2aecb79ec7906",
+      "bytes": 2867
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/index.ts",
+      "sha256": "53d82cf3f696acad094eecbf300fd16f3294f4dedc862f023e2f812543fcc113",
+      "bytes": 1742
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/promotion.test.ts",
+      "sha256": "13e2c38abb917395cb176a1c19baa06e5df8331d69a179bd177f2d438a74c67f",
+      "bytes": 1019
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/promotion.ts",
+      "sha256": "5df1f2461191d5e7bed6ccfd688275c2e972117071773401977825eaa03ed9ba",
+      "bytes": 1222
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/query-normalization.test.ts",
+      "sha256": "46c407ca24790233e42eca1ac1bc45fb1172b18c94a8c2f8f1d23d8025d702ee",
+      "bytes": 2130
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/query-normalization.ts",
+      "sha256": "e9611ef66ef1269a0cee2c04da11c0831c1c65d71e2f4b57b497d9dd1facbe3b",
+      "bytes": 2852
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/reflex.test.ts",
+      "sha256": "a731353455b9d98c34b7267853a23879409e7d2380375b74c67a641640c0629e",
+      "bytes": 3225
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/reflex.ts",
+      "sha256": "ba8e72a5c9df85fcbcf5110369c7e37633124b83426c5917ba7378affbf251bd",
+      "bytes": 3036
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/scope.test.ts",
+      "sha256": "bc82ffd3896c9f554aa7f7d82d9aedd52409ea8c722131ac53a5495baa9a0f61",
+      "bytes": 1596
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/score.test.ts",
+      "sha256": "251745f816cc733bb1500eb7b4f5697349b256ef2bd282bda2ac97381fc53095",
+      "bytes": 1425
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/score.ts",
+      "sha256": "fa0b2a9a840dc4b0e92c3661fa79afdae42e6a25b2059506349d5a43ec4f9737",
+      "bytes": 2326
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/source-context.test.ts",
+      "sha256": "1701c5dde09df385d8318721a41a57f6073751308fb27cb95d0ba4f146a0ecb9",
+      "bytes": 1904
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/source-context.ts",
+      "sha256": "0b41495dc9b274983ae0b30b2271a7d96576d09c22ef88bc43b5bfec0c122303",
+      "bytes": 2652
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-core/src/types.ts",
+      "sha256": "143426f9696ee36d9c0a6e064199ba77e51825637a408c60bea0f2ade3c39dda",
+      "bytes": 13025
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-pgvector/src/index.ts",
+      "sha256": "f8d88c17320877dcdfd8782caa0308a4a3adadde274497e7d0633e780d91aa69",
+      "bytes": 2264
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-pgvector/src/repository.integration.test.ts",
+      "sha256": "91e3e01ef5f2a704945950182e7956dde640ea701ecbfe6efa0bda07704f2b2b",
+      "bytes": 7438
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-pgvector/src/repository.test.ts",
+      "sha256": "fcd9fc9a1d04e616f342262556c86d9f7d85d76aa197a57834f1619242da6f85",
+      "bytes": 6256
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-pgvector/src/repository.ts",
+      "sha256": "91ddba22227ab72cc032d6f45deab68ad2a987796bb23928163546a5cff1e0e4",
+      "bytes": 31177
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/memory-pgvector/src/schema.ts",
+      "sha256": "b9fe2dac60e385879b0829c2d0a6aa4e0bea8dbaa5e165da731aad3cf40eefca",
+      "bytes": 6052
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/stage-ui/src/services/memory/evaluate-chinese-memory.test.ts",
+      "sha256": "0189612a109fe63f654389b1e523dfc8dfaf350e4fd90f85a0099d43aea733be",
+      "bytes": 3571
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/stage-ui/src/services/memory/evaluate-chinese-memory.ts",
+      "sha256": "94f468a7cbbabea120dab703055378dc1190023627749b0e663190623eb9e0d6",
+      "bytes": 7453
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/stage-ui/src/services/memory/local-memory-embedding.ts",
+      "sha256": "be84af06f9c1acea85a5b2fca66b43627abc1ec9f9ce8874e9f038a32a946047",
+      "bytes": 5933
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/stage-ui/src/services/memory/local-memory.test.ts",
+      "sha256": "4c091ec3f0aaa77e093c114479cd59c7459bd18a393e962a5c70889227f24872",
+      "bytes": 14681
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/stage-ui/src/services/memory/local-memory.ts",
+      "sha256": "1be9c3b359923632affb7397744f855efa1154a96159ac398ebb3772d31d2b62",
+      "bytes": 36033
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/stage-ui/src/services/memory/write-access.test.ts",
+      "sha256": "30666b0be314d4f51fb7532e415914ee31dfac1022b96aa696a5f5df0b94ee19",
+      "bytes": 761
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/stage-ui/src/services/memory/write-access.ts",
+      "sha256": "3a006a6e2fbcac7bbbb21316be7ba5973826b22eab1556f79c4c10576ee90e04",
+      "bytes": 1215
+    },
+    {
+      "layer": "baseline",
+      "path": "LICENSE",
+      "sha256": "f334260edf0508041280b534ca9d0abd5a02a9626c1d2e20a556ac4eb72b07f9",
+      "bytes": 1075
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/stage-ui/src/stores/modules/memory.ts",
+      "sha256": "6a364bdd78101cf627ec6fa27be0bb912e91c93b2e42cfda1770a4148c3ccdb9",
+      "bytes": 79449
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/stage-ui/src/composables/use-duck-db.ts",
+      "sha256": "fd6a84c41a429fd287f3d8b2d23c3b76ed8f9dbc2bd62daa4a838202ba1f8427",
+      "bytes": 16582
+    },
+    {
+      "layer": "increment",
+      "path": "packages/memory-core/src/index.ts",
+      "sha256": "ea24b6f032659208ea5815f78f60f99b76d6e7b97048bfa9ca7f26a32b4fbd14",
+      "bytes": 2037
+    },
+    {
+      "layer": "increment",
+      "path": "packages/memory-core/src/types.ts",
+      "sha256": "d73642e0a36392d27bfffc5856888e4fdd507b3d6a3fe9a3562dfdc83e77886c",
+      "bytes": 13345
+    },
+    {
+      "layer": "increment",
+      "path": "packages/memory-core/src/interaction.ts",
+      "sha256": "10832a033af31c70beda1b9828a8d202adc4e6921e7d6c25a9cd60691327bbfb",
+      "bytes": 5824
+    },
+    {
+      "layer": "increment",
+      "path": "packages/memory-core/src/interaction.test.ts",
+      "sha256": "48e79db518d42064096b8929cbada5261176c8868672435f66829999fb518b04",
+      "bytes": 2789
+    },
+    {
+      "layer": "increment",
+      "path": "packages/memory-pgvector/src/repository.ts",
+      "sha256": "318e76279e94b8f7f976c57c08c5958b61aa603919556ca83cb1541f497c0465",
+      "bytes": 33345
+    },
+    {
+      "layer": "increment",
+      "path": "packages/memory-pgvector/src/schema.ts",
+      "sha256": "b410416031d4293db6a2a01a2aa333412b8b9fefca0e1f772e016199d2ce0b27",
+      "bytes": 6441
+    },
+    {
+      "layer": "increment",
+      "path": "packages/stage-ui/src/services/memory/local-memory.ts",
+      "sha256": "eea75c56c909ed0740c1d0827fa883b3ec46b03257c63d5ae402ca5fea148705",
+      "bytes": 46466
+    },
+    {
+      "layer": "increment",
+      "path": "packages/stage-ui/src/services/memory/interaction-repository.ts",
+      "sha256": "2fe9a90a663df4931c881ae55831f82a4a38f9e34fa41dbadcea5102e001b494",
+      "bytes": 3651
+    },
+    {
+      "layer": "increment",
+      "path": "packages/stage-ui/src/services/memory/interactions.ts",
+      "sha256": "d4ded9e4746cec239035029c32169c81a7f92fad8f4b8b0ad210c72285ca25da",
+      "bytes": 10633
+    },
+    {
+      "layer": "increment",
+      "path": "packages/stage-ui/src/services/memory/interactions.browser.test.ts",
+      "sha256": "c32050bd02fad4055f21124025dc4a5b350f38fa6f7f7809a2c769e04d7da7b5",
+      "bytes": 19170
+    },
+    {
+      "layer": "increment",
+      "path": "packages/stage-ui/src/services/memory/reconciliation.ts",
+      "sha256": "5cc92bafdcc3e55ab6a87cdcf45f9a9eda880771b2571cb0188e54cd1810e595",
+      "bytes": 12239
+    },
+    {
+      "layer": "increment",
+      "path": "packages/stage-ui/src/services/memory/reconciliation.test.ts",
+      "sha256": "22700841e09257b740c17b40e2b20a87a670582d95e4a18a88bf03ac3fa04ecc",
+      "bytes": 9631
+    },
+    {
+      "layer": "increment",
+      "path": "packages/stage-ui/src/stores/modules/memory.ts",
+      "sha256": "bcab7e7ed28c883934dd8385373c2080c70f95e49ed92dcfd654229fbd3db848",
+      "bytes": 101964
+    },
+    {
+      "layer": "increment",
+      "path": "packages/stage-ui/src/composables/use-duck-db.ts",
+      "sha256": "1ddc05ab2768eb95824ea98da3b3a965d6361d7cb7b0b0b5f807aef3747a9f98",
+      "bytes": 19520
+    },
+    {
+      "layer": "baseline",
+      "path": "packages/stage-ui/src/stores/modules/memory.test.ts",
+      "sha256": "853557ea19a6495f484b152ac549d3cb50dc66aee453b64f74ec40a30b1f1cc5",
+      "bytes": 39714
+    },
+    {
+      "layer": "increment",
+      "path": "packages/stage-ui/src/stores/modules/memory.test.ts",
+      "sha256": "6f7003249e49a0139fb8e2e5b8f10e36c464fdf07da79b32eef24ca3f5700ddd",
+      "bytes": 49958
+    },
+    {
+      "layer": "increment",
+      "path": "packages/stage-ui/src/stores/modules/memory-embedding.browser.test.ts",
+      "sha256": "f245db901ddf7e8a3e421651d3c25b092bf27adfac2cb0875677759fa7009d1e",
+      "bytes": 7455
+    },
+    {
+      "layer": "increment",
+      "path": "packages/stage-ui/src/stores/modules/memory-settings.browser.test.ts",
+      "sha256": "3bb51417720fe5232c4bce6caf48f9d490444d62d82b08b28124ec1846daf528",
+      "bytes": 9046
+    }
+  ]
+}
