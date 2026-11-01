@@ -8,7 +8,7 @@ import type { DshExtensionRequest, DshExtensionReply } from '../../shared/dsh-ex
 import type { Clock } from '../clock'
 import type { DshRoutes } from './routes'
 import { createDshIdentities } from './identity'
-import type { DshApprovalScope, DshOrigin, DshConversationState, DshProbeResult } from '../../shared/dsh-protocol'
+import type { DshApprovalScope, DshOrigin, DshConversationState, DshProbeResult, DshRootPolicy } from '../../shared/dsh-protocol'
 import type { DshCollaborationRequest, DshCollaborationReply } from '../../shared/dsh-protocol'
 import { collaborationViewSchema } from './collaboration'
 import { memberStepsSchema } from './member-steps'
@@ -203,7 +203,7 @@ export function startDshHost(options: DshHostOptions) {
       void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id)) && current()) send({ t: 'question-answer', id: message.id, ...result }) })
     }
     else if (message.t === 'question-cancel') { asking.get(String(message.id))?.abort(); asking.delete(String(message.id)) }
-    else if ((message.t === 'session' || message.t === 'described' || message.t === 'probed' || message.t === 'compacted' || message.t === 'extensions' || message.t === 'collaboration-reply' || message.t === 'member-steps-reply' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
+    else if ((message.t === 'session' || message.t === 'released' || message.t === 'delivered' || message.t === 'described' || message.t === 'probed' || message.t === 'compacted' || message.t === 'extensions' || message.t === 'collaboration-reply' || message.t === 'member-steps-reply' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
       const entry = waiting.get(message.ref)!; waiting.delete(message.ref)
       if (message.t === 'error') entry.fail(new Error(String(message.message))); else entry.done(message)
     }
@@ -254,17 +254,24 @@ export function startDshHost(options: DshHostOptions) {
     },
     /** `degraded`: the resumed session still holds third-party content LCA could not retire before a restart. */
     /** `persona` / `suffix`: her current card and profile (names change in onboarding after DSH starts). */
-    open: async (cwd: string, sessionId?: string, trusted = false, degraded: readonly DshSource[] = [], persona?: { persona: string; suffix: string }) => {
+    open: async (cwd: string, sessionId?: string, trusted = false, degraded: readonly DshSource[] = [], persona?: { persona: string; suffix: string; policy?: DshRootPolicy; allowedTools?: readonly string[] }) => {
       await started
       const id = sessionId ?? `session-${randomUUID()}`
       cancelApprovals(id)
       const binding = identities.reserveRoot(id, cwd)
       revisions.set(id, 0); inactive.delete(id)
       try {
-        const answer = await request({ t: 'open', cwd, trusted, degraded, sessionId: id, resume: !!sessionId, binding, ...(persona ?? {}) })
+        const answer = await request({ t: 'open', cwd, trusted, degraded, sessionId: id, resume: !!sessionId, binding, ...(persona ?? {}) }, 30_000)
         if (answer.sessionId !== id) throw new Error('DSH_IDENTITY_CONFLICT')
         return id
       } catch (error) { identities.forgetRoot(id); throw error }
+    },
+    /** Disposal acknowledges that this root and its family stopped. Other roots keep running. */
+    release: async (sessionId: string) => {
+      invalidate(sessionId)
+      const result = await request({ t: 'release', sessionId }, 15_000)
+      if (result.sessionId !== sessionId) throw new Error('DSH_IDENTITY_CONFLICT')
+      identities.forgetRoot(sessionId); revisions.delete(sessionId); inactive.delete(sessionId)
     },
     /** Switch a live session to the `lca-trusted` preset after the user granted its project. */
     trust: (sessionId: string) => send({ t: 'trust', sessionId }),
@@ -272,15 +279,22 @@ export function startDshHost(options: DshHostOptions) {
     untrust: (sessionId: string) => { invalidate(sessionId); return send({ t: 'untrust', sessionId }) },
     /** `reference`: LCA's memory references, sent as their own block before your text. */
     /** `degrade`: the reference carries third-party originals that cannot be retired; the session stays degraded. */
-    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user', degrade: readonly DshSource[] = [], state?: DshConversationState) => {
+    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user', degrade: readonly DshSource[] = [], state?: DshConversationState, eventId?: string, workRevision?: number) => {
       if (mode === 'followup' || inactive.has(sessionId)) invalidate(sessionId)
       inactive.delete(sessionId)
-      return send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}), ...(degrade.length ? { degrade } : {}), ...(state ? { state } : {}) })
+      return send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}), ...(degrade.length ? { degrade } : {}), ...(state ? { state } : {}), ...(eventId ? { eventId } : {}), ...(workRevision ? { workRevision } : {}) })
     },
     state: (sessionId: string, state: DshConversationState) => send({ t: 'state', sessionId, state }),
+    workRevision: (sessionId: string, revision: number) => send({ t: 'work-revision', sessionId, revision }),
+    deliverWork: async (sessionId: string, input: { text: string; eventId: string; revision: number; mode: 'followup' | 'steer'; reference: string | null; state: DshConversationState }) => {
+      if (input.mode === 'followup' || inactive.has(sessionId)) invalidate(sessionId)
+      inactive.delete(sessionId)
+      const answer = await request({ t: 'send', sessionId, origin: 'user', ...input, workRevision: input.revision }, 15_000)
+      if (answer.sessionId !== sessionId || answer.eventId !== input.eventId) throw new Error('DSH_DELIVERY_MISMATCH')
+    },
     cancel: (sessionId: string) => { invalidate(sessionId); return send({ t: 'cancel', sessionId }) },
     /** Replace her LCA tools (a plugin was enabled or disabled); the next step sees the new list. */
-    tools: (tools: readonly DshTool[]) => send({ t: 'tools', tools }),
+    tools: (tools: readonly DshTool[], sessionId?: string) => send({ t: 'tools', tools, ...(sessionId ? { sessionId } : {}) }),
     /** Thinking levels DSH can send for each role's model; null where it cannot tell. */
     describe: async () => {
       await started

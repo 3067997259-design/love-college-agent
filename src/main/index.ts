@@ -29,6 +29,10 @@ import { builtinCharacter, createCharacterService, type CharacterService } from 
 import { definitionSchema } from './characters/package'
 import { BUILTIN_CARD, briefPersona } from './characters/builtin-persona'
 import { createDshExecution, type DshExecution } from './dsh/execution'
+import { createRootHost } from './dsh/root-host'
+import { createContinuousWork, type ContinuousWorkService, type WorkRuntimeContext } from './work/service'
+import { openWorkStore } from './work/store'
+import { workTools } from './work/tools'
 import { dshLocations } from './dsh/locations'
 import { startDshHost, type DshHost } from './dsh/host'
 import { createExtensions, type ExtensionsService, type ExtensionRuntime } from './dsh/extensions'
@@ -153,12 +157,14 @@ let extensionHost: DshHost | undefined
 let extensions: ExtensionsService | undefined
 let skills: SkillsService | undefined
 let dshExecution: DshExecution | undefined
+let continuousWork: ContinuousWorkService | undefined
+let rootHost: ReturnType<typeof createRootHost> | undefined
 /** Developer scenes: the scripted model as a local endpoint her DSH session talks to. */
 let scriptedEndpoint: ScriptedEndpoint | undefined
 /** Every service is up: quitting closes them in order first. */
 let servicesStarted = false
 /** She is in a turn of her DSH session (a game round has its own loop, minecraft/round.ts). */
-const herBusy = (): boolean => !!dshExecution?.busy() || !!extensions?.busy() || !!skills?.busy()
+const herBusy = (): boolean => !!dshExecution?.busy() || !!continuousWork?.busy() || !!extensions?.busy() || !!skills?.busy()
 /**
  * Her own life as she may know it in a turn: where she is, recent outings and things she brought back, her own works
  * (fictional, never actual offline work). Her DSH session gets it with each turn's opening message.
@@ -592,9 +598,9 @@ void app.whenReady().then(async () => {
     // DSH: your chat and her own events go to her DSH session. The runtime ships with the app (resources/dsh-runtime,
     // prepared by scripts/prepare-dsh-runtime.mjs).
     // LCA private data never becomes her working material, whatever folder the user picks.
-    const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'extensions.json', 'extension-events.jsonl', 'extension-candidates', 'skills-imports.json', 'skill-events.jsonl', 'skill-candidates', 'runtime-resources', 'memory', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
+    const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'continuous-work', 'extensions.json', 'extension-events.jsonl', 'extension-candidates', 'skills-imports.json', 'skill-events.jsonl', 'skill-candidates', 'runtime-resources', 'memory', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
     const projects = createProjects({ settings: prepared.pluginSettings, desk: join(roomRoot, '书桌'), privateRoots: guardedRoots,
-      trusted: (path) => dshExecution?.trusted(path) ?? false, untrust: (path) => dshExecution?.untrust(path), busy: herBusy,
+      trusted: (path) => dshExecution?.trusted(path) ?? false, untrust: (path) => { dshExecution?.untrust(path); continuousWork?.untrust(path) }, busy: () => !!dshExecution?.busy() || !!extensions?.busy() || !!skills?.busy(),
       choose: async () => {
         const options = { title: '选一个项目文件夹：她写代码、运行命令都在里面', defaultPath: projects.current(), properties: ['openDirectory' as const] }
         const parent = BrowserWindow.getFocusedWindow()
@@ -623,32 +629,49 @@ void app.whenReady().then(async () => {
      * Built at start-up and again whenever a model connection changes: routes are fixed for a DSH process
      * (thinking levels are not). Asking DSH for the levels its models offer also warms it for her first reply.
      */
-    const createDsh = () => {
+    rootHost = createRootHost({ dataDir })
+    // The shared book has one question card. Waiting on it never blocks another root's chat.
+    let questionQueue: Promise<unknown> = Promise.resolve()
+    const queueQuestion = <T>(action: () => Promise<T>) => { const next = questionQueue.then(action); questionQueue = next.catch(() => {}); return next }
+    const createDsh = (worker?: WorkRuntimeContext, executionStore = store!, executionDir = dataDir) => {
       const chat = chatModel()
       if (!dshPresent || !chat) return undefined
-      const execution = createDshExecution({ store: store!, clock, processClock: systemClock, dataDir, dshRoot, bridge: dshBridge, guardedRoots, source: scriptedEndpoint ? 'fake' : 'real', disconnected: () => { extensions?.disconnected(); skills?.disconnected() },
+      const execution = createDshExecution({ store: executionStore, clock, processClock: systemClock, dataDir: executionDir, dshRoot, bridge: dshBridge, guardedRoots, source: scriptedEndpoint ? 'fake' : 'real',
+        launch: rootHost!.launch, rulesFile: join(dataDir, 'dsh-approvals.json'), rootPolicy: { role: worker ? 'worker' : 'foreground', work: worker?.work.identity ?? null }, consumed: worker?.consumed,
+        disconnected: () => { if (worker) worker.settled(true); else { extensions?.disconnected(); skills?.disconnected() } },
         routes: dshRoutes(chat, (scriptedEndpoint ? undefined : providers.get('work')) ?? chat, efforts),
-        project: () => projects.current(), persona,
+        project: () => worker?.work.projectPath ?? projects.current(), persona,
         // After DSH's first-party guidance: how she talks in the book outranks the coding-agent style.
         suffix: () => '和用户说话用口语化的中文，像平时聊天一样。书里能显示简单的 Markdown：文件名、命令和代码用代码格式，步骤多时可以用列表，但不要写成带标题的报告。用户在你工作途中插话时，先用一两句话回应这句话，再继续手上的事；做完后用一两句话说清结果。',
-        tools: herTools,
+        tools: () => worker ? herTools().filter(tool => /^(memory\.(search|read)|history\.|document\.|mcp\.)/.test(tool.templateId))
+          : [...herTools(), ...(continuousWork ? workTools(continuousWork) : [])],
         // Your message supersedes a question she is waiting on; an approval keeps waiting for its own answer.
-        foreground: () => { if (!questions?.approvalPending()) questions?.interrupt(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() },
-        userWork: () => { sleep?.wake(); life?.foreground() },
-        settled: () => { voice?.observe() },
-        ask: async (question, choices, context) => {
+        foreground: () => { if (!worker && !questions?.approvalPending()) questions?.interruptForeground(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() },
+        userWork: () => { if (!worker) { sleep?.wake(); life?.foreground() } },
+        settled: () => { if (worker) { const end = executionStore.records().findLast(row => row.type === 'turn/end'); worker.settled(end?.type === 'turn/end' && end.reason === 'error') } else voice?.observe() },
+        ask: (question, choices, context) => queueQuestion(async () => {
+          if (context.signal.aborted) return null
+          worker?.waiting('approval')
+          try {
           // One line of at most 240 characters, or the question would be refused as invalid (questions/schema.ts).
           const line = [...question.replace(/\s+/g, ' ').trim()]
-          const asked = await questions!.approve({ question: line.length > 240 ? line.slice(0, 239).join('') + '…' : line.join(''), choices }, { clock, store: store!, turnId: context.turnId, callId: context.callId, signal: context.signal }, context.member)
+          const asked = await questions!.approve({ question: line.length > 240 ? line.slice(0, 239).join('') + '…' : line.join(''), choices }, { clock, store: store!, turnId: context.turnId, callId: context.callId, signal: context.signal }, !!worker || context.member)
           const raw = asked.raw as { status?: string; answerMessageId?: string }
           if (raw.status !== 'answered' || !raw.answerMessageId) return null
           const answer = store!.records().findLast((row) => row.type === 'user/message' && row.id === raw.answerMessageId)
           questions!.commit(context.turnId, [context.callId])
           return answer?.type === 'user/message' ? answer.text : null
-        },
-        question: (items, context) => questions!.ask(items, { clock, store: store!, ...context }).then((result) => result.raw as { status?: unknown; answers?: unknown; answerMessageId?: unknown }),
+          } finally { worker?.waiting(null) }
+        }),
+        question: (items, context) => queueQuestion(async () => {
+          if (context.signal.aborted) return { status: 'cancelled' }
+          worker?.waiting('user')
+          try { const result = await questions!.ask(items, { clock, store: store!, ...context }, !!worker); return result.raw as { status?: unknown; answers?: unknown; answerMessageId?: unknown } }
+          finally { worker?.waiting(null) }
+        }),
         backgroundQuiet: () => !!minecraft?.active(),
         setMode: (mode, requestId) => {
+          if (worker) return false
           const snapshot = controller!.getSnapshot()
           return controller!.dispatch({ protocolVersion: 1, epoch: snapshot.epoch, requestId, type: 'mode.set', mode }).status === 'accepted'
         },
@@ -665,15 +688,17 @@ void app.whenReady().then(async () => {
         },
         reference: async ({ requestId, firstOfSession }) => {
           // Your last three lines (the new one is already in the journal).
-          const lines = store!.projection().messages.filter((message) => message.role === 'user' && !message.kind).slice(-3).map((message) => message.text).join('\n')
+          const lines = worker ? worker.work.objective : store!.projection().messages.filter((message) => message.role === 'user' && !message.kind).slice(-3).map((message) => message.text).join('\n')
           const memoryReference = await memory?.reference(lines, requestId, firstOfSession) ?? null
           const world = worldReference(); const sources = sourceState()
-          return memoryReference || world || sources ? { ...memoryReference, ...world, ...sources } : null
+          const workState = !worker && continuousWork ? { workCheckpoints: continuousWork.view().items.map(item => ({ identity: item.identity, revision: item.revision, label: item.label, status: item.status, waitingFor: item.waitingFor, checkpointId: item.checkpointId })) } : null
+          return memoryReference || world || sources || workState ? { ...memoryReference, ...world, ...sources, ...workState } : null
         },
         started: ({ turnId, requestId }) => { recall?.bind(requestId, turnId); memory?.bind(requestId, turnId) },
         referencesPrepared: (requestId, reference) => memory?.disclose(requestId, reference),
         answered: ({ turnId, callId }) => questions?.commit(turnId, [callId]),
         revealed: () => {
+          if (worker) return null
           const reveal = pendingReveal; pendingReveal = undefined
           if (!reveal || !vault?.readForModel) return null
           try {
@@ -683,13 +708,35 @@ void app.whenReady().then(async () => {
           } catch { return null /* A stale reveal never becomes a standing grant. */ }
         },
         changed: (reason) => controller?.refresh(reason) })
-      execution.describe().then((levels) => modelSettings?.setLevels(levels), () => modelSettings?.setLevels(null))
+      if (!worker) execution.describe().then((levels) => modelSettings?.setLevels(levels), () => modelSettings?.setLevels(null))
       // Events from before a restart or a model change: she may speak about them once everything is wired.
-      queueMicrotask(() => execution.resume())
+      if (!worker) queueMicrotask(() => execution.resume())
       return execution
     }
     dshExecution = createDsh()
+    const workOwner = { userId: store.scope.userId, characterId: store.scope.characterId, dataRootId: contentHash(dataDir) }
+    const workRoot = join(dataDir, 'continuous-work', contentHash(JSON.stringify(workOwner)))
+    continuousWork = createContinuousWork({ root: workRoot, owner: workOwner, clock, project: projects.resolveWork,
+      safeText: text => privateCredentials.reduce((safe, key) => key ? safe.replaceAll(key, '[redacted]') : safe, redactSecrets(text)),
+      available: () => !!dshExecution,
+      held: () => { const state = store!.projection(); return state.lightsOut || state.sleeping || !!backup?.isBusy() || !!modelSettings?.isBusy() },
+      decision: id => {
+        const rows = store!.history?.() ?? store!.records()
+        const approvals = new Set(rows.flatMap(row => row.type === 'question/requested' && row.approval ? [row.id] : []))
+        if (rows.some(row => row.type === 'question/answered' && row.answerMessageId === id && approvals.has(row.id))) return null
+        const row = rows.find(row => row.type === 'user/message' && row.id === id)
+        return row?.type === 'user/message' ? { id, text: row.text, atMs: row.atMs } : null
+      },
+      createRuntime: context => {
+        const root = join(workRoot, 'runs', context.work.identity.workId, String(context.work.identity.generation)); mkdirSync(root, { recursive: true })
+        const privateStore = openWorkStore(root, workOwner, clock, context.work.runStartedAt, store!)
+        const execution = createDsh(context, privateStore, root)
+        if (!execution) { privateStore.close(); throw new Error('DSH_UNAVAILABLE') }
+        return { ...execution, close: async () => { await execution.close(); privateStore.close() } }
+      }, changed: () => controller?.refresh('task') })
+    controller.attachContinuousWork(continuousWork)
     const withExtensionRuntime = async <T>(job: (runtime: ExtensionRuntime) => Promise<T>): Promise<T> => {
+      if (continuousWork?.busy()) throw new Error('DSH_BUSY')
       if (!dshPresent) throw new Error('DSH_UNAVAILABLE')
       if (dshExecution) return dshExecution.withExtensions(job)
       // Extension setup is available before a model is configured. This host opens no agent session.
@@ -739,14 +786,14 @@ void app.whenReady().then(async () => {
         taskModels = createTaskModelPorts(providers, clock, store!, undefined, resourceBudget, !privacyEnabled())
         if (!privacyEnabled()) prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = false })
         modelReady = prepared.developer || providers.has('chat')
-        await dshExecution?.close(); await extensionHost?.close(); extensionHost = undefined; dshExecution = createDsh()
+        await continuousWork?.disconnect(); await dshExecution?.close(); await rootHost?.close(); rootHost = createRootHost({ dataDir }); await extensionHost?.close(); extensionHost = undefined; dshExecution = createDsh()
         if (!dshExecution) modelSettings?.setLevels(null)
         controller!.attachExecution(chatPort(), !!dshExecution)
         controller!.attachCollaboration(dshExecution?.collaboration)
         documents?.stateChanged(); campus?.stateChanged()
         } finally { scheduler!.pauseBackground(store!.projection().lightsOut) }
       },
-      effortsChanged: (next) => { efforts = next; dshExecution?.efforts(next) },
+      effortsChanged: (next) => { efforts = next; dshExecution?.efforts(next); continuousWork?.efforts(next) },
       probeDsh: async (role) => {
         if (!dshExecution) throw new Error(dshPresent ? 'DSH starts once a chat model is saved; save the chat model first' : 'The DSH runtime is missing from this installation')
         return dshExecution.probe(role)
@@ -786,7 +833,7 @@ void app.whenReady().then(async () => {
     plugins.mountService('optical-memory', (enabled) => optical?.setPluginEnabled(enabled))
     plugins.mountService('notifications', (enabled) => notifications?.setEnabled(enabled))
     if (prepared.scene?.preset === 'pomodoro-demo' && store.records().length <= 2) pomodoro.propose({ label: '开发演示', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' }, 'user')
-    scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => { minecraft?.stateChanged(); questions?.stateChanged(); controller?.refresh('timer') }, { everyMs: 1000, background: false })
+    scheduler.schedule('ui.snapshot', clock.nowMs() + 1000, () => { minecraft?.stateChanged(); questions?.stateChanged(); continuousWork?.stateChanged(); controller?.refresh('timer') }, { everyMs: 1000, background: false })
     runtime = await attachRuntime({ prepared, controller, plugins, postEvent, scheduler, store, modelContext: () => scriptedEndpoint?.lastRequest()?.messages,
       locked: () => backup?.isBusy() ?? false,
       mcpPort: Number(process.env.LCA_MCP_PORT ?? 5175), cdpPort,
@@ -813,7 +860,7 @@ app.on('before-quit', (event) => {
     extensions?.close()
     skills?.close()
     void extensionHost?.close()
-    void dshExecution?.close()
+    const closeExecution = (async () => { try { await Promise.all([dshExecution?.close(), continuousWork?.close()]) } finally { await rootHost?.close() } })()
     questions?.close()
     pomodoro?.dispose()
     quill?.dispose()
@@ -827,6 +874,6 @@ app.on('before-quit', (event) => {
     scheduler?.dispose()
     const closeGame = (async () => { await minecraft?.close(); await minecraftChat?.end(); await mcp?.close() })()
     // Keep the development clock alive until every service has finished its cancellation/release RPCs.
-    void Promise.all([closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).then(() => scriptedEndpoint?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); resourceBudget?.close(); storageClosed = true; app.quit() })
+    void Promise.all([closeExecution, closeCampus, closeDocuments, closeMemory, closeGame, gifts?.close(), backup?.close(), modelSettings?.close(), diary?.close(), character?.close(), photos?.close(), lifeWork?.close(), optical?.close(), voice?.close()]).then(() => runtime?.close()).then(() => mcpFixture?.close()).then(() => scriptedEndpoint?.close()).catch(() => { console.error('Shutdown interrupted; durable data preserved.') }).finally(() => { controller?.dispose(); bridge?.dispose(); memoryRepository?.close(); documentVault?.close(); vault?.close(); store?.close(); resourceBudget?.close(); storageClosed = true; app.quit() })
   } else if (!storageClosed) { scheduler?.dispose(); controller?.dispose(); bridge?.dispose(); store?.close(); resourceBudget?.close(); storageClosed = true }
 })

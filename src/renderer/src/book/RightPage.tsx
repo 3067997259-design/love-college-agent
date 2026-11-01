@@ -18,6 +18,7 @@ import { quoteOnPage } from './history/quote'
 import { ApprovalMessage, MsgText, useMarkdown } from './MessageText'
 import { Starters } from './Starters'
 import { ProjectChip } from './ProjectChip'
+import { ContinuousWorks } from './ContinuousWorks'
 
 type Item =
   | { kind: 'message'; at: number; id: string; view: MessageView }
@@ -222,6 +223,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
 
       {/* 停在输入框上面：她的提问和要你批准的事；你的话没送达也在这里说明 */}
       <div className="dock">
+        <ContinuousWorks snapshot={snapshot} bridge={bridge} />
         <QuestionControls snapshot={snapshot} bridge={bridge} />
         {commandError && <Notice>{commandError}</Notice>}
       </div>

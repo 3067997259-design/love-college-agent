@@ -31,6 +31,8 @@ export function apply(ctx) {
   const live = new Map() // root session id -> { handle, cwd }
   const bindings = new Map() // root id -> main-issued project and runtime binding
   const registered = new Set()
+  const registeredRoots = new Map(), rootPolicies = new Map(), rootTools = new Map()
+  const workVersions = new Map(), readVersions = new Map(), stepVersions = new WeakMap()
   const canonical = (path) => {
     let value = resolve(path)
     try { value = realpathSync.native(value) } catch { /* an unavailable project is rejected by main */ }
@@ -73,7 +75,16 @@ export function apply(ctx) {
     const rootSessionId = lineage.rootOf(agent), binding = bindings.get(rootSessionId)
     if (!binding || typeof agent.session.header?.cwd !== 'string' || canonical(agent.session.header.cwd) !== canonical(binding.cwd)) return null
     const origin = { ...binding, cwd: canonical(agent.session.header.cwd), rootSessionId, sessionId: sid, parentSessionId: sid === rootSessionId ? null : parentSessionId }
-    if (!registered.has(sid)) { registered.add(sid); send({ t: 'member', origin }) }
+    if (!registered.has(sid)) {
+      registered.add(sid); registeredRoots.set(sid, rootSessionId)
+      if (parentSessionId && rootPolicies.get(rootSessionId)?.role === 'worker') {
+        const parent = ctx.agents.get(parentSessionId)
+        // A child inherits the version of the plan that created it, even if a
+        // newer update reaches the root before the child starts its first step.
+        stepVersions.set(agent, parent ? stepVersions.get(parent) ?? 0 : 0)
+      }
+      send({ t: 'member', origin })
+    }
     return origin
   }
   let collaboration
@@ -131,10 +142,13 @@ export function apply(ctx) {
   const pick = async () => { if (routes) picked = { chat: await usable(routes.chat), work: await usable(routes.work) } }
   const selectionOf = (route) => ({ provider: route.provider, model: route.model, ...(route.effort ? { reasoningEffort: ReasoningEffortId(route.effort) } : {}) })
   const models = new Map() // root session id -> { selection, role: 'chat' | 'work' }
+  const foregroundNative = new Set(['ask_user_question', 'read', 'read_image', 'glob', 'grep', 'working_directory', 'web_search', 'web_fetch', 'skill'])
   const states = new Map(), stateRequests = new Map(), stateReplies = new Map(), continued = new Set(), streamText = new Map()
   const choose = (sessionId, role) => {
     const entry = models.get(sessionId)
     if (!entry || !picked) return
+    const lane = rootPolicies.get(sessionId)?.role
+    if (lane) role = lane === 'worker' ? 'work' : 'chat'
     entry.role = role
     entry.selection.current = selectionOf(picked[role])
   }
@@ -201,12 +215,17 @@ export function apply(ctx) {
   // Only LCA decides trust, and only for a project the user granted in the book.
   const presetOf = (session) => ctx.get('permissionPresets')?.current(session) ?? null
 
-  const open = async ({ sessionId, cwd, trusted, binding, resume, persona: sessionPersona = persona, suffix: sessionSuffix = suffix }) => {
+  const open = async ({ sessionId, cwd, trusted, binding, resume, policy, allowedTools, persona: sessionPersona = persona, suffix: sessionSuffix = suffix }) => {
     if (binding?.protocolVersion !== 2 || !['runtimeId', 'projectId', 'cwd'].every((key) => typeof binding[key] === 'string' && binding[key]) || canonical(binding.cwd) !== canonical(cwd)) throw new Error('DSH_BINDING_REQUIRED')
     await ctx.get('loader')?.await()
     if (routes && !picked) await pick()
     const chat = picked ? selectionOf(picked.chat) : ctx.agentDefaultModel.currentSelection()
     const id = brandString(sessionId ?? `session-${randomUUID()}`)
+    if (policy && !['foreground', 'worker'].includes(policy.role)) throw new Error('DSH_ROOT_POLICY_INVALID')
+    if (policy?.role === 'worker' && (!policy.work?.workId || !Number.isSafeInteger(policy.work.generation))) throw new Error('DSH_WORK_IDENTITY_REQUIRED')
+    if (policy) rootPolicies.set(String(id), structuredClone(policy))
+    if (policy?.work) workVersions.set(String(id), policy.work.objectiveRevision)
+    if (Array.isArray(allowedTools)) rootTools.set(String(id), new Set(allowedTools))
     const resident = live.get(String(id))
     if (resident && canonical(resident.cwd) !== canonical(cwd)) throw new Error('DSH_PROJECT_MISMATCH')
     const selection = models.get(String(id))?.selection ?? { current: chat, assembled: undefined }
@@ -235,6 +254,7 @@ export function apply(ctx) {
     live.set(String(id), { handle, cwd })
     if (!originOf(handle.agent)) { live.delete(String(id)); bindings.delete(String(id)); await handle.dispose(); throw new Error('DSH_PROJECT_MISMATCH') }
     models.set(String(id), { selection, role: 'chat' })
+    choose(String(id), 'chat')
     safety.ensure(handle.agent)
     collaboration.notify()
     return { sessionId: String(id), cwd, provider: chat.provider, model: chat.model, preset: presetOf(handle.agent.session) }
@@ -262,13 +282,17 @@ export function apply(ctx) {
     const root = lineage.rootOf(exec.agent)
     if (!root || !originOf(exec.agent)) return { kind: 'deny', reason: 'LCA cannot verify this agent and project. Ask the user to start a new task.' }
     if (!safety.beforeTool(exec)) return { kind: 'deny', reason: 'This member activation is no longer authorized.' }
+    const name = String(exec.name), lane = rootPolicies.get(root)?.role
+    if (lane === 'worker' && (stepVersions.get(exec.agent) ?? 0) < (workVersions.get(root) ?? 0)) return { kind: 'deny', reason: 'The user changed this work. Read the pending decision update and re-evaluate this action before executing it.' }
+    if (name.startsWith('lca_') && rootTools.has(root) && !rootTools.get(root).has(name)) return { kind: 'deny', reason: 'This tool is not available in this root.' }
+    if (lane === 'foreground' && !name.startsWith('lca_') && !foregroundNative.has(name)) return { kind: 'deny', reason: 'Start or update a persistent work with lca_start_work / lca_update_work. This root remains available for conversation.' }
     // Runtime-wide plugin changes could remove this policy itself. Extension writes use LCA's main-owned adapter.
     if (String(exec.name) === 'plugin_manager' && !['list', 'inspect'].includes(exec.arguments?.action)) return { kind: 'deny', reason: 'Manage extensions through LCA settings.' }
     if (String(exec.name) === 'ask_user_question' && isRoot(exec.agent)) askCalls.set(root, String(exec.callId))
     const args = JSON.stringify(exec.arguments ?? {}).toLowerCase().replaceAll('\\\\', '\\')
     if (guarded.some((path) => args.includes(path) || args.includes(path.replaceAll('\\', '/')))) return { kind: 'deny', reason: 'This path is LCA private data; she does not work on it.' }
     const model = models.get(root)
-    const handoff = picked && model?.role === 'chat' && isRoot(exec.agent) && !sameModel(picked.chat, picked.work) ? handoffOf(String(exec.name)) : null
+    const handoff = !lane && picked && model?.role === 'chat' && isRoot(exec.agent) && !sameModel(picked.chat, picked.work) ? handoffOf(String(exec.name)) : null
     if (handoff) {
       choose(root, 'work')
       send({ t: 'model', sessionId: root, role: 'work' })
@@ -321,6 +345,13 @@ export function apply(ctx) {
     const family = lineage.rootOf(payload.agent)
     const origin = originOf(payload.agent)
     if (!family || !origin) return { kind: 'reject' }
+    if (rootPolicies.get(family)?.role === 'worker') {
+      // pre-step receives the inbox messages claimed for THIS request, before
+      // they enter the session surface. A newer IPC update cannot bless an old plan.
+      const incoming = (payload.messages ?? []).map(message => message.source?.lcaWorkRevision).filter(Number.isSafeInteger)
+      if (isRoot(payload.agent)) readVersions.set(family, Math.max(readVersions.get(family) ?? 0, ...incoming))
+      stepVersions.set(payload.agent, isRoot(payload.agent) ? readVersions.get(family) ?? 0 : stepVersions.get(payload.agent) ?? readVersions.get(family) ?? 0)
+    }
     await settleState(payload.agent, payload.signal)
     if (payload.signal?.aborted) return { kind: 'reject' }
     if (eventBudget.has(family)) {
@@ -402,7 +433,7 @@ export function apply(ctx) {
         break
       }
       case 'user/message': {
-        send({ t: 'user-message', sessionId, kind: data.source?.kind ?? null, chars: texts(data.content).length }); break
+        send({ t: 'user-message', sessionId, kind: data.source?.kind ?? null, eventId: data.source?.lcaEventId ?? null, chars: texts(data.content).length }); break
       }
       case 'turn/end': send({ t: 'turn-end', sessionId, turn: data.turn, reason: plain(data.reason) }); break
       case 'assistant/message': {
@@ -454,11 +485,23 @@ export function apply(ctx) {
           const value = await collaboration.memberSteps(message.input)
           send({ t: 'member-steps-reply', ref: message.ref, value }); break
         }
-        case 'tools': registerLcaTools(message.tools ?? []); break
+        case 'tools':
+          if (message.sessionId) rootTools.set(message.sessionId, new Set((message.tools ?? []).map(tool => tool.name)))
+          else registerLcaTools(message.tools ?? [])
+          break
         case 'open':
           // Capture each root's current card before awaiting loader/model/session setup.
           // Concurrent opens must not overwrite another root's pending prompt.
           send({ t: 'session', ref: message.ref, ...(await open(message)) }); break
+        case 'release': {
+          const root = message.sessionId, entry = live.get(root)
+          compactions.get(root)?.abort(); safety.cancel(root)
+          if (entry) await entry.handle.dispose()
+          live.delete(root); models.delete(root); rootPolicies.delete(root); rootTools.delete(root); bindings.delete(root)
+          for (const [id, family] of registeredRoots) if (family === root) { registeredRoots.delete(id); registered.delete(id) }
+          states.delete(root); stateRequests.delete(root); eventBudget.delete(root); eventStarts.delete(root); eventTurns.delete(root); workVersions.delete(root); readVersions.delete(root)
+          collaboration.notify(); send({ t: 'released', ref: message.ref, sessionId: root }); break
+        }
         case 'compact': {
           const root = message.sessionId
           let outcome = 'failed'
@@ -489,16 +532,18 @@ export function apply(ctx) {
           const degrade = Array.isArray(message.degrade) ? message.degrade.filter((source) => SOURCES.has(source)) : []
           const event = message.origin === 'event'
           const authorizationId = safety.begin(agent, message.mode === 'followup')
-          const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: event ? 'lca-event' : 'user', lcaProvenance: { authorizationId, sources: degrade }, ...(reference.length ? { lcaReferences: true } : {}) } })
+          const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: event ? 'lca-event' : 'user', lcaProvenance: { authorizationId, sources: degrade }, ...(reference.length ? { lcaReferences: true } : {}), ...(typeof message.eventId === 'string' ? { lcaEventId: message.eventId } : {}), ...(Number.isSafeInteger(message.workRevision) ? { lcaWorkRevision: message.workRevision } : {}) } })
           if (event && message.mode === 'followup') eventStarts.set(message.sessionId, (eventStarts.get(message.sessionId) ?? 0) + 1)
           if (event && message.mode === 'followup') eventBudget.set(message.sessionId, EVENT_STEPS)
           // You joined in: the turn is yours, no event cap.
           if (!event) { eventTurns.delete(message.sessionId); eventBudget.delete(message.sessionId) }
           if (message.mode === 'steer') agent.steer(input); else if (message.mode === 'inject') agent.inject(input); else agent.followup(input)
+          if (message.ref) send({ t: 'delivered', ref: message.ref, sessionId: message.sessionId, eventId: message.eventId })
           break
         }
         case 'cancel': compactions.get(message.sessionId)?.abort(); safety.cancel(message.sessionId); collaboration.notify(); break
         case 'state': updateState(message.sessionId, message.state); break
+        case 'work-revision': if (Number.isSafeInteger(message.revision)) workVersions.set(message.sessionId, Math.max(workVersions.get(message.sessionId) ?? 0, message.revision)); break
         case 'state-answer': stateReplies.get(message.id)?.(message.ok === true); break
         case 'trust': { safety.setTrust(message.sessionId, true); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(agentOf(message.sessionId).session) }); break }
         case 'untrust': { safety.setTrust(message.sessionId, false); declined.delete(message.sessionId); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(agentOf(message.sessionId).session) }); break }

@@ -14,6 +14,8 @@ pnpm test
 
 连续协作者实验分支的单会话关卡为 `node scripts/memory-conversation-gate.mjs`：固定 DSH、生产 controller／execution／记忆工具、真实文件 DuckDB，以及本地脚本模型与合成 768 维向量。验证记住→审阅→召回→纠正→原生压缩→新值及派生回复不重抽；结果独立保存于 `test-results/continuity/conversation/`。这是局部流程验证，未替代 Electron 页面、真实向量／镜像、迁移恢复或 T1–T16。旧 `smoke-memory` 的产品断言将在统一验收前更新，当前不能以旧断言宣称新引擎验收。
 
+执行关卡为 `pnpm test:continuity:execution`：一个实际 DSH 宿主、独立前台和两个工作 root、本地脚本模型及工具屏障。覆盖前台响应、同任务补充、事件幂等、指定停止、旧模型步骤在目标变更后不得执行动作，以及接收／消费回执。结果保存在 `test-results/continuity/execution/`；`continuous-work.test.ts` 另检查同项目串行、重启核对、新运行代次和损坏日志。回合结束不算任务完成，证据检查点和跨日整场景继续由后续阶段实现。
+
 GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型、lint 和单元测试。旧心流的 `probe:desk-command:runtime` 已随功能移除，不再作为 CI 入口；DSH、包内流程和实际升级仍按下文单独验收，不由静态 CI 结果替代。
 
 ## 主要场景

@@ -209,3 +209,10 @@
   .dock-card { animation: none; }
   .work-pulse, .work-sending::after { animation: none; }
 }
+.continuous-works { font-size: 12px; padding: 6px 10px; max-height: 180px; overflow-y: auto; }
+.continuous-works summary { cursor: pointer; }
+.continuous-works ul { list-style: none; margin: 6px 0; padding: 0; }
+.continuous-works li { border-top: 1px solid currentColor; padding: 6px 0; }
+.continuous-works p { margin: 3px 0; overflow-wrap: anywhere; }
+.continuous-works small { opacity: .75; }
+.continuous-works button { margin: 4px 6px 0 0; font: inherit; }

@@ -1,4 +1,5 @@
 import { existsSync, statSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { basename, parse, resolve, sep } from 'node:path'
 import type { AppCommand, PublicErrorCode, WorkProjectsView, WorkProjectView } from '../../shared'
 import type { SettingsStore } from '../config/settings'
@@ -45,6 +46,12 @@ export function createProjects(options: {
   }
 
   return {
+    resolveWork: (id: string, knownPath?: string) => {
+      const candidate = id === 'current' ? current() : knownPath
+      if (!candidate || refusal(candidate)) return null
+      const projectId = createHash('sha256').update(key(candidate)).digest('hex')
+      return id === 'current' || id === projectId ? { id: projectId, path: resolve(candidate) } : null
+    },
     /** The folder her DSH session works in right now. */
     current,
     view: (): WorkProjectsView => {

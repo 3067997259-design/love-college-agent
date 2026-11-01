@@ -80,6 +80,20 @@
       "name": "Main and renderer TypeScript; changed-path ESLint",
       "passed": true,
       "scope": "Single-session production wiring, UI controls and acceptance fixture"
+    },
+    {
+      "name": "Continuous work and adjacent DSH/question unit batch",
+      "report": "test-results/continuity/work-adjacent-final.json",
+      "passed": 96,
+      "failed": 0
+    },
+    {
+      "name": "Fixed DSH foreground and two workers execution gate",
+      "report": "test-results/continuity/execution/gate-8AjjWZ/report.json",
+      "passed": true,
+      "checks": 11,
+      "modelRequests": 12,
+      "externalServiceCalls": 0
     }
   ],
   "preservedFailures": [
@@ -94,7 +108,9 @@
     "test-results/continuity/dsh-compact-host.json",
     "test-results/continuity/facts-service-initial.json",
     "test-results/continuity/facts-dsh-batch-initial.json",
-    "test-results/continuity/conversation/gate-IQOfbv/report.json"
+    "test-results/continuity/conversation/gate-IQOfbv/report.json",
+    "test-results/continuity/execution/gate-5te1Ui",
+    "test-results/continuity/execution/gate-SoFtYJ"
   ],
   "notRun": [
     "full repository tests",
@@ -113,5 +129,5 @@
     "count": 24,
     "run": false
   },
-  "productionIntegration": "Experimental main now uses AIRI facts, experience/day projection and actual DSH compaction. Migration, independent embedding/mirror settings, work roots and new backup remain pending."
+  "productionIntegration": "Experimental main uses AIRI facts, independent experience/day projection, native DSH compaction and persistent foreground/worker roots. Checkpoint delivery, migration, embedding/mirror settings and backup remain pending."
 }

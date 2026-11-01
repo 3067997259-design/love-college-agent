@@ -107,15 +107,16 @@ export function createQuestions(options: { store: SessionStore; clock: Clock; ch
     /** An approval she asks for that still waits for you (shown or held back by focus and quiet). */
     approvalPending: () => pending?.approval ? pending.id : undefined,
     interrupt: () => finish('superseded'),
+    interruptForeground: () => { if (pending && !pending.detached) finish('superseded') },
     settled: (turnId: string) => { if (pending?.turnId === turnId) finish('cancelled'); for (const reply of [...ready.values()]) if (reply.turnId === turnId) dropReply(reply) },
     setEnabled: (value: boolean) => { enabled = value; if (!value) finish('disabled') },
     /**
      * Her questions (DSH ask_user_question): one to four at once, each with optional choices. Up to three asks per
      * turn and twelve per day. Answered: `answers` (one per question) and `answerMessageId`, your words in the journal.
      */
-    ask: (items: unknown, context: ToolContext) => {
+    ask: (items: unknown, context: ToolContext, detached = false) => {
       const parsed = itemsInput.safeParse(items)
-      return parsed.success ? open({ question: parsed.data[0].question, choices: [], items: parsed.data }, context, false) : Promise.resolve(result({ status: 'invalid-question' }))
+      return parsed.success ? open({ question: parsed.data[0].question, choices: [], items: parsed.data }, context, false, detached) : Promise.resolve(result({ status: 'invalid-question' }))
     },
     approve: (input: { question: string; choices: string[] }, context: ToolContext, member = false) => {
       const parsed = questionInput.safeParse(input)

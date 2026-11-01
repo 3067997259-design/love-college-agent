@@ -23,6 +23,9 @@ import type { SkillsService } from '../dsh/skills'
 import type { CollaborationPort } from '../dsh/collaboration'
 import { agentAddressSchema } from '../dsh/identity'
 import type { ProjectsService } from '../dsh/projects'
+import type { ContinuousWorkService } from '../work/service'
+import type { ContinuousWorkCommand } from '../../shared/continuity'
+import { workCommandSchemas } from '../work/commands'
 import type { CompanionWindows, WindowSurface } from '../windows/companion'
 import { characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
 import { giftSpecSchema } from '../gifts/schema'
@@ -55,6 +58,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('question.answer'), questionId: z.string().uuid(), answer: answerInput.optional(), answers: answersInput.optional() })
     .refine((command) => (command.answer === undefined) !== (command.answers === undefined)),
   ...v12CommandSchemas(envelope),
+  ...workCommandSchemas(envelope),
   z.strictObject({ ...envelope, type: z.literal('question.dismiss'), questionId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('project.pick') }),
   z.strictObject({ ...envelope, type: z.literal('project.select'), path: z.string().min(1).max(1024) }),
@@ -189,6 +193,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let skills: SkillsService | undefined
   let collaboration: CollaborationPort | undefined
   let projects: ProjectsService | undefined
+  let continuousWork: ContinuousWorkService | undefined
   let windows: CompanionWindows | undefined
   let gifts: GiftService | undefined
   let legacyFlows: LegacyFlowRecords | undefined
@@ -314,6 +319,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (skills) snapshot.skills = skills.view()
     if (collaboration) snapshot.collaboration = collaboration.view(); else delete snapshot.collaboration
     if (projects) snapshot.work = projects.view(); else delete snapshot.work
+    if (continuousWork) snapshot.continuousWorks = continuousWork.view(); else delete snapshot.continuousWorks
     if (windows) snapshot.windows = windows.view()
     snapshot.companion.daypart = deriveDaypart(snapshot.clock.nowMs, daypartSchedule)
     const event: AppEvent = { protocolVersion: PROTOCOL_VERSION, epoch: snapshot.epoch, revision: snapshot.revision,
@@ -337,6 +343,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('resources.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('question.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('project.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('work.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type === 'companion.sleep' && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('room.') || command.type === 'diary.write') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -478,6 +485,10 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (collaboration && /^(agent\.|team\.)/.test(command.type)) {
       try { const error = collaboration.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
+    } else if (continuousWork && command.type.startsWith('work.')) {
+      const input = Object.fromEntries(Object.entries(command).filter(([key]) => !['protocolVersion', 'requestId', 'epoch'].includes(key)))
+      const result = continuousWork.dispatch(input as ContinuousWorkCommand, `command:${command.requestId}`)
+      ack = result.error ? reject(command.requestId, result.error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (projects && command.type.startsWith('project.')) {
       try { const error = projects.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -521,6 +532,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     minecraft?.stateChanged()
     voice?.stateChanged()
     questions?.stateChanged()
+    continuousWork?.stateChanged()
     requests.set(command.requestId, { signature, ack })
     if (requests.size > 1000) requests.delete(requests.keys().next().value!)
     return structuredClone(ack)
@@ -573,6 +585,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachSkills: (port: SkillsService) => { skills = port; publish('connection') },
     attachCollaboration: (port?: CollaborationPort) => { collaboration = port; publish('task') },
     attachProjects: (port: ProjectsService) => { projects = port; publish('task') },
+    attachContinuousWork: (port: ContinuousWorkService) => { continuousWork = port; publish('task') },
     attachWindows: (port: CompanionWindows) => { windows = port; publish('mode') },
     attachDiagnostics: (read: () => DiagnosticsView) => { diagnostics = read },
     readDiagnostics: () => { if (runtime?.view().developer.mode !== 'developer' || !diagnostics) throw new Error('DIAGNOSTICS_UNAVAILABLE'); return diagnostics() },

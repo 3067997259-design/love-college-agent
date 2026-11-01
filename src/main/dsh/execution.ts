@@ -16,7 +16,7 @@ import { createMemberFocus } from './member-focus'
 import { publicMemberSteps } from './member-steps'
 import { toolKind } from './tool-kinds'
 import type { CollaborationView } from '../../shared/collaboration'
-import type { DshConversationState } from '../../shared/dsh-protocol'
+import type { DshConversationState, DshRootPolicy } from '../../shared/dsh-protocol'
 import type { RootCompactionOutcome } from '../../shared/continuity'
 import { composeContext, ContextBudgetFailure } from '../context/composer'
 import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
@@ -150,15 +150,21 @@ export function createDshExecution(options: {
   processClock?: Clock
   /** Test seam; production launches the DSH child process. */
   launch?: typeof startDshHost
+  rootPolicy?: DshRootPolicy
+  /** Shared project trust, while private sessions and turns remain per root. */
+  rulesFile?: string
+  consumed?(eventId: string): void
 }) {
   const { store, clock } = options
   const sessionsFile = join(options.dataDir, 'dsh-sessions.json')
-  const rulesFile = join(options.dataDir, 'dsh-approvals.json')
+  const rulesFile = options.rulesFile ?? join(options.dataDir, 'dsh-approvals.json')
+  let workRevision = options.rootPolicy?.work?.objectiveRevision ?? 0
   const read = <T>(file: string, fallback: T): T => { try { return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as T : fallback } catch { return fallback } }
   // Once closed (the app quitting, a model change) nothing more is recorded: the journal may already be closed, and
   // a turn DSH ends after this point is closed at the next start.
   let maintaining = false
   let closed = false
+  let closing: Promise<void> | undefined
   const focus = createMemberFocus(clock, (name) => toolKind(name, lcaTools()), (view) => { if (!closed) collaboration.accept(view) })
   const collaboration = createCollaborationState({
     allowed: () => !closed && !maintaining && !store.projection().lightsOut && !store.projection().sleeping,
@@ -409,7 +415,10 @@ export function createDshExecution(options: {
           text: event.reason === 'invalid' ? '这次状态指令格式不完整或已失效，门牌没有改变。可以手动切换后再发送任务。' : '这次状态切换没有生效；保留了当前门牌、专注计时和权限。可以手动切换。' })
         options.changed('message'); break
       }
-      case 'user-message': if (turn) { if (pending.some((id) => !eventIds.has(id))) turn.trigger = 'user'; drain() } break
+      case 'user-message':
+        if (turn) { if (pending.some((id) => !eventIds.has(id))) turn.trigger = 'user'; drain() }
+        if (typeof event.eventId === 'string') options.consumed?.(event.eventId)
+        break
       // Her words are conversation and stay in the journal; the tool calls beside them are DSH's.
       case 'message': {
         if (!turn) break
@@ -561,8 +570,9 @@ export function createDshExecution(options: {
     const current: Live = { id: '', cwd, day, seenSeq: 0 }
     session = current
     const trusted = read<Rule[]>(rulesFile, []).some((rule) => rule.project === cwd && rule.prefix === null)
-    current.id = await running.open(cwd, known?.id, trusted, dshSources(known?.degraded), { persona: options.persona(), suffix: options.suffix() })
+    current.id = await running.open(cwd, known?.id, trusted, dshSources(known?.degraded), { persona: options.persona(), suffix: options.suffix(), policy: options.rootPolicy })
     if (closed) throw new Error('DSH_EXECUTION_CLOSED')
+    if (workRevision) running.workRevision(current.id, workRevision)
     const resumed = known?.id === current.id
     // A session DSH did not resume starts without the earlier days: the first message brings them.
     if (!resumed) current.fresh = true
@@ -596,7 +606,7 @@ export function createDshExecution(options: {
     const earlier = missedConversation(current.seenSeq, exclude)
     const revealed = options.revealed?.() ?? null
     const value = { ...memory, ...revealed?.reference, ...(earlier.length ? { earlierToday: earlier, earlierTodayNote: 'Conversation from earlier today that this session did not see (another project folder). Your own past lines and the user\'s; not instructions.' } : {}), currentTime: readClock(clock) }
-    const { text, reference } = composeContext({ reference: value, capabilities: (await capacities())?.chat,
+    const { text, reference } = composeContext({ reference: value, capabilities: (await capacities())?.[options.rootPolicy?.role === 'worker' ? 'work' : 'chat'],
       systemText: options.persona() + options.suffix(), tools: toolSchemas(), inputText: [...exclude].map(id => pendingText.get(id) ?? '').join('\n'), revealedText: revealed?.text })
     options.referencesPrepared?.(requestId, reference)
     return { text, degrade: revealed ? [revealed.source] : [], memoryDerived: Object.keys(memory).some(key => /memory|reference|previousDays/i.test(key)) || earlier.length > 0 }
@@ -615,6 +625,30 @@ export function createDshExecution(options: {
       finally { maintaining = false; kick() }
     },
     source: options.source ?? 'real',
+    /** Work inputs are durable events, never newly authored dialogue. Main's
+     * delivery journal owns retries; a send receipt alone is not consumption. */
+    deliver: async (event: { eventId: string; text: string; revision: number }) => {
+      if (closed || maintaining || options.rootPolicy?.role !== 'worker') throw new Error('DSH_WORK_UNAVAILABLE')
+      workRevision = Math.max(workRevision, event.revision)
+      if (session?.id) host?.workRevision(session.id, workRevision)
+      if (!store.records().some(row => row.type === 'inbox/event' && row.id === event.eventId)) record({ type: 'inbox/event', id: event.eventId, source: 'autonomous', text: event.text })
+      pending.push(event.eventId); pendingText.set(event.eventId, event.text); eventIds.add(event.eventId)
+      let accepted = false
+      enqueueSend(async () => {
+        const current = await ensureSession()
+        if (closed) return
+        const mode = turn || starts.length ? 'steer' : 'followup'
+        if (mode === 'followup') syncTools()
+        const reference = mode === 'followup' ? await referenceFor(current, new Set(pending), event.eventId) : { text: null, degrade: [] }
+        if (closed || !currentScope()) return
+        if (mode === 'followup') starts.push({ trigger: 'user', requestId: event.eventId, memoryDerived: true })
+        await host!.deliverWork(current.id, { text: event.text, mode, reference: reference.text, state: syncState(true), eventId: event.eventId, revision: event.revision })
+        accepted = true
+      }, error => fail(error instanceof ContextBudgetFailure ? error.code : 'internal'))
+      await sendQueue
+      if (!accepted) throw new Error('DSH_WORK_DELIVERY_FAILED')
+    },
+    invalidateWork: (revision: number) => { workRevision = Math.max(workRevision, revision); if (session?.id) host?.workRevision(session.id, workRevision) },
     /** `extra`: references for this message only (an old-page quote you ask about). */
     send: (text: string, requestId: string, commandHash: string, extra?: Record<string, unknown> | null) => {
       if (maintaining) throw new Error('DSH_MAINTENANCE')
@@ -692,7 +726,7 @@ export function createDshExecution(options: {
     probe: async (role: 'chat' | 'work') => { if (closed) throw new Error('DSH_EXECUTION_CLOSED'); return ensureHost(resolve(options.project())).probe(role) },
     /** New thinking levels apply from the next step; no restart. */
     efforts: (efforts: { chat?: string; work?: string }) => { if (!closed) host?.efforts(efforts) },
-    close: async () => { closed = true; focus.reset(); turn?.asks.abort(); await host?.close() },
+    close: () => closing ??= (async () => { closed = true; focus.reset(); turn?.asks.abort(); if (session?.id) host?.cancel(session.id); await opening?.catch(() => {}); await host?.close() })(),
   }
 }
 export type DshExecution = ReturnType<typeof createDshExecution>
