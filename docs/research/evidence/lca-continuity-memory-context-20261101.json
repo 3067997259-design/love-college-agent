@@ -1,0 +1,252 @@
+{
+    "date":  "2026-11-01",
+    "node":  "v24.14.0",
+    "kind":  "source-characterization-with-synthetic-calendar-history",
+    "cases":  [
+                  {
+                      "id":  "C1",
+                      "observation":  "Month consolidation takes day summaries directly, not the available week summary.",
+                      "details":  {
+                                      "monthChildren":  [
+                                                            "day:2026-09-14:v1",
+                                                            "day:2026-09-15:v1"
+                                                        ]
+                                  }
+                  },
+                  {
+                      "id":  "C2",
+                      "observation":  "Age is a selection gate on covered source days, not a compulsory rewrite at day 7 or day 30.",
+                      "details":  [
+                                      {
+                                          "day":  "2026-10-25",
+                                          "candidate":  "week",
+                                          "selected":  "day"
+                                      },
+                                      {
+                                          "day":  "2026-10-24",
+                                          "candidate":  "week",
+                                          "selected":  "week"
+                                      },
+                                      {
+                                          "day":  "2026-10-02",
+                                          "candidate":  "month",
+                                          "selected":  "day"
+                                      },
+                                      {
+                                          "day":  "2026-10-01",
+                                          "candidate":  "month",
+                                          "selected":  "month"
+                                      }
+                                  ]
+                  },
+                  {
+                      "id":  "C3",
+                      "observation":  "Recent day references and an old month coexist; overlapping week/day references and the current session are excluded.",
+                      "details":  [
+                                      {
+                                          "id":  "day:2026-10-31:v1",
+                                          "level":  "day"
+                                      },
+                                      {
+                                          "id":  "day:2026-10-30:v1",
+                                          "level":  "day"
+                                      },
+                                      {
+                                          "id":  "day:2026-10-29:v1",
+                                          "level":  "day"
+                                      },
+                                      {
+                                          "id":  "day:2026-10-28:v1",
+                                          "level":  "day"
+                                      },
+                                      {
+                                          "id":  "day:2026-10-27:v1",
+                                          "level":  "day"
+                                      },
+                                      {
+                                          "id":  "day:2026-10-26:v1",
+                                          "level":  "day"
+                                      },
+                                      {
+                                          "id":  "month:2026-09",
+                                          "level":  "month"
+                                      }
+                                  ]
+                  },
+                  {
+                      "id":  "C4",
+                      "observation":  "Replacing a day-summary version invalidates its old wider summary and restores the corrected day reference.",
+                      "details":  {
+                                      "selected":  [
+                                                       "day:2026-09-14:v2"
+                                                   ]
+                                  }
+                  },
+                  {
+                      "id":  "C5",
+                      "observation":  "The hierarchy has no input for a separate fact correction: callers must reconcile current facts with historical summaries.",
+                      "details":  {
+                                      "correction":  {
+                                                         "type":  "synthetic-memory-correction",
+                                                         "text":  "现在改为周六交付"
+                                                     },
+                                      "selectedText":  [
+                                                           "当时计划周五交付"
+                                                       ],
+                                      "boundary":  "No AIRI integration is exercised here."
+                                  }
+                  },
+                  {
+                      "id":  "C6",
+                      "observation":  "A missing declared parent is currently treated as unknown, not stale.",
+                      "details":  {
+                                      "valid":  true
+                                  }
+                  },
+                  {
+                      "id":  "C7",
+                      "observation":  "The shared 32000-character ceiling can truncate a reference while keeping its original source coverage metadata.",
+                      "details":  {
+                                      "totalChars":  32000,
+                                      "selected":  [
+                                                       {
+                                                           "period":  "2026-10-31",
+                                                           "chars":  6000
+                                                       },
+                                                       {
+                                                           "period":  "2026-10-30",
+                                                           "chars":  6000
+                                                       },
+                                                       {
+                                                           "period":  "2026-10-29",
+                                                           "chars":  6000
+                                                       },
+                                                       {
+                                                           "period":  "2026-10-28",
+                                                           "chars":  6000
+                                                       },
+                                                       {
+                                                           "period":  "2026-10-27",
+                                                           "chars":  6000
+                                                       },
+                                                       {
+                                                           "period":  "2026-10-26",
+                                                           "chars":  2000
+                                                       }
+                                                   ]
+                                  }
+                  }
+              ],
+    "limits":  [
+                   "These cases characterize current pure functions, not desired integration acceptance.",
+                   "No native DSH compaction, model quality, persistent memory, diary or life behavior is executed.",
+                   "C5 demonstrates a missing input to this layer; it is not a run of AIRI or an end-to-end correction test."
+               ],
+    "sources":  [
+                    {
+                        "path":  "src/main/memory/hierarchy.ts",
+                        "bytes":  6551,
+                        "sha256":  "1798fb4d77fb72ef2b58f74055f7978b86a40d86812683e8a9e1f77976e19012"
+                    },
+                    {
+                        "path":  "src/main/memory/service.ts",
+                        "bytes":  18927,
+                        "sha256":  "d95d30d64a258976f5f45c962799f0443a24e59cea24e24736ad60e8e9a946df"
+                    },
+                    {
+                        "path":  "src/main/memory/model.ts",
+                        "bytes":  6598,
+                        "sha256":  "12019542ed9a0667f6b9fea4910fda82af1bd33dd51679aa24d6bec985a81a3c"
+                    },
+                    {
+                        "path":  "src/main/memory/seen.ts",
+                        "bytes":  8161,
+                        "sha256":  "4670f3cb3dd066c71e57f39fea121a6fa3752794c0ffd29f02bb150e32a44ac4"
+                    },
+                    {
+                        "path":  "src/main/memory/repository.ts",
+                        "bytes":  1583,
+                        "sha256":  "9da021585bf4e4e5ebcb517d7b43bbd6d76f3c834701d80f9049ba6bda82d565"
+                    },
+                    {
+                        "path":  "src/main/journal/projection.ts",
+                        "bytes":  10947,
+                        "sha256":  "287d3808c23c86578a9df6b81d877b3d32ab1c3f51170e8fd1312bc622c0ae05"
+                    },
+                    {
+                        "path":  "src/main/dsh/execution.ts",
+                        "bytes":  49945,
+                        "sha256":  "52c576cc3aaf643dffa5b629fb603a1a1e403c2b9811e18ae7cc41002d073869"
+                    },
+                    {
+                        "path":  "src/main/dsh/host.ts",
+                        "bytes":  23165,
+                        "sha256":  "940ce2038749cac9e02d6b74bb39af529b86aec5bf7c00547251e47aab515fd0"
+                    },
+                    {
+                        "path":  "src/main/index.ts",
+                        "bytes":  72236,
+                        "sha256":  "9a4761a8ce0cb1e334376272d60abe733f4a08bd2650b2adb507052b26eb5701"
+                    },
+                    {
+                        "path":  "src/main/bridge/controller.ts",
+                        "bytes":  55376,
+                        "sha256":  "d79195b41ab46951f5da7e226efe79e0c1f02b523f87ffea3f163e1a1b8dc233"
+                    },
+                    {
+                        "path":  "src/main/diary/service.ts",
+                        "bytes":  5605,
+                        "sha256":  "ef281385c7635504ab5003a33ac14f561d05b49b652794df70e838c435fb56ee"
+                    },
+                    {
+                        "path":  "src/main/life/service.ts",
+                        "bytes":  10091,
+                        "sha256":  "384f2501a6a38d1e3ab3ece42a893b0bff84f0ac1ac937393061d818480a7ca6"
+                    },
+                    {
+                        "path":  "src/main/backup/archive.ts",
+                        "bytes":  17654,
+                        "sha256":  "4a382a57ab6c8a1dc9058398ae72d064d488a04b9521bc84effd6db58a9f3ba8"
+                    },
+                    {
+                        "path":  "dsh/lca-bridge/index.js",
+                        "bytes":  36058,
+                        "sha256":  "46fc94e2a93c72a618b56d1dcb0da1febfb0d250c29e6dc35325b952663d7053"
+                    },
+                    {
+                        "path":  "dsh/lca-bridge/profile.js",
+                        "bytes":  4579,
+                        "sha256":  "24249a7d08d50edf32a526d461f9b2168c34abe7466f4f01aedd344bc80a1a5b"
+                    },
+                    {
+                        "path":  "dsh/lca-bridge/provenance.js",
+                        "bytes":  12095,
+                        "sha256":  "2713f0b6d72299cee4ad415770dda60b0c2f50016caa9f45bbf30861412e4ec0"
+                    },
+                    {
+                        "path":  "dsh/runtime/node_modules/@deepseek-ai/dsh-base/cordis.patch.yml",
+                        "bytes":  20932,
+                        "sha256":  "a2cc57868a4d016609801e28781262515483dde29b41c2742d9a3b27a6f52f77"
+                    },
+                    {
+                        "path":  "dsh/runtime/node_modules/@deepseek-ai/dsh-compaction-basic/README.zh.md",
+                        "bytes":  20310,
+                        "sha256":  "4dac0ff54c0b88356f3a268d8fee7f9c730ef1722a2652989ee46716591986a8"
+                    },
+                    {
+                        "path":  "dsh/runtime/node_modules/@deepseek-ai/dsh-compaction/lib/types/index.d.ts",
+                        "bytes":  8733,
+                        "sha256":  "9d065049164a6e965de472c709c06a5531a5953f3e0f09155bb6428a1e85e405"
+                    }
+                ],
+    "lcaCommit":  "569b8131a10da02fe14dd772e20c2074669e186d",
+    "mainCommit":  "227e759dd403653119587ec68c0976d6ad1155b7",
+    "command":  "node scripts/research-context-hierarchy.mjs",
+    "scriptSha256":  "82904c672d55a82cbb583babfd0a805e2dc1e51730504c0c7f7bc1993c992dfe",
+    "runtimeChanges":  false,
+    "sourceFindings":  [
+                           "Current manual /compact is intercepted by LCA memory.dispatch; the DSH reference path does not consume conversationSummary.",
+                           "Installed dsh-base mounts native compaction, while the LCA bridge exposes no manual compaction command.",
+                           "Diary behavior, input categories and scheduling remain unchanged in this research-only change."
+                       ]
+}
