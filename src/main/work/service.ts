@@ -45,7 +45,7 @@ export function createContinuousWork(options: {
   const journal = openWorkJournal(join(options.root, 'events.log'), owner, clock)
   const works = new Map<string, WorkRecord>(), operations = new Map<string, { digest: string; workId: string | null }>()
   for (const row of journal.rows()) {
-    operations.set(row.operationId, { digest: row.digest, workId: row.work?.identity.workId ?? null })
+    operations.set(row.operationId, { digest: row.digest, workId: row.work?.identity.workId ?? row.receiptWorkId ?? null })
     if (row.work) works.set(row.work.identity.workId, row.work)
   }
   type Live = { generation: number; runtime: WorkRuntime; sending: boolean; closing: boolean; releasing?: Promise<void> }
@@ -121,7 +121,7 @@ export function createContinuousWork(options: {
   }
   const deliver = (id: string) => {
     const initial = works.get(id)
-    if (!initial || failure || closed) return
+    if (!initial || failure || closed || options.held()) return
     for (const receipt of deliveries(initial)) {
       const work = works.get(id)!
       if (receipt.state === 'consumed') continue

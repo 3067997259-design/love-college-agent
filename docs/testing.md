@@ -18,6 +18,8 @@ pnpm test
 
 GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型、lint 和单元测试。旧心流的 `probe:desk-command:runtime` 已随功能移除，不再作为 CI 入口；DSH、包内流程和实际升级仍按下文单独验收，不由静态 CI 结果替代。
 
+连续协作者恢复关卡为 `node scripts/continuity-recovery-gate.mjs`：隔离 Electron 与实际 utility process，使用同一非空夹具验证完整向量、忘记回执、原 outbox、采集游标、检查点、交付水位、显式继续、旧存档和中断回滚。报告保存在 `test-results/continuity/recovery/`，不访问真实模型或镜像；Node 原生对应测试为 `continuity-backup-native.test.ts`。
+
 ## 主要场景
 
 | 命令 | 核验重点 |

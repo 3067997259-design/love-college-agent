@@ -18,6 +18,16 @@ const create = async (root: string, interrupt?: (point: MemoryCommitPoint, id: s
 }
 
 describe('durable memory commit and publication', () => {
+  it('refuses a published log whose database receipt is missing instead of replaying it', async () => {
+    const root = mkdtempSync(join(resolve('test-results'), 'memory-log-conflict-')); const host = await create(root)
+    try {
+      await host.commits.commit({ operationId: 'published-one', kind: 'remember', input }, tx => tx.insert(input))
+      await host.database.execute("DELETE FROM lca_memory_commits WHERE operation_id = 'published-one'")
+      await expect(host.commits.recover()).rejects.toThrow('MEMORY_COMMIT_LOG_CONFLICT')
+      expect(await host.commits.repository.list()).toHaveLength(1)
+    } finally { await host.database.close() }
+  })
+
   for (const point of ['intent', 'before-commit', 'committed', 'published'] as const) {
     it(`reconciles a stop at ${point} without duplicating facts or mirror work`, async () => {
       const root = mkdtempSync(join(resolve('test-results'), `memory-commit-${point}-`))

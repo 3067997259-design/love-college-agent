@@ -42,6 +42,14 @@ function openCommitLog(path: string) {
 
 const writes = new Set(['insert', 'update', 'remove', 'recordAccess', 'promoteEligible', 'updateEmbedding', 'saveOperation', 'addDreamIdea', 'updateDreamIdea'])
 
+export async function initializeMemoryCommitSchema(database: MemoryDbExecutor) {
+  await database.execute(`CREATE TABLE IF NOT EXISTS lca_memory_commits (
+    operation_id VARCHAR PRIMARY KEY, kind VARCHAR NOT NULL, digest VARCHAR NOT NULL,
+    result_json VARCHAR NOT NULL, committed_at BIGINT NOT NULL)`)
+  await database.execute(`CREATE TABLE IF NOT EXISTS lca_memory_mirror_dirty (
+    origin_id VARCHAR PRIMARY KEY, version VARCHAR NOT NULL, deleted BOOLEAN NOT NULL, changed_at BIGINT NOT NULL)`)
+}
+
 /** Owns fact + receipt + mirror-intent commits. Neither models nor network run
  * inside its transaction. A successful return requires a durable published log
  * receipt; a failed publication is recovered by ID, never by repeating a write. */
@@ -51,11 +59,7 @@ export async function createMemoryCommitCoordinator(options: {
 }) {
   const { database, clock, scope } = options
   const log = openCommitLog(options.logPath)
-  await database.execute(`CREATE TABLE IF NOT EXISTS lca_memory_commits (
-    operation_id VARCHAR PRIMARY KEY, kind VARCHAR NOT NULL, digest VARCHAR NOT NULL,
-    result_json VARCHAR NOT NULL, committed_at BIGINT NOT NULL)`)
-  await database.execute(`CREATE TABLE IF NOT EXISTS lca_memory_mirror_dirty (
-    origin_id VARCHAR PRIMARY KEY, version VARCHAR NOT NULL, deleted BOOLEAN NOT NULL, changed_at BIGINT NOT NULL)`)
+  await initializeMemoryCommitSchema(database)
   let tail: Promise<unknown> = Promise.resolve()
   const serial = <T>(action: () => Promise<T>) => {
     const task = tail.then(action)
@@ -69,6 +73,10 @@ export async function createMemoryCommitCoordinator(options: {
   const recover = () => serial(async () => {
     const rows = await database.execute('SELECT operation_id, kind, digest FROM lca_memory_commits') as CommitRow[]
     const committed = new Map(rows.map(row => [row.operation_id, row]))
+    for (const item of log.events) {
+      const row = committed.get(item.operationId)
+      if (row && (row.digest !== item.digest || row.kind !== item.kind) || !row && item.phase === 'published') throw new Error('MEMORY_COMMIT_LOG_CONFLICT')
+    }
     for (const row of rows) event(row, 'published')
     for (const item of [...log.events]) {
       if (item.phase === 'intent' && !committed.has(item.operationId))

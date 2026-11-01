@@ -33,18 +33,17 @@ export type WorkRecord = z.infer<typeof workRecordSchema>
 export type WorkDecision = z.infer<typeof workDecisionSchema>
 export type WorkInput = WorkRecord['inputs'][number]
 const rowSchema = z.strictObject({ version: z.literal(1), seq: z.number().int().positive(), operationId: z.string().min(1).max(160), digest: z.string().length(64),
-  owner: workOwnerSchema, atMs: z.number().int().nonnegative(), kind: z.string().min(1).max(64), work: workRecordSchema.nullable() })
+  owner: workOwnerSchema, atMs: z.number().int().nonnegative(), kind: z.string().min(1).max(64), work: workRecordSchema.nullable(),
+  receiptWorkId: z.string().uuid().nullable().optional(),
+}).refine(row => row.receiptWorkId === undefined || row.kind === 'archive-receipt' && row.work === null, 'Receipt references cannot overwrite work state')
 type Row = z.infer<typeof rowSchema>
 export const workDigest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 export const sameOwner = (a: ContinuityOwner, b: ContinuityOwner) => a.userId === b.userId && a.characterId === b.characterId && a.dataRootId === b.dataRootId
 
-/** Each frame is a complete state transition, including its subscription receipt.
- * Fsync precedes publication. A torn final frame stays in the file; only that
- * incomplete final frame may be ignored. No projection file can override this log. */
-export function openWorkJournal(path: string, owner: ContinuityOwner, clock: Clock) {
+export function parseWorkJournal(content: string, owner: ContinuityOwner): Row[] {
   const rows: Row[] = []
-  if (existsSync(path)) {
-    const frames = readFileSync(path, 'utf8').split('\x1e')
+  if (content) {
+    const frames = content.split('\x1e')
     if (frames[0] !== '') throw new Error('WORK_JOURNAL_CORRUPT')
     for (let index = 1; index < frames.length; index++) {
       const frame = frames[index]
@@ -59,6 +58,14 @@ export function openWorkJournal(path: string, owner: ContinuityOwner, clock: Clo
       rows.push(row)
     }
   }
+  return rows
+}
+
+/** Each frame is a complete state transition, including its subscription receipt.
+ * Fsync precedes publication. A torn final frame stays in the file; only that
+ * incomplete final frame may be ignored. No projection file can override this log. */
+export function openWorkJournal(path: string, owner: ContinuityOwner, clock: Clock) {
+  const rows = parseWorkJournal(existsSync(path) ? readFileSync(path, 'utf8') : '', owner)
   let poisoned = false
   const append = (input: Omit<Row, 'version' | 'seq' | 'owner' | 'atMs'>) => {
     if (poisoned) throw new Error('WORK_JOURNAL_NOT_WRITABLE')

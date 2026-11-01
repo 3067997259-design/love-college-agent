@@ -100,6 +100,7 @@ export function createMemoryFacts(options: {
   const rememberedByTurn = new Map<string, MemoryReadReference[]>()
   return {
     runtime, refresh, factViews,
+    archive: async (credentials: readonly string[] = []) => { await migrate(); return engine.archive(credentials) },
     experiencePolicy: () => structuredClone(experiencePolicy),
     operations: () => structuredClone(operations),
     bind: (requestId: string, turnId: string) => { const references = rememberedByTurn.get(requestId); if (references) { rememberedByTurn.set(turnId, references); rememberedByTurn.delete(requestId) } },

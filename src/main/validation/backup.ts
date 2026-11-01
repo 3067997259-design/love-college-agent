@@ -54,7 +54,7 @@ export async function probeBackup(root: string) {
     writeFileSync(join(root, 'dsh-sessions.json'), sessionIndex)
     const oldBytes = readFileSync(join(journalLocation(root, owner, clock).folder, '2026-10-16.jsonl'))
     queueRestore(root, staged.restoreId, safety.manifest.archiveId); clock.advanceBy(24 * 60 * 60_000)
-    const applied = applyPendingRestore(root, owner, 'fake', clock)
+    const applied = await applyPendingRestore(root, owner, 'fake', clock)
     if (applied?.status !== 'restored') throw new Error('SAVE_RESTORE_FAILED'); stage = 3
     if (existsSync(join(root, 'dsh-sessions.json')) || readFileSync(join(root, '.backup-staging', staged.restoreId, 'rollback', 'dsh-sessions.json'), 'utf8') !== sessionIndex) throw new Error('SAVE_DSH_INDEX_NOT_RETIRED')
     const nextStore = openSessionStore(root, owner, clock); const nextDocuments = openDocumentVault(root, owner); const nextEvidence = openEvidenceVault(root, owner)
@@ -76,13 +76,13 @@ export async function probeBackup(root: string) {
     mkdirSync(join(rollback, '..'), { recursive: true }); renameSync(join(root, relativeJournal), rollback)
     const targets = [relativeJournal, 'projections.sqlite', 'campus.sqlite', 'documents.sqlite', 'memory.sqlite', ...['projections.sqlite', 'campus.sqlite', 'documents.sqlite', 'memory.sqlite'].flatMap((name) => [name + '-wal', name + '-shm'])]
     writeFileSync(join(interrupted.stage, 'transaction.json'), JSON.stringify({ phase: 'applying', targets, previous: targets.filter((name) => name === relativeJournal || existsSync(join(root, name))) }))
-    const rejected = applyPendingRestore(root, owner, 'fake', clock)
+    const rejected = await applyPendingRestore(root, owner, 'fake', clock)
     if (rejected?.status !== 'failed' || !existsSync(join(root, relativeJournal))) throw new Error('SAVE_CRASH_RECOVERY_FAILED')
     // An unsafe DSH index must reject the restore before replacing the book, not silently keep old members.
     const unsafe = await stagePrivateSave(root, saved.bytes, owner, 'fake'); queueRestore(root, unsafe.restoreId, randomUUID())
     const currentJournal = readFileSync(join(root, relativeJournal, '2026-10-16.jsonl'))
     mkdirSync(join(root, 'dsh-sessions.json'))
-    const unsafeResult = applyPendingRestore(root, owner, 'fake', clock)
+    const unsafeResult = await applyPendingRestore(root, owner, 'fake', clock)
     if (unsafeResult?.status !== 'failed' || !readFileSync(join(root, relativeJournal, '2026-10-16.jsonl')).equals(currentJournal)) throw new Error('SAVE_UNSAFE_INDEX_PARTIAL_RESTORE')
     renameSync(join(root, 'dsh-sessions.json'), join(root, 'unsafe-index-probe-preserved'))
     const interruptedIndex = await stagePrivateSave(root, saved.bytes, owner, 'fake'); queueRestore(root, interruptedIndex.restoreId, randomUUID())
@@ -91,7 +91,7 @@ export async function probeBackup(root: string) {
     mkdirSync(join(interruptedIndex.stage, 'rollback'), { recursive: true })
     renameSync(join(root, 'dsh-sessions.json'), join(interruptedIndex.stage, 'rollback/dsh-sessions.json'))
     writeFileSync(join(interruptedIndex.stage, 'transaction.json'), JSON.stringify({ phase: 'applying', targets: indexTargets, previous: indexPrevious }))
-    if (applyPendingRestore(root, owner, 'fake', clock)?.status !== 'failed' || readFileSync(join(root, 'dsh-sessions.json'), 'utf8') !== sessionIndex) throw new Error('SAVE_INDEX_CRASH_ROLLBACK_FAILED')
+    if ((await applyPendingRestore(root, owner, 'fake', clock))?.status !== 'failed' || readFileSync(join(root, 'dsh-sessions.json'), 'utf8') !== sessionIndex) throw new Error('SAVE_INDEX_CRASH_ROLLBACK_FAILED')
     const credentialStore = openSessionStore(root, owner, clock); const credentialVault = openDocumentVault(root, owner)
     try {
       credentialVault.put(new Uint8Array(Buffer.from('APPLICATION_CREDENTIAL_CANARY')), 'text')

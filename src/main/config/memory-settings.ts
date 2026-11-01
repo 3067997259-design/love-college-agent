@@ -87,7 +87,11 @@ export function createMemorySettings(options: {
   return {
     source: () => source,
     /** Main-only, for the existing archive credential leak guard. */
-    credentials: () => [config.embedding?.apiKey, config.mirror?.connectionString].filter((value): value is string => !!value),
+    credentials: () => {
+      const password = config.mirror ? new URL(config.mirror.connectionString).password : undefined
+      let decoded = password; try { if (password) decoded = decodeURIComponent(password) } catch { /* URL may contain a literal percent. */ }
+      return [config.embedding?.apiKey, config.mirror?.connectionString, password, decoded].filter((value): value is string => !!value)
+    },
     view: (): MemorySettingsView => ({ status, embedding: { configured: !!config.embedding, model: config.embedding?.model ?? null, host: config.embedding ? maskedHost(config.embedding.baseUrl) : null },
       mirror: { configured: !!config.mirror, enabled: config.mirror?.enabled === true },
       interaction: { directoryEnabled: options.runtime().directoryEnabled.value, toolsEnabled: options.runtime().toolsEnabled.value }, ...(error ? { error } : {}) }),

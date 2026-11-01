@@ -15,6 +15,7 @@ import { directory, privateWriteParent, regular } from './paths'
 import { validateDeskChanges } from '../legacy-flow/changes'
 import { workRecords } from '../life/work/records'
 import { validateOpticalRecords } from '../optical/records'
+import { inspectContinuity, validContinuityPath, type ContinuityArchive } from './continuity'
 
 export const sha256 = (value: Uint8Array | string) => createHash('sha256').update(value).digest('hex')
 const ownerKey = (owner: SaveManifest['owner']) => sha256(JSON.stringify([owner.userId, owner.characterId]))
@@ -84,7 +85,7 @@ function inspectZip(bytes: Buffer) {
   if (offset !== end || !names.has('manifest.json')) throw new BackupFailure('backup-invalid')
   return names
 }
-export async function exportPrivateSave(options: { root: string; store: SessionStore; clock: Clock; source: 'real' | 'fake'; fileFilteringEnabled: boolean; credentials?: readonly string[]; onboarding?: OnboardingView }) {
+export async function exportPrivateSave(options: { root: string; store: SessionStore; clock: Clock; source: 'real' | 'fake'; fileFilteringEnabled: boolean; credentials?: readonly string[]; onboarding?: OnboardingView; continuity?(): Promise<ContinuityArchive> }) {
   const { root, store, clock } = options; const archiveId = randomUUID(); const stage = directory(root, join(root, '.backup-staging', archiveId))
   const owner = { userId: store.scope.userId, characterId: store.scope.characterId }; const key = ownerKey(owner)
   const files = new Map<string, Buffer>(); const allRecords = store.history?.() ?? store.records()
@@ -113,14 +114,19 @@ export async function exportPrivateSave(options: { root: string; store: SessionS
     try { await db.backup(destination) } finally { db.close() }
     checkDatabase(destination, name, owner, true); files.set(name, readFileSync(destination))
   }
+  const continuity = await options.continuity?.()
+  if (continuity) {
+    inspectContinuity(continuity, owner)
+    for (const [path, bytes] of continuity.files) files.set(path, bytes)
+  }
   let total = 0
   for (const bytes of files.values()) { total += bytes.length; if (total > MAX_UNPACKED_BYTES) throw new BackupFailure('file-too-large'); noCredentials(bytes, options.credentials ?? []) }
-  const manifest = manifestSchema.parse({ formatVersion: 1, kind: 'lca-private-save', archiveId, savedAtMs: clock.nowMs(), owner, source: options.source,
+  const manifest = manifestSchema.parse({ formatVersion: continuity ? 2 : 1, continuity: continuity?.metadata, kind: 'lca-private-save', archiveId, savedAtMs: clock.nowMs(), owner, source: options.source,
     activeDayKey, activeSessionId: store.scope.sessionId,
     pomodoro: (() => { const view = store.projection().pomodoro; if (view.status === 'running' && view.endsAtMs !== null) view.remainingMs = Math.max(0, view.endsAtMs - clock.nowMs()); return view })(),
     pomodoroPause: store.projection().pomodoroPause, fileFilteringEnabled: options.fileFilteringEnabled, onboarding: options.onboarding ?? store.projection().onboarding,
     counts: { pageCount: [...files.keys()].filter((path) => path.startsWith('journals/')).length, messageCount: allRecords.filter((row) => row.type === 'user/message' || row.type === 'narrator/failure' || row.type === 'assistant/message' && row.text).length,
-      memoryCount: projectMemory(allRecords).items.length, deliveryCount: new Set(artifacts.map((artifact) => artifact.view.id)).size },
+      memoryCount: continuity ? continuity.metadata.memoryCount + projectMemory(allRecords).items.filter(item => item.kind === 'experience').length : projectMemory(allRecords).items.length, deliveryCount: new Set(artifacts.map((artifact) => artifact.view.id)).size },
     files: [...files].map(([path, bytes]) => ({ path, bytes: bytes.length, sha256: sha256(bytes) })),
   })
   const zip = new JSZip(); zip.file('manifest.json', JSON.stringify(manifest), { createFolders: false })
@@ -138,19 +144,21 @@ export async function validatePrivateSave(bytes: Buffer, owner: SaveManifest['ow
     if (manifest.owner.userId !== owner.userId || manifest.owner.characterId !== owner.characterId || manifest.source !== source) throw new BackupFailure('backup-scope-mismatch')
     const key = ownerKey(owner); const paths = new Set<string>(); const files = new Map<string, Buffer>()
     for (const file of manifest.files) {
-      if (paths.has(file.path) || !validPath(file.path, key) || !names.has(file.path)) throw new BackupFailure('backup-invalid'); paths.add(file.path)
+      if (paths.has(file.path) || !(validPath(file.path, key) || manifest.formatVersion === 2 && validContinuityPath(file.path)) || !names.has(file.path)) throw new BackupFailure('backup-invalid'); paths.add(file.path)
       const entry = zip.file(file.path); if (!entry || entry.unsafeOriginalName !== file.path) throw new BackupFailure('backup-invalid')
       const data = await entry.async('nodebuffer'); if (data.length !== file.bytes || sha256(data) !== file.sha256) throw new BackupFailure('backup-invalid'); files.set(file.path, data)
     }
     if (names.size !== paths.size + 1) throw new BackupFailure('backup-invalid')
     if (DATABASES.some((name) => !files.has(name))) throw new BackupFailure('backup-invalid')
+    if (manifest.continuity) inspectContinuity({ metadata: manifest.continuity, files: new Map([...files].filter(([path]) => path.startsWith('continuity/'))) }, owner)
     const records = [...files].filter(([path]) => path.startsWith('journals/')).sort(([a], [b]) => a.localeCompare(b)).flatMap(([, data]) => parseJournalContent(data.toString('utf8'), owner))
     validateDeskChanges(records)
     workRecords(records)
     validateOpticalRecords(records)
     const active = files.get('journals/' + key + '/' + manifest.activeDayKey + '.jsonl'); if (!active) throw new BackupFailure('backup-invalid')
     const projected = projectJournal(parseJournalContent(active.toString('utf8'), owner)); if (projected.scope.sessionId !== manifest.activeSessionId) throw new BackupFailure('backup-invalid')
-    if (manifest.counts.pageCount !== [...files.keys()].filter((path) => path.startsWith('journals/')).length || manifest.counts.messageCount !== records.filter((row) => row.type === 'user/message' || row.type === 'narrator/failure' || row.type === 'assistant/message' && row.text).length || manifest.counts.memoryCount !== projectMemory(records).items.length) throw new BackupFailure('backup-invalid')
+    const memoryCount = manifest.continuity ? manifest.continuity.memoryCount + projectMemory(records).items.filter(item => item.kind === 'experience').length : projectMemory(records).items.length
+    if (manifest.counts.pageCount !== [...files.keys()].filter((path) => path.startsWith('journals/')).length || manifest.counts.messageCount !== records.filter((row) => row.type === 'user/message' || row.type === 'narrator/failure' || row.type === 'assistant/message' && row.text).length || manifest.counts.memoryCount !== memoryCount) throw new BackupFailure('backup-invalid')
     const artifacts = records.flatMap((row) => row.type === 'campus/exported' ? row.artifacts : row.type === 'document/completed' ? [row.artifact] : [])
     if (manifest.counts.deliveryCount !== new Set(artifacts.map((artifact) => artifact.view.id)).size) throw new BackupFailure('backup-invalid')
     for (const artifact of artifacts) if (sha256(files.get(artifact.relativePath) ?? Buffer.alloc(0)) !== artifact.sha256) throw new BackupFailure('backup-invalid')

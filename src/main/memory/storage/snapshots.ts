@@ -1,26 +1,68 @@
 // Native adaptation of AIRI use-duck-db snapshot contract (MIT).
 // See vendor/airi-memory/increment/packages/stage-ui/src/composables/use-duck-db.ts.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { MemoryDatabaseClient } from './client'
 import { parseMemoryOperation } from '../airi/repository/interaction-repository'
+import type { MemoryDbExecutor } from '../airi/repository/interaction-repository'
+import { isSameMemoryScope, type MemoryScope } from '../airi/core'
 
 export interface MemorySnapshotEntry { path: string; domain: 'memory'; data: Uint8Array }
 const tables = ['memory_fragments', 'memory_tags', 'memory_episodic', 'memory_long_term_goals', 'memory_short_term_ideas', 'memory_operations'] as const
 const commits = ['lca_memory_commits', 'lca_memory_mirror_dirty'] as const
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`
+const textColumns: Record<string, string> = {
+  memory_fragments: 'content,title,summary,trigger_pattern,source_context_json,scope_json,origin_id,embedding_provider,embedding_model,embedding_source_fingerprint',
+  memory_tags: 'tag', memory_episodic: 'event_type,participants,location',
+  memory_long_term_goals: 'title,description,spec_json,state_json,category', memory_short_term_ideas: 'content,source_type,source_id,scope_json',
+  memory_operations: 'operation_json', lca_memory_commits: 'result_json', lca_memory_mirror_dirty: 'origin_id',
+}
+
+function containsCredential(value: unknown, credentials: readonly string[], depth = 0): boolean {
+  if (depth > 20) return true
+  if (typeof value === 'string') {
+    if (credentials.some(secret => value.includes(secret))) return true
+    if (/^[{["]/.test(value)) { try { return containsCredential(JSON.parse(value), credentials, depth + 1) } catch { return false } }
+  } else if (value && typeof value === 'object') return Object.values(value).some(item => containsCredential(item, credentials, depth + 1))
+  return false
+}
+
+async function assertOwner(database: MemoryDbExecutor, scope?: MemoryScope) {
+  if (!scope) return
+  for (const table of ['memory_fragments', 'memory_short_term_ideas']) {
+    const rows = await database.execute(`SELECT scope_json FROM ${table}`) as { scope_json: string }[]
+    for (const row of rows) if (!isSameMemoryScope(JSON.parse(row.scope_json), scope)) throw new Error('MEMORY_SNAPSHOT_SCOPE_MISMATCH')
+  }
+  const operations = await database.execute('SELECT user_id, character_id FROM memory_operations') as { user_id: string; character_id: string }[]
+  if (operations.some(row => row.user_id !== scope.userId || row.character_id !== scope.characterId)) throw new Error('MEMORY_SNAPSHOT_SCOPE_MISMATCH')
+  for (const table of ['memory_tags', 'memory_episodic']) {
+    const orphans = await database.execute(`SELECT count(*) AS count FROM ${table} child LEFT JOIN memory_fragments parent ON child.memory_id = parent.id WHERE parent.id IS NULL`) as { count: bigint }[]
+    if (Number(orphans[0]?.count)) throw new Error('MEMORY_SNAPSHOT_ORPHAN')
+  }
+}
 
 /** No database bytes or paths leave main. Parquet import stays transactional,
  * preserves all upstream columns and accepts the pinned five-table legacy form. */
-export function createMemorySnapshots(database: MemoryDatabaseClient, temporaryRoot: string, includeCommits = false) {
+export function createMemorySnapshots(database: MemoryDatabaseClient, temporaryRoot: string, includeCommits = false, scope?: MemoryScope, credentials: readonly string[] = []) {
   const ownedTables = includeCommits ? [...tables, ...commits] : [...tables]
-  const scratch = () => { mkdirSync(temporaryRoot, { recursive: true }); return mkdtempSync(join(temporaryRoot, 'snapshot-')) }
+  // Windows mkdtemp retains a shorter path limit than mkdir. Restore staging
+  // adds owner/transaction directories, so use an exclusive UUID directory.
+  const scratch = () => { mkdirSync(temporaryRoot, { recursive: true }); const root = join(temporaryRoot, randomUUID()); mkdirSync(root); return root }
   const clean = (root: string, files: string[]) => { for (const file of files) if (existsSync(file)) unlinkSync(file); rmdirSync(root) }
   return {
     async exportSnapshot(): Promise<MemorySnapshotEntry[]> {
       const root = scratch(); const files: string[] = []
       try {
         return await database.transaction(async tx => {
+          await assertOwner(tx, scope)
+          const secrets = credentials.filter(value => value.length >= 8)
+          // Parquet compression can hide a key from a byte-level ZIP guard.
+          // Inspect native text columns before encoding, never print them.
+          if (secrets.length) for (const table of ownedTables) {
+            const rows = await tx.execute(`SELECT ${textColumns[table]} FROM ${table}`)
+            if (containsCredential(rows, secrets)) throw new Error('MEMORY_ARCHIVE_CREDENTIAL_FORBIDDEN')
+          }
           const entries: MemorySnapshotEntry[] = []
           for (const table of ownedTables) {
             const path = join(root, `${table}.parquet`)
@@ -50,6 +92,11 @@ export function createMemorySnapshots(database: MemoryDatabaseClient, temporaryR
           for (const table of importing) {
             const path = join(root, `${table}.parquet`)
             writeFileSync(path, entries.find(entry => entry.path === `memory/${table}.parquet`)!.data, { flag: 'wx', mode: 0o600 }); files.push(path)
+            if (version === 3) {
+              const original = await tx.execute(`DESCRIBE ${table}`) as { column_name: string }[]
+              const incoming = await tx.execute(`DESCRIBE SELECT * FROM read_parquet(${quote(path)})`) as { column_name: string }[]
+              if (JSON.stringify(original.map(row => row.column_name).sort()) !== JSON.stringify(incoming.map(row => row.column_name).sort())) throw new Error('MEMORY_SNAPSHOT_COLUMNS_MISMATCH')
+            }
             await tx.execute(`INSERT INTO ${table} BY NAME SELECT * FROM read_parquet(${quote(path)})`)
           }
           const receipts = await tx.execute('SELECT * FROM memory_operations') as Record<string, unknown>[]
@@ -65,6 +112,7 @@ export function createMemorySnapshots(database: MemoryDatabaseClient, temporaryR
               if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid memory commit result')
             }
           }
+          await assertOwner(tx, scope)
         })
         await database.checkpoint()
       } finally { clean(root, files) }

@@ -8,6 +8,7 @@ import { BackupFailure, type SaveManifest } from './schema'
 import { directory } from './paths'
 import { exportPrivateSave, readArchiveFile, stagePrivateSave } from './archive'
 import { dismissRestoreReceipt, queueRestore, readRestoreReceipt } from './restore'
+import type { ContinuityArchive } from './continuity'
 
 function writeArchive(file: string, bytes: Buffer) {
   const path = resolve(file); const parent = dirname(path)
@@ -16,7 +17,7 @@ function writeArchive(file: string, bytes: Buffer) {
   try { writeFileSync(fd, bytes); fsyncSync(fd) } finally { closeSync(fd) }
   renameSync(temporary, path)
 }
-export function createBackupService(options: { root: string; store: SessionStore; clock: Clock; source: 'real' | 'fake'; fileFilteringEnabled(): boolean; credentials?: readonly string[]; onboarding?(): OnboardingView;
+export function createBackupService(options: { root: string; store: SessionStore; clock: Clock; source: 'real' | 'fake'; fileFilteringEnabled(): boolean; credentials?: readonly string[]; onboarding?(): OnboardingView; continuity?(): Promise<ContinuityArchive>;
   canStart(): boolean; freeze(): Promise<() => void>; chooseExport(name: string): Promise<string | null>; chooseImport(): Promise<string | null>; restart(): void; changed(): void }) {
   const receipt = readRestoreReceipt(options.root)
   let view: BackupView = existsSync(join(options.root, '.restore-error.json')) ? { status: 'failed', error: { code: 'restore-failed', retryable: true } } : receipt ? { status: receipt.status, operationId: receipt.restoreId, archiveId: receipt.manifest.archiveId, safetyBackupId: receipt.safetyBackupId,

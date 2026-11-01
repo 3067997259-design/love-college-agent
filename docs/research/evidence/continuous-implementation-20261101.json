@@ -169,6 +169,43 @@
       "passed": 20,
       "failed": 0,
       "skipped": 0
+    },
+    {
+      "name": "Archive contracts",
+      "report": "test-results/continuity/phase5-archive-contract-final.json",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "Native archive and old restore guarantees",
+      "report": "test-results/continuity/phase5-recovery-queued.json",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "Recovery and settings adjacent checks",
+      "report": "test-results/continuity/phase5-recovery-adjacent.json",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "Restored operation deduplication",
+      "report": "test-results/continuity/phase5-recovery-idempotence.json",
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "Electron utility nonempty archive recovery gate",
+      "report": "test-results/continuity/recovery/gate-QmBWqQ/report.json",
+      "passed": true,
+      "checks": 21,
+      "electron": "44.7.0",
+      "node": "24.21.0",
+      "externalServiceCalls": 0
     }
   ],
   "preservedFailures": [
@@ -190,7 +227,10 @@
     "test-results/continuity/experience-coverage.json",
     "test-results/continuity/execution/gate-OpSdRy",
     "test-results/continuity/execution/gate-Jej2xu",
-    "test-results/continuity/phase5-settings-boundaries.json"
+    "test-results/continuity/phase5-settings-boundaries.json",
+    "test-results/continuity/phase5-recovery-initial.json",
+    "test-results/continuity/recovery/gate-AnJmld",
+    "test-results/continuity/recovery/gate-gaeHwt"
   ],
   "notRun": [
     "full repository tests",
@@ -209,5 +249,5 @@
     "count": 24,
     "run": false
   },
-  "productionIntegration": "Experimental main uses AIRI facts, coverage-based experience indexing, native DSH compaction, persistent foreground/worker roots and evidence-backed checkpoint delivery. Private embedding/mirror configuration, stable data-root identity and the normal settings-page entry are connected. Nonempty legacy migration and atomic original-input capture receipts are implemented. Archive/work/mirror restore transaction integration remains pending."
+  "productionIntegration": "Experimental main uses the complete AIRI engine and persistent foreground/worker roots. Private settings, nonempty legacy migration, original-input receipts and v2 private saves are connected. Native state, original outbox, work logs and mirror epoch share the restore transaction. The Electron utility recovery gate passed; candidate UI, combined regression, build and package acceptance remain pending."
 }

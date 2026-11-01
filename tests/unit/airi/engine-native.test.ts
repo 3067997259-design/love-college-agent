@@ -5,7 +5,7 @@ import { createManualClock } from '../../../src/main/clock'
 import { createMemoryEngine } from '../../../src/main/memory/engine'
 import { createMemoryDatabaseClient } from '../../../src/main/memory/storage/client'
 import { createNativeMemoryDatabase } from '../../../src/main/memory/storage/neo'
-import { createMemoryCommitCoordinator } from '../../../src/main/memory/storage/commits'
+import { createMemoryCommitCoordinator, initializeMemoryCommitSchema } from '../../../src/main/memory/storage/commits'
 import { createMemoryRuntimeState } from '../../../src/main/memory/storage/state'
 import { createMemorySnapshots } from '../../../src/main/memory/storage/snapshots'
 import type { MemoryHostPort } from '../../../src/main/memory/airi/runtime'
@@ -27,6 +27,29 @@ const setup = () => {
 }
 
 describe('owning memory engine', () => {
+  it('exports the frozen owner as complete Parquet/state/log entries and rejects cross-owner imports atomically', async () => {
+    const env = setup(); let held = false
+    const engine = createMemoryEngine({ root: env.root, clock: env.clock, owner, embedding: () => undefined, held: () => held, waitForRestore: async () => {}, journal: () => {}, openDatabase: env.openDatabase })
+    try {
+      await engine.runtime.proposeOperation(context, 'archive-owned', { kind: 'remember', content: 'Archive fact' })
+      await engine.runtime.confirmOperation(scope, 'archive-owned', true)
+      await expect(engine.archive()).rejects.toThrow('FREEZE_REQUIRED')
+      held = true
+      await expect(engine.archive(['Archive fact'])).rejects.toThrow('CREDENTIAL_FORBIDDEN')
+      const archive = await engine.archive()
+      expect(archive.count).toBe(1); expect(archive.entries).toHaveLength(12)
+      const snapshot = archive.entries.filter(entry => entry.path.endsWith('.parquet') || entry.path === 'memory/schema.json')
+      const target = await env.openDatabase(join(env.root, 'wrong-owner.duckdb'))
+      try {
+        await initializeMemoryCommitSchema(target)
+        await expect(createMemorySnapshots(target, env.root, true, { ...scope, userId: 'other-user' }).importSnapshot(snapshot)).rejects.toThrow('SCOPE_MISMATCH')
+        expect((await target.execute('SELECT count(*) AS count FROM memory_fragments') as { count: bigint }[]).map(row => Number(row.count))).toEqual([0])
+        await createMemorySnapshots(target, env.root, true, scope).importSnapshot(snapshot)
+        expect((await target.execute('SELECT count(*) AS count FROM memory_fragments') as { count: bigint }[]).map(row => Number(row.count))).toEqual([1])
+      } finally { await target.close() }
+    } finally { await engine.dispose() }
+  })
+
   it('recovers the database-to-outbox gap and forgotten facts after reopening', async () => {
     const env = setup()
     const db = await env.openDatabase(join(env.root, 'memory.duckdb'))

@@ -5,6 +5,8 @@ import type { Clock } from '../clock'
 import { BackupFailure, DATABASES, manifestSchema, type SaveManifest } from './schema'
 import { checkDatabase, mergeOtherOwners, sha256 } from './archive'
 import { directory, inside, regular } from './paths'
+import { continuityIdentityName, continuityIdentitySchema, ensureContinuityIdentity } from '../continuity/identity'
+import { continuityTargets, prepareContinuityRestore, type OpenRestoreDatabase } from './continuity'
 
 const pendingSchema = z.strictObject({ restoreId: z.string().uuid(), manifestHash: z.string().regex(/^[a-f0-9]{64}$/), safetyBackupId: z.string().uuid() })
 const transactionSchema = z.strictObject({ phase: z.enum(['applying', 'committed', 'rolled-back']), targets: z.array(z.string().max(240)).max(2100), previous: z.array(z.string().max(240)).max(2100) })
@@ -22,7 +24,7 @@ export function readRestoreReceipt(root: string): RestoreReceipt | null {
 }
 export function dismissRestoreReceipt(root: string) { for (const name of ['.restore-receipt.json', '.restore-error.json']) { const path = join(root, name); if (existsSync(path)) { regular(root, path, 1024 * 1024); unlinkSync(path) } } }
 /** Runs before opening any application SQLite connection. Every replacement is reversible. */
-function applyPendingRestoreUnchecked(root: string, owner: SaveManifest['owner'], source: SaveManifest['source'], clock: Clock): RestoreReceipt | null {
+async function applyPendingRestoreUnchecked(root: string, owner: SaveManifest['owner'], source: SaveManifest['source'], clock: Clock, openDatabase?: OpenRestoreDatabase): Promise<RestoreReceipt | null> {
   const pendingPath = join(root, '.restore-pending.json'); if (!existsSync(pendingPath)) return null
   const pending = pendingSchema.parse(JSON.parse(readFileSync(regular(root, pendingPath, 2048), 'utf8')))
   const stage = directory(root, join(root, '.backup-staging', pending.restoreId)); const payload = join(stage, 'payload'); const rollback = directory(root, join(stage, 'rollback')); const failed = directory(root, join(stage, 'failed'))
@@ -33,12 +35,20 @@ function applyPendingRestoreUnchecked(root: string, owner: SaveManifest['owner']
   const legacyTargets = ['journals/' + key, ...DATABASES, ...DATABASES.flatMap((name) => [name + '-wal', name + '-shm']), ...manifest.files.filter((file) => file.path.startsWith('artifacts/')).map((file) => file.path)]
   // Retiring the session index belongs to the same reversible transaction as the book. Otherwise a failed
   // best-effort rename could reconnect restored journals to members and originals from after the save.
-  const targets = [...legacyTargets, 'dsh-sessions.json']
+  const sessionTargets = [...legacyTargets, 'dsh-sessions.json']
+  // If the identity was already moved when the process died, derive paths from
+  // that preserved identity. Rehashing a moved profile's folder would select a
+  // different work log and prevent rollback of the original transaction.
+  const savedIdentity = join(rollback, continuityIdentityName)
+  const restoreOwner = existsSync(savedIdentity)
+    ? { ...owner, dataRootId: continuityIdentitySchema.parse(JSON.parse(readFileSync(regular(root, savedIdentity, 256_000), 'utf8'))).dataRootId }
+    : ensureContinuityIdentity(root, owner).owner
+  const targets = [...sessionTargets, ...continuityTargets(restoreOwner)]
   const ledgerPath = join(stage, 'transaction.json')
   let transaction: z.infer<typeof transactionSchema> | undefined
   if (existsSync(ledgerPath)) {
     transaction = transactionSchema.parse(JSON.parse(readFileSync(regular(root, ledgerPath, 1024 * 1024), 'utf8')))
-    if (![targets, legacyTargets].some((expected) => JSON.stringify(transaction!.targets) === JSON.stringify(expected))) throw new BackupFailure('backup-invalid')
+    if (![targets, sessionTargets, legacyTargets].some((expected) => JSON.stringify(transaction!.targets) === JSON.stringify(expected)) || new Set(transaction.previous).size !== transaction.previous.length || transaction.previous.some(name => !transaction!.targets.includes(name))) throw new BackupFailure('backup-invalid')
   }
   const move = (from: string, to: string) => { inside(root, from); inside(root, to); directory(root, dirname(to)); renameSync(from, to) }
   const recover = () => {
@@ -63,6 +73,7 @@ function applyPendingRestoreUnchecked(root: string, owner: SaveManifest['owner']
         checkDatabase(join(payload, name), name, owner)
         if (existsSync(join(root, name))) mergeOtherOwners(join(payload, name), regular(root, join(root, name), 128 * 1024 * 1024), name, owner)
       }
+      await prepareContinuityRestore({ root, stage, payload, manifest, clock, restoreId: pending.restoreId, openDatabase })
       const previous = targets.filter((name) => existsSync(join(root, name)))
       for (const name of previous) if (lstatSync(join(root, name)).isSymbolicLink()) throw new BackupFailure('backup-invalid')
       if (previous.includes('dsh-sessions.json')) regular(root, join(root, 'dsh-sessions.json'), 1024 * 1024)
@@ -71,7 +82,21 @@ function applyPendingRestoreUnchecked(root: string, owner: SaveManifest['owner']
       for (const name of targets) if (existsSync(join(payload, name))) move(join(payload, name), join(root, name))
       transaction.phase = 'committed'; writeJson(ledgerPath, transaction); success = true
     }
-  } catch { if (transaction?.phase === 'applying') recover() }
+    if (success && transaction && !transaction.targets.includes(continuityIdentityName)) {
+      // Finish a transaction committed by an older application. Extend its
+      // rollback ledger before retiring post-save memory/work and approvals.
+      if (manifest.formatVersion !== 1) throw new BackupFailure('backup-invalid')
+      await prepareContinuityRestore({ root, stage, payload, manifest, clock, restoreId: pending.restoreId, openDatabase })
+      const added = targets.filter(name => !transaction!.targets.includes(name))
+      const previous = added.filter(name => existsSync(join(root, name)))
+      for (const name of previous) if (lstatSync(join(root, name)).isSymbolicLink()) throw new BackupFailure('backup-invalid')
+      if (previous.includes('dsh-sessions.json')) regular(root, join(root, 'dsh-sessions.json'), 1024 * 1024)
+      transaction = { phase: 'applying', targets, previous: [...transaction.previous, ...previous] }; writeJson(ledgerPath, transaction)
+      for (const name of previous) move(join(root, name), join(rollback, name))
+      for (const name of added) if (existsSync(join(payload, name))) move(join(payload, name), join(root, name))
+      transaction.phase = 'committed'; writeJson(ledgerPath, transaction)
+    }
+  } catch { if (transaction?.phase === 'applying') { recover(); success = false } else if (success) throw new BackupFailure('restore-failed') }
   // Finish an already-committed pre-1.2 transaction too. Failure here must block startup, never reconnect
   // old members to the restored book; the pending receipt allows a later retry without repeating the restore.
   const sessions = join(root, 'dsh-sessions.json')
@@ -80,8 +105,8 @@ function applyPendingRestoreUnchecked(root: string, owner: SaveManifest['owner']
   writeJson(join(root, '.restore-receipt.json'), receipt); regular(root, pendingPath, 2048); unlinkSync(pendingPath)
   return receipt
 }
-export function applyPendingRestore(root: string, owner: SaveManifest['owner'], source: SaveManifest['source'], clock: Clock): RestoreReceipt | null {
-  try { return applyPendingRestoreUnchecked(root, owner, source, clock) }
+export async function applyPendingRestore(root: string, owner: SaveManifest['owner'], source: SaveManifest['source'], clock: Clock, openDatabase?: OpenRestoreDatabase): Promise<RestoreReceipt | null> {
+  try { return await applyPendingRestoreUnchecked(root, owner, source, clock, openDatabase) }
   catch {
     // If rollback itself was interrupted, keep the pending transaction for a safe retry. Never open a mixed data set.
     const activePending = join(root, '.restore-pending.json')
@@ -91,7 +116,7 @@ export function applyPendingRestore(root: string, owner: SaveManifest['owner'], 
         const ledger = join(root, '.backup-staging', parsed.data.restoreId, 'transaction.json')
         if (existsSync(ledger)) {
           const phase = transactionSchema.parse(JSON.parse(readFileSync(regular(root, ledger, 1024 * 1024), 'utf8'))).phase
-          if (phase === 'applying' || phase === 'committed' && existsSync(join(root, 'dsh-sessions.json'))) throw new BackupFailure('restore-failed')
+          if (phase === 'applying' || phase === 'committed') throw new BackupFailure('restore-failed')
         }
       }
     }

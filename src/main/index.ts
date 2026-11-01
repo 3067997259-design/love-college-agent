@@ -103,6 +103,7 @@ import { startMcpFixture } from './mcp/fixture'
 import { probeStudentHubMcp } from './validation/mcp'
 import { createBackupService, type BackupService } from './backup/service'
 import { applyPendingRestore } from './backup/restore'
+import { exportContinuity } from './backup/continuity'
 import { probeBackup } from './validation/backup'
 import { createQuillService, quillTools, type QuillService } from './gifts/quill'
 import { buildDiagnostics } from './developer/diagnostics'
@@ -366,7 +367,7 @@ void app.whenReady().then(async () => {
     const activeCharacter = selectedCharacter === 'default-character' ? builtinCharacter : characterLibrary.read(selectedCharacter)
     const owner = { userId: 'local-user', characterId: activeCharacter.id }
     ensureContinuityIdentity(dataDir, owner)
-    const restoreReceipt = applyPendingRestore(dataDir, owner, prepared.developer ? 'fake' : 'real', clock)
+    const restoreReceipt = await applyPendingRestore(dataDir, owner, prepared.developer ? 'fake' : 'real', clock)
     const continuityIdentity = ensureContinuityIdentity(dataDir, owner)
     if (restoreReceipt?.status === 'restored') {
       prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = restoreReceipt.manifest.fileFilteringEnabled })
@@ -449,7 +450,7 @@ void app.whenReady().then(async () => {
     memorySettings = createMemorySettings({ root: dataRoot, clock, runtime: () => memoryFacts.runtime, held: memoryHeld,
       canConfigure: () => !herBusy() && !modelSettings?.isBusy() && !memoryHeld() && !minecraft?.active(),
       prepare: async () => { memory?.foreground(); await memory?.idle() }, reserve: units => resourceBudget?.reserveModel(units, 'autonomous'),
-      changed: () => { for (const key of memorySettings?.credentials() ?? []) if (!privateCredentials.includes(key)) privateCredentials.push(key); controller?.refresh('connection') } })
+      changed: () => { for (const key of memorySettings?.credentials() ?? []) if (!privateCredentials.includes(key)) privateCredentials.push(key); continuousWork?.stateChanged(); controller?.refresh('connection') } })
     memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, facts: memoryFacts, get model() { return fakeMemory?.model ?? taskModels.memory }, development: fakeMemory,
       compactRoot: async operationId => dshExecution ? dshExecution.compact(operationId) : { rootSessionId: '', outcome: 'no_range' },
       beforeRoll: async () => { if (photos && !photos.photo(store!.scope.sessionId)) { photos.capture('day-end', 'day-end:' + store!.scope.sessionId); await photos.idle() } },
@@ -829,11 +830,12 @@ void app.whenReady().then(async () => {
     // Without DSH nothing sends a thinking level; the settings say the provider decides.
     if (!dshExecution) modelSettings.setLevels(null)
     backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials, onboarding: () => controller!.getSnapshot().onboarding!,
+      continuity: () => exportContinuity({ root: dataDir, owner: workOwner, memory: () => memoryFacts.archive(privateCredentials) }),
       canStart: () => !herBusy() && !gifts?.isBusy() && !modelSettings?.isBusy() && !memorySettings?.isBusy() && !minecraft?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
       freeze: async () => { scheduler!.pauseBackground(true); voice?.interrupt(); memory!.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground(); await Promise.all([memory!.idle(), diary?.idle(), photos?.idle(), lifeWork?.idle(), optical?.idle()]); if (herBusy() || gifts?.isBusy() || modelSettings?.isBusy() || memorySettings?.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
       chooseExport: async (name) => { const selected = await dialog.showSaveDialog({ title: '导出私人存档', defaultPath: name, filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePath ?? null },
       chooseImport: async () => { const selected = await dialog.showOpenDialog({ title: '选择私人存档', properties: ['openFile'], filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
-      restart: () => { systemClock.after(100, () => { app.relaunch(); app.quit() }) }, changed: () => controller?.refresh('restore') })
+      restart: () => { systemClock.after(100, () => { app.relaunch(); app.quit() }) }, changed: () => { continuousWork?.stateChanged(); controller?.refresh('restore') } })
     controller.attachBackup(backup)
     quill = createQuillService({ clock, store, scheduler, artifacts, memory: memoryRepository, isBusy: () => herBusy() || !!minecraft?.active(), emit: (source, text, id) => postEvent(source, text, id), changed: () => controller?.refresh('task') })
     controller.attachQuill(quill)
