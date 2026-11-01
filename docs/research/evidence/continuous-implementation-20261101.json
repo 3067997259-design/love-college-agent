@@ -107,6 +107,33 @@
       "passed": true,
       "checks": 18,
       "externalServiceCalls": 0
+    },
+    {
+      "name": "Phase 4 adjacent unit regression",
+      "report": "test-results/continuity/phase4-adjacent.json",
+      "passed": 246,
+      "failed": 0,
+      "skipped": 4
+    },
+    {
+      "name": "Historical expansion and source follow-up",
+      "report": "test-results/continuity/experience-history.json",
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "name": "Progress projection and whole-summary budget follow-up",
+      "report": "test-results/continuity/work-progress-final.json",
+      "passed": 21,
+      "failed": 0
+    },
+    {
+      "name": "Fixed DSH cross-day work and memory story",
+      "report": "test-results/continuity/execution/gate-tga9Lu/report.json",
+      "passed": true,
+      "checks": 23,
+      "modelRequests": 26,
+      "externalServiceCalls": 0
     }
   ],
   "preservedFailures": [
@@ -124,7 +151,10 @@
     "test-results/continuity/conversation/gate-IQOfbv/report.json",
     "test-results/continuity/execution/gate-5te1Ui",
     "test-results/continuity/execution/gate-SoFtYJ",
-    "test-results/continuity/execution/gate-TSlws6"
+    "test-results/continuity/execution/gate-TSlws6",
+    "test-results/continuity/experience-coverage.json",
+    "test-results/continuity/execution/gate-OpSdRy",
+    "test-results/continuity/execution/gate-Jej2xu"
   ],
   "notRun": [
     "full repository tests",
@@ -143,5 +173,5 @@
     "count": 24,
     "run": false
   },
-  "productionIntegration": "Experimental main uses AIRI facts, independent experience/day projection, native DSH compaction, persistent foreground/worker roots and evidence-backed checkpoint delivery. Coverage indexing, correction propagation, migration, embedding/mirror settings and backup remain pending."
+  "productionIntegration": "Experimental main uses AIRI facts, bounded coverage-based experience indexing, revision-aware historical expansion, native DSH compaction, persistent foreground/worker roots and evidence-backed checkpoint delivery. Migration, embedding/mirror settings and backup/recovery remain pending."
 }

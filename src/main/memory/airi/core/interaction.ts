@@ -39,6 +39,9 @@ export interface MemoryOperation {
   fragmentId?: string
   /** Original body shown beside a correction or deletion during user review. */
   previousContent?: string
+  /** Keeps the original grounding identity after deletion, so derived summaries
+   * can retire it without reopening the deleted fact. No original body added. */
+  previousSourceContext?: MemorySourceContext
   /** Remains durable until the existing mirror outbox confirms target invalidation. */
   mirrorPending?: boolean
   createdAt: number

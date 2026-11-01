@@ -101,7 +101,7 @@ describe('background memory scheduling and context assembly', () => {
     expect(reference).toContain('这一周2026-10-05'); expect(reference).toContain('可见经历2026-10-18')
     expect(reference).not.toContain('可见经历2026-10-05')
   })
-  it('trims the reference text instead of letting one injection eat the context budget', () => {
+  it('admits whole reference text within the context budget', () => {
     const f = fixture(); f.clock.advanceBy(f.clock.parse('2026-10-19T12:00:00+08:00') - f.clock.nowMs())
     const today = f.clock.iso(f.clock.nowMs()).slice(0, 10)
     const long = '长'.repeat(5900)
@@ -111,7 +111,8 @@ describe('background memory scheduling and context assembly', () => {
     }
     const selected = summaryReferences(f.repository.view().summaries, 's:today', today, f.clock)
     expect(selected.reduce((sum, summary) => sum + summary.text.length, 0)).toBeLessThanOrEqual(32_000)
-    // 未被裁到上限的最近几天保持全文；被裁的是较早的引用，不是最近的那份。
+    // 引用整体进入预算；不截掉末尾的否定或限定语。
+    expect(selected.every(summary => summary.text === long + summary.period)).toBe(true)
     expect(selected.find((summary) => summary.period === '2026-10-18')?.text).toBe(long + '2026-10-18')
   })
   it('labels weeks at Shanghai Monday even around UTC Sunday', () => {

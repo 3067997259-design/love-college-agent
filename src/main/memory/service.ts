@@ -52,6 +52,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     }
   }
   const experiences = createExperienceIndex({ clock, store, repository, source: () => options.model!.source,
+    policy: options.facts.experiencePolicy,
     summarize: (kind, input, signal) => call(kind, input, signal, output => validateSummary(output, input)) })
   const extractCore = async (signal: AbortSignal) => {
     if (!options.model?.airi) throw new MemoryFailure('not-configured')
@@ -127,8 +128,11 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
         const directory = await options.facts.directory()
         const recall = query.trim() ? await search(query, requestId) : []
         const days = firstOfSession ? experiences.previousDays() : []
-        if (!days.length && !recall.length && !directory.entries.length) return null
+        const index = experiences.index()
+        const dayIndex = firstOfSession ? index.days.filter(day => day.sessionId !== store.scope.sessionId).slice(-14) : []
+        if (!days.length && !recall.length && !directory.entries.length && !dayIndex.length) return null
         const reference = { ...(days.length ? { previousDaysReference: days } : {}), ...(directory.entries.length ? { memoryDirectory: directory.entries } : {}),
+          ...(dayIndex.length ? { experienceIndex: dayIndex, experiencePeriods: index.periods.slice(-12) } : {}),
           ...(recall.length ? { memoryReference: recall } : {}), trust: 'unreviewed-reference' as const }
         disclose(requestId, reference); return reference
       } catch {
@@ -148,6 +152,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
         ...(options.development ? { scenarioId: options.development.scenario() } : {}), ...(error ? { error } : {}) }
     },
     sessionView: experiences.sessionView, readSession: experiences.readSession, search,
+    experienceIndex: experiences.index, expandExperience: experiences.expand,
     bind: options.facts.bind,
     disclose,
     read: options.facts.read,

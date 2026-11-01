@@ -626,7 +626,7 @@ export function createDshExecution(options: {
     const { text, reference } = composeContext({ reference: value, capabilities: (await capacities())?.[options.rootPolicy?.role === 'worker' ? 'work' : 'chat'],
       systemText: options.persona() + options.suffix(), tools: toolSchemas(), inputText: [...exclude].map(id => pendingText.get(id) ?? '').join('\n'), revealedText: revealed?.text })
     options.referencesPrepared?.(requestId, reference)
-    return { text, degrade: revealed ? [revealed.source] : [], memoryDerived: Object.keys(memory).some(key => /memory|reference|previousDays|workCheckpoints/i.test(key)) || earlier.length > 0 }
+    return { text, degrade: revealed ? [revealed.source] : [], memoryDerived: Object.keys(memory).some(key => /memory|reference|previousDays|workCheckpoints|experience|currentDecisions/i.test(key)) || earlier.length > 0 }
   }
 
   return {

@@ -13,5 +13,6 @@
 - 本地仓储只剥离 AIRI 的 `PlanPersistenceRepository` 及其一项测试；原测试与实现保留在固定来源中。LCA 工作状态由自己的日志管理。DuckDB 历史表与列保留。
 - 浏览器 OPFS／Pinia 所有权不作为产品宿主。DuckDB SQL 从原初始化块提取，事务／checkpoint／关闭由 main 控制的 utility process 承担。
 - pgvector 仓储与 schema 保留；连接配置与队列由 LCA 所有，不引入 AIRI server-sdk 服务启动入口。
+- 交互回执增加可选 `previousSourceContext`，在原提案事务中保存目标事实的来源身份；旧回执继续可读。该元数据用于 LCA 经历摘要更正／忘记后的失效，不改变原事实和向量算法，也不复制已删除事实正文作为新经历。
 
 原浏览器测试与 store 保留作宿主改写的验收依据；复制到此目录不等于已在 LCA 运行通过。实施与验证状态见 [实施记录](../../docs/research/continuous-implementation-20261101.md)。

@@ -134,8 +134,10 @@ describe('durable work scheduling and delivery', () => {
   it('rejects stale proof and a file changed after checkpoint preparation', async () => {
     const f = fixture(), a = f.create('a'); await tick(); f.instances[0].context.consumed('create-a')
     const old = f.proof(0)
+    expect(f.view(a.workId).progress?.changedFiles).toBe(1)
     f.service.dispatch({ type: 'work.supplement', target: target(f.view(a.workId)), text: 'new', decisionId: 'new' }, 'update'); await tick()
     f.instances[0].context.consumed('update')
+    expect(f.view(a.workId).progress?.changedFiles).toBe(0)
     expect(() => f.finish(0, [old.id])).toThrow('WORK_CHECKPOINT_UNVERIFIED')
     const current = f.proof(0, 'new-proof'); f.finish(0, [current.id])
     writeFileSync(join(f.root, 'result.txt'), 'Externally changed before turn end')
@@ -152,6 +154,7 @@ describe('durable work scheduling and delivery', () => {
     const evidence = f.proof(0, 'restricted-proof', true); f.finish(0, [evidence.id]); f.instances[0].context.settled(false); await tick()
     expect(checkpointContext(f.service.get(a.workId)!)).toMatchObject({ restricted: true, explanation: null, observations: [{ relativePath: null }] })
     expect(JSON.stringify(f.view(a.workId))).not.toContain('Worker explanation')
+    expect(JSON.stringify(f.view(a.workId))).not.toContain('result.txt')
   })
 
   it('keeps earlier undelivered checkpoints when continuing completed work in a new generation', async () => {

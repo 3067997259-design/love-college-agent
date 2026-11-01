@@ -77,6 +77,7 @@ export async function proposeMemoryOperation(repository: MemoryInteractionReposi
       status: 'pending_review',
       fragmentId: fragment?.id,
       previousContent: target?.content,
+      ...(target?.sourceContext ? { previousSourceContext: structuredClone(target.sourceContext) } : {}),
       createdAt: now,
       updatedAt: now,
     }

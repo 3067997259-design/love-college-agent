@@ -32,7 +32,7 @@ import { createDshExecution, type DshExecution } from './dsh/execution'
 import { createRootHost } from './dsh/root-host'
 import { createContinuousWork, type ContinuousWorkService, type WorkRuntimeContext } from './work/service'
 import { openWorkStore } from './work/store'
-import { workTools, workCompletionTools, checkpointContext } from './work/tools'
+import { workTools, workCompletionTools, workContext } from './work/tools'
 import { workExperience } from './work/experience'
 import { dshLocations } from './dsh/locations'
 import { startDshHost, type DshHost } from './dsh/host'
@@ -699,8 +699,7 @@ void app.whenReady().then(async () => {
           const lines = worker ? worker.work.objective : store!.projection().messages.filter((message) => message.role === 'user' && !message.kind).slice(-3).map((message) => message.text).join('\n')
           const memoryReference = await memory?.reference(lines, requestId, firstOfSession) ?? null
           const world = worldReference(); const sources = sourceState()
-          const workState = !worker && continuousWork ? { workCheckpoints: continuousWork.view().items.map(item => ({ identity: item.identity, revision: item.revision, label: item.label, status: item.status, waitingFor: item.waitingFor,
-            checkpoint: item.checkpointId ? checkpointContext(continuousWork!.get(item.identity.workId)!) : null })) } : null
+          const workState = !worker && continuousWork ? workContext(continuousWork) : null
           return memoryReference || world || sources || workState ? { ...memoryReference, ...world, ...sources, ...workState } : null
         },
         started: ({ turnId, requestId }) => { recall?.bind(requestId, turnId); memory?.bind(requestId, turnId) },

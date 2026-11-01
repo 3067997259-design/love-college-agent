@@ -4,16 +4,22 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { createManualClock, systemClock } from '../../src/main/clock'
-import { openJournal } from '../../src/main/journal/file'
-import { projectJournal } from '../../src/main/journal/projection'
-import type { SessionStore } from '../../src/main/store/session'
+import { openSessionStore } from '../../src/main/store/session'
+import { createScheduler } from '../../src/main/scheduler'
+import { createMemoryFacts } from '../../src/main/memory/facts'
+import { createMemoryService } from '../../src/main/memory/service'
+import { createFakeMemoryModel } from '../../src/main/memory/model'
+import { projectMemory } from '../../src/main/memory/projection'
+import { createMemoryDatabaseClient } from '../../src/main/memory/storage/client'
+import { createNativeMemoryDatabase } from '../../src/main/memory/storage/neo'
+import { memoryTools } from '../../src/main/memory/tools'
 import { createDshExecution } from '../../src/main/dsh/execution'
 import { createRootHost } from '../../src/main/dsh/root-host'
 import { dshRoutes } from '../../src/main/dsh/routes'
 import { createAppController } from '../../src/main/bridge/controller'
 import { createContinuousWork, type WorkRuntimeContext } from '../../src/main/work/service'
 import { openWorkStore } from '../../src/main/work/store'
-import { workTools, workCompletionTools, checkpointContext } from '../../src/main/work/tools'
+import { workTools, workCompletionTools, checkpointContext, workContext } from '../../src/main/work/tools'
 import { workExperience } from '../../src/main/work/experience'
 import { seenFragments } from '../../src/main/memory/seen'
 import type { WorkRecord } from '../../src/main/work/journal'
@@ -23,8 +29,7 @@ import type { WorkTarget } from '../../src/shared/continuity'
 
 const root = resolve(process.argv[2]), repo = resolve(process.argv[3])
 const clock = createManualClock(1_790_000_000_000)
-const journal = openJournal(root, { userId: 'fixture-user', characterId: 'fixture-character' }, clock)
-const store: SessionStore = { scope: journal.scope, records: journal.records, history: journal.records, append: journal.append, projection: () => projectJournal(journal.records()), close: journal.close }
+const store = openSessionStore(root, { userId: 'fixture-user', characterId: 'fixture-character' }, clock)
 const owner = { userId: store.scope.userId, characterId: store.scope.characterId, dataRootId: 'fixture' }
 const controller = createAppController(clock, undefined, store)
 const requests: { model: string; root: string; phase: string; text: string }[] = []
@@ -32,6 +37,8 @@ const checks: Record<string, boolean> = {}
 let phase = 'start', failure: unknown, heldResponse: { response: ServerResponse; model: string } | undefined
 let effectCalls = 0, recordCalls = 0, frontEnded: (() => void) | undefined, workEnded: (() => void) | undefined
 let storyStep = 0, storyWork: (() => WorkRecord) | undefined
+let deadlineFact: { id: string; revision: number } | undefined
+let historicalEntry: { sessionId: string; revision: string } | undefined, historicalStep = 0
 const barrier = () => { let resolve!: () => void; const promise = new Promise<void>(done => { resolve = done }); return { promise, resolve } }
 const holdA = barrier(), holdB = barrier(), releaseA = barrier(), abortedB = barrier(), staleRequest = barrier()
 const textOf = (content: unknown): string => typeof content === 'string' ? content : Array.isArray(content) ? content.map(block => block.text ?? '').join('') : ''
@@ -51,6 +58,25 @@ const server = createServer((request, response) => {
       requests.push({ model: input.model, root: role, phase, text })
       writeFileSync(join(root, 'synthetic-requests.json'), JSON.stringify(requests, null, 2))
       const tools = messages.filter(message => message.role === 'tool')
+      if (phase === 'story-historical') {
+        if (historicalStep++ === 0) { answer(response, input.model, { tool: 'lca_list_experiences', args: { offset: 0 } }); return }
+        assert.ok(text.includes(historicalEntry!.sessionId) && text.includes(historicalEntry!.revision), 'HISTORICAL_INDEX_NOT_DISCLOSED')
+        if (historicalStep === 2) { answer(response, input.model, { tool: 'lca_read_experience', args: { sessionId: historicalEntry!.sessionId, revision: historicalEntry!.revision, offset: 0, includeSuperseded: true } }); return }
+        const result = textOf(tools.at(-1)?.content)
+        assert.ok(result.includes('DEADLINE_FRIDAY') && /"superseded"\s*:\s*true/.test(result), 'HISTORICAL_VALUE_NOT_LABELLED_SUPERSEDED')
+        answer(response, input.model, { text: 'At that time the deadline was DEADLINE_FRIDAY; the current deadline is DEADLINE_SATURDAY.' }); return
+      }
+      if (phase === 'seed-memory' || phase === 'story-correct') {
+        const mark = messages.findLastIndex(message => message.role === 'user' && /\[\[(SEED_MEMORY|CORRECT_DEADLINE)\]\]/.test(textOf(message.content)))
+        const called = messages.slice(mark + 1).some(message => message.role === 'tool')
+        if (!called) {
+          const correction = phase === 'story-correct'
+          answer(response, input.model, { tool: correction ? 'lca_correct_memory' : 'lca_remember_memory', args: {
+            content: correction ? 'The work deadline is DEADLINE_SATURDAY.' : 'The work deadline is DEADLINE_FRIDAY.', title: 'Work deadline', summary: correction ? 'DEADLINE_SATURDAY' : 'DEADLINE_FRIDAY',
+            ...(correction ? { targetId: deadlineFact!.id, expectedRevision: deadlineFact!.revision } : {}) } }); return
+        }
+        answer(response, input.model, { text: 'The memory proposal is waiting for review.' }); return
+      }
       if (phase.startsWith('story-')) {
         const work = storyWork!()
         if (role !== 'foreground') {
@@ -66,6 +92,11 @@ const server = createServer((request, response) => {
         }
         const checkpoint = checkpointContext(work)
         assert.ok(checkpoint?.published && text.includes(checkpoint.observations[0].hash!), 'FRONT_MISSING_PUBLISHED_CHECKPOINT')
+        if (phase === 'story-next-day') {
+          const current = textOf(messages.findLast(message => message.role === 'user' && textOf(message.content).includes('[[NEXT_DAY]]'))?.content)
+          assert.ok(current.includes('DEADLINE_SATURDAY'), 'CURRENT_FACT_MISSING_NEXT_DAY')
+          assert.ok(!current.includes('DEADLINE_FRIDAY'), 'STALE_SUMMARY_OVERRIDES_CORRECTION')
+        }
         answer(response, input.model, { text: 'Delivered output.txt with NEWEST_VALUE and a verified hash.' }); return
       }
       if (role !== 'foreground') {
@@ -104,6 +135,13 @@ async function run() {
   let selected: 'A' | 'B' = 'A'
   const host = createRootHost({ dataDir: root })
   const experience = workExperience(store, () => 'fake')
+  const scheduler = createScheduler(clock)
+  const facts = createMemoryFacts({ root: join(root, 'facts'), clock, store, owner, held: () => false, waitForRestore: async () => {}, changed: () => controller.refresh('connection'),
+    embedding: () => ({ provider: 'fixture', model: 'synthetic-768', fingerprint: 'work-story-768', embed: async () => Array.from({ length: 768 }, (_, index) => index === 0 ? 1 : 0) }),
+    openDatabase: async path => { const db = createMemoryDatabaseClient(createNativeMemoryDatabase(), clock); await db.open(path); return db } })
+  const memory = createMemoryService({ clock, store, scheduler, facts, repository: { view: () => projectMemory(store.history!()), append: store.append, refresh: () => {}, close: () => {} },
+    model: createFakeMemoryModel().model, isBusy: () => foreground.busy() || service.busy(), rolled: () => {}, changed: () => controller.refresh('task'), limits: { idleMs: 0 } })
+  scheduler.cancel('memory.maintenance')
   const result = (value: string) => ({ ok: true, raw: { value }, visible: { value } })
   const fixtureTools: HarnessTool[] = [
     { templateId: 'fixture.hold', definition: { name: 'gate_hold', description: 'Wait on an isolated deterministic test barrier.', parameters: { type: 'object', properties: { root: { type: 'string', enum: ['A', 'B'] } }, required: ['root'], additionalProperties: false } }, validate: input => input.root === 'A' || input.root === 'B',
@@ -133,16 +171,29 @@ async function run() {
     }, changed: () => controller.refresh('task') })
   const foreground = createDshExecution({ ...common, store, dataDir: root, project: () => projects[selected], rootPolicy: { role: 'foreground', work: null },
     consumed: id => { experience.consumed(id); service.consumedDelivery(id) },
-    reference: () => ({ workCheckpoints: service.view().items.map(item => ({ identity: item.identity, revision: item.revision, label: item.label, status: item.status,
-      checkpoint: checkpointContext(service.get(item.identity.workId)!) })) }),
-    tools: () => workTools(service), changed: reason => controller.refresh(reason), settled: () => { frontEnded?.(); frontEnded = undefined } })
+    reference: async ({ requestId, firstOfSession }) => ({ ...await memory.reference('work deadline', requestId, firstOfSession), ...workContext(service) }),
+    referencesPrepared: (requestId, reference) => memory.disclose(requestId, reference), started: ({ requestId, turnId }) => memory.bind(requestId, turnId),
+    tools: () => [...workTools(service), ...memoryTools(memory)], changed: reason => controller.refresh(reason), settled: () => { frontEnded?.(); frontEnded = undefined } })
   controller.attachExecution(foreground, true); controller.attachContinuousWork(service)
+  controller.attachMemory(memory)
   const send = (body: Record<string, unknown>, requestId = randomUUID()) => controller.dispatch({ protocolVersion: 1, epoch: controller.getSnapshot().epoch, requestId, ...body } as AppCommand)
   const chat = async (text: string) => { const done = new Promise<void>(resolve => { frontEnded = resolve }); assert.equal(send({ type: 'message.send', text }).status, 'accepted'); await foreground.prepared(); await done; if (failure) throw failure; assert.equal(store.projection().task?.status, 'completed') }
   const target = (id: string): WorkTarget => { const work = service.view().items.find(work => work.identity.workId === id)!; return { identity: work.identity, expectedRevision: work.revision } }
   const source = () => { const row = store.records().findLast(row => row.type === 'user/message'); assert.ok(row?.type === 'user/message'); return row }
   const until = (condition: () => boolean) => new Promise<void>(done => { const stop = controller.subscribe(() => { if (condition()) { stop(); done() } }); if (condition()) { stop(); done() } })
   const steps = async () => {
+    await memory.initialize()
+    const review = async () => {
+      const operation = memory.view().operations?.findLast(item => item.status === 'pending_review'); assert.ok(operation)
+      assert.equal(send({ type: 'memory.review', operationId: operation.operationId, approve: true }).status, 'accepted')
+      await memory.idle(); assert.equal(memory.view().operations?.find(item => item.operationId === operation.operationId)?.status, 'applied')
+    }
+    phase = 'seed-memory'; await chat('[[SEED_MEMORY]] Remember that the work deadline is DEADLINE_FRIDAY.'); await review()
+    deadlineFact = facts.factViews().find(item => item.content.includes('DEADLINE_FRIDAY')); assert.ok(deadlineFact)
+    const firstPage = store.scope.sessionId
+    clock.advanceBy(86_400_000); await memory.maintenance()
+    checks.oldDayActuallyRolled = store.scope.sessionId !== firstPage && store.history!().some(row => row.type === 'memory/summary' && row.summary.text.includes('DEADLINE_FRIDAY'))
+    phase = 'start'
     await chat('[[START_A]] Please start task A.'); await holdA.promise
     const a = service.view().items.find(work => work.identity.projectId === 'A')!.identity.workId
     phase = 'chat-while-held'; await chat('[[CHAT]] How is your day?')
@@ -186,8 +237,17 @@ async function run() {
     const userDecisions = seenFragments(store.records(), true, true).filter(item => item.origin === 'user')
     checks.originalDecisionsNotRecaptured = userDecisions.filter(item => item.text.includes('For task A use NEWEST_VALUE')).length === 1
     checks.handoffsNotNewExperiences = !seenFragments(store.records(), true, true).some(item => item.text.includes('Delivered output.txt') || item.text.includes('Read the current work checkpoint'))
-    clock.advanceBy(86_400_000); phase = 'story-next-day'; await chat('What was the completed result yesterday?')
+    phase = 'story-correct'; await chat('[[CORRECT_DEADLINE]] Correct the work deadline to DEADLINE_SATURDAY.'); await review()
+    historicalEntry = memory.experienceIndex().days.find(day => day.sessionId === firstPage); assert.ok(historicalEntry)
+    phase = 'story-historical'; await chat('What deadline did I originally give on the first day?')
+    checks.historicalExpansionMarksSupersededValue = historicalStep === 3
+    const workDay = store.scope.sessionId
+    clock.advanceBy(86_400_000); await memory.maintenance(); phase = 'story-next-day'; await chat('[[NEXT_DAY]] What was the completed result and the current deadline?')
     checks.nextDayUsesSameWorkIdentity = requests.at(-1)?.text.includes(a) === true && requests.at(-1)?.text.includes('Wrote NEWEST_VALUE to output.txt.') === true
+    checks.realDayRolloverWithWorkHistory = store.scope.sessionId !== workDay
+    const currentReference = JSON.stringify(await memory.reference('work deadline', 'verify-new-fact', true))
+    checks.oldSummaryCannotOverrideNewFact = currentReference.includes('DEADLINE_SATURDAY') && !currentReference.includes('DEADLINE_FRIDAY')
+    checks.originalHistoryStillPresent = store.history!().some(row => row.type === 'user/message' && row.text.includes('DEADLINE_FRIDAY'))
     assert.ok(Object.values(checks).every(Boolean), JSON.stringify(checks))
   }
   let stopDeadline = () => {}
@@ -196,7 +256,7 @@ async function run() {
   finally {
     stopDeadline()
     const closing = await Promise.allSettled([service.close(), foreground.close()])
-    await host.close(); server.closeAllConnections(); await new Promise<void>(done => server.close(() => done())); store.close(); controller.dispose()
+    await host.close(); await memory.close(); scheduler.dispose(); server.closeAllConnections(); await new Promise<void>(done => server.close(() => done())); store.close(); controller.dispose()
     for (const result of closing) if (result.status === 'rejected') cleanupFailure = result.reason
   }
   if (cleanupFailure) throw cleanupFailure

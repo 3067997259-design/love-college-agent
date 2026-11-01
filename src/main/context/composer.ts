@@ -1,7 +1,7 @@
 import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
 
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value), 'utf8')
-const optionalLists = ['workCheckpoints', 'currentDecisions', 'memoryDirectory', 'memoryReference', 'earlierToday', 'previousDaysReference'] as const
+const optionalLists = ['workCheckpoints', 'currentDecisions', 'memoryDirectory', 'memoryReference', 'earlierToday', 'previousDaysReference', 'experienceIndex', 'experiencePeriods'] as const
 export class ContextBudgetFailure extends Error { readonly code = 'context-too-large'; constructor() { super('CONTEXT_REFERENCE_BUDGET_EXCEEDED') } }
 
 /** One budget for all producer projections. UTF-8 bytes are a conservative text

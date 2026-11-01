@@ -25,6 +25,7 @@ const operationSchema = v.strictObject({
   status: v.picklist(['pending_review', 'applied', 'rejected', 'conflict']),
   fragmentId: v.optional(identifier),
   previousContent: v.optional(v.string()),
+  previousSourceContext: v.optional(v.custom<MemorySourceContext>(value => parseMemorySourceContext(value) !== undefined)),
   mirrorPending: v.optional(v.boolean()),
   createdAt: v.pipe(v.number(), v.finite()),
   updatedAt: v.pipe(v.number(), v.finite()),

@@ -10,7 +10,7 @@ import type { MemoryTurnExtractor, MemoryHostPort } from './airi/runtime'
 import type { MemoryReconciler } from './airi/repository/reconciliation'
 import type { MemoryInteractionContext, MemoryReadReference } from './airi/repository/interactions'
 import { buildMemoryDirectory, isSameMemoryScope, type MemoryFragment, type MemoryProposal } from './airi/core'
-import { seenFragments, type SeenFragment } from './seen'
+import { seenFragments, memoryDigest, type SeenFragment } from './seen'
 import { MemoryFailure } from './model'
 
 export interface MemoryCaptureModel { extract: MemoryTurnExtractor; reconcile?: MemoryReconciler }
@@ -32,6 +32,7 @@ export function createMemoryFacts(options: {
   let fragments: MemoryFragment[] = []
   let operations: MemoryReviewView[] = []
   let proposalFacts = new Set<string>()
+  let experiencePolicy = { revision: 'initial', excludedSourceIds: [] as string[], historicalSourceIds: [] as string[], legacyCutoff: 0 }
   let closed = false
   const history = () => options.store.history?.() ?? options.store.records()
   const sourceId = (source: SeenFragment) => source.sourceEventId ? `event:${source.sourceEventId}` : source.id
@@ -46,6 +47,21 @@ export function createMemoryFacts(options: {
     if (!repository) throw new MemoryFailure('unavailable')
     fragments = await repository.list({ scope, limit: 10_000 })
     const reviews = await runtime.listOperations(scope)
+    const changes = reviews.filter(item => item.status === 'applied' && item.proposal.kind !== 'remember')
+    const retiredFacts = fragments.filter(fact => fact.factStatus === 'superseded')
+    const excludedSourceIds = [...new Set([...changes.map(item => item.previousSourceContext?.messageId), ...retiredFacts.map(fact => fact.sourceContext?.messageId)].filter((id): id is string => !!id))].sort()
+    const forgotten = new Set(changes.filter(item => item.proposal.kind === 'forget').map(item => item.proposal.targetId!))
+    // Forgetting the latest revision also prevents historical expansion from
+    // bringing back earlier revisions of that same claim.
+    for (let count = -1; count !== forgotten.size;) { count = forgotten.size; for (const item of changes) if (item.fragmentId && forgotten.has(item.fragmentId) && item.proposal.targetId) forgotten.add(item.proposal.targetId) }
+    const forbidden = new Set(changes.filter(item => forgotten.has(item.proposal.targetId!)).map(item => item.previousSourceContext?.messageId))
+    const historicalSourceIds = [...new Set([...changes.filter(item => item.proposal.kind === 'correct').map(item => item.previousSourceContext?.messageId),
+      ...retiredFacts.filter(fact => !forgotten.has(fact.id)).map(fact => fact.sourceContext?.messageId)].filter((id): id is string => !!id && !forbidden.has(id)))].sort()
+    // Old receipts did not preserve the deleted grounding identity. Their older
+    // summaries remain archives, but cannot silently present old claims as current.
+    const knownSources = new Set(seenFragments(history(), true, true).map(sourceId))
+    const legacyCutoff = changes.reduce((at, item) => item.previousSourceContext?.messageId && knownSources.has(item.previousSourceContext.messageId) ? at : Math.max(at, item.updatedAt), 0)
+    experiencePolicy = { revision: changes.length || retiredFacts.length ? memoryDigest(JSON.stringify([changes.map(item => item.operationId).sort(), excludedSourceIds, legacyCutoff])) : 'initial', excludedSourceIds, historicalSourceIds, legacyCutoff }
     proposalFacts = new Set(reviews.filter(item => item.status === 'pending_review' && item.fragmentId).map(item => item.fragmentId!))
     operations = reviews.slice(-40).map(item => ({ operationId: item.operationId, kind: item.proposal.kind,
       title: item.proposal.title ?? '', content: item.proposal.content ?? '', previousContent: item.previousContent ?? null, status: item.status, updatedAtMs: item.updatedAt }))
@@ -63,6 +79,7 @@ export function createMemoryFacts(options: {
   const rememberedByTurn = new Map<string, MemoryReadReference[]>()
   return {
     runtime, refresh, factViews,
+    experiencePolicy: () => structuredClone(experiencePolicy),
     operations: () => structuredClone(operations),
     bind: (requestId: string, turnId: string) => { const references = rememberedByTurn.get(requestId); if (references) { rememberedByTurn.set(turnId, references); rememberedByTurn.delete(requestId) } },
     disclose: (requestId: string, references: readonly MemoryReadReference[]) => {

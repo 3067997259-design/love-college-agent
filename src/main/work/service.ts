@@ -64,7 +64,13 @@ export function createContinuousWork(options: {
     for (const input of work.inputs) if (input.state === 'accepted' || input.state === 'pending') input.state = 'unknown'
     persist(work, 'recovered')
   }
-  const viewOf = (work: WorkRecord): ContinuousWorkView => ({ identity: structuredClone(work.identity), revision: work.revision, label: work.label,
+  const progressOf = (work: WorkRecord) => {
+    const observations = (work.evidence ?? []).filter(item => item.identity.generation === work.identity.generation && item.identity.objectiveRevision === work.identity.objectiveRevision)
+    return { observedActions: observations.length, changedFiles: new Set(observations.filter(item => item.kind === 'artifact' && item.status === 'passed').map(item => item.relativePath)).size,
+      completedCommands: observations.filter(item => item.kind === 'command' && item.status === 'passed').length,
+      failedActions: observations.filter(item => item.status === 'failed').length, lastObservedAt: observations.at(-1)?.observedAt ?? null }
+  }
+  const viewOf = (work: WorkRecord): ContinuousWorkView => ({ identity: structuredClone(work.identity), revision: work.revision, label: work.label, progress: progressOf(work),
     status: work.status, waitingFor: work.waitingFor, checkpointId: work.checkpointId, updatedAt: work.updatedAt,
     ...(work.delivery ? { delivery: { eventId: work.delivery.eventId, state: work.delivery.state } } : {}),
     controls: { supplement: modifiable.has(work.status), pause: ['running', 'queued', 'waiting'].includes(work.status),

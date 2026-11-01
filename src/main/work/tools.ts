@@ -59,6 +59,16 @@ export function checkpointContext(work: NonNullable<ReturnType<ContinuousWorkSer
     authority: 'historical-work-evidence-not-current-permission-or-new-experience' }
 }
 
+/** Whole references are budgeted by the shared context composer. Latest exact
+ * user decisions precede older ones; no worker-authored objective gains authority. */
+export function workContext(service: ContinuousWorkService) {
+  const works = service.view().items
+  return { workCheckpoints: works.map(item => ({ identity: item.identity, revision: item.revision, label: item.label, status: item.status, waitingFor: item.waitingFor,
+    progress: item.progress, checkpoint: item.checkpointId ? checkpointContext(service.get(item.identity.workId)!) : null })),
+  currentDecisions: works.flatMap(item => service.get(item.identity.workId)!.decisions.toReversed().map(decision => ({ workId: item.identity.workId,
+    objectiveRevision: item.identity.objectiveRevision, status: item.status, eventId: decision.id, atMs: decision.atMs, text: decision.text, authority: 'original-decision-for-this-work-only-not-new-speech' }))) }
+}
+
 export function workCompletionTools(service: ContinuousWorkService, identity: WorkIdentity): HarnessTool[] {
   const empty = z.strictObject({})
   const result = (value: unknown) => { const data = JSON.parse(JSON.stringify(value)) as Record<string, never>; return { ok: true, raw: data, visible: data } }

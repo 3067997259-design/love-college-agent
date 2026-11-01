@@ -3,7 +3,7 @@ import type { AppBridge, AppSnapshot } from '../../../shared'
 import type { WorkStatus } from '../../../shared/continuity'
 import { sendCommand, type CommandBody } from './command'
 
-const status: Record<WorkStatus, string> = { queued: '排队中', running: '正在做', waiting: '等你回应', paused: '已暂停', stopping: '正在停止', stopped: '已停止', review_required: '需要核对后继续', completed: '已交付', failed: '这次没做完' }
+const status: Record<WorkStatus, string> = { queued: '排队中', running: '正在做', waiting: '等你回应', paused: '已暂停', stopping: '正在停止', stopped: '已停止', review_required: '需要核对后继续', completed: '已完成', failed: '这次没做完' }
 
 /** Existing conversation dock: safe task cards, never the worker's raw transcript. */
 export function ContinuousWorks({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: AppBridge }) {
@@ -18,6 +18,7 @@ export function ContinuousWorks({ snapshot, bridge }: { snapshot: AppSnapshot; b
       const target = { identity: work.identity, expectedRevision: work.revision }
       return <li key={work.identity.workId}>
         <p>{work.label}</p><small>{status[work.status]}{work.waitingFor === 'approval' ? ' · 等你批准' : ''}</small>
+        {!!work.progress?.observedActions && <p><small>已改动 {work.progress.changedFiles} 个文件 · 命令通过 {work.progress.completedCommands} 项{work.progress.failedActions ? ` · ${work.progress.failedActions} 次失败` : ''}</small></p>}
         <div>{work.controls.resume && <button type="button" onClick={() => { void send({ type: 'work.resume', target }) }}>核对并继续</button>}
           {work.controls.pause && <button type="button" onClick={() => { void send({ type: 'work.pause', target }) }}>暂停</button>}
           {work.controls.stop && <button type="button" onClick={() => { void send({ type: 'work.stop', target }) }}>停止</button>}</div>
