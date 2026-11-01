@@ -39,6 +39,8 @@ export interface ContinuousWorkView {
   waitingFor: 'approval' | 'user' | 'budget' | 'project' | 'recovery' | null
   checkpointId: string | null
   delivery?: { eventId: string; state: 'pending' | 'accepted' | 'consumed' | 'unknown' }
+  /** Counts of current-version executor observations, never a model percentage. */
+  progress?: { observedActions: number; changedFiles: number; completedCommands: number; failedActions: number; lastObservedAt: number | null }
   updatedAt: number
   controls: { supplement: boolean; pause: boolean; stop: boolean; resume: boolean }
 }
