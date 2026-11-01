@@ -14,6 +14,7 @@ import { collaborationViewSchema } from './collaboration'
 import { memberStepsSchema } from './member-steps'
 import type { AgentTarget } from '../../shared/collaboration'
 import { z } from 'zod'
+import type { RootCompactionOutcome } from '../../shared/continuity'
 import { CAPABILITY_LEVELS } from '../config/model-capabilities'
 import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
 
@@ -202,7 +203,7 @@ export function startDshHost(options: DshHostOptions) {
       void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id)) && current()) send({ t: 'question-answer', id: message.id, ...result }) })
     }
     else if (message.t === 'question-cancel') { asking.get(String(message.id))?.abort(); asking.delete(String(message.id)) }
-    else if ((message.t === 'session' || message.t === 'described' || message.t === 'probed' || message.t === 'extensions' || message.t === 'collaboration-reply' || message.t === 'member-steps-reply' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
+    else if ((message.t === 'session' || message.t === 'described' || message.t === 'probed' || message.t === 'compacted' || message.t === 'extensions' || message.t === 'collaboration-reply' || message.t === 'member-steps-reply' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
       const entry = waiting.get(message.ref)!; waiting.delete(message.ref)
       if (message.t === 'error') entry.fail(new Error(String(message.message))); else entry.done(message)
     }
@@ -218,6 +219,16 @@ export function startDshHost(options: DshHostOptions) {
   return {
     started,
     available: () => !closed && !disconnected,
+    compact: async (rootSessionId: string, operationId: string): Promise<{ rootSessionId: string; outcome: RootCompactionOutcome }> => {
+      await started
+      const root = identities.address(rootSessionId)
+      if (!root || root.parentSessionId !== null) throw new Error('DSH_ORIGIN_UNAVAILABLE')
+      try {
+        const answer = await request({ t: 'compact', sessionId: rootSessionId, operationId }, 60_000)
+        if (answer.rootSessionId !== rootSessionId) throw new Error('DSH_IDENTITY_CONFLICT')
+        return { rootSessionId, outcome: z.enum(['compacted', 'no_range', 'busy', 'failed']).parse(answer.outcome) }
+      } catch (error) { send({ t: 'compact-cancel', sessionId: rootSessionId }); throw error }
+    },
     memberSteps: async (target: AgentTarget) => {
       await started
       const root = identities.address(target.address.rootSessionId)

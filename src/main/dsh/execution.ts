@@ -17,6 +17,7 @@ import { publicMemberSteps } from './member-steps'
 import { toolKind } from './tool-kinds'
 import type { CollaborationView } from '../../shared/collaboration'
 import type { DshConversationState } from '../../shared/dsh-protocol'
+import type { RootCompactionOutcome } from '../../shared/continuity'
 
 /**
  * `seen`: the conversation of this turn, in order, as she saw it: your lines and her replies, never tool traffic.
@@ -586,6 +587,15 @@ export function createDshExecution(options: {
 
   return {
     collaboration,
+    compact: async (operationId: string): Promise<{ rootSessionId: string; outcome: RootCompactionOutcome }> => {
+      const rootSessionId = session?.id ?? ''
+      if (closed || maintaining || turn || opening || collaboration.busy()) return { rootSessionId, outcome: 'busy' }
+      if (!session || !host || !currentScope()) return { rootSessionId, outcome: 'no_range' }
+      maintaining = true
+      try { return await host.compact(rootSessionId, operationId) }
+      catch { return { rootSessionId, outcome: 'failed' } }
+      finally { maintaining = false; kick() }
+    },
     source: options.source ?? 'real',
     /** `extra`: references for this message only (an old-page quote you ask about). */
     send: (text: string, requestId: string, commandHash: string, extra?: Record<string, unknown> | null) => {

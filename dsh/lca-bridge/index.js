@@ -17,7 +17,7 @@ import { createCollaboration } from './collaboration.js'
 import { validState, stateReply, statePrompt, WORK_CONTINUATION } from './state.js'
 
 export const name = 'lca-bridge'
-export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm', 'sessionProjections', 'pluginManager', 'profileContext', 'skills', 'agentTeams', 'subagents']
+export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm', 'sessionProjections', 'pluginManager', 'profileContext', 'skills', 'agentTeams', 'subagents', 'compaction']
 
 const CLIP = 4000
 const SOURCES = new Set(['mail', 'document', 'web', 'mcp', 'plugin', 'member'])
@@ -37,6 +37,7 @@ export function apply(ctx) {
     return process.platform === 'win32' ? value.toLowerCase() : value
   }
   const calls = new Map()
+  const compactions = new Map() // root id -> cancellation for its standalone maintenance
   const asked = new Map() // callId -> { kind, command } for approvals this plugin asked for
   const subjects = new Map() // callId -> short subject for an approval card (approval requests carry no arguments)
   const questions = new Map() // id -> { done, fail } for her questions waiting on your answer in the book
@@ -458,6 +459,26 @@ export function apply(ctx) {
           // Capture each root's current card before awaiting loader/model/session setup.
           // Concurrent opens must not overwrite another root's pending prompt.
           send({ t: 'session', ref: message.ref, ...(await open(message)) }); break
+        case 'compact': {
+          const root = message.sessionId
+          let outcome = 'failed'
+          const abort = new AbortController()
+          try {
+            const agent = agentOf(root)
+            if (!live.has(root) || !isRoot(agent)) throw new Error('ROOT_REQUIRED')
+            if (compactions.has(root)) { outcome = 'busy' }
+            else {
+              compactions.set(root, abort)
+              if (!await admit(root, models.get(root)?.role ?? 'chat', originOf(agent))) throw new Error('BUDGET_REFUSED')
+              const result = await ctx.compaction.compactNow(agent, abort.signal, message.operationId)
+              outcome = result ? 'compacted' : 'no_range'
+            }
+          } catch (error) { outcome = error?.code === 'busy' ? 'busy' : 'failed' }
+          finally { if (compactions.get(root) === abort) compactions.delete(root) }
+          // Provider diagnostics and the summary itself remain in DSH's private log.
+          send({ t: 'compacted', ref: message.ref, rootSessionId: root, outcome }); break
+        }
+        case 'compact-cancel': compactions.get(message.sessionId)?.abort(); break
         case 'send': {
           const agent = agentOf(message.sessionId)
           updateState(message.sessionId, message.state)
@@ -476,7 +497,7 @@ export function apply(ctx) {
           if (message.mode === 'steer') agent.steer(input); else if (message.mode === 'inject') agent.inject(input); else agent.followup(input)
           break
         }
-        case 'cancel': safety.cancel(message.sessionId); collaboration.notify(); break
+        case 'cancel': compactions.get(message.sessionId)?.abort(); safety.cancel(message.sessionId); collaboration.notify(); break
         case 'state': updateState(message.sessionId, message.state); break
         case 'state-answer': stateReplies.get(message.id)?.(message.ok === true); break
         case 'trust': { safety.setTrust(message.sessionId, true); send({ t: 'trusted', sessionId: message.sessionId, preset: presetOf(agentOf(message.sessionId).session) }); break }
@@ -517,7 +538,7 @@ export function apply(ctx) {
           for (const [sessionId, entry] of models) choose(sessionId, entry.role)
           break
         }
-        case 'shutdown': await shutdown(); break
+        case 'shutdown': for (const abort of compactions.values()) abort.abort(); await shutdown(); break
         default: send({ t: 'error', ref: message?.ref, message: `unknown command ${String(message?.t)}` })
       }
     } catch (error) {

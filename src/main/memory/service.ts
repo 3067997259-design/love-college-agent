@@ -20,6 +20,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   includeContextEntries?(seqs: readonly number[]): ReadonlySet<number>;
   beforeRoll?(): Promise<void>;
   closingDay?(): void;
+  compactRoot?(operationId: string): Promise<{ rootSessionId: string; outcome: import('../../shared/continuity').RootCompactionOutcome }>;
 }) {
   const { clock, store, scheduler, repository } = options
   const records = () => store.history?.() ?? store.records()
@@ -27,6 +28,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   let worker: Promise<void> | undefined; let active: AbortController | undefined; let disposed = false; let enabled = true
   let status: MemoryView['status'] = options.model ? 'idle' : 'unconfigured'
   let error: { code: PublicErrorCode; retryable: boolean } | undefined
+  let compaction: MemoryView['compaction']
   const idleMs = options.limits?.idleMs ?? 120_000
   const lastUserAt = () => records().reduce((time, row) => row.type === 'user/message' ? Math.max(time, row.atMs) : time, 0)
   const allowed = () => !disposed && enabled && !store.projection().lightsOut
@@ -74,7 +76,15 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     signal.throwIfAborted()
     repository.append({ type: 'memory/batch', batchId: memoryDigest(input.map((source) => source.key).join(':')), keys: input.map((source) => source.key), entries, source: options.model!.source })
   }
-  const compactCore = async (signal: AbortSignal, force = false) => {
+  const compactCore = async (signal: AbortSignal, force = false, requestId: string = randomUUID()) => {
+    if (options.compactRoot) {
+      if (!force) return // DSH owns automatic pressure compaction as well.
+      signal.throwIfAborted()
+      const result = await options.compactRoot(requestId)
+      compaction = { ...result, atMs: clock.nowMs() }
+      if (result.outcome === 'failed' || result.outcome === 'busy') throw new MemoryFailure('unavailable')
+      return
+    }
     if (!force && contextChars() < (options.limits?.compactChars ?? 24_000)) return
     const rows = store.records(); const ended = rows.filter((row) => row.type === 'turn/end')
     const cutoff = ended.at(-3)?.seq
@@ -137,7 +147,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     }
   }
   const run = (kind: OperationKind, work: (signal: AbortSignal) => Promise<void>) => {
-    if (worker || !allowed() || !options.model && kind !== 'day') return worker ?? Promise.resolve()
+    if (worker || !allowed() || !options.model && kind !== 'day' && !(kind === 'compact' && options.compactRoot)) return worker ?? Promise.resolve()
     const abort = new AbortController(); active = abort; status = kind === 'compact' ? 'compacting' : 'extracting'; error = undefined; options.changed()
     worker = work(abort.signal).catch((cause: unknown) => {
       if (!abort.signal.aborted) { status = 'failed'; error = { code: cause instanceof MemoryFailure ? cause.code : 'internal', retryable: true } }
@@ -178,7 +188,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     },
     view: (): MemoryView => {
       const state = repository.view(); const valid = state.items.filter((item) => !item.supersededBy)
-      return { status: !options.model ? 'unconfigured' : status === 'unconfigured' ? 'idle' : status, source: options.model?.source ?? 'none', shortTermCount: valid.filter((item) => item.tier === 'short_term').length, longTermCount: valid.filter((item) => item.tier === 'long_term').length,
+      return { ...(compaction ? { compaction } : {}), status: !options.model ? 'unconfigured' : status === 'unconfigured' ? 'idle' : status, source: options.model?.source ?? 'none', shortTermCount: valid.filter((item) => item.tier === 'short_term').length, longTermCount: valid.filter((item) => item.tier === 'long_term').length,
         summaryCounts: Object.fromEntries((['day', 'week', 'month'] as const).map((level) => [level, latestSummaries(state.summaries).filter((summary) => summary.level === level).length])) as { day: number; week: number; month: number },
         contextChars: contextChars(), lastExtractedAtMs: state.lastExtractedAtMs, lastCompactedAtMs: state.lastCompactedAtMs,
         items: state.items.slice(-20).map((item) => ({ id: item.id, text: item.text, kind: item.kind, tier: item.tier, reviewStatus: item.reviewStatus, createdAtMs: item.createdAtMs,
@@ -216,6 +226,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
         if (!pendingDay() || !backgroundAllowed() || store.projection().pomodoro.status === 'running') return 'unavailable'
         void run('day', rollCore); return
       }
+      if (command.type === 'context.compact' && options.compactRoot) { void run('compact', signal => compactCore(signal, true, command.requestId)); return }
       if (!options.model) return 'not-configured'
       if (command.type === 'memory.extract') { void run('extract', extractCore); return }
       if (command.type === 'memory.consolidate') { void run('week', (signal) => consolidateCore(signal)); return }

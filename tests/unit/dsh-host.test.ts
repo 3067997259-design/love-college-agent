@@ -22,6 +22,20 @@ const deferred = <T>() => {
   return { promise, resolve }
 }
 
+it('targets compaction at a registered root and waits for the actual DSH outcome', async () => {
+  const f = setup(); await f.start()
+  const opening = f.host.open('/fixture', 'compact-root')
+  await Promise.resolve(); const open = f.child.send.mock.calls.at(-1)![0]
+  f.emit({ t: 'session', ref: open.ref, sessionId: 'compact-root' }); await opening
+  const result = f.host.compact('compact-root', 'manual-1')
+  await Promise.resolve(); const request = f.child.send.mock.calls.at(-1)![0]
+  expect(request).toMatchObject({ t: 'compact', sessionId: 'compact-root', operationId: 'manual-1' })
+  f.emit({ t: 'compacted', ref: request.ref, rootSessionId: 'compact-root', outcome: 'no_range' })
+  expect(await result).toEqual({ rootSessionId: 'compact-root', outcome: 'no_range' })
+  await expect(f.host.compact('unknown-root', 'manual-2')).rejects.toThrow('DSH_ORIGIN_UNAVAILABLE')
+  const closing = f.host.close(); f.child.emit('exit', 0); await closing
+})
+
 it('bounds a silent extension request and ignores its late reply', async () => {
   const f = setup(); await f.start()
   const result = f.host.extensions({ action: 'reconcile', operationId: 'op' })

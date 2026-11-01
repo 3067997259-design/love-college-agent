@@ -35,6 +35,27 @@ const resultOf = (seen, id) => seen.results.find((result) => result.callId === i
 const write = (id, content) => ({ tool: 'write', id, args: { file_path: 'note.txt', content } })
 
 const SCENARIOS = {
+  'compact-memory': {
+    trusted: false, answer: 'rejected', compactAfter: 2,
+    reference: JSON.stringify({ memoryReference: [{ id: 'fact-old', revision: 1, text: 'OLD_FACT_TEA' }] }),
+    afterCompactReference: JSON.stringify({ memoryReference: [{ id: 'fact-new', revision: 2, text: 'NEW_FACT_COFFEE' }], instruction: 'Use the current fact revision.' }),
+    turns: ['[[T1]] Ordinary conversation. ' + 'A harmless historical detail. '.repeat(1200), '[[T2]] More conversation. ' + 'Another historical detail. '.repeat(800), '[[T3]] What is the current preference?'],
+    script({ turn, messages, notes }) {
+      if (notes.compacting) { notes.summaryCalls = (notes.summaryCalls ?? 0) + 1; return { text: 'A conversation about ordinary historical details. The user will provide the current preference separately.' } }
+      if (turn === 3) {
+        const last = textOf(messages.findLast(message => message.role === 'user' && textOf(message.content).includes('[[T3]]'))?.content)
+        notes.currentInput = last.slice(-2000)
+        notes.freshReference = last.includes('NEW_FACT_COFFEE') && !last.includes('OLD_FACT_TEA')
+        notes.staleReferenceGone = !JSON.stringify(messages).includes('OLD_FACT_TEA')
+        return { text: 'Current preference: NEW_FACT_COFFEE.' }
+      }
+      return { text: 'Acknowledged this part of the conversation.' }
+    },
+    check: (seen, notes) => ({ turnsCompleted: seen.turnEnds.join() === 'completed,completed,completed',
+      nativeCompactionCommitted: seen.compacted?.outcome === 'compacted' && seen.compacted.rootSessionId === seen.root,
+      realSummaryRequest: notes.summaryCalls === 1, nextTurnUsesFreshMemory: notes.freshReference === true,
+      obsoleteReferenceRetired: notes.staleReferenceGone === true, budgetAdmissionIncludesSummary: seen.admits.length === 4 }),
+  },
   'state-source-restart': {
     trusted: true, answer: 'allowed-once', work: 'mock-work', restart: true, restartAfter: 2,
     state: { mode: 'quiet', token: 'degraded-token' }, turns: ['[[T1]] read the page and run a command', '[[T2]] retire old sources', '[[T3]] continue after restart'],
@@ -303,6 +324,7 @@ async function run(name) {
       case 'session': {
         const resumed = !!sessionId
         sessionId = message.sessionId
+        seen.root = sessionId
         if (resumed) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })
         else child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', ...(scenario.state ? { state: scenario.state } : {}), ...(scenario.reference ? { reference: scenario.reference } : {}), ...(scenario.origin ? { origin: scenario.origin } : {}) })
         break
@@ -319,6 +341,11 @@ async function run(name) {
       case 'admit': seen.admits.push({ bucket: message.bucket, units: message.units }); child.send({ t: 'admit-answer', id: message.id, ok: message.bucket !== scenario.refuse }); break
       case 'model': seen.switched.push(message.role); break
       case 'message': seen.messages.push(message.text); break
+      case 'compacted':
+        seen.compacted = { outcome: message.outcome, rootSessionId: message.rootSessionId }
+        notes.compacting = false
+        child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup', reference: scenario.afterCompactReference })
+        break
       case 'state-notice': seen.stateNotices.push(message.reason); break
       case 'state-request':
         seen.states.push(message.state)
@@ -326,6 +353,11 @@ async function run(name) {
         child.send({ t: 'state-answer', id: message.id, ok: !scenario.refuseState }); break
       case 'turn-end':
         seen.turnEnds.push(message.reason?.kind ?? null)
+        if (scenario.compactAfter === seen.turnEnds.length) {
+          notes.compacting = true
+          child.send({ t: 'compact', sessionId, ref: 'manual-compact', operationId: 'scripted-manual-compact' })
+          break
+        }
         // A restart scenario stops DSH after turn 1; the next process resumes the session for the rest.
         if (scenario.restart && seen.turnEnds.length === (scenario.restartAfter ?? 1) && scenario.turns.length > seen.turnEnds.length) { restarting = true; child.send({ t: 'shutdown' }) }
         else if (seen.turnEnds.length < scenario.turns.length) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })

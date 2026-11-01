@@ -428,6 +428,7 @@ void app.whenReady().then(async () => {
     memoryRepository = openMemoryRepository(dataDir, store)
     const fakeMemory = prepared.developer ? createFakeMemoryModel() : undefined
     memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, get model() { return fakeMemory?.model ?? taskModels.memory }, development: fakeMemory,
+      compactRoot: async operationId => dshExecution ? dshExecution.compact(operationId) : { rootSessionId: '', outcome: 'no_range' },
       includeContextEntries: (seqs) => new Set(seqs),
       beforeRoll: async () => { if (photos && !photos.photo(store!.scope.sessionId)) { photos.capture('day-end', 'day-end:' + store!.scope.sessionId); await photos.idle() } },
       closingDay: () => { if (!sleep || sleep.set(true, 'day-end')) throw new Error('DAY_END_BUSY') },

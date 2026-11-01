@@ -17,14 +17,14 @@ import { seenFragments } from '../../src/main/memory/seen'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
-function fixture(model?: MemoryModel, limits?: { dailyCalls?: number }) {
+function fixture(model?: MemoryModel, limits?: { dailyCalls?: number }, compactRoot?: Parameters<typeof createMemoryService>[0]['compactRoot']) {
   const root = mkdtempSync(join(tmpdir(), 'lca-memory-'))
   cleanups.push(async () => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-memory-'))) throw new Error('Unsafe cleanup'); rmSync(root, { recursive: true, force: true }) })
   const clock = createManualClock(1000); const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
   const store: SessionStore = { scope: journal.scope, records: journal.records, projection: () => projectJournal(journal.records()), append: journal.append, close: journal.close }
   const repository: MemoryRepository = { view: () => projectMemory(journal.records()), append: journal.append, refresh: () => {}, close: () => {} }
   const scheduler = createScheduler(clock); const fake = createFakeMemoryModel(); let busy = false
-  const memory = createMemoryService({ clock, store, scheduler, repository, model: model ?? fake.model, development: fake, isBusy: () => busy, rolled: () => {}, changed: () => {}, limits })
+  const memory = createMemoryService({ clock, store, scheduler, repository, model: model ?? fake.model, development: fake, isBusy: () => busy, rolled: () => {}, changed: () => {}, limits, compactRoot })
   scheduler.cancel('memory.maintenance')
   cleanups.push(async () => { await memory.close(); scheduler.dispose(); store.close() })
   const command = (body: Record<string, unknown>) => ({ ...body, protocolVersion: 1, epoch: 'test', requestId: String(store.records().length) } as AppCommand)
@@ -38,6 +38,15 @@ function fixture(model?: MemoryModel, limits?: { dailyCalls?: number }) {
   return { clock, store, memory, repository, fake, command, turn, setBusy: (value: boolean) => { busy = value } }
 }
 describe('background memory scheduling and context assembly', () => {
+  it('routes explicit compaction to DSH and reports its result without rewriting the LCA context', async () => {
+    const compact = vi.fn(async () => ({ rootSessionId: 'actual-dsh-root', outcome: 'compacted' as const }))
+    const f = fixture(undefined, undefined, compact)
+    f.fake.select('invalid')
+    f.memory.dispatch(f.command({ type: 'context.compact' })); await f.memory.idle()
+    expect(compact).toHaveBeenCalledOnce()
+    expect(f.store.records().filter(row => row.type === 'context/compact')).toHaveLength(0)
+    expect(f.memory.view().compaction).toMatchObject({ rootSessionId: 'actual-dsh-root', outcome: 'compacted' })
+  })
   it('consolidates closed periods once, keeps original provenance, and retries invalid output', async () => {
     const f = fixture(); f.clock.advanceBy(f.clock.parse('2026-11-03T12:00:00+08:00') - f.clock.nowMs())
     const addDay = (day: string, suffix = '') => f.repository.append({ type: 'memory/summary', summary: { id: 'day-' + day + suffix, level: 'day', period: day, text: '可见经历' + day + suffix,
