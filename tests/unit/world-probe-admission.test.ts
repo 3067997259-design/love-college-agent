@@ -39,3 +39,18 @@ it('does not consume receipts or count calls when the ledger refuses admission',
   batch.admit('receipt', 16000)
   expect(batch.view()).toEqual({ calls: 1, reservedUnits: 16000 })
 })
+
+it('enforces a single-case grant before any extra request can be charged', () => {
+  let charges = 0
+  const batch = createWorldProbeAdmissions(() => { charges++ }, { maximumCalls: 1, maximumReservedUnits: 16000 })
+  expect(() => batch.admit('too-large', 16001)).toThrow('BATCH_BUDGET_EXCEEDED')
+  batch.admit('first', 16000)
+  expect(() => batch.admit('second', 1)).toThrow('UNADMITTED_REQUEST')
+  expect(charges).toBe(1)
+  expect(batch.view()).toEqual({ calls: 1, reservedUnits: 16000 })
+})
+it('rejects invalid limits or limits exceeding the existing maximum', () => {
+  expect(() => createWorldProbeAdmissions(() => {}, { maximumCalls: 0, maximumReservedUnits: 16000 })).toThrow('INVALID_CALL_LIMIT')
+  expect(() => createWorldProbeAdmissions(() => {}, { maximumCalls: 13, maximumReservedUnits: 16000 })).toThrow('INVALID_CALL_LIMIT')
+  expect(() => createWorldProbeAdmissions(() => {}, { maximumCalls: 1, maximumReservedUnits: 256001 })).toThrow('INVALID_UNIT_LIMIT')
+})

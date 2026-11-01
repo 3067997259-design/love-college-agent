@@ -8,13 +8,17 @@ export function completedJournalRecords(text: string): Record<string, unknown>[]
 }
 
 /** Keep a batch cap independently of the resource ledger's daily rollover. */
-export function createWorldProbeAdmissions(reserve: (units: number) => void) {
+export type WorldProbeLimits = { maximumCalls: number; maximumReservedUnits: number }
+export function createWorldProbeAdmissions(reserve: (units: number) => void, limits: WorldProbeLimits = { maximumCalls: 12, maximumReservedUnits: 256000 }) {
+  const { maximumCalls, maximumReservedUnits } = limits
+  assert.ok(Number.isSafeInteger(maximumCalls) && maximumCalls > 0 && maximumCalls <= 12, 'INVALID_CALL_LIMIT')
+  assert.ok(Number.isSafeInteger(maximumReservedUnits) && maximumReservedUnits > 0 && maximumReservedUnits <= 256000, 'INVALID_UNIT_LIMIT')
   const consumed = new Set<string>()
   let calls = 0, reservedUnits = 0
   return {
     admit: (ticket: string, units: number) => {
-      assert.ok(calls < 12 && !consumed.has(ticket), 'UNADMITTED_REQUEST')
-      assert.ok(Number.isSafeInteger(units) && units > 0 && reservedUnits + units <= 256000, 'BATCH_BUDGET_EXCEEDED')
+      assert.ok(calls < maximumCalls && !consumed.has(ticket), 'UNADMITTED_REQUEST')
+      assert.ok(Number.isSafeInteger(units) && units > 0 && reservedUnits + units <= maximumReservedUnits, 'BATCH_BUDGET_EXCEEDED')
       reserve(units)
       consumed.add(ticket); calls++; reservedUnits += units
     },

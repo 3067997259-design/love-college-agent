@@ -8,13 +8,19 @@ import { _electron } from 'playwright'
 import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
 
 const repo = resolve(import.meta.dirname, '..'), selfTest = process.argv.includes('--self-test')
+const selfTestHoldAfterDone = selfTest && process.argv.includes('--hold-after-done')
+const selectedCase = process.env.LCA_WORLD_PROBE_CASE
+const allCases = JSON.parse(await readFile(join(repo, 'tests/fixtures/world-reference-cases.json'), 'utf8'))
+assert.ok(!selectedCase || allCases.some(scenario => scenario.id === selectedCase), 'UNKNOWN_WORLD_CASE')
+const cases = selectedCase ? allCases.filter(scenario => scenario.id === selectedCase) : allCases
+const limits = selectedCase ? { maximumCalls: 1, maximumReservedUnits: 16000 } : { maximumCalls: 12, maximumReservedUnits: 256000 }
 assert.ok(selfTest || process.env.LCA_REAL_MODEL === '1', 'LIVE_OPT_IN_REQUIRED')
 assert.ok(process.env.LCA_WORLD_PROBE_RUN && process.env.LCA_TEST_EXECUTABLE, 'FIXED_RUN_AND_PACKAGE_REQUIRED')
 assert.ok(selfTest || process.env.LCA_PROVIDERS_FILE, 'AUTHORIZED_CONNECTION_REQUIRED')
 const root = resolve(process.env.LCA_WORLD_PROBE_RUN), exe = resolve(process.env.LCA_TEST_EXECUTABLE)
 const sha = async file => createHash('sha256').update(await readFile(file)).digest('hex')
 await mkdir(root, { recursive: true })
-const receipt = { selfTest, maximumCalls: 12, maximumReservedUnits: 256000, autonomousUnits: 0,
+const receipt = { selfTest, selfTestHoldAfterDone, ...limits, selectedCases: cases.map(scenario => scenario.id), autonomousUnits: 0,
   asarSha256: await sha(join(dirname(exe), 'resources/app.asar')), runnerSha256: await sha(import.meta.filename),
   gatewaySha256: await sha(join(repo, 'scripts/fixtures/world-live-gateway.ts')), parserSha256: await sha(join(repo, 'scripts/fixtures/world-probe-stream.ts')),
   admissionReaderSha256: await sha(join(repo, 'scripts/fixtures/world-probe-admission.ts')),
@@ -29,7 +35,6 @@ const sourceFiles = { 'runner.mjs': import.meta.filename, 'gateway.ts': join(rep
 const sourceHashes = {}
 for (const [name, file] of Object.entries(sourceFiles)) { await writeFile(join(frozen, name), await readFile(file), { flag: 'wx' }); sourceHashes[name] = await sha(file) }
 await writeFile(join(root, 'source-manifest.json'), JSON.stringify(sourceHashes, null, 2), { flag: 'wx' })
-const cases = JSON.parse(await readFile(join(repo, 'tests/fixtures/world-reference-cases.json'), 'utf8'))
 const report = { ok: false, selfTest, normalProduct: true, cases: [], receipt, error: null }
 const save = () => writeFile(join(root, 'report.json'), JSON.stringify(report, null, 2))
 const env = { ...runtimeEnv(repo), LCA_TEST_SILENT: '1', LCA_MCP_PORT: '0', LCA_CDP_PORT: '0' }
@@ -45,7 +50,7 @@ try {
   const providers = await helper.evaluate(async (_, options) => {
     globalThis.worldProbeGateway = await process.mainModule.require(options.compiled).startWorldGateway(options)
     return globalThis.worldProbeGateway.providersFile
-  }, { root, selfTest, authorized: selfTest ? '' : resolve(process.env.LCA_PROVIDERS_FILE), compiled: join(compiled, 'gateway.cjs') })
+  }, { root, selfTest, selfTestHoldAfterDone, limits, authorized: selfTest ? '' : resolve(process.env.LCA_PROVIDERS_FILE), compiled: join(compiled, 'gateway.cjs') })
   for (const scenario of cases) {
     const data = join(root, 'profiles', scenario.id); await mkdir(data, { recursive: true })
     // Prepare the closed synthetic life state without exposing a new production write API.
@@ -96,7 +101,7 @@ try {
   }
   if (selfTest) assert.equal(await helper.evaluate(() => globalThis.worldProbeGateway.selfTestLimits()), true)
   report.gateway = await helper.evaluate(() => globalThis.worldProbeGateway.state())
-  assert.ok(report.gateway.calls <= 12 && report.gateway.reservedUnits <= 256000 && report.gateway.autonomousUnits === 0)
+  assert.ok(report.gateway.calls <= limits.maximumCalls && report.gateway.reservedUnits <= limits.maximumReservedUnits && report.gateway.autonomousUnits === 0)
   report.ok = true
 } catch (error) { report.error = error.message?.match(/^[A-Z][A-Z_]+/)?.[0] ?? 'WORLD_PROBE_FAILED'; process.exitCode = 1 }
 finally {

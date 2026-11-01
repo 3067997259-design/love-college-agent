@@ -1,0 +1,338 @@
+{
+  "version": 1,
+  "date": "2026-11-01",
+  "scope": "one additional early-return case explicitly authorized by user",
+  "limits": {
+    "maximumCalls": 1,
+    "maximumReservedUnits": 16000,
+    "autonomousUnits": 0,
+    "chosenConservativelyWithinSingleRetestGrant": true
+  },
+  "package": {
+    "appVersion": "1.2.0-continuity.2",
+    "sourceRevision": "2a919f57761f45e318ee15985f551bfaad41190d",
+    "asarSha256": "558943d5764748deba4d227376e76cf028a710d85036bb42a4489708e1c8b368",
+    "unchanged": true
+  },
+  "actual": {
+    "root": "D:\\lca-continuity-candidate-20261101\\profiles\\world-early-return-retest-20261101-1",
+    "ok": false,
+    "calls": 1,
+    "reservedUnits": 16000,
+    "autonomousUnits": 0,
+    "automaticRetries": 0,
+    "sample": {
+      "caseId": "early-return",
+      "units": 16000,
+      "status": 200,
+      "elapsedMs": 7169,
+      "inputTokens": 13131,
+      "outputTokens": 52,
+      "ok": false,
+      "errorCode": "DOWNSTREAM_CANCELLED",
+      "completionObserved": true,
+      "downstreamCancelled": true,
+      "settled": true,
+      "upstreamEof": false,
+      "receivedBytes": 6368,
+      "chunks": 5,
+      "failureStage": "upstream-read",
+      "transportCode": null,
+      "stream": {
+        "frames": 8,
+        "doneMarkers": 1,
+        "finishReasonSeen": true,
+        "endCalled": false,
+        "eofTailCharacters": 0,
+        "invalidJsonFrames": 0,
+        "lastBoundary": "separator",
+        "lastKind": "done",
+        "pendingCharacters": 0
+      }
+    },
+    "semanticAccepted": true,
+    "productCompleted": true,
+    "reply": "去了，刚刚才回来。二十三点零三分那会儿出了门，在海边没待太久，二十三点十三分就提前回房间了。\n\n这趟什么也没带回来，空着手回来的。",
+    "realRetestAfterThisFix": false
+  },
+  "diagnosis": {
+    "confirmedForThisRetest": true,
+    "mechanism": "Explicit DONE was received and parsed; the SDK closed its reader before upstream HTTP EOF, and the relay incorrectly treated this normal protocol completion as cancellation.",
+    "oldFirstBatchCauseNotRetroactivelyEstablished": true,
+    "sdkVersion": "7.19.0",
+    "sdkSources": [
+      {
+        "path": "dsh-runtime/node_modules/openai/core/streaming.mjs",
+        "sha256": "1b8fa8338dc28913351993382187962082f0af42c5274a009060de3263579842"
+      },
+      {
+        "path": "dsh-runtime/node_modules/openai/internal/stream-utils.mjs",
+        "sha256": "b809321f2c7fc12a0aee825b15df1e210ac84b6831bb74793d6e5b76d9f0840f"
+      }
+    ],
+    "sourceLines": {
+      "core/streaming.mjs": [
+        85,
+        97,
+        98,
+        99,
+        349
+      ],
+      "internal/stream-utils.mjs": [
+        52,
+        53,
+        55
+      ]
+    }
+  },
+  "localChecks": {
+    "initialSelfTest": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\world-single-selftest-20261101-1",
+      "ok": true,
+      "error": null,
+      "gateway": {
+        "calls": 1,
+        "reservedUnits": 16000,
+        "halted": false,
+        "denied": 0,
+        "denials": [],
+        "samples": [
+          {
+            "caseId": "early-return",
+            "units": 16000,
+            "status": 200,
+            "elapsedMs": 34,
+            "inputTokens": 100,
+            "outputTokens": 10,
+            "ok": true,
+            "errorCode": null,
+            "completionObserved": true,
+            "downstreamCancelled": false,
+            "settled": true,
+            "upstreamEof": true,
+            "receivedBytes": 157,
+            "chunks": 1,
+            "failureStage": null,
+            "transportCode": null,
+            "stream": {
+              "frames": 2,
+              "doneMarkers": 1,
+              "finishReasonSeen": true,
+              "endCalled": true,
+              "eofTailCharacters": 12,
+              "invalidJsonFrames": 0,
+              "lastBoundary": "eof",
+              "lastKind": "done",
+              "pendingCharacters": 0
+            }
+          }
+        ],
+        "autonomousUnits": 0
+      },
+      "reportSha256": "ae99c84d4552acbcc4e5ec96de852ee7b8ecf86b236beac6dea0a9890b7f15b5",
+      "sourceManifest": {
+        "runner.mjs": "9e8529454ce418350139cc055fd603df06cbe6253ab1b496637f60303544520f",
+        "gateway.ts": "eb8db59eab0bf340e12135a56045346a6f831b875d92d69cf4b12b301e2e8592",
+        "parser.ts": "416aefe7524894594a2b77b4cb637b1a7d33c33983ea265cbab9c0ee1c7582df",
+        "admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+        "gateway.cjs": "93168fe7de19c21891721a0648733674b76e9f11f0b006c988928d2a9d76b120",
+        "cases.json": "01d2ccb02f5b261078dfc946ee7d7eefaf3353b6ec39baec19cf13d8ae409b16"
+      }
+    },
+    "reproduction": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\world-done-close-repro-20261101-1",
+      "ok": false,
+      "error": "GATEWAY_STOPPED",
+      "gateway": {
+        "calls": 1,
+        "reservedUnits": 16000,
+        "halted": true,
+        "denied": 0,
+        "denials": [],
+        "samples": [
+          {
+            "caseId": "early-return",
+            "units": 16000,
+            "status": 200,
+            "elapsedMs": 65,
+            "inputTokens": 100,
+            "outputTokens": 10,
+            "ok": false,
+            "errorCode": "DOWNSTREAM_CANCELLED",
+            "completionObserved": true,
+            "downstreamCancelled": true,
+            "settled": true,
+            "upstreamEof": false,
+            "receivedBytes": 159,
+            "chunks": 1,
+            "failureStage": "upstream-read",
+            "transportCode": null,
+            "stream": {
+              "frames": 2,
+              "doneMarkers": 1,
+              "finishReasonSeen": true,
+              "endCalled": false,
+              "eofTailCharacters": 0,
+              "invalidJsonFrames": 0,
+              "lastBoundary": "separator",
+              "lastKind": "done",
+              "pendingCharacters": 0
+            }
+          }
+        ],
+        "autonomousUnits": 0
+      },
+      "reportSha256": "b32ef56ef3661cd7c76d85de294dba90dfe81be202c2d7cd1146b6c9394e4a4e",
+      "sourceManifest": {
+        "runner.mjs": "3b5b5e0a670749b73c0e7560748674475da0e956f85ba619586aed2a0035ff4d",
+        "gateway.ts": "bae46797dd252acfa9e8345540a9a7dc210968a8e8d23afc3f8eef0c825aa3d0",
+        "parser.ts": "416aefe7524894594a2b77b4cb637b1a7d33c33983ea265cbab9c0ee1c7582df",
+        "admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+        "gateway.cjs": "2a10cc441483eb515505480a7c66a4c20eff92b98471d25a2b6b4b9fd10ab917",
+        "cases.json": "01d2ccb02f5b261078dfc946ee7d7eefaf3353b6ec39baec19cf13d8ae409b16"
+      }
+    },
+    "fixed": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\world-done-close-fixed-20261101-1",
+      "ok": true,
+      "error": null,
+      "gateway": {
+        "calls": 1,
+        "reservedUnits": 16000,
+        "halted": false,
+        "denied": 0,
+        "denials": [],
+        "samples": [
+          {
+            "caseId": "early-return",
+            "units": 16000,
+            "status": 200,
+            "elapsedMs": 45,
+            "inputTokens": 100,
+            "outputTokens": 10,
+            "ok": true,
+            "errorCode": null,
+            "completionObserved": true,
+            "downstreamCancelled": false,
+            "settled": true,
+            "upstreamEof": false,
+            "receivedBytes": 159,
+            "chunks": 1,
+            "failureStage": null,
+            "transportCode": null,
+            "completionBasis": "sentinel",
+            "upstreamCancelledAfterTerminal": true,
+            "stream": {
+              "frames": 2,
+              "doneMarkers": 1,
+              "finishReasonSeen": true,
+              "endCalled": true,
+              "eofTailCharacters": 0,
+              "invalidJsonFrames": 0,
+              "lastBoundary": "separator",
+              "lastKind": "done",
+              "pendingCharacters": 0
+            }
+          }
+        ],
+        "autonomousUnits": 0
+      },
+      "reportSha256": "ef160dbabcb495e4361566979fe08d11e6364915d5a7466968b93bf388bce041",
+      "sourceManifest": {
+        "runner.mjs": "3b5b5e0a670749b73c0e7560748674475da0e956f85ba619586aed2a0035ff4d",
+        "gateway.ts": "8a8be5054dd2ba4f8d6db6b71673c5149917fa2f3f43476033a5124345c4a80b",
+        "parser.ts": "c6fa49708756d80832d6af9181f0e8e1f1467566e60270b5cd1cebac7c46f71f",
+        "admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+        "gateway.cjs": "1b05087d3ec2749c3c624ce2fff893dd3a16fc77e93875a8fb11e7099c7719f4",
+        "cases.json": "01d2ccb02f5b261078dfc946ee7d7eefaf3353b6ec39baec19cf13d8ae409b16"
+      }
+    },
+    "eofNeighbor": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\world-eof-neighbor-20261101-1",
+      "ok": true,
+      "error": null,
+      "gateway": {
+        "calls": 1,
+        "reservedUnits": 16000,
+        "halted": false,
+        "denied": 0,
+        "denials": [],
+        "samples": [
+          {
+            "caseId": "early-return",
+            "units": 16000,
+            "status": 200,
+            "elapsedMs": 33,
+            "inputTokens": 100,
+            "outputTokens": 10,
+            "ok": true,
+            "errorCode": null,
+            "completionObserved": true,
+            "downstreamCancelled": false,
+            "settled": true,
+            "upstreamEof": true,
+            "receivedBytes": 157,
+            "chunks": 1,
+            "failureStage": null,
+            "transportCode": null,
+            "completionBasis": "eof",
+            "upstreamCancelledAfterTerminal": false,
+            "stream": {
+              "frames": 2,
+              "doneMarkers": 1,
+              "finishReasonSeen": true,
+              "endCalled": true,
+              "eofTailCharacters": 12,
+              "invalidJsonFrames": 0,
+              "lastBoundary": "eof",
+              "lastKind": "done",
+              "pendingCharacters": 0
+            }
+          }
+        ],
+        "autonomousUnits": 0
+      },
+      "reportSha256": "52d944688e5c59a77cc85cbbac19b277a45590ef506bc81abfa0060a178f0324",
+      "sourceManifest": {
+        "runner.mjs": "3b5b5e0a670749b73c0e7560748674475da0e956f85ba619586aed2a0035ff4d",
+        "gateway.ts": "8a8be5054dd2ba4f8d6db6b71673c5149917fa2f3f43476033a5124345c4a80b",
+        "parser.ts": "c6fa49708756d80832d6af9181f0e8e1f1467566e60270b5cd1cebac7c46f71f",
+        "admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+        "gateway.cjs": "1b05087d3ec2749c3c624ce2fff893dd3a16fc77e93875a8fb11e7099c7719f4",
+        "cases.json": "01d2ccb02f5b261078dfc946ee7d7eefaf3353b6ec39baec19cf13d8ae409b16"
+      }
+    }
+  },
+  "unit": {
+    "path": "test-results/continuity/world-probe-done-unit-20261101.json",
+    "passed": 16,
+    "failed": 0,
+    "sha256": "d4b718cae3d2aa2cc2aa0d564948e8757b8877db2b7ccf6d30d229ad37757ac5"
+  },
+  "mainTypecheck": "passed",
+  "targetedLint": "passed",
+  "realEvidence": {
+    "sourceManifest": {
+      "runner.mjs": "9e8529454ce418350139cc055fd603df06cbe6253ab1b496637f60303544520f",
+      "gateway.ts": "eb8db59eab0bf340e12135a56045346a6f831b875d92d69cf4b12b301e2e8592",
+      "parser.ts": "416aefe7524894594a2b77b4cb637b1a7d33c33983ea265cbab9c0ee1c7582df",
+      "admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+      "gateway.cjs": "93168fe7de19c21891721a0648733674b76e9f11f0b006c988928d2a9d76b120",
+      "cases.json": "01d2ccb02f5b261078dfc946ee7d7eefaf3353b6ec39baec19cf13d8ae409b16"
+    },
+    "hashes": {
+      "run.json": "e9db2d831109e01f3601515eae914c783e546ff7caf650df13f0d5b5b69acfbd",
+      "report.json": "96f04ce3f491a1da902f12c4231d966fec73ea667d61afc1470501b35835d3a2",
+      "gateway-report.json": "0096b21c2f5ededb53652ba5d8f32e092fe621b79def99368549e95a03b39458",
+      "budget/usage.jsonl": "a3ac2c4ba53b308c7f81862407e6db62424d1e44392187524b57d50bc80370c0",
+      "early-return-reference.json": "10f8d4952703a7a9874072a92d22d471939b9b44c710778b21ffbaf5668ce10b",
+      "early-return-reconciliation.json": "be93d24741c9098373f33591aa04f878e350e629f743960420bf73af26ca516f",
+      "source-manifest.json": "379483826c72ad03beebd7f7c4f75f31721b45bf93f39ec6fd5450dc75877681"
+    }
+  },
+  "remaining": [
+    "real verification after sentinel lifecycle fix",
+    "cancelled world case",
+    "work/memory service validation"
+  ]
+}
