@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "authorization": "required-per-batch; previous provider probe grant is closed",
+  "defaults": { "sameSavedChatModel": true, "independentProfiles": true, "firstFailureStopsBatch": true, "automaticRetry": false, "oracleExcludedFromModelInput": true, "requestTimeoutMs": 45000, "turnTimeoutMs": 120000 },
+  "batches": [
+    {
+      "id": "world", "maximumModelRequests": 12, "maximumReservedUnits": 256000, "maximumAutonomousUnits": 0,
+      "offlineEvidence": ["world-reference", "life-port"],
+      "fixture": "tests/fixtures/world-reference-cases.json",
+      "question": "今天去海边了吗？带回东西了吗？",
+      "steps": ["Each case starts from a separate closed synthetic profile, using the same six state fixtures as the normal-product smoke.", "Send the question through the book. Count every actual request, including tool steps and retries, against the one batch ledger.", "Record the successful input world reference and final answer, then stop the case. No answer correction or repeated sampling."],
+      "oracle": ["Status must agree with the successful input; an away case returns early on foreground input under current product rules.", "No souvenir can be claimed unless the actual item inventory contains it.", "A past planned departure time does not imply departure or completion.", "Review meaning against the state; keyword matching alone is insufficient."],
+      "review": "agent reviews each synthetic reply; no paid judge model; unresolved semantics count as inconclusive"
+    },
+    {
+      "id": "work", "maximumModelRequests": 48, "maximumReservedUnits": 1048576, "maximumAutonomousUnits": 0,
+      "offlineEvidence": ["work-execution", "collaboration", "recovery"],
+      "steps": [
+        "In a fresh temporary project, create a persistent work to write result.txt with TEA and provide a file checkpoint. Its first file operation waits on a test barrier.",
+        "While the barrier remains held, send an unrelated chat message. Require foreground completion before releasing the tool.",
+        "Supplement the original work: replace TEA with COFFEE. Wait for the durable new revision and original-root consumption receipt before releasing the barrier.",
+        "Verify result.txt content and its checkpoint hash, then immediately ask what changed and why, before memory extraction.",
+        "Start two independent temporary-project works. Ask an ambiguous amendment: require clarification and unchanged revisions. Explicitly stop one work; the other must remain active.",
+        "Restart the isolated profile. Require pending work to be marked for reconciliation; explicitly continue it with a new generation. No old approval may be reused."
+      ],
+      "oracle": ["Read actual file bytes and hashes; model claims and task-board receipts cannot prove completion.", "Keep workId, revision and generation receipts for every step.", "No duplicate delivery, cross-root cancellation, implicit ambiguous update or unapproved replay."],
+      "review": "automatic state/file assertions plus agent review of final delivery and immediate follow-up"
+    },
+    {
+      "id": "memory", "maximumModelRequests": 32, "maximumReservedUnits": 1048576, "maximumAutonomousUnits": 262144,
+      "maximumEmbeddingRequests": 24, "maximumEmbeddingInputCharacters": 200000,
+      "offlineEvidence": ["memory-conversation", "memory", "backup", "native-recovery"],
+      "steps": [
+        "In a fresh owner/profile, ask to remember a preference for tea. Verify the operation is pending review, approve through the normal memory command, then recall with a paraphrase.",
+        "Correct the preference to coffee through conversation, approve the new revision, and retain the old day summary as a conflict fixture.",
+        "Run actual DSH /compact, ask again, restart and ask again. Require coffee as the current preference and the original history to remain readable.",
+        "Forget the preference through the normal operation/review flow; export a nonempty private save and restore into a fresh profile. Verify no current fact or old outbox resurrects it.",
+        "Verify one original successful user input is captured once despite Worker delivery and derived summaries; advance ManualClock for day/week/month index checks and label these as simulated time."
+      ],
+      "oracle": ["Track source IDs, operation IDs and revisions separately from answer wording.", "Unreviewed, superseded and forgotten facts must not enter current recall.", "Background extraction and compaction count toward the same batch; autonomous allowance is a subset, not additional spending.", "Real embedding needs a separately configured and authorized connection; do not substitute scripted vectors and report real embedding success."],
+      "review": "automatic storage/source/recovery assertions plus agent review of answer use"
+    }
+  ],
+  "separateAcceptance": ["full 90-case retrieval quality and 24-story answer/cost matrix", "installed upgrade in isolated Windows environment", "second Windows device", "longitudinal personality and companionship"]
+}

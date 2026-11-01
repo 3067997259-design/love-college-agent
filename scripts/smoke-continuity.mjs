@@ -50,7 +50,7 @@ const cases = [
   ['T11', 'Operation/event replay and interruption reconciliation', [u('airi/commits'), u('memory-capture-recovery'), u('continuous-work'), gate('recovery', ['published_operation_reconciled_without_replay', 'restored_create_event_is_idempotent', 'interrupted_identity_move_rolls_back'])]],
   ['T12', 'Native vectors, reopen, migration and offline mirror lifecycle', [gate('storage'), u('memory-settings'), u('airi/engine-native'), u('airi/mirror'), u('airi/pgvector/repository')]],
   ['T13', 'Nonempty private-save roundtrip and legacy migration', [gate('recovery'), u('memory-migration'), task('backup'), task('recovery')]],
-  ['T14', 'Diary/life rules and busy/lighting compatibility', [u('diary'), u('life'), u('life-work'), u('sleep'), u('memory-source-continuity'), task('collaboration')]],
+  ['T14', 'Diary/life rules, explicit world status and busy/lighting compatibility', [u('diary'), u('life'), u('life-reference'), u('life-work'), u('sleep'), u('memory-source-continuity'), task('world-reference'), task('life-port'), task('collaboration')]],
   ['T15', 'Owner, project, movable data root and mirror epoch isolation', [u('airi/core/scope'), u('airi/mirror'), u('memory-settings'), u('continuous-work'), u('character-package'), gate('recovery', ['mirror_epoch_rotated_only_for_restored_owner', 'explicit_continue_uses_fresh_generation'])]],
   ['T16', 'Missing vector/mirror and failed summary remain explicit and retryable', [u('airi/engine-native'), u('airi/embedding'), u('memory-service'), u('memory-settings'), task('model-routing')]],
 ].map(([id, description, evidence]) => ({ id, description, ok: true, evidence }))
@@ -58,5 +58,14 @@ const report = { ok: true, source: run.source, coverage: 'synthetic contracts an
   unit: { passed: unit.numPassedTests, skipped: unit.numPendingTests }, evidence: Object.fromEntries(evidence),
   pending: ['real model / vector / PostgreSQL mirror acceptance', '90-case retrieval quality and 24-story response evaluation with measured costs', 'performance matrix, ablations and long-term use', 'second Windows device and installed upgrade'],
   limits: ['T5 checks explicit routing and refusal of missing targets; natural-language disambiguation quality requires a real model.', 'T14 runs unchanged diary/life contracts, not a longitudinal personality comparison.', 'PostgreSQL SQL contracts use fakes; real-service tests remain explicitly skipped.'] }
+task('postgres-isolated')
+const pgFiles = globSync('postgres-*/report.json', { cwd: root })
+assert.equal(pgFiles.length, 1, 'POSTGRES_ENVIRONMENT_REPORT_MISSING')
+const postgres = JSON.parse(read(pgFiles[0]))
+assert.ok(['passed', 'unavailable'].includes(postgres.status), 'POSTGRES_GATE_FAILED')
+report.postgres = { status: postgres.status, reason: postgres.reason, report: pgFiles[0] }
+report.evidence = Object.fromEntries(evidence)
+if (postgres.status === 'passed') report.limits[2] = 'Real isolated PostgreSQL repository and outage recovery passed; external mirror deployment still requires its own acceptance.'
+else report.limits[2] = 'Real PostgreSQL unavailable: ' + postgres.reason + '; skipped integration is not a pass.'
 writeFileSync(join(root, 't1-t16.json'), JSON.stringify(report, null, 2))
 console.log(JSON.stringify({ ok: true, cases: cases.map(row => row.id), source: run.source, report: join(root, 't1-t16.json'), pending: report.pending }))

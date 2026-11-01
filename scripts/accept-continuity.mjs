@@ -25,11 +25,14 @@ const tasks = storageOnly ? [
   ['work-execution', 'scripts/work-execution-gate.mjs'],
   ['native-recovery', 'scripts/continuity-recovery-gate.mjs'],
   ['build', 'node_modules/electron-vite/bin/electron-vite.js', 'build'],
+  ['world-reference', 'scripts/smoke-world-reference.mjs'],
+  ['life-port', 'scripts/smoke-life-port.mjs'],
   ['memory', 'scripts/smoke-memory.mjs'],
   ['model-routing', 'scripts/smoke-model-routing.mjs'],
   ['collaboration', 'scripts/smoke-collaboration.mjs'],
   ['backup', 'scripts/smoke-backup.mjs'],
   ['recovery', 'scripts/smoke-v12-recovery.mjs'],
+  ['postgres-isolated', 'scripts/continuity-postgres-gate.mjs'],
   ['continuity-t1-t16', 'scripts/smoke-continuity.mjs'],
 ]
 const missing = tasks.filter(([, entry]) => !existsSync(entry)).map(([name, entry]) => ({ name, entry }))

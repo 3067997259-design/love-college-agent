@@ -6,9 +6,9 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, testDataRoot, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'life-port-' + randomUUID())
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(testDataRoot(root), 'life-port-' + randomUUID())
 const requests = []; let scenario = 'ready'; let aborted = 0
 const server = createServer((request, response) => { void (async () => {
   let text = ''; for await (const chunk of request) text += chunk
@@ -23,7 +23,7 @@ const server = createServer((request, response) => { void (async () => {
 await new Promise((done) => server.listen(0, '127.0.0.1', done)); await mkdir(data, { recursive: true })
 const providers = join(data, 'synthetic-providers.json'); const endpoint = 'http://127.0.0.1:' + server.address().port + '/v1'
 await writeFile(providers, JSON.stringify({ providers: { chat: { base_url: endpoint, api_key: 'synthetic-test-only', model: 'synthetic-life-chat' }, background: { base_url: endpoint, api_key: 'synthetic-test-only', model: 'synthetic-life-background' } } }))
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: providers }; let instance; let page
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: providers, LCA_MCP_PORT: '0', LCA_CDP_PORT: '0' }; let instance; let page
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), ...body }) }, body)
 async function accepted(body) { assert.equal((await send(body)).status, 'accepted', body.type) }

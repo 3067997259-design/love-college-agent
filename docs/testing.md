@@ -22,6 +22,8 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 `pnpm test:continuity` 对一个源码指纹顺序运行完整单测、类型和 lint、三个原生关卡、固定 DSH bridge／family／collaboration、一次生产构建及相关 Electron 场景。末尾的 T1–T16 审计只接受该次运行实际生成的报告，不查找旧的“最近通过”结果；保留每项检查和日志哈希。90 条检索样本与 24 条故事仍保留，完整真实模型回答／成本矩阵另行授权。`--list` 可查看任务列表。
 
+自动验收现包含六个普通产品世界引用场景和生活作品入口；`test:continuity:world` 可在构建后单独执行。`test:continuity:postgres` 只对本次新建的独立 Docker pgvector 容器测试，缺环境时报告 unavailable；成功退出不意味着 PostgreSQL 已通过，需检查其 status。`test:continuity:prepare-live <本次报告目录>` 仅生成待授权的真实服务清单和额度建议，不调用模型。完整范围、失败记录及证据边界见[自动验收记录](research/continuity-automatic-acceptance-20261101.md)。
+
 连续工作实验中的 `smoke-collaboration` 通过正常产品入口开工，保持 Worker 的成员请求阻塞，检查前台聊天、工作选择、成员步骤、任务板和停止／重启；`smoke-v12-recovery` 复用该路径，再验证待核对状态、显式继续、非空工作存档与两次冷启动。早期由前台直接创建成员的 P5／P6 脚本保留于 Git 历史；其固定 DSH 来源、安全和成员控制合同仍由 bridge／family／collaboration 检查承担，不能把新脚本报告称作旧 UI 矩阵全量重跑。
 
 大体积合成数据可通过 `LCA_TEST_DATA_ROOT`（相关 Electron profile）、`LCA_TEST_ARTIFACTS_DIR`（原生单测）和 `LCA_TEST_CACHE_ROOT` 指向单独卷；每个场景仍创建独立 ID，端口顺序使用或由系统分配。`pnpm test:continuity:package` 读取 `LCA_RELEASE_DIR` 的固定构建回执，核对原生模块后在包内 EXE 执行 SQLite、完整非空恢复、记忆书页和工作恢复。它不安装或卸载应用，也不替代完整 `test:package`、升级、第二台 Windows 或真实服务验收。
