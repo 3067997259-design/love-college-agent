@@ -69,6 +69,19 @@ it('carries provenance through compaction and replayed fork prefixes with indepe
   expect(f.visible()).not.toContain('RAW_MARKER')
 })
 
+it('retires a compact checkpoint without replaying its closed compaction identity', () => {
+  const f = fixture(); f.start(); f.user(); const source = f.read()
+  const checkpoint = f.session.append('user/message', { role: 'user', content: text('SUMMARY_MARKER'),
+    source: { kind: 'compact-checkpoint', compactionId: 'compact-1', sourceCommandId: 'command-1' } },
+  { surfaceOp: { op: 'replace', startSeq: source, endSeq: source }, sourceEventSeqs: [source] })
+  expect(retireSources(f.session, f.state(), 'grant-2')).toBe(1)
+  const notice = f.events.at(-1)!
+  expect(notice.data.source).toEqual({ kind: 'lca-source-retirement', lcaProvenance: { retired: true } })
+  expect(notice.sourceEventSeqs).toEqual([checkpoint])
+  expect(f.events[checkpoint].data.source).toEqual({ kind: 'compact-checkpoint', compactionId: 'compact-1', sourceCommandId: 'command-1' })
+  expect(f.visible()).not.toContain('SUMMARY_MARKER'); expect(f.visible()).toContain(SOURCE_RETIRED)
+})
+
 it('retires old reference blocks and derived text without erasing the user words or trusting reset turn numbers', () => {
   const f = fixture(); f.start()
   f.session.append('user/message', { role: 'user', source: { kind: 'user', lcaReferences: true }, content: [...text('REFERENCE_MARKER'), ...text('USER_WORDS')] })

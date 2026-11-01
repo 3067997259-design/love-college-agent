@@ -86,6 +86,9 @@ export function retireSources(session, state, authorizationId, position) {
       ? [{ type: 'text', text: SOURCE_RETIRED }, ...(raw.content ?? []).slice(1)]
       : [{ type: 'text', text: SOURCE_RETIRED }]
     const source = { ...raw.source, lcaProvenance: { retired: true } }; delete source.lcaReferences
+    // This replacement is a retirement notice, not another compaction checkpoint.
+    // DSH V4 replay requires each compact-checkpoint inside its matching open bracket.
+    if (source.kind === 'compact-checkpoint') { source.kind = 'lca-source-retirement'; delete source.compactionId; delete source.sourceCommandId }
     const message = { ...raw, content, ...(entry.type === 'tool/result' ? {} : { source }) }
     // DSH forbids assistant replacements (provider streams cannot cite prior events). Retire a
     // derived assistant and its results as user notices, like compaction; keep clean call/result pairs.
