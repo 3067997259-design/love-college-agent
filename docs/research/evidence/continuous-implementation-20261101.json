@@ -6,13 +6,81 @@
   "sourceCommit": "cb95162",
   "goalStatus": "active",
   "candidate": false,
-  "source": {"base": "3a84a4fbaf6a54defe385e050be86fcb5436745b", "baselineFiles": 40, "incrementFiles": 17, "verifiedFiles": 57},
+  "source": {
+    "base": "3a84a4fbaf6a54defe385e050be86fcb5436745b",
+    "baselineFiles": 40,
+    "incrementFiles": 17,
+    "verifiedFiles": 57
+  },
   "checks": [
-    {"name": "memory-related unit batch", "report": "test-results/continuity/airi-batch2.json", "passed": 144, "failed": 0, "skipped": 4, "skipReason": "Real Postgres requires explicit test-only configuration"},
-    {"name": "Electron utility storage gate", "report": "test-results/continuity/storage/gate-8pdrYH/report.json", "passed": true, "electron": "44.7.0", "node": "24.21.0", "utilityPids": [50336,26244,7524], "remainingProcessesAfterExit": 0, "serviceCalls": 0},
-    {"name": "Node TypeScript and changed-path ESLint", "passed": true, "scope": "memory adaptation, native owner, tests and import scripts"},
-    {"name": "DSH manual compact scripted service", "report": "test-results/dsh-bridge-d060a0c7-ce63-4454-9d38-da6e1cff95a3/report.json", "passed": true, "modelRequests": 4, "externalServiceCalls": 0},
-    {"name": "DSH and memory compaction unit batch", "report": "test-results/continuity/dsh-compact-batch.json", "passed": 79, "failed": 0}
+    {
+      "name": "memory-related unit batch",
+      "report": "test-results/continuity/airi-batch2.json",
+      "passed": 144,
+      "failed": 0,
+      "skipped": 4,
+      "skipReason": "Real Postgres requires explicit test-only configuration"
+    },
+    {
+      "name": "Electron utility storage gate",
+      "report": "test-results/continuity/storage/gate-8pdrYH/report.json",
+      "passed": true,
+      "electron": "44.7.0",
+      "node": "24.21.0",
+      "utilityPids": [
+        50336,
+        26244,
+        7524
+      ],
+      "remainingProcessesAfterExit": 0,
+      "serviceCalls": 0
+    },
+    {
+      "name": "Node TypeScript and changed-path ESLint",
+      "passed": true,
+      "scope": "memory adaptation, native owner, tests and import scripts"
+    },
+    {
+      "name": "DSH manual compact scripted service",
+      "report": "test-results/dsh-bridge-d060a0c7-ce63-4454-9d38-da6e1cff95a3/report.json",
+      "passed": true,
+      "modelRequests": 4,
+      "externalServiceCalls": 0
+    },
+    {
+      "name": "DSH and memory compaction unit batch",
+      "report": "test-results/continuity/dsh-compact-batch.json",
+      "passed": 79,
+      "failed": 0
+    },
+    {
+      "name": "Single-session integration unit batch",
+      "report": "test-results/continuity/facts-integration-batch.json",
+      "passed": 234,
+      "failed": 0,
+      "skipped": 4,
+      "scope": "AIRI, memory service, DSH journal, model ports, sleep and composer"
+    },
+    {
+      "name": "Original event and source retirement adapter",
+      "report": "test-results/continuity/facts-provenance-initial.json",
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "name": "Fixed DSH and full memory short loop",
+      "report": "test-results/continuity/conversation/gate-hGHdqH/report.json",
+      "passed": true,
+      "checks": 10,
+      "completedTurns": 4,
+      "modelRequests": 7,
+      "externalServiceCalls": 0
+    },
+    {
+      "name": "Main and renderer TypeScript; changed-path ESLint",
+      "passed": true,
+      "scope": "Single-session production wiring, UI controls and acceptance fixture"
+    }
   ],
   "preservedFailures": [
     "test-results/continuity/airi-initial.json",
@@ -23,9 +91,27 @@
     "test-results/continuity/interactions-native-initial.json",
     "test-results/continuity/engine-native-initial.json",
     "test-results/dsh-bridge-2579e601-f945-40cb-8e88-434003d3af49/report.json",
-    "test-results/continuity/dsh-compact-host.json"
+    "test-results/continuity/dsh-compact-host.json",
+    "test-results/continuity/facts-service-initial.json",
+    "test-results/continuity/facts-dsh-batch-initial.json",
+    "test-results/continuity/conversation/gate-IQOfbv/report.json"
   ],
-  "notRun": ["full repository tests", "full lint", "production build", "DSH combined regression", "product T1-T16", "Windows candidate package", "real model", "real embedding", "real mirror", "daily-use acceptance"],
-  "predeclaredStories": {"path": "tests/fixtures/continuity-stories.json", "count": 24, "run": false},
-  "productionIntegration": "pending; current memory service still owns production writes"
+  "notRun": [
+    "full repository tests",
+    "full lint",
+    "production build",
+    "DSH combined regression",
+    "product T1-T16",
+    "Windows candidate package",
+    "real model",
+    "real embedding",
+    "real mirror",
+    "daily-use acceptance"
+  ],
+  "predeclaredStories": {
+    "path": "tests/fixtures/continuity-stories.json",
+    "count": 24,
+    "run": false
+  },
+  "productionIntegration": "Experimental main now uses AIRI facts, experience/day projection and actual DSH compaction. Migration, independent embedding/mirror settings, work roots and new backup remain pending."
 }

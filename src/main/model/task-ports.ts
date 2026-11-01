@@ -21,6 +21,9 @@ import notificationPrompts from '../notifications/prompts.json'
 import { workModelInput, workOutput, type LifeWorkModel } from '../life/work/schema'
 import workProtocol from '../life/work/protocol.json'
 import { ResourceFailure, type ResourceAdmissions } from '../resources/ledger'
+import { parseMemoryTurnExtractions } from '../memory/airi/core'
+import { generateMemoryReconciliation } from '../memory/airi/repository/reconciliation'
+import { MEMORY_CAPTURE_PROMPT } from '../memory/airi/prompt'
 
 /** Machine JSON tasks only. Persona, diary and dream wording remain on the voice line. */
 export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, clock: Clock, store: SessionStore, fetcher?: Parameters<typeof createModelClient>[3], budget?: ResourceAdmissions, followMain = false) {
@@ -50,7 +53,23 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
     } catch (error) { if (error instanceof ResourceFailure) throw new MemoryFailure(error.code === 'budget-exceeded' ? 'budget-exceeded' : 'unavailable'); throw error }
     finally { stop(); remove(); abort.abort() }
   }
-  const memory: MemoryModel | null = providers.has('background') ? { source: 'real', extract: (input, signal) => json('background', prompts.memoryExtract, memoryModelInput(input), signal, 4096, true), summarize: (input, signal) => json('background', prompts.memorySummary, memoryModelInput(input), signal, 4096, true) } : null
+  const memory: MemoryModel | null = providers.has('background') ? { source: 'real',
+    airi: {
+      extract: async (input, signal) => {
+        const output = await json('background', MEMORY_CAPTURE_PROMPT, { userText: input.userText, assistantText: input.assistantText, mood: input.mood }, signal ?? new AbortController().signal, 4096, true)
+        if (!Array.isArray(output) || output.length > 20) throw new MemoryFailure('memory-invalid-output')
+        const extracted = parseMemoryTurnExtractions(output, { sessionId: input.sessionId })
+        if (extracted.length !== output.length) throw new MemoryFailure('memory-invalid-output')
+        return extracted
+      },
+      reconcile: (input, signal) => generateMemoryReconciliation(input, async (messages, settings) => {
+        const output = await json('background', messages[0].content, JSON.parse(messages[1].content), settings.abortSignal, 4096, true)
+        settings.onStreamEvent({ type: 'text-delta', text: JSON.stringify(output) })
+      }, signal),
+    },
+    extract: (input, signal) => json('background', prompts.memoryExtract, memoryModelInput(input), signal, 4096, true),
+    summarize: (input, signal) => json('background', prompts.memorySummary, memoryModelInput(input), signal, 4096, true),
+  } : null
   const mailSlot = followMain ? 'chat' : 'privacy'
   const mail: EmailPrivacyModel | null = providers.has(mailSlot) ? { source: 'real', isolated: !followMain, extract: (input, signal) => json(mailSlot, prompts.mail + '\n' + notificationPrompts.mailAddition, input, signal, 2048, false, followMain, 'work') } : null
   const document: DocumentPrivacyModel | null = providers.has('privacy') ? { source: 'real', ready: true, organize: (input, signal) => json('privacy', prompts.document, input, signal, 8192, false, false, 'work', 90_000) } : null

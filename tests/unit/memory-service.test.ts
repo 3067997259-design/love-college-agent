@@ -1,3 +1,4 @@
+import { testMemoryFacts } from '../helpers/memory'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -24,7 +25,8 @@ function fixture(model?: MemoryModel, limits?: { dailyCalls?: number }, compactR
   const store: SessionStore = { scope: journal.scope, records: journal.records, projection: () => projectJournal(journal.records()), append: journal.append, close: journal.close }
   const repository: MemoryRepository = { view: () => projectMemory(journal.records()), append: journal.append, refresh: () => {}, close: () => {} }
   const scheduler = createScheduler(clock); const fake = createFakeMemoryModel(); let busy = false
-  const memory = createMemoryService({ clock, store, scheduler, repository, model: model ?? fake.model, development: fake, isBusy: () => busy, rolled: () => {}, changed: () => {}, limits, compactRoot })
+  const facts = testMemoryFacts(store, clock, root)
+  const memory = createMemoryService({ facts, clock, store, scheduler, repository, model: model ?? fake.model, development: fake, isBusy: () => busy, rolled: () => {}, changed: () => {}, limits, compactRoot })
   scheduler.cancel('memory.maintenance')
   cleanups.push(async () => { await memory.close(); scheduler.dispose(); store.close() })
   const command = (body: Record<string, unknown>) => ({ ...body, protocolVersion: 1, epoch: 'test', requestId: String(store.records().length) } as AppCommand)
@@ -35,7 +37,7 @@ function fixture(model?: MemoryModel, limits?: { dailyCalls?: number }, compactR
     store.append({ type: 'model/seen', turnId: id, source: 'fake', messages, eligibleIndexes: messages.flatMap((message, index) => message.role === 'system' ? [] : [index]) })
     store.append({ type: 'assistant/message', turnId: id, id: 'reply-' + id, text: 'SYNTHETIC_REPLY', status: 'complete' }); store.append({ type: 'turn/end', turnId: id, reason: 'completed' })
   }
-  return { clock, store, memory, repository, fake, command, turn, setBusy: (value: boolean) => { busy = value } }
+  return { clock, store, facts, memory, repository, fake, command, turn, setBusy: (value: boolean) => { busy = value } }
 }
 describe('background memory scheduling and context assembly', () => {
   it('routes explicit compaction to DSH and reports its result without rewriting the LCA context', async () => {
@@ -95,7 +97,7 @@ describe('background memory scheduling and context assembly', () => {
     expect(selected.reduce((sum, summary) => sum + summary.text.length, 0)).toBeLessThanOrEqual(32_000)
     // 同一输入在生产调用路径（新会话第一条消息带的 previousDaysReference）上也要带上更早的周摘要。
     f.turn('今天把上周的事情对一下。')
-    const reference = JSON.stringify(f.memory.reference('今天把上周的事情对一下。', 'budget-turn', true)?.previousDaysReference ?? [])
+    const reference = JSON.stringify((await f.memory.reference('今天把上周的事情对一下。', 'budget-turn', true))?.previousDaysReference ?? [])
     expect(reference).toContain('这一周2026-10-05'); expect(reference).toContain('可见经历2026-10-18')
     expect(reference).not.toContain('可见经历2026-10-05')
   })
@@ -122,38 +124,43 @@ describe('background memory scheduling and context assembly', () => {
     const f = fixture(); f.turn('我把纸桥放在书桌上，给它取名叫周五桥。')
     expect(f.memory.dispatch(f.command({ type: 'memory.extract' }))).toBeUndefined(); await f.memory.idle()
     expect(f.memory.view().shortTermCount).toBe(1)
-    const reference = f.memory.reference('周五桥', 'next-turn', false)
+    expect(await f.memory.reference('周五桥', 'before-review', false)).toBeNull()
+    const suggested = f.facts.factViews()[0]; await f.facts.reviewFact(suggested.id, suggested.revision, true)
+    const reference = await f.memory.reference('周五桥', 'next-turn', false)
     expect(reference).toMatchObject({ trust: 'unreviewed-reference' }); expect(JSON.stringify(reference?.memoryReference)).toContain('周五桥')
     f.store.append({ type: 'tool/result', turnId: 'search', callId: 'lookup', ok: true, raw: { secret: 'RAW_ONLY_MEMORY_TEST' }, visible: { memoryReference: '周五桥' }, elapsedMs: 0 })
-    expect(JSON.stringify(f.memory.reference('周五桥', 'with-tool', false))).not.toContain('RAW_ONLY_MEMORY_TEST')
+    expect(JSON.stringify(await f.memory.reference('周五桥', 'with-tool', false))).not.toContain('RAW_ONLY_MEMORY_TEST')
     expect(seenFragments(f.store.records()).map((fragment) => fragment.text).join('\n')).not.toContain('RAW_ONLY_MEMORY_TEST')
   })
   it('aborts a hanging background model on foreground work without consuming source keys', async () => {
-    const extract = vi.fn(() => new Promise(() => {})); const f = fixture({ source: 'fake', extract, summarize: async () => ({}) })
+    const extract = vi.fn(() => new Promise<never>(() => {})); const f = fixture({ source: 'fake', airi: { extract }, extract, summarize: async () => ({}) })
     f.turn('我把纸桥放在书桌上，给它取名叫周五桥。'); f.memory.dispatch(f.command({ type: 'memory.extract' }))
     await vi.waitFor(() => expect(extract).toHaveBeenCalledOnce()); f.memory.foreground(); await f.memory.idle()
-    expect(f.repository.view().keys).toHaveLength(0); expect(f.memory.view().status).toBe('idle')
+    expect(f.facts.pendingSources()).toHaveLength(1); expect(f.memory.view().status).toBe('idle')
   })
-  it('keeps context unchanged when a summary is invalid and succeeds only on an explicit retry', async () => {
-    const f = fixture(); for (let i = 0; i < 4; i++) f.turn('可见旧回合' + i + ' 资料核对。'.repeat(300))
+  it('preserves the journal on failed or successful DSH compaction', async () => {
+    let outcome: 'failed' | 'compacted' = 'failed'
+    const f = fixture(undefined, undefined, async () => ({ rootSessionId: 'dsh-root', outcome }))
+    for (let i = 0; i < 4; i++) f.turn('可见旧回合' + i + ' 资料核对。'.repeat(300))
     const before = JSON.stringify(f.store.projection().context)
-    f.fake.select('invalid'); f.memory.dispatch(f.command({ type: 'context.compact' })); await f.memory.idle()
-    expect(f.memory.view().error?.code).toBe('memory-invalid-output'); expect(JSON.stringify(f.store.projection().context)).toBe(before)
-    f.fake.select('ready'); f.memory.dispatch(f.command({ type: 'context.compact' })); await f.memory.idle()
-    expect(f.store.records().filter((row) => row.type === 'context/compact')).toHaveLength(1)
+    f.memory.dispatch(f.command({ type: 'context.compact' })); await f.memory.idle()
+    expect(f.memory.view().compaction?.outcome).toBe('failed'); expect(JSON.stringify(f.store.projection().context)).toBe(before)
+    outcome = 'compacted'; f.memory.dispatch(f.command({ type: 'context.compact' })); await f.memory.idle()
+    expect(f.memory.view().compaction?.outcome).toBe('compacted')
+    expect(f.store.records().filter(row => row.type === 'context/compact')).toHaveLength(0)
     expect(f.store.projection().messages).toHaveLength(8)
   })
   it('bounds background calls and does not advance source progress after budget refusal', async () => {
     const f = fixture(undefined, { dailyCalls: 1 }); f.turn('我喜欢的饮料是咖啡。')
-    f.memory.dispatch(f.command({ type: 'memory.extract' })); await f.memory.idle(); const before = f.repository.view().keys.length
+    f.memory.dispatch(f.command({ type: 'memory.extract' })); await f.memory.idle(); const before = f.facts.factViews().length
     f.turn('我喜欢的饮料现在改为红茶，不再喝咖啡。'); f.memory.dispatch(f.command({ type: 'memory.extract' })); await f.memory.idle()
-    expect(f.memory.view().error?.code).toBe('budget-exceeded'); expect(f.repository.view().keys.length).toBe(before)
+    expect(f.memory.view().error?.code).toBe('budget-exceeded'); expect(f.facts.factViews().length).toBe(before)
   })
   it('defers automatic work while busy, recently chatting, or lights are out', async () => {
     const f = fixture(); f.turn('我把纸桥放在书桌上，给它取名叫周五桥。')
-    await f.memory.maintenance(); expect(f.repository.view().items).toHaveLength(0)
-    f.clock.advanceBy(120_000); f.setBusy(true); await f.memory.maintenance(); expect(f.repository.view().items).toHaveLength(0)
-    f.setBusy(false); f.store.append({ type: 'companion/lights', lightsOut: true, requestId: 'off', commandHash: 'test' }); await f.memory.maintenance(); expect(f.repository.view().items).toHaveLength(0)
-    f.store.append({ type: 'companion/lights', lightsOut: false, requestId: 'on', commandHash: 'test' }); await f.memory.maintenance(); expect(f.repository.view().items).toHaveLength(1)
+    await f.memory.maintenance(); expect(f.facts.factViews()).toHaveLength(0)
+    f.clock.advanceBy(120_000); f.setBusy(true); await f.memory.maintenance(); expect(f.facts.factViews()).toHaveLength(0)
+    f.setBusy(false); f.store.append({ type: 'companion/lights', lightsOut: true, requestId: 'off', commandHash: 'test' }); await f.memory.maintenance(); expect(f.facts.factViews()).toHaveLength(0)
+    f.store.append({ type: 'companion/lights', lightsOut: false, requestId: 'on', commandHash: 'test' }); await f.memory.maintenance(); expect(f.facts.factViews()).toHaveLength(1)
   })
 })

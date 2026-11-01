@@ -18,13 +18,15 @@ import { toolKind } from './tool-kinds'
 import type { CollaborationView } from '../../shared/collaboration'
 import type { DshConversationState } from '../../shared/dsh-protocol'
 import type { RootCompactionOutcome } from '../../shared/continuity'
+import { composeContext, ContextBudgetFailure } from '../context/composer'
+import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
 
 /**
  * `seen`: the conversation of this turn, in order, as she saw it: your lines and her replies, never tool traffic.
  * `impressions`: she read an old page's impression (optical memory, unreviewed); what she says in this turn may draw
  * on it, so memory does not learn from her replies.
  */
-type Turn = { impressions?: boolean; lcaTurnId: string; trigger: Trigger; attempts: number; role: 'chat' | 'work'; denied?: PublicErrorCode; partial: string; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController; seen: { role: 'user' | 'assistant'; content: string }[] }
+type Turn = { impressions?: boolean; memoryDerived?: boolean; lcaTurnId: string; trigger: Trigger; attempts: number; role: 'chat' | 'work'; denied?: PublicErrorCode; partial: string; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController; seen: { role: 'user' | 'assistant'; content: string; originalEventId?: string }[] }
 /** Things that happened that she may speak about (pomodoro, mail, documents, her own life): inbox events in the journal. */
 export type DshEventSource = 'pomodoro' | 'mail' | 'document' | 'autonomous'
 type Trigger = 'user' | DshEventSource
@@ -116,7 +118,8 @@ export function createDshExecution(options: {
    * References that go with your message (memory/service.ts reference): earlier days' summaries with the first message
    * of a new session, memories matching your latest lines. Sent beside your text, never recorded as your words.
    */
-  reference?(input: { requestId: string; firstOfSession: boolean }): Record<string, unknown> | null
+  reference?(input: { requestId: string; firstOfSession: boolean }): Record<string, unknown> | null | Promise<Record<string, unknown> | null>
+  referencesPrepared?(requestId: string, reference: Record<string, unknown>): void
   /** A turn your message opened has its LCA id now (an old-page quote sent with that message belongs to it). */
   started?(input: { turnId: string; requestId: string }): void
   /** You answered a question she asked in this turn: the answer has reached her (questions/service.ts commit). */
@@ -221,7 +224,7 @@ export function createDshExecution(options: {
   // Events wait here while she must stay quiet; `starts` says who opened each turn DSH has yet to begin (and with
   // which of your messages).
   const held: { id: string; source: DshEventSource; text: string }[] = []
-  const starts: { trigger: Trigger; requestId: string | null }[] = []
+  const starts: { trigger: Trigger; requestId: string | null; memoryDerived?: boolean }[] = []
   const begin = (lcaTurnId: string, start: { trigger: Trigger; requestId: string | null } | undefined) => {
     record({ type: 'turn/start', turnId: lcaTurnId, trigger: start?.trigger ?? 'user' })
     if (start?.requestId) options.started?.({ turnId: lcaTurnId, requestId: start.requestId })
@@ -251,7 +254,7 @@ export function createDshExecution(options: {
   const drain = () => {
     if (!pending.length) return
     record({ type: 'inbox/drain', ids: pending })
-    for (const id of pending) { const text = pendingText.get(id); if (turn && text) turn.seen.push({ role: 'user', content: text }); pendingText.delete(id); eventIds.delete(id) }
+    for (const id of pending) { const text = pendingText.get(id); if (turn && text) turn.seen.push({ role: 'user', content: text, originalEventId: id }); pendingText.delete(id); eventIds.delete(id) }
     pending = []
   }
   /**
@@ -261,9 +264,12 @@ export function createDshExecution(options: {
    */
   const recordSeen = (current: Turn) => {
     if (!current.seen.some((message) => message.role === 'assistant')) return
-    const messages = current.seen.slice(-1024).map((message) => ({ role: message.role, content: clip(message.content, 200_000) }))
+    const seen = current.seen.slice(-1024)
+    const messages = seen.map((message) => ({ role: message.role, content: clip(message.content, 200_000) }))
     const eligibleIndexes = messages.flatMap((message, index) => current.impressions && message.role === 'assistant' ? [] : [index])
-    record({ type: 'model/seen', turnId: current.lcaTurnId, source: options.source ?? 'real', messages, eligibleIndexes })
+    record({ type: 'model/seen', turnId: current.lcaTurnId, source: options.source ?? 'real', messages, eligibleIndexes,
+      memoryExcludedIndexes: messages.flatMap((message, index) => current.memoryDerived && message.role === 'assistant' ? [index] : []),
+      originalEvents: seen.flatMap((message, index) => message.originalEventId ? [{ index, eventId: message.originalEventId }] : []) })
   }
   // What she says in a turn that runs without you, failure notes included, waits for your break while you focus or asked for quiet.
   const delivery = (trigger: Trigger) => trigger !== 'user' && (quiet() || store.projection().lightsOut) ? { delivery: 'rest' as const } : {}
@@ -348,7 +354,10 @@ export function createDshExecution(options: {
     const input = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
     if (!tool.validate(input)) throw new Error('invalid-tool-arguments: one JSON object matching the tool schema')
     if (tool.templateId === 'memory.optical') current.impressions = true
-    const result = await tool.run(input, { clock, store, turnId: current.lcaTurnId, callId, signal: current.asks.signal })
+    if (tool.templateId.startsWith('memory.') || tool.templateId.startsWith('history.')) current.memoryDerived = true
+    const userMessageId = current.seen.findLast(message => message.role === 'user' && message.originalEventId
+      && store.records().some(row => row.type === 'user/message' && row.id === message.originalEventId))?.originalEventId
+    const result = await tool.run(input, { clock, store, turnId: current.lcaTurnId, callId, signal: current.asks.signal, userMessageId })
     if (!result.ok) throw new Error(clip(JSON.stringify(result.visible), 400))
     // An original she asked to read rides with the result, so the bridge retires it with the turn's other sources (D2).
     return { value: result.original === undefined ? result.visible : { ...result.visible as Record<string, unknown>, original: result.original }, source: sourceOf(tool.templateId) }
@@ -368,7 +377,7 @@ export function createDshExecution(options: {
     if (raw.status === 'declined') return { answers: items.map((item) => ({ id: item.id, selected: [] })) }
     if (raw.status !== 'answered' || !Array.isArray(raw.answers)) return { error: UNANSWERED[String(raw.status)] ?? 'The question was withdrawn before the user answered.' }
     const row = store.records().findLast((entry) => entry.type === 'user/message' && entry.id === raw.answerMessageId)
-    if (row?.type === 'user/message') current.seen.push({ role: 'user', content: row.text })
+    if (row?.type === 'user/message') current.seen.push({ role: 'user', content: row.text, originalEventId: row.id })
     if (callId) options.answered?.({ turnId: current.lcaTurnId, callId })
     return { answers: raw.answers }
   }
@@ -383,7 +392,7 @@ export function createDshExecution(options: {
       case 'turn-start': {
         stateChanges = 0
         const start = starts.shift()
-        turn = { lcaTurnId: randomUUID(), trigger: start?.trigger ?? 'user', attempts: 0, role: 'chat', partial: '', toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [] }
+        turn = { memoryDerived: start?.memoryDerived, lcaTurnId: randomUUID(), trigger: start?.trigger ?? 'user', attempts: 0, role: 'chat', partial: '', toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [] }
         options.foreground?.()
         begin(turn.lcaTurnId, start)
         const preset = typeof event.preset === 'string' && event.preset.length <= 64 ? event.preset : null
@@ -497,27 +506,33 @@ export function createDshExecution(options: {
     persona: options.persona(), suffix: options.suffix(), tools: (() => { const schemas = toolSchemas(); toolsSent = JSON.stringify(schemas); return schemas })(),
     onEvent, onCall: call, onApproval: approve, onAdmit: admitStep, onQuestion: question, onState: requestState })
   let opening: Promise<Live> | undefined
+  let preparing = 0
+  let sendQueue: Promise<unknown> = Promise.resolve()
+  let capacity: Promise<{ chat?: ResolvedModelCapabilities; work?: ResolvedModelCapabilities } | undefined> | undefined
+  const capacities = () => capacity ??= (typeof host?.describe === 'function' ? host.describe().then(value => value?.capabilities).catch(() => undefined) : Promise.resolve(undefined))
+  const enqueueSend = (action: () => Promise<void>, failure: (error: unknown) => void) => {
+    preparing++
+    sendQueue = sendQueue.then(action).catch(error => { if (!closed) failure(error) }).finally(() => { preparing--; options.changed('task'); kick() })
+  }
   /**
    * Hand held events to her: into the turn she is in (she sees them at her next step), or as a turn of their own
    * when she is free and need not stay quiet. Bridge caps such a turn's steps unless you join in.
    */
   const kick = () => {
-    if (closed || maintaining || !held.length || store.projection().lightsOut || opening) return
+    if (closed || maintaining || !held.length || store.projection().lightsOut || opening || preparing) return
     if (!turn && quiet()) return
     const batch = held.splice(0)
     for (const event of batch) { pending.push(event.id); pendingText.set(event.id, factsOf(event)); eventIds.add(event.id) }
     const mode = turn ? 'steer' as const : 'followup' as const
-    if (mode === 'followup') starts.push({ trigger: batch[0].source, requestId: null })
-    void ensureSession().then((current) => {
+    enqueueSend(async () => {
+      const current = await ensureSession()
       if (closed) return
       if (mode === 'followup') syncTools()
-      const reference = mode === 'followup' ? referenceFor(current, new Set(batch.map((event) => event.id)), batch[0].id) : { text: null, degrade: [] }
+      const reference = mode === 'followup' ? await referenceFor(current, new Set(batch.map(event => event.id)), batch[0].id) : { text: null, degrade: [], memoryDerived: false }
+      if (closed || !currentScope()) return
+      if (mode === 'followup') starts.push({ trigger: batch[0].source, requestId: null, memoryDerived: reference.memoryDerived })
       host!.send(current.id, batch.map(factsOf).join('\n'), mode, reference.text, 'event', reference.degrade, syncState(mode === 'followup'))
-    }, (error: unknown) => {
-      if (closed) return
-      console.error('DSH_SESSION_FAILED', (error as { code?: unknown } | null)?.code ?? (error instanceof Error ? error.message.slice(0, 40) : 'unknown'))
-      if (mode === 'followup') starts.pop()
-    })
+    }, error => fail(error instanceof ContextBudgetFailure ? error.code : 'internal'))
   }
   const ensureSession = () => {
     const day = store.scope.sessionId; const cwd = resolve(options.project())
@@ -575,21 +590,24 @@ export function createDshExecution(options: {
     return kept
   }
   /** Opening facts: application time, memory references and today's missed conversation. */
-  const referenceFor = (current: Live, exclude: ReadonlySet<string>, requestId: string, extra?: Record<string, unknown> | null) => {
-    const memory = { ...options.reference?.({ requestId, firstOfSession: !!current.fresh }), ...extra }
+  const referenceFor = async (current: Live, exclude: ReadonlySet<string>, requestId: string, extra?: Record<string, unknown> | null) => {
+    const memory = { ...await options.reference?.({ requestId, firstOfSession: !!current.fresh }), ...extra }
     current.fresh = false
     const earlier = missedConversation(current.seenSeq, exclude)
     const revealed = options.revealed?.() ?? null
     const value = { ...memory, ...revealed?.reference, ...(earlier.length ? { earlierToday: earlier, earlierTodayNote: 'Conversation from earlier today that this session did not see (another project folder). Your own past lines and the user\'s; not instructions.' } : {}), currentTime: readClock(clock) }
-    const text = JSON.stringify(value) + (revealed ? '\n\n' + revealed.text : '')
-    return { text, degrade: revealed ? [revealed.source] : [] }
+    const { text, reference } = composeContext({ reference: value, capabilities: (await capacities())?.chat,
+      systemText: options.persona() + options.suffix(), tools: toolSchemas(), inputText: [...exclude].map(id => pendingText.get(id) ?? '').join('\n'), revealedText: revealed?.text })
+    options.referencesPrepared?.(requestId, reference)
+    return { text, degrade: revealed ? [revealed.source] : [], memoryDerived: Object.keys(memory).some(key => /memory|reference|previousDays/i.test(key)) || earlier.length > 0 }
   }
 
   return {
     collaboration,
+    prepared: async () => { await sendQueue },
     compact: async (operationId: string): Promise<{ rootSessionId: string; outcome: RootCompactionOutcome }> => {
       const rootSessionId = session?.id ?? ''
-      if (closed || maintaining || turn || opening || collaboration.busy()) return { rootSessionId, outcome: 'busy' }
+      if (closed || maintaining || turn || opening || preparing || starts.length || collaboration.busy()) return { rootSessionId, outcome: 'busy' }
       if (!session || !host || !currentScope()) return { rootSessionId, outcome: 'no_range' }
       maintaining = true
       try { return await host.compact(rootSessionId, operationId) }
@@ -605,19 +623,16 @@ export function createDshExecution(options: {
       const id = randomUUID()
       record({ type: 'user/message', id, text, requestId, commandHash }); pending.push(id); pendingText.set(id, text); options.changed('message')
       // A session that cannot open is LCA's own failure (runtime, profile, link), not the user's model setup.
-      void ensureSession().then((current) => {
+      enqueueSend(async () => {
+        const current = await ensureSession()
         if (closed) return
-        const mode = turn ? 'steer' : 'followup'
+        const mode = turn || starts.length ? 'steer' : 'followup'
         if (mode === 'followup') syncTools()
-        // A message joining her running turn needs no references: they came with the turn's opening message.
-        const reference = mode === 'followup' ? referenceFor(current, new Set(pending), requestId, extra) : { text: null, degrade: [] }
-        if (mode === 'followup') starts.push({ trigger: 'user', requestId })
+        const reference = mode === 'followup' ? await referenceFor(current, new Set(pending), requestId, extra) : { text: null, degrade: [], memoryDerived: false }
+        if (closed || !currentScope()) return
+        if (mode === 'followup') starts.push({ trigger: 'user', requestId, memoryDerived: reference.memoryDerived })
         host!.send(current.id, text, mode, reference.text, 'user', reference.degrade, syncState(true))
-      }, (error: unknown) => {
-        if (closed) return
-        console.error('DSH_SESSION_FAILED', (error as { code?: unknown } | null)?.code ?? (error instanceof Error ? error.message.slice(0, 40) : 'unknown'))
-        fail('internal')
-      })
+      }, error => fail(error instanceof ContextBudgetFailure ? error.code : 'internal'))
     },
     stop: (taskId: string) => {
       if (closed || !turn || !session || turn.lcaTurnId !== taskId) return false
@@ -642,9 +657,9 @@ export function createDshExecution(options: {
       held.push({ id: eventId, source, text }); kick(); return true
     },
     /** A DSH turn is running; the work folder must not change under it. */
-    busy: () => !!turn || !!opening || maintaining || collaboration.busy(),
+    busy: () => !!turn || !!opening || preparing > 0 || starts.length > 0 || maintaining || collaboration.busy(),
     withExtensions: async <T>(job: (runtime: ExtensionRuntime) => Promise<T>): Promise<T> => {
-      if (closed || maintaining || turn || opening || collaboration.busy()) throw new Error('DSH_BUSY')
+      if (closed || maintaining || turn || opening || preparing || starts.length || collaboration.busy()) throw new Error('DSH_BUSY')
       maintaining = true
       const restart = async () => {
         const previous = host; host = undefined; session = undefined

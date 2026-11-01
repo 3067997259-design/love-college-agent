@@ -1,3 +1,4 @@
+import { testMemoryFacts } from '../helpers/memory'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -90,7 +91,7 @@ it('corrects automatic sleep from legacy daily carries on morning restart using 
 it('does not turn a daylight catch-up page seal into sleep', async () => {
   const f = fixture(); f.clock.advanceBy(8 * 3600_000)
   const rotate = vi.fn(() => true); f.store.dayKey = () => '2026-10-16'; f.store.rotate = rotate
-  const memory = createMemoryService({ store: f.store, clock: f.clock, scheduler: f.scheduler, model: null,
+  const memory = createMemoryService({ facts: testMemoryFacts(f.store, f.clock, f.root), store: f.store, clock: f.clock, scheduler: f.scheduler, model: null,
     repository: { view: () => projectMemory(f.store.records()), append: f.store.append, refresh: () => {}, close: () => {} },
     isBusy: () => false, rolled: () => f.controller.refresh('connection'), changed: () => f.controller.refresh('connection'), closingDay: () => { f.sleep.set(true, 'day-end') } })
   cleanup.push(memory.close); f.scheduler.cancel('memory.maintenance')
@@ -121,7 +122,7 @@ it('enters sleep only after safe asynchronous day sealing, never on a new user i
   const day = '2026-10-16'; let release: () => void = () => {}
   const sealing = vi.fn(() => new Promise<void>((done) => { release = done }))
   const rotate = vi.fn(() => true); f.store.dayKey = () => day; f.store.rotate = rotate
-  const memory = createMemoryService({ store: f.store, clock: f.clock, scheduler, model: null,
+  const memory = createMemoryService({ facts: testMemoryFacts(f.store, f.clock, f.root), store: f.store, clock: f.clock, scheduler, model: null,
     repository: { view: () => projectMemory(f.store.records()), append: f.store.append, refresh: () => {}, close: () => {} },
     isBusy: () => false, rolled: () => {}, changed: () => {}, beforeRoll: sealing,
     closingDay: () => { f.sleep.set(true, 'day-end') } })

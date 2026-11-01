@@ -29,7 +29,7 @@ const fileTool: HarnessTool = { definition: { name: 'read_uploaded_file', descri
 const opticalTool: HarnessTool = { definition: { name: 'recall_optical', description: 'synthetic', parameters: { type: 'object', properties: {} } }, templateId: 'memory.optical',
   validate: () => true, run: async () => ({ ok: true, raw: {}, visible: { impression: 'synthetic', trust: 'unreviewed-impression' } }) }
 
-function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'; units: number }) => 'budget-exceeded' | 'unavailable' | null, revealed?: () => { reference: Record<string, unknown>; text: string; source: 'mail' } | null) {
+function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'; units: number }) => 'budget-exceeded' | 'unavailable' | null, revealed?: () => { reference: Record<string, unknown>; text: string; source: 'mail' } | null, includeReference = true) {
   const root = dataDir ?? mkdtempSync(join(tmpdir(), 'lca-dsh-journal-')); if (!dataDir) roots.push(root)
   const clock = createManualClock(1_000)
   const journal = openJournal(join(root, 'journal'), { userId: 'u', characterId: 'c' }, clock)
@@ -58,10 +58,10 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
     question: (items, context) => questions.ask(items, { clock, store, ...context }).then((result) => result.raw as { status?: unknown; answers?: unknown; answerMessageId?: unknown }),
     foreground: () => { hooks.push('foreground') }, userWork: () => { hooks.push('userWork') }, settled: () => { hooks.push('settled') },
     setMode: (mode, requestId) => { store.append({ type: 'companion/mode', mode, requestId, commandHash: 'model-state' }); return true },
-    reference: ({ firstOfSession }) => { referenceAsks.push(firstOfSession); return { memoryReference: [{ text: '你喜欢用 TypeScript' }], ...(firstOfSession ? { previousDaysReference: [{ text: '昨天一起写了质数脚本' }] } : {}) } } })
+    reference: ({ firstOfSession }) => { referenceAsks.push(firstOfSession); return includeReference ? { memoryReference: [{ text: '你喜欢用 TypeScript' }], ...(firstOfSession ? { previousDaysReference: [{ text: '昨天一起写了质数脚本' }] } : {}) } : null } })
   const emit = (event: Omit<DshEvent, 'sessionId'>) => host.options!.onEvent({ sessionId: host.current, ...(event.t === 'turn-start' ? { sourcePolicy: 2 } : {}), ...event } as DshEvent)
   const approval = (patch: Partial<DshApproval>) => host.options!.onApproval({ approvalId: 'approval-x', activationId: 'activation-x', policyRevision: 0, signal: new AbortController().signal, sessionId: 'dsh-1', origin: { protocolVersion: 2, runtimeId: 'test-runtime', projectId: 'test-project', rootSessionId: 'dsh-1', sessionId: 'dsh-1', parentSessionId: null, cwd: resolve(project) }, toolName: 'pwsh', callId: 'call-x', reason: null, kind: 'escalation', command: 'node a.js', subject: 'node a.js', degraded: null, ...patch })
-  const opened = async () => { for (let i = 0; i < 20 && !host.sent.length; i++) await Promise.resolve() }
+  const opened = () => execution.prepared()
   const question = (questions: unknown, callId = 'call-ask') => host.options!.onQuestion!({ sessionId: host.current, callId, questions, signal: new AbortController().signal })
   const command = (body: Record<string, unknown>) => ({ protocolVersion: 1, epoch: 'test', requestId: 'answer-' + body.type, ...body }) as AppCommand
   return { root, clock, journal, store, execution, host, emit, approval, asked, opened, questions, question, command, referenceAsks, startedTurns, answeredCalls, hooks, setProject: (next: string) => { project = next }, nextDay: () => { currentScope = { ...currentScope, sessionId: 'next-day' } }, setAnswer: (next: typeof answer) => { answer = next } }
@@ -121,6 +121,7 @@ it('does not repopulate the collaboration page from late events after a project 
 it('withdraws old member addresses when extension maintenance replaces the runtime', async () => {
   const f = setup()
   f.execution.send('synthetic work', 'restart-test', 'restart-hash'); await f.opened()
+  f.emit({ t: 'turn-start', turn: 1 }); f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
   f.execution.collaboration.accept({ status: 'ready', runtimeId: 'old', projectId: 'project', members: [], tasks: [] })
   await f.execution.withExtensions(async ({ restart }) => { await restart() })
   expect(f.execution.collaboration.view().runtimeId).toBeNull()
@@ -498,7 +499,7 @@ describe('DSH work in the LCA journal', () => {
   })
 
   it('applies D-4 to DSH work turns and D2 to third-party turns in memory', async () => {
-    const f = setup()
+    const f = setup(undefined, undefined, undefined, false)
     f.execution.send('就用 TypeScript 写，别动 config 目录', 'r-1', 'h-1')
     await f.opened()
     f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })

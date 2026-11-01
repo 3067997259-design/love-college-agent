@@ -9,6 +9,7 @@ import { createScheduler } from '../scheduler'
 import { openMemoryRepository } from '../memory/repository'
 import { createFakeMemoryModel } from '../memory/model'
 import { createMemoryService } from '../memory/service'
+import { createMemoryFacts } from '../memory/facts'
 import { seenFragments } from '../memory/seen'
 import { createDshExecution } from '../dsh/execution'
 import type { DshEvent, DshHostOptions, startDshHost } from '../dsh/host'
@@ -35,6 +36,7 @@ function scriptedDsh(clock: ReturnType<typeof createManualClock>) {
           emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
         })
       },
+      compact: async (rootSessionId: string) => ({ rootSessionId, outcome: 'no_range' }),
       cancel: () => {}, tools: () => {}, trust: () => {}, untrust: () => {}, efforts: () => {}, describe: async () => null, close: async () => 0 }
   }) as unknown as typeof startDshHost
   // A message reaches the host only after its session opens: let that happen, then wait for her turns.
@@ -48,7 +50,10 @@ export async function probeMemory(root: string) {
   const open = () => {
     const store = openSessionStore(root, owner, clock); const scheduler = createScheduler(clock); const repository = openMemoryRepository(root, store); const fake = createFakeMemoryModel()
     const dsh = scriptedDsh(clock)
-    const memory = createMemoryService({ clock, store, scheduler, repository, model: fake.model, development: fake,
+    const facts = createMemoryFacts({ root: join(root, 'facts'), clock, store, owner: { ...owner, dataRootId: root }, held: () => store.projection().lightsOut, waitForRestore: async () => {}, changed: () => {},
+      embedding: () => ({ provider: 'fixture', model: 'synthetic', fingerprint: 'probe-memory-native', embed: async () => Array.from({ length: 768 }, (_, index) => index === 0 ? 1 : 0) }) })
+    const memory = createMemoryService({ clock, store, scheduler, repository, facts, model: fake.model, development: fake,
+      compactRoot: operationId => execution.compact(operationId),
       isBusy: () => execution.busy(), rolled: () => execution.stateChanged(), changed: () => {} })
     scheduler.cancel('memory.maintenance') // Probe drives maintenance explicitly; avoid advancing through pending microtasks.
     // The same references the book gives her (index.ts): memories matching your last three lines, earlier days with a new session.
@@ -58,31 +63,37 @@ export async function probeMemory(root: string) {
       project: () => join(root, 'probe-project'), persona: () => '', suffix: () => '', tools: () => [], ask: async () => null, changed: () => {}, launch: dsh.launch,
       reference: ({ requestId, firstOfSession }) => memory.reference(lines(), requestId, firstOfSession), foreground: memory.foreground })
     let closed = false
-    return { store, scheduler, repository, fake, memory, execution, dsh, close: async () => { if (closed) return; closed = true; await Promise.all([memory.close(), execution.close()]); scheduler.dispose(); repository.close(); store.close() } }
+    return { store, scheduler, repository, facts, fake, memory, execution, dsh, close: async () => { if (closed) return; closed = true; await Promise.all([memory.close(), execution.close()]); scheduler.dispose(); repository.close(); store.close() } }
   }
   let current = open()
   let stage = 0
   const command = (body: Record<string, unknown>) => ({ ...body, protocolVersion: 1, epoch: 'probe', requestId: String(current.store.records().length) } as AppCommand)
-  const chat = async (text: string) => { current.execution.send(text, String(current.store.records().length), 'probe'); await current.dsh.idle() }
+  const chat = async (text: string) => { current.execution.send(text, String(current.store.records().length), 'probe'); await current.execution.prepared(); await current.dsh.idle() }
   const extract = async () => { if (current.memory.dispatch(command({ type: 'memory.extract' }))) throw new Error('MEMORY_EXTRACT_REFUSED'); await current.memory.idle() }
+  const review = async () => { for (const fact of current.facts.factViews().filter(item => item.reviewStatus === 'pending')) await current.facts.reviewFact(fact.id, fact.revision, true) }
   try {
     current.store.append({ type: 'tool/result', turnId: 'private-probe', callId: 'hidden', ok: true, elapsedMs: 1, raw: { source: 'RAW_ONLY_MEMORY_EVIDENCE', output: 'USER_ONLY_DOCUMENT_RESULT' }, visible: { count: 1 } })
-    await chat('我把纸桥放在书桌上，给它取名叫周五桥。'); await extract()
-    await chat('我喜欢的饮料是咖啡。'); await extract()
-    await chat('我喜欢的饮料现在改为红茶，不再喝咖啡。'); await extract()
+    await chat('我把纸桥放在书桌上，给它取名叫周五桥。'); await extract(); await review()
+    await chat('我喜欢的饮料是咖啡。'); await extract(); await review()
+    await chat('我喜欢的饮料现在改为红茶，不再喝咖啡。')
+    const coffee = current.facts.factViews().find(item => item.content === '我喜欢的饮料是咖啡。')!
+    const authored = current.store.records().findLast(row => row.type === 'user/message')!
+    if (authored.type !== 'user/message') throw new Error('MEMORY_USER_SOURCE_MISSING')
+    const correction = await current.memory.propose('probe-correct', `event:${authored.id}`, 'probe-correction', { kind: 'correct', targetId: coffee.id, expectedRevision: coffee.revision, content: '我喜欢的饮料现在改为红茶，不再喝咖啡。' }, new AbortController().signal)
+    await current.facts.review(correction.operationId, true)
     stage = 1
-    if (!current.repository.view().items.some((item) => item.text.includes('咖啡。') && item.supersededBy) || current.memory.search('饮料', 'query-drink').some((item) => item.text === '我喜欢的饮料是咖啡。')) throw new Error('MEMORY_CORRECTION_FAILED')
+    if (!current.facts.factViews().some(item => item.id === coffee.id && item.factStatus === 'superseded') || (await current.memory.search('饮料', 'query-drink')).some(item => item.text === '我喜欢的饮料是咖啡。')) throw new Error('MEMORY_CORRECTION_FAILED')
     for (let index = 0; index < 4; index++) await chat('合成上下文 ' + index + ' ' + '这是用于验证整回合压缩的可见对话。'.repeat(100))
     const before = current.store.projection().context.length; const oldMessages = JSON.stringify(current.store.projection().messages)
     if (current.memory.dispatch(command({ type: 'context.compact' }))) throw new Error('MEMORY_COMPACT_REFUSED')
     await current.memory.idle()
-    if (current.memory.view().status === 'failed' || current.store.projection().context.length >= before || JSON.stringify(current.store.projection().messages) !== oldMessages) throw new Error('MEMORY_COMPACT_FAILED')
+    if (current.memory.view().status === 'failed' || current.memory.view().compaction?.outcome !== 'no_range' || current.store.projection().context.length !== before || JSON.stringify(current.store.projection().messages) !== oldMessages) throw new Error('MEMORY_COMPACT_ROUTE_FAILED')
     if (/RAW_ONLY_MEMORY_EVIDENCE|USER_ONLY_DOCUMENT_RESULT/.test(JSON.stringify([current.repository.view(), seenFragments(current.store.history!())]))) throw new Error('MEMORY_PRIVATE_LEAK')
     stage = 2
     const oldSession = current.store.scope.sessionId; const oldDay = current.store.dayKey!()
     clock.advanceBy(clock.parse('2026-10-16T03:59:50+08:00') - clock.nowMs())
     const priorCalls = current.dsh.calls()
-    current.execution.send('HOLD_TURN', 'hold', 'probe'); const pending = current.dsh.idle()
+    current.execution.send('HOLD_TURN', 'hold', 'probe'); await current.execution.prepared(); const pending = current.dsh.idle()
     for (let i = 0; i < 20 && current.dsh.calls() === priorCalls; i++) await settle()
     if (current.dsh.calls() === priorCalls) throw new Error('MEMORY_HOLD_NOT_STARTED')
     clock.advanceBy(10_000)
@@ -104,9 +115,9 @@ export async function probeMemory(root: string) {
     stage = 4
     if (!current.store.projection().pendingEvents.some((event) => event.id === 'held-mail')) throw new Error('MEMORY_PENDING_FACT_LOST')
     const afterRoll = current.dsh.sent.length
-    current.store.append({ type: 'companion/mode', mode: 'rest', requestId: 'rest', commandHash: 'probe' }); current.execution.stateChanged(); await current.dsh.idle()
+    current.store.append({ type: 'companion/mode', mode: 'rest', requestId: 'rest', commandHash: 'probe' }); current.execution.stateChanged(); await current.execution.prepared(); await current.dsh.idle()
     await chat('纸桥'); await chat('我把纸桥放在书桌上，给它取名叫周五桥。'); await extract(); await chat('纸桥')
-    if (!current.repository.view().items.some((item) => item.text.includes('周五桥') && item.tier === 'long_term')) throw new Error('MEMORY_PROMOTION_FAILED')
+    if (!current.facts.factViews().some(item => item.content.includes('周五桥') && item.memoryType === 'long_term')) throw new Error('MEMORY_PROMOTION_FAILED')
     stage = 41
     // What her new day's session was given: the held mail fact, earlier days with its first message, matching memories.
     const given = JSON.stringify(current.dsh.sent.slice(afterRoll))
@@ -114,9 +125,9 @@ export async function probeMemory(root: string) {
     stage = 42
     if (!readFileSync(oldFile).equals(oldBytes)) throw new Error('MEMORY_OLD_PAGE_MUTATED')
     stage = 5
-    const beforeFault = current.repository.view().keys.length
+    const beforeFault = current.facts.pendingSources().length
     current.memory.dispatch(command({ type: 'developer.memory', scenarioId: 'failure' })); await chat('我们约好先完成作业，再一起整理纸桥的照片。'); await extract()
-    if (current.memory.view().error?.code !== 'connection-failed' || current.repository.view().keys.length !== beforeFault) throw new Error('MEMORY_FAILURE_FAILED')
+    if (current.memory.view().error?.code !== 'connection-failed' || current.facts.pendingSources().length <= beforeFault) throw new Error('MEMORY_FAILURE_FAILED')
     current.memory.dispatch(command({ type: 'developer.memory', scenarioId: 'invalid' })); await extract()
     if (current.memory.view().error?.code !== 'memory-invalid-output') throw new Error('MEMORY_INVALID_FAILED')
     const failedDay = current.store.scope.sessionId
@@ -128,7 +139,8 @@ export async function probeMemory(root: string) {
     await current.close()
     const cache = new Database(join(root, 'memory.sqlite')); cache.prepare('UPDATE memory_projection SET state_json=?').run('{}'); cache.close()
     current = open()
-    if (!current.repository.view().items.some((item) => item.tier === 'long_term') || current.memory.sessionView().pages.length !== 3) throw new Error('MEMORY_RESTART_FAILED')
+    await current.memory.initialize()
+    if (!current.facts.factViews().some(item => item.memoryType === 'long_term') || current.memory.sessionView().pages.length !== 3) throw new Error('MEMORY_RESTART_FAILED')
     for (const otherOwner of [{ ...owner, characterId: 'other-character' }, { ...owner, userId: 'other-user' }]) {
       const otherStore = openSessionStore(root, otherOwner, clock); const other = openMemoryRepository(root, otherStore)
       try { if (other.view().items.length || other.view().summaries.length) throw new Error('MEMORY_SCOPE_FAILED') } finally { other.close(); otherStore.close() }
@@ -140,7 +152,7 @@ export async function probeMemory(root: string) {
     current.memory.dispatch(command({ type: 'memory.consolidate' })); await current.memory.idle()
     if (current.store.history!().filter((row) => row.type === 'memory/operation').length !== operations) throw new Error('MEMORY_HIERARCHY_REPEATED')
     return { ok: true, probe: 'memory', source: 'fake', seenOnlyExtraction: true, rawPrivateExcluded: true, correctedWithoutDeletion: true, actualSqliteProjection: true,
-      contextCompactedChatPreserved: true, noMidturnOrLightsRollover: true, sameProcessDailyRollover: true, priorSummaryAndRecall: true,
+      compactionRoutedJournalPreserved: true, actualCompaction: 'separate-dsh-bridge-scenario', nativeDuckDbFacts: true, noMidturnOrLightsRollover: true, sameProcessDailyRollover: true, priorSummaryAndRecall: true,
       longTermPromotion: true, oldPageUnchanged: true, pendingFactsCarried: true, failureClosed: true, failedDayRolloverAndDeferredSummary: true, restartAndCacheRebuild: true, userAndCharacterIsolated: true, closedWeekMonthIdempotent: true }
   } catch { return { ok: false, probe: 'memory', stage } } finally { await current.close() }
 }

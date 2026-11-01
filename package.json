@@ -20,6 +20,7 @@
     "test": "vitest run",
     "test:continuity": "node scripts/accept-continuity.mjs",
     "test:continuity:storage": "node scripts/accept-continuity.mjs --gate storage",
+    "test:continuity:conversation": "node scripts/memory-conversation-gate.mjs",
     "verify:airi-memory": "node scripts/verify-airi-memory.mjs",
     "test:watch": "vitest",
     "rebuild:native": "node scripts/run.mjs rebuild",

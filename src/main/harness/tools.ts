@@ -6,7 +6,10 @@ import type { JournalInput } from '../journal/schema'
 import manifest from './tools.json'
 import type { SourceMail } from '../mail/types'
 
-export interface ToolContext { clock: Clock; store: SessionStore; turnId: string; callId?: string; signal: AbortSignal }
+export interface ToolContext { clock: Clock; store: SessionStore; turnId: string; callId?: string; signal: AbortSignal
+  /** Main-issued authored message, already delivered to this root. Never a tool argument. */
+  userMessageId?: string
+}
 type JsonValue = Extract<JournalInput, { type: 'tool/result' }>['raw']
 export interface CandidateSeed {
   /** External source id; stable for revision/idempotency. */

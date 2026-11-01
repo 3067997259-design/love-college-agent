@@ -11,7 +11,7 @@ export const memoryDigest = (text: string) => createHash('sha256').update(text).
  */
 export type SeenOrigin = 'user' | 'mail' | 'document' | 'pomodoro' | 'autonomous' | 'model' | 'tool' | 'unknown'
 /** Optional so message-transport snapshots built outside this module keep compiling; absent means unknown. */
-export interface SeenFragment extends MemorySource { key: string; text: string; role: 'user' | 'assistant' | 'tool'; origin?: SeenOrigin; source?: string }
+export interface SeenFragment extends MemorySource { key: string; text: string; role: 'user' | 'assistant' | 'tool'; origin?: SeenOrigin; source?: string; sourceEventId?: string }
 /** Model DTO: the full grounding source stays local rather than repeating once per 2k fragment.
  * Small neighboring windows help the extractor notice operators across a split; only text is quotable.
  * Validation still checks the complete local source, including operators outside these windows.
@@ -39,7 +39,7 @@ export const withoutCode = (text: string) => text.replace(/```[\s\S]*?(```|$)/g,
  * The sole memory input surface: successful model input snapshots, never tool/raw or any private store.
  * Origin comes from the journal record that produced the context entry, not from the message body.
  */
-export function seenFragments(records: readonly JournalRecord[], memoryOnly = false): SeenFragment[] {
+export function seenFragments(records: readonly JournalRecord[], memoryOnly = false, canonicalIdentity = false): SeenFragment[] {
   let sessionId = ''; const seen = new Set<string>(); const result: SeenFragment[] = []
   const externalCalls = records.flatMap((row) => row.type === 'tool/call' && isSourceTool(row.templateId) ? [row] : [])
   const externalIds = new Set(externalCalls.map((row) => row.callId))
@@ -72,6 +72,7 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
     for (const index of row.eligibleIndexes) {
       const message = row.messages[index]
       if (!message || message.role === 'system' || !message.content.trim()) continue
+      if (memoryOnly && row.memoryExcludedIndexes?.includes(index)) continue
       if (memoryOnly && message.role === 'assistant' && externalTurns.has(row.turnId)) continue
       if (memoryOnly && (message.role === 'tool' && externalIds.has(message.toolCallId ?? '') || message.role === 'assistant' && (externalReplies.has(message.content) || ignoredTitles.some((title) => message.content.includes(title))))) continue
       if (memoryOnly && (message.role === 'tool' && workspaceIds.has(message.toolCallId ?? '') || message.role === 'assistant' && workspaceReplies.has(message.content))) continue
@@ -87,10 +88,11 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
       else origin = 'user'
       if (memoryOnly && (origin === 'mail' || origin === 'document')) continue
       for (let offset = 0; offset < text.length; offset += 2000) {
-        const key = memoryDigest(JSON.stringify([sessionId, message.role, text, offset]))
+        const originalEvent = canonicalIdentity ? row.originalEvents?.find(event => event.index === index)?.eventId : undefined
+        const key = memoryDigest(JSON.stringify(originalEvent ? [originalEvent, message.role, text, offset] : [sessionId, message.role, text, offset]))
         if (seen.has(key)) continue
         seen.add(key)
-        result.push({ id: `${sessionId}:${row.seq}:${index}:${offset}`, key, sessionId, frameSeq: row.seq, index, offset, atMs: row.atMs, role: message.role, origin, text: text.slice(offset, offset + 2000), source: text })
+        result.push({ id: originalEvent ? `event:${originalEvent}:${offset}` : `${sessionId}:${row.seq}:${index}:${offset}`, key, sessionId, frameSeq: row.seq, index, offset, atMs: row.atMs, role: message.role, origin, text: text.slice(offset, offset + 2000), source: text, ...(originalEvent ? { sourceEventId: originalEvent } : {}) })
       }
     }
   }

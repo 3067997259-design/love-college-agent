@@ -20,6 +20,7 @@ const tasks = storageOnly ? [
   ['dsh-bridge', 'scripts/dsh-bridge-check.mjs'],
   ['dsh-family', 'scripts/dsh-family-check.mjs'],
   ['dsh-collaboration', 'scripts/dsh-collaboration-check.mjs'],
+  ['memory-conversation', 'scripts/memory-conversation-gate.mjs'],
   ['build', 'node_modules/electron-vite/bin/electron-vite.js', 'build'],
   ['memory', 'scripts/smoke-memory.mjs'],
   ['model-routing', 'scripts/smoke-model-routing.mjs'],

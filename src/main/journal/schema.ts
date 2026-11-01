@@ -173,6 +173,10 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('context/compact'), fromSeq: z.number().int().positive(), toSeq: z.number().int().positive(), summary: text, sources: z.array(memorySourceSchema).max(128).optional() }),
   z.strictObject({ type: z.literal('model/seen'), turnId: id, source: z.enum(['real', 'fake']), messages: z.array(contextMessageSchema).max(1024),
     eligibleIndexes: z.array(z.number().int().nonnegative()).max(1024),
+    /** Derived references may inform a reply without becoming a new memory. Diary eligibility stays separate. */
+    memoryExcludedIndexes: z.array(z.number().int().nonnegative()).max(1024).optional(),
+    /** Stable original event identity survives handoff between DSH roots. */
+    originalEvents: z.array(z.strictObject({ index: z.number().int().nonnegative(), eventId: id })).max(1024).optional(),
     /** D2 request capture: tool names the model saw, never parameters or results. */
     tools: z.array(z.string().min(1).max(64)).max(256).optional() }).refine((value) => new Set(value.eligibleIndexes).size === value.eligibleIndexes.length && value.eligibleIndexes.every((index) => index < value.messages.length && value.messages[index].role !== 'system')),
   z.strictObject({ type: z.literal('memory/batch'), ...memoryBatchSchema.shape }),

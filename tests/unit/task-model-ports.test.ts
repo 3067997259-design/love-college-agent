@@ -1,3 +1,4 @@
+import { testMemoryFacts } from '../helpers/memory'
 import { resolveModelProviders } from '../../src/main/config/providers'
 import { describe, expect, it } from 'vitest'
 import { createManualClock } from '../../src/main/clock'
@@ -76,26 +77,25 @@ describe('production task model ports without runtime model calls', () => {
     expect(JSON.stringify(f.rows)).not.toMatch(/SYNTHETIC_STALLED_INPUT|LATE_WORK_MUST_NOT_COMMIT/)
   })
   it('extracts a legal long CJK message then its short successor without duplicating local grounding sources', async () => {
-    const f = fixture(); const requests: unknown[][] = []; const scheduler = createScheduler(f.clock)
+    const f = fixture(); const requests: { userText: string; assistantText: string }[] = []; const scheduler = createScheduler(f.clock)
     const text = '可见材料'.repeat(2500)
     f.store.append({ type: 'model/seen', turnId: 'long', source: 'fake', messages: [{ role: 'user', content: text }, { role: 'user', content: '后续短经历' }], eligibleIndexes: [0, 1] })
     const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => {
       const body = JSON.parse(String(init.body)); const input = JSON.parse(body.messages[1].content); requests.push(input)
       expect(Buffer.byteLength(body.messages[1].content)).toBeLessThanOrEqual(28000)
-      for (const fragment of input) { expect(fragment).not.toHaveProperty('source'); expect(fragment.text.length).toBeLessThanOrEqual(2000); expect(fragment.context?.before.length ?? 0).toBeLessThanOrEqual(256) }
-      const last = input.find((fragment: { text: string }) => fragment.text === '后续短经历')
-      return response({ items: last ? [{ sourceId: last.id, quote: last.text, kind: 'experience', topic: '短经历', replaceTopic: false }] : [] })
+      expect(input).not.toHaveProperty('source'); expect(input.userText.length).toBeLessThanOrEqual(2000)
+      return response(input.userText === '后续短经历' ? [{ content: input.userText, category: 'life', memoryType: 'short_term' }] : [])
     })
     const repository = { view: () => projectMemory(f.rows), append: f.store.append, refresh: () => {}, close: () => {} }
-    const memory = createMemoryService({ clock: f.clock, store: f.store, scheduler, repository, model: ports.memory, isBusy: () => false, rolled: () => {}, changed: () => {} })
+    const memory = createMemoryService({ facts: testMemoryFacts(f.store, f.clock), clock: f.clock, store: f.store, scheduler, repository, model: ports.memory, isBusy: () => false, rolled: () => {}, changed: () => {} })
     scheduler.cancel('memory.maintenance')
     try {
       for (let index = 0; index < 3; index++) { memory.dispatch({ protocolVersion: 1, epoch: 'test', requestId: 'long-' + index, type: 'memory.extract' } as AppCommand); await memory.idle() }
-      expect(requests).toHaveLength(2); expect(repository.view().keys).toHaveLength(6); expect(repository.view().items).toMatchObject([{ text: '后续短经历' }])
+      expect(requests).toHaveLength(6); expect(repository.view().keys).toHaveLength(0); expect(memory.view().facts).toMatchObject([{ content: '后续短经历', reviewStatus: 'pending' }])
       const starts = f.rows.filter((row) => row.type === 'memory/operation' && row.status === 'started')
-      expect(starts).toHaveLength(2)
-      starts.forEach((row, index) => { if (row.type === 'memory/operation') expect(row.reservedChars).toBe(Buffer.byteLength(JSON.stringify(requests[index]))) })
-      expect(f.rows.filter((row) => row.type === 'model/attempt' && row.status === 'started')).toHaveLength(2)
+      expect(starts).toHaveLength(6)
+      expect(starts.every(row => row.type === 'memory/operation' && row.reservedChars > 0 && row.reservedChars <= 28000)).toBe(true)
+      expect(f.rows.filter((row) => row.type === 'model/attempt' && row.status === 'started')).toHaveLength(6)
       // The grounding context remains complete locally, so cutting a split-boundary negator still fails.
       const split = { ...seenFragments(f.rows)[0], source: '甲'.repeat(1999) + '不交作业', offset: 2000, text: '交作业' }
       expect(memoryInputBytes([split])).toBeLessThan(1000)

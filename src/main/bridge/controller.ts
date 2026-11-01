@@ -150,6 +150,10 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('developer.documents'), scenarioId: z.enum(DOCUMENT_SCENARIO_IDS) }),
   z.strictObject({ ...envelope, type: z.literal('developer.document.import'), fixtureId: z.enum(['assignment-pdf', 'notes-text', 'malformed-pdf', 'scanned-pdf']) }),
   z.strictObject({ ...envelope, type: z.literal('memory.extract') }),
+  z.strictObject({ ...envelope, type: z.literal('memory.propose'), kind: z.enum(['remember', 'correct', 'forget']), targetId: z.string().min(1).max(128).optional(), expectedRevision: z.number().int().positive().optional(), content: z.string().min(1).max(2000).optional(), title: z.string().max(64).optional(), summary: z.string().max(150).optional() }),
+  z.strictObject({ ...envelope, type: z.literal('memory.review'), operationId: z.string().min(1).max(128), approve: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('memory.fact.review'), id: z.string().min(1).max(128), expectedRevision: z.number().int().positive(), approve: z.boolean() }),
+  z.strictObject({ ...envelope, type: z.literal('memory.presentation'), id: z.string().min(1).max(128), expectedRevision: z.number().int().positive(), title: z.string().max(64), summary: z.string().max(150), pinned: z.boolean(), pinOrder: z.number().int().min(0).max(10000) }),
   z.strictObject({ ...envelope, type: z.literal('memory.consolidate') }),
   z.strictObject({ ...envelope, type: z.literal('context.compact') }),
   z.strictObject({ ...envelope, type: z.literal('session.rollover') }),
@@ -338,6 +342,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('notification.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('character.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('history.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (['memory.propose', 'memory.review', 'memory.fact.review', 'memory.presentation'].includes(command.type) && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('optical.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('minecraft.') || command.type === 'developer.minecraft') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('life.work.') || command.type === 'developer.life.seed') && surface !== 'book') return reject(command.requestId, 'permission-denied')

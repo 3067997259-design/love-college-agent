@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot, SessionPage, RecallAnchor } from '../../../shared'
 import failureWords from '../voice/failure.zh.json'
+import { MemoryFactsControls } from './MemoryFactsControls'
 
 export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
   const [error, setError] = useState('')
@@ -14,8 +15,8 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
   if (!memory || !session) return null
   const busy = memory.status === 'extracting' || memory.status === 'compacting'
   const send = async (body: Record<string, unknown>) => {
-    try { const ack = await bridge.dispatch({ ...body, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() } as AppCommand); setError(ack.status === 'rejected' ? ack.error.code : '') }
-    catch { setError('connection-failed') }
+    try { const ack = await bridge.dispatch({ ...body, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() } as AppCommand); setError(ack.status === 'rejected' ? ack.error.code : ''); return ack.status === 'accepted' }
+    catch { setError('connection-failed'); return false }
   }
   return <div aria-label="记忆与日会话控制">
     <h2>记忆与日会话</h2>
@@ -33,6 +34,7 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
       <option value="ready">可用</option><option value="failure">后台失败</option><option value="invalid">无依据输出</option>
     </select></label>}
     {(error || memory.error) && <p role="alert">整理未完成：{error || memory.error?.code}</p>}
+    <MemoryFactsControls memory={memory} busy={busy} send={send} />
     <ul className="memory-list">{memory.items.map((item) => <li className="memory-item" key={item.id} data-superseded={!!item.supersededBy}>
       <span>{item.text}</span><small> · 未审核 · {item.tier} · {item.sourceSessionCount} 天来源 · {item.accessCount} 次召回{item.supersededBy ? ' · 已被新事实取代' : ''}</small>
     </li>)}</ul>

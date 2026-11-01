@@ -1,30 +1,26 @@
 import { randomUUID } from 'node:crypto'
-import type { AppCommand, MemoryView, MessageView, PublicErrorCode, SessionPage, SessionView } from '../../shared'
+import type { AppCommand, MemoryView, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { Scheduler } from '../scheduler'
 import type { SessionStore } from '../store/session'
 import { sessionDayKey } from '../journal/file'
-import { projectJournal } from '../journal/projection'
-import { projectFailure } from '../harness/failure'
 import type { MemoryRepository } from './repository'
-import { seenFragments, memoryDigest, memoryInputBytes, type SeenFragment } from './seen'
-import { boundedMemoryCall, MemoryFailure, validateMemories, validateSummary, type MemoryModel, type createFakeMemoryModel } from './model'
-import { searchMemories } from './retrieval'
-import { redactFixed } from '../privacy/redact'
-import { closedSummaryGroups, latestSummaries, summaryReferences, validSummaries } from './hierarchy'
+import { memoryInputBytes, type SeenFragment } from './seen'
+import { boundedMemoryCall, MemoryFailure, validateSummary, type MemoryModel, type createFakeMemoryModel } from './model'
+import { createExperienceIndex, boundedSeenInput } from './experience'
+import type { MemoryFacts } from './facts'
+import type { MemoryProposal } from './airi/core'
 
-type OperationKind = 'extract' | 'compact' | 'day' | 'week' | 'month'
-export function createMemoryService(options: { clock: Clock; scheduler: Scheduler; store: SessionStore; repository: MemoryRepository; model: MemoryModel | null;
+type OperationKind = 'extract' | 'compact' | 'day' | 'week' | 'month' | 'review'
+export function createMemoryService(options: { clock: Clock; scheduler: Scheduler; store: SessionStore; repository: MemoryRepository; facts: MemoryFacts; model: MemoryModel | null;
   development?: ReturnType<typeof createFakeMemoryModel>; isBusy(): boolean; rolled(): void; changed(): void; failed?(): void;
   limits?: { idleMs?: number; compactChars?: number; hardChars?: number; dailyChars?: number; dailyCalls?: number };
-  includeContextEntries?(seqs: readonly number[]): ReadonlySet<number>;
   beforeRoll?(): Promise<void>;
   closingDay?(): void;
   compactRoot?(operationId: string): Promise<{ rootSessionId: string; outcome: import('../../shared/continuity').RootCompactionOutcome }>;
 }) {
   const { clock, store, scheduler, repository } = options
   const records = () => store.history?.() ?? store.records()
-  const retiredSourceIds = () => { const rows = records(); const allowed = new Set(seenFragments(rows, true).map((fragment) => fragment.id)); return new Set(seenFragments(rows).filter((fragment) => !allowed.has(fragment.id)).map((fragment) => fragment.id)) }
   let worker: Promise<void> | undefined; let active: AbortController | undefined; let disposed = false; let enabled = true
   let status: MemoryView['status'] = options.model ? 'idle' : 'unconfigured'
   let error: { code: PublicErrorCode; retryable: boolean } | undefined
@@ -33,21 +29,13 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   const lastUserAt = () => records().reduce((time, row) => row.type === 'user/message' ? Math.max(time, row.atMs) : time, 0)
   const allowed = () => !disposed && enabled && !store.projection().lightsOut
   const backgroundAllowed = () => allowed() && !options.isBusy() && clock.nowMs() - lastUserAt() >= idleMs
-  const normalEntries = () => {
-    const entries = store.projection().contextEntries; const allowed = options.includeContextEntries?.(entries.map((entry) => entry.seq))
-    const retired = retiredSourceIds()
-    const retiredCompactions = new Set(store.records().flatMap((row) => row.type === 'context/compact' && row.sources?.some((source) => retired.has(source.id)) ? [row.seq] : []))
-    return entries.filter((entry) => (!allowed || allowed.has(entry.seq)) && !retiredCompactions.has(entry.seq))
-  }
-  const contextChars = () => JSON.stringify(normalEntries().map((entry) => entry.message)).length
-  const dayKey = () => store.dayKey?.() ?? sessionDayKey(clock)
-  const pendingDay = () => sessionDayKey(clock) > dayKey()
+  const contextChars = () => JSON.stringify(store.projection().context).length
   const reserve = (kind: OperationKind, chars: number) => {
     const started = records().filter((row) => row.type === 'memory/operation' && row.status === 'started' && sessionDayKey(clock, row.atMs) === sessionDayKey(clock))
     const used = started.reduce((sum, row) => sum + (row.type === 'memory/operation' ? row.reservedChars : 0), 0)
     if (started.length >= (options.limits?.dailyCalls ?? 32) || used + chars > (options.limits?.dailyChars ?? 240_000)) throw new MemoryFailure('budget-exceeded')
     const operationId = randomUUID()
-    repository.append({ type: 'memory/operation', operationId, kind, source: options.model!.source, status: 'started', reservedChars: chars })
+    repository.append({ type: 'memory/operation', operationId, kind: kind === 'review' ? 'extract' : kind, source: options.model!.source, status: 'started', reservedChars: chars })
     return operationId
   }
   const call = async <T>(kind: OperationKind, input: readonly SeenFragment[], signal: AbortSignal, validate: (output: unknown) => T): Promise<T> => {
@@ -55,66 +43,46 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     try {
       const output = await boundedMemoryCall(options.model, kind === 'extract' ? 'extract' : 'summarize', input, clock, signal)
       signal.throwIfAborted(); const validated = validate(output)
-      repository.append({ type: 'memory/operation', operationId, kind, source: options.model!.source, status: 'success', reservedChars: 0 })
+      repository.append({ type: 'memory/operation', operationId, kind: kind === 'review' ? 'extract' : kind, source: options.model!.source, status: 'success', reservedChars: 0 })
       return validated
     } catch (cause) {
-      repository.append({ type: 'memory/operation', operationId, kind, source: options.model!.source, status: 'failed', reservedChars: 0,
+      repository.append({ type: 'memory/operation', operationId, kind: kind === 'review' ? 'extract' : kind, source: options.model!.source, status: 'failed', reservedChars: 0,
         error: { code: cause instanceof MemoryFailure ? cause.code : 'unavailable', retryable: true } })
       throw cause
     }
   }
-  const inputLimit = (input: readonly SeenFragment[], bytes = 28_000) => {
-    const result: SeenFragment[] = []
-    for (const fragment of input) { if (memoryInputBytes([...result, fragment]) > bytes) break; result.push(fragment) }
-    return result
-  }
+  const experiences = createExperienceIndex({ clock, store, repository, source: () => options.model!.source,
+    summarize: (kind, input, signal) => call(kind, input, signal, output => validateSummary(output, input)) })
   const extractCore = async (signal: AbortSignal) => {
-    repository.refresh(); const before = repository.view(); const known = new Set(before.keys)
-    const input = inputLimit(seenFragments(records(), true).filter((source) => !known.has(source.key)).slice(0, 5))
+    if (!options.model?.airi) throw new MemoryFailure('not-configured')
+    const input = boundedSeenInput(options.facts.pendingSources().slice(0, 5))
     if (!input.length) return
-    const entries = await call('extract', input, signal, (output) => validateMemories(output, input, store.scope, before.items))
-    signal.throwIfAborted()
-    repository.append({ type: 'memory/batch', batchId: memoryDigest(input.map((source) => source.key).join(':')), keys: input.map((source) => source.key), entries, source: options.model!.source })
-  }
-  const compactCore = async (signal: AbortSignal, force = false, requestId: string = randomUUID()) => {
-    if (options.compactRoot) {
-      if (!force) return // DSH owns automatic pressure compaction as well.
-      signal.throwIfAborted()
-      const result = await options.compactRoot(requestId)
-      compaction = { ...result, atMs: clock.nowMs() }
-      if (result.outcome === 'failed' || result.outcome === 'busy') throw new MemoryFailure('unavailable')
-      return
+    for (const source of input) {
+      const operationId = reserve('extract', memoryInputBytes([source]))
+      try {
+        await options.facts.capture([source], options.model.airi, signal)
+        signal.throwIfAborted()
+        repository.append({ type: 'memory/operation', operationId, kind: 'extract', source: options.model.source, status: 'success', reservedChars: 0 })
+      } catch (cause) {
+        repository.append({ type: 'memory/operation', operationId, kind: 'extract', source: options.model.source, status: 'failed', reservedChars: 0,
+          error: { code: cause instanceof MemoryFailure ? cause.code : 'unavailable', retryable: true } })
+        throw cause
+      }
     }
-    if (!force && contextChars() < (options.limits?.compactChars ?? 24_000)) return
-    const rows = store.records(); const ended = rows.filter((row) => row.type === 'turn/end')
-    const cutoff = ended.at(-3)?.seq
-    if (!cutoff) { if (force) throw new MemoryFailure('unavailable'); return }
-    const selected = normalEntries().filter((entry) => entry.seq <= cutoff)
-    if (!selected.length) { if (force) throw new MemoryFailure('unavailable'); return }
-    const oldSummarySources = new Set(rows.flatMap((row) => row.type === 'context/compact' && row.seq <= cutoff ? (row.sources ?? []).map((source) => source.id) : []))
-    const input = inputLimit(seenFragments(rows, true).filter((fragment) => oldSummarySources.has(fragment.id) || selected.some((entry) => entry.message.role === fragment.role && redactFixed(entry.message.content).includes(fragment.text))))
-    if (!input.length) throw new MemoryFailure('unavailable')
-    const summarized = await call('compact', input, signal, (output) => validateSummary(output, input))
-    const summary = JSON.stringify({ conversationSummary: summarized.text, reviewStatus: 'unreviewed' })
-    if (summary.length >= selected.reduce((sum, entry) => sum + entry.message.content.length, 0)) throw new MemoryFailure('unavailable')
-    signal.throwIfAborted()
-    repository.append({ type: 'context/compact', fromSeq: Math.min(...selected.map((entry) => entry.seq)), toSeq: cutoff, summary, sources: summarized.sources })
   }
-  const pages = () => store.pages?.() ?? [{ sessionId: store.scope.sessionId, dayKey: dayKey(), records: store.records() }]
-  const summarizeDay = async (page: ReturnType<typeof pages>[number], signal: AbortSignal) => {
-    if (repository.view().summaries.some((summary) => summary.level === 'day' && summary.sourceSessionIds.includes(page.sessionId))) return
-    const input = inputLimit(seenFragments(page.records, true).slice(-24))
-    if (!input.length) return
-    const summarized = await call('day', input, signal, (output) => validateSummary(output, input))
+
+  const compactCore = async (signal: AbortSignal, requestId: string) => {
     signal.throwIfAborted()
-    repository.append({ type: 'memory/summary', summary: { id: 'sum:' + memoryDigest('day:' + page.sessionId), level: 'day', period: page.dayKey,
-      ...summarized, sourceSessionIds: [page.sessionId], source: options.model!.source } })
+    if (!options.compactRoot) throw new MemoryFailure('unavailable')
+    const result = await options.compactRoot(requestId)
+    compaction = { ...result, atMs: clock.nowMs() }
+    if (result.outcome === 'failed' || result.outcome === 'busy') throw new MemoryFailure('unavailable')
   }
   const rollCore = async (signal: AbortSignal) => {
-    if (!pendingDay() || !backgroundAllowed() || store.projection().pomodoro.status === 'running') throw new MemoryFailure('unavailable')
-    const old = pages().find((page) => page.sessionId === store.scope.sessionId)!
+    if (!experiences.pendingDay() || !backgroundAllowed() || store.projection().pomodoro.status === 'running') throw new MemoryFailure('unavailable')
+    const old = experiences.currentPage()
     if (options.model) {
-      try { for (let i = 0; i < 4; i++) await extractCore(signal); await summarizeDay(old, signal) }
+      try { for (let i = 0; i < 4; i++) await extractCore(signal); await experiences.summarizeDay(old, signal) }
       catch (cause) {
         signal.throwIfAborted()
         if (!(cause instanceof MemoryFailure)) throw cause
@@ -130,24 +98,8 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     options.closingDay?.()
     if (store.rotate?.()) { repository.refresh(); options.changed(); options.rolled() }
   }
-  const consolidateCore = async (signal: AbortSignal, limit = 4) => {
-    let calls = 0
-    for (const group of closedSummaryGroups(repository.view().summaries, sessionDayKey(clock), clock)) {
-      const id = 'sum:' + memoryDigest(JSON.stringify([group.level, group.period, group.children.map((child) => child.id)]))
-      if (repository.view().summaries.some((summary) => summary.id === id)) continue
-      if (calls++ >= limit) break
-      const input: SeenFragment[] = group.children.slice(-40).flatMap((child) => child.sources[0] ? [{ ...child.sources[0], id: 'summary:' + child.id, key: memoryDigest(child.id), role: 'assistant' as const, text: child.text }] : [])
-      if (!input.length) continue
-      const summarized = await call(group.level, input, signal, (output) => validateSummary(output, input))
-      const selected = group.children.filter((child) => summarized.sources.some((source) => source.id === 'summary:' + child.id))
-      const sources = [...new Map(selected.flatMap((child) => child.sources).map((source) => [source.id, source])).values()].slice(0, 128)
-      signal.throwIfAborted()
-      repository.append({ type: 'memory/summary', summary: { id, level: group.level, period: group.period, text: summarized.text, sources,
-        sourceSessionIds: [...new Set(selected.flatMap((child) => child.sourceSessionIds))].slice(0, 40), parentSummaryIds: group.children.map((child) => child.id).slice(-40), source: options.model!.source } })
-    }
-  }
   const run = (kind: OperationKind, work: (signal: AbortSignal) => Promise<void>) => {
-    if (worker || !allowed() || !options.model && kind !== 'day' && !(kind === 'compact' && options.compactRoot)) return worker ?? Promise.resolve()
+    if (worker || !allowed() || !options.model && kind !== 'day' && kind !== 'review' && !(kind === 'compact' && options.compactRoot)) return worker ?? Promise.resolve()
     const abort = new AbortController(); active = abort; status = kind === 'compact' ? 'compacting' : 'extracting'; error = undefined; options.changed()
     worker = work(abort.signal).catch((cause: unknown) => {
       if (!abort.signal.aborted) { status = 'failed'; error = { code: cause instanceof MemoryFailure ? cause.code : 'internal', retryable: true } }
@@ -156,66 +108,56 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   }
   const maintenance = async () => {
     if (!backgroundAllowed() || worker) return
-    if (pendingDay()) { await run('day', rollCore); return }
+    if (experiences.pendingDay()) { await run('day', rollCore); return }
     if (!options.model) return
-    const old = pages().filter((page) => page.dayKey < dayKey() && seenFragments(page.records, true).length && !repository.view().summaries.some((summary) => summary.sourceSessionIds.includes(page.sessionId))).at(-1)
-    await run('extract', async (signal) => { if (old) await summarizeDay(old, signal); await extractCore(signal); await compactCore(signal); await consolidateCore(signal, 1) })
+    const old = experiences.unsummarizedPage()
+    await run('extract', async signal => { if (old) await experiences.summarizeDay(old, signal); await extractCore(signal); await experiences.consolidate(signal, 1) })
   }
   scheduler.schedule('memory.maintenance', clock.nowMs() + 30_000, () => { void maintenance().catch(() => options.failed?.()) }, { everyMs: 30_000 })
-  const search = (query: string, requestId: string) => {
-    const retired = retiredSourceIds()
-    const matches = searchMemories(repository.view().items.filter((item) => item.sources.every((source) => !retired.has(source.id))), query.slice(-1200), clock.nowMs())
-    if (matches.length) repository.append({ type: 'memory/access', ids: matches.map((match) => match.item.id), requestId, sessionId: store.scope.sessionId })
-    return matches.map(({ item }) => ({ id: item.id, text: item.text, kind: item.kind, tier: item.tier, atMs: item.lastMentionedAtMs, reviewStatus: item.reviewStatus, sources: item.sources.map((source) => source.id) }))
-  }
-  /** Earlier days' summaries she may refer to: unreviewed references, never facts or instructions. */
-  const previousDays = () => {
-    const retired = retiredSourceIds()
-    return summaryReferences(allowed() ? validSummaries(repository.view().summaries).filter((summary) => summary.sources.every((source) => !retired.has(source.id))) : [], store.scope.sessionId, sessionDayKey(clock), clock)
-      .map((summary) => ({ level: summary.level, dayKey: summary.period, text: summary.text, sourceSessionIds: summary.sourceSessionIds, reviewStatus: 'unreviewed' }))
+  const search = async (query: string, requestId: string) => allowed() ? options.facts.search(query.slice(-1200), requestId) : []
+  const disclose = (requestId: string, reference: Record<string, unknown>) => {
+    const entries = [reference.memoryDirectory, reference.memoryReference].flatMap(value => Array.isArray(value) ? value : [])
+    options.facts.disclose(requestId, entries.filter((entry): entry is { id: string; revision: number } => typeof entry?.id === 'string' && Number.isSafeInteger(entry?.revision)))
   }
   return { maintenance,
-    /**
-     * For a DSH session, which has no LCA context assembly: the same references the legacy loop gives every
-     * request. Earlier days with the first message of a day's session, memories matching your latest lines each time.
-     */
-    reference: (query: string, requestId: string, firstOfSession: boolean) => {
+    initialize: async () => { try { await options.facts.refresh() } catch { status = 'failed'; error = { code: 'unavailable', retryable: true }; options.changed() } },
+    reference: async (query: string, requestId: string, firstOfSession: boolean): Promise<Record<string, unknown> | null> => {
       if (!allowed()) return null
-      const days = firstOfSession ? previousDays() : []
-      const recall = search(query, requestId)
-      if (!days.length && !recall.length) return null
-      return { ...(days.length ? { previousDaysReference: days } : {}), ...(recall.length ? { memoryReference: recall, trust: 'unreviewed-reference' as const } : {}) }
+      try {
+        const directory = await options.facts.directory()
+        const recall = query.trim() ? await search(query, requestId) : []
+        const days = firstOfSession ? experiences.previousDays() : []
+        if (!days.length && !recall.length && !directory.entries.length) return null
+        const reference = { ...(days.length ? { previousDaysReference: days } : {}), ...(directory.entries.length ? { memoryDirectory: directory.entries } : {}),
+          ...(recall.length ? { memoryReference: recall } : {}), trust: 'unreviewed-reference' as const }
+        disclose(requestId, reference); return reference
+      } catch {
+        status = 'failed'; error = { code: 'unavailable', retryable: true }; options.changed()
+        return { memoryStatus: { available: false, failure: 'storage', note: 'Stored memories could not be read. Do not claim successful recall.' } }
+      }
     },
     view: (): MemoryView => {
-      const state = repository.view(); const valid = state.items.filter((item) => !item.supersededBy)
-      return { ...(compaction ? { compaction } : {}), status: !options.model ? 'unconfigured' : status === 'unconfigured' ? 'idle' : status, source: options.model?.source ?? 'none', shortTermCount: valid.filter((item) => item.tier === 'short_term').length, longTermCount: valid.filter((item) => item.tier === 'long_term').length,
-        summaryCounts: Object.fromEntries((['day', 'week', 'month'] as const).map((level) => [level, latestSummaries(state.summaries).filter((summary) => summary.level === level).length])) as { day: number; week: number; month: number },
-        contextChars: contextChars(), lastExtractedAtMs: state.lastExtractedAtMs, lastCompactedAtMs: state.lastCompactedAtMs,
-        items: state.items.slice(-20).map((item) => ({ id: item.id, text: item.text, kind: item.kind, tier: item.tier, reviewStatus: item.reviewStatus, createdAtMs: item.createdAtMs,
-          accessCount: item.accessCount, sourceSessionCount: new Set(item.sources.map((source) => source.sessionId)).size, ...(item.supersededBy ? { supersededBy: item.supersededBy } : {}) })),
+      const state = repository.view(); const facts = options.facts.factViews(); const valid = facts.filter(fact => fact.factStatus === 'active' && fact.reviewStatus !== 'rejected')
+      return { ...(compaction ? { compaction } : {}), status: status === 'idle' || status === 'unconfigured' ? options.model ? 'idle' : 'unconfigured' : status, source: options.model?.source ?? 'none',
+        engine: options.facts.status(), facts, operations: options.facts.operations(),
+        shortTermCount: valid.filter(item => item.memoryType === 'short_term').length, longTermCount: valid.filter(item => item.memoryType === 'long_term').length,
+        summaryCounts: experiences.summaryCounts(), contextChars: contextChars(), lastExtractedAtMs: options.facts.lastExtractedAt(), lastCompactedAtMs: compaction?.atMs ?? null,
+        // Historical experience proof remains available to gifts/quill; it is not a second fact engine.
+        items: state.items.filter(item => item.kind === 'experience').slice(-20).map(item => ({ id: item.id, text: item.text, kind: item.kind, tier: item.tier, reviewStatus: item.reviewStatus, createdAtMs: item.createdAtMs,
+          accessCount: item.accessCount, sourceSessionCount: new Set(item.sources.map(source => source.sessionId)).size, ...(item.supersededBy ? { supersededBy: item.supersededBy } : {}) })),
         ...(options.development ? { scenarioId: options.development.scenario() } : {}), ...(error ? { error } : {}) }
     },
-    sessionView: (): SessionView => ({ dayKey: dayKey(), rolloverPending: pendingDay(), pages: pages().slice(-30).map((page) => ({ sessionId: page.sessionId, dayKey: page.dayKey,
-      messageCount: page.records.filter((row) => row.type === 'user/message' || row.type === 'narrator/failure' || row.type === 'assistant/message' && row.text).length,
-      summarized: repository.view().summaries.some((summary) => summary.sourceSessionIds.includes(page.sessionId)) })) }),
-    readSession: (id: string): SessionPage => {
-      const page = pages().find((page) => page.sessionId === id); if (!page) throw new Error('SESSION_UNAVAILABLE')
-      const delivered = new Map(projectJournal(page.records).messages.map((message) => [message.id, message]))
-      // Explicit user archive access also includes public replies held until rest. It never returns tool results.
-      const messages = page.records.flatMap((row): MessageView[] => {
-        if (row.type === 'user/message') return [delivered.get(row.id) ?? { id: row.id, role: 'user', text: row.text, createdAtMs: row.atMs, status: 'complete' }]
-        if (row.type === 'assistant/message' && row.text) return [{ id: row.id, role: 'assistant', text: row.text, createdAtMs: row.atMs, status: row.status }]
-        if (row.type === 'narrator/failure') return [{ id: row.id, role: 'narrator', text: row.text, createdAtMs: row.atMs, status: 'complete', failure: projectFailure(page.records, row.failure, row.seq) }]
-        return []
-      })
-      const selected = messages.slice(-200); let chars = 0
-      const bounded = selected.filter((message) => { chars += message.text.length; return chars <= 200_000 })
-      return { sessionId: page.sessionId, dayKey: page.dayKey, messages: bounded, truncated: bounded.length !== messages.length }
+    sessionView: experiences.sessionView, readSession: experiences.readSession, search,
+    bind: options.facts.bind,
+    disclose,
+    read: options.facts.read,
+    propose: (turnId: string, messageId: string, operationId: string, proposal: MemoryProposal, signal: AbortSignal) => {
+      if (!allowed()) throw new MemoryFailure('unavailable')
+      return options.facts.propose(turnId, messageId, operationId, proposal, signal)
     },
-    search,
-    foreground: () => { active?.abort() },
-    setEnabled: (value: boolean) => { enabled = value; if (!value) active?.abort(); options.changed() },
-    stateChanged: () => { if (store.projection().lightsOut) active?.abort() },
+    foreground: () => { active?.abort(); options.facts.foreground() },
+    setEnabled: (value: boolean) => { enabled = value; options.facts.runtime.enabled.value = value; if (!value) active?.abort(); options.changed() },
+    stateChanged: () => { if (store.projection().lightsOut) { active?.abort(); options.facts.foreground() } },
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       if (command.type === 'developer.memory') {
         if (!options.development) return 'permission-denied'
@@ -223,18 +165,25 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       }
       if (!allowed() || options.isBusy() || worker) return 'unavailable'
       if (command.type === 'session.rollover') {
-        if (!pendingDay() || !backgroundAllowed() || store.projection().pomodoro.status === 'running') return 'unavailable'
+        if (!experiences.pendingDay() || !backgroundAllowed() || store.projection().pomodoro.status === 'running') return 'unavailable'
         void run('day', rollCore); return
       }
-      if (command.type === 'context.compact' && options.compactRoot) { void run('compact', signal => compactCore(signal, true, command.requestId)); return }
+      if (command.type === 'context.compact') { void run('compact', signal => compactCore(signal, command.requestId)); return }
+      if (command.type === 'memory.propose') {
+        const { kind, targetId, expectedRevision, content, title, summary } = command
+        void run('review', async signal => { await options.facts.propose('user:' + command.requestId, 'user:' + command.requestId, command.requestId,
+          { kind, ...(targetId ? { targetId } : {}), ...(expectedRevision ? { expectedRevision } : {}), ...(content !== undefined ? { content } : {}), ...(title !== undefined ? { title } : {}), ...(summary !== undefined ? { summary } : {}) }, signal) }); return
+      }
+      if (command.type === 'memory.review') { void run('review', async () => { await options.facts.review(command.operationId, command.approve) }); return }
+      if (command.type === 'memory.fact.review') { void run('review', async () => { await options.facts.reviewFact(command.id, command.expectedRevision, command.approve) }); return }
+      if (command.type === 'memory.presentation') { void run('review', async () => { const { id, expectedRevision, title, summary, pinned, pinOrder } = command; await options.facts.presentation({ id, expectedRevision, title, summary, pinned, pinOrder }) }); return }
       if (!options.model) return 'not-configured'
       if (command.type === 'memory.extract') { void run('extract', extractCore); return }
-      if (command.type === 'memory.consolidate') { void run('week', (signal) => consolidateCore(signal)); return }
-      if (command.type === 'context.compact') { void run('compact', (signal) => compactCore(signal, true)); return }
+      if (command.type === 'memory.consolidate') { void run('week', (signal) => experiences.consolidate(signal)); return }
       return 'unavailable'
     },
     idle: async () => { await worker },
-    close: async () => { disposed = true; active?.abort(); scheduler.cancel('memory.maintenance'); await worker },
+    close: async () => { disposed = true; active?.abort(); scheduler.cancel('memory.maintenance'); await worker; await options.facts.close() },
   }
 }
 export type MemoryService = ReturnType<typeof createMemoryService>

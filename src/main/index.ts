@@ -87,6 +87,7 @@ import { documentTools } from './documents/tools'
 import { probeDocuments } from './validation/documents'
 import { openMemoryRepository, type MemoryRepository } from './memory/repository'
 import { createMemoryService, type MemoryService } from './memory/service'
+import { createMemoryFacts } from './memory/facts'
 import { createFakeMemoryModel } from './memory/model'
 import { memoryTools } from './memory/tools'
 import { probeMemory } from './validation/memory'
@@ -427,15 +428,17 @@ void app.whenReady().then(async () => {
     controller.attachDocuments(documents)
     memoryRepository = openMemoryRepository(dataDir, store)
     const fakeMemory = prepared.developer ? createFakeMemoryModel() : undefined
-    memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, get model() { return fakeMemory?.model ?? taskModels.memory }, development: fakeMemory,
+    const memoryFacts = createMemoryFacts({ root: join(dataDir, 'memory', contentHash(JSON.stringify(owner))), owner: { ...owner, dataRootId: contentHash(dataDir) }, clock, store,
+      embedding: () => undefined, held: () => !!backup?.isBusy() || store!.projection().lightsOut, waitForRestore: async () => {}, changed: () => controller?.refresh('connection') })
+    memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, facts: memoryFacts, get model() { return fakeMemory?.model ?? taskModels.memory }, development: fakeMemory,
       compactRoot: async operationId => dshExecution ? dshExecution.compact(operationId) : { rootSessionId: '', outcome: 'no_range' },
-      includeContextEntries: (seqs) => new Set(seqs),
       beforeRoll: async () => { if (photos && !photos.photo(store!.scope.sessionId)) { photos.capture('day-end', 'day-end:' + store!.scope.sessionId); await photos.idle() } },
       closingDay: () => { if (!sleep || sleep.set(true, 'day-end')) throw new Error('DAY_END_BUSY') },
       isBusy: () => herBusy() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('connection'),
       rolled: () => { controller?.refresh('connection'); dshExecution?.stateChanged(); pomodoro?.reconcile(); campus?.stateChanged(); documents?.stateChanged() },
       failed: () => { console.error('Memory processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachMemory(memory)
+    await memory.initialize()
     campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? realMailbox ?? createBlockedImapSource(), get privacy() { return fakeMailbox?.privacy ?? taskModels.mail }, followMain: () => !privacyEnabled(),
       canProcess: () => (!life || life.view().locationId === 'room') && !lifeWork?.active() && !minecraft?.active(),
       artifacts, openArtifact: previewArtifact, attachment: (record) => documents!.registerAttachment(record),
@@ -589,7 +592,7 @@ void app.whenReady().then(async () => {
     // DSH: your chat and her own events go to her DSH session. The runtime ships with the app (resources/dsh-runtime,
     // prepared by scripts/prepare-dsh-runtime.mjs).
     // LCA private data never becomes her working material, whatever folder the user picks.
-    const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'extensions.json', 'extension-events.jsonl', 'extension-candidates', 'skills-imports.json', 'skill-events.jsonl', 'skill-candidates', 'runtime-resources', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
+    const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'extensions.json', 'extension-events.jsonl', 'extension-candidates', 'skills-imports.json', 'skill-events.jsonl', 'skill-candidates', 'runtime-resources', 'memory', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
     const projects = createProjects({ settings: prepared.pluginSettings, desk: join(roomRoot, '书桌'), privateRoots: guardedRoots,
       trusted: (path) => dshExecution?.trusted(path) ?? false, untrust: (path) => dshExecution?.untrust(path), busy: herBusy,
       choose: async () => {
@@ -660,14 +663,15 @@ void app.whenReady().then(async () => {
           try { if (enforced) resourceBudget.reserveModel(units, bucket); else resourceBudget.recordModel(units, bucket); return null }
           catch (error) { return enforced ? error instanceof ResourceFailure ? error.code : 'unavailable' : null }
         },
-        reference: ({ requestId, firstOfSession }) => {
+        reference: async ({ requestId, firstOfSession }) => {
           // Your last three lines (the new one is already in the journal).
           const lines = store!.projection().messages.filter((message) => message.role === 'user' && !message.kind).slice(-3).map((message) => message.text).join('\n')
-          const memoryReference = memory?.reference(lines, requestId, firstOfSession) ?? null
+          const memoryReference = await memory?.reference(lines, requestId, firstOfSession) ?? null
           const world = worldReference(); const sources = sourceState()
           return memoryReference || world || sources ? { ...memoryReference, ...world, ...sources } : null
         },
-        started: ({ turnId, requestId }) => recall?.bind(requestId, turnId),
+        started: ({ turnId, requestId }) => { recall?.bind(requestId, turnId); memory?.bind(requestId, turnId) },
+        referencesPrepared: (requestId, reference) => memory?.disclose(requestId, reference),
         answered: ({ turnId, callId }) => questions?.commit(turnId, [callId]),
         revealed: () => {
           const reveal = pendingReveal; pendingReveal = undefined

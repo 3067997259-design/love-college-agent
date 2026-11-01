@@ -1158,11 +1158,13 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
   }
 
   /** Approves or rejects a pending fragment (rejected ones never get recalled). */
-  async function setReviewStatus(id: string, status: 'approved' | 'rejected') {
+  async function setReviewStatus(id: string, status: 'approved' | 'rejected', expected?: { scope: MemoryScope, revision: number }) {
     const memoryRepository = await initialize()
     if (!memoryRepository)
       return undefined
     const operation = await memoryRepository.operationForFragment(id)
+    if (operation && expected)
+      throw new Error('An explicit proposal requires its complete operation review')
     if (operation)
       return confirmOperation(operation.scope, operation.operationId, status === 'approved')
     const epoch = authorityEpoch
@@ -1170,6 +1172,8 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
       const current = await tx.get(id)
       if (!current)
         return {}
+      if (expected && (!isSameMemoryScope(current.scope, expected.scope) || current.revision !== expected.revision || current.reviewStatus !== 'pending'))
+        throw new Error('Memory review revision or scope changed')
       const superseded = current.supersedesId ? await tx.get(current.supersedesId) : undefined
       if (status === 'approved' && current.supersedesId && (!superseded || superseded.factStatus !== 'active' || ((current.scope || superseded.scope) && !isSameMemoryScope(current.scope, superseded.scope))))
         throw new Error('The replaced fact changed; review the current fact first')

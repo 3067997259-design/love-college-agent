@@ -1,4 +1,5 @@
-﻿import { mkdtempSync, rmSync } from 'node:fs'
+import { testMemoryFacts } from '../helpers/memory'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -30,7 +31,8 @@ function fixture() {
   const store: SessionStore = { scope: journal.scope, records: journal.records, projection: () => projectJournal(journal.records()), append: journal.append, close: journal.close }
   const repository: MemoryRepository = { view: () => projectMemory(journal.records()), append: journal.append, refresh: () => {}, close: () => {} }
   const scheduler = createScheduler(clock); const fake = createFakeMemoryModel()
-  const memory = createMemoryService({ clock, scheduler, store, repository, model: fake.model, development: fake, isBusy: () => false, rolled: () => {}, changed: () => {} })
+  const facts = testMemoryFacts(store, clock, root)
+  const memory = createMemoryService({ facts, clock, scheduler, store, repository, model: fake.model, development: fake, isBusy: () => false, rolled: () => {}, changed: () => {} })
   scheduler.cancel('memory.maintenance')
   cleanups.push(async () => { await memory.close(); scheduler.dispose(); store.close() })
   const seen = (suffix = '') => ({ id: 'seen' + suffix, sessionId: 's:' + selectedDay + suffix, frameSeq: 2, index: 0, offset: 0, atMs: clock.parse(selectedDay + 'T12:00:00+08:00') })
@@ -48,7 +50,7 @@ function fixture() {
     }
     turn('t1', '今天把这件事记一下。')
     // What a new day's session gets with its first message (memory/service.ts reference).
-    return JSON.stringify(memory.reference('', 't2', true)?.previousDaysReference ?? [])
+    return JSON.stringify((await memory.reference('', 't2', true))?.previousDaysReference ?? [])
   }
   return { clock, store, repository, journal, memory, dayRow, monthRow, preparation, selectedDay, today, fake }
 }

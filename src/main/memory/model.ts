@@ -6,8 +6,9 @@ import { memoryDigest, userOrigins } from './seen'
 import { groundedIn } from './grounding'
 import type { MemoryEntry, MemorySource } from './schema'
 import fixtures from './fixtures.json'
+import type { MemoryCaptureModel } from './facts'
 
-export interface MemoryModel { source: 'real' | 'fake'; extract(input: readonly SeenFragment[], signal: AbortSignal): Promise<unknown>; summarize(input: readonly SeenFragment[], signal: AbortSignal): Promise<unknown> }
+export interface MemoryModel { source: 'real' | 'fake'; extract(input: readonly SeenFragment[], signal: AbortSignal): Promise<unknown>; summarize(input: readonly SeenFragment[], signal: AbortSignal): Promise<unknown>; airi?: MemoryCaptureModel }
 export class MemoryFailure extends Error { constructor(readonly code: 'memory-invalid-output' | 'not-configured' | 'connection-failed' | 'budget-exceeded' | 'unavailable' | 'context-too-large') { super('MEMORY_OPERATION_FAILED') } }
 export async function boundedMemoryCall(model: MemoryModel | null, kind: 'extract' | 'summarize', input: readonly SeenFragment[], clock: Clock, signal: AbortSignal) {
   if (!model) throw new MemoryFailure('not-configured')
@@ -56,7 +57,12 @@ export function validateSummary(output: unknown, input: readonly SeenFragment[])
 export function createFakeMemoryModel() {
   let scenario: 'ready' | 'failure' | 'invalid' = 'ready'
   const check = (signal: AbortSignal) => { signal.throwIfAborted(); if (scenario === 'failure') throw new Error('SYNTHETIC_BACKGROUND_FAILED') }
-  const model: MemoryModel = { source: 'fake', extract: async (input, signal) => {
+  const model: MemoryModel = { source: 'fake', airi: { extract: async (input, signal) => {
+    check(signal ?? new AbortController().signal)
+    if (scenario === 'invalid') throw new MemoryFailure('memory-invalid-output')
+    return fixtures.items.filter(item => input.userText.includes(item.quote)).map(item => ({ content: item.quote, memoryType: 'short_term', category: item.kind,
+      importance: 5, valence: 0, arousal: 0, tags: [], sessionId: input.sessionId }))
+  } }, extract: async (input, signal) => {
     check(signal); if (scenario === 'invalid') return { items: [{ sourceId: 'invented', quote: 'invented', kind: 'fact', topic: 'invented', replaceTopic: false }] }
     return { items: input.filter((source) => source.role === 'user').flatMap((source) => fixtures.items.filter((item) => source.text.includes(item.quote)).map((item) => ({ ...item, sourceId: source.id }))).slice(0, 20) }
   }, summarize: async (input, signal) => {
