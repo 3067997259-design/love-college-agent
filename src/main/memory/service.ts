@@ -109,6 +109,8 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   }
   const maintenance = async () => {
     if (!backgroundAllowed() || worker) return
+    await run('review', async () => { await options.facts.runtime.maintenance() })
+    if (!backgroundAllowed() || worker) return
     if (experiences.pendingDay()) { await run('day', rollCore); return }
     if (!options.model) return
     const old = experiences.unsummarizedPage()
@@ -187,7 +189,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       if (command.type === 'memory.consolidate') { void run('week', (signal) => experiences.consolidate(signal)); return }
       return 'unavailable'
     },
-    idle: async () => { await worker },
+    idle: async () => { await worker; await options.facts.runtime.idle() },
     close: async () => { disposed = true; active?.abort(); scheduler.cancel('memory.maintenance'); await worker; await options.facts.close() },
   }
 }

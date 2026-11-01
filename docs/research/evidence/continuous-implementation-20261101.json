@@ -134,6 +134,27 @@
       "checks": 23,
       "modelRequests": 26,
       "externalServiceCalls": 0
+    },
+    {
+      "name": "Phase 5 native settings and adjacent storage",
+      "report": "test-results/continuity/phase5-settings-native.json",
+      "passed": 34,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "Phase 5 private settings boundaries",
+      "report": "test-results/continuity/phase5-settings-boundaries.json",
+      "passed": 33,
+      "failed": 1,
+      "skipped": 5
+    },
+    {
+      "name": "Phase 5 private settings and long-history fixture repair",
+      "report": "test-results/continuity/phase5-settings-boundaries-fixed.json",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
     }
   ],
   "preservedFailures": [
@@ -154,7 +175,8 @@
     "test-results/continuity/execution/gate-TSlws6",
     "test-results/continuity/experience-coverage.json",
     "test-results/continuity/execution/gate-OpSdRy",
-    "test-results/continuity/execution/gate-Jej2xu"
+    "test-results/continuity/execution/gate-Jej2xu",
+    "test-results/continuity/phase5-settings-boundaries.json"
   ],
   "notRun": [
     "full repository tests",
@@ -173,5 +195,5 @@
     "count": 24,
     "run": false
   },
-  "productionIntegration": "Experimental main uses AIRI facts, bounded coverage-based experience indexing, revision-aware historical expansion, native DSH compaction, persistent foreground/worker roots and evidence-backed checkpoint delivery. Migration, embedding/mirror settings and backup/recovery remain pending."
+  "productionIntegration": "Experimental main uses AIRI facts, coverage-based experience indexing, native DSH compaction, persistent foreground/worker roots and evidence-backed checkpoint delivery. Private embedding/mirror configuration, stable data-root identity and the normal settings-page entry are connected. Nonempty legacy migration and archive/restore transaction integration remain pending."
 }

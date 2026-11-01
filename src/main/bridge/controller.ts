@@ -18,6 +18,7 @@ import type { McpService } from '../mcp/service'
 import type { BackupService } from '../backup/service'
 import type { QuillService } from '../gifts/quill'
 import type { ModelSettingsService } from '../config/model-settings'
+import { memorySettingsCommands, type MemorySettingsService } from '../config/memory-settings'
 import type { ExtensionsService } from '../dsh/extensions'
 import type { SkillsService } from '../dsh/skills'
 import type { CollaborationPort } from '../dsh/collaboration'
@@ -154,6 +155,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('developer.documents'), scenarioId: z.enum(DOCUMENT_SCENARIO_IDS) }),
   z.strictObject({ ...envelope, type: z.literal('developer.document.import'), fixtureId: z.enum(['assignment-pdf', 'notes-text', 'malformed-pdf', 'scanned-pdf']) }),
   z.strictObject({ ...envelope, type: z.literal('memory.extract') }),
+  ...memorySettingsCommands.map(schema => schema.extend(envelope)),
   z.strictObject({ ...envelope, type: z.literal('memory.propose'), kind: z.enum(['remember', 'correct', 'forget']), targetId: z.string().min(1).max(128).optional(), expectedRevision: z.number().int().positive().optional(), content: z.string().min(1).max(2000).optional(), title: z.string().max(64).optional(), summary: z.string().max(150).optional() }),
   z.strictObject({ ...envelope, type: z.literal('memory.review'), operationId: z.string().min(1).max(128), approve: z.boolean() }),
   z.strictObject({ ...envelope, type: z.literal('memory.fact.review'), id: z.string().min(1).max(128), expectedRevision: z.number().int().positive(), approve: z.boolean() }),
@@ -189,6 +191,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let quill: QuillService | undefined
   let diagnostics: (() => DiagnosticsView) | undefined
   let modelSettings: ModelSettingsService | undefined
+  let memorySettings: MemorySettingsService | undefined
   let extensions: ExtensionsService | undefined
   let skills: SkillsService | undefined
   let collaboration: CollaborationPort | undefined
@@ -315,6 +318,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       if (minecraft.active() && minecraftChat) { const game = minecraftChat.view(); snapshot.messages = [...game.messages]; snapshot.activities = [...game.activities]; snapshot.task = game.task }
     }
     if (modelSettings) snapshot.modelSettings = modelSettings.view()
+    if (memorySettings) snapshot.memorySettings = memorySettings.view()
     if (extensions) snapshot.extensions = extensions.view()
     if (skills) snapshot.skills = skills.view()
     if (collaboration) snapshot.collaboration = collaboration.view(); else delete snapshot.collaboration
@@ -350,6 +354,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     if (command.type.startsWith('character.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('history.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (['memory.propose', 'memory.review', 'memory.fact.review', 'memory.presentation'].includes(command.type) && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (command.type.startsWith('memory.settings.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('optical.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('minecraft.') || command.type === 'developer.minecraft') && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if ((command.type.startsWith('life.work.') || command.type === 'developer.life.seed') && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -357,7 +362,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     const signature = commandHash(command)
     const prior = requests.get(command.requestId)
     if (prior) return prior.signature === signature ? structuredClone(prior.ack) : reject(command.requestId, 'invalid-command')
-    if (backup?.isBusy() || modelSettings?.isBusy() && !command.type.startsWith('window.') && !['turn.stop', 'lights.set'].includes(command.type)) return reject(command.requestId, 'unavailable')
+    if (backup?.isBusy() || (modelSettings?.isBusy() || memorySettings?.isBusy()) && !command.type.startsWith('window.') && !['turn.stop', 'lights.set'].includes(command.type)) return reject(command.requestId, 'unavailable')
     if (minecraft?.active() && !['message.send', 'turn.stop', 'lights.set', 'mode.set', 'mcp.disconnect', 'developer.minecraft'].includes(command.type)
       && !command.type.startsWith('minecraft.') && !command.type.startsWith('window.') && !command.type.startsWith('pomodoro.')) return reject(command.requestId, 'unavailable')
     let ack: CommandAck
@@ -435,6 +440,9 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       publish('mode', command.requestId)
       execution?.stateChanged()
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+    } else if (memorySettings && command.type.startsWith('memory.settings.')) {
+      try { const error = memorySettings.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
+      catch { ack = reject(command.requestId, 'internal') }
     } else if (memory && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
       try { const error = memory.dispatch(command.type === 'message.send' ? { ...command, type: 'context.compact' } : command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -581,6 +589,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     readDiary: (id: unknown) => { if (!diary || typeof id !== 'string' || !/^diary:[a-f0-9]{64}$/.test(id)) throw new Error('DIARY_UNAVAILABLE'); return diary.read(id) },
     readHeartFlow: (input: unknown) => { const parsed = z.strictObject({ section: z.enum(['status', 'permissions', 'diff']), flowId: z.string().min(1).max(128) }).parse(input); if (!legacyFlows) throw new Error('FLOW_UNAVAILABLE'); return legacyFlows.inspect(parsed) },
     attachModelSettings: (port: ModelSettingsService) => { modelSettings = port; publish('connection') },
+    attachMemorySettings: (port: MemorySettingsService) => { memorySettings = port; publish('connection') },
     attachExtensions: (port: ExtensionsService) => { extensions = port; publish('connection') },
     attachSkills: (port: SkillsService) => { skills = port; publish('connection') },
     attachCollaboration: (port?: CollaborationPort) => { collaboration = port; publish('task') },

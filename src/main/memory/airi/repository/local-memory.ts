@@ -602,7 +602,7 @@ export function createDuckDbMemoryRepository(db: MemoryDbExecutor, runTransactio
   async function operations(scope: MemoryScope, sessionId?: string): Promise<MemoryOperation[]> {
     const rows = rowsFromResult(await db.execute(`SELECT operation_json FROM memory_operations
       WHERE user_id = ${quote(scope.userId)} AND character_id = ${quote(scope.characterId)}
-      ${sessionId ? `AND session_id = ${quote(sessionId)}` : ''} ORDER BY created_at DESC LIMIT 100`))
+      ${sessionId ? `AND session_id = ${quote(sessionId)}` : ''} ORDER BY created_at DESC`))
     return rows.map(row => parseMemoryOperation(JSON.parse(stringValue(row.operation_json))))
   }
 

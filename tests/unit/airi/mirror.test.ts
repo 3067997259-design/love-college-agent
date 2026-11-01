@@ -57,4 +57,33 @@ describe('main-owned mirror routing', () => {
     expect(removeByOriginId).not.toHaveBeenCalled()
     await host.close()
   })
+
+  it('does not publish a late effect receipt across a connection generation', async () => {
+    let release!: () => void, started!: () => void
+    const entered = new Promise<void>(done => { started = done })
+    const effect = new Promise<void>(done => { release = done })
+    const removeByOriginId = vi.fn(async () => { started(); await effect })
+    const repository = { removeByOriginId } as unknown as MemoryPgvectorConnection['repository']
+    const host = createMemoryMirrorHost({ clock: createManualClock(), owner, epoch: 'first', held: () => false,
+      ensureSchema: async () => {}, connect: () => ({ repository, close: async () => {} }) })
+    await host.port.configure({ connectionString: 'postgres://first.invalid/test' })
+    const pending = host.port.remove({ originId: 'local' }); await entered
+    const rejected = expect(pending).rejects.toThrow('UNAVAILABLE')
+    const replacement = host.port.configure({ connectionString: 'postgres://second.invalid/test' })
+    release(); await rejected; expect(await replacement).toEqual({ status: 'ready' })
+    expect(await host.port.getStatus()).toEqual({ status: 'ready' })
+    await host.close()
+  })
+
+  it('does not install a connection whose schema preparation finished after revocation', async () => {
+    let release!: () => void, started!: () => void
+    const entered = new Promise<void>(done => { started = done }), preparation = new Promise<void>(done => { release = done })
+    const connect = vi.fn(() => ({ repository: {} as MemoryPgvectorConnection['repository'], close: async () => {} }))
+    const host = createMemoryMirrorHost({ clock: createManualClock(), owner, epoch: 'first', held: () => false,
+      ensureSchema: async () => { started(); await preparation }, connect })
+    const configuring = host.port.configure({ connectionString: 'postgres://first.invalid/test' }); await entered
+    const disconnecting = host.port.configure({}); release()
+    expect(await configuring).toMatchObject({ status: 'error' }); expect(await disconnecting).toEqual({ status: 'unconfigured' })
+    expect(connect).not.toHaveBeenCalled(); await host.close()
+  })
 })

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { AppBridge, AppCommand, AppSnapshot, SessionPage, RecallAnchor } from '../../../shared'
 import failureWords from '../voice/failure.zh.json'
 import { MemoryFactsControls } from './MemoryFactsControls'
+import { MemorySettingsControls } from './MemorySettingsControls'
 
 export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
   const [error, setError] = useState('')
@@ -13,7 +14,7 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
   useEffect(() => { request.current++; setPage(null); setPageId(''); setError(''); setAnchor(null); setQuestion(''); return () => { request.current++ } }, [snapshot.epoch])
   const memory = snapshot.memory; const session = snapshot.session
   if (!memory || !session) return null
-  const busy = memory.status === 'extracting' || memory.status === 'compacting'
+  const busy = memory.status === 'extracting' || memory.status === 'compacting' || snapshot.memorySettings?.status === 'saving'
   const send = async (body: Record<string, unknown>) => {
     try { const ack = await bridge.dispatch({ ...body, protocolVersion: 1, epoch: snapshot.epoch, requestId: crypto.randomUUID() } as AppCommand); setError(ack.status === 'rejected' ? ack.error.code : ''); return ack.status === 'accepted' }
     catch { setError('connection-failed'); return false }
@@ -21,9 +22,9 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
   return <div aria-label="记忆与日会话控制">
     <h2>记忆与日会话</h2>
     {snapshot.history && <p><button type="button" disabled={snapshot.history.captureStatus === 'capturing'} onClick={() => void send({ type: 'history.photo.capture' })}>保存当前场景照片</button> · {snapshot.history.captureStatus}{snapshot.history.captureError && ' · 照片未保存，可重试'}</p>}
-    <p>{memory.source === 'fake' ? '合成经历 · fake 后台模型' : memory.source === 'none' ? '后台模型未配置' : '后台记忆模型'} · {memory.status}</p>
+    <p>{memory.source === 'fake' ? '合成经历 · 开发场景' : memory.source === 'none' ? '后台模型未配置' : '后台记忆模型'} · {{ unconfigured: '等待配置', idle: '空闲', extracting: '正在整理', compacting: '正在压缩对话', failed: '上次整理未完成' }[memory.status]}</p>
     <p>当前页 {session.dayKey} · 短期 {memory.shortTermCount} · 长期 {memory.longTermCount} · 上下文 {memory.contextChars} 字符</p>
-    <p>只从实际模型可见记录抽取；原文和整理成品不进入记忆。抽取在空闲时进行，新回合会让后台让路。</p>
+    <p>只整理她在成功对话中看见的允许内容；引用和自动交班不会重复记忆。整理在空闲时进行。</p>
     <button type="button" disabled={busy || memory.status === 'unconfigured'} onClick={() => void send({ type: 'memory.extract' })}>抽取可见经历</button>
     <button type="button" disabled={busy || memory.status === 'unconfigured'} onClick={() => void send({ type: 'memory.consolidate' })}>归并已结束周期</button>
     {memory.summaryCounts && <p>日摘要 {memory.summaryCounts.day} · 周摘要 {memory.summaryCounts.week} · 月摘要 {memory.summaryCounts.month}</p>}
@@ -35,6 +36,7 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
     </select></label>}
     {(error || memory.error) && <p role="alert">整理未完成：{error || memory.error?.code}</p>}
     <MemoryFactsControls memory={memory} busy={busy} send={send} />
+    {snapshot.memorySettings && <MemorySettingsControls settings={snapshot.memorySettings} engine={memory.engine} busy={busy} send={send} />}
     <ul className="memory-list">{memory.items.map((item) => <li className="memory-item" key={item.id} data-superseded={!!item.supersededBy}>
       <span>{item.text}</span><small> · 未审核 · {item.tier} · {item.sourceSessionCount} 天来源 · {item.accessCount} 次召回{item.supersededBy ? ' · 已被新事实取代' : ''}</small>
     </li>)}</ul>

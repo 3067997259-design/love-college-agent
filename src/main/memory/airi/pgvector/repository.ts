@@ -227,6 +227,21 @@ export function createMemoryRepository(db: MemoryDatabase, clock: Pick<Clock, 'n
   }
 
   async function insert(input: Parameters<MemoryRepository['insert']>[0]): Promise<MemoryFragment> {
+    if (!input.originId) return insertRow(db, input)
+    return db.transaction(async transaction => {
+      await lockOrigin(transaction, input.originId!)
+      return insertRow(transaction, input)
+    })
+  }
+
+  type Executor = Pick<MemoryDatabase, 'select' | 'insert' | 'update' | 'execute'>
+  async function lockOrigin(transaction: Executor, originId: string) {
+    // Transaction-local, cross-process lock. Hash collisions only serialize
+    // unrelated facts; namespace separation still belongs to the SQL schema.
+    await transaction.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${originId}), hashtext(current_schema()))`)
+  }
+
+  async function insertRow(db: Executor, input: Parameters<MemoryRepository['insert']>[0]): Promise<MemoryFragment> {
     const now = input.now ?? clock.nowMs()
     // The partial unique index below only covers live rows, so a soft-deleted
     // row with the same origin_id is invisible to the conflict clause and a
@@ -475,9 +490,23 @@ export function createMemoryRepository(db: MemoryDatabase, clock: Pick<Clock, 'n
   }
 
   async function removeByOriginId(originId: string): Promise<void> {
-    await db.update(memoryFragmentsTable)
-      .set({ deleted_at: clock.nowMs() })
-      .where(and(eq(memoryFragmentsTable.origin_id, originId), isNull(memoryFragmentsTable.deleted_at)))
+    await db.transaction(async transaction => {
+      await lockOrigin(transaction, originId)
+      const now = clock.nowMs()
+      const [existing] = await transaction.select().from(memoryFragmentsTable)
+        .where(eq(memoryFragmentsTable.origin_id, originId)).limit(1)
+      if (!existing) {
+        // Forget can precede its first mirror insert. The empty tombstone stores
+        // no forgotten content and makes every later delivery a no-op.
+        await transaction.insert(memoryFragmentsTable).values({
+          origin_id: originId, content: '', memory_type: 'long_term', category: 'forgotten',
+          review_status: 'rejected', fact_status: 'superseded', created_at: now, last_accessed: now, deleted_at: now,
+        })
+      } else {
+        await transaction.update(memoryFragmentsTable).set({ deleted_at: now })
+          .where(and(eq(memoryFragmentsTable.origin_id, originId), isNull(memoryFragmentsTable.deleted_at)))
+      }
+    })
   }
 
   async function remove(id: string): Promise<void> {

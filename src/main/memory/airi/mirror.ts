@@ -36,24 +36,36 @@ export function createMemoryMirrorHost(options: {
     const current = generation
     return serial(async () => {
       if (disposed || current !== generation || options.held() || !connection || status.status !== 'ready') throw new Error('MEMORY_MIRROR_UNAVAILABLE')
-      try { return await action(connection) }
-      catch { status = { status: 'error', error: 'MEMORY_MIRROR_FAILED' }; throw new Error('MEMORY_MIRROR_FAILED') }
+      try {
+        const result = await action(connection)
+        if (disposed || current !== generation || options.held()) throw new Error('MEMORY_MIRROR_UNAVAILABLE')
+        return result
+      } catch {
+        // An issued effect may have reached the old namespace. Its late receipt
+        // must not consume the new outbox or poison a replacement connection.
+        if (disposed || current !== generation || options.held()) throw new Error('MEMORY_MIRROR_UNAVAILABLE')
+        status = { status: 'error', error: 'MEMORY_MIRROR_FAILED' }; throw new Error('MEMORY_MIRROR_FAILED')
+      }
     })
   }
   const port: MemoryHostPort = {
     configure: ({ connectionString }) => {
-      generation++
+      const current = ++generation
       return serial(async () => {
-        if (disposed || options.held()) return { status: 'error', error: 'MEMORY_MIRROR_HELD' }
+        if (disposed || current !== generation) return { status: 'error', error: 'MEMORY_MIRROR_UNAVAILABLE' }
         try {
           await connection?.close(); connection = undefined
+          if (disposed || current !== generation) return { status: 'error', error: 'MEMORY_MIRROR_UNAVAILABLE' }
           if (!connectionString) { status = { status: 'unconfigured' }; return status }
+          if (options.held()) { status = { status: 'error', error: 'MEMORY_MIRROR_HELD' }; return status }
           const url = new URL(connectionString)
           if (!['postgres:', 'postgresql:'].includes(url.protocol)) throw new Error('INVALID_CONNECTION')
           await (options.ensureSchema ?? ensureMemorySchema)(connectionString, namespace)
+          if (disposed || current !== generation) return { status: 'error', error: 'MEMORY_MIRROR_UNAVAILABLE' }
+          if (options.held()) { status = { status: 'error', error: 'MEMORY_MIRROR_HELD' }; return status }
           connection = (options.connect ?? connectMemoryRepository)(connectionString, options.clock, namespace)
           status = { status: 'ready' }
-        } catch { status = { status: 'error', error: 'MEMORY_MIRROR_CONFIGURATION_FAILED' } }
+        } catch { if (disposed || current !== generation) return { status: 'error', error: 'MEMORY_MIRROR_UNAVAILABLE' }; status = { status: 'error', error: 'MEMORY_MIRROR_CONFIGURATION_FAILED' } }
         return { ...status }
       })
     },

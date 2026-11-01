@@ -9,6 +9,11 @@ import { createMemoryRepository } from '../../../../src/main/memory/airi/pgvecto
 
 const EMBEDDING = Array.from(new Uint8Array(768))
 
+function transactional<T extends object>(db: T) {
+  const executor = { ...db, execute: vi.fn(async (_sql: SQL) => undefined) }
+  return { ...executor, transaction: async <R>(action: (tx: typeof executor) => Promise<R>) => action(executor) }
+}
+
 function row(overrides: Record<string, unknown> = {}) {
   return {
     id: '00000000-0000-0000-0000-000000000001',
@@ -37,13 +42,33 @@ function row(overrides: Record<string, unknown> = {}) {
 }
 
 describe('pgvector memory repository', () => {
+  it('persists a tombstone when forget arrives before the first insert', async () => {
+    const rows: ReturnType<typeof row>[] = []
+    const values = vi.fn(async (value: Record<string, unknown>) => { rows.push(row(value)) })
+    const db = transactional({
+      select: () => ({ from: () => ({ where: () => ({ limit: async () => rows }) }) }),
+      insert: () => ({ values }),
+      update: () => ({ set: () => ({ where: async () => undefined }) }),
+    })
+    const repository = createMemoryRepository(db as never, { nowMs: () => 50 })
+    await repository.removeByOriginId('late-origin')
+    await repository.removeByOriginId('late-origin')
+    await repository.insert({ content: 'Must never return', category: 'chat', memoryType: 'long_term', importance: 5, valence: 0, arousal: 0, tags: [], originId: 'late-origin' })
+    expect(values).toHaveBeenCalledTimes(1)
+    expect(rows).toEqual([expect.objectContaining({ origin_id: 'late-origin', content: '', deleted_at: 50 })])
+    expect(db.execute).toHaveBeenCalledTimes(3)
+    const lock = new PgDialect().sqlToQuery(db.execute.mock.calls[0][0])
+    expect(lock.sql).toContain('pg_advisory_xact_lock')
+    expect(lock.params).toEqual(['late-origin'])
+  })
+
   it('defaults a fresh extraction to pending human review', async () => {
     const values = vi.fn((input: Record<string, unknown>) => ({
       onConflictDoNothing: () => ({ returning: async () => [row(input)] }),
     }))
-    const repository = createMemoryRepository({
+    const repository = createMemoryRepository(transactional({
       insert: vi.fn(() => ({ values })),
-    } as never)
+    }) as never)
 
     const fragment = await repository.insert({
       content: 'A durable fact',
@@ -65,9 +90,9 @@ describe('pgvector memory repository', () => {
     const set = vi.fn((patch: Record<string, unknown>) => ({
       where: () => ({ returning: async () => [row({ content: patch.content, content_vector_768: patch.content_vector_768 })] }),
     }))
-    const repository = createMemoryRepository({
+    const repository = createMemoryRepository(transactional({
       update: vi.fn(() => ({ set })),
-    } as never)
+    }) as never)
 
     await repository.update('00000000-0000-0000-0000-000000000001', {
       content: 'Updated fact',
@@ -86,7 +111,7 @@ describe('pgvector memory repository', () => {
   it('repeats the partial index predicate in the insert conflict target', async () => {
     const onConflictDoNothing = vi.fn(() => ({ returning: async () => [row()] }))
     const values = vi.fn(() => ({ onConflictDoNothing }))
-    const repository = createMemoryRepository({
+    const repository = createMemoryRepository(transactional({
       select: vi.fn(() => ({
         from: () => ({
           where: () => ({
@@ -95,7 +120,7 @@ describe('pgvector memory repository', () => {
         }),
       })),
       insert: vi.fn(() => ({ values })),
-    } as never)
+    }) as never)
 
     await repository.insert({
       content: 'A durable fact',
@@ -118,7 +143,7 @@ describe('pgvector memory repository', () => {
 
   it('returns the tombstone row instead of resurrecting a deleted fact', async () => {
     const insert = vi.fn(() => ({ values: vi.fn() }))
-    const repository = createMemoryRepository({
+    const repository = createMemoryRepository(transactional({
       select: vi.fn(() => ({
         from: () => ({
           where: () => ({
@@ -127,7 +152,7 @@ describe('pgvector memory repository', () => {
         }),
       })),
       insert,
-    } as never)
+    }) as never)
 
     const fragment = await repository.insert({
       content: 'A durable fact',
@@ -155,11 +180,11 @@ describe('pgvector memory repository', () => {
         limit: async () => [],
       }),
     }))
-    const repository = createMemoryRepository({
+    const repository = createMemoryRepository(transactional({
       select: vi.fn(() => ({
         from: () => ({ where }),
       })),
-    } as never)
+    }) as never)
 
     await repository.search({ embedding: EMBEDDING, limit: 3 })
 
@@ -182,11 +207,11 @@ describe('pgvector memory repository', () => {
         limit: async () => [],
       }),
     }))
-    const repository = createMemoryRepository({
+    const repository = createMemoryRepository(transactional({
       select: vi.fn(() => ({
         from: () => ({ where }),
       })),
-    } as never)
+    }) as never)
 
     await repository.search({
       embedding: EMBEDDING,

@@ -14,5 +14,6 @@
 - 浏览器 OPFS／Pinia 所有权不作为产品宿主。DuckDB SQL 从原初始化块提取，事务／checkpoint／关闭由 main 控制的 utility process 承担。
 - pgvector 仓储与 schema 保留；连接配置与队列由 LCA 所有，不引入 AIRI server-sdk 服务启动入口。
 - 交互回执增加可选 `previousSourceContext`，在原提案事务中保存目标事实的来源身份；旧回执继续可读。该元数据用于 LCA 经历摘要更正／忘记后的失效，不改变原事实和向量算法，也不复制已删除事实正文作为新经历。
+- 宿主读取完整操作历史以保持更正／忘记来源的长期失效；界面另行限制投影数量。pgvector 同一 origin 的插入／删除使用事务锁，提前到达的删除也保存空正文 tombstone，避免迟到写入复活。向量迁移增加主进程暂停／撤销检查，连接指纹改用端点与模型的散列，不保存端点私有路径。
 
 原浏览器测试与 store 保留作宿主改写的验收依据；复制到此目录不等于已在 LCA 运行通过。实施与验证状态见 [实施记录](../../docs/research/continuous-implementation-20261101.md)。

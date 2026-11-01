@@ -6,6 +6,7 @@ import { MailboxControls } from './MailboxControls'
 import { DocumentControls } from './DocumentControls'
 import { BackupControls } from './BackupControls'
 import { CharacterControls } from './CharacterControls'
+import { MemoryControls } from './MemoryControls'
 
 import { NotificationControls } from './NotificationControls'
 import { VoiceControls } from './VoiceControls'
@@ -71,6 +72,7 @@ export function UserSettings({ bridge, snapshot, onClose, onOpenPlugins }: { bri
       <Group name={words.groups.life}><LifeControls {...props} /><DiaryControls {...props} /><LegacyFlowRecords bridge={bridge} snapshot={snapshot} /></Group>
     </Section>
     <Section id="book">
+      <Group name="记忆与经历"><MemoryControls {...props} /></Group>
       {/* 重新走一遍新手指引只把“看过引导”改回没看过（onboarding.reset），不动任何资料；放在外面，不藏进折叠组 */}
       {!booth && <div className="settings-callout" data-action="onboarding.reset"><p>{words.resetHint}</p><button type="button" onClick={() => void send({ type: 'onboarding.reset' })}>{words.reset}</button></div>}
       <Group name={words.groups.book}><BackupControls {...props} /><CharacterControls {...props} /></Group>

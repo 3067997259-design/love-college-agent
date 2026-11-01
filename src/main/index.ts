@@ -93,6 +93,8 @@ import { probeDocuments } from './validation/documents'
 import { openMemoryRepository, type MemoryRepository } from './memory/repository'
 import { createMemoryService, type MemoryService } from './memory/service'
 import { createMemoryFacts } from './memory/facts'
+import { createMemoryMirrorHost } from './memory/airi/mirror'
+import { ensureContinuityIdentity } from './continuity/identity'
 import { createFakeMemoryModel } from './memory/model'
 import { memoryTools } from './memory/tools'
 import { probeMemory } from './validation/memory'
@@ -106,6 +108,7 @@ import { createQuillService, quillTools, type QuillService } from './gifts/quill
 import { buildDiagnostics } from './developer/diagnostics'
 import { createTaskModelPorts } from './model/task-ports'
 import { createModelSettings, providerConfigPath, type ModelSettingsService } from './config/model-settings'
+import { createMemorySettings, type MemorySettingsService } from './config/memory-settings'
 import { createCompanionWindows, type CompanionWindows } from './windows/companion'
 import { roundedMiniShape, type MiniFallbackReason } from './windows/presentation'
 import { resolveRoomLayout, resolveRoomRoot } from './room/paths'
@@ -208,6 +211,8 @@ let photos: HistoryPhotos | undefined
 let recall: HistoryRecall | undefined
 let bookWindow: BrowserWindow | undefined
 let modelSettings: ModelSettingsService | undefined
+let memorySettings: MemorySettingsService | undefined
+let memoryMirror: ReturnType<typeof createMemoryMirrorHost> | undefined
 let companionWindows: CompanionWindows | undefined
 let miniFallbackReason: MiniFallbackReason | null = process.env.LCA_MINI_OPAQUE === '1' ? 'forced' : null
 app.on('gpu-info-update', () => {
@@ -360,7 +365,9 @@ void app.whenReady().then(async () => {
     const selectedCharacter = prepared.pluginSettings.read().activeCharacterId ?? 'default-character'
     const activeCharacter = selectedCharacter === 'default-character' ? builtinCharacter : characterLibrary.read(selectedCharacter)
     const owner = { userId: 'local-user', characterId: activeCharacter.id }
+    ensureContinuityIdentity(dataDir, owner)
     const restoreReceipt = applyPendingRestore(dataDir, owner, prepared.developer ? 'fake' : 'real', clock)
+    const continuityIdentity = ensureContinuityIdentity(dataDir, owner)
     if (restoreReceipt?.status === 'restored') {
       prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = restoreReceipt.manifest.fileFilteringEnabled })
       resumeSavedSession(dataDir, restoreReceipt.manifest.owner, restoreReceipt.manifest.activeDayKey, restoreReceipt.manifest.activeSessionId)
@@ -435,17 +442,26 @@ void app.whenReady().then(async () => {
     controller.attachDocuments(documents)
     memoryRepository = openMemoryRepository(dataDir, store)
     const fakeMemory = prepared.developer ? createFakeMemoryModel() : undefined
-    const memoryFacts = createMemoryFacts({ root: join(dataDir, 'memory', contentHash(JSON.stringify(owner))), owner: { ...owner, dataRootId: contentHash(dataDir) }, clock, store,
-      embedding: () => undefined, held: () => !!backup?.isBusy() || store!.projection().lightsOut, waitForRestore: async () => {}, changed: () => controller?.refresh('connection') })
+    const memoryHeld = () => !!backup?.isBusy() || store!.projection().lightsOut
+    memoryMirror = createMemoryMirrorHost({ clock, owner: continuityIdentity.owner, epoch: continuityIdentity.mirrorEpoch, held: memoryHeld })
+    const memoryFacts = createMemoryFacts({ root: join(dataDir, 'memory', contentHash(JSON.stringify(owner))), owner: continuityIdentity.owner, clock, store,
+      embedding: () => memorySettings?.source(), mirror: memoryMirror.port, held: memoryHeld, waitForRestore: async () => {}, changed: () => controller?.refresh('connection') })
+    memorySettings = createMemorySettings({ root: dataRoot, clock, runtime: () => memoryFacts.runtime, held: memoryHeld,
+      canConfigure: () => !herBusy() && !modelSettings?.isBusy() && !memoryHeld() && !minecraft?.active(),
+      prepare: async () => { memory?.foreground(); await memory?.idle() }, reserve: units => resourceBudget?.reserveModel(units, 'autonomous'),
+      changed: () => { for (const key of memorySettings?.credentials() ?? []) if (!privateCredentials.includes(key)) privateCredentials.push(key); controller?.refresh('connection') } })
     memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, facts: memoryFacts, get model() { return fakeMemory?.model ?? taskModels.memory }, development: fakeMemory,
       compactRoot: async operationId => dshExecution ? dshExecution.compact(operationId) : { rootSessionId: '', outcome: 'no_range' },
       beforeRoll: async () => { if (photos && !photos.photo(store!.scope.sessionId)) { photos.capture('day-end', 'day-end:' + store!.scope.sessionId); await photos.idle() } },
       closingDay: () => { if (!sleep || sleep.set(true, 'day-end')) throw new Error('DAY_END_BUSY') },
-      isBusy: () => herBusy() || !!lifeWork?.active() || !!minecraft?.active(), changed: () => controller?.refresh('connection'),
+      isBusy: () => herBusy() || !!lifeWork?.active() || !!minecraft?.active() || !!memorySettings?.isBusy(), changed: () => controller?.refresh('connection'),
       rolled: () => { controller?.refresh('connection'); dshExecution?.stateChanged(); pomodoro?.reconcile(); campus?.stateChanged(); documents?.stateChanged() },
       failed: () => { console.error('Memory processing stopped: local storage unavailable.'); app.quit() } })
     controller.attachMemory(memory)
+    controller.attachMemorySettings(memorySettings)
     await memory.initialize()
+    await memorySettings.initialize()
+    for (const key of memorySettings.credentials()) if (!privateCredentials.includes(key)) privateCredentials.push(key)
     campus = createCampusService({ clock, store, scheduler, vault, source: fakeMailbox?.source ?? realMailbox ?? createBlockedImapSource(), get privacy() { return fakeMailbox?.privacy ?? taskModels.mail }, followMain: () => !privacyEnabled(),
       canProcess: () => (!life || life.view().locationId === 'room') && !lifeWork?.active() && !minecraft?.active(),
       artifacts, openArtifact: previewArtifact, attachment: (record) => documents!.registerAttachment(record),
@@ -599,7 +615,7 @@ void app.whenReady().then(async () => {
     // DSH: your chat and her own events go to her DSH session. The runtime ships with the app (resources/dsh-runtime,
     // prepared by scripts/prepare-dsh-runtime.mjs).
     // LCA private data never becomes her working material, whatever folder the user picks.
-    const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'continuous-work', 'extensions.json', 'extension-events.jsonl', 'extension-candidates', 'skills-imports.json', 'skill-events.jsonl', 'skill-candidates', 'runtime-resources', 'memory', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
+    const guardedRoots = [...new Set([dataRoot, dataDir])].flatMap((root) => ['connections', 'journals', 'dsh-home', 'continuous-work', 'extensions.json', 'extension-events.jsonl', 'extension-candidates', 'skills-imports.json', 'skill-events.jsonl', 'skill-candidates', 'runtime-resources', 'memory', 'continuity.json', 'memory.sqlite', 'campus.sqlite', 'documents.sqlite', 'projections.sqlite', 'settings.json'].map((name) => join(root, name)))
     const projects = createProjects({ settings: prepared.pluginSettings, desk: join(roomRoot, '书桌'), privateRoots: guardedRoots,
       trusted: (path) => dshExecution?.trusted(path) ?? false, untrust: (path) => { dshExecution?.untrust(path); continuousWork?.untrust(path) }, busy: () => !!dshExecution?.busy() || !!extensions?.busy() || !!skills?.busy(),
       choose: async () => {
@@ -722,12 +738,12 @@ void app.whenReady().then(async () => {
       return execution
     }
     dshExecution = createDsh()
-    const workOwner = { userId: store.scope.userId, characterId: store.scope.characterId, dataRootId: contentHash(dataDir) }
+    const workOwner = continuityIdentity.owner
     const workRoot = join(dataDir, 'continuous-work', contentHash(JSON.stringify(workOwner)))
     continuousWork = createContinuousWork({ root: workRoot, owner: workOwner, clock, project: projects.resolveWork,
       safeText: text => privateCredentials.reduce((safe, key) => key ? safe.replaceAll(key, '[redacted]') : safe, redactSecrets(text)),
       available: () => !!dshExecution,
-      held: () => { const state = store!.projection(); return state.lightsOut || state.sleeping || !!backup?.isBusy() || !!modelSettings?.isBusy() },
+      held: () => { const state = store!.projection(); return state.lightsOut || state.sleeping || !!backup?.isBusy() || !!modelSettings?.isBusy() || !!memorySettings?.isBusy() },
       decision: id => {
         const rows = store!.history?.() ?? store!.records()
         const approvals = new Set(rows.flatMap(row => row.type === 'question/requested' && row.approval ? [row.id] : []))
@@ -781,7 +797,7 @@ void app.whenReady().then(async () => {
     controller.attachExecution(chatPort(), !!dshExecution)
     controller.attachCollaboration(dshExecution?.collaboration)
     modelSettings = createModelSettings({ root: dataRoot, fallback: prepared.developer ? undefined : providersFile, developer: prepared.developer, slots: [...rawProviders.keys()], clock, budget: resourceBudget,
-      canConfigure: () => !herBusy() && !backup?.isBusy() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
+      canConfigure: () => !herBusy() && !memorySettings?.isBusy() && !backup?.isBusy() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
       apply: async () => {
         scheduler!.pauseBackground(true)
         try {
@@ -813,8 +829,8 @@ void app.whenReady().then(async () => {
     // Without DSH nothing sends a thinking level; the settings say the provider decides.
     if (!dshExecution) modelSettings.setLevels(null)
     backup = createBackupService({ root: dataDir, store, clock, source: prepared.developer ? 'fake' : 'real', fileFilteringEnabled: () => prepared.pluginSettings.read().fileFilteringEnabled, credentials: privateCredentials, onboarding: () => controller!.getSnapshot().onboarding!,
-      canStart: () => !herBusy() && !gifts?.isBusy() && !modelSettings?.isBusy() && !minecraft?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
-      freeze: async () => { scheduler!.pauseBackground(true); voice?.interrupt(); memory!.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground(); await Promise.all([memory!.idle(), diary?.idle(), photos?.idle(), lifeWork?.idle(), optical?.idle()]); if (herBusy() || gifts?.isBusy() || modelSettings?.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
+      canStart: () => !herBusy() && !gifts?.isBusy() && !modelSettings?.isBusy() && !memorySettings?.isBusy() && !minecraft?.active() && campus!.view().status !== 'scanning' && !documents!.view().jobs.some((job) => job.status === 'processing'),
+      freeze: async () => { scheduler!.pauseBackground(true); voice?.interrupt(); memory!.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground(); await Promise.all([memory!.idle(), diary?.idle(), photos?.idle(), lifeWork?.idle(), optical?.idle()]); if (herBusy() || gifts?.isBusy() || modelSettings?.isBusy() || memorySettings?.isBusy() || campus!.view().status === 'scanning' || documents!.view().jobs.some((job) => job.status === 'processing')) { scheduler!.pauseBackground(store!.projection().lightsOut); throw new Error('BACKUP_BUSY') }; return () => { scheduler!.pauseBackground(store!.projection().lightsOut); pomodoro?.reconcile() } },
       chooseExport: async (name) => { const selected = await dialog.showSaveDialog({ title: '导出私人存档', defaultPath: name, filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePath ?? null },
       chooseImport: async () => { const selected = await dialog.showOpenDialog({ title: '选择私人存档', properties: ['openFile'], filters: [{ name: '私人存档', extensions: ['lca-save'] }] }); return selected.canceled ? null : selected.filePaths[0] ?? null },
       restart: () => { systemClock.after(100, () => { app.relaunch(); app.quit() }) }, changed: () => controller?.refresh('restore') })
@@ -880,7 +896,7 @@ app.on('before-quit', (event) => {
     notifications?.close()
     const closeCampus = campus?.close()
     const closeDocuments = documents?.close()
-    const closeMemory = memory?.close()
+    const closeMemory = memorySettings?.close().then(() => memory?.close()).then(() => memoryMirror?.close()) ?? memory?.close()
     scheduler?.dispose()
     const closeGame = (async () => { await minecraft?.close(); await minecraftChat?.end(); await mcp?.close() })()
     // Keep the development clock alive until every service has finished its cancellation/release RPCs.

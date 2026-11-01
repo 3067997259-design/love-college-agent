@@ -1,6 +1,7 @@
 // Adapted from AIRI (MIT). Pinned source and modifications: vendor/airi-memory/README.md
 // Upstream: packages/memory-pgvector/src/repository.integration.test.ts
 import { describe, expect, it } from 'vitest'
+import { randomUUID } from 'node:crypto'
 
 import { connectMemoryRepository, ensureMemorySchema } from '../../../../src/main/memory/airi/pgvector/repository'
 
@@ -14,6 +15,21 @@ const connectionString = process.env.LCA_MEMORY_TEST_POSTGRES === '1' ? process.
 const vector = (seed: number) => Array.from({ length: 768 }, (_, i) => Math.sin(seed + i / 50) * 0.5)
 
 describe.skipIf(!connectionString)('memory repository (real Postgres)', () => {
+  it('keeps an absent or concurrently arriving origin forgotten across two connections', { timeout: 60_000 }, async () => {
+    const namespace = `lca_memory_test_${randomUUID().replaceAll('-', '')}`
+    await ensureMemorySchema(connectionString!, namespace)
+    const first = connectMemoryRepository(connectionString!, undefined, namespace)
+    const second = connectMemoryRepository(connectionString!, undefined, namespace)
+    const input = (originId: string) => ({ originId, content: 'Forgotten before delivery', category: 'chat', memoryType: 'long_term' as const, importance: 5, valence: 0, arousal: 0, tags: [], embedding: vector(7) })
+    try {
+      await first.repository.removeByOriginId('absent')
+      await second.repository.insert(input('absent'))
+      await Promise.all([first.repository.removeByOriginId('racing'), second.repository.insert(input('racing'))])
+      await second.repository.insert(input('racing'))
+      expect(await first.repository.list({ limit: 100 })).toEqual([])
+    } finally { await first.close(); await second.close() }
+  })
+
   it('ensures the schema, then inserts, searches, lists, and removes a fragment', { timeout: 60_000 }, async () => {
     await ensureMemorySchema(connectionString!)
     const { repository, close } = connectMemoryRepository(connectionString!)

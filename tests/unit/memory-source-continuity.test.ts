@@ -69,6 +69,31 @@ describe('successful-input continuity at the product adapter', () => {
     expect(f.facts.factViews()[0].reviewStatus).toBe('approved')
   })
 
+  it('keeps forgotten-source retirement after more than one hundred later operations', async () => {
+    const f = fixture(); f.source('original', 'old-source', 'The old fact must stay forgotten.')
+    const signal = new AbortController().signal
+    await f.facts.propose('original', 'event:old-source', 'old-remember', { kind: 'remember', content: 'The old fact must stay forgotten.' }, signal)
+    await f.facts.review('old-remember', true)
+    const fact = f.facts.factViews()[0]
+    await f.facts.propose('forget', 'event:forget', 'old-forget', { kind: 'forget', targetId: fact.id, expectedRevision: fact.revision }, signal)
+    await f.facts.review('old-forget', true)
+    // Only the old remember/forget is the behavior under test. Seed unrelated
+    // history in one native transaction instead of checkpointing 105 UI turns.
+    const repository = (await f.facts.runtime.initialize())!
+    await repository.transaction(async transaction => {
+      for (let index = 0; index < 105; index++) {
+        f.clock.advanceBy(1)
+        await transaction.saveOperation({ operationId: `later-${index}`, scope: { userId: 'u', characterId: 'c' }, sessionId: 'day-1', turnId: `later-${index}`,
+          sourceContext: { sessionId: 'day-1', messageId: `event:later-${index}`, neighbors: [] }, status: 'rejected', createdAt: f.clock.nowMs(), updatedAt: f.clock.nowMs(),
+          proposal: { kind: 'remember', content: `Unrelated historical proposal ${index}` } })
+      }
+    })
+    await f.facts.refresh()
+    expect(f.facts.experiencePolicy().excludedSourceIds).toContain('event:old-source')
+    expect(f.facts.experiencePolicy().historicalSourceIds).not.toContain('event:old-source')
+    expect(await f.facts.runtime.listOperations({ userId: 'u', characterId: 'c' })).toHaveLength(107)
+  })
+
   it('rechecks source retirement at retrieval instead of trusting stored vectors', async () => {
     const f = fixture(); f.source('restricted-later', 'user-decision', 'A user decision.')
     f.store.append({ type: 'model/seen', turnId: 'restricted-later', source: 'fake', messages: [{ role: 'assistant', content: 'It is due on Friday.' }], eligibleIndexes: [0] })

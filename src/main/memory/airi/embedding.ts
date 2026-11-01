@@ -1,6 +1,7 @@
 // Host adaptation of AIRI local-memory-embedding.ts (MIT). Provider identity,
 // supported dimensions and query/document roles retain the upstream contract.
 import type { Clock } from '../../clock'
+import { createHash } from 'node:crypto'
 import type { MemoryEmbeddingRuntime } from './host-ports'
 import type { MemoryEmbeddingMetadata, MemoryEmbeddingQueryMetadata } from './core'
 
@@ -22,12 +23,12 @@ function validateVector(value: unknown): number[] {
 /** Credentials stay in this main-owned closure and never enter metadata or state. */
 export function createApiMemoryEmbeddingSource(input: { baseUrl: string; apiKey: string; model: string; clock: Clock; fetch?: typeof fetch }): MemoryEmbeddingSource {
   const base = new URL(input.baseUrl.endsWith('/') ? input.baseUrl : input.baseUrl + '/')
-  if (!['https:', 'http:'].includes(base.protocol) || base.username || base.password || !input.apiKey.trim() || !input.model.trim()) throw new Error('MEMORY_EMBEDDING_CONFIGURATION_REQUIRED')
+  if (!['https:', 'http:'].includes(base.protocol) || base.username || base.password || base.search || base.hash || !input.apiKey.trim() || !input.model.trim()) throw new Error('MEMORY_EMBEDDING_CONFIGURATION_REQUIRED')
   const endpoint = new URL('embeddings', base)
   const isVoyage = /(^|\.)voyageai\./i.test(base.hostname)
   let usage: { promptTokens: number; totalTokens: number } | undefined
   return {
-    fingerprint: `api:${base.href}:${input.model}`,
+    fingerprint: `api:${createHash('sha256').update(JSON.stringify([base.href, input.model])).digest('hex')}`,
     provider: isVoyage ? 'voyage' : 'openai-compatible',
     model: input.model,
     embed: async (text, kind = 'document') => {

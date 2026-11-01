@@ -63,12 +63,12 @@ export function createMemoryFacts(options: {
     const legacyCutoff = changes.reduce((at, item) => item.previousSourceContext?.messageId && knownSources.has(item.previousSourceContext.messageId) ? at : Math.max(at, item.updatedAt), 0)
     experiencePolicy = { revision: changes.length || retiredFacts.length ? memoryDigest(JSON.stringify([changes.map(item => item.operationId).sort(), excludedSourceIds, legacyCutoff])) : 'initial', excludedSourceIds, historicalSourceIds, legacyCutoff }
     proposalFacts = new Set(reviews.filter(item => item.status === 'pending_review' && item.fragmentId).map(item => item.fragmentId!))
-    operations = reviews.slice(-40).map(item => ({ operationId: item.operationId, kind: item.proposal.kind,
+    operations = reviews.toSorted((a, b) => Number(b.status === 'pending_review' || b.status === 'conflict') - Number(a.status === 'pending_review' || a.status === 'conflict') || b.updatedAt - a.updatedAt).slice(0, 40).map(item => ({ operationId: item.operationId, kind: item.proposal.kind,
       title: item.proposal.title ?? '', content: item.proposal.content ?? '', previousContent: item.previousContent ?? null, status: item.status, updatedAtMs: item.updatedAt }))
     options.changed()
   }
   const sourceStillAllowed = (source: SeenFragment) => !closed && !options.held() && seenFragments(history(), true, true).some(current => current.key === source.key && current.text === source.text)
-  const factViews = (): MemoryFactView[] => fragments.filter(fact => visible(fact) && !proposalFacts.has(fact.id)).slice(-200).map(fact => ({ id: fact.id, revision: fact.revision ?? 1,
+  const factViews = (): MemoryFactView[] => fragments.filter(fact => visible(fact) && !proposalFacts.has(fact.id)).slice(0, 200).map(fact => ({ id: fact.id, revision: fact.revision ?? 1,
     title: fact.title ?? '', summary: fact.summary ?? '', content: fact.content.slice(0, 2000), pinned: fact.pinned === true, pinOrder: fact.pinOrder ?? 0,
     memoryType: fact.memoryType === 'working' ? 'short_term' : fact.memoryType, reviewStatus: fact.reviewStatus ?? 'pending', factStatus: fact.factStatus ?? 'active', createdAtMs: fact.createdAt }))
   const context = (turnId: string, messageId: string, signal: AbortSignal): MemoryInteractionContext => {
@@ -150,7 +150,7 @@ export function createMemoryFacts(options: {
     async presentation(input: Parameters<typeof runtime.editPresentation>[1]) { const result = await runtime.editPresentation(scope, input); await refresh(); return result },
     status: (): MemoryEngineStatus => ({ engine: 'airi-duckdb', state: closed ? 'closed' : runtime.databaseStatus.value === 'ready' ? 'ready' : runtime.databaseStatus.value === 'error' ? 'failed' : 'opening',
       checkpointAt: runtime.databasePersistenceStatus.value.lastCheckpointAt ?? null, pendingOperations: operations.filter(item => item.status === 'pending_review').length,
-      embedding: { state: runtime.embeddingMigration.value.state === 'running' ? 'migrating' : runtime.embeddingError.value ? 'failed' : runtime.embeddingMigration.value.state === 'complete' ? 'ready' : 'unconfigured',
+      embedding: { state: !options.embedding() ? 'unconfigured' : runtime.embeddingMigration.value.state === 'running' ? 'migrating' : runtime.embeddingError.value || runtime.embeddingMigration.value.state === 'error' ? 'failed' : runtime.embeddingMigration.value.state === 'complete' ? 'ready' : 'unconfigured',
         remaining: Math.max(0, runtime.embeddingMigration.value.total - runtime.embeddingMigration.value.nextIndex) },
       mirror: { state: options.held() ? 'held' : runtime.remoteStatus.value === 'ready' ? 'ready' : runtime.remoteStatus.value === 'error' ? 'offline' : 'unconfigured', pending: runtime.longTermSyncOutbox.value.length },
       failure: runtime.databaseStatus.value === 'error' ? 'storage' : runtime.captureError.value ? 'reconciliation' : runtime.embeddingError.value ? 'embedding' : runtime.remoteStatus.value === 'error' ? 'mirror' : null }),

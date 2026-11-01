@@ -396,6 +396,12 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
     if (!sourceReady)
       return
 
+    const migrationEpoch = authorityEpoch
+    const current = () => {
+      if (disposed || ports.effectsHeld() || migrationEpoch !== authorityEpoch) throw new Error('MEMORY_EMBEDDING_REVOKED')
+    }
+    current()
+
     const { activeMemoryEmbeddingFingerprint, activeMemoryEmbeddingMetadata, embedMemoryText } = ports.embedding
     const currentFingerprint = activeMemoryEmbeddingFingerprint()
     const fragments = await memoryRepository.list({ limit: 10_000 })
@@ -430,6 +436,7 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
 
     try {
       for (let start = state.nextIndex; start < state.ids.length; start += 20) {
+        current()
         const batch = state.ids.slice(start, start + 20)
         // Mark the batch stale before embedding. If the renderer stops during
         // this loop, the next boot cannot use a half-migrated vector space.
@@ -438,10 +445,12 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
             await memoryRepository.update(id, { embeddingStatus: 'stale' })
         }
         for (const id of batch) {
+          current()
           const fragment = byId.get(id)
           if (!fragment)
             continue
           const vector = await embedMemoryText(fragment.content, 'document')
+          current()
           await memoryRepository.updateEmbedding(id, fragment.revision ?? 1, vector, activeMemoryEmbeddingMetadata({ kind: 'document', dimensions: vector.length }))
         }
         await checkpointMemoryDb()
@@ -1957,9 +1966,16 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
   }
 
   async function refreshEmbedding(): Promise<void> {
+    await vectorInitialization
     backgroundVectorsReady = false
     const ready = await applyEmbeddingSource()
     if (repository.value && ready) await migrateEmbeddingSpace(repository.value, true)
+  }
+
+  async function idle(): Promise<void> {
+    await initialization
+    await vectorInitialization
+    await syncFlush
   }
 
   async function dispose(): Promise<void> {
@@ -2096,6 +2112,7 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
     resetState,
     maintenance,
     refreshEmbedding,
+    idle,
     revoke,
     dispose,
   }

@@ -35,4 +35,15 @@ describe('main-owned AIRI embeddings', () => {
     expect(await runtime.configure()).toBe(false)
     await expect(runtime.embedMemoryText('fact')).rejects.toThrow('UNCONFIGURED')
   })
+
+  it('binds vectors to the full endpoint and model without persisting URL material', () => {
+    const clock = createManualClock(), config = { baseUrl: 'https://fixture.invalid/private-path/v1', apiKey: 'test-key', model: 'model-one', clock }
+    const first = createApiMemoryEmbeddingSource(config)
+    expect(first.fingerprint).toMatch(/^api:[a-f0-9]{64}$/)
+    expect(first.fingerprint).toBe(createApiMemoryEmbeddingSource({ ...config, baseUrl: config.baseUrl + '/' }).fingerprint)
+    expect(first.fingerprint).not.toBe(createApiMemoryEmbeddingSource({ ...config, model: 'model-two' }).fingerprint)
+    expect(first.fingerprint).not.toBe(createApiMemoryEmbeddingSource({ ...config, baseUrl: 'https://fixture.invalid/another/v1' }).fingerprint)
+    expect(() => createApiMemoryEmbeddingSource({ ...config, baseUrl: config.baseUrl + '?api-key=hidden' })).toThrow('CONFIGURATION_REQUIRED')
+    expect(() => createApiMemoryEmbeddingSource({ ...config, baseUrl: config.baseUrl + '#fragment' })).toThrow('CONFIGURATION_REQUIRED')
+  })
 })
