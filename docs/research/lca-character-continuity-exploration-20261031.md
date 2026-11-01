@@ -2,6 +2,8 @@
 
 日期：2026-10-31。分支：`codex/continuous-work-p0`。研究基线：`aa54d060cd2439a273e65a7871df1ae7bea2cd85`。
 
+**2026-11-01 方向更新：** 用户将当前重点收敛到记忆，并要求优先直接复用 AIRI mods 分支，接受向量模型与镜像的复杂度。后续以 [直接复用评估](airi-memory-direct-reuse-20261101.md) 为实施依据：完整保留已有记忆机制，适配宿主；不再默认重写 SQLite 简化仓储。生活、日记暂作为后续消费者，本文其余探索保留，不全部并行推进。
+
 用户将持续工作探索扩展到黑客松时期遗留的不可用能力，并明确要求：记忆参考自己的 AIRI 改造版本，放弃 LCA 的轻量实现；世界泡和日记的直接体验问题是“从来没感觉这两个效果触发过”。因此，支线的目标扩展为工作、记忆与角色生活的连续性。第一条体验闭环是：**她做过一件事，能与你谈起，写进当日回顾，隔天仍能正确记得；过程中你可以继续交流。**
 
 本轮完成源码审计与纯函数反例实验，未更换生产记忆、修改生活策略、调用真实模型或读取私人存档。原有 [持续工作计划](lca-continuous-work-plan-20261031.md) 和 [P0 实验](lca-continuous-work-p0-20261031.md) 是共同底座，下面的路线扩展其范围，不改写历史验收结果。
@@ -45,7 +47,7 @@
 | AIRI 机制与实现位置 | LCA 应获得的能力 | 适配判断 |
 | --- | --- | --- |
 | `packages/memory-core`：事实、来源、生命周期、展示与操作契约 | 事实正文与标题 / 摘要分离；短期 / 长期；active / superseded / disputed；ID、版本、用户与角色作用域 | 优先提取或移植纯领域部分，保留来源许可；时间与宿主操作改走 LCA 的 Clock / 主进程 |
-| `stores/modules/memory.ts` + `local-memory.ts`：向量检索、原问题与归一化问题合并、重排 | 通过语义找到相关记忆，保留来源邻近上下文；记录实际命中与遗漏 | 建立 LCA 主进程 repository 适配；沿用现有 SQLite 所有权是首选方案，具体向量实现经独立小样本比较决定 |
+| `stores/modules/memory.ts` + `local-memory.ts`：向量检索、原问题与归一化问题合并、重排 | 通过语义找到相关记忆，保留来源邻近上下文；记录实际命中与遗漏 | 11 月 1 日修正：保留 AIRI 的 DuckDB 仓储和检索主体，优先适配主进程宿主；不另写 SQLite 简化版，驱动兼容性通过隔离探针确定 |
 | `memory-core/interaction.ts`：稳定置顶目录、简介、正文 | 常用已生效事实可直接进入有界目录，详细内容按 ID 读取 | 直接对应 Super-agent 的 Inline & Spill；目录可用不依赖 embedding 可用 |
 | `tools/memory.ts` + `services/memory/interactions.ts` | 对话中的 read / remember / correct / forget；来源、目标版本与持久回执 | 接 DSH 窄工具，复用 LCA 问题 / 操作卡；不另建一个会话循环 |
 | `memory-core/source-context.ts` 与冻结轮次身份 | 知道记忆来自哪一次经历，跨角色 / 项目不会读错 | 使用 LCA 成功模型输入的合法来源；不给 Worker 整份私人对话和关系记忆 |

@@ -1,0 +1,265 @@
+{
+  "date": "2026-11-01",
+  "mode": "source-inspection-and-historical-test-record-review",
+  "decision": "Prefer complete source reuse with host adaptation; do not create another reduced memory engine.",
+  "reference": {
+    "branch": "mods",
+    "commit": "3a84a4fbaf6a54defe385e050be86fcb5436745b",
+    "currentHead": "229ac0de5ef03035d596387ba0a150c875344353",
+    "currentBranch": "afterrain/feat/elytra-mpc",
+    "comparedCommittedPaths": [
+      "packages/memory-core",
+      "packages/memory-pgvector",
+      "packages/stage-ui/src/services/memory",
+      "packages/stage-ui/src/stores/modules/memory.ts",
+      "apps/stage-tamagotchi/src/main/services/airi/memory-host"
+    ],
+    "changedCommittedPaths": [],
+    "workingTreeHasAdditionalMemoryChanges": true
+  },
+  "historicalTests": [
+    {
+      "id": "retrieval-90",
+      "source": "docs/fork/evidence/mq-2/threshold-evaluation-20260912.md",
+      "result": "90 cases in nine strata, 20 isolated bilingual gold facts; threshold 0.42 configuration reports recall@3 0.944. Not a general quality guarantee."
+    },
+    {
+      "id": "live-mq2",
+      "source": "docs/fork/evidence/mq-2/increment-3-live-20260913.md",
+      "result": "Cross-session recall, correction, character separation, negation, temporal constraints and unknown-answer scenarios recorded; natural-query and fixture qualifications retained; live slice ran with threshold 0.5."
+    },
+    {
+      "id": "pgvector",
+      "source": "docs/fork/evidence/mq-0/postgres-integration-20260907.md",
+      "result": "Four real Postgres repository integration tests passed using deterministic vectors; this run did not cover automatic disconnect/reconnect."
+    },
+    {
+      "id": "restore",
+      "source": "docs/fork/evidence/md-2/non-empty-memory-restore-20260907.md",
+      "result": "One non-empty fact restored into a second packaged Electron profile with identical row, scope and 768 vector values; embedding response was a deterministic fixture."
+    },
+    {
+      "id": "regression",
+      "source": "docs/fork/mq-2-spec.md",
+      "result": "After threshold decision: memory-core 40/40, pgvector six unit cases passed (four integration cases skipped in this run), stage-ui memory 47/47."
+    }
+  ],
+  "sources": [
+    {
+      "path": "LICENSE",
+      "gitBlob": "1bd715572472cd766a5c1444a467f5f011b14aaa",
+      "sha256": "f334260edf0508041280b534ca9d0abd5a02a9626c1d2e20a556ac4eb72b07f9",
+      "bytes": 1075,
+      "lines": 22
+    },
+    {
+      "path": "packages/memory-core/package.json",
+      "gitBlob": "802da71d4abffc7cbe9e9ed43c49be0f59d1b199",
+      "sha256": "df44d7355ab70def394cce76db3ebd51132192add067a293dd7e1df1e457dcc9",
+      "bytes": 476,
+      "lines": 23
+    },
+    {
+      "path": "packages/memory-core/src/index.ts",
+      "gitBlob": "da76f5c84e4ec6e4abe755464a38c75444a94b31",
+      "sha256": "53d82cf3f696acad094eecbf300fd16f3294f4dedc862f023e2f812543fcc113",
+      "bytes": 1742,
+      "lines": 58
+    },
+    {
+      "path": "packages/memory-core/src/types.ts",
+      "gitBlob": "cbff684890b5a1e2b387b65b7e20068d96b357bf",
+      "sha256": "143426f9696ee36d9c0a6e064199ba77e51825637a408c60bea0f2ade3c39dda",
+      "bytes": 13025,
+      "lines": 323
+    },
+    {
+      "path": "packages/memory-core/src/evaluation.ts",
+      "gitBlob": "f2acae01bf3aef43cb645b882a6abdb7aad539da",
+      "sha256": "7dd4717ff6539edfa4c5bf4b45400ea30df9299268e2a2d28b1c295a0d5ea609",
+      "bytes": 16972,
+      "lines": 286
+    },
+    {
+      "path": "packages/memory-core/src/query-normalization.ts",
+      "gitBlob": "b0011829b7f95d02c65d497df007139474a0d78f",
+      "sha256": "e9611ef66ef1269a0cee2c04da11c0831c1c65d71e2f4b57b497d9dd1facbe3b",
+      "bytes": 2852,
+      "lines": 65
+    },
+    {
+      "path": "packages/memory-core/src/extraction.ts",
+      "gitBlob": "63eb36006a82b8b8c29320a3f46e4439d566062a",
+      "sha256": "37bc8b1267dd90414679efd6ffd0ab8c2cbe176fc537f45352f2aecb79ec7906",
+      "bytes": 2867,
+      "lines": 70
+    },
+    {
+      "path": "packages/memory-core/src/score.ts",
+      "gitBlob": "5e79a8ea933c2f7dedfab98094c016000c57a526",
+      "sha256": "fa0b2a9a840dc4b0e92c3661fa79afdae42e6a25b2059506349d5a43ec4f9737",
+      "bytes": 2326,
+      "lines": 70
+    },
+    {
+      "path": "packages/memory-core/src/promotion.ts",
+      "gitBlob": "8b1cc7cdc5f487512a81c3230a6fe20b1cc97fed",
+      "sha256": "5df1f2461191d5e7bed6ccfd688275c2e972117071773401977825eaa03ed9ba",
+      "bytes": 1222,
+      "lines": 38
+    },
+    {
+      "path": "packages/memory-core/src/reflex.ts",
+      "gitBlob": "8192883fc355fc7d498bd36d0274c6fed7ff2299",
+      "sha256": "ba8e72a5c9df85fcbcf5110369c7e37633124b83426c5917ba7378affbf251bd",
+      "bytes": 3036,
+      "lines": 74
+    },
+    {
+      "path": "packages/memory-core/src/events.ts",
+      "gitBlob": "1185f2d904de6775d3e65a15be5f487fc109f042",
+      "sha256": "35c490ee88dbb7507e8961b682c65746a6a3049ec3148939cb13c47f090efc93",
+      "bytes": 1630,
+      "lines": 52
+    },
+    {
+      "path": "packages/memory-pgvector/package.json",
+      "gitBlob": "529d2ef9644c11fa0884f215434ec0225eb2e40e",
+      "sha256": "0422e3db4c7b9016493dfbb2729cdf3d8cb46c405a82254d4d0fc143db92382b",
+      "bytes": 1165,
+      "lines": 48
+    },
+    {
+      "path": "packages/memory-pgvector/src/repository.ts",
+      "gitBlob": "1b35e600a2234c5611b59b9b60668d31b7edb1a5",
+      "sha256": "91ddba22227ab72cc032d6f45deab68ad2a987796bb23928163546a5cff1e0e4",
+      "bytes": 31177,
+      "lines": 654
+    },
+    {
+      "path": "packages/memory-pgvector/src/schema.ts",
+      "gitBlob": "b774584c74a470e0ef93eca6aa2324fe7fa0cca9",
+      "sha256": "b9fe2dac60e385879b0829c2d0a6aa4e0bea8dbaa5e165da731aad3cf40eefca",
+      "bytes": 6052,
+      "lines": 128
+    },
+    {
+      "path": "packages/memory-pgvector/src/repository.integration.test.ts",
+      "gitBlob": "add7115d38c38db81795ae6a563802b38d551f6e",
+      "sha256": "91e3e01ef5f2a704945950182e7956dde640ea701ecbfe6efa0bda07704f2b2b",
+      "bytes": 7438,
+      "lines": 187
+    },
+    {
+      "path": "packages/stage-ui/src/stores/modules/memory.ts",
+      "gitBlob": "c57f08f264e6857d4100296dd25394990ce56264",
+      "sha256": "6a364bdd78101cf627ec6fa27be0bb912e91c93b2e42cfda1770a4148c3ccdb9",
+      "bytes": 79449,
+      "lines": 1827
+    },
+    {
+      "path": "packages/stage-ui/src/services/memory/local-memory.ts",
+      "gitBlob": "7a5f5e7b0418ff433a05c518b1a4a4007d1ecb3b",
+      "sha256": "1be9c3b359923632affb7397744f855efa1154a96159ac398ebb3772d31d2b62",
+      "bytes": 36033,
+      "lines": 753
+    },
+    {
+      "path": "packages/stage-ui/src/services/memory/local-memory-embedding.ts",
+      "gitBlob": "56d7ad991e41b2695c4585569fd9a67a74d1ddb9",
+      "sha256": "be84af06f9c1acea85a5b2fca66b43627abc1ec9f9ce8874e9f038a32a946047",
+      "bytes": 5933,
+      "lines": 135
+    },
+    {
+      "path": "packages/stage-ui/src/services/memory/evaluate-chinese-memory.ts",
+      "gitBlob": "46cfb04facbee22934b1729302d86f6c9dfdd25c",
+      "sha256": "94f468a7cbbabea120dab703055378dc1190023627749b0e663190623eb9e0d6",
+      "bytes": 7453,
+      "lines": 160
+    },
+    {
+      "path": "packages/stage-ui/src/composables/use-duck-db.ts",
+      "gitBlob": "d1844d16ddda644de721c6bd820276c2e725440c",
+      "sha256": "fd6a84c41a429fd287f3d8b2d23c3b76ed8f9dbc2bd62daa4a838202ba1f8427",
+      "bytes": 16582,
+      "lines": 412
+    },
+    {
+      "path": "apps/stage-tamagotchi/src/main/services/airi/memory-host/index.ts",
+      "gitBlob": "a814f97eba1a077a837037c2bc50a26414c976f5",
+      "sha256": "ca46f9ae71cc36c5f40af117c86229503cc40cfc213f54b06396503bbb17861e",
+      "bytes": 11356,
+      "lines": 244
+    },
+    {
+      "path": "docs/fork/MEMORY-RETRIEVAL-AND-PERSISTENCE-PLAN.md",
+      "gitBlob": "35b2504005c1a6fd66c51011816c05eedc1583bd",
+      "sha256": "47884830b89cff13ba7e68c393174328ed6b894ffd2a6a17e035fa5847c06087",
+      "bytes": 12860,
+      "lines": 361
+    },
+    {
+      "path": "docs/fork/MEMORY-BEHAVIOR-SLICE.md",
+      "gitBlob": "cce56a4ff7924f94f6761eaa96db33dd380686a4",
+      "sha256": "3fd07dabc04860f3cc0b833c6a6ccac60a962c30ba148425d5bd27b8b4c84f52",
+      "bytes": 7188,
+      "lines": 124
+    },
+    {
+      "path": "docs/fork/mq-2-spec.md",
+      "gitBlob": "dcaf46639d3000466f68ba599761668534c226b5",
+      "sha256": "9d92496fe14d7c371a703ae45dd30a350bf386e2484fc32312b95f0e0fc147ab",
+      "bytes": 16163,
+      "lines": 138
+    },
+    {
+      "path": "docs/fork/evidence/mq-2/threshold-evaluation-20260912.md",
+      "gitBlob": "b578fab7785fd13884e3c98261e3e3075815d183",
+      "sha256": "3e39063923feb6288f586521f50fd3fedfac133007662cc2a239f03811211ebf",
+      "bytes": 6111,
+      "lines": 96
+    },
+    {
+      "path": "docs/fork/evidence/mq-2/increment-3-live-20260913.md",
+      "gitBlob": "ed3e925e9049f42fd6de999f77018ae83506b29d",
+      "sha256": "04710f89a21807c1bb2683de21215ae7d73decf6baf274fff4fd88a53c65e899",
+      "bytes": 4968,
+      "lines": 64
+    },
+    {
+      "path": "docs/fork/evidence/mq-0/postgres-integration-20260907.md",
+      "gitBlob": "7bca0b93a7d71ea7ed14aec116c4346f96666aa7",
+      "sha256": "7938234ce0626b43f6fa65df8075e9b24061e3356d068bb9d3006a9f678f986b",
+      "bytes": 941,
+      "lines": 31
+    },
+    {
+      "path": "docs/fork/evidence/md-2/non-empty-memory-restore-20260907.md",
+      "gitBlob": "681f3efbd64e136c3ce2335f69a56c601f97da29",
+      "sha256": "da1b5ddf984dd567d801a52470d13ea80cd676034d14c6c72b0cc639cde5f109",
+      "bytes": 1533,
+      "lines": 38
+    }
+  ],
+  "currentOnly": [
+    {
+      "path": "docs/fork/memory-interaction-acceptance-20261026.md",
+      "source": "working-tree-not-mods",
+      "sha256": "d36166867eae8ee83ff83bf7541d65cb489d40730baa9f7376d1ed823d36ccec",
+      "bytes": 12167
+    },
+    {
+      "path": "docs/fork/memory-v3-state-repair-20261029.md",
+      "source": "working-tree-not-mods",
+      "sha256": "8a4b5ce22dc54275c7c6cfe9d19e05b95f9450fae82717d54a73300515926b6e",
+      "bytes": 8145
+    }
+  ],
+  "limits": [
+    "Historical records were reviewed, not re-executed.",
+    "No private profile, credentials, live model, Docker service or remote database was accessed.",
+    "Newer uncommitted interaction and V3 changes are tracked separately from the mods baseline.",
+    "LCA host storage, packaging, DSH input and restart behavior remain to be validated after integration."
+  ]
+}
