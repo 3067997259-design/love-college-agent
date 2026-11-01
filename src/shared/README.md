@@ -9,6 +9,7 @@
 - `events.ts`：主进程发布投影事件，revision / epoch 与原始日志序号分开。
 - `bridge.ts`：preload 与显式假适配共同实现 `getSnapshot / subscribe / dispatch` 等入口，renderer 使用 `window.lca`。
 - `collaboration.ts`：成员与任务安全视图；名册容量与运行容量分别表示，无法观测用 null。受限来源不提供成员结果原文；操作 accepted 不等于消息已处理或停止已完成。`dsh-protocol.ts` 的协作请求只在主进程与子进程之间传输。
+- `continuity.ts`：实验分支的持久 owner／工作身份、带版本的上下文引用、事件投递回执与记忆宿主状态。generation 不等于日页，operation 的 committed 不等于已对用户发布。接入各消费方前这些类型不自动开放命令；数据库执行接口只留在 main。
 
 接线先订阅并缓冲，再获取快照。同代次中丢弃 revision 不高于快照的事件；断线、缺口或 epoch 改变时重新取快照，清除旧代次缓冲和请求。组件卸载时退订，不在 renderer 再维护一份业务事实 reducer。
 
