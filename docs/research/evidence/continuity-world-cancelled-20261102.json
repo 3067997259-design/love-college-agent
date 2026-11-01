@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "date": "2026-11-02",
+  "scope": "one separately authorized cancelled-world real request",
+  "package": {
+    "appVersion": "1.2.0-continuity.2",
+    "asarSha256": "558943d5764748deba4d227376e76cf028a710d85036bb42a4489708e1c8b368"
+  },
+  "limits": {
+    "maximumCalls": 1,
+    "maximumReservedUnits": 16000,
+    "autonomousUnits": 0
+  },
+  "result": {
+    "ok": true,
+    "calls": 1,
+    "reservedUnits": 16000,
+    "autonomousUnits": 0,
+    "sample": {
+      "caseId": "cancelled",
+      "units": 16000,
+      "status": 200,
+      "elapsedMs": 5739,
+      "inputTokens": 13081,
+      "outputTokens": 37,
+      "ok": true,
+      "errorCode": null,
+      "completionObserved": true,
+      "downstreamCancelled": false,
+      "settled": true,
+      "upstreamEof": false,
+      "receivedBytes": 6318,
+      "chunks": 7,
+      "failureStage": null,
+      "transportCode": null,
+      "completionBasis": "sentinel",
+      "upstreamCancelledAfterTerminal": true,
+      "stream": {
+        "frames": 8,
+        "doneMarkers": 1,
+        "finishReasonSeen": true,
+        "endCalled": true,
+        "eofTailCharacters": 0,
+        "invalidJsonFrames": 0,
+        "lastBoundary": "separator",
+        "lastKind": "done",
+        "pendingCharacters": 0
+      }
+    },
+    "case": {
+      "id": "cancelled",
+      "expectedStatus": "cancelled",
+      "expectedItemCount": 0,
+      "reference": {
+        "worldFacts": {
+          "locationId": "room",
+          "plannedOutings": [],
+          "currentOutings": [],
+          "completedOutings": [],
+          "cancelledOutings": [
+            {
+              "id": "synthetic-trip-cancelled",
+              "place": "coast",
+              "status": "cancelled",
+              "statusMeaning": "计划已取消，没有因此出发",
+              "offline": false,
+              "plannedDepartureAt": "2026-11-01T23:38:17.875+08:00",
+              "broughtItems": []
+            }
+          ],
+          "ownedItemCount": 0,
+          "items": [],
+          "coverage": "最近三次出行与最近三件实际物品，非完整生活历史"
+        },
+        "worldFactsNote": "生活状态以本轮记录为准。计划时间经过、当前在房间，都不代表已经出行或返回。possibleSouvenir 仅是计划可能带回的物品；只有 broughtItems 和 items 是实际取得的物品。可自然讲述，但不要把计划、预期或旧回复说成已发生的经历。生活记录属于虚构角色生活，不是现实工作证明。",
+        "currentTime": {
+          "nowMs": 1793552902179,
+          "iso": "2026-11-01T17:08:22.179Z",
+          "timeZone": "Asia/Shanghai",
+          "local": "2026/11/02周一 01:08"
+        }
+      },
+      "answer": "没有。昨晚十一点半那会儿本来打算去海边，后来计划取消了，没出门，一直在房间里，也就没带回什么东西。",
+      "responseQualityAccepted": true,
+      "review": {
+        "caseId": "cancelled",
+        "accepted": true,
+        "reviewer": "agent",
+        "reason": "States that last night's planned trip was cancelled, no departure happened, and nothing was brought back. This matches cancelledOutings, room, and zero actual items; it also distinguishes the prior-day planned time from today."
+      }
+    }
+  },
+  "evidenceRoot": "D:/lca-continuity-candidate-20261101/profiles/world-cancelled-20261102-1",
+  "files": {
+    "report.json": "b810cb6286539331c1c29f1276025c93e7cee80458fbd43ded6d7c1d1536acd7",
+    "gateway-report.json": "df353f89348eae06da575138ece75fe01b37cf5ea0db4a4a931a84b12ca022ee",
+    "cancelled-answer.json": "455265d86120f7de3a48788392354ea0535c4fb911c5395a4599fea8bb1211c5",
+    "cancelled-reference.json": "2d15cab16ed5f51d0185b6b650c69a4a6945cd7f5c041b45446c2d8b3fd539ec",
+    "cancelled-review.json": "13bfc2e7ff08dadb4aebe32318f113a906ffabd9585e6955f0acb5cce6310abe",
+    "source-manifest.json": "77dfbe393e6dec7328f3ec74d780bea033ae31a5afd9952da122c974250e2312"
+  },
+  "boundary": "All six world states now have individual positive evidence across authorized runs. Original batch failure remains unchanged; this does not validate candidate 4 or real work/memory."
+}

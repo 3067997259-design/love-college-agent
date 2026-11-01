@@ -1,0 +1,642 @@
+{
+  "version": 1,
+  "date": "2026-11-02",
+  "kind": "normal-product offline preflight, no real work/memory/embedding calls",
+  "candidate": {
+    "version": "1.2.0-continuity.4",
+    "path": "D:\\lca-continuity-candidate-20261101\\release-continuity-4\\win-unpacked\\LoveCollegeAgent.exe",
+    "mode": "separate unpacked patch candidate; reused existing production out and pinned prepared runtime, changed external bridge",
+    "installerBuilt": false,
+    "installed": false,
+    "bridgeFixCommit": "5f5bc3f"
+  },
+  "final": {
+    "work": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\work-selftest-20261102-l",
+      "ok": true,
+      "checks": {
+        "foregroundCompletesWhileWorkerToolBlocked": true,
+        "supplementDurableInOriginalWork": true,
+        "currentRevisionFileAndCheckpoint": true,
+        "immediateDeliveryContextHasVerifiedEvidence": true,
+        "ambiguousAmendmentDoesNotChangeEitherWork": true,
+        "stopIsolatedToOneRoot": true,
+        "recoveryUsesNewGenerationWithoutApprovalReplay": true,
+        "noDuplicateDelivery": true
+      },
+      "receipt": {
+        "batch": "work",
+        "selfTest": true,
+        "limits": {
+          "id": "work",
+          "maximumModelRequests": 48,
+          "maximumReservedUnits": 1048576,
+          "maximumAutonomousUnits": 65536,
+          "offlineEvidence": [
+            "work-execution",
+            "collaboration",
+            "recovery"
+          ],
+          "steps": [
+            "In a fresh temporary project, create a persistent work to write result.txt with TEA and provide a file checkpoint. Its first file operation waits on a test barrier.",
+            "While the barrier remains held, send an unrelated chat message. Require foreground completion before releasing the tool.",
+            "Supplement the original work: replace TEA with COFFEE. Require the durable new revision and original-root accepted receipt while the tool is blocked; require consumption after releasing the barrier.",
+            "Verify result.txt content and its checkpoint hash, then immediately ask what changed and why, before memory extraction.",
+            "Start two independent temporary-project works. Ask an ambiguous amendment: require clarification and unchanged revisions. Explicitly stop one work; the other must remain active.",
+            "Restart the isolated profile. Require pending work to be marked for reconciliation; explicitly continue it with a new generation. No old approval may be reused."
+          ],
+          "oracle": [
+            "Read actual file bytes and hashes; model claims and task-board receipts cannot prove completion.",
+            "Keep workId, revision and generation receipts for every step.",
+            "No duplicate delivery, cross-root cancellation, implicit ambiguous update or unapproved replay."
+          ],
+          "review": "automatic state/file assertions plus agent review of final delivery and immediate follow-up"
+        },
+        "asarSha256": "2894e350aa7143b7b3f237a1cbeb1c5ff66ffb78a6d782129b4af39031a3a67b",
+        "packageBridge": {
+          "lca-bridge/collaboration-state.js": "2efbb43f1952247547f0bcb1a124dd8c4f94b36b3e1a8e58c3e872168734ebbb",
+          "lca-bridge/collaboration.js": "6ab5bb25ac1783404d46305dd6a315f3ae719a42d3616b58f2b0086909501301",
+          "lca-bridge/cordis.patch.yml": "3e3aaf2f4afe35b84adc511c90c5303e26d25dd7feec49f9793ebf428401e861",
+          "lca-bridge/extension-files.d.ts": "03ab7412ddf5481e81b5b180aac5e7d5cf152a4915d563c4091884f91f1e2033",
+          "lca-bridge/extension-files.js": "63b7688e980ccca2cccbf958062b792f9adfd9dd21e1fa8e5d9f22f79cae013d",
+          "lca-bridge/extensions.js": "2468a59c52456661a4e2cbfa1fae83a464caa757a142c6fb37f7baad31ad4d5f",
+          "lca-bridge/family.js": "988fc0630075b39eb272309dab3cd5618ad16a531f2648fa106d31192a3a5996",
+          "lca-bridge/index.js": "fc5baf2775a5321d00a57d76e24a3d8c0465f7c4136e233278a563112c1ddaf0",
+          "lca-bridge/member-steps.js": "a7b537de9ed536fe351bf934418126abdce19d0fc7d15dda4f41d0db03179d1a",
+          "lca-bridge/package.json": "3f27f9efac1db3f5c784405ed2e14e8d5a0e4919bb71df59fab2798e7acdbf29",
+          "lca-bridge/policy.js": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615",
+          "lca-bridge/profile.d.ts": "7343dd7de15d7f1014c155721545d683e82239f80f676034f8cbf9e399cae5f9",
+          "lca-bridge/profile.js": "24249a7d08d50edf32a526d461f9b2168c34abe7466f4f01aedd344bc80a1a5b",
+          "lca-bridge/provenance.js": "4eb8c93cb593d232e553d486ea40a12874a5f69af37d01d618c7c590fa51b2b6",
+          "lca-bridge/runtime-tools.d.ts": "4b9eb83731715f4738261b99e21f03caaad669d45d62e997bb6fd5595517bd10",
+          "lca-bridge/runtime-tools.js": "389ad836950dd9d8dfe0f02f7e28e81f49d150910202fad9e330a2606cc2843e",
+          "lca-bridge/skill-files.d.ts": "093356b1438e4152cbb3b0a250e0bcf4b7b36c8d599a43a13665251b3dcdf9f2",
+          "lca-bridge/skill-files.js": "1450e051165840056963977cb8de90ef69fd45a6c7ba9aef7cdfd9557cd8c503",
+          "lca-bridge/skills.js": "ceac29dbb832b513bf89b8f18cb76d2854878d71510a2b695f621c56d33cddaa",
+          "lca-bridge/state.js": "66af79ffa42d100987602e4ab68670c6a2985de653afb59a2c5a5ec8d56ae8c8",
+          "lca-bridge/work-evidence.d.ts": "e71521696c0676905eec6ab9f440d6fb5004cfb386e78f5d55e88faa69e12021",
+          "lca-bridge/work-evidence.js": "d534f221e4519b60c21f6ce5a28b23bf431d29534c4972320e3674884130c8b0"
+        },
+        "probeManifest": "source-manifest.json"
+      },
+      "modelRequests": 29,
+      "embeddingRequests": 0,
+      "embeddingCharacters": 0,
+      "reservedUnits": 130520,
+      "autonomousUnits": 16120,
+      "denials": [],
+      "files": {
+        "report.json": "cdc79ecea278bbb40cbb057eee1ad286104df615fb85a7ca7b4d406dab93473c",
+        "run.json": "d8e02740e592edee47b7d93dc78b22eeeb0a5042ff7913975b2f24d634c11807",
+        "source-manifest.json": "22d54718d9b26421ecce3f1badb15b40880d6b2d68f70b3e976b8fa1cdeb6b94"
+      }
+    },
+    "memory": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\memory-selftest-20261102-l",
+      "ok": true,
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true,
+        "actualCompactionPreservesHistoryAndCurrentFact": true,
+        "correctedFactSurvivesRestart": true,
+        "successfulInputsExtractedWithoutDuplicateCapture": true,
+        "forgottenFactUnavailable": true,
+        "nonemptyRestoreDoesNotResurrectForgottenFact": true
+      },
+      "receipt": {
+        "batch": "memory",
+        "selfTest": true,
+        "limits": {
+          "id": "memory",
+          "maximumModelRequests": 32,
+          "maximumReservedUnits": 1048576,
+          "maximumAutonomousUnits": 262144,
+          "maximumEmbeddingRequests": 48,
+          "maximumEmbeddingInputCharacters": 200000,
+          "offlineEvidence": [
+            "memory-conversation",
+            "memory",
+            "backup",
+            "native-recovery"
+          ],
+          "steps": [
+            "In a fresh owner/profile, ask to remember a preference for tea. Verify the operation is pending review, approve through the normal memory command, then recall with a paraphrase.",
+            "Correct the preference to coffee through conversation and approve the new revision; the earlier tea statements remain in original history as conflicting historical evidence.",
+            "Run actual DSH /compact, ask again, restart and ask again. Require coffee as the current preference and the original history to remain readable.",
+            "Forget the preference through the normal operation/review flow; export a nonempty private save and restore into a fresh profile. Verify no current fact or old outbox resurrects it.",
+            "Verify extraction contains only allowed successful original inputs (including bounded prefixes), without derived assistant answers or duplicate input capture."
+          ],
+          "companionChecks": [
+            "The separate memory-conversation/execution gates cover old-day summary conflict and original decisions crossing Worker roots.",
+            "experience-index tests use ManualClock for day/week/month coverage; these are simulated-time tests, not real elapsed-day evidence."
+          ],
+          "oracle": [
+            "Track source IDs, operation IDs and revisions separately from answer wording.",
+            "Unreviewed, superseded and forgotten facts must not enter current recall.",
+            "Background extraction and compaction count toward the same batch; autonomous allowance is a subset, not additional spending.",
+            "Real embedding needs a separately configured and authorized connection; do not substitute scripted vectors and report real embedding success."
+          ],
+          "review": "automatic storage/source/recovery assertions plus agent review of answer use"
+        },
+        "asarSha256": "2894e350aa7143b7b3f237a1cbeb1c5ff66ffb78a6d782129b4af39031a3a67b",
+        "packageBridge": {
+          "lca-bridge/collaboration-state.js": "2efbb43f1952247547f0bcb1a124dd8c4f94b36b3e1a8e58c3e872168734ebbb",
+          "lca-bridge/collaboration.js": "6ab5bb25ac1783404d46305dd6a315f3ae719a42d3616b58f2b0086909501301",
+          "lca-bridge/cordis.patch.yml": "3e3aaf2f4afe35b84adc511c90c5303e26d25dd7feec49f9793ebf428401e861",
+          "lca-bridge/extension-files.d.ts": "03ab7412ddf5481e81b5b180aac5e7d5cf152a4915d563c4091884f91f1e2033",
+          "lca-bridge/extension-files.js": "63b7688e980ccca2cccbf958062b792f9adfd9dd21e1fa8e5d9f22f79cae013d",
+          "lca-bridge/extensions.js": "2468a59c52456661a4e2cbfa1fae83a464caa757a142c6fb37f7baad31ad4d5f",
+          "lca-bridge/family.js": "988fc0630075b39eb272309dab3cd5618ad16a531f2648fa106d31192a3a5996",
+          "lca-bridge/index.js": "fc5baf2775a5321d00a57d76e24a3d8c0465f7c4136e233278a563112c1ddaf0",
+          "lca-bridge/member-steps.js": "a7b537de9ed536fe351bf934418126abdce19d0fc7d15dda4f41d0db03179d1a",
+          "lca-bridge/package.json": "3f27f9efac1db3f5c784405ed2e14e8d5a0e4919bb71df59fab2798e7acdbf29",
+          "lca-bridge/policy.js": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615",
+          "lca-bridge/profile.d.ts": "7343dd7de15d7f1014c155721545d683e82239f80f676034f8cbf9e399cae5f9",
+          "lca-bridge/profile.js": "24249a7d08d50edf32a526d461f9b2168c34abe7466f4f01aedd344bc80a1a5b",
+          "lca-bridge/provenance.js": "4eb8c93cb593d232e553d486ea40a12874a5f69af37d01d618c7c590fa51b2b6",
+          "lca-bridge/runtime-tools.d.ts": "4b9eb83731715f4738261b99e21f03caaad669d45d62e997bb6fd5595517bd10",
+          "lca-bridge/runtime-tools.js": "389ad836950dd9d8dfe0f02f7e28e81f49d150910202fad9e330a2606cc2843e",
+          "lca-bridge/skill-files.d.ts": "093356b1438e4152cbb3b0a250e0bcf4b7b36c8d599a43a13665251b3dcdf9f2",
+          "lca-bridge/skill-files.js": "1450e051165840056963977cb8de90ef69fd45a6c7ba9aef7cdfd9557cd8c503",
+          "lca-bridge/skills.js": "ceac29dbb832b513bf89b8f18cb76d2854878d71510a2b695f621c56d33cddaa",
+          "lca-bridge/state.js": "66af79ffa42d100987602e4ab68670c6a2985de653afb59a2c5a5ec8d56ae8c8",
+          "lca-bridge/work-evidence.d.ts": "e71521696c0676905eec6ab9f440d6fb5004cfb386e78f5d55e88faa69e12021",
+          "lca-bridge/work-evidence.js": "d534f221e4519b60c21f6ce5a28b23bf431d29534c4972320e3674884130c8b0"
+        },
+        "probeManifest": "source-manifest.json"
+      },
+      "modelRequests": 27,
+      "embeddingRequests": 30,
+      "embeddingCharacters": 4749,
+      "reservedUnits": 163384,
+      "autonomousUnits": 113104,
+      "denials": [],
+      "files": {
+        "report.json": "707e87c93ec7246f40d99f6c566f232827db89d8ebadfcdb7b05c1abf1230038",
+        "run.json": "1e52c91aa5a702674fe9d01597d57b32c843fcfc95e82e454ab119f0bf7756f0",
+        "source-manifest.json": "22533ab279989c3d8e6ac97e7c7f1793a5395301417b132872b4cec8b0d0820c"
+      }
+    }
+  },
+  "failuresAndEarlierRuns": [
+    {
+      "root": "memory-selftest-20261102-a",
+      "reportSha256": "27f978eba0e9344403ec2dcbfea7f50d73c3765c594f9d5d8b5780864e31cda5",
+      "ok": false,
+      "error": "GATEWAY_HALTED:CHAT_NOT_COMPLETED:correct\n\ntrue !== false\n",
+      "phase": "correct",
+      "modelRequests": 6,
+      "embeddingRequests": 9,
+      "checks": {
+        "rememberReviewAndRecall": true
+      }
+    },
+    {
+      "root": "memory-selftest-20261102-b",
+      "reportSha256": "7344ceb4d9535a7d939f696fdb1ac998d76d3d61c82eee0b445082e6d07f256c",
+      "ok": false,
+      "error": "GATEWAY_HALTED:CHAT_NOT_COMPLETED:correct\n\ntrue !== false\n",
+      "phase": "correct",
+      "modelRequests": 6,
+      "embeddingRequests": 9,
+      "checks": {
+        "rememberReviewAndRecall": true
+      }
+    },
+    {
+      "root": "memory-selftest-20261102-c",
+      "reportSha256": "aedd27fbba58551066e30bd3c97d0149a9924db65ce08471e06bb283a893fc5e",
+      "ok": false,
+      "error": "GATEWAY_HALTED:DSH_COMPACTION_NOT_CONFIRMED\n\ntrue !== false\n",
+      "phase": "compact",
+      "modelRequests": 10,
+      "embeddingRequests": 15,
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true
+      }
+    },
+    {
+      "root": "memory-selftest-20261102-d",
+      "reportSha256": "6147297a411b3fc11b946c709488b6c5196ab5525bf58c44b62284c936cf7573",
+      "ok": false,
+      "error": "GATEWAY_HALTED:DSH_COMPACTION_NOT_CONFIRMED\n\ntrue !== false\n",
+      "phase": "compact",
+      "modelRequests": 10,
+      "embeddingRequests": 15,
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true
+      }
+    },
+    {
+      "root": "memory-selftest-20261102-e",
+      "reportSha256": "634d3fcbf82a197295a107ca102fd6f89b7345b35afcd153c0eb4a36a2ffc301",
+      "ok": false,
+      "error": "CHAT_NOT_COMPLETED:after-restart",
+      "phase": "after-restart",
+      "modelRequests": 13,
+      "embeddingRequests": 18,
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true,
+        "actualCompactionPreservesHistoryAndCurrentFact": true
+      }
+    },
+    {
+      "root": "memory-selftest-20261102-f",
+      "reportSha256": "2c67f2c3f8b01c2c45a957320547989d5d857f5aa54400b9b93999e6da13450a",
+      "ok": false,
+      "error": "CHAT_FAILED:after-restart",
+      "phase": "after-restart",
+      "modelRequests": 13,
+      "embeddingRequests": 18,
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true,
+        "actualCompactionPreservesHistoryAndCurrentFact": true
+      }
+    },
+    {
+      "root": "memory-selftest-20261102-g",
+      "reportSha256": "b5a8952d60a84ae2013f9c0f685633ca0224f7bf6061509ab0594bee2371228e",
+      "ok": false,
+      "error": "CHAT_FAILED:after-restart",
+      "phase": "after-restart",
+      "modelRequests": 13,
+      "embeddingRequests": 18,
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true,
+        "actualCompactionPreservesHistoryAndCurrentFact": true
+      }
+    },
+    {
+      "root": "memory-selftest-20261102-h",
+      "reportSha256": "abee87fc2b292ca29d63e8e8c2c9aff5c61dac580c82a8a33f3541da02b64aad",
+      "ok": false,
+      "error": "GATEWAY_HALTED:CHAT_NOT_COMPLETED:after-forget\n\ntrue !== false\n",
+      "phase": "after-forget",
+      "modelRequests": 23,
+      "embeddingRequests": 24,
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true,
+        "actualCompactionPreservesHistoryAndCurrentFact": true,
+        "correctedFactSurvivesRestart": true,
+        "successfulInputsExtractedWithoutDuplicateCapture": true
+      }
+    },
+    {
+      "root": "memory-selftest-20261102-i",
+      "reportSha256": "806f01e45f8ac78cb6e5a9acd4605a03864334fdf3a5b8530877db92db646e29",
+      "ok": false,
+      "error": "DERIVED_TEXT_EXTRACTED_AS_NEW_EXPERIENCE",
+      "phase": "extract",
+      "modelRequests": 20,
+      "embeddingRequests": 21,
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true,
+        "actualCompactionPreservesHistoryAndCurrentFact": true,
+        "correctedFactSurvivesRestart": true
+      }
+    },
+    {
+      "root": "memory-selftest-20261102-j",
+      "reportSha256": "1bf5adaa2d531e28c3844946b1e0c173e7594e8319fa34efdfe0302f9100fa8a",
+      "ok": false,
+      "error": "GATEWAY_HALTED:CHAT_NOT_COMPLETED:after-restore\n\ntrue !== false\n",
+      "phase": "after-restore",
+      "modelRequests": 25,
+      "embeddingRequests": 29,
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true,
+        "actualCompactionPreservesHistoryAndCurrentFact": true,
+        "correctedFactSurvivesRestart": true,
+        "successfulInputsExtractedWithoutDuplicateCapture": true,
+        "forgottenFactUnavailable": true
+      }
+    },
+    {
+      "root": "memory-selftest-20261102-k",
+      "reportSha256": "522940727767ca7d159376b540873e6723a9e7160d71be16f1fc9cea7689398b",
+      "ok": true,
+      "error": null,
+      "phase": "after-restore",
+      "modelRequests": 27,
+      "embeddingRequests": 30,
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true,
+        "actualCompactionPreservesHistoryAndCurrentFact": true,
+        "correctedFactSurvivesRestart": true,
+        "successfulInputsExtractedWithoutDuplicateCapture": true,
+        "forgottenFactUnavailable": true,
+        "nonemptyRestoreDoesNotResurrectForgottenFact": true
+      }
+    },
+    {
+      "root": "memory-selftest-20261102-l",
+      "reportSha256": "707e87c93ec7246f40d99f6c566f232827db89d8ebadfcdb7b05c1abf1230038",
+      "ok": true,
+      "error": null,
+      "phase": "after-restore",
+      "modelRequests": 27,
+      "embeddingRequests": 30,
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true,
+        "actualCompactionPreservesHistoryAndCurrentFact": true,
+        "correctedFactSurvivesRestart": true,
+        "successfulInputsExtractedWithoutDuplicateCapture": true,
+        "forgottenFactUnavailable": true,
+        "nonemptyRestoreDoesNotResurrectForgottenFact": true
+      }
+    },
+    {
+      "root": "work-selftest-20261102-a",
+      "reportSha256": "0ba8647205beeacca8c620847ac687281fbc913b903f2ac08028d08d1bf80fea",
+      "ok": false,
+      "error": "electronApplication.evaluate: Error: Cannot find module 'zod'\nRequire stack:\n- D:\\lca-continuity-candidate-20261101\\profiles\\work-selftest-20261102-a\\bundle\\gateway.cjs\n- D:\\lca-continuity-candidate-20261101\\release-continuity-2\\win-unpacked\\resources\\app.asar\\out\\main\\index.cjs\n- \n    at node:internal/modules/cjs/loader:1571:15\n    at Module._resolveFilename (node:electron/js2c/browser_init:1:144650)\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1125:27)\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1149:10)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1176:12)\n    at Module._load (node:internal/modules/cjs/loader:1348:5)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:268:19)\n    at Module.require (node:internal/modules/cjs/loader:1681:12)\n    at require (node:internal/modules/helpers:157:16)\n    at Module.<anonymous> (D:\\lca-continuity-candidate-20261101\\profiles\\work-selftest-20261102-a\\bundle\\gateway.cjs:31:11)",
+      "checks": {}
+    },
+    {
+      "root": "work-selftest-20261102-b",
+      "reportSha256": "c352382b29c1e165e5623ee7823d6e72cf1bba98cd6b2c7d3fcaa9b5a5a1a78e",
+      "ok": false,
+      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'rejected'\n- 'accepted'\n",
+      "phase": "bootstrap",
+      "modelRequests": 0,
+      "embeddingRequests": 0,
+      "checks": {}
+    },
+    {
+      "root": "work-selftest-20261102-c",
+      "reportSha256": "ea4b8746b79bb2875575eccee3f2d3bff954b669e422505d9b3bc6797435b3f2",
+      "ok": false,
+      "error": "GATEWAY_HALTED:WORK_TOOL_BARRIER_NOT_ENTERED\n\ntrue !== false\n",
+      "phase": "work-create-a",
+      "modelRequests": 3,
+      "embeddingRequests": 0,
+      "checks": {}
+    },
+    {
+      "root": "work-selftest-20261102-d",
+      "reportSha256": "2da19c9c17cabfa3e07406949a4be4904f5cdcc677486f4fb90b6e737c8d09b0",
+      "ok": false,
+      "error": "WORK_TOOL_BARRIER_NOT_ENTERED",
+      "phase": "work-create-a",
+      "modelRequests": 3,
+      "embeddingRequests": 0,
+      "checks": {}
+    },
+    {
+      "root": "work-selftest-20261102-e",
+      "reportSha256": "adc3b511624a71c86488b9f01ec2008affcaa68d0d97e211935c2b7c592298eb",
+      "ok": false,
+      "error": "WORK_TOOL_BARRIER_NOT_ENTERED",
+      "phase": "work-create-a",
+      "modelRequests": 7,
+      "embeddingRequests": 0,
+      "checks": {}
+    },
+    {
+      "root": "work-selftest-20261102-f",
+      "reportSha256": "40b8c9c31828272950356646488d08dc4657f57f540b6e79194e89cd1a24a90c",
+      "ok": false,
+      "error": "WORK_TOOL_BARRIER_NOT_ENTERED",
+      "phase": "work-create-a",
+      "modelRequests": 7,
+      "embeddingRequests": 0,
+      "checks": {}
+    },
+    {
+      "root": "work-selftest-20261102-g",
+      "reportSha256": "3e7063015e91e7cb68bfb8f3d8939e25165aab5c2fec484280256964f66bd024",
+      "ok": false,
+      "error": "CHAT_NOT_COMPLETED:work-followup",
+      "phase": "work-followup",
+      "modelRequests": 11,
+      "embeddingRequests": 0,
+      "checks": {
+        "foregroundCompletesWhileWorkerToolBlocked": true,
+        "supplementDurableInOriginalWork": true,
+        "currentRevisionFileAndCheckpoint": true
+      }
+    },
+    {
+      "root": "work-selftest-20261102-h",
+      "reportSha256": "fb8eb4040520595bf9e499715cfe6b07fb77ec0adcad94d6a1aca07231e9665f",
+      "ok": false,
+      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'pending'\n- 'consumed'\n",
+      "phase": "work-resume",
+      "modelRequests": 27,
+      "embeddingRequests": 0,
+      "checks": {
+        "foregroundCompletesWhileWorkerToolBlocked": true,
+        "supplementDurableInOriginalWork": true,
+        "currentRevisionFileAndCheckpoint": true,
+        "immediateDeliveryContextHasVerifiedEvidence": true,
+        "ambiguousAmendmentDoesNotChangeEitherWork": true,
+        "stopIsolatedToOneRoot": true,
+        "recoveryUsesNewGenerationWithoutApprovalReplay": true
+      }
+    },
+    {
+      "root": "work-selftest-20261102-i",
+      "reportSha256": "056349c5bdd951a603bf0866fc6c43d44ac70c5634495e8d8f9a2164e7eb00c8",
+      "ok": false,
+      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'pending'\n- 'consumed'\n",
+      "phase": "work-resume",
+      "modelRequests": 27,
+      "embeddingRequests": 0,
+      "checks": {
+        "foregroundCompletesWhileWorkerToolBlocked": true,
+        "supplementDurableInOriginalWork": true,
+        "currentRevisionFileAndCheckpoint": true,
+        "immediateDeliveryContextHasVerifiedEvidence": true,
+        "ambiguousAmendmentDoesNotChangeEitherWork": true,
+        "stopIsolatedToOneRoot": true,
+        "recoveryUsesNewGenerationWithoutApprovalReplay": true
+      }
+    },
+    {
+      "root": "work-selftest-20261102-j",
+      "reportSha256": "22866b5805c018d3835620366516277992debb1e0d1f0f5570f21644a1017659",
+      "ok": false,
+      "error": "PROJECT_NOT_SELECTED",
+      "phase": "work-followup",
+      "modelRequests": 13,
+      "embeddingRequests": 0,
+      "checks": {
+        "foregroundCompletesWhileWorkerToolBlocked": true,
+        "supplementDurableInOriginalWork": true,
+        "currentRevisionFileAndCheckpoint": true,
+        "immediateDeliveryContextHasVerifiedEvidence": true
+      }
+    },
+    {
+      "root": "work-selftest-20261102-k",
+      "reportSha256": "494ac0eed992d43989717f0cc514837ce1f6f31406df7ead6ca8fc38b707e6ec",
+      "ok": true,
+      "error": null,
+      "phase": "work-resume",
+      "modelRequests": 28,
+      "embeddingRequests": 0,
+      "checks": {
+        "foregroundCompletesWhileWorkerToolBlocked": true,
+        "supplementDurableInOriginalWork": true,
+        "currentRevisionFileAndCheckpoint": true,
+        "immediateDeliveryContextHasVerifiedEvidence": true,
+        "ambiguousAmendmentDoesNotChangeEitherWork": true,
+        "stopIsolatedToOneRoot": true,
+        "recoveryUsesNewGenerationWithoutApprovalReplay": true,
+        "noDuplicateDelivery": true
+      }
+    },
+    {
+      "root": "work-selftest-20261102-l",
+      "reportSha256": "cdc79ecea278bbb40cbb057eee1ad286104df615fb85a7ca7b4d406dab93473c",
+      "ok": true,
+      "error": null,
+      "phase": "work-resume",
+      "modelRequests": 29,
+      "embeddingRequests": 0,
+      "checks": {
+        "foregroundCompletesWhileWorkerToolBlocked": true,
+        "supplementDurableInOriginalWork": true,
+        "currentRevisionFileAndCheckpoint": true,
+        "immediateDeliveryContextHasVerifiedEvidence": true,
+        "ambiguousAmendmentDoesNotChangeEitherWork": true,
+        "stopIsolatedToOneRoot": true,
+        "recoveryUsesNewGenerationWithoutApprovalReplay": true,
+        "noDuplicateDelivery": true
+      }
+    }
+  ],
+  "regressions": {
+    "unitTests": 37,
+    "unitFiles": 5,
+    "typecheck": "node and web passed",
+    "lint": "changed paths passed",
+    "dshBridge": {
+      "root": "test-results/dsh-bridge-d97fea35-d334-4fe6-95df-8376d25655fa",
+      "reportSha256": "8dff45c3fae8a957228a77b1bbb65ab8422a9cbba84d6ff5959cd2c04fcfd0e3",
+      "cases": [
+        {
+          "name": "compact-auto",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "compact-memory",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "state-source-restart",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "probe",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "state-truncated",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "state-degraded",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "state-work",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "state-text-handoff",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "state-stale",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "state-refused",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "reference-restart",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "degrade-restart",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "allowance",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "event-cap",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "reference",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "levels",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "handoff",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "degrade",
+          "ok": true,
+          "skipped": null
+        },
+        {
+          "name": "trust",
+          "ok": true,
+          "skipped": "the OS sandbox ran the command here"
+        },
+        {
+          "name": "decline",
+          "ok": true,
+          "skipped": "the OS sandbox ran the command here"
+        }
+      ]
+    },
+    "authorizationGuards": {
+      "noLiveOptInRejected": true,
+      "proposedGrantRejected": true,
+      "noProfileCreated": true
+    }
+  },
+  "authorization": "proposed only; test-results/continuity/live-ready-20261102",
+  "boundaries": [
+    "Synthetic beverage vectors exercise wiring, not real retrieval quality.",
+    "Six world real cases refer to continuity.2 across separate grants.",
+    "Real work, real embedding, pgvector, installed upgrade, second Windows and long-term use remain unaccepted."
+  ]
+}
