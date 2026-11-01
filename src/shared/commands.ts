@@ -119,6 +119,7 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'memory.extract' }
   | { type: 'memory.propose'; kind: 'remember' | 'correct' | 'forget'; targetId?: string; expectedRevision?: number; content?: string; title?: string; summary?: string }
   | { type: 'memory.review'; operationId: string; approve: boolean }
+  | { type: 'memory.fact.review'; id: string; expectedRevision: number; approve: boolean }
   | { type: 'memory.presentation'; id: string; expectedRevision: number; title: string; summary: string; pinned: boolean; pinOrder: number }
   /** Book only. Capture the current rendered scene, never an arbitrary rectangle or renderer-supplied image. */
   | { type: 'history.photo.capture' }
