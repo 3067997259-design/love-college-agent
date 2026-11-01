@@ -110,7 +110,7 @@ export async function createMemoryCommitCoordinator(options: {
     })
     return tracked
   }
-  const commit = <T>(identity: MemoryCommitIdentity, action: (tx: MemoryInteractionRepository) => Promise<T>): Promise<T> => serial(async () => {
+  const commit = <T>(identity: MemoryCommitIdentity, action: (tx: MemoryInteractionRepository, executor: MemoryDbExecutor) => Promise<T>): Promise<T> => serial(async () => {
     if (!identity.operationId || !identity.kind) throw new Error('MEMORY_COMMIT_ID_REQUIRED')
     const fingerprint = digest({ kind: identity.kind, scope, input: identity.input })
     const previous = log.events.find(item => item.operationId === identity.operationId)
@@ -125,7 +125,7 @@ export async function createMemoryCommitCoordinator(options: {
     event(row, 'intent')
     options.interrupt?.('intent', identity.operationId)
     const result = await database.transaction(async executor => {
-      const value = await action(trackedRepository(executor))
+      const value = await action(trackedRepository(executor), executor)
       await executor.execute(`INSERT INTO lca_memory_commits VALUES (${quote(identity.operationId)}, ${quote(identity.kind)}, ${quote(fingerprint)}, ${quote(JSON.stringify({ value }))}, ${clock.nowMs()})`)
       options.interrupt?.('before-commit', identity.operationId)
       return value
@@ -159,8 +159,9 @@ export async function createMemoryCommitCoordinator(options: {
     acknowledgeMirrorChange: (change: Pick<MemoryMirrorChange, 'originId' | 'version'>) => serial(async () => {
       await database.execute(`DELETE FROM lca_memory_mirror_dirty WHERE origin_id = ${quote(change.originId)} AND version = ${quote(change.version)}`)
     }),
-    receipt: (id: string) => serial(async () => {
+    receipt: (id: string, identity?: Pick<MemoryCommitIdentity, 'kind' | 'input'>) => serial(async () => {
       const rows = await database.execute(`SELECT operation_id, kind, digest FROM lca_memory_commits WHERE operation_id = ${quote(id)}`) as CommitRow[]
+      if (rows[0] && identity && rows[0].digest !== digest({ kind: identity.kind, scope, input: identity.input })) throw new Error('MEMORY_COMMIT_ID_CONFLICT')
       if (rows[0]) { event(rows[0], 'published'); return { operationId: id, state: 'published' as const } }
       return { operationId: id, state: log.events.some(item => item.operationId === id) ? 'not-applied' as const : 'unknown' as const }
     }),

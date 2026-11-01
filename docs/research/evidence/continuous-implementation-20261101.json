@@ -155,6 +155,20 @@
       "passed": 11,
       "failed": 0,
       "skipped": 0
+    },
+    {
+      "name": "Nonempty migration and capture commit recovery",
+      "report": "test-results/continuity/phase5-migration-capture.json",
+      "passed": 58,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "Migration and empty-result recovery adjacent checks",
+      "report": "test-results/continuity/phase5-migration-capture-final.json",
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0
     }
   ],
   "preservedFailures": [
@@ -195,5 +209,5 @@
     "count": 24,
     "run": false
   },
-  "productionIntegration": "Experimental main uses AIRI facts, coverage-based experience indexing, native DSH compaction, persistent foreground/worker roots and evidence-backed checkpoint delivery. Private embedding/mirror configuration, stable data-root identity and the normal settings-page entry are connected. Nonempty legacy migration and archive/restore transaction integration remain pending."
+  "productionIntegration": "Experimental main uses AIRI facts, coverage-based experience indexing, native DSH compaction, persistent foreground/worker roots and evidence-backed checkpoint delivery. Private embedding/mirror configuration, stable data-root identity and the normal settings-page entry are connected. Nonempty legacy migration and atomic original-input capture receipts are implemented. Archive/work/mirror restore transaction integration remains pending."
 }

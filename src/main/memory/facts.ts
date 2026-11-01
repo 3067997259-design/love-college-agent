@@ -12,6 +12,7 @@ import type { MemoryInteractionContext, MemoryReadReference } from './airi/repos
 import { buildMemoryDirectory, isSameMemoryScope, type MemoryFragment, type MemoryProposal } from './airi/core'
 import { seenFragments, memoryDigest, type SeenFragment } from './seen'
 import { MemoryFailure } from './model'
+import { legacyMemorySources } from './migration'
 
 export interface MemoryCaptureModel { extract: MemoryTurnExtractor; reconcile?: MemoryReconciler }
 
@@ -36,25 +37,45 @@ export function createMemoryFacts(options: {
   let closed = false
   const history = () => options.store.history?.() ?? options.store.records()
   const sourceId = (source: SeenFragment) => source.sourceEventId ? `event:${source.sourceEventId}` : source.id
+  let migration: Promise<void> | undefined
+  const migrate = () => migration ??= engine.migrateLegacy(history()).then(result => {
+    const missing = result.capturedKeys.filter(key => !Object.hasOwn(handled.value, key))
+    if (missing.length) handled.value = { ...handled.value, ...Object.fromEntries(missing.map(key => [key, result.lastExtractedAt ?? 0])) }
+    if (result.lastExtractedAt !== null && result.lastExtractedAt > (extractedAt.value ?? -1)) extractedAt.value = result.lastExtractedAt
+  }).catch(error => { migration = undefined; throw error })
+  let sourceCache: { key: string; retired: Set<string>; legacy: ReturnType<typeof legacyMemorySources> } | undefined
+  const sources = () => {
+    const rows = history(); const last = rows.at(-1); const key = JSON.stringify([options.store.scope.sessionId, rows.length, last?.seq, last?.atMs])
+    if (sourceCache?.key !== key) {
+      const allowed = new Set(seenFragments(rows, true, true).map(sourceId))
+      sourceCache = { key, retired: new Set(seenFragments(rows, false, true).filter(item => !allowed.has(sourceId(item))).map(sourceId)), legacy: legacyMemorySources(rows) }
+    }
+    return sourceCache
+  }
   const retired = () => {
-    const rows = history(); const allowed = new Set(seenFragments(rows, true, true).map(sourceId))
-    return new Set(seenFragments(rows, false, true).filter(item => !allowed.has(sourceId(item))).map(sourceId))
+    return sources().retired
   }
   const visible = (fact: MemoryFragment, retiredIds = retired()) => isSameMemoryScope(fact.scope, scope)
     && !retiredIds.has(fact.sourceContext?.messageId ?? '')
+    && (fact.sourceContext?.sourceType !== 'legacy-memory' || sources().legacy.legacy.items.some(item => item.id === fact.sourceContext?.sourceEventId && sources().legacy.eligible(item)))
   const refresh = async () => {
+    await migrate()
     const repository = await runtime.initialize()
     if (!repository) throw new MemoryFailure('unavailable')
     fragments = await repository.list({ scope, limit: 10_000 })
     const reviews = await runtime.listOperations(scope)
     const changes = reviews.filter(item => item.status === 'applied' && item.proposal.kind !== 'remember')
     const retiredFacts = fragments.filter(fact => fact.factStatus === 'superseded')
-    const excludedSourceIds = [...new Set([...changes.map(item => item.previousSourceContext?.messageId), ...retiredFacts.map(fact => fact.sourceContext?.messageId)].filter((id): id is string => !!id))].sort()
+    const legacy = sources().legacy
+    const forgottenLegacy = new Set(changes.filter(item => item.proposal.kind === 'forget' && item.previousSourceContext?.sourceType === 'legacy-memory').map(item => item.previousSourceContext!.sourceEventId!))
+    for (let count = -1; count !== forgottenLegacy.size;) { count = forgottenLegacy.size; for (const item of legacy.legacy.items) if (forgottenLegacy.has(item.id)) for (const old of item.supersedes) forgottenLegacy.add(old) }
+    const legacyForbidden = legacy.legacy.items.filter(item => forgottenLegacy.has(item.id)).flatMap(item => item.sources.map(source => legacy.sources.get(source.id)?.canonical).filter((source): source is SeenFragment => !!source).map(sourceId))
+    const excludedSourceIds = [...new Set([...changes.map(item => item.previousSourceContext?.messageId), ...retiredFacts.map(fact => fact.sourceContext?.messageId), ...legacyForbidden].filter((id): id is string => !!id))].sort()
     const forgotten = new Set(changes.filter(item => item.proposal.kind === 'forget').map(item => item.proposal.targetId!))
     // Forgetting the latest revision also prevents historical expansion from
     // bringing back earlier revisions of that same claim.
     for (let count = -1; count !== forgotten.size;) { count = forgotten.size; for (const item of changes) if (item.fragmentId && forgotten.has(item.fragmentId) && item.proposal.targetId) forgotten.add(item.proposal.targetId) }
-    const forbidden = new Set(changes.filter(item => forgotten.has(item.proposal.targetId!)).map(item => item.previousSourceContext?.messageId))
+    const forbidden = new Set([...changes.filter(item => forgotten.has(item.proposal.targetId!)).map(item => item.previousSourceContext?.messageId), ...legacyForbidden])
     const historicalSourceIds = [...new Set([...changes.filter(item => item.proposal.kind === 'correct').map(item => item.previousSourceContext?.messageId),
       ...retiredFacts.filter(fact => !forgotten.has(fact.id)).map(fact => fact.sourceContext?.messageId)].filter((id): id is string => !!id && !forbidden.has(id)))].sort()
     // Old receipts did not preserve the deleted grounding identity. Their older
@@ -92,6 +113,7 @@ export function createMemoryFacts(options: {
     /** One original successful input is captured once, regardless of subsequent
      * recall, compaction, checkpoints or other derived references. */
     async capture(sources: readonly SeenFragment[], model: MemoryCaptureModel, signal: AbortSignal) {
+      await migrate()
       for (const source of sources) {
         signal.throwIfAborted()
         if (Object.hasOwn(handled.value, source.key) || !sourceStillAllowed(source)) continue
@@ -105,7 +127,7 @@ export function createMemoryFacts(options: {
             const combined = AbortSignal.any([signal, inner ?? signal])
             try { return await cancellable(() => model.extract(input, combined), combined) }
             catch (error) { modelError = error; throw error }
-          }, () => !signal.aborted && sourceStillAllowed(source), model.reconcile)
+          }, () => !signal.aborted && sourceStillAllowed(source), model.reconcile, source.key)
           signal.throwIfAborted()
           if (modelError) throw modelError instanceof MemoryFailure ? modelError : new MemoryFailure('connection-failed')
           if (runtime.databaseStatus.value !== 'ready') throw new MemoryFailure('unavailable')

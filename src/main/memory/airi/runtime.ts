@@ -1,6 +1,7 @@
 // AIRI mods + audited memory increment, MIT. See vendor/airi-memory/README.md.
 // Domain orchestration is preserved; LCA supplies ownership, persistence and IO.
 import type { AiriMemoryPorts } from './host-ports'
+import type { MemoryCommitIdentity } from '../storage/commits'
 import { memoryCell, memoryComputed } from '../storage/state'
 import { createDuckDbMemoryRepository } from './repository/local-memory'
 const errorMessageFrom = (error: unknown) => error instanceof Error ? error.message : String(error)
@@ -972,7 +973,7 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
   }
 
   /** Captures reviewed-source-safe suggestions within one cancellable 180-second model budget. */
-  async function captureTurn(input: MemoryTurnInput, extractor: MemoryTurnExtractor, isCurrent?: () => boolean, reconcile?: MemoryReconciler): Promise<MemoryFragment[]> {
+  async function captureTurn(input: MemoryTurnInput, extractor: MemoryTurnExtractor, isCurrent?: () => boolean, reconcile?: MemoryReconciler, captureKey?: string): Promise<MemoryFragment[]> {
     const epoch = authorityEpoch
     const controller = new AbortController()
     const canCapture = () => !controller.signal.aborted && captureEnabled.value && authorityEpoch === epoch && (!isCurrent || isCurrent())
@@ -984,6 +985,9 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
       return []
 
     captureFailure.value = undefined
+    const commitIdentity: MemoryCommitIdentity | undefined = captureKey && ports.commits
+      ? { operationId: `capture-source:${captureKey}`, kind: 'capture-source', input: { key: captureKey } } : undefined
+    if (commitIdentity && (await ports.commits!().receipt(commitIdentity.operationId, commitIdentity)).state === 'published') return []
     captures.add(controller)
     // Extraction and reconciliation share the existing whole-request limit;
     // a second model pass does not receive a second 180-second allowance.
@@ -993,10 +997,10 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
         ? await memoryRepository.sourceOperations(input.scope, input.sessionId, input.sourceContext.messageId)
         : []
       const extractions = await extractor({ ...input, handledOperations, mood: currentMood.value }, controller.signal)
-      if (extractions.length === 0 || !canCapture())
+      if (!canCapture() || extractions.length === 0 && !commitIdentity)
         return []
 
-      return await persistExtractions(memoryRepository, extractions, input.sourceContext, input.scope, canCapture, { reconcile, signal: controller.signal })
+      return await persistExtractions(memoryRepository, extractions, input.sourceContext, input.scope, canCapture, { reconcile, signal: controller.signal, commitIdentity })
     }
     catch (error) {
       if (!canCapture()) {
@@ -1523,7 +1527,7 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
   /** Reloads settings written by an isolated profile import into live refs. */
   function restorePersistedSettings(): void { revoke(); state.reload() }
 
-  async function persistExtractions(memoryRepository: MemoryInteractionRepository, extractions: MemoryExtraction[], sourceContext: MemorySourceContext | undefined, scope: MemoryScope, isCurrent?: () => boolean, options?: { reconcile?: MemoryReconciler, signal: AbortSignal }): Promise<MemoryFragment[]> {
+  async function persistExtractions(memoryRepository: MemoryInteractionRepository, extractions: MemoryExtraction[], sourceContext: MemorySourceContext | undefined, scope: MemoryScope, isCurrent?: () => boolean, options?: { reconcile?: MemoryReconciler, signal: AbortSignal, commitIdentity?: MemoryCommitIdentity }): Promise<MemoryFragment[]> {
     // Automatic chat capture must reconcile handled claims. Explicit user
     // revisions retain their provenance and use the existing review boundary.
     const prepared = options
@@ -1531,9 +1535,18 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
       : { accepted: extractions.map((extraction): ReconciledMemoryExtraction => ({ extraction, sourceContext: sourceContext ?? extraction.sourceContext })), deferred: 0, errors: [] }
     if (prepared.deferred) {
       captureFailure.value = prepared.errors.join('; ') || `${prepared.deferred} memory candidates need source reconciliation`
+      // The owning host publishes one completion for the complete original
+      // input. A partial comparison stays pending instead of duplicating its
+      // already-written subset on a later extraction attempt.
+      if (options?.commitIdentity) return []
     }
-    if (!prepared.accepted.length)
+    if (!prepared.accepted.length) {
+      if (options?.commitIdentity && ports.commits) await ports.commits().commit(options.commitIdentity, async () => {
+        if (isCurrent && !isCurrent()) throw new Error('Memory capture revoked')
+        return []
+      })
       return []
+    }
     const { activeMemoryEmbeddingMetadata, embedMemoryText } = ports.embedding
     const interactive = directoryEnabled.value || toolsEnabled.value
     if (interactive) {
@@ -1543,6 +1556,7 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
     }
     const vectorsReady = interactive ? backgroundVectorsReady : await initializeVectors(memoryRepository)
     const fragments: MemoryFragment[] = []
+    const writes: ((tx: MemoryInteractionRepository) => Promise<MemoryFragment | undefined>)[] = []
     for (const candidate of prepared.accepted) {
       if (isCurrent && !isCurrent())
         break
@@ -1562,7 +1576,7 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
       }
       if (isCurrent && !isCurrent())
         break
-      const fragment = await memoryRepository.transaction(async (tx) => {
+      const write = async (tx: MemoryInteractionRepository) => {
         if (isCurrent && !isCurrent())
           throw new Error('Memory capture revoked')
         // No model or embedding runs inside the transaction. A new handled
@@ -1586,9 +1600,26 @@ export function createAiriMemoryRuntime(ports: AiriMemoryPorts) {
         if (isCurrent && !isCurrent())
           throw new Error('Memory capture revoked')
         return result
+      }
+      if (options?.commitIdentity) writes.push(write)
+      else {
+        const fragment = await memoryRepository.transaction(write)
+        if (fragment) fragments.push(fragment)
+      }
+    }
+    if (options?.commitIdentity && ports.commits) {
+      if (captureFailure.value || isCurrent && !isCurrent()) throw new Error('Memory capture revoked before publication')
+      const committed = await ports.commits().commit(options.commitIdentity, async tx => {
+        if (isCurrent && !isCurrent()) throw new Error('Memory capture revoked')
+        const batch: MemoryFragment[] = []
+        for (const write of writes) {
+          const fragment = await write(tx)
+          if (!fragment) throw new Error('Memory capture source changed before publication')
+          batch.push(fragment)
+        }
+        return batch
       })
-      if (fragment)
-        fragments.push(fragment)
+      fragments.push(...committed)
     }
     if (fragments.length) factsRevision.value += 1
     if (!isCurrent || isCurrent())

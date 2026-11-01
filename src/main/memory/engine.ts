@@ -6,6 +6,8 @@ import { createMemoryEmbeddingRuntime, type MemoryEmbeddingSource } from './airi
 import { createMemoryRuntimeState } from './storage/state'
 import type { MemoryDatabaseClient } from './storage/client'
 import { createMemoryCommitCoordinator, type MemoryCommitCoordinator } from './storage/commits'
+import { migrateLegacyMemory } from './migration'
+import type { JournalRecord } from '../journal/schema'
 
 /** One main-owned engine per profile/character. Runtime, receipts and mirror
  * recovery share the same file-backed owner; production has no unjournaled seam. */
@@ -16,6 +18,7 @@ export function createMemoryEngine(options: {
   held(): boolean; waitForRestore(): Promise<void>
   journal(sessionId: string, event: Record<string, unknown>): void
   openDatabase?(path: string): Promise<MemoryDatabaseClient>
+  interrupt?: Parameters<typeof createMemoryCommitCoordinator>[0]['interrupt']
 }) {
   let alive = true
   let commits: MemoryCommitCoordinator | undefined
@@ -29,7 +32,7 @@ export function createMemoryEngine(options: {
       const database = options.openDatabase ? await options.openDatabase(path)
         : await (await import('./storage/host')).openUtilityMemoryDatabase({ path, clock: options.clock })
       try {
-        commits = await createMemoryCommitCoordinator({ database, clock: options.clock, scope, logPath: join(options.root, 'operations.log') })
+        commits = await createMemoryCommitCoordinator({ database, clock: options.clock, scope, logPath: join(options.root, 'operations.log'), interrupt: options.interrupt })
         return database
       } catch (error) { await database.close(); throw error }
     },
@@ -38,6 +41,10 @@ export function createMemoryEngine(options: {
   })
   return {
     runtime,
+    async migrateLegacy(records: readonly JournalRecord[]) {
+      await runtime.initialize(); if (!commits) throw new Error('MEMORY_COMMITS_UNAVAILABLE')
+      return migrateLegacyMemory({ records, scope, commits, halfLife: { shortTerm: runtime.shortTermHalfLifeHours.value, longTerm: runtime.longTermHalfLifeHours.value } })
+    },
     async reconcile() { await runtime.initialize(); if (!commits) throw new Error('MEMORY_COMMITS_UNAVAILABLE'); return commits.recover() },
     async dispose() { alive = false; await commits?.idle(); await runtime.dispose() },
   }
