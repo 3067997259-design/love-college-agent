@@ -1,0 +1,231 @@
+{
+  "date": "2026-11-01",
+  "status": "first-bounded-provider-batch-passed",
+  "authorization": {
+    "source": "user-in-this-thread",
+    "maximumCalls": 8,
+    "reservedUnitLimit": 128000,
+    "autonomousUnits": 0,
+    "selectedConnection": "manual-provider-20261101 chat only"
+  },
+  "candidate": {
+    "version": "1.2.0-continuity.1",
+    "implementationCommit": "a5700a39fd141d9c92721a8139cb2fcd7c70e825",
+    "asarSha256": "add17abb1fb1b9d8db3dfb4bf57808945aea9d8c97dcff506b127f106127f586",
+    "installed": false,
+    "appChanged": false
+  },
+  "scope": "Direct OpenAI-compatible protocol requests plus the source DSH adapter loaded in packaged Electron main, using the fixed packaged DSH runtime and bridge through a main-owned admission gateway. Not a full product UI or Worker collaboration test.",
+  "results": {
+    "ok": true,
+    "calls": 7,
+    "deniedLiveRequests": 0,
+    "reservedUnits": 33632,
+    "ledgerAdmissions": 7,
+    "ledgerMatches": true,
+    "autonomousAdmissions": 0,
+    "inputTokens": 15853,
+    "outputTokens": 117,
+    "dsh": {
+      "completed": true,
+      "toolVerified": true,
+      "replyOK": true,
+      "elapsedMs": 4882,
+      "savedChatEffortPreserved": true,
+      "localGateway": true,
+      "sourceAdapterWithPackagedRuntime": true
+    },
+    "requests": [
+      {
+        "label": "plain",
+        "status": 200,
+        "headersMs": 1827,
+        "firstEventMs": 1828,
+        "firstTextMs": 1835,
+        "firstToolMs": null,
+        "elapsedMs": 1851,
+        "tools": 0,
+        "expectedArguments": false,
+        "textChars": 2,
+        "textIsOK": true,
+        "finishReasons": [
+          "stop"
+        ],
+        "inputTokens": 35,
+        "outputTokens": 5,
+        "ok": true
+      },
+      {
+        "label": "auto",
+        "status": 200,
+        "headersMs": 1866,
+        "firstEventMs": 1866,
+        "firstTextMs": null,
+        "firstToolMs": 1866,
+        "elapsedMs": 1894,
+        "tools": 1,
+        "expectedArguments": true,
+        "textChars": 0,
+        "textIsOK": false,
+        "finishReasons": [
+          "tool_calls"
+        ],
+        "inputTokens": 121,
+        "outputTokens": 22,
+        "ok": true
+      },
+      {
+        "label": "named",
+        "status": 200,
+        "headersMs": 1299,
+        "firstEventMs": 1299,
+        "firstTextMs": null,
+        "firstToolMs": 1299,
+        "elapsedMs": 1324,
+        "tools": 1,
+        "expectedArguments": true,
+        "textChars": 0,
+        "textIsOK": false,
+        "finishReasons": [
+          "tool_calls"
+        ],
+        "inputTokens": 121,
+        "outputTokens": 22,
+        "ok": true
+      },
+      {
+        "label": "named-nonstream",
+        "status": 200,
+        "headersMs": 2347,
+        "firstEventMs": 2348,
+        "firstTextMs": null,
+        "firstToolMs": 2348,
+        "elapsedMs": 2348,
+        "tools": 1,
+        "expectedArguments": true,
+        "textChars": 0,
+        "textIsOK": false,
+        "finishReasons": [
+          "tool_calls"
+        ],
+        "inputTokens": 121,
+        "outputTokens": 22,
+        "ok": true
+      },
+      {
+        "label": "required",
+        "status": 200,
+        "headersMs": 1247,
+        "firstEventMs": 1247,
+        "firstTextMs": null,
+        "firstToolMs": 1247,
+        "elapsedMs": 1263,
+        "tools": 1,
+        "expectedArguments": true,
+        "textChars": 0,
+        "textIsOK": false,
+        "finishReasons": [
+          "tool_calls"
+        ],
+        "inputTokens": 121,
+        "outputTokens": 22,
+        "ok": true
+      },
+      {
+        "label": "dsh-6",
+        "status": 200,
+        "headersMs": 1616,
+        "firstEventMs": 1617,
+        "firstTextMs": null,
+        "firstToolMs": 1617,
+        "elapsedMs": 1649,
+        "tools": 1,
+        "expectedArguments": false,
+        "textChars": 0,
+        "textIsOK": false,
+        "finishReasons": [
+          "tool_calls"
+        ],
+        "inputTokens": 7613,
+        "outputTokens": 19,
+        "ok": true
+      },
+      {
+        "label": "dsh-7",
+        "status": 200,
+        "headersMs": 1099,
+        "firstEventMs": 1099,
+        "firstTextMs": 1103,
+        "firstToolMs": null,
+        "elapsedMs": 1129,
+        "tools": 0,
+        "expectedArguments": false,
+        "textChars": 2,
+        "textIsOK": true,
+        "finishReasons": [
+          "stop"
+        ],
+        "inputTokens": 7721,
+        "outputTokens": 5,
+        "ok": true
+      }
+    ]
+  },
+  "artifacts": {
+    "D:\\lca-continuity-candidate-20261101\\profiles\\provider-live-20261101-1\\run.json": "e7573fbb38aac24f152b45d9595645fb5cd6c4c319a311890c2914d528f53d60",
+    "D:\\lca-continuity-candidate-20261101\\profiles\\provider-live-20261101-1\\report.json": "9e135c2b36d398f754c3c5c1a9ef681f305b6bed2929142480d87828198e1529",
+    "D:\\lca-continuity-candidate-20261101\\profiles\\provider-live-20261101-1\\probe-budget\\usage.jsonl": "a3b943681aee0a66b7c320e58fb4d652a7792eb4ce3ac39393480acead34e1d0",
+    "D:\\lca-continuity-candidate-20261101\\profiles\\provider-selftest-20261101-a\\report.json": "bad1ac2338e050d2c28e6e9ce6d668e89d9b882b92b623194a9cc5c61e015610",
+    "test-results\\continuity\\manual-feedback-cdd5d811-5599-48fb-8f4a-c0a2e1e003a2.json": "50a7869b24cccc9d94248a59ab45bec6ccf70026db4dae339364da68c83e07be",
+    "test-results\\continuity\\provider-live-20261101-1-source\\runner.mjs": "34d93bb1afca00240e683c914ceecd09b330a145cd0b2dcee65beb9695676984",
+    "test-results\\continuity\\provider-live-20261101-1-source\\fixture.ts": "d14a641cdcd6ed35a8f939aec12c76185a9b403fed3dcc3fdf74cc2ca8c1e437",
+    "test-results\\continuity\\provider-live-20261101-1-source\\main.cjs": "ef799223ed2b1f536c9569d372626c97fea5dc9aa5f57c2a061ea0037ff8646f"
+  },
+  "offlineValidation": [
+    "focused ESLint",
+    "TypeScript for fixture and transitive imports",
+    "node syntax check",
+    "local synthetic full probe",
+    "ninth network request rejected",
+    "over-budget admission rejected",
+    "autonomous admission rejected"
+  ],
+  "manualFeedback": {
+    "kind": "user-feedback-and-read-only-audit",
+    "candidate": "1.2.0-continuity.1",
+    "automaticLiveCalls": 0,
+    "userReportedFastReply": true,
+    "userReportedSpontaneousCoastMention": true,
+    "chatAttemptElapsedMs": 3326,
+    "timingIsNotTTFT": true,
+    "inputTokens": 13111,
+    "outputTokens": 53,
+    "lifeStateBeforeReply": {
+      "locationId": "room",
+      "outings": [
+        {
+          "place": "coast",
+          "status": "proposed",
+          "offline": false,
+          "settledAtMs": null
+        }
+      ],
+      "itemsCount": 0
+    },
+    "finding": "Assistant claimed completed coast outing and acquired shell; code state was proposed and no acquired item. Expression defect; not a passed continuity case.",
+    "rawConversationExported": false,
+    "dailyProfileUnchanged": true
+  },
+  "limits": [
+    "Historical old-provider failures are retained; this is not a randomized A/B comparison.",
+    "No credentials, endpoint URLs or model text are included in the probe report.",
+    "Direct minimal requests preserve the old diagnostic payload, including max_tokens=128 and provider-default reasoning. DSH preserves the saved chat effort and manual capabilities.",
+    "Chat/work concurrent product flows, real memory/vector/mirror, quality/cost matrices and long-term acceptance remain pending.",
+    "The coast-and-shell completed claim contradicts proposed outing state and empty inventory; production expression has not been repaired in this batch."
+  ],
+  "cleanup": {
+    "probeProcessesRemaining": 0,
+    "manualUserInstancePreserved": true,
+    "temporaryCredentialsCreated": false
+  }
+}

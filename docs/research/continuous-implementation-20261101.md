@@ -117,6 +117,8 @@ pnpm test:continuity
 
 本节相对证据路径均位于 `test-results/continuity/candidate-LEzeyh/`。安装器与 asar 哈希不能替代包外 DSH／桥接身份；不得将旧包报告移植给本候选。生成包及隔离 profile 的检查未使用日用数据。
 
+后续同日的[首批真实 provider 探针](continuity-provider-live-20261101.md)已验证新 chat 连接的最小函数调用与 DSH 时钟工具往返；未改包、未重跑完整业务矩阵。该次人工试用另发现“待出发计划被说成已完成经历”的状态表达问题，完整生活连续性仍未通过。
+
 [24 条故事](../../tests/fixtures/continuity-stories.json) 每类 4 条：偏好、更正、决定理由、刚完工、长期任务、未知问题。它们是预登记的场景描述和 oracle，尚未执行；其中检查点、工具回执、日切等必须通过真实边界产生，不能伪装成用户消息直接注入。金标准不进入模型提示。原 90 条评测保留在 AIRI 原始领域代码中。
 
 ## 迁移与回退现状
