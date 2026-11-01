@@ -38,8 +38,41 @@ export interface ContinuousWorkView {
   status: WorkStatus
   waitingFor: 'approval' | 'user' | 'budget' | 'project' | 'recovery' | null
   checkpointId: string | null
+  delivery?: { eventId: string; state: 'pending' | 'accepted' | 'consumed' | 'unknown' }
   updatedAt: number
   controls: { supplement: boolean; pause: boolean; stop: boolean; resume: boolean }
+}
+
+/** Structured observations from the trusted executor, never model self-reports.
+ * Paths remain private until main verifies project scope and source restrictions. */
+export interface WorkEvidence {
+  id: string
+  identity: WorkIdentity
+  rootSessionId: string
+  callId: string
+  kind: 'artifact' | 'command' | 'tool'
+  status: 'passed' | 'failed' | 'unverified'
+  relativePath: string | null
+  beforeHash: string | null
+  afterHash: string | null
+  bytes: number | null
+  exitCode: number | null
+  restricted: boolean
+  observedAt: number
+}
+
+export interface WorkCheckpoint {
+  id: string
+  identity: WorkIdentity
+  objective: string
+  decisionIds: readonly string[]
+  evidenceIds: readonly string[]
+  outcome: 'completed' | 'partial'
+  /** Model explanation; it is not a verified change or a new experience. */
+  explanation: string
+  unresolved: readonly string[]
+  nextStep: string | null
+  createdAt: number
 }
 
 export interface ContinuousWorksView {
