@@ -1,5 +1,12 @@
 import type { AgentAddress, AgentMode, AgentSource } from './collaboration'
 import type { CollaborationCommand, CollaborationView } from './collaboration'
+import type { WorkIdentity } from './continuity'
+
+/** Main fixes a root's lane before it opens. This is not model-selectable authority. */
+export interface DshRootPolicy {
+  role: 'foreground' | 'worker'
+  work: WorkIdentity | null
+}
 
 /** Main <-> trusted DSH subprocess only; NEVER expose these internal records to renderer/debug. */
 export const DSH_PROTOCOL_VERSION = 2 as const

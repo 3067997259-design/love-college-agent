@@ -1,5 +1,6 @@
 /** Public, serializable UI projections. Never put credentials or raw tool results here. */
 import type { CollaborationView } from './collaboration'
+import type { ContinuousWorksView } from './continuity'
 import type { ExtensionsView } from './extensions'
 import type { SkillsView } from './skills'
 import type { MemoryEngineStatus, MemoryFactView, MemoryReviewView, RootCompactionOutcome } from './continuity'
@@ -482,6 +483,7 @@ export interface AppSnapshot {
   extensions?: ExtensionsView
   skills?: SkillsView
   collaboration?: CollaborationView
+  continuousWorks?: ContinuousWorksView
   characterPack?: CharacterPackView
   notifications?: NotificationsView
   diary?: DiaryView

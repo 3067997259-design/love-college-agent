@@ -42,6 +42,14 @@ export interface ContinuousWorkView {
   controls: { supplement: boolean; pause: boolean; stop: boolean; resume: boolean }
 }
 
+export interface ContinuousWorksView {
+  items: readonly ContinuousWorkView[]
+  active: number
+  limit: 2
+  /** A failed ledger is unavailable, never silently replaced by an empty one. */
+  failure: 'storage' | null
+}
+
 export type ContinuousWorkCommand =
   | { type: 'work.create'; projectId: string; objective: string; acceptance: readonly string[]; decisionIds: readonly string[] }
   | { type: 'work.supplement'; target: WorkTarget; text: string; decisionId: string }
