@@ -17,6 +17,7 @@
 | 近期维护方向与尚未承诺的探索 | [维护计划](maintenance.md) |
 | 版本变化与发布验证 | [更新记录](../CHANGELOG.md)、[v1.1.0](releases/1.1.0.md)、[v1.0.1](releases/1.0.1.md)、[v1.0.0](releases/1.0.0.md) |
 | 1.2 开发候选与未完成门槛 | [1.2.0-rc.3 验收](releases/1.2.0-rc.3.md)、[rc.2 历史](releases/1.2.0-rc.2.md)、[P6 组合恢复](research/v1.2-p6-20261024.md) |
+| 连续协作者与完整记忆实验候选 | [阶段 0–6、候选清单与回退](research/continuous-implementation-20261101.md)、[统一计划](research/lca-continuity-memory-context-plan-20261101.md) |
 | 参考机制、依赖和素材来源 | [参考与来源](reference-research.md)、[第三方说明](../THIRD_PARTY_NOTICES.md) |
 | 复现实验及其证据边界 | [研究索引](research/README.md) |
 | 初始交付与旧文档 | [项目历史](history.md) |

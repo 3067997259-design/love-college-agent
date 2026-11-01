@@ -3,9 +3,9 @@
   "branch": "codex/continuous-work-p0",
   "startCommit": "47721a7",
   "interfaceCommit": "03c0945",
-  "sourceCommit": "cb95162",
-  "goalStatus": "active",
-  "candidate": false,
+  "sourceCommit": "a5700a39fd141d9c92721a8139cb2fcd7c70e825",
+  "goalStatus": "complete",
+  "candidate": true,
   "source": {
     "base": "3a84a4fbaf6a54defe385e050be86fcb5436745b",
     "baselineFiles": 40,
@@ -217,6 +217,51 @@
       "realPostgresSkipped": 5,
       "syntheticContractCoverage": "T1-T16",
       "liveServices": false
+    },
+    {
+      "name": "Windows candidate packaged EXE gate",
+      "report": "test-results/continuity/candidate-LEzeyh/package-e2ee016c-7c47-4bc2-ac42-596c2ce37ff4/report.json",
+      "reportSha256": "feaf22137c8268a619cf526c1b38b8e60b477abdf050eb071a522b51631dd77a",
+      "passed": true,
+      "checks": [
+        "sqlite",
+        "continuity",
+        "memory",
+        "v12-recovery"
+      ],
+      "target": "unpacked",
+      "installed": false,
+      "realServices": false
+    },
+    {
+      "name": "Post-packaging fixed DSH runtime checks",
+      "report": "test-results/continuity/candidate-LEzeyh/package-runtime-validation.json",
+      "passed": true,
+      "checks": [
+        "bridge",
+        "family",
+        "collaboration"
+      ],
+      "sourceAndPackagedBytesMatched": true,
+      "initialCollaborationFixtureFailurePreserved": true
+    },
+    {
+      "name": "Runtime pruning and package resource integrity",
+      "report": "test-results/continuity/candidate-LEzeyh/package-integrity.json",
+      "passed": true,
+      "preservedRuntimeFilesChanged": 0,
+      "packagedRuntimeExclusions": [
+        "package-lock.json",
+        "node_modules/pnpm/dist/node_modules/undici/lib/llhttp/.gitkeep"
+      ]
+    },
+    {
+      "name": "Final candidate source and artifact recheck",
+      "report": "test-results/continuity/candidate-LEzeyh/final-artifact-audit.json",
+      "passed": true,
+      "resourceFilesVerified": 11585,
+      "changedResources": 0,
+      "source": "0ad0c599f9ce79037c8c5539424bf3c9a9d26cccfb1a662d590143740e93fa25"
     }
   ],
   "preservedFailures": [
@@ -249,21 +294,51 @@
     "test-results/continuity/candidate-dsh-automatic.log",
     "test-results/continuity/candidate-collaboration-ui.log",
     "test-results/continuity/candidate-backup-diagnostic.log",
-    "test-results/continuity/candidate-work-product-recovery.log"
+    "test-results/continuity/candidate-work-product-recovery.log",
+    "test-results/continuity/candidate-LEzeyh/package-dsh-collaboration.log"
   ],
   "notRun": [
-    "Windows candidate package",
     "real model",
     "real embedding",
     "real mirror",
     "daily-use acceptance",
     "90-case retrieval quality and 24-story response/cost evaluation",
-    "second Windows device and installed upgrade"
+    "second Windows device and installed upgrade",
+    "complete packaged scenario matrix",
+    "performance matrix and ablations"
   ],
   "predeclaredStories": {
     "path": "tests/fixtures/continuity-stories.json",
     "count": 24,
     "run": false
   },
-  "productionIntegration": "Complete AIRI memory and persistent foreground/worker roots run through normal product paths. The single-source 19-task suite passed, including native gates, real DSH with local fixtures, product settings, work-family selection, native save restore and T1-T16 contract auditing. Candidate packaging and real-service acceptance remain separate."
+  "productionIntegration": "Complete AIRI memory and persistent foreground/worker roots run through normal product paths. The same-source 19-task suite passed, including native gates, real DSH with loopback fixtures, product settings, work-family selection, native save restore and T1-T16 contract auditing. The Windows candidate passed packaged SQLite, utility-process nonempty recovery, memory UI and persistent work recovery checks. Packaged runtime files match the prepared source; post-pruning bridge, family and collaboration checks passed. Live services, installed upgrade, second machine and long-term acceptance remain unrun.",
+  "candidateKind": "experimental; unpublished; no live-service or daily-use acceptance",
+  "stagesCompleted": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "package": {
+    "version": 1,
+    "appVersion": "1.2.0-continuity.1",
+    "installerFileName": "Love-College-Agent-1.2.0-continuity.1-Setup.exe",
+    "sourceRevision": "a5700a39fd141d9c92721a8139cb2fcd7c70e825",
+    "trackedDirty": false,
+    "runtimePreparation": "reused-prepared-tree",
+    "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+    "builtAtIso": "2026-11-01T08:20:50.851Z",
+    "installerBytes": 315476723,
+    "installerSha256": "e34c839224ae2914b87a5983027cb400ed9289c08264df3e4a541a3e4df05560",
+    "asarSha256": "add17abb1fb1b9d8db3dfb4bf57808945aea9d8c97dcff506b127f106127f586",
+    "directory": "D:\\lca-continuity-candidate-20261101\\release-continuity-1",
+    "published": false,
+    "installed": false,
+    "resourceManifest": "test-results/continuity/candidate-LEzeyh/package-resources-manifest.json",
+    "resourceManifestSha256": "0642087d0304a51d560a548f49b70f193e93aa96a4cc2e9ae6e2f3825f44f262"
+  }
 }

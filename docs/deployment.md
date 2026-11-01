@@ -90,6 +90,10 @@ pnpm test:package --unpacked-only
 
 已准备且核验过的固定 DSH 目录，可用 `node scripts/package-win.mjs --reuse-prepared-runtime` 跳过再次 npm 安装，仍执行裁剪、第三方声明、应用构建和打包；回执记录复用方式及锁文件哈希。复用前应保留逐文件比较或等效的完整性证据，不能只凭配置存在宣称运行时一致。普通 `pnpm package:win` 继续默认按锁文件重新安装。
 
+连续协作者实验候选先用 `pnpm test:continuity` 对同一源码顺序执行类型、lint、单测、三个原生关卡、DSH 和产品场景，再构建并用 `pnpm test:continuity:package` 检查包内 EXE。设置 `LCA_RELEASE_DIR` 为干净输出目录，`LCA_PACKAGE_VERSION` 为实验版本；`LCA_TEST_DATA_ROOT`、`LCA_TEST_ARTIFACTS_DIR`、`LCA_TEST_CACHE_ROOT` 分别控制隔离 profile、原生测试文件和缓存位置。包内入口核对构建回执／原生模块，并运行记忆和非空恢复，不安装或卸载。已有 `1.2.0-continuity.1` 的精确哈希、结果及仍未验收项见[候选清单](research/continuous-implementation-20261101.md#实验候选清单)。
+
+迁移试用保留旧 profile 和旧存档，只对独立副本操作；新引擎开始写入后不能让旧版本直接接管同一目录。回退应停掉新进程，以迁入前副本启动旧版本，同时保留新目录及新存档。新版 v2 私人存档不作为旧版本可读取的承诺，详见[迁移与回退](research/continuous-implementation-20261101.md#迁移与回退现状)。
+
 第二台 Windows 的离线包由 `node scripts/build-offline-acceptance.mjs` 生成，须指定 `LCA_RELEASE_DIR`、已核验的 `LCA_BASELINE_INSTALLER`（1.1.0）与新的 `LCA_OFFLINE_DIR`。包含两个安装器、哈希清单、PowerShell 脚本和说明，无须 Node / pnpm。用户分别运行 Fresh / Upgrade 后回传安全结果 ZIP；准备包或本机复跑不算第二机通过。已有用户安装时拒绝覆盖，安装状态未知时先核对，不自动重试。
 
 空间有限时，可先加 `--folder-only` 生成完整验收目录，完成本机脚本检查后再用同一环境参数加 `--zip-only` 压缩；后一步重新核对精确文件清单、所有大小与哈希，拒绝额外文件和已有 ZIP。未归档目录不会被标为已交付 ZIP。
