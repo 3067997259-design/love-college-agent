@@ -9,6 +9,8 @@ Love, College & Agent 的许可证见 [LICENSE](LICENSE)。第三方包、字体
 | Electron、React、React DOM | MIT | 桌面运行时与界面 |
 | Zustand、Zod | MIT | 状态与结构校验 |
 | better-sqlite3、imapflow、mailparser | MIT | 本地存储与邮箱 |
+| @duckdb/node-api、valibot | MIT | 实验分支完整记忆的原生仓储与原契约校验 |
+| drizzle-orm、postgres | Apache-2.0、Unlicense | AIRI 记忆的 pgvector 镜像仓储 |
 | JSZip | MIT（双许可中选 MIT） | 私人存档容器 |
 | @modelcontextprotocol/sdk | MIT | MCP 客户端 |
 | pdf-parse | Apache-2.0 | 文字层 PDF |
@@ -28,6 +30,8 @@ Electron 发行包含 Chromium 等组件，保留随发行提供的第三方声�
 ## 参考、生成素材与外部服务
 
 机制参考包括 deepseek-harness、AIRI / 维护者 fork 与 Neko DevLog，范围见 [参考与来源](docs/reference-research.md)。
+
+连续协作实验分支直接复用 AIRI 的完整记忆领域、DuckDB SQL、pgvector 仓储及测试，固定于 `mods@3a84a4fbaf6a54defe385e050be86fcb5436745b`，附加已审计的记忆交互与恢复增量。Copyright (c) 2024-PRESENT Neko Ayaka，MIT。原始许可、逐文件指纹和宿主适配说明见 [vendor/airi-memory](vendor/airi-memory/README.md)；安装包保留完整许可文本。该迁入不包含 AIRI 的私人配置或日用数据。
 
 对话与工作执行运行在 DeepSeek Harness（DSH）上，MIT 许可，Copyright (c) 2026 DeepSeek。本仓库只包含 LCA 自己的桥接插件（`dsh/lca-bridge`）和固定版本的依赖清单（`dsh/runtime`），不复制 DSH 源码。安装包随附 npm 上发布的 `@deepseek-ai/dsh` 运行时，未修改，只去掉了 LCA 不用的部分；每个随附包的名称、版本、许可证和许可文件原文见安装目录的 `resources/dsh-runtime/THIRD_PARTY_NOTICES.txt`。“DeepSeek Harness”是深度求索公司的商标，本项目只描述“基于 DSH 构建”，不表示官方背书。Student Hub 是独立校园后端，mcpfabric 是外部游戏联动研究；应用不内置它们的个人数据或认证。
 

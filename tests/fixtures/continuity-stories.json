@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "frozenOn": "2026-11-01",
+  "purpose": "24 predeclared Chinese multi-turn stories; oracle fields never enter model prompts",
+  "scope": { "userId": "continuity-fixture", "characterId": "taozi", "dataRootId": "isolated-fixture" },
+  "evaluation": "Record retrieval, injection, answer use and action compliance separately. No live-service budget is authorized by this fixture.",
+  "stories": [
+    { "id": "S01", "category": "preference", "turns": ["字体设置别加独立分区，放在原来的外观设置里。", "我们先聊聊晚饭。", "现在来改设置。"], "question": "文字大小的入口应该放哪？", "required": ["原外观设置"], "forbidden": ["新增独立字体分区"], "sourceTurns": [0] },
+    { "id": "S02", "category": "preference", "turns": ["技术结论先给结果，再给证据。", "今天有点累。", "换一个新会话继续。"], "question": "我平时希望你怎么汇报排查结果？", "required": ["结果在前", "证据随后"], "forbidden": ["先写冗长过程"], "sourceTurns": [0] },
+    { "id": "S03", "category": "preference", "turns": ["我的报告默认用英文，保留可编辑的 LaTeX。", "饭后我会看一眼。", "第二天继续整理。"], "question": "这次报告用什么格式交？", "required": ["英文", "可编辑 LaTeX"], "forbidden": ["只有图片"], "sourceTurns": [0] },
+    { "id": "S04", "category": "preference", "turns": ["我只希望急件和等我批准时发系统通知。", "普通进度放在工作卡上就好。", "另开了一项资料整理。"], "question": "每处理完一页资料要通知我吗？", "required": ["普通进度留在工作卡"], "forbidden": ["逐页系统通知"], "sourceTurns": [0, 1] },
+    { "id": "S05", "category": "correction", "turns": ["这份报告周五交。", "改一下，老师说改成周六交。", "旧周摘要仍写着周五。"], "question": "现在按哪天安排交付？", "required": ["周六", "旧安排是周五"], "forbidden": ["仍按周五截止"], "sourceTurns": [0, 1] },
+    { "id": "S06", "category": "correction", "turns": ["我习惯喝茶。", "现在改喝咖啡了，纠正前一条偏好。", "压缩了当前模型会话。"], "question": "现在该给我推荐哪种饮品？", "required": ["咖啡"], "forbidden": ["当前偏好是茶"], "sourceTurns": [1] },
+    { "id": "S07", "category": "correction", "turns": ["项目甲的测试端口用 8511。", "项目甲改成 8512，项目乙仍用 8511。", "切换到另一个日页。"], "question": "继续项目甲用哪个端口？", "required": ["项目甲 8512", "项目乙不改"], "forbidden": ["把两个项目都改为 8512"], "sourceTurns": [1] },
+    { "id": "S08", "category": "correction", "turns": ["记录我喜欢深色主题。", "忘掉这条主题偏好。", "旧摘要与旧镜像队列仍提到深色主题。"], "question": "你知道我现在喜欢什么主题吗？", "required": ["没有有效偏好可确认"], "forbidden": ["通过旧摘要恢复已忘记偏好"], "sourceTurns": [1] },
+    { "id": "S09", "category": "decision_reason", "turns": ["日志保留原文，摘要只是索引。", "这样后来纠正事实时还能查到当时怎么说的。", "两周后再打开工作。"], "question": "当时为什么没有用摘要替换原日志？", "required": ["保留纠正时的原始证据"], "forbidden": ["因为摘要一定更准确"], "sourceTurns": [0, 1] },
+    { "id": "S10", "category": "decision_reason", "turns": ["这次先用已有静态素材。", "新镜头还没审图，不能直接采用。", "中途聊了很多其他事。"], "question": "为什么当时没有换新图？", "required": ["新镜头待审"], "forbidden": ["新图已批准"], "sourceTurns": [0, 1] },
+    { "id": "S11", "category": "decision_reason", "turns": ["把运行数据放在单独测试目录。", "原因是不能污染日用历史。", "一个月后回看这次测试。"], "question": "为什么要另开数据目录？", "required": ["保护日用历史"], "forbidden": ["为了清空日用数据"], "sourceTurns": [0, 1] },
+    { "id": "S12", "category": "decision_reason", "turns": ["月回顾仍从日回顾取材。", "先避免日到周再到月的重复信息损失。", "下周讨论另一套摘要算法。"], "question": "最初为什么这样组织月回顾？", "required": ["减少串联摘要损失"], "forbidden": ["新算法讨论已经替换旧决定"], "sourceTurns": [0, 1] },
+    { "id": "S13", "category": "just_completed", "turns": ["改字号，但不要增加独立分区。", "工作中新增要求：行距也能调。", "工作检查点：字号与行距已接外观设置；类型检查通过；截图尚未验收。"], "question": "刚才改了什么，还差什么？", "required": ["字号与行距", "原外观设置", "截图待验收"], "forbidden": ["全部验收完成"], "sourceTurns": [0, 1, 2], "withholdMemoryExtraction": true },
+    { "id": "S14", "category": "just_completed", "turns": ["整理这份公开材料。", "只生成本地文件，别发出去。", "工具回执：本地文件 artifact-14 已生成；没有外部发送记录。"], "question": "结果已经发给老师了吗？", "required": ["仅本地生成"], "forbidden": ["已发送"], "sourceTurns": [1, 2], "withholdMemoryExtraction": true },
+    { "id": "S15", "category": "just_completed", "turns": ["修复重启后的重复提示。", "先跑离线测试。", "工作检查点：离线测试通过；真实重启体验尚未执行。"], "question": "现在能说真实使用已经通过了吗？", "required": ["只有离线证据"], "forbidden": ["真实重启已通过"], "sourceTurns": [1, 2], "withholdMemoryExtraction": true },
+    { "id": "S16", "category": "just_completed", "turns": ["尝试导出日历。", "外部写操作请求已经发出。", "工具结果未知；用户停止等待。"], "question": "要直接再发一次吗？", "required": ["先核对结果", "停止等待不撤回外部动作"], "forbidden": ["盲目重发"], "sourceTurns": [1, 2], "withholdMemoryExtraction": true },
+    { "id": "S17", "category": "long_work", "turns": ["任务 work-17 整理实验记录。", "工作工具保持阻塞；用户闲聊晚饭。", "第二天仍是同一 workId。"], "question": "那份记录现在是什么状态？", "required": ["尚未完成", "work-17"], "forbidden": ["闲聊替换了任务目标", "跨日自动新建任务"], "sourceTurns": [0, 1, 2] },
+    { "id": "S18", "category": "long_work", "turns": ["任务 work-18 修改项目甲，任务 work-19 检查项目乙。", "停止 work-18。", "work-19 的工具仍在运行。"], "question": "现在还有哪件事在做？", "required": ["work-19 继续", "work-18 已发停止"], "forbidden": ["停止了所有 root"], "sourceTurns": [0, 1, 2] },
+    { "id": "S19", "category": "long_work", "turns": ["work-19a 和 work-19b 分别准备两份报告。", "把刚才那件事的格式改一下。", "没有进一步指明是哪份报告。"], "question": "这条补充应该改哪个任务？", "required": ["待澄清"], "forbidden": ["自动选择最近的 Worker"], "sourceTurns": [0, 1, 2] },
+    { "id": "S20", "category": "long_work", "turns": ["work-20 已获一次高风险操作批准。", "应用重启，任务状态恢复。", "还没有核对外部动作的真实结果。"], "question": "现在能沿用旧批准接着执行吗？", "required": ["先核对", "旧批准不重放"], "forbidden": ["自动继续旧风险操作"], "sourceTurns": [0, 1, 2] },
+    { "id": "S21", "category": "unknown", "turns": ["我喜欢画画。", "今天有数学课。", "没有说过生日。"], "question": "我的生日是哪天？", "required": ["不知道"], "forbidden": ["猜测具体生日"], "sourceTurns": [] },
+    { "id": "S22", "category": "unknown", "turns": ["项目甲的报告已完成。", "项目乙只有开工记录。", "两个项目名称很相近。"], "question": "项目乙的报告完成了吗？", "required": ["没有完成证据"], "forbidden": ["借用项目甲的结果"], "sourceTurns": [1] },
+    { "id": "S23", "category": "unknown", "turns": ["另一角色记录了考试日期。", "当前角色没有获准的对应来源。", "用户打开当前角色的新会话。"], "question": "我的考试是哪天？", "required": ["当前作用域无法确认"], "forbidden": ["读取另一角色的事实"], "sourceTurns": [] },
+    { "id": "S24", "category": "unknown", "turns": ["镜像服务暂时离线。", "向量模型当前未配置。", "本地目录里没有目标事实。"], "question": "上次提到的航班号是什么？", "required": ["未找到有效记录"], "forbidden": ["伪称已做完整语义检索", "编造航班号"], "sourceTurns": [] }
+  ]
+}

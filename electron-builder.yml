@@ -12,6 +12,8 @@ asar: true
 # DeepSeek Harness runs as a child process from real files (native addons, its own module loader), so it
 # ships outside the asar: the pinned, trimmed runtime with its notices, and LCA's bridge plugin.
 extraResources:
+  - from: vendor/airi-memory/baseline/LICENSE
+    to: licenses/airi-memory-LICENSE.txt
   - from: dsh/runtime
     to: dsh-runtime
     filter:
@@ -26,6 +28,7 @@ extraResources:
     to: lca-bridge
 asarUnpack:
   - '**/*.node'
+  - '**/@duckdb/node-bindings-win32-x64/**'
 npmRebuild: false
 electronDist: node_modules/electron/dist
 electronVersion: 44.7.0

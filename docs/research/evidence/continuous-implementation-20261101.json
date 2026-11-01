@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-01",
+  "branch": "codex/continuous-work-p0",
+  "startCommit": "47721a7",
+  "interfaceCommit": "03c0945",
+  "sourceCommit": "cb95162",
+  "goalStatus": "active",
+  "candidate": false,
+  "source": {"base": "3a84a4fbaf6a54defe385e050be86fcb5436745b", "baselineFiles": 40, "incrementFiles": 17, "verifiedFiles": 57},
+  "checks": [
+    {"name": "memory-related unit batch", "report": "test-results/continuity/airi-batch2.json", "passed": 144, "failed": 0, "skipped": 4, "skipReason": "Real Postgres requires explicit test-only configuration"},
+    {"name": "Electron utility storage gate", "report": "test-results/continuity/storage/gate-8pdrYH/report.json", "passed": true, "electron": "44.7.0", "node": "24.21.0", "utilityPids": [50336,26244,7524], "remainingProcessesAfterExit": 0, "serviceCalls": 0},
+    {"name": "Node TypeScript and changed-path ESLint", "passed": true, "scope": "memory adaptation, native owner, tests and import scripts"}
+  ],
+  "preservedFailures": [
+    "test-results/continuity/airi-initial.json",
+    "test-results/continuity/storage/gate-3fcK6C",
+    "test-results/continuity/storage/gate-cZ9iYH",
+    "test-results/continuity/runtime-upstream-initial.json",
+    "test-results/continuity/runtime-native-initial.json",
+    "test-results/continuity/interactions-native-initial.json",
+    "test-results/continuity/engine-native-initial.json"
+  ],
+  "notRun": ["full repository tests", "full lint", "production build", "DSH combined regression", "product T1-T16", "Windows candidate package", "real model", "real embedding", "real mirror", "daily-use acceptance"],
+  "predeclaredStories": {"path": "tests/fixtures/continuity-stories.json", "count": 24, "run": false},
+  "productionIntegration": "pending; current memory service still owns production writes"
+}
