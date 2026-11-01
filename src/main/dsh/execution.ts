@@ -17,7 +17,8 @@ import { publicMemberSteps } from './member-steps'
 import { toolKind } from './tool-kinds'
 import type { CollaborationView } from '../../shared/collaboration'
 import type { DshConversationState, DshRootPolicy } from '../../shared/dsh-protocol'
-import type { RootCompactionOutcome } from '../../shared/continuity'
+import type { RootCompactionOutcome, WorkEvidence } from '../../shared/continuity'
+import { workEvidenceSchema, workDigest } from '../work/journal'
 import { composeContext, ContextBudgetFailure } from '../context/composer'
 import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
 
@@ -26,9 +27,9 @@ import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
  * `impressions`: she read an old page's impression (optical memory, unreviewed); what she says in this turn may draw
  * on it, so memory does not learn from her replies.
  */
-type Turn = { impressions?: boolean; memoryDerived?: boolean; lcaTurnId: string; trigger: Trigger; attempts: number; role: 'chat' | 'work'; denied?: PublicErrorCode; partial: string; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController; seen: { role: 'user' | 'assistant'; content: string; originalEventId?: string }[] }
+type Turn = { impressions?: boolean; memoryDerived?: boolean; lcaTurnId: string; trigger: Trigger; attempts: number; role: 'chat' | 'work'; denied?: PublicErrorCode; partial: string; toolsExecuted: boolean; calls: Map<string, { command: string | null; templateId: string }>; asks: AbortController; seen: { role: 'user' | 'assistant'; content: string; originalEventId?: string }[]; inputEvents: Set<string> }
 /** Things that happened that she may speak about (pomodoro, mail, documents, her own life): inbox events in the journal. */
-export type DshEventSource = 'pomodoro' | 'mail' | 'document' | 'autonomous'
+export type DshEventSource = 'pomodoro' | 'mail' | 'document' | 'autonomous' | 'work'
 type Trigger = 'user' | DshEventSource
 type Rule = { project: string; tool: string; prefix: string | null }
 /** One DSH session per LCA day; `degraded` survives a restart that came before the bridge retired third-party results. */
@@ -154,11 +155,14 @@ export function createDshExecution(options: {
   /** Shared project trust, while private sessions and turns remain per root. */
   rulesFile?: string
   consumed?(eventId: string): void
+  evidence?(evidence: WorkEvidence): void
+  successfulInputs?(eventIds: readonly string[]): void
 }) {
   const { store, clock } = options
   const sessionsFile = join(options.dataDir, 'dsh-sessions.json')
   const rulesFile = options.rulesFile ?? join(options.dataDir, 'dsh-approvals.json')
   let workRevision = options.rootPolicy?.work?.objectiveRevision ?? 0
+  const observations = new Map<string, WorkEvidence>()
   const read = <T>(file: string, fallback: T): T => { try { return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as T : fallback } catch { return fallback } }
   // Once closed (the app quitting, a model change) nothing more is recorded: the journal may already be closed, and
   // a turn DSH ends after this point is closed at the next start.
@@ -360,7 +364,7 @@ export function createDshExecution(options: {
     const input = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
     if (!tool.validate(input)) throw new Error('invalid-tool-arguments: one JSON object matching the tool schema')
     if (tool.templateId === 'memory.optical') current.impressions = true
-    if (tool.templateId.startsWith('memory.') || tool.templateId.startsWith('history.')) current.memoryDerived = true
+    if (tool.templateId.startsWith('memory.') || tool.templateId.startsWith('history.') || tool.templateId.startsWith('work.')) current.memoryDerived = true
     const userMessageId = current.seen.findLast(message => message.role === 'user' && message.originalEventId
       && store.records().some(row => row.type === 'user/message' && row.id === message.originalEventId))?.originalEventId
     const result = await tool.run(input, { clock, store, turnId: current.lcaTurnId, callId, signal: current.asks.signal, userMessageId })
@@ -398,7 +402,7 @@ export function createDshExecution(options: {
       case 'turn-start': {
         stateChanges = 0
         const start = starts.shift()
-        turn = { memoryDerived: start?.memoryDerived, lcaTurnId: randomUUID(), trigger: start?.trigger ?? 'user', attempts: 0, role: 'chat', partial: '', toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [] }
+        turn = { memoryDerived: start?.memoryDerived, lcaTurnId: randomUUID(), trigger: start?.trigger ?? 'user', attempts: 0, role: 'chat', partial: '', toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [], inputEvents: new Set() }
         options.foreground?.()
         begin(turn.lcaTurnId, start)
         const preset = typeof event.preset === 'string' && event.preset.length <= 64 ? event.preset : null
@@ -417,11 +421,13 @@ export function createDshExecution(options: {
       }
       case 'user-message':
         if (turn) { if (pending.some((id) => !eventIds.has(id))) turn.trigger = 'user'; drain() }
-        if (typeof event.eventId === 'string') options.consumed?.(event.eventId)
+        if (typeof event.eventId === 'string') { turn?.inputEvents.add(event.eventId); options.consumed?.(event.eventId) }
+        if (Array.isArray(event.eventIds)) for (const id of event.eventIds) if (typeof id === 'string') { turn?.inputEvents.add(id); options.consumed?.(id) }
         break
       // Her words are conversation and stay in the journal; the tool calls beside them are DSH's.
       case 'message': {
         if (!turn) break
+        if (turn.inputEvents.size) { options.successfulInputs?.([...turn.inputEvents]); turn.inputEvents.clear() }
         const text = typeof event.text === 'string' ? event.text : ''
         turn.partial = ''
         if (!text.trim()) { recordUsage(turn, event.usage); break }
@@ -450,7 +456,17 @@ export function createDshExecution(options: {
         const callId = String(event.callId)
         if (!turn.calls.has(callId)) break
         record({ type: 'work/activity', turnId: turn.lcaTurnId, callId, templateId: turn.calls.get(callId)?.templateId ?? 'dsh.other', status: event.isError ? 'failed' : 'completed' })
+        const evidence = observations.get(callId); observations.delete(callId)
+        if (evidence) options.evidence?.({ ...evidence, ...(event.isError ? { status: 'failed' as const } : {}) })
         options.changed('task'); break
+      }
+      case 'work-evidence': {
+        const identity = options.rootPolicy?.work
+        if (!identity || !turn || typeof event.callId !== 'string' || !turn.calls.has(event.callId)) break
+        const parsed = workEvidenceSchema.safeParse({ id: workDigest([session.id, event.callId]), identity: { ...identity, objectiveRevision: event.revision }, rootSessionId: session.id, callId: event.callId,
+          kind: event.kind, status: event.status, relativePath: event.relativePath, beforeHash: event.beforeHash, afterHash: event.afterHash, bytes: event.bytes, exitCode: event.exitCode, restricted: event.restricted, observedAt: clock.nowMs() })
+        if (parsed.success) observations.set(event.callId, parsed.data)
+        break
       }
       case 'degraded': {
         const sources = dshSources(event.sources)
@@ -539,8 +555,9 @@ export function createDshExecution(options: {
       if (mode === 'followup') syncTools()
       const reference = mode === 'followup' ? await referenceFor(current, new Set(batch.map(event => event.id)), batch[0].id) : { text: null, degrade: [], memoryDerived: false }
       if (closed || !currentScope()) return
-      if (mode === 'followup') starts.push({ trigger: batch[0].source, requestId: null, memoryDerived: reference.memoryDerived })
-      host!.send(current.id, batch.map(factsOf).join('\n'), mode, reference.text, 'event', reference.degrade, syncState(mode === 'followup'))
+      if (mode === 'followup') starts.push({ trigger: batch[0].source, requestId: null, memoryDerived: reference.memoryDerived || batch.some(event => event.source === 'work') })
+      if (turn && batch.some(event => event.source === 'work')) turn.memoryDerived = true
+      host!.send(current.id, batch.map(factsOf).join('\n'), mode, reference.text, 'event', reference.degrade, syncState(mode === 'followup'), undefined, undefined, batch.map(event => event.id))
     }, error => fail(error instanceof ContextBudgetFailure ? error.code : 'internal'))
   }
   const ensureSession = () => {
@@ -609,7 +626,7 @@ export function createDshExecution(options: {
     const { text, reference } = composeContext({ reference: value, capabilities: (await capacities())?.[options.rootPolicy?.role === 'worker' ? 'work' : 'chat'],
       systemText: options.persona() + options.suffix(), tools: toolSchemas(), inputText: [...exclude].map(id => pendingText.get(id) ?? '').join('\n'), revealedText: revealed?.text })
     options.referencesPrepared?.(requestId, reference)
-    return { text, degrade: revealed ? [revealed.source] : [], memoryDerived: Object.keys(memory).some(key => /memory|reference|previousDays/i.test(key)) || earlier.length > 0 }
+    return { text, degrade: revealed ? [revealed.source] : [], memoryDerived: Object.keys(memory).some(key => /memory|reference|previousDays|workCheckpoints/i.test(key)) || earlier.length > 0 }
   }
 
   return {
@@ -631,7 +648,7 @@ export function createDshExecution(options: {
       if (closed || maintaining || options.rootPolicy?.role !== 'worker') throw new Error('DSH_WORK_UNAVAILABLE')
       workRevision = Math.max(workRevision, event.revision)
       if (session?.id) host?.workRevision(session.id, workRevision)
-      if (!store.records().some(row => row.type === 'inbox/event' && row.id === event.eventId)) record({ type: 'inbox/event', id: event.eventId, source: 'autonomous', text: event.text })
+      if (!store.records().some(row => row.type === 'inbox/event' && row.id === event.eventId)) record({ type: 'inbox/event', id: event.eventId, source: 'work', text: event.text })
       pending.push(event.eventId); pendingText.set(event.eventId, event.text); eventIds.add(event.eventId)
       let accepted = false
       enqueueSend(async () => {

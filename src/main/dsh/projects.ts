@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, statSync, realpathSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { basename, parse, resolve, sep } from 'node:path'
 import type { AppCommand, PublicErrorCode, WorkProjectsView, WorkProjectView } from '../../shared'
@@ -6,7 +6,7 @@ import type { SettingsStore } from '../config/settings'
 
 const RECENT = 6
 type Refusal = NonNullable<WorkProjectsView['error']>
-const key = (path: string) => resolve(path).toLowerCase()
+const key = (path: string) => { let value = resolve(path); try { value = realpathSync.native(value) } catch { /* Refusal handles unavailable paths. */ }; return value.toLowerCase() }
 const within = (path: string, root: string) => { const a = key(path); const b = key(root); return a === b || a.startsWith(b.endsWith(sep) ? b : b + sep) }
 
 /**

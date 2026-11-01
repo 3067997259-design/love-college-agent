@@ -3,6 +3,8 @@ import type { ContinuousWorkCommand } from '../../shared/continuity'
 import type { HarnessTool } from '../harness/tools'
 import { workDigest } from './journal'
 import type { ContinuousWorkService } from './service'
+import type { WorkIdentity } from '../../shared/continuity'
+import { checkpointProposalSchema } from './journal'
 
 export function workTools(service: ContinuousWorkService): HarnessTool[] {
   const create = z.strictObject({ objective: z.string().min(1).max(20_000), acceptance: z.array(z.string().min(1).max(2000)).max(16), decisionIds: z.array(z.string().min(1).max(128)).max(32).optional() })
@@ -39,6 +41,35 @@ export function workTools(service: ContinuousWorkService): HarnessTool[] {
     run: async (input, context) => { context.signal.throwIfAborted(); const { workId } = query.parse(input)
       const work = workId ? service.get(workId) : null
       return value(workId ? work ? { identity: work.identity, revision: work.revision, status: work.status, objective: work.objective, acceptance: work.acceptance,
-        userDecisions: work.decisions, checkpointId: work.checkpointId, receipts: work.inputs.map(({ eventId, state, revision, consumedAt }) => ({ eventId, state, revision, consumedAt })) } : { error: 'work-unavailable' } : service.view()) }
+        userDecisions: work.decisions, checkpointId: work.checkpointId, checkpoint: checkpointContext(work), receipts: work.inputs.map(({ eventId, state, revision, consumedAt }) => ({ eventId, state, revision, consumedAt })) } : { error: 'work-unavailable' } : service.view()) }
     }]
+}
+
+export function checkpointContext(work: NonNullable<ReturnType<ContinuousWorkService['get']>>) {
+  const checkpoint = work.checkpoints?.find(item => item.id === work.checkpointId)
+  if (!checkpoint) return null
+  const evidence = checkpoint.evidenceIds.flatMap(id => work.evidence?.find(item => item.id === id) ?? [])
+  const restricted = evidence.some(item => item.restricted)
+  return { id: checkpoint.id, identity: checkpoint.identity, outcome: checkpoint.outcome, published: work.delivery?.checkpointId === checkpoint.id,
+    decisionIds: checkpoint.decisionIds, createdAt: checkpoint.createdAt, restricted,
+    explanation: restricted ? null : checkpoint.explanation, explanationSource: 'worker-expression-not-independent-evidence',
+    unresolved: restricted ? null : checkpoint.unresolved, nextStep: restricted ? null : checkpoint.nextStep,
+    observations: evidence.map(item => ({ id: item.id, kind: item.kind, status: item.status, exitCode: item.exitCode,
+      relativePath: item.restricted ? null : item.relativePath, hash: item.afterHash, observedAt: item.observedAt })),
+    authority: 'historical-work-evidence-not-current-permission-or-new-experience' }
+}
+
+export function workCompletionTools(service: ContinuousWorkService, identity: WorkIdentity): HarnessTool[] {
+  const empty = z.strictObject({})
+  const result = (value: unknown) => { const data = JSON.parse(JSON.stringify(value)) as Record<string, never>; return { ok: true, raw: data, visible: data } }
+  return [{ templateId: 'work.evidence', definition: { name: 'inspect_current_work', description: 'Read this work\'s current objective revision, exact original decisions, and executor-observed evidence IDs. Tool acceptance, a background job starting, or your own statement is not completion evidence.', parameters: z.toJSONSchema(empty) }, validate: input => empty.safeParse(input).success,
+    run: async (_input, context) => { context.signal.throwIfAborted(); const work = service.get(identity.workId)
+      return result(work?.identity.generation === identity.generation ? { identity: work.identity, decisions: work.decisions, acceptance: work.acceptance,
+        evidence: work.evidence?.filter(item => item.identity.generation === identity.generation) ?? [] } : { error: 'work-generation-retired' }) } },
+  { templateId: 'work.finish', definition: { name: 'finish_work', description: 'Prepare a durable delivery checkpoint using evidence IDs from inspect_current_work. Only current-version successful file changes or completed commands qualify. Main verifies file hashes again after this turn ends, then publishes the delivery. State unresolved work honestly; do not claim completed with unresolved items. After preparing it, end this turn.', parameters: z.toJSONSchema(checkpointProposalSchema) }, validate: input => checkpointProposalSchema.safeParse(input).success,
+    run: async (input, context) => { context.signal.throwIfAborted(); if (!context.callId) return result({ error: 'call-id-required' })
+      try { const checkpoint = service.checkpoint(identity, checkpointProposalSchema.parse(input), workDigest([context.turnId, context.callId]))
+        return result({ checkpointId: checkpoint?.id, state: 'pending-turn-end-verification' }) }
+      catch { return result({ error: 'checkpoint-unverified-or-stale', instruction: 'Inspect current work and actual outputs before trying a new checkpoint.' }) }
+    } }]
 }

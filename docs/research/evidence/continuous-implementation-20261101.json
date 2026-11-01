@@ -94,6 +94,19 @@
       "checks": 11,
       "modelRequests": 12,
       "externalServiceCalls": 0
+    },
+    {
+      "name": "Checkpoint evidence and original-source tests",
+      "report": "test-results/continuity/work-checkpoints-initial.json",
+      "passed": 18,
+      "failed": 0
+    },
+    {
+      "name": "Fixed DSH execution and checkpoint delivery gate",
+      "report": "test-results/continuity/execution/gate-ZU6rAc/report.json",
+      "passed": true,
+      "checks": 18,
+      "externalServiceCalls": 0
     }
   ],
   "preservedFailures": [
@@ -110,7 +123,8 @@
     "test-results/continuity/facts-dsh-batch-initial.json",
     "test-results/continuity/conversation/gate-IQOfbv/report.json",
     "test-results/continuity/execution/gate-5te1Ui",
-    "test-results/continuity/execution/gate-SoFtYJ"
+    "test-results/continuity/execution/gate-SoFtYJ",
+    "test-results/continuity/execution/gate-TSlws6"
   ],
   "notRun": [
     "full repository tests",
@@ -129,5 +143,5 @@
     "count": 24,
     "run": false
   },
-  "productionIntegration": "Experimental main uses AIRI facts, independent experience/day projection, native DSH compaction and persistent foreground/worker roots. Checkpoint delivery, migration, embedding/mirror settings and backup remain pending."
+  "productionIntegration": "Experimental main uses AIRI facts, independent experience/day projection, native DSH compaction, persistent foreground/worker roots and evidence-backed checkpoint delivery. Coverage indexing, correction propagation, migration, embedding/mirror settings and backup remain pending."
 }

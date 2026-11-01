@@ -5,7 +5,9 @@ import { tmpdir } from 'node:os'
 import { createManualClock } from '../../src/main/clock'
 import { createContinuousWork, type WorkRuntimeContext, type WorkRuntime } from '../../src/main/work/service'
 import { openWorkJournal } from '../../src/main/work/journal'
-import type { ContinuousWorkCommand, ContinuousWorkView } from '../../src/shared/continuity'
+import type { ContinuousWorkCommand, ContinuousWorkView, WorkEvidence } from '../../src/shared/continuity'
+import { captureWorkFile } from '../../dsh/lca-bridge/work-evidence.js'
+import { checkpointContext } from '../../src/main/work/tools'
 
 const owner = { userId: 'user', characterId: 'character', dataRootId: 'isolated-profile' }
 const services: ReturnType<typeof createContinuousWork>[] = []
@@ -15,9 +17,12 @@ const target = (work: ContinuousWorkView) => ({ identity: work.identity, expecte
 function fixture(root = mkdtempSync(join(tmpdir(), 'lca-work-'))) {
   const clock = createManualClock(1_790_000_000_000)
   const instances: { context: WorkRuntimeContext; events: string[]; revisions: number[]; stopped: boolean }[] = []
+  const observations: string[] = [], delivered = new Set<string>()
   let held = false
   const service = createContinuousWork({ root, owner, clock, available: () => true, held: () => held,
-    project: id => ({ id, path: `D:/fixture/${id}` }), decision: id => ({ id, text: `Original ${id}`, atMs: clock.nowMs() }), safeText: text => text, changed: () => {},
+    project: id => ({ id, path: root }), decision: id => ({ id, text: `Original ${id}`, atMs: clock.nowMs() }), safeText: text => text, changed: () => {},
+    observed: (_work, input) => { observations.push(input.eventId) },
+    deliverCheckpoint: work => { delivered.add(work.delivery!.eventId); return 'accepted' },
     createRuntime: context => {
       const instance = { context, events: [] as string[], revisions: [] as number[], stopped: false }; instances.push(instance)
       const runtime: WorkRuntime = { deliver: async event => { instance.events.push(event.eventId) }, invalidateWork: value => { instance.revisions.push(value) },
@@ -30,7 +35,17 @@ function fixture(root = mkdtempSync(join(tmpdir(), 'lca-work-'))) {
     const result = service.dispatch(command, `create-${id}`); expect(result.error).toBeUndefined(); return { command, workId: result.work!.identity.workId }
   }
   const view = (id: string) => service.view().items.find(work => work.identity.workId === id)!
-  return { root, service, instances, create, view, clock, hold: () => { held = true; service.stateChanged() } }
+  const proof = (index: number, id = `proof-${index}`, restricted = false) => {
+    const context = instances[index].context, work = service.get(context.work.identity.workId)!
+    writeFileSync(join(root, 'result.txt'), `Output for ${work.identity.objectiveRevision}`)
+    const file = captureWorkFile(root, 'result.txt')!
+    const evidence: WorkEvidence = { id, identity: work.identity, rootSessionId: 'root', callId: id, kind: 'artifact', status: 'passed', relativePath: file.relativePath,
+      beforeHash: null, afterHash: file.hash, bytes: file.bytes, exitCode: null, restricted, observedAt: clock.nowMs() }
+    context.evidence(evidence); return evidence
+  }
+  const finish = (index: number, evidenceIds: string[], id = `checkpoint-${index}`) => service.checkpoint(instances[index].context.work.identity,
+    { expectedObjectiveRevision: service.get(instances[index].context.work.identity.workId)!.identity.objectiveRevision, evidenceIds, outcome: 'completed', explanation: 'Worker explanation', unresolved: [], nextStep: null }, id)
+  return { root, service, instances, create, view, clock, observations, delivered, proof, finish, hold: () => { held = true; service.stateChanged() } }
 }
 
 describe('durable work scheduling and delivery', () => {
@@ -99,5 +114,55 @@ describe('durable work scheduling and delivery', () => {
     expect(() => openWorkJournal(file, { ...owner, userId: 'other' }, f.clock)).toThrow()
     writeFileSync(file, original.replace('Objective a', 'Objective b'))
     expect(() => openWorkJournal(file, owner, f.clock)).toThrow('WORK_JOURNAL_CORRUPT')
+  })
+
+  it('publishes after final verification, reconciles delivery once, and survives a cross-day reopen', async () => {
+    const f = fixture(), a = f.create('a'); await tick()
+    f.instances[0].context.consumed('create-a')
+    const evidence = f.proof(0), checkpoint = f.finish(0, [evidence.id])!
+    expect(f.view(a.workId).status).toBe('running'); expect(f.delivered.size).toBe(0)
+    f.instances[0].context.settled(false); await tick()
+    expect(f.view(a.workId).status).toBe('completed'); expect(f.delivered.size).toBe(1)
+    f.service.stateChanged(); f.service.consumedDelivery(`checkpoint:${checkpoint.id}`); f.service.stateChanged()
+    expect(f.service.get(a.workId)?.delivery?.state).toBe('consumed')
+    f.clock.advanceBy(86_400_000); await f.service.close()
+    const restored = fixture(f.root); restored.service.stateChanged(); await tick()
+    expect(restored.instances).toHaveLength(0); expect(restored.delivered.size).toBe(0)
+    expect(checkpointContext(restored.service.get(a.workId)!)).toMatchObject({ published: true, observations: [{ hash: evidence.afterHash }] })
+  })
+
+  it('rejects stale proof and a file changed after checkpoint preparation', async () => {
+    const f = fixture(), a = f.create('a'); await tick(); f.instances[0].context.consumed('create-a')
+    const old = f.proof(0)
+    f.service.dispatch({ type: 'work.supplement', target: target(f.view(a.workId)), text: 'new', decisionId: 'new' }, 'update'); await tick()
+    f.instances[0].context.consumed('update')
+    expect(() => f.finish(0, [old.id])).toThrow('WORK_CHECKPOINT_UNVERIFIED')
+    const current = f.proof(0, 'new-proof'); f.finish(0, [current.id])
+    writeFileSync(join(f.root, 'result.txt'), 'Externally changed before turn end')
+    f.instances[0].context.settled(false); await tick()
+    expect(f.view(a.workId).status).toBe('waiting'); expect(f.delivered.size).toBe(0)
+  })
+
+  it('only reports original decisions after a successful request and hides restricted expressions', async () => {
+    const f = fixture(), a = f.create('a'); await tick()
+    f.instances[0].context.successfulInputs(['create-a']); expect(f.observations).toEqual([])
+    f.instances[0].context.consumed('create-a'); expect(f.observations).toEqual([])
+    f.instances[0].context.successfulInputs(['create-a']); f.instances[0].context.successfulInputs(['create-a'])
+    expect(f.observations).toEqual(['create-a'])
+    const evidence = f.proof(0, 'restricted-proof', true); f.finish(0, [evidence.id]); f.instances[0].context.settled(false); await tick()
+    expect(checkpointContext(f.service.get(a.workId)!)).toMatchObject({ restricted: true, explanation: null, observations: [{ relativePath: null }] })
+    expect(JSON.stringify(f.view(a.workId))).not.toContain('Worker explanation')
+  })
+
+  it('keeps earlier undelivered checkpoints when continuing completed work in a new generation', async () => {
+    const f = fixture(), a = f.create('a'); await tick(); f.instances[0].context.consumed('create-a')
+    f.finish(0, [f.proof(0).id]); f.instances[0].context.settled(false); await tick()
+    f.service.dispatch({ type: 'work.supplement', target: target(f.view(a.workId)), text: 'new', decisionId: 'new' }, 'again'); await tick()
+    expect(f.instances[1].context.work.identity.generation).toBe(2)
+    expect(f.instances[1].events).toEqual(['again'])
+    f.instances[1].context.consumed('again'); f.finish(1, [f.proof(1).id]); f.instances[1].context.settled(false); await tick()
+    expect(f.service.get(a.workId)?.deliveries).toHaveLength(2)
+    f.service.consumedDelivery('checkpoint:checkpoint-0'); expect(f.service.get(a.workId)?.deliveries?.[0].state).toBe('consumed')
+    expect(f.service.get(a.workId)?.delivery?.state).toBe('accepted')
   })
 })

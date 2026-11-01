@@ -26,7 +26,7 @@ export interface SessionProjection {
   pomodoro: PomodoroView
   pomodoroPause: 'manual' | 'lights' | null
   pomodoroEvents: { id: string; text: string }[]
-  pendingEvents: { id: string; source: 'pomodoro' | 'mail' | 'document'; text: string }[]
+  pendingEvents: { id: string; source: 'pomodoro' | 'mail' | 'document' | 'work'; text: string }[]
 }
 
 /** Raw tool data is deliberately absent from both UI and model projections. */

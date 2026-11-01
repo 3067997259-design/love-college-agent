@@ -32,7 +32,8 @@ import { createDshExecution, type DshExecution } from './dsh/execution'
 import { createRootHost } from './dsh/root-host'
 import { createContinuousWork, type ContinuousWorkService, type WorkRuntimeContext } from './work/service'
 import { openWorkStore } from './work/store'
-import { workTools } from './work/tools'
+import { workTools, workCompletionTools, checkpointContext } from './work/tools'
+import { workExperience } from './work/experience'
 import { dshLocations } from './dsh/locations'
 import { startDshHost, type DshHost } from './dsh/host'
 import { createExtensions, type ExtensionsService, type ExtensionRuntime } from './dsh/extensions'
@@ -633,17 +634,24 @@ void app.whenReady().then(async () => {
     // The shared book has one question card. Waiting on it never blocks another root's chat.
     let questionQueue: Promise<unknown> = Promise.resolve()
     const queueQuestion = <T>(action: () => Promise<T>) => { const next = questionQueue.then(action); questionQueue = next.catch(() => {}); return next }
+    const workExperiences = workExperience(store, () => scriptedEndpoint ? 'fake' : 'real')
     const createDsh = (worker?: WorkRuntimeContext, executionStore = store!, executionDir = dataDir) => {
       const chat = chatModel()
       if (!dshPresent || !chat) return undefined
       const execution = createDshExecution({ store: executionStore, clock, processClock: systemClock, dataDir: executionDir, dshRoot, bridge: dshBridge, guardedRoots, source: scriptedEndpoint ? 'fake' : 'real',
-        launch: rootHost!.launch, rulesFile: join(dataDir, 'dsh-approvals.json'), rootPolicy: { role: worker ? 'worker' : 'foreground', work: worker?.work.identity ?? null }, consumed: worker?.consumed,
+        launch: rootHost!.launch, rulesFile: join(dataDir, 'dsh-approvals.json'), rootPolicy: { role: worker ? 'worker' : 'foreground', work: worker?.work.identity ?? null },
+        evidence: worker?.evidence, successfulInputs: worker?.successfulInputs,
+        consumed: worker?.consumed ?? (eventId => {
+          if (!eventId.startsWith('checkpoint:')) return
+          workExperiences.consumed(eventId)
+          continuousWork?.consumedDelivery(eventId)
+        }),
         disconnected: () => { if (worker) worker.settled(true); else { extensions?.disconnected(); skills?.disconnected() } },
         routes: dshRoutes(chat, (scriptedEndpoint ? undefined : providers.get('work')) ?? chat, efforts),
         project: () => worker?.work.projectPath ?? projects.current(), persona,
         // After DSH's first-party guidance: how she talks in the book outranks the coding-agent style.
         suffix: () => '和用户说话用口语化的中文，像平时聊天一样。书里能显示简单的 Markdown：文件名、命令和代码用代码格式，步骤多时可以用列表，但不要写成带标题的报告。用户在你工作途中插话时，先用一两句话回应这句话，再继续手上的事；做完后用一两句话说清结果。',
-        tools: () => worker ? herTools().filter(tool => /^(memory\.(search|read)|history\.|document\.|mcp\.)/.test(tool.templateId))
+        tools: () => worker ? [...herTools().filter(tool => /^(memory\.(search|read)|history\.|document\.|mcp\.)/.test(tool.templateId)), ...workCompletionTools(continuousWork!, worker.work.identity)]
           : [...herTools(), ...(continuousWork ? workTools(continuousWork) : [])],
         // Your message supersedes a question she is waiting on; an approval keeps waiting for its own answer.
         foreground: () => { if (!worker && !questions?.approvalPending()) questions?.interruptForeground(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground() },
@@ -691,7 +699,8 @@ void app.whenReady().then(async () => {
           const lines = worker ? worker.work.objective : store!.projection().messages.filter((message) => message.role === 'user' && !message.kind).slice(-3).map((message) => message.text).join('\n')
           const memoryReference = await memory?.reference(lines, requestId, firstOfSession) ?? null
           const world = worldReference(); const sources = sourceState()
-          const workState = !worker && continuousWork ? { workCheckpoints: continuousWork.view().items.map(item => ({ identity: item.identity, revision: item.revision, label: item.label, status: item.status, waitingFor: item.waitingFor, checkpointId: item.checkpointId })) } : null
+          const workState = !worker && continuousWork ? { workCheckpoints: continuousWork.view().items.map(item => ({ identity: item.identity, revision: item.revision, label: item.label, status: item.status, waitingFor: item.waitingFor,
+            checkpoint: item.checkpointId ? checkpointContext(continuousWork!.get(item.identity.workId)!) : null })) } : null
           return memoryReference || world || sources || workState ? { ...memoryReference, ...world, ...sources, ...workState } : null
         },
         started: ({ turnId, requestId }) => { recall?.bind(requestId, turnId); memory?.bind(requestId, turnId) },
@@ -727,6 +736,8 @@ void app.whenReady().then(async () => {
         const row = rows.find(row => row.type === 'user/message' && row.id === id)
         return row?.type === 'user/message' ? { id, text: row.text, atMs: row.atMs } : null
       },
+      observed: workExperiences.observed,
+      deliverCheckpoint: (work, checkpoint) => workExperiences.deliver(work, checkpoint, (text, eventId) => dshExecution?.postEvent('work', text, eventId) ?? false),
       createRuntime: context => {
         const root = join(workRoot, 'runs', context.work.identity.workId, String(context.work.identity.generation)); mkdirSync(root, { recursive: true })
         const privateStore = openWorkStore(root, workOwner, clock, context.work.runStartedAt, store!)

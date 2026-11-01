@@ -15,6 +15,7 @@ import { createExtensionAdapter } from './extensions.js'
 import { createSkillCatalog } from './skills.js'
 import { createCollaboration } from './collaboration.js'
 import { validState, stateReply, statePrompt, WORK_CONTINUATION } from './state.js'
+import { captureWorkFile, commandObservation } from './work-evidence.js'
 
 export const name = 'lca-bridge'
 export const inject = ['agents', 'agentDefaultModel', 'sessions', 'systemPrompt', 'tools', 'approval', 'llm', 'sessionProjections', 'pluginManager', 'profileContext', 'skills', 'agentTeams', 'subagents', 'compaction']
@@ -33,6 +34,7 @@ export function apply(ctx) {
   const registered = new Set()
   const registeredRoots = new Map(), rootPolicies = new Map(), rootTools = new Map()
   const workVersions = new Map(), readVersions = new Map(), stepVersions = new WeakMap()
+  const workActions = new Map()
   const canonical = (path) => {
     let value = resolve(path)
     try { value = realpathSync.native(value) } catch { /* an unavailable project is rejected by main */ }
@@ -291,6 +293,10 @@ export function apply(ctx) {
     if (String(exec.name) === 'ask_user_question' && isRoot(exec.agent)) askCalls.set(root, String(exec.callId))
     const args = JSON.stringify(exec.arguments ?? {}).toLowerCase().replaceAll('\\\\', '\\')
     if (guarded.some((path) => args.includes(path) || args.includes(path.replaceAll('\\', '/')))) return { kind: 'deny', reason: 'This path is LCA private data; she does not work on it.' }
+    if (lane === 'worker') {
+      const file = ['write', 'edit'].includes(name) ? captureWorkFile(bindings.get(root).cwd, exec.arguments?.file_path ?? exec.arguments?.path) : null
+      workActions.set(callKey(exec.agent, exec.callId), { root, version: stepVersions.get(exec.agent) ?? 0, file })
+    }
     const model = models.get(root)
     const handoff = !lane && picked && model?.role === 'chat' && isRoot(exec.agent) && !sameModel(picked.chat, picked.work) ? handoffOf(String(exec.name)) : null
     if (handoff) {
@@ -328,6 +334,18 @@ export function apply(ctx) {
   ctx.on('tools/post-execute', async (exec, result, next) => {
     const root = lineage.rootOf(exec.agent)
     if (root) {
+      const action = workActions.get(callKey(exec.agent, exec.callId))
+      workActions.delete(callKey(exec.agent, exec.callId))
+      if (action && rootPolicies.get(root)?.role === 'worker') {
+        const after = action.file ? captureWorkFile(bindings.get(root).cwd, action.file.relativePath) : null
+        const command = commandObservation(String(exec.name), result)
+        send({ t: 'work-evidence', sessionId: root, callId: String(exec.callId), origin: originOf(exec.agent),
+          revision: action.version, kind: command?.kind ?? (action.file ? 'artifact' : 'tool'),
+          status: command?.status ?? (result.isError ? 'failed' : after?.hash && after.hash !== action.file?.hash ? 'passed' : 'unverified'),
+          relativePath: after?.relativePath ?? action.file?.relativePath ?? null, beforeHash: action.file?.hash ?? null,
+          afterHash: after?.hash ?? null, bytes: after?.bytes ?? null, exitCode: command?.exitCode ?? null,
+          restricted: safety.sources(exec.agent).length > 0 })
+      }
       const subject = subjects.get(callKey(exec.agent, exec.callId)) ?? null
       subjects.delete(callKey(exec.agent, exec.callId))
       if (sandboxDenied(result)) {
@@ -433,7 +451,7 @@ export function apply(ctx) {
         break
       }
       case 'user/message': {
-        send({ t: 'user-message', sessionId, kind: data.source?.kind ?? null, eventId: data.source?.lcaEventId ?? null, chars: texts(data.content).length }); break
+        send({ t: 'user-message', sessionId, kind: data.source?.kind ?? null, eventId: data.source?.lcaEventId ?? null, eventIds: data.source?.lcaEventIds ?? [], chars: texts(data.content).length }); break
       }
       case 'turn/end': send({ t: 'turn-end', sessionId, turn: data.turn, reason: plain(data.reason) }); break
       case 'assistant/message': {
@@ -499,6 +517,7 @@ export function apply(ctx) {
           if (entry) await entry.handle.dispose()
           live.delete(root); models.delete(root); rootPolicies.delete(root); rootTools.delete(root); bindings.delete(root)
           for (const [id, family] of registeredRoots) if (family === root) { registeredRoots.delete(id); registered.delete(id) }
+          for (const [id, action] of workActions) if (action.root === root) workActions.delete(id)
           states.delete(root); stateRequests.delete(root); eventBudget.delete(root); eventStarts.delete(root); eventTurns.delete(root); workVersions.delete(root); readVersions.delete(root)
           collaboration.notify(); send({ t: 'released', ref: message.ref, sessionId: root }); break
         }
@@ -532,7 +551,7 @@ export function apply(ctx) {
           const degrade = Array.isArray(message.degrade) ? message.degrade.filter((source) => SOURCES.has(source)) : []
           const event = message.origin === 'event'
           const authorizationId = safety.begin(agent, message.mode === 'followup')
-          const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: event ? 'lca-event' : 'user', lcaProvenance: { authorizationId, sources: degrade }, ...(reference.length ? { lcaReferences: true } : {}), ...(typeof message.eventId === 'string' ? { lcaEventId: message.eventId } : {}), ...(Number.isSafeInteger(message.workRevision) ? { lcaWorkRevision: message.workRevision } : {}) } })
+          const input = createUserMessage({ content: [...reference, { type: 'text', text: message.text }], source: { kind: event ? 'lca-event' : 'user', lcaProvenance: { authorizationId, sources: degrade }, ...(reference.length ? { lcaReferences: true } : {}), ...(typeof message.eventId === 'string' ? { lcaEventId: message.eventId } : {}), ...(Number.isSafeInteger(message.workRevision) ? { lcaWorkRevision: message.workRevision } : {}), ...(Array.isArray(message.eventIds) ? { lcaEventIds: message.eventIds } : {}) } })
           if (event && message.mode === 'followup') eventStarts.set(message.sessionId, (eventStarts.get(message.sessionId) ?? 0) + 1)
           if (event && message.mode === 'followup') eventBudget.set(message.sessionId, EVENT_STEPS)
           // You joined in: the turn is yours, no event cap.

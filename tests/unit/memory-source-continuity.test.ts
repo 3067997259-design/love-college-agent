@@ -33,6 +33,19 @@ describe('successful-input continuity at the product adapter', () => {
     expect(seenFragments(f.rows, true).some(source => source.text === 'DERIVED_REPLY')).toBe(false)
   })
 
+  it('admits successful Worker originals once without making automatic handoffs diary or memory material', () => {
+    const f = fixture()
+    f.store.append({ type: 'work/seen', workId: 'work-one', generation: 1, eventId: 'work-input', source: 'fake',
+      originals: [{ id: 'decision-one', sessionId: 'day-1', text: 'Keep the original deadline.', atMs: f.clock.nowMs() }] })
+    expect(f.facts.pendingSources().map(source => source.text)).toEqual(['Keep the original deadline.'])
+    expect(seenFragments(f.rows)).toEqual([])
+    f.source('foreground', 'decision-one', 'Keep the original deadline.')
+    f.store.append({ type: 'inbox/event', id: 'checkpoint:one', source: 'work', text: 'Automatic derived delivery' })
+    f.store.append({ type: 'model/seen', turnId: 'handoff', source: 'fake', messages: [{ role: 'user', content: 'Automatic derived delivery', toolCallId: 'checkpoint:one' }], eligibleIndexes: [0] })
+    expect(f.facts.pendingSources().map(source => source.text)).toEqual(['Keep the original deadline.'])
+    expect(seenFragments(f.rows).filter(source => source.text === 'Keep the original deadline.')).toHaveLength(1)
+  })
+
   it('does not resurrect a forgotten claim when its original successful input is captured later', async () => {
     const f = fixture(); f.source('original', 'user-one', 'My drink is tea.')
     const operation = await f.facts.propose('original', 'event:user-one', 'remember-one', { kind: 'remember', content: 'My drink is tea.' }, new AbortController().signal)

@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import type { ContinuityOwner, ContinuousWorkCommand, ContinuousWorksView, ContinuousWorkView, WorkTarget } from '../../shared/continuity'
+import type { ContinuityOwner, ContinuousWorkCommand, ContinuousWorksView, ContinuousWorkView, WorkTarget, WorkIdentity, WorkEvidence, WorkCheckpoint } from '../../shared/continuity'
 import type { PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
-import { openWorkJournal, sameOwner, workDigest, type WorkDecision, type WorkInput, type WorkRecord } from './journal'
+import { openWorkJournal, sameOwner, workDigest, workEvidenceSchema, checkpointProposalSchema, type CheckpointProposal, type WorkDecision, type WorkInput, type WorkRecord } from './journal'
+import { verifyWorkFile } from '../../../dsh/lca-bridge/work-evidence.js'
 
 export interface WorkRuntime {
   deliver(input: { eventId: string; text: string; revision: number }): Promise<void>
@@ -19,9 +20,11 @@ export interface WorkRuntimeContext {
   consumed(eventId: string): void
   settled(failed: boolean): void
   waiting(reason: 'approval' | 'user' | null): void
+  evidence(evidence: WorkEvidence): void
+  successfulInputs(eventIds: readonly string[]): void
 }
 const resumable = new Set<WorkRecord['status']>(['paused', 'stopped', 'review_required', 'failed', 'waiting'])
-const modifiable = new Set<WorkRecord['status']>(['queued', 'running', 'waiting', 'paused', 'review_required'])
+const modifiable = new Set<WorkRecord['status']>(['queued', 'running', 'waiting', 'paused', 'review_required', 'completed'])
 const recoverable = new Set<WorkRecord['status']>(['queued', 'running', 'waiting', 'stopping'])
 
 /** Durable task identity and subscriptions. This is a scheduler/delivery port,
@@ -34,6 +37,8 @@ export function createContinuousWork(options: {
   available(): boolean
   held(): boolean
   createRuntime(context: WorkRuntimeContext): WorkRuntime
+  observed?(work: WorkRecord, input: WorkInput, decisions: readonly WorkDecision[]): void
+  deliverCheckpoint?(work: WorkRecord, checkpoint: WorkCheckpoint): 'accepted' | 'consumed' | 'unavailable'
   changed(): void
 }) {
   const { clock, owner } = options
@@ -61,6 +66,7 @@ export function createContinuousWork(options: {
   }
   const viewOf = (work: WorkRecord): ContinuousWorkView => ({ identity: structuredClone(work.identity), revision: work.revision, label: work.label,
     status: work.status, waitingFor: work.waitingFor, checkpointId: work.checkpointId, updatedAt: work.updatedAt,
+    ...(work.delivery ? { delivery: { eventId: work.delivery.eventId, state: work.delivery.state } } : {}),
     controls: { supplement: modifiable.has(work.status), pause: ['running', 'queued', 'waiting'].includes(work.status),
       stop: ['running', 'queued', 'waiting', 'paused', 'review_required'].includes(work.status), resume: resumable.has(work.status) && !live.has(work.identity.workId) } })
   const view = (): ContinuousWorksView => ({ items: [...works.values()].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 100).map(viewOf), active: live.size, limit: 2, failure })
@@ -78,6 +84,49 @@ export function createContinuousWork(options: {
     instruction: input.kind === 'resume' ? 'Resume only after reconciling existing files and effects. Prior approvals do not authorize a new action. Do not repeat actions with unknown results.'
       : 'Use the latest objective and exact user decisions. This is a referenced task package, not newly authored user speech. Tool receipts and actual outputs must support delivery.',
   })
+  const observed = (id: string, generation: number, eventIds: readonly string[]) => {
+    for (const eventId of eventIds) {
+      const work = current(id, generation), entry = live.get(id)
+      if (!work || entry?.closing || failure || work.observedInputs?.includes(eventId)) continue
+      const input = work.inputs.find(input => input.eventId === eventId && input.generation === generation && input.state === 'consumed')
+      if (!input) continue
+      const decisions = work.decisions.filter(decision => input.decisionIds.includes(decision.id))
+      options.observed?.(work, input, decisions)
+      work.observedInputs = [...work.observedInputs ?? [], eventId]; work.revision++; persist(work, 'successful-input')
+    }
+  }
+  const recordEvidence = (id: string, generation: number, value: WorkEvidence) => {
+    const work = current(id, generation), entry = live.get(id), parsed = workEvidenceSchema.safeParse(value)
+    if (!work || !entry || entry.closing || failure || !parsed.success || !sameOwner(value.identity.owner, owner)
+      || value.identity.workId !== id || value.identity.generation !== generation || value.identity.projectId !== work.identity.projectId
+      || value.identity.objectiveRevision > work.identity.objectiveRevision || work.evidence?.some(item => item.id === value.id)) return
+    work.evidence = [...work.evidence ?? [], parsed.data]; work.revision++; persist(work, 'evidence')
+  }
+  const validProofs = (work: WorkRecord, checkpoint: WorkCheckpoint) => checkpoint.evidenceIds.every(id => {
+    const evidence = work.evidence?.find(item => item.id === id)
+    if (!evidence || evidence.identity.generation !== work.identity.generation || evidence.identity.objectiveRevision !== work.identity.objectiveRevision || evidence.status !== 'passed') return false
+    return evidence.kind === 'artifact' ? verifyWorkFile(work.projectPath, evidence) : evidence.kind === 'command' && evidence.exitCode === 0
+  })
+  const deliveries = (work: WorkRecord) => work.deliveries ?? (work.delivery ? [work.delivery] : [])
+  const markDelivery = (work: WorkRecord, eventId: string, state: 'accepted' | 'consumed') => {
+    work.deliveries = deliveries(work).map(item => item.eventId === eventId ? { ...item, state } : item)
+    if (work.delivery?.eventId === eventId) work.delivery.state = state
+    work.revision++; persist(work, 'checkpoint-delivery')
+  }
+  const deliver = (id: string) => {
+    const initial = works.get(id)
+    if (!initial || failure || closed) return
+    for (const receipt of deliveries(initial)) {
+      const work = works.get(id)!
+      if (receipt.state === 'consumed') continue
+      const checkpoint = work.checkpoints?.find(item => item.id === receipt.checkpointId)
+      if (!checkpoint) continue
+      try {
+        const state = options.deliverCheckpoint?.({ ...structuredClone(work), delivery: structuredClone(receipt) }, checkpoint)
+        if (state && state !== 'unavailable' && state !== receipt.state) markDelivery(structuredClone(works.get(id)!), receipt.eventId, state)
+      } catch { /* Keep the durable pending event; reconciliation uses its stable ID. */ }
+    }
+  }
   const consumed = (id: string, generation: number, eventId: string) => {
     const work = current(id, generation), runtime = live.get(id)
     if (!work || !runtime || runtime.closing || !['running', 'waiting'].includes(work.status)) return
@@ -136,6 +185,14 @@ export function createContinuousWork(options: {
     }
     // A turn ending is not proof of task completion. The checkpoint path owns that claim.
     if (work.inputs.some(input => input.generation === generation && ['pending', 'accepted'].includes(input.state))) { void flush(id, entry); return }
+    const checkpoint = work.checkpoints?.find(item => item.id === work.checkpointId)
+    if (!failed && checkpoint && checkpoint.identity.objectiveRevision === work.identity.objectiveRevision && validProofs(work, checkpoint)) {
+      work.status = checkpoint.outcome === 'completed' ? 'completed' : 'waiting'; work.waitingFor = checkpoint.outcome === 'completed' ? null : 'user'; work.revision++
+      const previousDeliveries = deliveries(work)
+      work.delivery = { eventId: `checkpoint:${checkpoint.id}`, checkpointId: checkpoint.id, state: 'pending' }
+      work.deliveries = [...previousDeliveries.filter(item => item.eventId !== work.delivery!.eventId), work.delivery]
+      persist(work, 'checkpoint-published'); void release(id, entry).then(() => deliver(id)); return
+    }
     work.status = failed ? 'failed' : 'waiting'; work.waitingFor = failed ? null : 'user'; work.revision++
     persist(work, failed ? 'run-failed' : 'turn-settled'); void release(id, entry)
   }
@@ -152,6 +209,7 @@ export function createContinuousWork(options: {
       persist(work, 'run-start')
       try {
         const runtime = options.createRuntime({ work: structuredClone(work), consumed: eventId => consumed(id, generation, eventId), settled: failed => settled(id, generation, failed),
+          evidence: value => recordEvidence(id, generation, value), successfulInputs: ids => observed(id, generation, ids),
           waiting: reason => { const next = current(id, generation); if (!next || live.get(id)?.closing || failure) return; next.status = reason ? 'waiting' : 'running'; next.waitingFor = reason; next.revision++; persist(next, 'waiting') } })
         const entry = { generation, runtime, sending: false, closing: false }; live.set(id, entry); void flush(id, entry)
       } catch { const next = current(id, generation)!; next.status = 'failed'; next.waitingFor = null; next.revision++; persist(next, 'launch-failed') }
@@ -197,13 +255,14 @@ export function createContinuousWork(options: {
         const decision = options.decision(command.decisionId)
         if (!modifiable.has(work.status) || !decision || work.decisions.some(item => item.id === decision.id) || work.decisions.length >= 64 || work.inputs.length >= 256) return { error: 'invalid-command' }
         // Exact original speech is preserved separately from the routed explanation.
+        const completed = work.status === 'completed'
+        if (completed) { work.identity.generation++; work.runStartedAt = clock.nowMs(); work.subscriptionId = randomUUID(); work.consumedThrough = work.inputs.at(-1)?.sequence ?? 0; work.checkpointId = null }
         work.decisions.push(decision); work.identity.objectiveRevision++; work.revision++
-        work.inputs.push(newInput(work, operationId, 'supplement', [decision.id]))
-        if (work.status === 'waiting' && !live.has(id)) { work.status = 'queued'; work.waitingFor = 'project' }
+        work.inputs.push(newInput(work, operationId, completed ? 'resume' : 'supplement', completed ? work.decisions.map(item => item.id) : [decision.id]))
+        if (completed || work.status === 'waiting' && !live.has(id)) { work.status = 'queued'; work.waitingFor = 'project' }
         persist(work, 'supplemented', operationId, command)
         const entry = live.get(id)
-        entry?.runtime.invalidateWork(work.identity.objectiveRevision)
-        if (entry) void flush(id, entry); else schedule()
+        if (entry?.generation === work.identity.generation) { entry.runtime.invalidateWork(work.identity.objectiveRevision); void flush(id, entry) } else schedule()
       } else if (command.type === 'work.stop' || command.type === 'work.pause') {
         if (!viewOf(work).controls[command.type === 'work.stop' ? 'stop' : 'pause']) return { error: 'invalid-command' }
         stop(work, command.type === 'work.stop' ? 'stopped' : 'paused', operationId, command)
@@ -219,9 +278,27 @@ export function createContinuousWork(options: {
     } catch { return { error: failure ? 'unavailable' : 'invalid-command' } }
   }
   return { view, dispatch,
+    checkpoint: (identity: WorkIdentity, proposal: CheckpointProposal, operationId: string) => {
+      const parsed = checkpointProposalSchema.parse(proposal), work = current(identity.workId, identity.generation), entry = live.get(identity.workId)
+      const previous = operations.get(operationId)
+      if (previous) { if (previous.digest !== workDigest(proposal)) throw new Error('WORK_OPERATION_CONFLICT'); return work?.checkpoints?.find(item => item.id === operationId) }
+      if (!work || !entry || entry.closing || failure || closed || !sameOwner(identity.owner, owner) || identity.projectId !== work.identity.projectId
+        || parsed.expectedObjectiveRevision !== work.identity.objectiveRevision || !['running', 'waiting'].includes(work.status)
+        || parsed.outcome === 'completed' && parsed.unresolved.length) throw new Error('WORK_CHECKPOINT_STALE')
+      const checkpoint: NonNullable<WorkRecord['checkpoints']>[number] = { id: operationId, identity: structuredClone(work.identity), objective: work.objective, decisionIds: work.decisions.map(item => item.id),
+        evidenceIds: [...new Set(parsed.evidenceIds)], outcome: parsed.outcome, explanation: parsed.explanation, unresolved: parsed.unresolved, nextStep: parsed.nextStep, createdAt: clock.nowMs() }
+      if (!validProofs(work, checkpoint)) throw new Error('WORK_CHECKPOINT_UNVERIFIED')
+      work.checkpointId = checkpoint.id; work.checkpoints = [...work.checkpoints ?? [], checkpoint]; work.revision++
+      persist(work, 'checkpoint-prepared', operationId, proposal)
+      return structuredClone(checkpoint)
+    },
+    consumedDelivery: (eventId: string) => {
+      const work = [...works.values()].find(item => deliveries(item).some(item => item.eventId === eventId && item.state !== 'consumed'))
+      if (work) markDelivery(structuredClone(work), eventId, 'consumed')
+    },
     get: (id: string) => { const work = works.get(id); return work ? structuredClone(work) : null },
     busy: () => live.size > 0,
-    stateChanged: () => { if (options.held()) for (const work of [...works.values()]) if (live.has(work.identity.workId) && work.status !== 'stopping') stop(structuredClone(work), 'paused', randomUUID(), { cause: 'held' }); schedule() },
+    stateChanged: () => { if (options.held()) for (const work of [...works.values()]) if (live.has(work.identity.workId) && work.status !== 'stopping') stop(structuredClone(work), 'paused', randomUUID(), { cause: 'held' }); for (const id of works.keys()) deliver(id); schedule() },
     untrust: (project: string) => { for (const entry of live.values()) entry.runtime.untrust(project) },
     efforts: (value: { chat?: string; work?: string }) => { for (const entry of live.values()) entry.runtime.efforts(value) },
     disconnect: async () => {

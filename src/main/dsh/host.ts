@@ -279,10 +279,10 @@ export function startDshHost(options: DshHostOptions) {
     untrust: (sessionId: string) => { invalidate(sessionId); return send({ t: 'untrust', sessionId }) },
     /** `reference`: LCA's memory references, sent as their own block before your text. */
     /** `degrade`: the reference carries third-party originals that cannot be retired; the session stays degraded. */
-    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user', degrade: readonly DshSource[] = [], state?: DshConversationState, eventId?: string, workRevision?: number) => {
+    send: (sessionId: string, text: string, mode: 'followup' | 'steer' | 'inject' = 'followup', reference: string | null = null, origin: 'user' | 'event' = 'user', degrade: readonly DshSource[] = [], state?: DshConversationState, eventId?: string, workRevision?: number, eventIds?: readonly string[]) => {
       if (mode === 'followup' || inactive.has(sessionId)) invalidate(sessionId)
       inactive.delete(sessionId)
-      return send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}), ...(degrade.length ? { degrade } : {}), ...(state ? { state } : {}), ...(eventId ? { eventId } : {}), ...(workRevision ? { workRevision } : {}) })
+      return send({ t: 'send', sessionId, text, mode, origin, ...(reference ? { reference } : {}), ...(degrade.length ? { degrade } : {}), ...(state ? { state } : {}), ...(eventId ? { eventId } : {}), ...(workRevision ? { workRevision } : {}), ...(eventIds?.length ? { eventIds } : {}) })
     },
     state: (sessionId: string, state: DshConversationState) => send({ t: 'state', sessionId, state }),
     workRevision: (sessionId: string, revision: number) => send({ t: 'work-revision', sessionId, revision }),

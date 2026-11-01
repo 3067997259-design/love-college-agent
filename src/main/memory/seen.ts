@@ -9,7 +9,7 @@ export const memoryDigest = (text: string) => createHash('sha256').update(text).
  * Where a visible fragment actually came from. `role` only says how the message was transported to the
  * model, so it must never be used as an authority: an inbox notice is projected as role user.
  */
-export type SeenOrigin = 'user' | 'mail' | 'document' | 'pomodoro' | 'autonomous' | 'model' | 'tool' | 'unknown'
+export type SeenOrigin = 'user' | 'mail' | 'document' | 'pomodoro' | 'autonomous' | 'work' | 'model' | 'tool' | 'unknown'
 /** Optional so message-transport snapshots built outside this module keep compiling; absent means unknown. */
 export interface SeenFragment extends MemorySource { key: string; text: string; role: 'user' | 'assistant' | 'tool'; origin?: SeenOrigin; source?: string; sourceEventId?: string }
 /** Model DTO: the full grounding source stays local rather than repeating once per 2k fragment.
@@ -27,7 +27,7 @@ export function memoryModelInput(input: readonly SeenFragment[]) {
 export const memoryInputBytes = (input: readonly SeenFragment[]) => Buffer.byteLength(JSON.stringify(memoryModelInput(input)), 'utf8')
 /** Origins that carry the user's own explicit statement, and only those, may replace an established fact. */
 export const userOrigins = (origin: SeenOrigin | undefined) => origin === undefined || origin === 'user'
-const EVENT_ORIGINS: readonly SeenOrigin[] = ['user', 'mail', 'document', 'pomodoro', 'autonomous']
+const EVENT_ORIGINS: readonly SeenOrigin[] = ['user', 'mail', 'document', 'pomodoro', 'autonomous', 'work']
 const EVENT_ORIGIN = new Set<SeenOrigin>(EVENT_ORIGINS)
 const DSH_WORKSPACE = new Set(['dsh.read', 'dsh.write', 'dsh.edit', 'dsh.search', 'dsh.shell', 'dsh.agent'])
 /**
@@ -68,6 +68,23 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
   }
   for (const row of records) {
     if (row.type === 'session/header') { sessionId = row.sessionId; continue }
+    // These are exact original decisions that a successful Worker request saw.
+    // They extend memory/experience inputs only; the diary's default traversal
+    // deliberately keeps its existing public-conversation selection unchanged.
+    if (row.type === 'work/seen' && memoryOnly) {
+      for (const [index, original] of row.originals.entries()) {
+        const text = redactFixed(original.text)
+        for (let offset = 0; offset < text.length; offset += 2000) {
+          const key = memoryDigest(JSON.stringify(canonicalIdentity ? [original.id, 'user', text, offset] : [original.sessionId, 'user', text, offset]))
+          if (seen.has(key)) continue
+          seen.add(key)
+          result.push({ id: canonicalIdentity ? `event:${original.id}:${offset}` : `${sessionId}:${row.seq}:${index}:${offset}`, key, sessionId,
+            frameSeq: row.seq, index, offset, atMs: original.atMs, role: 'user', origin: 'user', text: text.slice(offset, offset + 2000), source: text,
+            ...(canonicalIdentity ? { sourceEventId: original.id } : {}) })
+        }
+      }
+      continue
+    }
     if (row.type !== 'model/seen') continue
     for (const index of row.eligibleIndexes) {
       const message = row.messages[index]
@@ -86,7 +103,7 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
       else if (declared && EVENT_ORIGINS.includes(declared as SeenOrigin)) origin = declared as SeenOrigin
       else if (message.toolCallId) origin = origins.get(message.toolCallId) ?? 'unknown'
       else origin = 'user'
-      if (memoryOnly && (origin === 'mail' || origin === 'document')) continue
+      if (memoryOnly && (origin === 'mail' || origin === 'document' || origin === 'work')) continue
       for (let offset = 0; offset < text.length; offset += 2000) {
         const originalEvent = canonicalIdentity ? row.originalEvents?.find(event => event.index === index)?.eventId : undefined
         const key = memoryDigest(JSON.stringify(originalEvent ? [originalEvent, message.role, text, offset] : [sessionId, message.role, text, offset]))

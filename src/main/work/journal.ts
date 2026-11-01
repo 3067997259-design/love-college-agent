@@ -11,12 +11,24 @@ export const workTargetSchema = z.strictObject({ identity: workIdentitySchema, e
 export const workDecisionSchema = z.strictObject({ id: z.string().min(1).max(128), text: z.string().min(1).max(20_000), atMs: z.number().int().nonnegative() })
 const inputSchema = z.strictObject({ eventId: z.string().min(1).max(128), subscriptionId: z.string().uuid(), sequence: z.number().int().positive(), generation: z.number().int().positive(),
   revision: z.number().int().positive(), kind: z.enum(['start', 'supplement', 'resume']), state: z.enum(['pending', 'accepted', 'consumed', 'cancelled', 'unknown']), consumedAt: z.number().nullable(), decisionIds: z.array(z.string().max(128)).max(64) })
+export const workEvidenceSchema = z.strictObject({ id: z.string().min(1).max(128), identity: workIdentitySchema, rootSessionId: z.string().min(1).max(160), callId: z.string().min(1).max(160),
+  kind: z.enum(['artifact', 'command', 'tool']), status: z.enum(['passed', 'failed', 'unverified']), relativePath: z.string().max(4096).nullable(),
+  beforeHash: z.string().regex(/^[a-f0-9]{64}$/).nullable(), afterHash: z.string().regex(/^[a-f0-9]{64}$/).nullable(), bytes: z.number().int().nonnegative().nullable(),
+  exitCode: z.number().int().nullable(), restricted: z.boolean(), observedAt: z.number().int().nonnegative() })
+export const checkpointProposalSchema = z.strictObject({ expectedObjectiveRevision: z.number().int().positive(), evidenceIds: z.array(z.string().min(1).max(128)).min(1).max(32),
+  outcome: z.enum(['completed', 'partial']), explanation: z.string().max(4000), unresolved: z.array(z.string().min(1).max(1000)).max(16), nextStep: z.string().max(1000).nullable() })
+export type CheckpointProposal = z.infer<typeof checkpointProposalSchema>
+const checkpointSchema = z.strictObject({ id: z.string().min(1).max(128), identity: workIdentitySchema, objective: z.string().max(20_000), decisionIds: z.array(z.string().max(128)).max(64),
+  evidenceIds: z.array(z.string().max(128)).max(32), outcome: z.enum(['completed', 'partial']), explanation: z.string().max(4000), unresolved: z.array(z.string().max(1000)).max(16), nextStep: z.string().max(1000).nullable(), createdAt: z.number().int().nonnegative() })
+const deliverySchema = z.strictObject({ eventId: z.string().max(128), checkpointId: z.string().max(128), state: z.enum(['pending', 'accepted', 'consumed', 'unknown']) })
 export const workRecordSchema = z.strictObject({ identity: workIdentitySchema, revision: z.number().int().positive(), label: z.string().max(120),
   status: z.enum(['queued', 'running', 'waiting', 'paused', 'stopping', 'stopped', 'review_required', 'completed', 'failed']),
   waitingFor: z.enum(['approval', 'user', 'budget', 'project', 'recovery']).nullable(), projectPath: z.string().min(1).max(4096),
   objective: z.string().min(1).max(20_000), acceptance: z.array(z.string().max(2000)).max(16), decisions: z.array(workDecisionSchema).max(64),
   createdAt: z.number().int().nonnegative(), updatedAt: z.number().int().nonnegative(), runStartedAt: z.number().int().nonnegative(),
-  checkpointId: z.string().max(128).nullable(), subscriptionId: z.string().uuid(), consumedThrough: z.number().int().nonnegative(), inputs: z.array(inputSchema).max(256) })
+  checkpointId: z.string().max(128).nullable(), subscriptionId: z.string().uuid(), consumedThrough: z.number().int().nonnegative(), inputs: z.array(inputSchema).max(256),
+  evidence: z.array(workEvidenceSchema).max(512).optional(), checkpoints: z.array(checkpointSchema).max(128).optional(), observedInputs: z.array(z.string().max(128)).max(256).optional(),
+  delivery: deliverySchema.optional(), deliveries: z.array(deliverySchema).max(128).optional() })
 export type WorkRecord = z.infer<typeof workRecordSchema>
 export type WorkDecision = z.infer<typeof workDecisionSchema>
 export type WorkInput = WorkRecord['inputs'][number]
