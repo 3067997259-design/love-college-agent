@@ -117,6 +117,9 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'developer.documents'; scenarioId: DocumentScenarioId }
   | { type: 'developer.document.import'; fixtureId: 'assignment-pdf' | 'notes-text' | 'malformed-pdf' | 'scanned-pdf' }
   | { type: 'memory.extract' }
+  | { type: 'memory.propose'; kind: 'remember' | 'correct' | 'forget'; targetId?: string; expectedRevision?: number; content?: string; title?: string; summary?: string }
+  | { type: 'memory.review'; operationId: string; approve: boolean }
+  | { type: 'memory.presentation'; id: string; expectedRevision: number; title: string; summary: string; pinned: boolean; pinOrder: number }
   /** Book only. Capture the current rendered scene, never an arbitrary rectangle or renderer-supplied image. */
   | { type: 'history.photo.capture' }
   /** Book only, idle normal conversation. No mail/evidence/document reference or raw excerpt is accepted. */

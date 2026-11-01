@@ -2,6 +2,7 @@
 import type { CollaborationView } from './collaboration'
 import type { ExtensionsView } from './extensions'
 import type { SkillsView } from './skills'
+import type { MemoryEngineStatus, MemoryFactView, MemoryReviewView, RootCompactionOutcome } from './continuity'
 export const PROTOCOL_VERSION = 1 as const
 export const EXPRESSION_IDS = ['calm', 'smile', 'think', 'worried'] as const
 export const DEFAULT_EXPRESSION = 'calm' as const
@@ -270,6 +271,10 @@ export interface MemoryItemView {
   supersededBy?: string
 }
 export interface MemoryView {
+  engine?: MemoryEngineStatus
+  facts?: readonly MemoryFactView[]
+  operations?: readonly MemoryReviewView[]
+  compaction?: { rootSessionId: string; outcome: RootCompactionOutcome; atMs: number }
   status: 'unconfigured' | 'idle' | 'extracting' | 'compacting' | 'failed'
   source: 'real' | 'fake' | 'none'
   shortTermCount: number

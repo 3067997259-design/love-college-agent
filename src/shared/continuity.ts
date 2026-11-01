@@ -98,3 +98,28 @@ export interface ContextWatermark {
 }
 
 export type RootCompactionOutcome = 'compacted' | 'no_range' | 'busy' | 'failed'
+
+/** User-facing fact presentation, not the underlying database or source body. */
+export interface MemoryFactView {
+  id: string
+  revision: number
+  title: string
+  summary: string
+  content: string
+  pinned: boolean
+  pinOrder: number
+  memoryType: 'short_term' | 'long_term' | 'muscle'
+  reviewStatus: 'pending' | 'approved' | 'rejected'
+  factStatus: 'active' | 'superseded' | 'disputed'
+  createdAtMs: number
+}
+
+export interface MemoryReviewView {
+  operationId: string
+  kind: 'remember' | 'correct' | 'forget'
+  title: string
+  content: string
+  previousContent: string | null
+  status: 'pending_review' | 'applied' | 'rejected' | 'conflict'
+  updatedAtMs: number
+}
