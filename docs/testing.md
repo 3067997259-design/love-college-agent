@@ -81,6 +81,8 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 - `probe:privacy` / `probe:model` / `probe:harness` 可能调用已配置模型。`probe:harness` 用真实模型跑一个 DSH 回合并调用一次 LCA 时钟工具。失败不回退 fake，真实质量与连通分别评价。
 
 `node scripts/probe-continuity-provider.mjs` 是单独授权的最小 OpenAI 兼容 provider 诊断：固定五个协议请求，再运行一次 DSH 时钟往返；最多 8 次实际转发、128,000 预留单位、零自主预算，单次网络等待 45 秒。需设置 `LCA_REAL_MODEL=1`、授权的 `LCA_PROVIDERS_FILE`、固定候选 `LCA_TEST_EXECUTABLE` 和全新的 `LCA_PROVIDER_PROBE_RUN`；已有运行回执拒绝覆盖。`--self-test` 只调用本地假服务并验证超限拒绝，不读取真实连接。该入口在隔离的包内 Electron 主进程载入源码执行适配器，使用包内 DSH／桥接文件；不是普通产品书页和 Worker 整场景。真实报告只含状态、计数、时间和用量；运行时不得自动重试整批或重置账本。当前首批结果见[真实探针记录](research/continuity-provider-live-20261101.md)。
+
+`pnpm test:continuity:world-live` 则走指定包的普通产品书页，使用六个世界状态和逐例语义审阅。独立授权上限为 12 次、256,000 预留单位、零自主额度；运行目录由 `LCA_WORLD_PROBE_RUN` 指定，`--self-test` 不访问真实服务。每次转发绑定已发布且未消费的应用准入回执，报告区分产品完成、语义审阅和网关失败。首次真实批次因第五例网关失败停止，未执行第六例；不能重置账本自动重试。结果及离线修复见[世界表达真实复测](research/continuity-world-live-20261101.md)。
 - `probe:student-hub-live` 要求显式 `LCA_STUDENT_HUB_LIVE=1`，使用临时库的只读邮件范围；不扩大到课程提交或外部写入。
 - `probe:imap` 读取获授权文件夹；`probe:rodin` 会提交真实生成任务并可能收费。旧任务的预算不作为新任务的通行证。
 - `test:pomodoro:realtime` 使用真实时间，区别于冻结或加速时钟。

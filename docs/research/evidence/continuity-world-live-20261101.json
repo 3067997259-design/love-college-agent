@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "date": "2026-11-01",
+  "package": {
+    "appVersion": "1.2.0-continuity.2",
+    "sourceRevision": "2a919f57761f45e318ee15985f551bfaad41190d",
+    "asarSha256": "558943d5764748deba4d227376e76cf028a710d85036bb42a4489708e1c8b368",
+    "unchangedAfterProbeRepairs": true
+  },
+  "authorization": {
+    "maximumRequests": 12,
+    "maximumReservedUnits": 256000,
+    "maximumAutonomousUnits": 0,
+    "independentLedger": true,
+    "firstFailureStops": true,
+    "previousProviderGrantReused": false
+  },
+  "realBatch": {
+    "ok": false,
+    "error": "WORLD_PROBE_FAILED",
+    "calls": 5,
+    "reservedUnits": 80000,
+    "autonomousUnits": 0,
+    "reportedInputTokens": 65693,
+    "reportedOutputTokens": 184,
+    "latencyMeaning": "elapsed HTTP request, not time to first token",
+    "samples": [
+      {
+        "caseId": "planned",
+        "units": 16000,
+        "status": 200,
+        "elapsedMs": 17240,
+        "inputTokens": 13121,
+        "outputTokens": 45,
+        "ok": true
+      },
+      {
+        "caseId": "overdue-plan",
+        "units": 16000,
+        "status": 200,
+        "elapsedMs": 24819,
+        "inputTokens": 13125,
+        "outputTokens": 55,
+        "ok": true
+      },
+      {
+        "caseId": "away",
+        "units": 16000,
+        "status": 200,
+        "elapsedMs": 29542,
+        "inputTokens": 13115,
+        "outputTokens": 24,
+        "ok": true
+      },
+      {
+        "caseId": "returned",
+        "units": 16000,
+        "status": 200,
+        "elapsedMs": 5027,
+        "inputTokens": 13209,
+        "outputTokens": 31,
+        "ok": true
+      },
+      {
+        "caseId": "early-return",
+        "units": 16000,
+        "status": 200,
+        "elapsedMs": 17425,
+        "inputTokens": 13123,
+        "outputTokens": 29,
+        "ok": false
+      }
+    ],
+    "formalSemanticPasses": [
+      "planned",
+      "overdue-plan",
+      "away",
+      "returned"
+    ],
+    "fifthCaseReconciliation": {
+      "productCompleted": true,
+      "modelSucceeded": true,
+      "semanticAccepted": true,
+      "postRunReadOnly": true,
+      "formalCasePass": false
+    },
+    "unrun": [
+      "cancelled"
+    ],
+    "automaticRetries": 0,
+    "originalFailureRetained": true,
+    "realRetestAfterRepairs": false,
+    "originalWireTailRetained": false,
+    "originalFailureCauseUniquelyEstablished": false
+  },
+  "offlineRepair": {
+    "eofReproduction": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\world-selftest-20261101-eof",
+      "sha256": "8b1b9d39267baad0dedb734883414db485d5136ca6aa43d83f1b31872c63fe42",
+      "caseId": "early-return",
+      "errorCode": "INCOMPLETE_RESPONSE",
+      "limitation": "same-class gateway defect; original real wire tail unavailable"
+    },
+    "additionalFailure": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\world-selftest-20261101-fixed",
+      "sha256": "28235f718e0bcb0c8718ec27006b60be9d55ad1bf399baeb364daf698210d55c",
+      "causeUniquelyEstablished": false
+    },
+    "fixes": [
+      "parse complete SSE terminal frame at EOF",
+      "read only newline-terminated admission records",
+      "wait for both product turn and gateway completion",
+      "batch unit cap independent of daily ledger rollover"
+    ],
+    "targetedUnit": {
+      "passed": 10,
+      "failed": 0,
+      "path": "test-results/continuity/world-probe-unit-20261101.json",
+      "sha256": "b2ef19c2e8ec86e3e2c0b7c13359ade1fed82f5b303259f4557bcb30ff54ebf2"
+    },
+    "targetedLint": "passed",
+    "fixtureTypecheck": "passed",
+    "mainTypecheck": "passed",
+    "localSelfTest": {
+      "ok": true,
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\world-selftest-20261101-batch-guard",
+      "cases": [
+        "planned",
+        "overdue-plan",
+        "away",
+        "returned",
+        "early-return",
+        "cancelled"
+      ],
+      "realRequests": 0,
+      "localHttpRequests": 6,
+      "nonNetworkLimitAdmissions": 6,
+      "denied": 0,
+      "reportSha256": "86827196967512f6814f664bcb343d4802b2b2fe9cc152ec93fed1b6a45c0f66",
+      "sourceManifest": {
+        "runner.mjs": "8be2e220203b28ec024332e456ee5f369c94fa7af7f2f2b6a512d6e194df5348",
+        "gateway.ts": "306ae8a57a4a64ce91c4c0d23b5d96a01d3c73be371336917963e00567752aa3",
+        "parser.ts": "140925e6c3b936ac209e6696e447afc598f3a65fa17d27bf9f285f7c28d4afcc",
+        "admission.ts": "0cf079f0f2f9bfddbc77d1bb1d36590d7942a42ac7bfe65126a424f5a4120423",
+        "gateway.cjs": "f6ebf3353ab2c34a070992ae1ec2946ea78c0d2dea53bc76b8137e6e8c7009c2",
+        "cases.json": "01d2ccb02f5b261078dfc946ee7d7eefaf3353b6ec39baec19cf13d8ae409b16"
+      },
+      "limitsChecked": [
+        "duplicate receipt",
+        "zero autonomous",
+        "batch units",
+        "thirteenth admission"
+      ]
+    }
+  },
+  "evidence": {
+    "root": "D:\\lca-continuity-candidate-20261101\\profiles\\world-live-20261101-1",
+    "hashes": {
+      "run.json": "c5115ca5402cbd6edb7bbdf3ecf48ae820fe9150882d85c7e74c38e60e32e5d5",
+      "report.json": "aaf41bbcf349c715e780eddef63283fbb2405053991961d0084766dd52674398",
+      "gateway-report.json": "6e7b6cb83a3bf66be73056a1969582a2e6c5abaae2df9096bff07bbb57254eb8",
+      "budget/usage.jsonl": "d878c7920b5e4fb839f8ed68b4ec24c3e37d0e493ae9be5c5f640fbea7ec9ed7",
+      "source-manifest.json": "528d1e138f59fa99bf43ad8560a69200e0a3167aa82f64213f0e24bbb6722105",
+      "early-return-reconciliation.json": "01da02655486fcc0b609ac530651860d6dafbe1211141daacde09c0da927d900",
+      "early-return-reference.json": "e468fb19f78931aca26eacf9604e0718b0f7b55754599941f94c629cf1825fa6",
+      "planned-answer.json": "a9e09180eb890cc784890d2e452249e20e1b38500666a3465dff8e09942b853f",
+      "planned-review.json": "c22c1bd1a4ba63b291c22ab1f8048ce365d669fe542fdeedc822e7e577eef48d",
+      "overdue-plan-answer.json": "38a2904064d21bdb07223e2fb75e57e3ced1007b15686477b09280b5e507b983",
+      "overdue-plan-review.json": "61e8ba66cdedff613b54eb20c0bb3e932edd74c6c89949a6b984714b97ca3d9f",
+      "away-answer.json": "f753b9edf227ee42c30580f3d5d8239938b010d5310c4daf56b9ff4f911485e7",
+      "away-review.json": "14e9aa5d5014bfdc14c2a49a1c0546bb1371f57236181d2cde2526a205bb0490",
+      "returned-answer.json": "fe0cba2276934c37f7c75fc860eb0470e026bf015fa69ea34f987e6f5f5eaab8",
+      "returned-review.json": "cd8c1c41b155b37b9938915fa24c32dac1781d497d16ee097cca1351bf7ddef8"
+    },
+    "sourceManifest": {
+      "runner.mjs": "62b1d05802391bed5f2d615d494d4ee281eff3593c708ede81b9d525d4d9bbf0",
+      "gateway.ts": "fa77a31084724e8a63bf5c59d7ee8bd2b6d28a33dd7c6195dccf7329f537ebcb",
+      "gateway.cjs": "83f24937349060a96659470cc921d6c0b51e3e776634c8faf8e158bb4e07ddea",
+      "cases.json": "01d2ccb02f5b261078dfc946ee7d7eefaf3353b6ec39baec19cf13d8ae409b16"
+    }
+  },
+  "remaining": [
+    "fresh bounded world authorization including cancelled case",
+    "work and memory real runners and separate authorization",
+    "real embedding and mirror service environment",
+    "isolated installed upgrade and second Windows",
+    "full quality matrix and longitudinal use"
+  ]
+}

@@ -25,6 +25,7 @@
     "test:continuity:recovery": "node scripts/continuity-recovery-gate.mjs",
     "test:continuity:package": "node scripts/smoke-continuity-package.mjs",
     "test:continuity:world": "node scripts/smoke-world-reference.mjs",
+    "test:continuity:world-live": "node scripts/probe-world-live.mjs",
     "test:continuity:postgres": "node scripts/continuity-postgres-gate.mjs",
     "test:continuity:prepare-live": "node scripts/prepare-continuity-live.mjs",
     "verify:airi-memory": "node scripts/verify-airi-memory.mjs",

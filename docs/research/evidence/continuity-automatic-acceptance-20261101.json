@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "date": "2026-11-01",
+  "sourceRevision": "2a919f57761f45e318ee15985f551bfaad41190d",
+  "sourceFingerprint": "9903406e330de8e4e1a4c26c915987f7974fac084bab77c2d921ed212155852e",
+  "productCommit": "d5cd218",
+  "automationCommit": "2a919f5",
+  "runRoot": "test-results/continuity/candidate-cnzFPH",
+  "offline": {
+    "runnerCompleted": true,
+    "taskCount": 22,
+    "unit": {
+      "passed": 895,
+      "failed": 0,
+      "skipped": 6
+    },
+    "postgres": {
+      "status": "unavailable",
+      "reason": "DOCKER_UNAVAILABLE"
+    },
+    "syntheticContracts": [
+      "T1",
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7",
+      "T8",
+      "T9",
+      "T10",
+      "T11",
+      "T12",
+      "T13",
+      "T14",
+      "T15",
+      "T16"
+    ]
+  },
+  "package": {
+    "receipt": {
+      "version": 1,
+      "appVersion": "1.2.0-continuity.2",
+      "installerFileName": "Love-College-Agent-1.2.0-continuity.2-Setup.exe",
+      "sourceRevision": "2a919f57761f45e318ee15985f551bfaad41190d",
+      "trackedDirty": false,
+      "runtimePreparation": "reused-prepared-tree",
+      "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+      "builtAtIso": "2026-11-01T13:51:44.577Z",
+      "installerBytes": 315477392,
+      "installerSha256": "074e20e8ff0cb8d62a986478ca690bb38e3c47a7869a534cb4deddea570d6ed6",
+      "asarSha256": "558943d5764748deba4d227376e76cf028a710d85036bb42a4489708e1c8b368"
+    },
+    "installed": false,
+    "published": false,
+    "checks": [
+      {
+        "name": "sqlite",
+        "code": 0,
+        "timedOut": false
+      },
+      {
+        "name": "continuity",
+        "code": 0,
+        "timedOut": false
+      },
+      {
+        "name": "memory",
+        "code": 0,
+        "timedOut": false
+      },
+      {
+        "name": "v12-recovery",
+        "code": 0,
+        "timedOut": false
+      }
+    ],
+    "worldCases": [
+      {
+        "id": "planned",
+        "ok": true
+      },
+      {
+        "id": "overdue-plan",
+        "ok": true
+      },
+      {
+        "id": "away",
+        "ok": true
+      },
+      {
+        "id": "returned",
+        "ok": true
+      },
+      {
+        "id": "early-return",
+        "ok": true
+      },
+      {
+        "id": "cancelled",
+        "ok": true
+      }
+    ],
+    "resourceManifestFiles": 11585
+  },
+  "live": {
+    "scope": "offline candidate phase only",
+    "callsMadeThisBatch": 0,
+    "scenariosPrepared": true,
+    "proposal": "scripts/continuity-live-plan.json",
+    "subsequentWorldBatch": "continuity-world-live-20261101.json",
+    "worldRunnerWiring": "complete, offline retest passed; real batch stopped at fifth request",
+    "workAndMemoryRunnerWiringStillRequired": true,
+    "workAndMemoryAuthorizationRequired": true
+  },
+  "environment": {
+    "dockerDefaultAndLinuxPipesUnavailable": true,
+    "windowsSandboxExecutablePresent": false
+  },
+  "failuresPreserved": [
+    "world-ab265c49-4313-4732-9f00-48b5d4b74863",
+    "world-c5fa65ad-ca63-4171-9ec2-51192e2febdf",
+    "world-602f11c4-598b-4f4e-af76-831183457129",
+    "world-f5df944b-7012-40be-83e1-d2ccbcfc68a5"
+  ],
+  "pending": [
+    "fresh bounded world retest; work and memory runner wiring and service execution",
+    "real embedding and mirror deployment",
+    "full 90+24 quality/cost evaluation",
+    "installed upgrade and second Windows",
+    "long-term experience"
+  ],
+  "evidence": {
+    "report.json": "45c56a0f43bd87778221c5df80244535c00828f10135d0d4ad7cd70134d4eac2",
+    "unit.json": "135d3fd64bf1e1af21d03f448f457630e0b5a385c3d03436f54bd34e4d7b373d",
+    "t1-t16.json": "c0bc07d479b777667687149a9ed0ee582b663515583ea7986b602b39ca92361d",
+    "package-c3c66a78-dc9f-4118-bb9e-c20f454b19a3/report.json": "6ad6ee193c663dfee96f296e9aee4759d9429c77da05fb01cbc85ff9fab8ccac",
+    "world-073ffa2a-4fd8-49d7-8b26-6877d8a8f0c5/report.json": "e8d6e32a21f0dfb25f19d85fa4cdee54246f16af8be4f58f441bf8253d8c0845",
+    "postgres-785aa827-edb5-4a34-a10a-a3fe2b359ce2/report.json": "0b5033dcb20e58fe6720fc9b43e888160be86d11a0292b7783c0abd92d5e77d9",
+    "package-resources-v2.json": "eb6c93aeafcbf455cf937f705c10ca0f7a8b7d69dec64ccad3cb5ff99a91aaa8",
+    "live-authorization-request.json": "a9e5093d6a714dd1b0fafb867760bcacdf89976874a56f6ccf12b9367d8a2d1e"
+  }
+}
