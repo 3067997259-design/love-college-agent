@@ -44,6 +44,22 @@ function fixture() {
 const signal = () => new AbortController().signal
 
 describe('coverage-based experience projection', () => {
+  it('finds a two-month-old decision by month and exact day ID without pretending it is recent context', async () => {
+    const f = fixture(), original = f.current()
+    f.seen('old-decision', 'The bridge was blue because it marked the safe route.')
+    await f.index.summarizeDay(original, signal())
+    const raw = structuredClone(original.records)
+    for (let i = 0; i < 62; i++) f.nextDay()
+    const index = f.index.index(), month = index.periods.find(period => period.level === 'month' && period.period === '2026-10')!
+    expect(month.dayKeys).toContain(original.dayKey)
+    const day = index.days.find(day => day.sessionId === original.sessionId)!
+    expect(day.coverage).toMatchObject({ count: 1, total: 1, complete: true })
+    expect(f.index.expand(day.sessionId, day.revision, 0).fragments.map(fragment => fragment.text)).toEqual(['The bridge was blue because it marked the safe route.'])
+    expect(f.index.readSession(day.sessionId).messages[0].text).toContain('safe route')
+    expect(f.index.sessionView().pages.some(page => page.sessionId === day.sessionId)).toBe(false)
+    expect(original.records).toEqual(raw)
+  })
+
   it('covers the entire day in bounded increments, catches later input, and expands without recapture', async () => {
     const f = fixture(), first = f.current()
     for (let i = 0; i < 48; i++) f.seen(`original-${i}`, `Decision ${i}. ` + 'detail '.repeat(220))

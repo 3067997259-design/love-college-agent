@@ -19,7 +19,9 @@ export type OpenRestoreDatabase = (path: string) => Promise<MemoryDatabaseClient
 export interface ContinuityArchive { metadata: NonNullable<SaveManifest['continuity']>; files: Map<string, Buffer> }
 export const validContinuityPath = (path: string) => memoryFiles.some(name => path === `continuity/memory/${name}`) || path === 'continuity/work/events.log' || historyPath.test(path)
 export function continuityTargets(owner: ContinuityOwner) {
-  return [`memory/${hash(JSON.stringify({ userId: owner.userId, characterId: owner.characterId }))}`, `continuous-work/${hash(JSON.stringify(owner))}`, continuityIdentityName]
+  // Match the existing main-process contentHash namespace (including its text prefix).
+  return [`memory/${hash('text:' + JSON.stringify({ userId: owner.userId, characterId: owner.characterId }))}`,
+    `continuous-work/${hash('text:' + JSON.stringify({ userId: owner.userId, characterId: owner.characterId, dataRootId: owner.dataRootId }))}`, continuityIdentityName]
 }
 
 /** Called only while the main-owned memory and work services are held. */

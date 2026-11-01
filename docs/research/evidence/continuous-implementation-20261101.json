@@ -206,6 +206,17 @@
       "electron": "44.7.0",
       "node": "24.21.0",
       "externalServiceCalls": 0
+    },
+    {
+      "name": "same-source candidate suite",
+      "report": "test-results/continuity/candidate-LEzeyh/report.json",
+      "source": "0ad0c599f9ce79037c8c5539424bf3c9a9d26cccfb1a662d590143740e93fa25",
+      "tasksPassed": 19,
+      "unitPassed": 886,
+      "unitFailed": 0,
+      "realPostgresSkipped": 5,
+      "syntheticContractCoverage": "T1-T16",
+      "liveServices": false
     }
   ],
   "preservedFailures": [
@@ -230,24 +241,29 @@
     "test-results/continuity/phase5-settings-boundaries.json",
     "test-results/continuity/phase5-recovery-initial.json",
     "test-results/continuity/recovery/gate-AnJmld",
-    "test-results/continuity/recovery/gate-gaeHwt"
+    "test-results/continuity/recovery/gate-gaeHwt",
+    "test-results/continuity/candidate-unit-initial.json",
+    "test-results/continuity/candidate-memory-covered.log",
+    "test-results/continuity/candidate-memory-idle-barrier.log",
+    "test-results/continuity/candidate-dsh-family.log",
+    "test-results/continuity/candidate-dsh-automatic.log",
+    "test-results/continuity/candidate-collaboration-ui.log",
+    "test-results/continuity/candidate-backup-diagnostic.log",
+    "test-results/continuity/candidate-work-product-recovery.log"
   ],
   "notRun": [
-    "full repository tests",
-    "full lint",
-    "production build",
-    "DSH combined regression",
-    "product T1-T16",
     "Windows candidate package",
     "real model",
     "real embedding",
     "real mirror",
-    "daily-use acceptance"
+    "daily-use acceptance",
+    "90-case retrieval quality and 24-story response/cost evaluation",
+    "second Windows device and installed upgrade"
   ],
   "predeclaredStories": {
     "path": "tests/fixtures/continuity-stories.json",
     "count": 24,
     "run": false
   },
-  "productionIntegration": "Experimental main uses the complete AIRI engine and persistent foreground/worker roots. Private settings, nonempty legacy migration, original-input receipts and v2 private saves are connected. Native state, original outbox, work logs and mirror epoch share the restore transaction. The Electron utility recovery gate passed; candidate UI, combined regression, build and package acceptance remain pending."
+  "productionIntegration": "Complete AIRI memory and persistent foreground/worker roots run through normal product paths. The single-source 19-task suite passed, including native gates, real DSH with local fixtures, product settings, work-family selection, native save restore and T1-T16 contract auditing. Candidate packaging and real-service acceptance remain separate."
 }

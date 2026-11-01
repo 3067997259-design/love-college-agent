@@ -17,7 +17,7 @@ const owner = { userId: 'settings-user', characterId: 'settings-character', data
 const scope = { userId: owner.userId, characterId: owner.characterId }
 const vector = (dimensions: number) => Array.from({ length: dimensions }, (_, index) => index === 0 ? 1 : 0)
 function fixture() {
-  const root = mkdtempSync(join(resolve('test-results'), 'memory-settings-'))
+  const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'memory-settings-'))
   const clock = createManualClock(1790000000000)
   let held = false; let fail = false
   const embed = vi.fn(async (_text: string, model: string) => { if (fail) throw new Error('synthetic-upstream-secret'); return vector(model === 'first' ? 768 : 1024) })
@@ -105,8 +105,8 @@ describe('private memory connection settings', () => {
 })
 
 it('persists a movable data-root identity and prepares owner-specific restore epochs', () => {
-  const firstRoot = mkdtempSync(join(resolve('test-results'), 'continuity-identity-'))
-  const secondRoot = mkdtempSync(join(resolve('test-results'), 'continuity-identity-copy-'))
+  const firstRoot = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'continuity-identity-'))
+  const secondRoot = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'continuity-identity-copy-'))
   const first = ensureContinuityIdentity(firstRoot, owner)
   const other = ensureContinuityIdentity(firstRoot, { ...owner, characterId: 'other-character' })
   writeFileSync(join(secondRoot, 'continuity.json'), readFileSync(join(firstRoot, 'continuity.json')))

@@ -31,7 +31,7 @@ export function ensureContinuityIdentity(root: string, owner: Owner) {
     try { writeFileSync(fd, JSON.stringify(state)); fsyncSync(fd) } finally { closeSync(fd) }
     renameSync(temporary, path)
   }
-  return { owner: { ...owner, dataRootId: state.dataRootId }, mirrorEpoch: state.mirrorEpochs[key] }
+  return { owner: { userId: owner.userId, characterId: owner.characterId, dataRootId: state.dataRootId }, mirrorEpoch: state.mirrorEpochs[key] }
 }
 
 /** Prepared bytes join the same restore transaction as journals and databases.

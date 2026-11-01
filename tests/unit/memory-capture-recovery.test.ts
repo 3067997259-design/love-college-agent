@@ -14,7 +14,7 @@ import { seenFragments } from '../../src/main/memory/seen'
 
 describe('original-input capture receipts', () => {
   it('records a completed empty extraction and does not call the model again for that source', async () => {
-    const root = mkdtempSync(join(resolve('test-results'), 'capture-empty-')); const clock = createManualClock(1790000000000)
+    const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'capture-empty-')); const clock = createManualClock(1790000000000)
     const owner = { userId: 'capture-user', characterId: 'capture-character', dataRootId: root }
     const extract = vi.fn(async () => [])
     const create = () => createMemoryEngine({ root, clock, owner, embedding: () => undefined, held: () => false, waitForRestore: async () => {}, journal: () => {},
@@ -27,7 +27,7 @@ describe('original-input capture receipts', () => {
   })
 
   it.each<MemoryCommitPoint | 'cursor-gap'>(['before-commit', 'committed', 'published', 'cursor-gap'])('recovers %s without duplicating committed pending suggestions', async point => {
-    const root = mkdtempSync(join(resolve('test-results'), 'capture-recovery-'))
+    const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'capture-recovery-'))
     const clock = createManualClock(1790000000000)
     const owner = { userId: 'capture-user', characterId: 'capture-character', dataRootId: root }
     const scope = { userId: owner.userId, characterId: owner.characterId, sessionId: 'capture-day' }

@@ -8,7 +8,7 @@ import { runMemoryStorageContract } from '../../../scripts/fixtures/memory-stora
 
 describe('AIRI memory on native DuckDB', () => {
   it('passes the real-file storage contract, including transactions and reopens', async () => {
-    const root = mkdtempSync(join(resolve('test-results'), 'memory-node-'))
+    const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'memory-node-'))
     const report = await runMemoryStorageContract(async () => {
       const db = createMemoryDatabaseClient(createNativeMemoryDatabase(), createManualClock(100))
       await db.open(join(root, 'memory.duckdb'))

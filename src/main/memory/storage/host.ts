@@ -1,4 +1,4 @@
-import { utilityProcess } from 'electron'
+import { app, utilityProcess } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { Clock } from '../../clock'
@@ -8,7 +8,9 @@ import type { MemoryDatabaseReply } from './protocol'
 
 /** Main alone chooses the file and owns this channel. Renderer never receives it. */
 export async function openUtilityMemoryDatabase(options: { path: string; clock: Clock; workerPath?: string; deadlineClock?: Clock }) {
-  const child = utilityProcess.fork(options.workerPath ?? join(__dirname, 'memoryWorker.cjs'), [], {
+  // Vite may split this lazy host into out/main/chunks. Resolve the worker
+  // from the application root, including an installed app.asar, not the chunk.
+  const child = utilityProcess.fork(options.workerPath ?? join(app.getAppPath(), 'out/main/memoryWorker.cjs'), [], {
     serviceName: 'LCA Memory Storage', stdio: 'pipe',
   })
   const deadlines = options.deadlineClock ?? systemClock

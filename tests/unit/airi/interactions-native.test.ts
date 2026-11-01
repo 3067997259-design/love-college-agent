@@ -13,7 +13,7 @@ import { reconcileMemoryExtractions } from '../../../src/main/memory/airi/reposi
 
 const scope = { userId: 'memory-test', characterId: 'character-a' }
 const context = { sessionId: 'session-a', turnId: 'turn-a', scope, sourceContext: { sessionId: 'session-a', messageId: 'turn-a', neighbors: [] }, isCurrent: () => true }
-const root = mkdtempSync(join(resolve('test-results'), 'memory-native-upstream-'))
+const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'memory-native-upstream-'))
 const clock = createManualClock(1_790_000_000_000)
 let client = createMemoryDatabaseClient(createNativeMemoryDatabase(), clock)
 const database = {

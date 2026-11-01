@@ -54,7 +54,11 @@ const server = createServer((req, res) => {
           assert.ok(current.includes('PREFERENCE_COFFEE'), 'CORRECTED_FACT_WAS_NOT_INJECTED')
           assert.ok(!current.includes('PREFERENCE_TEA'), 'STALE_CURRENT_REFERENCE')
         }
-        reply = { text: phase === 'remember' || phase === 'correct' ? 'The proposal is waiting for your review.' : 'DERIVED_MEMORY_REPLY ' + (phase === 'after' ? 'PREFERENCE_COFFEE' : 'PREFERENCE_TEA') }
+        // Read the answer from the actual injected reference. The expected value above
+        // is only an assertion; it is never used as the scripted model's answer source.
+        const recalled = [...new Set(current.match(/PREFERENCE_(?:TEA|COFFEE)/g) ?? [])]
+        if (phase === 'recall' || phase === 'after') assert.equal(recalled.length, 1)
+        reply = { text: phase === 'remember' || phase === 'correct' ? 'The proposal is waiting for your review.' : 'DERIVED_MEMORY_REPLY ' + recalled[0] }
       }
       if (reply.tool) assert.ok(input.tools.some((tool: { function: { name: string } }) => tool.function.name === reply.tool), 'NORMAL_TOOL_NOT_AVAILABLE')
       res.writeHead(200, { 'content-type': 'text/event-stream' })

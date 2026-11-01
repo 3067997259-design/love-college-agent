@@ -18,7 +18,7 @@ const source: MemoryEmbeddingSource = { provider: 'fixture', model: 'synthetic',
 const context = { scope, sessionId: 'day-1', turnId: 'turn-1', sourceContext: { sessionId: 'day-1', messageId: 'original-1', neighbors: [] }, isCurrent: () => true }
 const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done }); return { promise, resolve } }
 const setup = () => {
-  const root = mkdtempSync(join(resolve('test-results'), 'memory-engine-'))
+  const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'memory-engine-'))
   const clock = createManualClock(1_790_000_000_000)
   const openDatabase = async (path: string) => { const db = createMemoryDatabaseClient(createNativeMemoryDatabase(), clock); await db.open(path); return db }
   const create = (embedding: MemoryEmbeddingSource | null = source, mirror?: MemoryHostPort) => createMemoryEngine({ root, clock, owner, embedding: () => embedding ?? undefined,

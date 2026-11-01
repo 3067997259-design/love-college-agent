@@ -120,16 +120,19 @@ it('does not schedule works or outings while sleeping, including offline startup
 it('enters sleep only after safe asynchronous day sealing, never on a new user interruption', async () => {
   const f = fixture(); const scheduler = createScheduler(f.clock); cleanup.push(scheduler.dispose)
   const day = '2026-10-16'; let release: () => void = () => {}
-  const sealing = vi.fn(() => new Promise<void>((done) => { release = done }))
+  let entered!: () => void
+  let started = new Promise<void>(resolve => { entered = resolve })
+  const sealing = vi.fn(() => new Promise<void>((done) => { release = done; entered() }))
   const rotate = vi.fn(() => true); f.store.dayKey = () => day; f.store.rotate = rotate
   const memory = createMemoryService({ facts: testMemoryFacts(f.store, f.clock, f.root), store: f.store, clock: f.clock, scheduler, model: null,
     repository: { view: () => projectMemory(f.store.records()), append: f.store.append, refresh: () => {}, close: () => {} },
     isBusy: () => false, rolled: () => {}, changed: () => {}, beforeRoll: sealing,
     closingDay: () => { f.sleep.set(true, 'day-end') } })
   cleanup.push(memory.close); scheduler.cancel('memory.maintenance'); f.clock.advanceBy(120_000)
-  const first = memory.maintenance(); await Promise.resolve(); expect(sealing).toHaveBeenCalledOnce()
+  const first = memory.maintenance(); await started; expect(sealing).toHaveBeenCalledOnce()
   f.store.append({ type: 'user/message', id: 'interrupt', text: 'still here', requestId: 'r', commandHash: 'h' }); release(); await first
   expect(rotate).not.toHaveBeenCalled(); expect(f.store.projection().sleeping).toBe(false)
-  f.clock.advanceBy(120_000); const second = memory.maintenance(); await Promise.resolve(); release(); await second
+  started = new Promise<void>(resolve => { entered = resolve })
+  f.clock.advanceBy(120_000); const second = memory.maintenance(); await started; release(); await second
   expect(rotate).toHaveBeenCalledOnce(); expect(f.store.projection().sleeping).toBe(true)
 })

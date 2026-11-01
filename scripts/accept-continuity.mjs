@@ -1,8 +1,8 @@
 // Sequential acceptance of one source candidate. Never launches paid/live services.
-import { createHash } from 'node:crypto'
-import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { candidateFingerprint } from './continuity-candidate.mjs'
 
 const gate = process.argv[process.argv.indexOf('--gate') + 1]
 const storageOnly = process.argv.includes('--gate') && gate === 'storage'
@@ -16,12 +16,14 @@ const tasks = storageOnly ? [
   ['typecheck-main', 'node_modules/typescript/bin/tsc', '--noEmit', '-p', 'tsconfig.node.json'],
   ['typecheck-renderer', 'node_modules/typescript/bin/tsc', '--noEmit', '-p', 'tsconfig.web.json'],
   ['lint', 'node_modules/eslint/bin/eslint.js', '.'],
-  ['unit', 'node_modules/vitest/vitest.mjs', 'run'],
+  ['unit', 'node_modules/vitest/vitest.mjs', 'run', '--reporter=json'],
+  ['native-storage', 'scripts/memory-storage-gate.mjs'],
   ['dsh-bridge', 'scripts/dsh-bridge-check.mjs'],
   ['dsh-family', 'scripts/dsh-family-check.mjs'],
   ['dsh-collaboration', 'scripts/dsh-collaboration-check.mjs'],
   ['memory-conversation', 'scripts/memory-conversation-gate.mjs'],
   ['work-execution', 'scripts/work-execution-gate.mjs'],
+  ['native-recovery', 'scripts/continuity-recovery-gate.mjs'],
   ['build', 'node_modules/electron-vite/bin/electron-vite.js', 'build'],
   ['memory', 'scripts/smoke-memory.mjs'],
   ['model-routing', 'scripts/smoke-model-routing.mjs'],
@@ -37,13 +39,7 @@ if (process.argv.includes('--list')) {
   const results = resolve('test-results/continuity')
   mkdirSync(results, { recursive: true })
   const root = mkdtempSync(join(results, storageOnly ? 'storage-suite-' : 'candidate-'))
-  const fingerprint = () => {
-    const paths = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8' }).trim().split('\n')
-      .filter(path => /^(src\/|scripts\/|tests\/|dsh\/lca-bridge\/|vendor\/airi-memory\/|package\.json$|pnpm-lock\.yaml$|.*config\..*$|electron-builder\.yml$)/.test(path))
-    const digest = createHash('sha256')
-    for (const path of [...new Set(paths)].sort()) { digest.update(path); digest.update(existsSync(path) ? readFileSync(path) : 'deleted') }
-    return digest.digest('hex')
-  }
+  const fingerprint = candidateFingerprint
   const report = { mode: storageOnly ? 'storage' : 'candidate', source: fingerprint(), ok: false, missing, tasks: [], liveServices: 'not run' }
   const save = () => writeFileSync(join(root, 'report.json'), JSON.stringify(report, null, 2))
   save()
@@ -52,9 +48,13 @@ if (process.argv.includes('--list')) {
     process.exitCode = 1
   } else {
     for (const [name, ...args] of tasks) {
+      if (name === 'unit') args.push('--outputFile=' + join(root, 'unit.json'))
+      const artifacts = resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? join(root, 'unit-artifacts'))
+      mkdirSync(artifacts, { recursive: true })
       const output = []
+      console.log('CONTINUITY_START', name)
       const child = spawn(process.execPath, args, { cwd: resolve('.'), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, LCA_TEST_SILENT: '1', LCA_CONTINUITY_RUN_DIR: root, LCA_MEMORY_TEST_POSTGRES: '0' } })
+        env: { ...process.env, LCA_TEST_SILENT: '1', LCA_CONTINUITY_RUN_DIR: root, LCA_MEMORY_TEST_POSTGRES: '0', LCA_TEST_ARTIFACTS_DIR: artifacts } })
       for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => { output.push(chunk); process.stdout.write(chunk) })
       const code = await new Promise((done, reject) => { child.once('exit', done); child.once('error', reject) })
       writeFileSync(join(root, `${name}.log`), Buffer.concat(output))

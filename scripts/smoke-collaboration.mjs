@@ -1,194 +1,144 @@
-// Actual book -> main projection/controls -> pinned DSH. No real providers or user data.
+// Real product lanes and the existing collaboration sheet, with local scripted models only.
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import { createServer } from 'node:http'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import JSZip from 'jszip'
+import { runtimeEnv, testDataRoot, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
-const root = resolve(import.meta.dirname, '..'), id = randomUUID(), data = join(root, '.local-data', `p5-smoke-${id}`), scene = randomUUID()
-const profile = join(data, 'developer', scene), user = join(data, 'user'), evidence = join(root, 'test-results', `p5-${id}`)
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19594', LCA_MCP_PORT: '0', USERPROFILE: user, HOME: user, APPDATA: join(user, 'AppData/Roaming'), LOCALAPPDATA: join(user, 'AppData/Local') }
-let instance, page, client
-const checks = []
-const teamOnly = process.argv.includes('--team-room-only')
-const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
-const send = (body) => page.evaluate(async (body) => { const state = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, epoch: state.epoch, requestId: crypto.randomUUID(), ...body }) }, body)
-async function until(test, label) { for (let i = 0; i < 400; i++) { if (await test(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) }; throw new Error(label) }
-async function debug(name, args = {}) { const result = await client.callTool({ name, arguments: args }); assert.ok(!result.isError); return JSON.parse(result.content[0].text) }
-const pass = (name) => { checks.push(name); console.log('P5_UI_PASS', name) }
-async function launch() {
-  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 }); page = await instance.firstWindow(); await initializeTestBook(page)
-  const config = JSON.parse(await readFile(join(profile, 'debug-connection.json'), 'utf8'))
-  client = new Client({ name: 'p5-smoke', version: '1' }); await client.connect(new StreamableHTTPClientTransport(new URL(config.url), { requestInit: { headers: { Authorization: `Bearer ${config.token}` } } }))
-  await debug('set_clock', { frozen: true })
+const root = resolve(import.meta.dirname, '..'), id = randomUUID(), data = join(testDataRoot(root), `work-family-${id}`)
+const evidence = join(root, 'test-results', `work-family-${id}`)
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '0', LCA_MCP_PORT: '0' }
+const textOf = value => typeof value === 'string' ? value : (value ?? []).map(part => part.text ?? '').join('')
+const checks = [], requests = []
+const recovery = process.env.LCA_CONTINUITY_RECOVERY === '1'
+let instance, page, held, workerStep = 0, childRead = false, failure
+const answer = (response, model, reply) => {
+  if (response.destroyed) return
+  response.writeHead(200, { 'content-type': 'text/event-stream' })
+  const chunk = (delta, finish_reason) => response.write(`data: ${JSON.stringify({ id: randomUUID(), object: 'chat.completion.chunk', created: 0, model, choices: [{ index: 0, delta, finish_reason }] })}\n\n`)
+  chunk(reply.tool ? { role: 'assistant', content: null, tool_calls: [{ index: 0, id: randomUUID(), type: 'function', function: { name: reply.tool, arguments: JSON.stringify(reply.args) } }] } : { role: 'assistant', content: reply.text }, null)
+  chunk({}, reply.tool ? 'tool_calls' : 'stop'); response.end('data: [DONE]\n\n')
 }
-async function script(tool, args, label) {
-  await debug('set_fake_model', { script: [{ text: '', toolCalls: [{ id: `p5-${tool}`, name: tool, arguments: JSON.stringify(args) }], delayMs: 0 }, { text: `${label} finished`, toolCalls: [], delayMs: 0 }, { text: `${label} delivered`, toolCalls: [], delayMs: 0 }] })
-  assert.equal((await send({ type: 'message.send', text: `Synthetic P5 ${label}` })).status, 'accepted')
-  await until((state) => state.task?.status === 'completed' && state.messages.some((message) => message.text.includes(label)), `TURN_${label}`)
-}
-try {
-  for (const dir of [data, profile, user, env.APPDATA, env.LOCALAPPDATA, join(user, 'Documents'), join(user, 'Desktop'), join(user, 'Downloads'), evidence]) await mkdir(dir, { recursive: true })
-  await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId: scene }))
-  await launch()
-  await page.getByRole('button', { name: '协作', exact: true }).click()
-  await until((state) => state.collaboration?.status === 'ready', 'COLLABORATION_READY')
-  const panel = page.getByRole('region', { name: '成员与共同任务', exact: true })
-  assert.ok(await panel.isVisible()); pass('empty-catalog-refresh-through-book')
-  await script('spawn_teammate', { name: 'reviewer', description: '持续核对结果', prompt: 'Synthetic member task; reply with a short result.' }, 'team')
-  await until((state) => state.collaboration.members.some((member) => member.mode === 'teammate' && member.outcome === 'completed'), 'TEAM_VIEW')
-  await script('subagent', { description: '独立资料核对', prompt: 'Synthetic helper task; reply with a short result.' }, 'helper')
-  await until((state) => state.collaboration.members.some((member) => member.mode === 'subagent' && member.outcome === 'completed'), 'HELPER_VIEW')
-  assert.equal(await panel.locator('.collaboration-member').count(), 2)
-  for (const row of await panel.locator('.collaboration-member').all()) await row.locator('summary').click()
-  await panel.screenshot({ path: join(evidence, 'members.png') }); pass('team-and-helper-states-results-and-capacity-visible')
-  await script('team_task_create', { subject: '共同核对交付物', description: 'Verify the synthetic artifact before completion.', write_scopes: ['src/shared'] }, 'board')
-  await until((state) => state.collaboration.tasks.length === 1, 'TASK_VIEW')
-  await panel.getByRole('button', { name: '主角色领取', exact: true }).click()
-  await until((state) => state.collaboration.tasks[0]?.status === 'claimed', 'TASK_CLAIM')
-  await panel.getByRole('button', { name: '确认任务完成', exact: true }).click()
-  await until((state) => state.collaboration.tasks[0]?.status === 'completed', 'TASK_COMPLETE')
-  pass('task-claim-and-complete-with-revision-check')
-  await debug('set_fake_model', { script: [{ text: 'P5 direct instruction handled', toolCalls: [], delayMs: 0 }] })
-  const memberCard = panel.locator('.collaboration-member').first()
-  const before = (await snapshot()).collaboration.members.find((member) => member.mode === 'teammate').usage.admittedUnits ?? 0
-  await memberCard.getByRole('textbox').fill('P5 direct instruction; give a short result')
-  await memberCard.getByRole('button', { name: '发送指令', exact: true }).click()
-  await until((state) => state.collaboration.members.some((member) => member.mode === 'teammate' && (member.usage.admittedUnits ?? 0) > before && member.outcome === 'completed'), 'MEMBER_MESSAGE')
-  pass('direct-member-message-runs-after-root-is-idle')
-  // The member settlement wakes the lead too; let that consume its own scripted reply first.
-  await until((state) => state.collaboration.members.every((member) => member.activity === 'inactive'), 'SETTLEMENT_DELIVERED')
-  await new Promise((done) => setTimeout(done, 200))
-  await debug('set_fake_model', { script: [{ text: 'must be interrupted', toolCalls: [], delayMs: 10000 }] })
-  await memberCard.getByRole('textbox').fill('P5 interruptible work')
-  await memberCard.getByRole('button', { name: '发送指令', exact: true }).click()
-  await until((state) => state.collaboration.operation?.phase === 'settled' && state.collaboration.members.some((member) => member.mode === 'teammate' && member.activity === 'running'), 'MEMBER_RUNNING')
-  // V1: a helper starting work pulls the left page back to the whole room; every helper stands there, the busy one drawn busy.
-  await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'team')
-  assert.equal(await page.locator('.team-room[data-visible="true"] .team-mini').count(), 2)
-  assert.equal(await page.locator('.team-mini[data-busy]').count(), 1)
-  await page.locator('.page-left').screenshot({ path: join(evidence, 'team-room.png') })
-  // Clicking in the room is checked at the end: extra steps here shift the timing of the lost-receipt step below.
-  await memberCard.getByRole('button', { name: '停止当前工作', exact: true }).click()
-  await until((state) => state.collaboration.members.some((member) => member.mode === 'teammate' && member.activity === 'inactive' && member.outcome === 'aborted'), 'MEMBER_STOPPED')
-  await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'close') // everyone stopped: back to the desk
-  pass('single-member-interrupt-observes-real-aborted-outcome')
-  if (!teamOnly) {
-  const oldRuntime = (await snapshot()).collaboration.runtimeId
-  // Fault injection only into the test app's own, already-started DSH child.
-  assert.equal(await instance.evaluate((_electron, oldId) => {
-    const children = process._getActiveHandles().filter((handle) => handle.connected && handle.spawnargs?.some((arg) => /[\\/]dsh[\\/]lib[\\/]bin\.js$/.test(arg)))
-    for (const child of children) {
-      const emit = child.emit.bind(child)
-      child.emit = (event, ...values) => {
-        const message = values[0], receipt = message?.view?.operation
-        if (event === 'message' && ['collaboration', 'collaboration-reply'].includes(message?.t) && receipt?.outcome === 'accepted' && receipt.requestId !== oldId) { child.disconnect(); return true }
-        return emit(event, ...values)
+const server = createServer((req, res) => {
+  let body = ''; req.on('data', chunk => { body += chunk }); req.on('end', () => {
+    try {
+      const input = JSON.parse(body), messages = input.messages ?? [], model = input.model
+      if (!input.tools?.length) { res.writeHead(503).end(); return } // No synthetic background summarizer in this scenario.
+      const child = messages.some(message => message.role === 'user' && textOf(message.content).startsWith('UI_CHILD_A'))
+      requests.push({ model, child, count: messages.length })
+      if (child) {
+        if (!childRead) { childRead = true; answer(res, model, { tool: 'read', args: { file_path: 'family-note.txt' } }); return }
+        held = { response: res, model }; return
       }
-    }
-    return children.length
-  }, (await snapshot()).collaboration.operation.requestId), 1)
-  await panel.getByRole('button', { name: '重新打开', exact: true }).click()
-  await until((state) => state.collaboration.status === 'failed' && state.collaboration.operation?.outcome === 'unknown', 'LOST_RECEIPT_UNKNOWN')
-  const unknownId = (await snapshot()).collaboration.operation.requestId
-  await panel.getByRole('button', { name: '刷新核对', exact: true }).click()
-  await until((state) => state.collaboration.status === 'ready' && state.collaboration.operation?.outcome === 'accepted', 'READ_RECONNECT')
-  const recovered = (await snapshot()).collaboration
-  assert.equal(recovered.operation.requestId, unknownId); assert.notEqual(recovered.runtimeId, oldRuntime)
-  assert.equal(recovered.tasks[0].status, 'open'); assert.ok(recovered.members.every((member) => member.activity === 'inactive'))
-  pass('lost-receipt-refresh-reconnects-and-reconciles-same-operation-without-replay')
-  } else {
-    // Independent visual acceptance when the known P5 transport-loss fixture is under investigation.
-    await panel.getByRole('button', { name: '重新打开', exact: true }).click()
-    await until((state) => state.collaboration.tasks[0]?.status === 'open', 'DIRECT_REOPEN')
-    pass('direct-reopen-without-transport-fault-injection')
+      if (model === 'work-script') {
+        workerStep++
+        if (workerStep === 1) { answer(res, model, { tool: 'team_task_create', args: { subject: 'Verify fixture', description: 'Read the synthetic note', write_scopes: [] } }); return }
+        if (workerStep === 2) { answer(res, model, { tool: 'spawn_teammate', args: { name: 'reviewer', description: 'Read fixture', prompt: 'UI_CHILD_A Read family-note.txt and wait for your response fixture.' } }); return }
+        answer(res, model, { text: 'My helper is still working. No verified completion checkpoint exists.' }); return
+      }
+      const index = messages.findLastIndex(message => message.role === 'user' && /\[\[(START|CHAT)\]\]/.test(textOf(message.content)))
+      const current = textOf(messages[index]?.content), toolCalled = messages.slice(index + 1).some(message => message.role === 'tool')
+      const marker = [...current.matchAll(/\[\[(START|CHAT)\]\]/g)].at(-1)?.[1]
+      if (marker === 'START' && !toolCalled) { answer(res, model, { tool: 'lca_start_work', args: { objective: 'UI_WORK_A Coordinate the synthetic review.', acceptance: ['Read the note and verify a real result'] } }); return }
+      answer(res, model, { text: 'FOREGROUND_READY while the review continues.' })
+    } catch (error) { failure = error; res.writeHead(500).end() }
+  })
+})
+await new Promise(done => server.listen(0, '127.0.0.1', done))
+const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
+const send = body => page.evaluate(async body => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), ...body }) }, body)
+async function until(test, label) { for (let i = 0; i < 400; i++) { if (failure) throw failure; if (await test(await snapshot())) return; await new Promise(done => setTimeout(done, 100)) } throw new Error(label) }
+async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30000 }); page = await instance.firstWindow(); page.setDefaultTimeout(15000); await initializeTestBook(page) }
+const pass = name => { checks.push(name); console.log('WORK_FAMILY_PASS', name) }
+async function chat(text) { const before = (await snapshot()).task?.id; assert.equal((await send({ type: 'message.send', text })).status, 'accepted'); await until(s => s.task?.id !== before && s.task?.status === 'completed', 'FOREGROUND_NOT_COMPLETE') }
+try {
+  await mkdir(data, { recursive: true }); await mkdir(evidence, { recursive: true }); await launch()
+  for (const slot of ['chat', 'work']) {
+    assert.equal((await send({ type: 'models.provider.save', slot, baseUrl: `http://127.0.0.1:${server.address().port}/v1`, model: slot + '-script', apiKey: 'synthetic-family-secret' })).status, 'accepted')
+    await until(s => s.modelSettings.status === 'saved' && s.modelSettings.configuredSlots.includes(slot), 'CONFIG_NOT_APPLIED')
   }
-  await panel.getByRole('button', { name: '主角色领取', exact: true }).click()
-  await until((state) => state.collaboration.tasks[0].status === 'claimed', 'RECLAIM')
-  await panel.getByRole('button', { name: '确认任务完成', exact: true }).click()
-  await until((state) => state.collaboration.tasks[0].status === 'completed', 'RECOMPLETE')
-  await panel.getByRole('button', { name: '停止整组', exact: true }).click()
-  await until((state) => state.collaboration.operation?.outcome === 'accepted' && state.collaboration.members.every((member) => !['running', 'stopping'].includes(member.activity)), 'FAMILY_STOP')
-  assert.equal((await snapshot()).collaboration.capacity.teamUsed, 1)
-  assert.equal(await memberCard.getByRole('button', { name: '发送指令', exact: true }).count(), 0)
-  pass('family-stop-keeps-roster-and-revokes-continuation-until-new-work')
-  await panel.screenshot({ path: join(evidence, 'tasks.png') })
-  await instance.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()).setSize(1100, 760))
-  assert.ok(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)); await page.screenshot({ path: join(evidence, 'book-narrow.png') })
-  const safe = JSON.stringify((await snapshot()).collaboration); assert.ok(!safe.includes('cwd')); assert.ok(!safe.includes('transcript')); assert.ok(!safe.includes('Bearer ')); assert.ok(!safe.includes('"target"')); assert.ok(!safe.includes('"activityLabel"')); assert.ok(!safe.includes('"step"'))
-  pass('narrow-page-and-safe-projection')
-  await client.close(); client = null; await instance.close(); instance = null
-  await launch(); await page.getByRole('button', { name: '协作', exact: true }).click()
-  await until((state) => state.collaboration?.members.filter((member) => member.mode !== 'root').length === 2, 'COLD_RECOVERY')
-  assert.equal((await snapshot()).collaboration.tasks[0].status, 'completed')
-  pass('cold-recovery-restores-members-and-board-without-executing-them')
-  // Nobody is working after recovery, so the desk stays; the room is one click away and every helper is still there.
-  await page.getByRole('button', { name: '收起协作', exact: true }).click()
-  await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'close')
-  await page.getByRole('button', { name: '看看房间', exact: true }).click()
-  await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'team')
-  assert.equal(await page.locator('.team-room[data-visible="true"] .team-mini').count(), 2)
-  const teammate = (await snapshot()).collaboration.members.find((member) => member.mode === 'teammate')
-  await page.getByRole('button', { name: new RegExp(`^${teammate.name}：`) }).locator('.team-mini-hit').click()
-  const card = page.getByRole('dialog', { name: teammate.name, exact: true })
-  const ended = { completed: '本次运行已结束', aborted: '已中止', failed: '执行失败', refused: '未获批准', unknown: '结果待核对' }[teammate.outcome]
-  if (ended) assert.ok((await card.textContent()).includes(ended))
-  await page.locator('.page-left').screenshot({ path: join(evidence, 'team-card.png') })
-  await card.getByRole('button', { name: '更多', exact: true }).click()
-  await page.getByRole('region', { name: '成员与共同任务', exact: true }).waitFor()
-  await page.getByRole('button', { name: '回到桌前', exact: true }).click()
-  await page.waitForFunction(() => document.querySelector('.room')?.dataset.shot === 'close')
-  pass('team-room-toggle-and-card-follow-recovered-members')
-  // V2: a real child read -> thinking, main-clock focus -> tea table, on-demand Chinese history.
   const project = (await snapshot()).work.current.path
-  assert.ok(resolve(project).startsWith(resolve(profile) + '\\'), 'fixture writes must stay inside this isolated profile')
-  await writeFile(join(project, 'team-step-proof.txt'), 'Synthetic team-room step fixture.')
-  await send({ type: 'mode.set', mode: 'work' })
-  await debug('set_fake_model', { script: [{ text: 'Room setup ready', toolCalls: [], delayMs: 0 }] })
-  await send({ type: 'message.send', text: 'Prepare for the next synthetic helper task.' })
-  await until((state) => state.messages.some((message) => message.text === 'Room setup ready') && state.collaboration.members.every((member) => member.activity === 'inactive'), 'ROOM_SETUP_IDLE')
-  await new Promise((done) => setTimeout(done, 300))
-  await debug('set_fake_model', { script: [
-    { text: '', toolCalls: [{ id: 'room-read', name: 'read', arguments: JSON.stringify({ file_path: 'team-step-proof.txt' }) }], delayMs: 0 },
-    { text: 'Room read complete', toolCalls: [], delayMs: 15000 },
-    { text: 'Room result delivered', toolCalls: [], delayMs: 0 },
-  ] })
-  const reader = (await snapshot()).collaboration.members.find((member) => member.mode === 'teammate')
-  assert.equal((await send({ type: 'agent.message', target: { address: reader.address, expectedRevision: reader.revision }, text: 'Read team-step-proof.txt and report.' })).status, 'accepted')
-  await until(async (state) => {
-    const row = state.collaboration.members.find((member) => member.address.sessionId === reader.address.sessionId)
-    if (row?.work?.phase !== 'thinking') return false
-    const steps = await page.evaluate((address) => window.lca.readMemberSteps(address).catch(() => null), reader.address)
-    return steps?.steps.some((step) => step.templateId === 'dsh.read' && step.status === 'completed')
-  }, 'ROOM_CHILD_READ_THEN_THINKING')
-  await debug('set_clock', { nowMs: (await snapshot()).clock.nowMs + 7000 })
-  await until((state) => state.collaboration.members.some((member) => member.address.sessionId === reader.address.sessionId && member.work?.focus === 'files'), 'ROOM_FILES_FOCUS')
-  await page.getByRole('button', { name: '收起协作', exact: true }).click()
-  // The earlier manual desk choice persists; select the room explicitly.
-  const showRoom = page.getByRole('button', { name: '看看房间', exact: true })
-  if (await showRoom.count()) await showRoom.click()
-  const mini = page.getByRole('button', { name: new RegExp(`^${reader.name}：`) })
-  assert.equal(await mini.getAttribute('data-station'), 'table')
-  await mini.locator('.team-mini-hit').click()
-  const progress = page.getByRole('dialog', { name: reader.name, exact: true })
-  await progress.locator('.team-card-history li').first().waitFor()
-  assert.ok((await progress.textContent()).includes('在想下一步'))
-  assert.ok((await progress.locator('.team-card-history').textContent()).includes('翻看项目里的文件'))
-  const detailed = await page.evaluate((address) => window.lca.readMemberSteps(address), reader.address)
-  assert.ok(detailed.steps.length <= 12); assert.ok(detailed.steps.some((step) => step.templateId === 'dsh.read'))
-  assert.ok(!JSON.stringify(detailed).includes('"tool"'))
-  const projected = JSON.stringify(await snapshot())
-  assert.ok(!projected.includes('"target":"team-step-proof.txt"')); assert.ok(!JSON.stringify((await snapshot()).collaboration).includes('team-step-proof.txt'))
-  await page.locator('.page-left').screenshot({ path: join(evidence, 'team-v2-progress.png') })
-  await progress.getByRole('button', { name: '停止当前工作', exact: true }).click()
-  await until((state) => state.collaboration.members.some((member) => member.address.sessionId === reader.address.sessionId && member.outcome === 'aborted'), 'ROOM_CHILD_STOP')
-  pass('team-station-chinese-history-and-no-target-in-snapshot')
-  await writeFile(join(evidence, 'evidence.json'), JSON.stringify({ checks, teamOnly, syntheticOnly: true, executable: process.env.LCA_TEST_EXECUTABLE ?? electronPath, data, evidence }, null, 2)); console.log('P5_UI_EVIDENCE', evidence)
+  await writeFile(join(project, 'family-note.txt'), 'ONLY_SYNTHETIC_FAMILY_NOTE')
+  await send({ type: 'mode.set', mode: 'rest' }); await chat('[[START]] Please coordinate this review as a persistent work.')
+  await until(s => held && s.continuousWorks.items[0]?.status === 'running', 'WORKER_OR_CHILD_NOT_RUNNING')
+  const workId = (await snapshot()).continuousWorks.items[0].identity.workId
+  await chat('[[CHAT]] Can we talk while the reviewer is still thinking?')
+  assert.equal((await snapshot()).continuousWorks.items[0].status, 'running'); pass('foreground-and-worker-family-independent')
+  await page.getByRole('button', { name: /^协作/ }).click()
+  await page.getByLabel('协作工作', { exact: true }).selectOption(workId)
+  await until(s => s.collaboration.workSelection?.workId === workId && s.collaboration.members.some(m => m.mode === 'teammate'), 'WORK_FAMILY_NOT_VISIBLE')
+  const member = (await snapshot()).collaboration.members.find(m => m.mode === 'teammate')
+  assert.equal(member.activity, 'running'); assert.equal((await snapshot()).collaboration.tasks.length, 1)
+  const steps = await page.evaluate(address => window.lca.readMemberSteps(address), member.address)
+  assert.ok(steps.steps.some(step => step.templateId === 'dsh.read' && step.status === 'completed'))
+  assert.equal(JSON.stringify((await snapshot()).collaboration).includes('family-note.txt'), false)
+  pass('selected-worker-members-and-on-demand-steps-without-raw-target-leak')
+  await page.getByRole('button', { name: '主角色领取', exact: true }).click(); await until(s => s.collaboration.tasks[0]?.status === 'claimed', 'CLAIM_FAILED')
+  await page.getByRole('button', { name: '确认任务完成', exact: true }).click(); await until(s => s.collaboration.tasks[0]?.status === 'completed', 'COMPLETE_FAILED')
+  assert.equal((await snapshot()).continuousWorks.items[0].status, 'running'); pass('board-receipt-is-not-work-completion')
+  await page.getByRole('region', { name: '成员与共同任务', exact: true }).screenshot({ path: join(evidence, 'members.png') })
+  await page.getByLabel('协作工作', { exact: true }).selectOption('')
+  await until(s => s.collaboration.workSelection?.workId === null && s.collaboration.status === 'ready', 'FRONT_SELECTION_FAILED')
+  assert.ok((await snapshot()).collaboration.members.every(m => m.mode === 'root'))
+  await page.getByLabel('协作工作', { exact: true }).selectOption(workId)
+  await until(s => s.collaboration.workSelection?.workId === workId && s.collaboration.members.some(m => m.mode === 'teammate'), 'RESELECT_FAILED')
+  pass('family-switch-does-not-merge-roots')
+  if (recovery) {
+    await instance.close(); instance = undefined; held.response.destroy(); held = undefined
+    const callsBefore = requests.length; await launch()
+    await until(s => s.continuousWorks.items[0]?.status === 'review_required', 'COLD_WORK_NOT_RECONCILED')
+    assert.equal(requests.length, callsBefore)
+    const savedWork = (await snapshot()).continuousWorks.items[0]
+    assert.equal(savedWork.identity.workId, workId); pass('cold-start-reconciles-without-execution')
+    const archiveFile = join(data, 'pending-work.lca-save')
+    await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archiveFile)
+    assert.equal((await send({ type: 'backup.export' })).status, 'accepted'); await until(s => s.backup.status === 'exported', 'WORK_ARCHIVE_EXPORT_FAILED')
+    const manifest = JSON.parse(await (await JSZip.loadAsync(await readFile(archiveFile))).file('manifest.json').async('string'))
+    assert.equal(manifest.continuity.workCount, 1); assert.equal(manifest.formatVersion, 2)
+    workerStep = 0; childRead = false
+    assert.equal((await send({ type: 'work.resume', target: { identity: savedWork.identity, expectedRevision: savedWork.revision } })).status, 'accepted')
+    await until(s => held && s.continuousWorks.items[0]?.status === 'running', 'FRESH_WORK_DID_NOT_RESUME')
+    assert.ok((await snapshot()).continuousWorks.items[0].identity.generation > savedWork.identity.generation)
+    pass('explicit-continue-starts-fresh-generation')
+    const resumed = (await snapshot()).continuousWorks.items[0]
+    await send({ type: 'work.stop', target: { identity: resumed.identity, expectedRevision: resumed.revision } })
+    await until(s => s.continuousWorks.items[0]?.status === 'stopped', 'RESUMED_WORK_NOT_STOPPED')
+    held.response.destroy(); held = undefined
+    await instance.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, archiveFile)
+    await send({ type: 'backup.import' }); await until(s => s.backup.status === 'awaiting-confirmation', 'WORK_ARCHIVE_IMPORT_FAILED')
+    await openSettings(page)
+    const archiveGroup = page.locator('.settings-group').filter({ has: page.locator('[aria-label="私人存档控制"]') })
+    if (!await archiveGroup.evaluate(element => element.open)) await archiveGroup.locator('summary').click()
+    await instance.evaluate(({ app }) => { app.relaunch = () => {} })
+    const closed = instance.waitForEvent('close')
+    await page.getByRole('alertdialog', { name: '恢复私人存档确认' }).getByRole('button', { name: '备份当前数据并恢复', exact: true }).click()
+    await closed; instance = undefined
+    const beforeRestore = requests.length; await launch()
+    await until(s => s.backup.status === 'restored', 'WORK_ARCHIVE_NOT_RESTORED')
+    assert.equal((await snapshot()).continuousWorks.items[0].identity.workId, workId)
+    assert.equal((await snapshot()).continuousWorks.items[0].status, 'review_required'); assert.equal(requests.length, beforeRestore)
+    await instance.close(); instance = undefined; await launch()
+    assert.equal((await snapshot()).continuousWorks.items[0].status, 'review_required'); assert.equal(requests.length, beforeRestore)
+    pass('nonempty-work-restore-and-second-start-never-replay')
+  } else {
+  // Native root already ended while its teammate's request is held. Stop the owning work explicitly.
+  const work = (await snapshot()).continuousWorks.items[0]
+  assert.equal((await send({ type: 'work.stop', target: { identity: work.identity, expectedRevision: work.revision } })).status, 'accepted')
+  await until(s => s.continuousWorks.items[0]?.status === 'stopped', 'WORK_STOP_FAILED')
+  held.response.destroy(); held = undefined
+  assert.equal((await snapshot()).collaboration.status, 'unavailable'); pass('work-stop-releases-only-its-family')
+  await instance.close(); instance = undefined
+  const count = requests.length; await launch()
+  const restored = (await snapshot()).continuousWorks.items[0]
+  assert.equal(restored.identity.workId, workId); assert.equal(restored.status, 'stopped'); assert.equal(requests.length, count)
+  pass('restart-preserves-work-without-member-resurrection')
+  }
+  await writeFile(join(evidence, 'evidence.json'), JSON.stringify({ ok: true, checks, data, requests, recovery, syntheticOnly: true, executable: process.env.LCA_TEST_EXECUTABLE ?? electronPath }, null, 2))
+  console.log('WORK_FAMILY_EVIDENCE', evidence)
 } catch (error) {
-  if (page && !page.isClosed()) { await writeFile(join(evidence, 'failure.json'), JSON.stringify({ error: String(error), snapshot: await snapshot() }, null, 2)); await page.screenshot({ path: join(evidence, 'failure.png') }) }
-  throw error
-} finally { await client?.close(); await instance?.close() }
+  await writeFile(join(evidence, 'failure.json'), JSON.stringify({ error: String(error), checks, data, requests, snapshot: await snapshot().catch(() => null) }, null, 2)); throw error
+} finally { held?.response.destroy(); await instance?.close(); server.closeAllConnections(); await new Promise(done => server.close(done)) }

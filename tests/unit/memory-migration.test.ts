@@ -48,7 +48,7 @@ describe('nonempty legacy memory migration', () => {
   })
 
   it.each<MemoryCommitPoint>(['intent', 'before-commit', 'committed', 'published'])('reconciles a migration interrupted at %s and does not resurrect a later forgotten fact', async point => {
-    const f = history(); const root = mkdtempSync(join(resolve('test-results'), 'memory-migration-'))
+    const f = history(); const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'memory-migration-'))
     let interrupted = false
     const create = (interrupt = false) => createMemoryEngine({ root, clock: f.clock, owner: { ...f.scope, dataRootId: root }, embedding: () => undefined,
       held: () => false, waitForRestore: async () => {}, journal: () => {},

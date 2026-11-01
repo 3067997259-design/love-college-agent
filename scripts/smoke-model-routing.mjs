@@ -7,10 +7,10 @@ import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
 import Database from 'better-sqlite3'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, testDataRoot, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const data = join(root, '.local-data', 'routing-smoke-' + randomUUID())
+const data = join(testDataRoot(root), 'routing-smoke-' + randomUUID())
 const calls = []; const mainDiagnostics = []; let denyPrivacy = false; let holdOrganization = false; let releaseOrganization
 // Her conversation runs on DSH: LCA tools carry the lca_ prefix, your words are the last text block of their message
 // (LCA's references come first), and DSH adds its own reminders and runtime context as user messages.

@@ -204,6 +204,11 @@ async function run() {
     selected = 'B'; await chat('[[START_B]] Please start task B.'); await holdB.promise
     const b = service.view().items.find(work => work.identity.projectId === 'B')!.identity.workId
     checks.twoWorkerRoots = service.view().active === 2
+    const beforeAmbiguous = [service.get(a)!.identity.objectiveRevision, service.get(b)!.identity.objectiveRevision]
+    const updateTool = workTools(service).find(tool => tool.templateId === 'work.update')!
+    checks.ambiguousUpdateHasNoImplicitTarget = !updateTool.validate({ action: 'supplement', expectedRevision: 1 })
+      && !updateTool.validate({ action: 'supplement', expectedRevision: 1, workId: 'latest' })
+      && JSON.stringify([service.get(a)!.identity.objectiveRevision, service.get(b)!.identity.objectiveRevision]) === JSON.stringify(beforeAmbiguous)
     phase = 'updated-worker'; releaseA.resolve(); await staleRequest.promise
     checks.supplementReachedOriginalRoot = recordCalls === 1
     checks.duplicateEventNotExecuted = service.get(a)?.inputs.filter(input => input.kind === 'supplement').length === 1

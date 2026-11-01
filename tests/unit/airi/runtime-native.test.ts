@@ -10,7 +10,7 @@ import { createMemoryRuntimeState } from '../../../src/main/memory/storage/state
 
 describe('extracted AIRI runtime with persistent native storage', () => {
   it('remembers, recalls, promotes, corrects and preserves failed mirror work across restart', async () => {
-    const root = mkdtempSync(join(resolve('test-results'), 'memory-runtime-'))
+    const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'memory-runtime-'))
     const clock = createManualClock(1_790_000_000_000)
     const scope = { userId: 'owner-root-1', characterId: 'taozi' }
     const context = { scope, sessionId: 'day-1', turnId: 'turn-1', sourceContext: { sessionId: 'day-1', messageId: 'original-1', neighbors: [] }, isCurrent: () => true }

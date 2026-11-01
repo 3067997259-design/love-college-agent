@@ -8,8 +8,11 @@ export function electronLaunchTarget(root, fallback) {
   return { executablePath: packaged ?? fallback, args: packaged ? [] : [root] }
 }
 
+/** Synthetic profiles may live on a separate volume; every caller still allocates a fresh ID. */
+export const testDataRoot = (root) => resolve(process.env.LCA_TEST_DATA_ROOT ?? join(root, '.local-data'))
+
 export function runtimeEnv(root) {
-  const cacheRoot = process.platform === 'win32' ? join(root.slice(0, 3), '.lca-cache') : join(root, '.cache')
+  const cacheRoot = process.env.LCA_TEST_CACHE_ROOT ?? (process.platform === 'win32' ? join(root.slice(0, 3), '.lca-cache') : join(root, '.cache'))
   for (const part of ['tmp', 'electron', 'electron-builder', 'electron-gyp']) mkdirSync(join(cacheRoot, part), { recursive: true })
   const env = { ...process.env, TEMP: join(cacheRoot, 'tmp'), TMP: join(cacheRoot, 'tmp'),
     ELECTRON_CACHE: join(cacheRoot, 'electron'), ELECTRON_BUILDER_CACHE: join(cacheRoot, 'electron-builder'),

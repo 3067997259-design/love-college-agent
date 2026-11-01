@@ -86,7 +86,20 @@ node scripts/accept-continuity.mjs --list
 pnpm test:continuity
 ```
 
-存储入口只执行离线记忆相关测试和 utility-process 合同。完整候选入口顺序执行 typecheck、lint、单测、固定 DSH bridge／family／collaboration、一次生产构建及现有 Electron 场景，最后要求 `scripts/smoke-continuity.mjs`。该 T1–T16 脚本尚未实现，所以当前完整入口在预检阶段失败，明确列出缺项，不能输出候选 PASS。各任务保存独立日志和源码指纹；执行期间源码变化则停止。现有 Electron 脚本的统一端口／数据根参数还需在后续接线时核对。
+存储入口只执行离线记忆相关测试和 utility-process 合同。完整候选入口顺序执行 typecheck、lint、全量单测、存储／执行／恢复关卡、固定 DSH bridge／family／collaboration、一次生产构建及产品 Electron 场景。`scripts/smoke-continuity.mjs` 已实现：它逐项核对本次目录内的实际结果，生成 T1–T16 合同覆盖表和证据哈希，不使用其他运行的旧 PASS。各任务保存独立日志和源码指纹；执行期间源码变化则停止。Electron 场景顺序运行，独立 profile 可通过 `LCA_TEST_DATA_ROOT` 指向另一卷；原生测试用 `LCA_TEST_ARTIFACTS_DIR`，缓存用 `LCA_TEST_CACHE_ROOT`。
+
+候选包另用 `pnpm test:continuity:package`：读取固定构建回执，核对 DuckDB DLL、Node 绑定、SQLite 与许可，再以包内 EXE 运行实际 SQLite、非空完整恢复、记忆界面和待核对工作恢复。此入口不安装，不接真实服务，不代替完整包矩阵、覆盖升级或第二机验收。
+
+阶段 6 已完成的定向修复与证据：
+
+- 构建把记忆宿主拆入 `out/main/chunks/` 后，旧的相对 worker 路径失效。改为应用根目录下的实际 worker；正常产品已开库、配置向量并完成重启。
+- 正常服务原目录使用带 `text:` 前缀的哈希，恢复代码曾使用裸哈希。统一到兼容既有目录的 `continuityTargets`，产品的非空事实导出、原 profile／空 profile 恢复均通过。独立恢复夹具没有覆盖这一接线差异，未用其旧 PASS 代替产品证据。
+- 前台工具范围分离后，旧协作 UI 场景无法在前台直接建成员。现有面板增加按具体工作选择 family 的入口；Worker 的成员尚忙时延后结算。实际产品验证了成员步骤、前台聊天、任务板回执不等于完工、选择隔离、指定停止和无重放重启。
+- 真实 DSH 自动压缩已由较小的测试模型容量触发；实际后续请求缩短，近期约束与工具成对保留。生产配置未降低阈值。
+- 原记忆 UI 夹具已迁到事实建议／审阅接口。长日维护按覆盖和空闲条件推进；超出日预算的失败保留，合成文本缩至原预算内，未修改产品限额。睡眠夹具改用异步封页屏障；两个月旧经历通过月份与精确 ID 找回。
+- 初次全量单测的 1 个旧屏障失败、构建磁盘满、沙箱下 family 启动前拒绝及各 UI 失败均保留。256 个已关闭的原生测试数据库在逐文件 SHA-256 校验后归档到 `D:\lca-continuity-evidence-20261101-native`，索引为 `test-results/continuity/native-evidence-relocation.json`；没有删除源素材或日用数据。
+
+统一运行 `test-results/continuity/candidate-LEzeyh/` 的 19 个顺序任务全部通过：来源、主进程／renderer 类型、全量 lint、886 项单测（5 项真实 PostgreSQL 跳过）、三个原生关卡、固定 DSH 检查、生产构建、记忆／路由／协作／存档／恢复产品场景，以及 T1–T16 合同覆盖审计。源码指纹为 `0ad0c599f9ce79037c8c5539424bf3c9a9d26cccfb1a662d590143740e93fa25`。包内验证与真实服务仍单列；T1–T16 是合成合同证据，不能解读为真实模型回答质量或完整长期矩阵通过。
 
 [24 条故事](../../tests/fixtures/continuity-stories.json) 每类 4 条：偏好、更正、决定理由、刚完工、长期任务、未知问题。它们是预登记的场景描述和 oracle，尚未执行；其中检查点、工具回执、日切等必须通过真实边界产生，不能伪装成用户消息直接注入。金标准不进入模型提示。原 90 条评测保留在 AIRI 原始领域代码中。
 

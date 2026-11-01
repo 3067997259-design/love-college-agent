@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import { createServer } from 'node:http'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -7,11 +8,21 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, electronLaunchTarget, initializeTestBook, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, testDataRoot, electronLaunchTarget, initializeTestBook, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const data = join(root, '.local-data', 'memory-smoke-' + randomUUID()); const sceneId = randomUUID()
+const data = join(testDataRoot(root), 'memory-smoke-' + randomUUID()); const sceneId = randomUUID()
 const profile = join(data, 'developer', sceneId)
+let vectorCalls = 0
+const vectors = createServer((request, response) => {
+  let body = ''; request.on('data', chunk => { body += chunk }); request.on('end', () => {
+    const input = JSON.parse(body)
+    if (request.url !== '/v1/embeddings' || input.model !== 'fixture-vector') { response.writeHead(400); response.end(); return }
+    vectorCalls++; response.setHeader('Content-Type', 'application/json')
+    response.end(JSON.stringify({ object: 'list', model: input.model, data: [{ object: 'embedding', index: 0, embedding: Array.from({ length: 768 }, (_, i) => i === 0 ? 1 : 0) }], usage: { prompt_tokens: 8, total_tokens: 8 } }))
+  })
+})
+await new Promise(done => vectors.listen(0, '127.0.0.1', done))
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-test-providers.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '19531' }
 let instance; let page; let client
 async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 }); page = await instance.firstWindow(); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
@@ -50,7 +61,8 @@ async function memoryAction(type) {
 try {
   await mkdir(data, { recursive: true }); await launch()
   assert.equal((await snapshot()).memory.status, 'unconfigured')
-  const denied = await send({ type: 'message.send', text: '/compact' }); assert.equal(denied.error.code, 'not-configured')
+  assert.equal((await send({ type: 'message.send', text: '/compact' })).status, 'accepted')
+  await waitFor(s => s.memory.compaction?.outcome === 'no_range', 'EMPTY_ROOT_COMPACT_NOT_REPORTED')
   assert.equal(await page.evaluate(() => window.lca.readSession('../private').then(() => false, () => true)), true)
   await instance.close()
   await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
@@ -68,9 +80,28 @@ try {
   await setReply(); await chat('我喜欢的饮料是咖啡。')
   await setReply(); await chat('我喜欢的饮料现在改为红茶，不再喝咖啡。')
   await tools(); await page.getByRole('button', { name: '抽取可见经历', exact: true }).click()
-  await waitFor((s) => s.memory.items.length === 3, 'VISIBLE_EXPERIENCE_NOT_EXTRACTED')
-  assert.equal((await snapshot()).memory.items.filter((item) => item.supersededBy).length, 1)
+  await waitFor((s) => s.memory.facts?.length === 3 && s.memory.status === 'idle', 'VISIBLE_EXPERIENCE_NOT_EXTRACTED')
+  const facts = page.getByRole('region', { name: '事实记忆', exact: true })
+  const pendingTea = facts.locator('.memory-item').filter({ hasText: '我喜欢的饮料现在改为红茶' })
+  await pendingTea.getByRole('button', { name: '拒绝这条建议', exact: true }).click()
+  await waitFor(s => s.memory.facts.some(fact => fact.content.includes('改为红茶') && fact.reviewStatus === 'rejected'), 'REJECT_PENDING_FACT_FAILED')
+  for (const text of ['周五桥', '我喜欢的饮料是咖啡。']) {
+    await facts.locator('.memory-item').filter({ hasText: text }).getByRole('button', { name: '确认这条建议', exact: true }).click()
+    await waitFor(s => s.memory.facts.some(fact => fact.content.includes(text) && fact.reviewStatus === 'approved'), 'FACT_REVIEW_FAILED')
+  }
+  await facts.locator('.memory-item').filter({ hasText: '我喜欢的饮料是咖啡。' }).getByRole('button', { name: '纠正', exact: true }).click()
+  await facts.getByRole('button', { name: '提出更正', exact: true }).waitFor()
+  await facts.getByRole('textbox').fill('我喜欢的饮料现在改为红茶，不再喝咖啡。')
+  await page.getByRole('button', { name: '提出更正', exact: true }).click()
+  await facts.getByRole('button', { name: '确认保存', exact: true }).click()
+  await waitFor(s => s.memory.facts.some(fact => fact.factStatus === 'superseded') && s.memory.facts.some(fact => fact.content.includes('改为红茶') && fact.reviewStatus === 'approved' && fact.factStatus === 'active'), 'REVIEWED_CORRECTION_FAILED')
   assert.equal(await page.locator('.memory-item[data-superseded="true"]').count(), 1)
+  await page.getByLabel('向量服务地址', { exact: true }).fill(`http://127.0.0.1:${vectors.address().port}/v1`)
+  await page.getByLabel('向量模型', { exact: true }).fill('fixture-vector')
+  await page.getByLabel('向量密钥', { exact: true }).fill('sk-synthetic-embedding')
+  await page.getByRole('button', { name: '保存并迁移向量', exact: true }).click()
+  await waitFor(s => s.memorySettings.status === 'idle' && s.memory.engine.embedding.state === 'ready', 'UI_VECTOR_MIGRATION_FAILED')
+  assert.ok(vectorCalls > 0); assert.equal(await page.getByLabel('向量密钥', { exact: true }).inputValue(), '')
   await closeTools()
   await page.getByRole('button', { name: '日程', exact: true }).click()
   await page.getByRole('button', { name: '扫描合成邮件', exact: true }).click()
@@ -86,18 +117,20 @@ try {
   const recalled = await mcp('get_context'); safe(recalled)
   const result = recalled.map((message) => message.role === 'tool' ? textOf(message.content) : '').find((text) => text.includes('我喜欢的饮料现在改为红茶'))
   assert.ok(result, 'MEMORY_TOOL_NOT_RUN'); assert.ok(!result.includes('我喜欢的饮料是咖啡。'), 'SUPERSEDED_MEMORY_RECALLED')
-  for (let i = 0; i < 4; i++) { await setReply(); await chat('合成旧回合 ' + i + ' 这是可见对话压缩验收。'.repeat(100)) }
+  // Exercise a partial day without exhausting the unchanged 240 KB daily maintenance budget.
+  for (let i = 0; i < 4; i++) { await setReply(); await chat('合成旧回合 ' + i + ' 这是可见对话压缩验收。'.repeat(250)) }
   const before = await snapshot(); const originalCount = before.messages.length
+  const beforeRequest = JSON.stringify(await mcp('get_context')).length
   await tools(); await page.getByLabel('记忆模型场景').selectOption('invalid')
-  await page.getByRole('button', { name: '压缩旧回合', exact: true }).click()
-  await waitFor((s) => s.memory.error?.code === 'memory-invalid-output', 'INVALID_SUMMARY_NOT_REJECTED')
-  assert.equal((await snapshot()).memory.contextChars, before.memory.contextChars)
-  await page.getByLabel('记忆模型场景').selectOption('ready'); await closeTools()
-  // /compact is a local command. It produces no model reply and preserves the full user chat.
+  await closeTools(); await setReply('Earlier conversation is summarized. Read current memory revisions for the drink preference.')
+  // DSH owns compaction; an invalid background-memory fixture cannot replace
+  // that history compressor. The original book remains append-only.
   assert.equal((await send({ type: 'message.send', text: '/compact' })).status, 'accepted')
-  await waitFor((s) => s.memory.lastCompactedAtMs != null && s.memory.status === 'idle', 'LOCAL_COMPACT_FAILED')
-  assert.ok((await snapshot()).memory.contextChars < before.memory.contextChars)
+  await waitFor((s) => s.memory.compaction?.outcome === 'compacted' && s.memory.status === 'idle', 'LOCAL_COMPACT_FAILED')
   assert.equal((await snapshot()).messages.length, originalCount)
+  await tools(); await page.getByLabel('记忆模型场景').selectOption('ready'); await closeTools()
+  await setReply('Current reviewed preference remains red tea.'); await chat('压缩以后，确认当前饮料偏好。')
+  assert.ok(JSON.stringify(await mcp('get_context')).length < beforeRequest, 'NATIVE_MODEL_CONTEXT_NOT_SHORTER')
   await tools(); const oldSession = (await snapshot()).scope.sessionId
   await page.getByLabel('历史会话', { exact: true }).selectOption(oldSession)
   await page.getByRole('region', { name: '历史聊天', exact: true }).getByText('我把纸桥放在书桌上，给它取名叫周五桥。', { exact: true }).waitFor()
@@ -117,12 +150,31 @@ try {
   await setClock('2026-10-17T04:03:31+08:00')
   await waitFor((s) => s.scope.sessionId !== oldSession, 'SAME_PROCESS_DAY_ROLLOVER_FAILED')
   const next = await snapshot(); assert.equal(next.session.dayKey, '2026-10-17'); assert.notEqual(next.epoch, before.epoch)
-  assert.ok(next.session.pages.some((item) => item.sessionId === oldSession && item.summarized))
+  // Long days may need another bounded coverage pass. A partial day must not
+  // be reported complete merely because the first summary exists.
+  if (!next.session.pages.some(item => item.sessionId === oldSession && item.summarized)) {
+    const coverage = async () => {
+      let count = 0
+      for (const owner of await readdir(join(profile, 'journals'))) for (const name of await readdir(join(profile, 'journals', owner))) if (name.endsWith('.jsonl')) {
+        const rows = (await readFile(join(profile, 'journals', owner, name), 'utf8')).trim().split('\n').filter(Boolean).map(JSON.parse)
+        for (const row of rows) if (row.type === 'memory/summary' && row.summary.level === 'day' && row.summary.sourceSessionIds.includes(oldSession)) count = Math.max(count, row.summary.coverage?.count ?? 0)
+      }
+      return count
+    }
+    for (let i = 0; i < 8 && !(await snapshot()).session.pages.some(item => item.sessionId === oldSession && item.summarized); i++) {
+      await waitFor(s => s.memory.status === 'idle', 'DAY_MAINTENANCE_NOT_IDLE')
+      const beforeCoverage = await coverage()
+      await mcp('set_clock', { nowMs: (await snapshot()).clock.nowMs + 31_000, frozen: true })
+      await waitFor(async s => s.session.pages.some(item => item.sessionId === oldSession && item.summarized) || await coverage() > beforeCoverage, 'DAY_COVERAGE_DID_NOT_ADVANCE')
+      await waitFor(s => s.memory.status === 'idle', 'DAY_MAINTENANCE_NOT_FINISHED')
+    }
+    assert.ok((await snapshot()).session.pages.some(item => item.sessionId === oldSession && item.summarized), 'DAY_COVERAGE_NOT_COMPLETED')
+  }
   await setReply(); await chat('纸桥')
   const prepared = await mcp('get_context'); safe(prepared)
   // The new day's first message brings the earlier day's summary and matching memories beside your words, before them.
   const opening = prepared.map((message) => message.role === 'user' ? textOf(message.content) : '').findLast((text) => text.includes('previousDaysReference')) ?? ''
-  assert.ok(opening.includes('previousDaysReference') && opening.includes('memoryReference') && opening.endsWith('\n\n纸桥'), 'NEXT_DAY_CONTEXT_ORDER_FAILED')
+  assert.ok(opening.includes('previousDaysReference') && (opening.includes('memoryReference') || opening.includes('memoryDirectory')) && opening.endsWith('\n\n纸桥'), 'NEXT_DAY_CONTEXT_ORDER_FAILED')
   await tools(); await page.getByLabel('历史会话', { exact: true }).selectOption(oldSession)
   await page.getByRole('region', { name: '历史聊天', exact: true }).getByText('我把纸桥放在书桌上，给它取名叫周五桥。', { exact: true }).waitFor()
   assert.equal((await snapshot()).messages.some((message) => message.text === '/compact'), false)
@@ -133,7 +185,7 @@ try {
     if (name.endsWith('.jsonl')) safe(await readFile(join(profile, 'journals', folder.name, name), 'utf8'))
   }
   const persisted = await snapshot(); await client.close(); client = undefined; await instance.close(); await launch()
-  const restored = await snapshot(); assert.deepEqual(restored.memory.items, persisted.memory.items); assert.equal(restored.session.pages.length, 2)
+  const restored = await snapshot(); assert.deepEqual(restored.memory.items, persisted.memory.items); assert.deepEqual(restored.memory.facts, persisted.memory.facts); assert.equal(restored.session.pages.length, 2)
   const archive = await page.evaluate((id) => window.lca.readSession(id), oldSession)
   assert.ok(archive.messages.some((message) => message.text.includes('周五桥'))); safe(archive)
   assert.equal(await page.locator('.card-delivery[data-entering="true"]').count(), 0)
@@ -141,5 +193,10 @@ try {
   await page.getByRole('region', { name: '历史聊天', exact: true }).waitFor()
   await page.getByRole('region', { name: '历史聊天', exact: true }).scrollIntoViewIfNeeded()
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results', 'memory.png') })
-  console.log('Memory smoke: seen-only extraction, correction, metadata-only file/mail boundary, explicit memory tool, invalid-summary refusal, local /compact, original archive, idle/lights-safe 04:00 rotation in one process, ordered next-day summary/recall and restart verified; fake models only, real IMAP blocked.')
-} finally { await client?.close(); await instance?.close() }
+  console.log('Memory smoke: native seen-only suggestions, explicit review/correction, metadata-only file/mail boundary, actual DSH /compact independent of the background summarizer, shorter model request with complete original archive, idle/lights-safe day rotation, next-day references and native fact restart verified; fake models only.')
+} catch (error) {
+  await mkdir(join(root, 'test-results/continuity'), { recursive: true })
+  const diagnostic = { error: String(error), data, snapshot: await snapshot().catch(() => null), facts: await page?.getByRole('region', { name: '事实记忆', exact: true }).innerText().catch(() => null) }
+  await writeFile(join(root, 'test-results/continuity', `memory-failure-${sceneId}.json`), JSON.stringify(diagnostic, null, 2))
+  throw error
+} finally { await client?.close(); await instance?.close(); vectors.closeAllConnections(); await new Promise(done => vectors.close(done)) }

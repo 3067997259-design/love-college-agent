@@ -7,7 +7,7 @@ import { createContinuousWork } from '../../src/main/work/service'
 import { inspectWorkArchive, restoreWorkArchive } from '../../src/main/work/archive'
 
 it('restores a work into a new owner generation without replay and continues only after a new resume command', async () => {
-  const root = mkdtempSync(join(resolve('test-results'), 'work-archive-')); const clock = createManualClock(1790000000000)
+  const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'work-archive-')); const clock = createManualClock(1790000000000)
   const owner = { userId: 'u', characterId: 'c', dataRootId: 'original-root' }; const receiving = { ...owner, dataRootId: 'receiving-root' }
   const createRuntime = vi.fn<Parameters<typeof createContinuousWork>[0]['createRuntime']>(() => ({ deliver: async () => {}, invalidateWork: () => {}, close: async () => {}, busy: () => false, stateChanged: () => {}, untrust: () => {}, efforts: () => {} }))
   const common = { clock, available: () => true, held: () => false, project: (id: string) => ({ id, path: root }), decision: (id: string) => ({ id, text: 'Original user requirement', atMs: clock.nowMs() }), safeText: (text: string) => text, changed: () => {}, createRuntime }

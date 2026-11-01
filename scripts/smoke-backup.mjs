@@ -8,13 +8,13 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, testDataRoot, electronLaunchTarget, initializeTestBook, openSettings } from './runtime-env.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'backup-smoke-' + randomUUID()); const sceneId = randomUUID()
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(testDataRoot(root), 'backup-smoke-' + randomUUID()); const sceneId = randomUUID()
 let profile = join(data, 'developer', sceneId)
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-test-providers.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '19533' }
 let instance; let page; let client
-async function launch() { instance = await _electron.launch({ executablePath: electronPath, args: [root], env, timeout: 30_000 }); page = await instance.firstWindow(); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
+async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 }); page = await instance.firstWindow(); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 async function waitFor(predicate, error) { for (let i = 0; i < 200; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(error) }
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) }, body)
@@ -37,7 +37,11 @@ try {
   await mkdir(data, { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
   await launch(); await connectDebug(); await mcp('set_clock', { frozen: true }); await send({ type: 'mode.set', mode: 'quiet' })
   await chat('我把纸桥放在书桌上，给它取名叫周五桥。'); await chat('我喜欢的饮料是咖啡。'); await chat('我喜欢的饮料现在改为红茶，不再喝咖啡。')
-  await send({ type: 'memory.extract' }); await waitFor((s) => s.memory.status === 'idle' && s.memory.items.length === 3, 'MEMORY_NOT_READY')
+  await send({ type: 'memory.extract' }); await waitFor((s) => s.memory.status === 'idle' && s.memory.facts?.length === 3, 'MEMORY_NOT_READY')
+  await tools()
+  await page.getByRole('region', { name: '事实记忆', exact: true }).locator('.memory-item').filter({ hasText: '周五桥' }).getByRole('button', { name: '确认这条建议', exact: true }).click()
+  await waitFor(s => s.memory.facts.some(fact => fact.content.includes('周五桥') && fact.reviewStatus === 'approved'), 'FACT_NOT_REVIEWED')
+  await closeTools()
   await send({ type: 'mail.scan' }); await waitFor((s) => s.mailbox.status === 'ready', 'MAIL_NOT_READY')
   const candidate = (await snapshot()).candidates[0]; await send({ type: 'candidate.confirm', candidateId: candidate.id, expectedRevision: candidate.revision }); await send({ type: 'campus.export' })
   await send({ type: 'privacy.set', enabled: true }); await send({ type: 'developer.document.import', fixtureId: 'notes-text' })
@@ -62,7 +66,8 @@ try {
   await tools(); await page.getByRole('button', { name: '导出私人存档', exact: true }).click()
   await waitFor((s) => s.backup.status === 'exported', 'SAVE_EXPORT_FAILED'); await closeTools()
   const bytes = await readFile(archiveFile); const zip = await JSZip.loadAsync(bytes, { checkCRC32: true }); const manifest = JSON.parse(await zip.file('manifest.json').async('string'))
-  assert.equal(manifest.pomodoro.remainingMs, 50_000); assert.equal(manifest.counts.memoryCount, 4); assert.equal(manifest.counts.deliveryCount, 3)
+  assert.equal(manifest.formatVersion, 2); assert.equal(manifest.continuity.memoryCount, before.memory.facts.length)
+  assert.equal(manifest.pomodoro.remainingMs, 50_000); assert.equal(manifest.counts.memoryCount, before.memory.facts.length + before.memory.items.length); assert.equal(manifest.counts.deliveryCount, 3)
   assert.ok(manifest.files.every((file) => !/secrets|settings|connections|clock|debug|plugins/.test(file.path)))
   for (const file of manifest.files) { const actual = await zip.file(file.path).async('nodebuffer'); assert.equal(createHash('sha256').update(actual).digest('hex'), file.sha256); assert.ok(!actual.includes(Buffer.from('APPLICATION_CREDENTIAL_CANARY'))) }
   await chat('AFTER_SAVE_SHOULD_BE_REWOUND'); await send({ type: 'lights.set', lightsOut: true })
@@ -76,7 +81,7 @@ try {
   assert.equal((await snapshot()).backup.status, 'idle'); assert.ok((await snapshot()).messages.some((message) => message.text === 'AFTER_SAVE_SHOULD_BE_REWOUND'))
   await chooseImport(archiveFile); await client.close(); client = undefined; await confirmAndRestart()
   const restored = await snapshot(); assert.equal(restored.backup.status, 'restored'); assert.notEqual(restored.epoch, before.epoch); assert.equal(restored.scope.sessionId, before.scope.sessionId)
-  assert.deepEqual(restored.messages, before.messages); assert.deepEqual(restored.memory.items, before.memory.items); assert.deepEqual(restored.deliveries, before.deliveries)
+  assert.deepEqual(restored.messages, before.messages); assert.deepEqual(restored.memory.items, before.memory.items); assert.deepEqual(restored.memory.facts, before.memory.facts); assert.deepEqual(restored.deliveries, before.deliveries)
   assert.deepEqual(restored.quill, before.quill); assert.equal(restored.quill.state, 'given')
   assert.equal(restored.privacy.fileFilteringEnabled, true); assert.equal(restored.companion.lightsOut, false); assert.equal(restored.pomodoro.remainingMs, 50_000)
   assert.equal(restored.pomodoro.endsAtMs, restored.clock.nowMs + 50_000); assert.equal(restored.session.rolloverPending, true)
@@ -97,4 +102,8 @@ try {
   safe(emptyRestored); await tools(); await page.getByRole('heading', { name: '私人存档', exact: true }).scrollIntoViewIfNeeded()
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results', 'backup.png') })
   console.log('Backup smoke: real SQLite-backed ZIP export, native chooser and explicit restore consent, tamper refusal/cancel, safety archive, same and empty profile recovery, original chat/memory/mail/document/artifact continuity, exact timer reanchoring without catch-up, restart and safe public views verified; fake model/data only.')
+} catch (error) {
+  await writeFile(join(data, 'failure.json'), JSON.stringify({ error: String(error), snapshot: await snapshot().catch(() => null) }, null, 2))
+  console.error('Synthetic backup evidence:', data)
+  throw error
 } finally { await client?.close(); await instance?.close() }

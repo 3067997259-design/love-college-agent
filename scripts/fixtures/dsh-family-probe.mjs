@@ -25,7 +25,7 @@ export function apply(ctx) {
     agents.set(String(agent.id), agent)
     send({ event: 'created', id: String(agent.id), parent: agent.session.header.parentSession ?? null, cwd: agent.session.header.cwd, source, ...policy(agent.session) })
   })
-  ctx.on('agent/pre-step', (payload, next) => {
+  ctx.on('agent/pre-step', async (payload, next) => {
     const session = payload.agent.session
     if (process.env.LCA_FAMILY_COMPACT === '1' && session.header.parentSession && payload.step === 2 && !compacted.has(String(session.id))) {
       const nodes = [...session.surface.nodes]
@@ -40,7 +40,8 @@ export function apply(ctx) {
     for (let seq = 0; seq < session.seq; seq++) if (/FAMILY_(RAW|RELAY|SETTLED)_SOURCE/.test(JSON.stringify(session.eventAt(seq)))) originalStillInLog = true
     send({ event: 'original-log', id: String(payload.agent.id), originalStillInLog })
     send({ event: 'step', id: String(payload.agent.id), parent: payload.agent.session.header.parentSession ?? null, turn: payload.turn, step: payload.step, ...policy(payload.agent.session) })
-    return next()
+    try { return await next() }
+    catch (error) { send({ event: 'pre-step-error', id: String(payload.agent.id), error: String(error), stack: error.stack }); throw error }
   })
   ctx.on('session/event', (session, event) => {
     if (event.type === 'turn/end') {

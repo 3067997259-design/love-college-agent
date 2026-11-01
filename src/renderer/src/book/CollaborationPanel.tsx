@@ -43,6 +43,9 @@ export function CollaborationPanel({ snapshot, bridge, openRequest = 0, shot }: 
     {open && <section id="collaboration-panel" className="collaboration-sheet" aria-label="成员与共同任务">
       <header><h2>一起做的事</h2><button type="button" aria-label="收起协作" onClick={() => setOpen(false)}>收起</button></header>
       <p className="collaboration-note">独立的小任务交给临时助手；需要分工与交接时组成团队。</p>
+      {view?.workSelection && <label>查看哪件事<select aria-label="协作工作" value={view.workSelection.workId ?? ''} onChange={event => { void command({ type: 'agent.refresh', workId: event.target.value || null }) }}>
+        <option value="">当前对话</option>{view.workSelection.choices.map(work => <option key={work.workId} value={work.workId}>{work.label}{work.available ? '' : ' · 未运行'}</option>)}
+      </select></label>}
       <div className="collaboration-actions"><button type="button" disabled={busy} onClick={refresh}>刷新核对</button>{root && <button type="button" disabled={busy} onClick={() => { void command({ type: 'agent.stop-family', target: target(root) }) }}>停止整组</button>}</div>
       {view?.capacity && <p className="collaboration-note">团队名册 {view.capacity.teamUsed} / {view.capacity.teamLimit} · 共用运行上限 {view.capacity.activeLimit}<br />停止不会释放名册；空闲也可能占用运行容量。</p>}
       {(!view || view.status !== 'ready') && <p role="status">{view?.status === 'failed' ? '连接已断开，刷新会重新连接并核对记录。' : '开始工作后，可以在这里查看成员。'}</p>}

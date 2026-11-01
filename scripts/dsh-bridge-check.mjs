@@ -35,6 +35,38 @@ const resultOf = (seen, id) => seen.results.find((result) => result.callId === i
 const write = (id, content) => ({ tool: 'write', id, args: { file_path: 'note.txt', content } })
 
 const SCENARIOS = {
+  'compact-auto': {
+    trusted: true, answer: 'allowed-once',
+    modelMetadata: { contextWindow: 32768, maxTokens: 2048 },
+    compaction: { auto: true, thresholdRatio: 0.4, headroomTokens: 2048, retainTokens: 512, maxTokens: 1024 },
+    turns: ['[[T1]] Write an actual note saying KEEP_REQUIREMENT. ' + 'Historical detail before the tool. '.repeat(3000),
+      '[[T2]] Continue keeping KEEP_REQUIREMENT. ' + 'Older conversation after the paired tool. '.repeat(900),
+      '[[T3]] What requirement must still be kept?'],
+    script({ turn, lastTool, messages, notes }) {
+      if (textOf(messages.at(-1)?.content).startsWith('You are now acting as a compaction engine')) {
+        notes.summaryCalls = (notes.summaryCalls ?? 0) + 1
+        notes.beforeBytes = Math.max(notes.beforeBytes ?? 0, JSON.stringify(messages).length)
+        return { text: 'The user requires KEEP_REQUIREMENT. The completed note.txt write and its paired tool result are recorded in the original session.' }
+      }
+      if (turn < 3) notes.beforeRequestBytes = Math.max(notes.beforeRequestBytes ?? 0, JSON.stringify(messages).length)
+      if (turn === 1 && !lastTool) return write('auto-note', 'KEEP_REQUIREMENT\n')
+      if (turn === 3) {
+        const ids = messages.flatMap(message => message.tool_calls ?? []).map(call => call.id)
+        const results = messages.filter(message => message.role === 'tool').map(message => message.tool_call_id)
+        notes.paired = ids.length === results.length && ids.every(id => results.includes(id))
+        notes.afterBytes = JSON.stringify(messages).length
+        notes.retained = JSON.stringify(messages).includes('KEEP_REQUIREMENT')
+        notes.checkpoint = JSON.stringify(messages).includes('<compacted-summary>')
+      }
+      return { text: 'I will keep KEEP_REQUIREMENT.' }
+    },
+    check: (seen, notes, work) => ({ turnsCompleted: seen.turnEnds.join() === 'completed,completed,completed',
+      actualAutomaticSummary: notes.summaryCalls > 0, noManualCompactCommand: !seen.compacted,
+      nativeToolCompleted: resultOf(seen, 'auto-note')?.isError === false && readFileSync(join(work, 'note.txt'), 'utf8') === 'KEEP_REQUIREMENT\n',
+      nextRequestSmaller: notes.afterBytes < notes.beforeRequestBytes, recentConstraintRetained: notes.retained === true,
+      actualCheckpointInNextRequest: notes.checkpoint === true,
+      remainingToolsPaired: notes.paired === true }),
+  },
   'compact-memory': {
     trusted: false, answer: 'rejected', compactAfter: 2,
     reference: JSON.stringify({ memoryReference: [{ id: 'fact-old', revision: 1, text: 'OLD_FACT_TEA' }] }),
@@ -290,7 +322,9 @@ async function run(name) {
     })
   })
   await new Promise((done) => server.listen(0, '127.0.0.1', done))
-  const { home, cli } = prepareDshProfile({ dshRoot, dataDir, bridge: join(repo, 'dsh', 'lca-bridge') })
+  // A separate fixture profile keeps pressure overrides from affecting another scenario.
+  const { home, cli, profile } = prepareDshProfile({ dshRoot, dataDir: join(dataDir, name), bridge: join(repo, 'dsh', 'lca-bridge') })
+  if (scenario.compaction) writeFileSync(join(profile, 'cordis.patch.yml'), JSON.stringify([{ id: 'compaction-basic', config: scenario.compaction }]))
   let stderr = ''
   const seen = { states: [], stateNotices: [], messages: [], approvals: [], degraded: [], retired: [], trusted: [], results: [], turnEnds: [], handoffs: [], switched: [], admits: [], probed: {} }
   let sessionId
@@ -299,10 +333,10 @@ async function run(name) {
   const launch = () => {
   child = spawn(process.execPath, [cli, '--profile', 'lca'], {
     cwd: work,
-    env: { ...process.env, DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1', LCA_GUARDED_ROOTS: join(dataDir, 'dsh-home'), DEEPSEEK_API_KEY: '', NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost',
+    env: { ...process.env, DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1', LCA_GUARDED_ROOTS: home, DEEPSEEK_API_KEY: '', NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost',
       // As src/main/dsh/routes.ts builds it for one OpenAI-compatible endpoint serving both models.
       ...(scenario.routes ? { ...scenario.routes(), HTTPS_PROXY: 'http://127.0.0.1:9', HTTP_PROXY: 'http://127.0.0.1:9', NO_PROXY: '' } : { LCA_CHAT_API_KEY: 'mock', LCA_DSH_ROUTES: JSON.stringify({
-        providers: { 'lca-chat': { displayName: 'LCA', apiKeyEnv: 'LCA_CHAT_API_KEY', api: 'openai-completions', baseURL: `http://127.0.0.1:${server.address().port}/v1`, models: [{ id: 'mock-chat' }, ...(scenario.work ? [{ id: scenario.work }] : [])] } },
+        providers: { 'lca-chat': { displayName: 'LCA', apiKeyEnv: 'LCA_CHAT_API_KEY', api: 'openai-completions', baseURL: `http://127.0.0.1:${server.address().port}/v1`, models: [{ id: 'mock-chat', ...scenario.modelMetadata }, ...(scenario.work ? [{ id: scenario.work }] : [])] } },
         chat: { provider: 'lca-chat', model: 'mock-chat' }, work: { provider: 'lca-chat', model: scenario.work ?? 'mock-chat' } }) }) },
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
   })

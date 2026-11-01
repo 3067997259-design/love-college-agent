@@ -169,10 +169,15 @@ export function createDshExecution(options: {
   let maintaining = false
   let closed = false
   let closing: Promise<void> | undefined
+  let pendingWorkSettlement = false
+  const settleWorkerIfIdle = () => {
+    if (!pendingWorkSettlement || closed || turn || opening || preparing || starts.length || maintaining || collaboration.busy()) return
+    pendingWorkSettlement = false; options.settled?.()
+  }
   const focus = createMemberFocus(clock, (name) => toolKind(name, lcaTools()), (view) => { if (!closed) collaboration.accept(view) })
   const collaboration = createCollaborationState({
     allowed: () => !closed && !maintaining && !store.projection().lightsOut && !store.projection().sleeping,
-    changed: () => { if (!closed) options.changed('task') },
+    changed: () => { if (!closed) { options.changed('task'); if (pendingWorkSettlement) queueMicrotask(settleWorkerIfIdle) } },
     run: async (command) => {
       if (closed || maintaining) throw new Error('DSH_BUSY')
       const recovering = command.type === 'agent.refresh' && host?.available?.() === false
@@ -400,6 +405,7 @@ export function createDshExecution(options: {
       case 'collaboration':
       case 'collaboration-reply': if (currentScope()) collaboration.accept(focus.accept(event.view as CollaborationView)); break
       case 'turn-start': {
+        pendingWorkSettlement = false
         stateChanges = 0
         const start = starts.shift()
         turn = { memoryDerived: start?.memoryDerived, lcaTurnId: randomUUID(), trigger: start?.trigger ?? 'user', attempts: 0, role: 'chat', partial: '', toolsExecuted: false, calls: new Map(), asks: new AbortController(), seen: [], inputEvents: new Set() }
@@ -491,7 +497,10 @@ export function createDshExecution(options: {
         record({ type: 'turn/end', turnId: turn.lcaTurnId, reason: reason?.kind === 'aborted' || reason?.kind === 'cancelled' ? 'aborted' : 'completed' })
         // This session now has the conversation up to here; what happens in other projects it learns on its next turn.
         session.seenSeq = store.records().at(-1)?.seq ?? session.seenSeq; saveSession({ seenSeq: session.seenSeq })
-        turn = undefined; options.changed('task'); options.settled?.(); kick(); break
+        turn = undefined; options.changed('task')
+        if (options.rootPolicy?.role === 'worker') { pendingWorkSettlement = true; settleWorkerIfIdle() }
+        else options.settled?.()
+        kick(); break
       }
       default: break
     }

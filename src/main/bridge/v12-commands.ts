@@ -7,7 +7,7 @@ export function v12CommandSchemas(envelope: { protocolVersion: z.ZodLiteral<1>; 
   const id = z.string().min(1).max(160)
   const revision = z.number().int().nonnegative()
   return [
-    z.strictObject({ ...envelope, type: z.literal('agent.refresh') }),
+    z.strictObject({ ...envelope, type: z.literal('agent.refresh'), workId: z.string().uuid().nullable().optional() }),
     z.strictObject({ ...envelope, type: z.literal('skills.refresh') }),
     z.strictObject({ ...envelope, type: z.literal('skills.import'), scope: z.enum(['profile', 'project']) }),
     z.strictObject({ ...envelope, type: z.literal('skills.remove'), skillId: id, fingerprint: id, projectKey: id }),

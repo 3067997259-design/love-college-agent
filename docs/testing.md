@@ -12,13 +12,19 @@ pnpm test
 
 纯文档改动检查链接、命令、一致性和 `git diff --check`，无需为文案重跑所有 Electron 场景。代码改动先跑相关单测与场景，扩大检查须有具体原因。
 
-连续协作者实验分支的单会话关卡为 `node scripts/memory-conversation-gate.mjs`：固定 DSH、生产 controller／execution／记忆工具、真实文件 DuckDB，以及本地脚本模型与合成 768 维向量。验证记住→审阅→召回→纠正→原生压缩→新值及派生回复不重抽；结果独立保存于 `test-results/continuity/conversation/`。这是局部流程验证，未替代 Electron 页面、真实向量／镜像、迁移恢复或 T1–T16。旧 `smoke-memory` 的产品断言将在统一验收前更新，当前不能以旧断言宣称新引擎验收。
+连续协作者实验分支的单会话关卡为 `node scripts/memory-conversation-gate.mjs`：固定 DSH、生产 controller／execution／记忆工具、真实文件 DuckDB，以及本地脚本模型与合成 768 维向量。验证记住→审阅→召回→纠正→原生压缩→新值及派生回复不重抽；脚本答案从实际注入的引用读取，金标准只用于断言。`smoke-memory` 另经实际书页审阅、更正、配置向量、压缩、分批日回顾及重启。两者均不代表真实模型质量。
 
 执行关卡为 `pnpm test:continuity:execution`：一个实际 DSH 宿主、独立前台和两个工作 root、本地脚本模型及工具屏障。覆盖前台响应、同任务补充、事件幂等、指定停止、旧模型步骤在目标变更后不得执行动作，以及接收／消费回执。整条故事继续执行原生文件写入、检查点发布、立即追问、实际 SQLite 日页切换、DuckDB 更正、历史展开及次日旧摘要冲突检查；不是完整 T1–T16 或恢复验收。结果保存在 `test-results/continuity/execution/`；`continuous-work.test.ts` 检查调度、检查点与进度边界，`experience-index.test.ts` 检查长日覆盖、31 日分批汇总、失效及忘记后历史版本不复活。
 
 GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型、lint 和单元测试。旧心流的 `probe:desk-command:runtime` 已随功能移除，不再作为 CI 入口；DSH、包内流程和实际升级仍按下文单独验收，不由静态 CI 结果替代。
 
 连续协作者恢复关卡为 `node scripts/continuity-recovery-gate.mjs`：隔离 Electron 与实际 utility process，使用同一非空夹具验证完整向量、忘记回执、原 outbox、采集游标、检查点、交付水位、显式继续、旧存档和中断回滚。报告保存在 `test-results/continuity/recovery/`，不访问真实模型或镜像；Node 原生对应测试为 `continuity-backup-native.test.ts`。
+
+`pnpm test:continuity` 对一个源码指纹顺序运行完整单测、类型和 lint、三个原生关卡、固定 DSH bridge／family／collaboration、一次生产构建及相关 Electron 场景。末尾的 T1–T16 审计只接受该次运行实际生成的报告，不查找旧的“最近通过”结果；保留每项检查和日志哈希。90 条检索样本与 24 条故事仍保留，完整真实模型回答／成本矩阵另行授权。`--list` 可查看任务列表。
+
+连续工作实验中的 `smoke-collaboration` 通过正常产品入口开工，保持 Worker 的成员请求阻塞，检查前台聊天、工作选择、成员步骤、任务板和停止／重启；`smoke-v12-recovery` 复用该路径，再验证待核对状态、显式继续、非空工作存档与两次冷启动。早期由前台直接创建成员的 P5／P6 脚本保留于 Git 历史；其固定 DSH 来源、安全和成员控制合同仍由 bridge／family／collaboration 检查承担，不能把新脚本报告称作旧 UI 矩阵全量重跑。
+
+大体积合成数据可通过 `LCA_TEST_DATA_ROOT`（相关 Electron profile）、`LCA_TEST_ARTIFACTS_DIR`（原生单测）和 `LCA_TEST_CACHE_ROOT` 指向单独卷；每个场景仍创建独立 ID，端口顺序使用或由系统分配。`pnpm test:continuity:package` 读取 `LCA_RELEASE_DIR` 的固定构建回执，核对原生模块后在包内 EXE 执行 SQLite、完整非空恢复、记忆书页和工作恢复。它不安装或卸载应用，也不替代完整 `test:package`、升级、第二台 Windows 或真实服务验收。
 
 ## 主要场景
 
@@ -83,7 +89,7 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 包内矩阵的扩展场景加 `--verify-node-build`：应用 PATH 仅保留 Windows 目录，确认 `node` / `pnpm` 无法解析，再经书页分别批准安装和 JavaScript 构建，核对实际构建产物与执行二进制属于同一 Electron。可以用 `node scripts/smoke-extensions.mjs --verify-node-build` 单独复跑；此项仍是本机隔离证据，不代替第二机验收。
 
-rc.2 之后的候选还需补跑门牌 / 文本状态交接与模型能力书页；它们目前未列入 `smoke-package.mjs` 的 34 项矩阵。完整矩阵已包含 `smoke-collaboration.mjs`（不加 `--team-room-only`）及 `smoke-v12-recovery.mjs`，应核对报告中的实际 EXE、完整协作的 `teamOnly: false` 和同一 app.asar 哈希。以下命令按顺序执行，`LCA_RELEASE_DIR` 先指向本轮候选的干净绝对输出目录：
+rc.2 之后的候选还需补跑门牌 / 文本状态交接与模型能力书页；它们目前未列入 `smoke-package.mjs` 的 34 项矩阵。完整矩阵已包含 `smoke-collaboration.mjs` 及 `smoke-v12-recovery.mjs`，应核对报告中的实际 EXE、工作选择及恢复检查和同一 app.asar 哈希。以下命令按顺序执行，`LCA_RELEASE_DIR` 先指向本轮候选的干净绝对输出目录：
 
 ```powershell
 node scripts/smoke-package.mjs --unpacked-only

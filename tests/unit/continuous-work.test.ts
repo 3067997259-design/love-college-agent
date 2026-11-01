@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { createManualClock } from '../../src/main/clock'
 import { createContinuousWork, type WorkRuntimeContext, type WorkRuntime } from '../../src/main/work/service'
 import { openWorkJournal } from '../../src/main/work/journal'
+import { inspectWorkArchive } from '../../src/main/work/archive'
 import type { ContinuousWorkCommand, ContinuousWorkView, WorkEvidence } from '../../src/shared/continuity'
 import { captureWorkFile } from '../../dsh/lca-bridge/work-evidence.js'
 import { checkpointContext } from '../../src/main/work/tools'
@@ -49,6 +50,11 @@ function fixture(root = mkdtempSync(join(tmpdir(), 'lca-work-'))) {
 }
 
 describe('durable work scheduling and delivery', () => {
+  it('keeps an empty work catalog exportable before the first task is created', () => {
+    const f = fixture()
+    expect(inspectWorkArchive(readFileSync(join(f.root, 'events.log')), owner).works).toEqual([])
+    expect(f.service.view().items).toEqual([])
+  })
   it('runs two projects, serializes the same project, and does not count turn-end as completion', async () => {
     const f = fixture(), a = f.create('a'), b = f.create('b'), c = f.create('c', 'project-b'), d = f.create('d', 'project-c')
     await tick()

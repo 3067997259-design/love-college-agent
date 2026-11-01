@@ -30,6 +30,7 @@ import { definitionSchema } from './characters/package'
 import { BUILTIN_CARD, briefPersona } from './characters/builtin-persona'
 import { createDshExecution, type DshExecution } from './dsh/execution'
 import { createRootHost } from './dsh/root-host'
+import { createWorkCollaboration } from './work/collaboration'
 import { createContinuousWork, type ContinuousWorkService, type WorkRuntimeContext } from './work/service'
 import { openWorkStore } from './work/store'
 import { workTools, workCompletionTools, workContext } from './work/tools'
@@ -103,7 +104,7 @@ import { startMcpFixture } from './mcp/fixture'
 import { probeStudentHubMcp } from './validation/mcp'
 import { createBackupService, type BackupService } from './backup/service'
 import { applyPendingRestore } from './backup/restore'
-import { exportContinuity } from './backup/continuity'
+import { exportContinuity, continuityTargets } from './backup/continuity'
 import { probeBackup } from './validation/backup'
 import { createQuillService, quillTools, type QuillService } from './gifts/quill'
 import { buildDiagnostics } from './developer/diagnostics'
@@ -296,6 +297,11 @@ void app.whenReady().then(async () => {
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"backup","error":"PRIVATE_SAVE_PROBE_FAILED"}'); app.exit(1) }
     return
   }
+  if (process.argv.includes('--lca-probe=continuity')) {
+    try { const { probeContinuityRecovery } = await import('./validation/continuity-recovery'); const report = await probeContinuityRecovery(join(dataDir, 'continuity-probe')); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(report.ok ? 0 : 1) }
+    catch { console.log('LCA_PROBE:{"ok":false,"probe":"continuity","error":"CONTINUITY_RECOVERY_PROBE_FAILED"}'); app.exit(1) }
+    return
+  }
   if (process.argv.includes('--lca-probe=documents')) {
     try { const report = await probeDocuments(dataDir); console.log('LCA_PROBE:' + JSON.stringify(report)); app.exit(0) }
     catch { console.log('LCA_PROBE:{"ok":false,"probe":"documents","error":"DOCUMENT_PROBE_FAILED"}'); app.exit(1) }
@@ -445,7 +451,7 @@ void app.whenReady().then(async () => {
     const fakeMemory = prepared.developer ? createFakeMemoryModel() : undefined
     const memoryHeld = () => !!backup?.isBusy() || store!.projection().lightsOut
     memoryMirror = createMemoryMirrorHost({ clock, owner: continuityIdentity.owner, epoch: continuityIdentity.mirrorEpoch, held: memoryHeld })
-    const memoryFacts = createMemoryFacts({ root: join(dataDir, 'memory', contentHash(JSON.stringify(owner))), owner: continuityIdentity.owner, clock, store,
+    const memoryFacts = createMemoryFacts({ root: join(dataDir, continuityTargets(continuityIdentity.owner)[0]), owner: continuityIdentity.owner, clock, store,
       embedding: () => memorySettings?.source(), mirror: memoryMirror.port, held: memoryHeld, waitForRestore: async () => {}, changed: () => controller?.refresh('connection') })
     memorySettings = createMemorySettings({ root: dataRoot, clock, runtime: () => memoryFacts.runtime, held: memoryHeld,
       canConfigure: () => !herBusy() && !modelSettings?.isBusy() && !memoryHeld() && !minecraft?.active(),
@@ -739,8 +745,10 @@ void app.whenReady().then(async () => {
       return execution
     }
     dshExecution = createDsh()
+    const workCollaboration = createWorkCollaboration({ foreground: () => dshExecution?.collaboration,
+      works: () => continuousWork?.view().items ?? [], changed: () => controller?.refresh('task') })
     const workOwner = continuityIdentity.owner
-    const workRoot = join(dataDir, 'continuous-work', contentHash(JSON.stringify(workOwner)))
+    const workRoot = join(dataDir, continuityTargets(workOwner)[1])
     continuousWork = createContinuousWork({ root: workRoot, owner: workOwner, clock, project: projects.resolveWork,
       safeText: text => privateCredentials.reduce((safe, key) => key ? safe.replaceAll(key, '[redacted]') : safe, redactSecrets(text)),
       available: () => !!dshExecution,
@@ -759,7 +767,8 @@ void app.whenReady().then(async () => {
         const privateStore = openWorkStore(root, workOwner, clock, context.work.runStartedAt, store!)
         const execution = createDsh(context, privateStore, root)
         if (!execution) { privateStore.close(); throw new Error('DSH_UNAVAILABLE') }
-        return { ...execution, close: async () => { await execution.close(); privateStore.close() } }
+        const releaseView = workCollaboration.register(context.work.identity.workId, execution.collaboration)
+        return { ...execution, close: async () => { try { await execution.close() } finally { releaseView(); privateStore.close() } } }
       }, changed: () => controller?.refresh('task') })
     controller.attachContinuousWork(continuousWork)
     const withExtensionRuntime = async <T>(job: (runtime: ExtensionRuntime) => Promise<T>): Promise<T> => {
@@ -796,7 +805,7 @@ void app.whenReady().then(async () => {
     const noExecution = { source: 'real' as const, send: () => { throw new Error('EXECUTION_UNAVAILABLE') }, stop: () => false, stateChanged: () => {} }
     const chatPort = () => dshExecution ?? noExecution
     controller.attachExecution(chatPort(), !!dshExecution)
-    controller.attachCollaboration(dshExecution?.collaboration)
+    controller.attachCollaboration(workCollaboration)
     modelSettings = createModelSettings({ root: dataRoot, fallback: prepared.developer ? undefined : providersFile, developer: prepared.developer, slots: [...rawProviders.keys()], clock, budget: resourceBudget,
       canConfigure: () => !herBusy() && !memorySettings?.isBusy() && !backup?.isBusy() && !minecraft?.active() && !lifeWork?.active() && campus?.view().status !== 'scanning' && !documents?.view().jobs.some((job) => job.status === 'processing' || job.status === 'queued'),
       apply: async () => {
@@ -816,7 +825,7 @@ void app.whenReady().then(async () => {
         await continuousWork?.disconnect(); await dshExecution?.close(); await rootHost?.close(); rootHost = createRootHost({ dataDir }); await extensionHost?.close(); extensionHost = undefined; dshExecution = createDsh()
         if (!dshExecution) modelSettings?.setLevels(null)
         controller!.attachExecution(chatPort(), !!dshExecution)
-        controller!.attachCollaboration(dshExecution?.collaboration)
+        controller!.attachCollaboration(workCollaboration)
         documents?.stateChanged(); campus?.stateChanged()
         } finally { scheduler!.pauseBackground(store!.projection().lightsOut) }
       },

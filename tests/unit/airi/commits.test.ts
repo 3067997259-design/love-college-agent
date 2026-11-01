@@ -19,7 +19,7 @@ const create = async (root: string, interrupt?: (point: MemoryCommitPoint, id: s
 
 describe('durable memory commit and publication', () => {
   it('refuses a published log whose database receipt is missing instead of replaying it', async () => {
-    const root = mkdtempSync(join(resolve('test-results'), 'memory-log-conflict-')); const host = await create(root)
+    const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'memory-log-conflict-')); const host = await create(root)
     try {
       await host.commits.commit({ operationId: 'published-one', kind: 'remember', input }, tx => tx.insert(input))
       await host.database.execute("DELETE FROM lca_memory_commits WHERE operation_id = 'published-one'")
@@ -30,7 +30,7 @@ describe('durable memory commit and publication', () => {
 
   for (const point of ['intent', 'before-commit', 'committed', 'published'] as const) {
     it(`reconciles a stop at ${point} without duplicating facts or mirror work`, async () => {
-      const root = mkdtempSync(join(resolve('test-results'), `memory-commit-${point}-`))
+      const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), `memory-commit-${point}-`))
       let host = await create(root, at => { if (at === point) throw new Error('INTERRUPTED') })
       const identity = { operationId: 'remember-original-1', kind: 'remember', input }
       try {
@@ -56,7 +56,7 @@ describe('durable memory commit and publication', () => {
   }
 
   it('commits explicit facts and operation receipts together; newer dirty revisions survive old acknowledgements', async () => {
-    const root = mkdtempSync(join(resolve('test-results'), 'memory-commit-review-'))
+    const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'memory-commit-review-'))
     const host = await create(root)
     try {
       const context = { scope, sessionId: 'day-1', turnId: 'turn-1', sourceContext: { sessionId: 'day-1', messageId: 'user-1', neighbors: [] }, isCurrent: () => true }
@@ -76,7 +76,7 @@ describe('durable memory commit and publication', () => {
   })
 
   it('preserves a crash-torn log frame and resumes on a new frame boundary', async () => {
-    const root = mkdtempSync(join(resolve('test-results'), 'memory-commit-torn-'))
+    const root = mkdtempSync(join(resolve(process.env.LCA_TEST_ARTIFACTS_DIR ?? 'test-results'), 'memory-commit-torn-'))
     let host = await create(root)
     await host.database.close()
     appendFileSync(join(root, 'operations.log'), '\x1e{"event":{"operationId":"partial')
