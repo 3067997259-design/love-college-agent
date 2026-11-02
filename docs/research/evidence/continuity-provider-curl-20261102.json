@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "date": "2026-11-02",
+  "scope": "one explicitly authorized direct curl minimal request; no DSH, relay, tools or history; no retry",
+  "root": "D:/lca-continuity-candidate-20261101/profiles/provider-curl-live-20261102-1",
+  "sourceBaseCommit": "a2ea58e",
+  "packageAsarSha256": "2894e350aa7143b7b3f237a1cbeb1c5ff66ffb78a6d782129b4af39031a3a67b",
+  "providerFileMetadata": {
+    "bytes": 467,
+    "lastModifiedAt": "2026-11-01T10:09:36.295Z",
+    "contentsNotReadByRunner": true
+  },
+  "report": {
+    "startedAt": "2026-11-02T00:40:29.365Z",
+    "selfTest": false,
+    "transport": "curl",
+    "maximumModelRequests": 1,
+    "reservedUnits": 16000,
+    "autonomousUnits": 0,
+    "request": {
+      "messages": 1,
+      "tools": 0,
+      "stream": false,
+      "maxOutputTokens": 512
+    },
+    "connectionFingerprint": "cbc7fecc081d7f0be6f16ca3ef3b6db0660bc66fbd39975fb17737d77119cd38",
+    "ok": true,
+    "curlExitCode": 0,
+    "httpStatus": 200,
+    "stderrBytes": 0,
+    "truncated": false,
+    "metrics": {
+      "time_namelookup": 0.03013,
+      "time_connect": 0.031109,
+      "time_appconnect": 1.629761,
+      "time_starttransfer": 8.186415,
+      "time_total": 8.186448,
+      "size_upload": 139,
+      "size_download": 950,
+      "num_connects": 1,
+      "num_redirects": 0,
+      "proxy_used": 0,
+      "ssl_verify_result": 0
+    },
+    "response": {
+      "bytes": 950,
+      "json": true,
+      "choices": 1,
+      "contentCharacters": 2,
+      "replyExactlyOK": true,
+      "finishReason": "stop",
+      "error": null,
+      "usage": {
+        "inputTokens": 39,
+        "outputTokens": 70,
+        "totalTokens": 109
+      }
+    },
+    "modelRequestAttempts": 1,
+    "localFixtureRequests": null,
+    "ledger": {
+      "status": "ready",
+      "accounting": "reserved-units",
+      "configurable": true,
+      "model": {
+        "dayKey": "2026-11-02",
+        "totalReservedUnits": 16000,
+        "autonomousReservedUnits": 0,
+        "totalLimitUnits": 16000,
+        "autonomousLimitUnits": 0,
+        "attemptCount": 1,
+        "legacyReservedUnits": 0
+      },
+      "speech": {
+        "dayKey": "2026-11-02",
+        "reservedChars": 0,
+        "charLimit": 12000,
+        "attemptCount": 0,
+        "attemptLimit": 30
+      }
+    }
+  },
+  "checks": {
+    "transportUnitTests": 2,
+    "nodeTypecheck": true,
+    "changedPathLint": true,
+    "localCurlMainPreflight": {
+      "root": "D:/lca-continuity-candidate-20261101/profiles/provider-curl-selftest-20261102-1",
+      "reportSha256": "a6d261bd0c5954286d51b3dfbdc89c2e466a5cfda7c702078b870aecdf99ccf8",
+      "ok": true
+    },
+    "sameFrozenProbeSources": true,
+    "ledgerMatches": true,
+    "runnerExitCode": 0
+  },
+  "comparison": {
+    "previousTransport": "Node global fetch",
+    "previousTools": 56,
+    "previousStream": true,
+    "previousElapsedMs": 45006,
+    "previousHttpStatus": null,
+    "currentTransport": "curl",
+    "currentTools": 0,
+    "currentStream": false,
+    "variablesChanged": [
+      "transport implementation and default headers",
+      "minimal prompt without normal product context or 56 tool schemas",
+      "stream false instead of true",
+      "explicit 512 max_tokens and omitted effort settings"
+    ],
+    "causalIsolation": false
+  },
+  "conclusion": "Saved chat endpoint, key and model can complete this minimal curl request. This does not identify which transport or request-shape difference caused the earlier full-request timeouts; it does not validate the work execution scenario.",
+  "files": {
+    "report.json": "fba443862c5bbbc5d87513e7d94b1f8c7cc67f96a9ada8adb702ff71145b9217",
+    "request.json": "403c4bad336f76858b6564ba7296af55cbcc7cb2534c844cf2baf0f42be0e1b0",
+    "authorization.json": "115364df002eb787b22c71e27e7e2a923070693c8480aa9e97f697c04993471c",
+    "source-manifest.json": "ccaca941ce6ff58300cb5ce95e27ea774e21e07b7b1dc3339149acd644ecf6c1",
+    "budget/usage.jsonl": "9bbe0b3a2744e8ea0c26524c5fa81ff17463b6b9c7689ddb791174eb9991f804"
+  }
+}

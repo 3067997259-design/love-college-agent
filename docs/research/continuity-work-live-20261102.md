@@ -56,3 +56,7 @@
 补测前通过了 4 个文件的 **25 项单元测试**（实际本地 HTTP 传输诊断、连接拒绝、额度、流式结束和准入）、Node 类型检查、修改路径 lint，以及同一候选的普通产品单请求合成预跑。预跑和实测使用的冻结源码、bundle 与候选指纹已核对一致。这些检查不代表真实工作并发、补充或恢复已经通过。
 
 补测原始目录：`D:\lca-continuity-candidate-20261101\profiles\work-request-live-20261102-1`；[本次结构化证据](evidence/continuity-work-request-retry-20261102.json)保留时间线、用量、产品日志计数和原始文件哈希。
+
+## 后续直接 cURL 对照
+
+用户另行授权的[最小 cURL 请求](continuity-provider-curl-20261102.md)于同日 08:40:29 发出，8.186 秒取得 HTTP 200 和 `OK`，证明 saved chat 连接可完成该请求。由于传输、上下文、工具和 stream 等参数同时改变，尚未锁定前述完整请求超时的具体原因，也没有改写这两次失败的结果。

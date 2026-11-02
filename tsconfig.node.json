@@ -5,5 +5,5 @@
     "esModuleInterop": true, "resolveJsonModule": true,
     "types": ["node", "electron-vite/node"]
   },
-  "include": ["electron.vite.config.ts", "vitest.config.ts", "scripts/fixtures/dsh-extension-probe.ts", "scripts/fixtures/memory-conversation.ts", "scripts/fixtures/world-live-gateway.ts", "scripts/fixtures/continuity-live-gateway.ts", "tests/unit/**/*.ts", "src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts"]
+  "include": ["electron.vite.config.ts", "vitest.config.ts", "scripts/fixtures/dsh-extension-probe.ts", "scripts/fixtures/memory-conversation.ts", "scripts/fixtures/world-live-gateway.ts", "scripts/fixtures/continuity-live-gateway.ts", "scripts/fixtures/provider-curl-probe.ts", "tests/unit/**/*.ts", "src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts"]
 }
