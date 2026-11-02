@@ -299,7 +299,9 @@
     "timeoutChange": "All six successful responses had first body data after 45 seconds (62.993 to 69.729 seconds) and completed under the new policy without a timeout.",
     "failure": "The seventh request failed during connection establishment with ECONNRESET at 6.617 seconds. No connected, headers-sent or body-sent event was observed; no probe deadline fired.",
     "transportEvents": "Two connect-error events occurred within one request-created attempt; do not count them as two model calls or claim there were no internal connection attempts.",
-    "causeLimit": "A reset cannot locate the failing component among the provider edge and intervening network/proxy. Provider service fluctuation remains a hypothesis.",
+    "causeLimit": "The error code alone cannot locate the interruption. The user subsequently reported losing connectivity while moving the laptop; this explains the interruption consistently with the observed connection-stage reset. No new network measurement was made, and this failed request is not evidence of a provider incident.",
+    "causeSource": "Subsequent user report of a network outage during laptop movement.",
+    "acceptanceDisposition": "User accepted the gateway timeout adjustment. Six slow responses completed; incomplete work scenarios remain pending. No additional model calls.",
     "acceptance": "Persistent work creation and actual tool-barrier entry were observed. Foreground chat did not complete; amendment, file checkpoint, follow-up, stop isolation, restart and duplicate-delivery live assertions remain unpassed.",
     "cleanup": "Gateway halted with zero in-flight requests; the recorded barrier PID no longer existed after app shutdown. No automatic retry or next live window.",
     "errorReference": "https://nodejs.org/api/errors.html#common-system-errors"
