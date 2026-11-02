@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "date": "2026-11-02",
+  "scope": "one bounded real work batch; first failure stopped",
+  "runnerCommit": "8bde441",
+  "package": {
+    "version": "1.2.0-continuity.4",
+    "asarSha256": "2894e350aa7143b7b3f237a1cbeb1c5ff66ffb78a6d782129b4af39031a3a67b",
+    "packageBridge": {
+      "lca-bridge/collaboration-state.js": "2efbb43f1952247547f0bcb1a124dd8c4f94b36b3e1a8e58c3e872168734ebbb",
+      "lca-bridge/collaboration.js": "6ab5bb25ac1783404d46305dd6a315f3ae719a42d3616b58f2b0086909501301",
+      "lca-bridge/cordis.patch.yml": "3e3aaf2f4afe35b84adc511c90c5303e26d25dd7feec49f9793ebf428401e861",
+      "lca-bridge/extension-files.d.ts": "03ab7412ddf5481e81b5b180aac5e7d5cf152a4915d563c4091884f91f1e2033",
+      "lca-bridge/extension-files.js": "63b7688e980ccca2cccbf958062b792f9adfd9dd21e1fa8e5d9f22f79cae013d",
+      "lca-bridge/extensions.js": "2468a59c52456661a4e2cbfa1fae83a464caa757a142c6fb37f7baad31ad4d5f",
+      "lca-bridge/family.js": "988fc0630075b39eb272309dab3cd5618ad16a531f2648fa106d31192a3a5996",
+      "lca-bridge/index.js": "fc5baf2775a5321d00a57d76e24a3d8c0465f7c4136e233278a563112c1ddaf0",
+      "lca-bridge/member-steps.js": "a7b537de9ed536fe351bf934418126abdce19d0fc7d15dda4f41d0db03179d1a",
+      "lca-bridge/package.json": "3f27f9efac1db3f5c784405ed2e14e8d5a0e4919bb71df59fab2798e7acdbf29",
+      "lca-bridge/policy.js": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615",
+      "lca-bridge/profile.d.ts": "7343dd7de15d7f1014c155721545d683e82239f80f676034f8cbf9e399cae5f9",
+      "lca-bridge/profile.js": "24249a7d08d50edf32a526d461f9b2168c34abe7466f4f01aedd344bc80a1a5b",
+      "lca-bridge/provenance.js": "4eb8c93cb593d232e553d486ea40a12874a5f69af37d01d618c7c590fa51b2b6",
+      "lca-bridge/runtime-tools.d.ts": "4b9eb83731715f4738261b99e21f03caaad669d45d62e997bb6fd5595517bd10",
+      "lca-bridge/runtime-tools.js": "389ad836950dd9d8dfe0f02f7e28e81f49d150910202fad9e330a2606cc2843e",
+      "lca-bridge/skill-files.d.ts": "093356b1438e4152cbb3b0a250e0bcf4b7b36c8d599a43a13665251b3dcdf9f2",
+      "lca-bridge/skill-files.js": "1450e051165840056963977cb8de90ef69fd45a6c7ba9aef7cdfd9557cd8c503",
+      "lca-bridge/skills.js": "ceac29dbb832b513bf89b8f18cb76d2854878d71510a2b695f621c56d33cddaa",
+      "lca-bridge/state.js": "66af79ffa42d100987602e4ab68670c6a2985de653afb59a2c5a5ec8d56ae8c8",
+      "lca-bridge/work-evidence.d.ts": "e71521696c0676905eec6ab9f440d6fb5004cfb386e78f5d55e88faa69e12021",
+      "lca-bridge/work-evidence.js": "d534f221e4519b60c21f6ce5a28b23bf431d29534c4972320e3674884130c8b0"
+    }
+  },
+  "authorization": {
+    "id": "11373376-ff1b-4230-8d29-927e011677b7",
+    "maximumModelRequests": 48,
+    "maximumReservedUnits": 1048576,
+    "maximumAutonomousUnits": 65536,
+    "grantConsumed": true
+  },
+  "result": {
+    "ok": false,
+    "modelRequestAttempts": 1,
+    "reservedUnits": 16000,
+    "autonomousUnits": 0,
+    "embeddingRequests": 0,
+    "completedScenarioChecks": 0,
+    "automaticBatchRetries": 0,
+    "sample": {
+      "phase": "work-create-a",
+      "slot": "chat",
+      "ticket": "2db34ee77879fd8774d841170b536aec8be468b561bccb06974d6b0a9e36d644",
+      "units": 16000,
+      "bucket": "work",
+      "ok": false,
+      "error": "TIMEOUT",
+      "status": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "elapsedMs": 45013
+    },
+    "gatewayDenials": [],
+    "inFlightAtClose": 0,
+    "cleanupUncertain": false
+  },
+  "product": {
+    "userMessages": 1,
+    "modelAttemptStatuses": [
+      "started"
+    ],
+    "modelSeenRecords": 0,
+    "toolActivity": 0,
+    "workCount": 0,
+    "resultFileExists": false,
+    "testFixtureFiles": [
+      "barrier.ps1"
+    ],
+    "taskStatusBeforeShutdown": "running"
+  },
+  "conclusion": "The relay timed out before fetch returned response headers. No Worker or task output was created. The work architecture and response quality were not evaluated. The upstream cause and actual billed usage remain unknown.",
+  "root": "D:/lca-continuity-candidate-20261101/profiles/work-live-20261102-1",
+  "files": {
+    "report.json": "8c0e5f56b91d386eed5a679a4ce3274f6a397504273a9b6fddbd6f9f25c8c7a5",
+    "gateway-report.json": "4041e6a65e174fa4dce529141b5c30874c6b2cff8cd735c1351ca61ec9225240",
+    "run.json": "a7c73c3255435aad98d9d310d6b3bb4605144455473bc0b9e56c2fed17859399",
+    "authorization.json": "c31ddc3c389e1010eb296c7dba94a282a505936efefef9194abfdf92c12b4009",
+    "source-manifest.json": "22d54718d9b26421ecce3f1badb15b40880d6b2d68f70b3e976b8fa1cdeb6b94",
+    "budget/usage.jsonl": "38974834152019c10b0e9842948ab126517554ce395d6704c85af56f26be93e2"
+  }
+}

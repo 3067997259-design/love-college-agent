@@ -62,3 +62,5 @@ pnpm test:continuity:prepare-probe <工作预跑目录> <记忆预跑目录> <�
 独立包内候选为 `release-continuity-4\win-unpacked\LoveCollegeAgent.exe`，版本 `1.2.0-continuity.4`。本次复用已有生产 `out` 和固定 DSH runtime，以 `electron-builder --dir` 重新形成包内候选，修复通过包外桥接进入产品；没有重新跑生产打包全套或生成／安装新的 NSIS。旧 continuity.2 安装器、main、日用 profile 保留。此前 895 项全量回归属于旧候选，不移植成新候选的全量通过。
 
 尚待：新授权后的真实工作批次；配置并授权真实 embedding 后的记忆批次；真实 pgvector／镜像；新候选完整统一回归与安装升级、第二台 Windows，以及 90 条检索、24 条故事和长期体验。旧的损坏实验 DSH 会话保留作诊断，不自动改写；该修复预防后续退役记录生成错误，未宣称修复已有损坏日志。
+
+后续用户已授权首批真实工作测试：首个请求在取得 HTTP 响应头前达到 45 秒上限，按约定停止，仅预留 16,000 单位，尚未创建 Worker。完整结果见[真实工作首批记录](continuity-work-live-20261102.md)；本页的本地预跑通过不能替代该项真实验收。
