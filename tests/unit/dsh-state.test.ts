@@ -17,4 +17,13 @@ describe('text-only state requests', () => {
     for (const text of ['门牌=quiet', '当前执行模型=chat', 'this-turn']) expect(prompt).toContain(text)
     expect(statePrompt(undefined, 'chat')).toBe('')
   })
+  it('gives the foreground persistent work tools instead of the legacy model handoff', () => {
+    const prompt = statePrompt({ mode: 'work', token: 'current' }, 'chat', 'foreground')
+    expect(prompt).toContain('lca_start_work')
+    expect(prompt).toContain('lca_update_work')
+    expect(prompt).toContain('不要重复请求切到当前状态')
+    expect(prompt).not.toContain('应先交给 work')
+    expect(prompt).not.toContain('工作模型会在同一回合接着处理')
+    expect(statePrompt({ mode: 'work', token: 'private-token' }, 'work', 'worker')).toBe('')
+  })
 })

@@ -176,7 +176,7 @@ export function apply(ctx) {
     if (!ok) { send({ t: 'state-notice', sessionId: root, reason: 'rejected' }); return }
     choose(root, request.state.mode === 'work' ? 'work' : 'chat')
     if (request.text) send({ t: 'message', sessionId: root, turn: request.turn, text: request.text, toolCalls: [] })
-    if (request.role === 'chat' && request.state.mode === 'work' && !continued.has(root)) {
+    if (!rootPolicies.has(root) && request.role === 'chat' && request.state.mode === 'work' && !continued.has(root)) {
       continued.add(root)
       send({ t: 'model', sessionId: root, role: 'work' })
       // A program-authored continuation, not another user authorization or turn.
@@ -240,7 +240,7 @@ export function apply(ctx) {
       if (sessionPersona) agentCtx.systemPrompt.section({ name: 'deployment:persona-prefix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX'), text: sessionPersona, interpolate: false })
       if (sessionSuffix) agentCtx.systemPrompt.section({ name: 'deployment:persona-suffix', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX'), text: sessionSuffix, interpolate: false })
       agentCtx.systemPrompt.section({ name: 'deployment:lca-state', order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX') + 1,
-        text: () => statePrompt(states.get(String(id)), models.get(String(id))?.role ?? 'chat'), interpolate: false })
+        text: () => statePrompt(states.get(String(id)), models.get(String(id))?.role ?? 'chat', rootPolicies.get(String(id))?.role), interpolate: false })
     }
     const agentOptions = { provider: chat.provider, model: chat.model }
     // Project switching leaves inactive roots resident. Reuse their handle instead of asking DSH to

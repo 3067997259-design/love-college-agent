@@ -21,7 +21,7 @@
 // Usage: node scripts/dsh-bridge-check.mjs [probe|degrade|degrade-restart|trust|decline|handoff|levels|reference|reference-restart|event-cap|allowance ...]   (uses dsh/runtime, or a built fork checkout at DSH_ROOT)
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import { prepareDshProfile } from '../dsh/profile.mjs'
@@ -136,6 +136,40 @@ const SCENARIOS = {
     },
     check: (seen, notes) => ({ oneSwitch: seen.states.length === 1, stayedDegraded: seen.approvals.length === 1 && seen.approvals[0].kind === 'degraded',
       workExecuted: resultOf(seen, 'state-command')?.isError === false && notes.models.at(-1) === 'mock-work', sameTurn: seen.turnEnds.join() === 'completed' }),
+  },
+  'state-foreground': {
+    trusted: true, work: 'mock-work', policy: { role: 'foreground' }, state: { mode: 'work', token: 'foreground-token' }, turns: ['[[T1]] start a separate work'],
+    script({ model, lastTool, messages, notes }) {
+      notes.models.push(model)
+      const system = messages.filter(message => message.role === 'system').map(message => textOf(message.content)).join('\n')
+      notes.prompt = system.includes('lca_start_work') && system.includes('不要重复请求切到当前状态') && !system.includes('应先交给 work')
+      return lastTool ? { text: 'Use a persistent work; the foreground cannot write this file.' } : write('foreground-native', 'must not be written')
+    },
+    check: (seen, notes, work) => ({ stayedChat: notes.models.join() === 'mock-chat,mock-chat', prompt: notes.prompt,
+      nativeWriteRefused: resultOf(seen, 'foreground-native')?.isError === true && !existsSync(join(work, 'note.txt')),
+      noSwitch: seen.states.length === 0 && seen.switched.length === 0, completed: seen.turnEnds.join() === 'completed' }),
+  },
+  'state-foreground-sign': {
+    trusted: true, work: 'mock-work', policy: { role: 'foreground' }, state: { mode: 'quiet', token: 'foreground-sign-token' }, turns: ['[[T1]] change the sign to work'],
+    script({ model, notes }) {
+      notes.models.push(model)
+      return { text: JSON.stringify({ lca_state: { mode: 'work', token: 'foreground-sign-token' }, reply: '门牌已调整。' }) }
+    },
+    check: (seen, notes) => ({ oneRequest: notes.requests === 1, stayedChat: notes.models.join() === 'mock-chat',
+      stateApproved: seen.states.length === 1 && seen.stateNotices.length === 0, noWorkContinuation: seen.switched.length === 0,
+      replyPublished: seen.messages.includes('门牌已调整。'), completed: seen.turnEnds.join() === 'completed' }),
+  },
+  'state-worker': {
+    trusted: true, work: 'mock-work', policy: { role: 'worker', work: { workId: 'synthetic-worker', generation: 1, objectiveRevision: 1 } },
+    state: { mode: 'quiet', token: 'worker-private-token' }, turns: ['[[T1]] write the assigned note'],
+    script({ model, lastTool, messages, notes }) {
+      notes.models.push(model)
+      notes.noStateProtocol = !messages.some(message => textOf(message.content).includes('worker-private-token'))
+      return lastTool ? { text: 'done' } : write('worker-note', 'independent work')
+    },
+    check: (seen, notes, work) => ({ workerModel: notes.models.join() === 'mock-work,mock-work', noStateProtocol: notes.noStateProtocol,
+      wrote: existsSync(join(work, 'note.txt')) && readFileSync(join(work, 'note.txt'), 'utf8') === 'independent work', noSwitch: seen.states.length === 0,
+      completed: seen.turnEnds.join() === 'completed' }),
   },
   'state-work': {
     trusted: true, work: 'mock-work', state: { mode: 'work', token: 'state-work-token' }, turns: ['[[T1]] write a note'],
@@ -348,7 +382,7 @@ async function run(name) {
       case 'init-ok':
         if (scenario.probe) for (const role of scenario.probe) child.send({ t: 'probe', ref: `probe-${role}`, role })
         else if (scenario.describe) child.send({ t: 'describe', ref: 'levels' })
-        else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted, binding: { protocolVersion: 2, runtimeId: 'bridge-check', projectId: 'bridge-project', cwd: work }, ...(sessionId ? { sessionId } : {}) })
+        else child.send({ t: 'open', ref: 'check', cwd: work, trusted: scenario.trusted, binding: { protocolVersion: 2, runtimeId: 'bridge-check', projectId: 'bridge-project', cwd: work }, ...(scenario.policy ? { policy: scenario.policy } : {}), ...(sessionId ? { sessionId } : {}) })
         break
       case 'described': seen.described = { chat: message.chat, work: message.work }; child.send({ t: 'shutdown' }); break
       case 'probed':
@@ -360,7 +394,7 @@ async function run(name) {
         sessionId = message.sessionId
         seen.root = sessionId
         if (resumed) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })
-        else child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', ...(scenario.state ? { state: scenario.state } : {}), ...(scenario.reference ? { reference: scenario.reference } : {}), ...(scenario.origin ? { origin: scenario.origin } : {}) })
+        else child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', ...(scenario.state ? { state: scenario.state } : {}), ...(scenario.policy?.work ? { workRevision: scenario.policy.work.objectiveRevision } : {}), ...(scenario.reference ? { reference: scenario.reference } : {}), ...(scenario.origin ? { origin: scenario.origin } : {}) })
         break
       }
       case 'approval':
