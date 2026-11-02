@@ -951,15 +951,17 @@
     "windowClosureRejectedNewCaseBeforeLaunch": true,
     "noReplayDirectory": true,
     "knownSuccessfulUsageTokens": 39317,
-    "failedRequestUsage": "unknown",
+    "failedRequestUsage": "Later CSV reconciliation identifies 153 tokens across the two client timeouts; original client response usage remains unknown.",
+    "providerCsvUsageTokensForEightRequests": 39470,
+    "csvReconciliationAdditionalModelRequests": 0,
     "currentProductPackageUnchanged": true,
     "providerDashboardDirectAccess": "Computer Use initialization failed before any browser inventory or interaction: failed to write kernel assets (os error 3). No dashboard was accessed."
   },
   "conclusions": {
     "reproduced": "Identical 139-byte Node requests with the same 45-second limit produced a 45-second pre-header timeout and a 5.338-second success. cURL reproduced a pre-header timeout independently of LCA/DSH. Both transports completed the identical full 54498-byte payload.",
-    "causeBoundary": "The local 45-second timer explicitly aborts fetch while it is waiting for response headers. client_gone is consistent with cancellation, but the two user-reported provider rows are not matched to local requests because timestamp semantics and IDs remain unverified. No deterministic LCA payload or Node-only fault was reproduced.",
+    "causeBoundary": "The local 45-second timer explicitly aborts fetch while it is waiting for response headers. Seven successful controls calibrate the supplied CSV time as completion/log-recording time. The two original work timeouts and the two minimal-request timeouts strongly correlate to provider consumption rows by reconstructed start time and request shape. Requests were processed/accounted at the provider, despite local cancellation. No deterministic LCA payload or Node-only fault was reproduced.",
     "proxyBoundary": "Windows selects a proxy, but the default probes do not use that explicit proxy. An explicit system-proxy curl request succeeded in 3.875 seconds; one sequential observation cannot establish that proxy bypass caused the previous timeouts.",
-    "unresolved": "Provider timestamp semantics and request IDs, actual upstream queue/model delay versus network path delay, per-key concurrency contention, and billing of timed-out requests remain unverified."
+    "unresolved": "The CSV exports no first-token timestamp, HTTP status or client_gone detail. Queue/model/upstream forwarding delay, cancellation propagation and per-key concurrency contention remain unresolved. Failed requests have no locally captured provider ID for an exact join. Consumption fees are visible in CSV, but account settlement/refunds are not audited."
   },
   "review": {
     "initialFullRequestActionRejected": true,
@@ -975,9 +977,12 @@
     "captureReport": "7e1598315654a034523cac2ea9fd602e36cf11927386fb5f928574a35423e100"
   },
   "providerFollowup": {
-    "source": "user-reported provider dashboard observations; no request IDs or direct dashboard verification",
+    "source": "Initial user-reported dashboard observations, subsequently reconciled against the user-supplied CSV; no direct dashboard access",
     "sharedKeyUsedByOtherAgents": true,
-    "timestampSemantics": "User believes these are request start times; underlying field remains unverified.",
+    "initialTimestampBelief": "User initially believed these were request start times.",
+    "timestampSemantics": "CSV time behaves as completion/log-recording time: seven exact-usage success controls match local completion within 743 ms.",
+    "csvReconciliation": "continuity-provider-csv-20261102.json",
+    "endReasonSource": "User dashboard report only; CSV detail cells are empty and do not export client_gone.",
     "reportedMetricDescription": "first-token/elapsed values approximately 45 seconds and one minute; exact per-row mapping not provided",
     "observations": [
       {
@@ -987,7 +992,10 @@
         "localStart": "2026-11-02T08:29:30.670+08:00",
         "localAbort": "2026-11-02T08:30:15.676+08:00",
         "providerAfterAbortMs": 1324,
-        "association": "Strong temporal match only if timestamp is end/log time. If it is a request start as the user believes, it occurs after local abort and cannot directly match."
+        "providerCsvElapsedSeconds": 45,
+        "providerCsvInputTokens": 12965,
+        "providerCsvOutputTokens": 68,
+        "association": "Strong correlation after CSV calibration: log time minus 45 seconds gives 08:29:32, 1330 ms after local start. Stream flag and input size agree. No exact shared provider ID was captured locally."
       },
       {
         "providerTimeLocal": "2026-11-02T08:12:51+08:00",
@@ -996,7 +1004,10 @@
         "localStartApproximate": "2026-11-02T08:11:45.131+08:00",
         "localAbortApproximate": "2026-11-02T08:12:30.144+08:00",
         "providerAfterAbortApproximateMs": 20856,
-        "association": "Unconfirmed; if timestamp is a request start as the user believes, it occurs after local abort and cannot directly match."
+        "providerCsvElapsedSeconds": 65,
+        "providerCsvInputTokens": 12961,
+        "providerCsvOutputTokens": 19,
+        "association": "Strong correlation after CSV calibration: log time minus 65 seconds gives 08:11:46, 869 ms after approximate ledger admission. Stream flag and input size agree. No exact shared provider ID was captured locally."
       }
     ],
     "implementationReference": "https://github.com/QuantumNous/new-api/blob/main/relay/helper/stream_scanner.go",
