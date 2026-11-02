@@ -2,6 +2,8 @@
 
 用户腾出空间后，继续[候选 5 续验](continuity-candidate5-acceptance-20261102.md)的打包与验证。`1.2.0-continuity.6` 已生成；同一包的四项基础检查、完整工作八组、完整记忆七组和真实本机 PostgreSQL 镜像七组均通过。**未安装、未公开发布，本轮没有发起真实模型或 Voyage 请求。** 逐项哈希、原始报告位置和失败记录见[结构化证据](evidence/continuity-candidate6-acceptance-20261102.json)。
 
+后续新授权的[真实工作复测](continuity-candidate6-work-live-20261102.md)在第五组含糊修改时发现实际意图路由缺陷，已首次失败即停；不改变本文的本地测试结果，也不能将候选 6 称为真实工作全通过。
+
 ## 候选来源
 
 - 构建源码：`bca659afe1b96dad7300c419fa589d8e76d5a6e9`，构建开始与结束均无已跟踪文件改动。

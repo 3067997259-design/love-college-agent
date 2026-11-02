@@ -90,7 +90,9 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 `test:continuity:work-live` 与 `test:continuity:memory-live` 通过指定包的普通产品入口执行工作和记忆整链路。`--self-test` 使用本地脚本服务；真实执行另需匹配包／桥接指纹和批次额度的一次性授权。`test:continuity:prepare-probe <work目录> <memory目录> <新输出目录>` 只生成待授权模板。工作交付的自主额度包含在总额内；记忆还单独限制向量请求及字符数。结果、恢复缺陷修复、使用方法和未测边界见[工作／记忆预跑](research/continuity-probes-preflight-20261102.md)。取消世界单例另见[真实结果](research/continuity-world-cancelled-20261102.md)。
 
-当前独立候选为 `continuity.6`：同包基础四项、本地工作八组、记忆七组和真实本机 PostgreSQL 镜像产品七组通过，见[候选 6 验收](research/continuity-candidate6-acceptance-20261102.md)。没有安装／发布或新真实模型调用。`continuity.5` 的真实记忆七组及人工语义复核完成，但收尾 JSON 读取竞态使原自动报告失败；工作在排序断言处停止，尾段仍待新授权实测。旧版本结果、消耗及 Docker 修复见[候选 5 续验](research/continuity-candidate5-acceptance-20261102.md)，此前失败见[首轮服务实测](research/continuity-services-20261102.md)。`dsh-bridge-check.mjs state-foreground state-foreground-sign state-worker` 可离线验证独立车道下的门牌与工具范围。
+当前独立候选为 `continuity.6`：同包基础四项、本地工作八组、记忆七组和真实本机 PostgreSQL 镜像产品七组通过，见[候选 6 验收](research/continuity-candidate6-acceptance-20261102.md)。该本地轮次没有安装／发布或真实模型调用。`continuity.5` 的真实记忆七组及人工语义复核完成，但收尾 JSON 读取竞态使原自动报告失败；工作在排序断言处停止，当轮未执行尾段。旧版本结果、消耗及 Docker 修复见[候选 5 续验](research/continuity-candidate5-acceptance-20261102.md)，此前失败见[首轮服务实测](research/continuity-services-20261102.md)。`dsh-bridge-check.mjs state-foreground state-foreground-sign state-worker` 可离线验证独立车道下的门牌与工具范围。
+
+上述本地轮次之后，候选 6 的新授权真实工作批次完成 31 次完整响应；前四组通过，第五组含糊指令实际改变 WORK_B 版本并额外创建工作，首次失败后已停止并关闭额度。这个缺陷与旧排序误报不同；停止／恢复尾段没有继续执行，见[真实工作失败与边界](research/continuity-candidate6-work-live-20261102.md)。
 
 人工审阅 `answers-for-review.json` 后，先在另一文件写完 `{ "batch": "work或memory", "accepted": true, "reason": "实际核对依据" }`，再用 `node scripts/publish-continuity-review.mjs <运行目录> <决定文件>` 原子发布。若审阅不通过，设置 `accepted: false` 并说明原因。发布器不覆盖已有回执、不修改已结束批次，不调用模型。不要直接创建目标 `semantic-review.json` 后逐步写入。
 

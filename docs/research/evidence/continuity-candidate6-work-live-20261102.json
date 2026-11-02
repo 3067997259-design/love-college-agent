@@ -1,0 +1,698 @@
+{
+  "date": "2026-11-02",
+  "candidate": "1.2.0-continuity.6",
+  "asarSha256": "4ffb8878b57affdf7631e29360fa014f5aaa5b4ddbff024c0c8f45b13b838924",
+  "runRoot": "D:/lca-continuity-candidate-20261101/profiles/work-candidate6-live-20261102-1",
+  "authorization": {
+    "id": "63ab87b7-233c-4025-acf3-9eb5b6063193",
+    "authorizedAtIso": "2026-11-02T10:27:03.016Z",
+    "maximumModelRequests": 48,
+    "maximumReservedUnits": 1048576,
+    "maximumAutonomousUnits": 65536,
+    "firstFailureStops": true
+  },
+  "automaticReportOk": false,
+  "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    {\n      id: '5c145a72-1fa6-4ad6-8e15-22f5f7dfce5b',\n      revision: 1\n    },\n    {\n      id: 'c98ea788-21b3-47eb-af89-69bf7ba12ca6',\n+     revision: 2\n-     revision: 1\n    }\n  ]\n",
+  "checks": {
+    "foregroundCompletesWhileWorkerToolBlocked": true,
+    "supplementDurableInOriginalWork": true,
+    "currentRevisionFileAndCheckpoint": true,
+    "immediateDeliveryContextHasVerifiedEvidence": true
+  },
+  "closed": {
+    "authorizationId": "63ab87b7-233c-4025-acf3-9eb5b6063193",
+    "batch": "work",
+    "closed": true,
+    "reuseAllowed": false,
+    "reportSha256": "1a67bc8ec79daaaef4b07c763f9b05f1fcd6093e3da6a2495a34a7014ae032bd",
+    "inFlight": 0,
+    "halted": true,
+    "modelRequests": 31,
+    "embeddingRequests": 0,
+    "reservedUnits": 299627,
+    "autonomousUnits": 2361
+  },
+  "completeResponses": 31,
+  "incompleteResponses": 0,
+  "gatewayDenials": [],
+  "sourceManifestSha256": "0275944c5d6d5fdd13d83eb3025bbaca4593b04b0e233bb13cf1b8190b22d14f",
+  "gatewayReportSha256": "819943214214c9e94bed90970cddf15473224ef1d387796614ff29e97dade625",
+  "semanticReview": null,
+  "answers": [
+    {
+      "step": "work-create-a",
+      "userMessageId": "0e0a2099-7422-413f-8c62-817ff0cf8910",
+      "turnId": "6adddbd6-41d0-4861-a336-7f9cf4270188",
+      "text": "独立工作 `WORK_A` 已经建好了（ID：`f222d8b6-ac86-4f8d-8570-17705d7f00af`，第 1 代，修订版本 1），现在正在后台排队启动。它会先在当前项目里跑 `& .\\barrier.ps1 A1`，等命令真正结束后再把 `TEA` 写进 `result.txt` 并提交检查点。\n\n我还在前台，有新要求随时跟我说。"
+    },
+    {
+      "step": "work-chat",
+      "userMessageId": "99a3b4d9-f29e-46eb-98b5-3a24f2bc4ec8",
+      "turnId": "8f32a20b-fd76-47fa-b632-f9f8a6fe0660",
+      "text": "今天想喝点热茶。工作已经启动在跑了，我在旁边陪你聊。"
+    },
+    {
+      "step": "work-amend",
+      "userMessageId": "ea302b47-fdd6-4eb8-83ad-3c20ab59ddff",
+      "turnId": "d725161a-0bc7-4841-a13c-4207e79bdd36",
+      "text": "你好！今天想喝点什么？\n\n收到你的补充要求，我将修改 `result.txt` 的内容为 `COFFEE`，同时仍然会等待 `& .\\barrier.ps1 A1` 命令结束后再写入。"
+    },
+    {
+      "step": "work-followup",
+      "userMessageId": "b10995de-c580-41dc-b5bb-ab79e247532e",
+      "turnId": "4f93d1b0-5de7-490e-9a76-b913e53ce1a3",
+      "text": "刚刚工作的最后结果是把 `result.txt` 里的内容写成了 `COFFEE`。\n\n改变内容是因为你刚才调整了要求，把原本打算写的 `TEA` 换成了 `COFFEE`。我是在等待 `.\\barrier.ps1 A1` 这个命令顺利执行结束后，才把修改后的内容写进去的。"
+    },
+    {
+      "step": "work-create-a-second",
+      "userMessageId": "7fb52adb-1811-4b61-86ef-0b3d81ab9ba9",
+      "turnId": "e71cb93e-7e55-414e-a356-a1f997e31dbc",
+      "text": "工作 `WORK_A` (ID: `5c145a72...`) 已经建好了，正在后台排队。它会先运行 `& .\\barrier.ps1 A1`，等结束后再处理 `result.txt`。\n\n有什么新要求随时跟我说，我在旁边陪你。"
+    },
+    {
+      "step": "work-create-b",
+      "userMessageId": "0ad54439-91d5-48ec-aa60-4017c4d55c0b",
+      "turnId": "dccf06a0-bd02-4bcd-8ae3-21cf8ee7c371",
+      "text": "你好。\n\n独立工作 `WORK_B` (ID: `c98ea788...`) 已经为你建好了，现在正在后台排队启动。它会先运行 `& .\\barrier.ps1 B1`，等命令真正结束后再把 `TEA` 写进 `result.txt`。\n\n有什么新要求随时跟我说，我在旁边陪你。"
+    },
+    {
+      "step": "work-ambiguous",
+      "userMessageId": "7524a1c0-e123-4cde-a81d-aa59bf9427b7",
+      "turnId": "7d28b400-3164-4b12-a095-f2877631e2af",
+      "text": "嗯，已经帮你把 WORK_B 的要求改好了，现在 `result.txt` 的内容会更新为 COFFEE，不再是之前的 TEA 了，会继续等待原先的阻塞命令执行结束后写入。"
+    }
+  ],
+  "completions": [
+    {
+      "identity": {
+        "owner": {
+          "userId": "local-user",
+          "characterId": "default-character",
+          "dataRootId": "efdc9453fd299c3c62d342cb29ef2ff99838e2d17b5f66060578959ef20f8bb3"
+        },
+        "projectId": "cb88055f8a0e530b16a7993ac0089eda1a10be1b56f207f78e52f1ec7d509a87",
+        "workId": "f222d8b6-ac86-4f8d-8570-17705d7f00af",
+        "generation": 1,
+        "objectiveRevision": 2
+      },
+      "status": "completed",
+      "checkpointId": "81c92bf128903d75960074ee78dd74d1683a2e8a12068607d58468775a5e9a77",
+      "proofs": [
+        {
+          "id": "03b3c08988ec48bb2aec9169dfead78aeb018ee5ca0201aca8e14d5fe59602ac",
+          "identity": {
+            "owner": {
+              "userId": "local-user",
+              "characterId": "default-character",
+              "dataRootId": "efdc9453fd299c3c62d342cb29ef2ff99838e2d17b5f66060578959ef20f8bb3"
+            },
+            "projectId": "cb88055f8a0e530b16a7993ac0089eda1a10be1b56f207f78e52f1ec7d509a87",
+            "workId": "f222d8b6-ac86-4f8d-8570-17705d7f00af",
+            "generation": 1,
+            "objectiveRevision": 2
+          },
+          "rootSessionId": "session-178cd810-6cf7-4162-94fd-265c1a599ddd",
+          "callId": "call_405252",
+          "kind": "artifact",
+          "status": "passed",
+          "relativePath": "result.txt",
+          "beforeHash": null,
+          "afterHash": "967d1f886b03dc749aea3ef70b666ffad4921aa26a5af80130a15d18e02afc68",
+          "bytes": 6,
+          "exitCode": null,
+          "restricted": false,
+          "observedAt": 1793615324502
+        }
+      ],
+      "deliveries": [
+        {
+          "eventId": "checkpoint:81c92bf128903d75960074ee78dd74d1683a2e8a12068607d58468775a5e9a77",
+          "checkpointId": "81c92bf128903d75960074ee78dd74d1683a2e8a12068607d58468775a5e9a77",
+          "state": "consumed"
+        }
+      ],
+      "inboxCounts": [
+        {
+          "eventId": "checkpoint:81c92bf128903d75960074ee78dd74d1683a2e8a12068607d58468775a5e9a77",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "workStatuses": [
+    {
+      "identity": {
+        "owner": {
+          "userId": "local-user",
+          "characterId": "default-character",
+          "dataRootId": "efdc9453fd299c3c62d342cb29ef2ff99838e2d17b5f66060578959ef20f8bb3"
+        },
+        "projectId": "cb88055f8a0e530b16a7993ac0089eda1a10be1b56f207f78e52f1ec7d509a87",
+        "workId": "f222d8b6-ac86-4f8d-8570-17705d7f00af",
+        "generation": 1,
+        "objectiveRevision": 2
+      },
+      "status": "completed"
+    },
+    {
+      "identity": {
+        "owner": {
+          "userId": "local-user",
+          "characterId": "default-character",
+          "dataRootId": "efdc9453fd299c3c62d342cb29ef2ff99838e2d17b5f66060578959ef20f8bb3"
+        },
+        "projectId": "751cc687edca0d3945a1eecc21ab60c0d211a0ef7bd702d9a927c689c8da7304",
+        "workId": "5c145a72-1fa6-4ad6-8e15-22f5f7dfce5b",
+        "generation": 1,
+        "objectiveRevision": 1
+      },
+      "status": "running"
+    },
+    {
+      "identity": {
+        "owner": {
+          "userId": "local-user",
+          "characterId": "default-character",
+          "dataRootId": "efdc9453fd299c3c62d342cb29ef2ff99838e2d17b5f66060578959ef20f8bb3"
+        },
+        "projectId": "aa02a8513a88b3d72b5ef390d7810f2b79782d1d06244ba0aa7b74a91739d3c6",
+        "workId": "c98ea788-21b3-47eb-af89-69bf7ba12ca6",
+        "generation": 1,
+        "objectiveRevision": 2
+      },
+      "status": "running"
+    },
+    {
+      "identity": {
+        "owner": {
+          "userId": "local-user",
+          "characterId": "default-character",
+          "dataRootId": "efdc9453fd299c3c62d342cb29ef2ff99838e2d17b5f66060578959ef20f8bb3"
+        },
+        "projectId": "aa02a8513a88b3d72b5ef390d7810f2b79782d1d06244ba0aa7b74a91739d3c6",
+        "workId": "d237e12c-eb81-46aa-b501-8fa7e01aace6",
+        "generation": 1,
+        "objectiveRevision": 1
+      },
+      "status": "queued"
+    }
+  ],
+  "providerResponses": [
+    {
+      "phase": "work-create-a",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 9728,
+      "startedAt": "2026-11-02T10:27:44.866Z",
+      "inputTokens": 12695,
+      "outputTokens": 174
+    },
+    {
+      "phase": "work-create-a",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 5866,
+      "startedAt": "2026-11-02T10:27:55.368Z",
+      "inputTokens": 13628,
+      "outputTokens": 119
+    },
+    {
+      "phase": "work-create-a",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 7294,
+      "startedAt": "2026-11-02T10:27:56.037Z",
+      "inputTokens": 13175,
+      "outputTokens": 43
+    },
+    {
+      "phase": "work-create-a",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 4646,
+      "startedAt": "2026-11-02T10:28:04.619Z",
+      "inputTokens": 13390,
+      "outputTokens": 43
+    },
+    {
+      "phase": "work-chat",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 4294,
+      "startedAt": "2026-11-02T10:28:10.813Z",
+      "inputTokens": 13685,
+      "outputTokens": 24
+    },
+    {
+      "phase": "work-amend",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 5384,
+      "startedAt": "2026-11-02T10:28:16.564Z",
+      "inputTokens": 13783,
+      "outputTokens": 138
+    },
+    {
+      "phase": "work-amend",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 5651,
+      "startedAt": "2026-11-02T10:28:22.506Z",
+      "inputTokens": 14469,
+      "outputTokens": 70
+    },
+    {
+      "phase": "work-amend",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2235,
+      "startedAt": "2026-11-02T10:28:28.871Z",
+      "inputTokens": 2312,
+      "outputTokens": 49
+    },
+    {
+      "phase": "work-amend",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 3074,
+      "startedAt": "2026-11-02T10:28:32.298Z",
+      "inputTokens": 1874,
+      "outputTokens": 39
+    },
+    {
+      "phase": "work-amend",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2488,
+      "startedAt": "2026-11-02T10:28:35.891Z",
+      "inputTokens": 14461,
+      "outputTokens": 48
+    },
+    {
+      "phase": "work-amend",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2016,
+      "startedAt": "2026-11-02T10:28:39.119Z",
+      "inputTokens": 14534,
+      "outputTokens": 57
+    },
+    {
+      "phase": "work-amend",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2103,
+      "startedAt": "2026-11-02T10:28:41.898Z",
+      "inputTokens": 14630,
+      "outputTokens": 31
+    },
+    {
+      "phase": "work-amend",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2293,
+      "startedAt": "2026-11-02T10:28:44.861Z",
+      "inputTokens": 14742,
+      "outputTokens": 130
+    },
+    {
+      "phase": "work-amend",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2124,
+      "startedAt": "2026-11-02T10:28:47.624Z",
+      "inputTokens": 14914,
+      "outputTokens": 21
+    },
+    {
+      "phase": "work-amend",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2767,
+      "startedAt": "2026-11-02T10:28:50.296Z",
+      "inputTokens": 18106,
+      "outputTokens": 125
+    },
+    {
+      "phase": "work-amend",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2273,
+      "startedAt": "2026-11-02T10:28:53.646Z",
+      "inputTokens": 18321,
+      "outputTokens": 29
+    },
+    {
+      "phase": "work-followup",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 3017,
+      "startedAt": "2026-11-02T10:28:57.645Z",
+      "inputTokens": 15154,
+      "outputTokens": 102
+    },
+    {
+      "phase": "work-followup",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 3120,
+      "startedAt": "2026-11-02T10:29:00.992Z",
+      "inputTokens": 14854,
+      "outputTokens": 77
+    },
+    {
+      "phase": "work-create-a-second",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 4258,
+      "startedAt": "2026-11-02T10:29:06.649Z",
+      "inputTokens": 14965,
+      "outputTokens": 172
+    },
+    {
+      "phase": "work-create-a-second",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2043,
+      "startedAt": "2026-11-02T10:29:12.909Z",
+      "inputTokens": 15916,
+      "outputTokens": 73
+    },
+    {
+      "phase": "work-create-a-second",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2845,
+      "startedAt": "2026-11-02T10:29:14.131Z",
+      "inputTokens": 13460,
+      "outputTokens": 42
+    },
+    {
+      "phase": "work-create-a-second",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 1772,
+      "startedAt": "2026-11-02T10:29:19.241Z",
+      "inputTokens": 13677,
+      "outputTokens": 43
+    },
+    {
+      "phase": "work-create-b",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2911,
+      "startedAt": "2026-11-02T10:29:25.801Z",
+      "inputTokens": 16136,
+      "outputTokens": 214
+    },
+    {
+      "phase": "work-create-b",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2095,
+      "startedAt": "2026-11-02T10:29:30.719Z",
+      "inputTokens": 16710,
+      "outputTokens": 85
+    },
+    {
+      "phase": "work-create-b",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2504,
+      "startedAt": "2026-11-02T10:29:33.367Z",
+      "inputTokens": 13567,
+      "outputTokens": 64
+    },
+    {
+      "phase": "work-create-b",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 1931,
+      "startedAt": "2026-11-02T10:29:38.025Z",
+      "inputTokens": 13687,
+      "outputTokens": 45
+    },
+    {
+      "phase": "work-create-b",
+      "slot": "work",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2311,
+      "startedAt": "2026-11-02T10:29:44.452Z",
+      "inputTokens": 13907,
+      "outputTokens": 45
+    },
+    {
+      "phase": "work-ambiguous",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2483,
+      "startedAt": "2026-11-02T10:29:49.051Z",
+      "inputTokens": 15829,
+      "outputTokens": 55
+    },
+    {
+      "phase": "work-ambiguous",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 1934,
+      "startedAt": "2026-11-02T10:29:53.515Z",
+      "inputTokens": 16540,
+      "outputTokens": 66
+    },
+    {
+      "phase": "work-ambiguous",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2223,
+      "startedAt": "2026-11-02T10:29:57.845Z",
+      "inputTokens": 16965,
+      "outputTokens": 184
+    },
+    {
+      "phase": "work-ambiguous",
+      "slot": "chat",
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "elapsedMs": 2066,
+      "startedAt": "2026-11-02T10:30:01.850Z",
+      "inputTokens": 17454,
+      "outputTokens": 49
+    }
+  ],
+  "scope": "Only the authorized bounded real work story. No Voyage, real memory suite, installation, second Windows or longitudinal testing.",
+  "diagnosis": {
+    "latestUserInput": "把那个任务改一下。",
+    "clarificationAsked": false,
+    "allFourSuccessfulInputsPreserveLatestText": true,
+    "currentReferencesHaveCorrectWorkIdsAndHistoricalAuthority": true,
+    "oldCoffeeDecisionBelongsToAnotherCompletedWork": true,
+    "changedWork": {
+      "identity": {
+        "owner": {
+          "userId": "local-user",
+          "characterId": "default-character",
+          "dataRootId": "efdc9453fd299c3c62d342cb29ef2ff99838e2d17b5f66060578959ef20f8bb3"
+        },
+        "projectId": "aa02a8513a88b3d72b5ef390d7810f2b79782d1d06244ba0aa7b74a91739d3c6",
+        "workId": "c98ea788-21b3-47eb-af89-69bf7ba12ca6",
+        "generation": 1,
+        "objectiveRevision": 2
+      },
+      "previousObjectiveRevision": 1,
+      "actualNewDecision": {
+        "id": "7524a1c0-e123-4cde-a81d-aa59bf9427b7",
+        "text": "把那个任务改一下。",
+        "atMs": 1793615387555
+      },
+      "receipt": {
+        "eventId": "b5f3652106ab5a5d2a9655403e7b265cd6f307e7cb21017e02d0fe44adfa1762",
+        "subscriptionId": "bf1728b1-bada-4a7f-8a5a-823829132cda",
+        "sequence": 2,
+        "generation": 1,
+        "revision": 2,
+        "kind": "supplement",
+        "state": "accepted",
+        "consumedAt": null,
+        "decisionIds": [
+          "7524a1c0-e123-4cde-a81d-aa59bf9427b7"
+        ]
+      }
+    },
+    "unexpectedNewWork": {
+      "identity": {
+        "owner": {
+          "userId": "local-user",
+          "characterId": "default-character",
+          "dataRootId": "efdc9453fd299c3c62d342cb29ef2ff99838e2d17b5f66060578959ef20f8bb3"
+        },
+        "projectId": "aa02a8513a88b3d72b5ef390d7810f2b79782d1d06244ba0aa7b74a91739d3c6",
+        "workId": "d237e12c-eb81-46aa-b501-8fa7e01aace6",
+        "generation": 1,
+        "objectiveRevision": 1
+      },
+      "status": "queued",
+      "objective": "补充刚才的工作 c98ea788-21b3-47eb-af89-69bf7ba12ca6：result.txt 的内容改成 COFFEE，不要 TEA，仍然等原来的阻塞命令结束后再写。",
+      "decisions": [
+        {
+          "id": "7524a1c0-e123-4cde-a81d-aa59bf9427b7",
+          "text": "把那个任务改一下。",
+          "atMs": 1793615387555
+        },
+        {
+          "id": "0ad54439-91d5-48ec-aa60-4017c4d55c0b",
+          "text": "请启动独立工作 WORK_B，保持前台能聊天。在当前项目的 PowerShell 进程里先执行 & .\\barrier.ps1 B1，等这个命令真正结束后再写 result.txt，最初内容是 TEA。以后以我补充的新要求为准。恢复时用新运行代次作为屏障编号。写完后用实际文件证据提交工作检查点。",
+          "atMs": 1793615363282
+        }
+      ]
+    },
+    "activityTimeline": [
+      {
+        "templateId": "work.query",
+        "status": "running",
+        "callId": "call_289030",
+        "atMs": 1793615391612
+      },
+      {
+        "templateId": "work.query",
+        "status": "completed",
+        "callId": "call_289030",
+        "atMs": 1793615392291
+      },
+      {
+        "templateId": "work.update",
+        "status": "running",
+        "callId": "call_275062",
+        "atMs": 1793615395543
+      },
+      {
+        "templateId": "work.update",
+        "status": "completed",
+        "callId": "call_275062",
+        "atMs": 1793615397227
+      },
+      {
+        "templateId": "work.create",
+        "status": "running",
+        "callId": "call_227817",
+        "atMs": 1793615400140
+      },
+      {
+        "templateId": "work.create",
+        "status": "completed",
+        "callId": "call_227817",
+        "atMs": 1793615401257
+      }
+    ],
+    "assistantClaim": "嗯，已经帮你把 WORK_B 的要求改好了，现在 `result.txt` 的内容会更新为 COFFEE，不再是之前的 TEA 了，会继续等待原先的阻塞命令执行结束后写入。",
+    "conclusion": "The model guessed a target and borrowed a previous work change, then issued both update and create. Main preserved original user text but accepted the model-selected mutations. This is a real intent-grounding/guard failure; not UI sorting, a missing user message, timeout or an incomplete provider response.",
+    "unresolved": [
+      "How strongly context presentation contributes is not established by this single run.",
+      "No production fix or successful real rerun is claimed."
+    ],
+    "nextRepairScope": [
+      "Clarify both target and requested change before mutations when intent is unresolved.",
+      "Prevent historical work decisions or generated objectives from becoming new user authority.",
+      "Cover unintended work creation as well as target revision changes in ambiguity acceptance."
+    ]
+  },
+  "transportSummary": {
+    "http200Complete": 31,
+    "incomplete": 0,
+    "minResponseMs": 1772,
+    "maxResponseMs": 9728
+  },
+  "cleanup": {
+    "checkedBarrierProcesses": [
+      {
+        "pid": 38704,
+        "running": false
+      },
+      {
+        "pid": 19884,
+        "running": false
+      },
+      {
+        "pid": 22384,
+        "running": false
+      }
+    ],
+    "parallelAResultExists": false,
+    "parallelBResultExists": false,
+    "dailyProfileUnchanged": true
+  },
+  "notReached": [
+    "stop isolation",
+    "restart reconciliation",
+    "explicit new-generation resume",
+    "old approval replay refusal",
+    "final whole-scenario delivery deduplication"
+  ],
+  "sourceHashes": {
+    "src/main/work/tools.ts": "d9d55b1929069fe202afa36f0272516dc2774eac8db60d8f1dcbbcbd07bb0103",
+    "src/main/work/service.ts": "b7f9dc5a4207b4dab6befcf4dbfe2c16c77bf5ec94ea96bc9d4c44771144351b",
+    "dsh/lca-bridge/state.js": "58b1659d603c0f44929c83acc272d7b1b1ea4eb3e900abd68f3199adc3c106ff",
+    "scripts/probe-work-live.mjs": "92bbf5ca91301eeb569fc7adef9c9ce3eb027358951078d7ce9f10c8d428b690"
+  },
+  "primaryReportPreserved": true
+}
