@@ -1,7 +1,7 @@
 {
   "version": 1,
   "authorization": "required-per-batch; previous provider probe grant is closed",
-  "defaults": { "sameSavedChatModel": true, "independentProfiles": true, "firstFailureStopsBatch": true, "automaticRetry": false, "oracleExcludedFromModelInput": true, "requestTimeoutMs": 45000, "turnTimeoutMs": 120000 },
+  "defaults": { "sameSavedChatModel": true, "independentProfiles": true, "firstFailureStopsBatch": true, "automaticRetry": false, "oracleExcludedFromModelInput": true, "responseTimeouts": { "firstResponseMs": 120000, "idleMs": 60000, "totalMs": 300000 }, "turnTimeoutMs": 600000, "barrierTimeoutMs": 1800000 },
   "firstRequestLimits": { "maximumModelRequests": 1, "maximumReservedUnits": 16000, "maximumAutonomousUnits": 0, "maximumEmbeddingRequests": 0, "maximumEmbeddingInputCharacters": 0 },
   "batches": [
     {

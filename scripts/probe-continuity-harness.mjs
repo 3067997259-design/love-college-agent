@@ -44,7 +44,7 @@ export async function createContinuityHarness(batch, entry, { firstRequestOnly =
   const packageBridge={}
   const resources=join(dirname(exe),'resources')
   for(const file of await walk(join(resources,'lca-bridge')))packageBridge[file.slice(resources.length+1).replaceAll('\\','/')]=await sha(file)
-  const receipt={batch,selfTest,firstRequestOnly,captureOnly,limits,asarSha256:await sha(join(resources,'app.asar')),packageBridge,probeManifest:'source-manifest.json'}
+  const receipt={batch,selfTest,firstRequestOnly,captureOnly,limits,responseTimeouts:plan.defaults.responseTimeouts,turnTimeoutMs:plan.defaults.turnTimeoutMs,barrierTimeoutMs:plan.defaults.barrierTimeoutMs,asarSha256:await sha(join(resources,'app.asar')),packageBridge,probeManifest:'source-manifest.json'}
   await writeFile(join(root,'run.json'),JSON.stringify(receipt,null,2),{flag:'wx'})
   if(grant){
     assert.equal(grant.asarSha256,receipt.asarSha256,'AUTHORIZED_PACKAGE_CHANGED')
@@ -55,7 +55,7 @@ export async function createContinuityHarness(batch, entry, { firstRequestOnly =
   const compiled=join(repo,'.cache','continuity-live',randomUUID(),'gateway.cjs')
   await build({configFile:false,logLevel:'error',build:{ssr:join(repo,'scripts/fixtures/continuity-live-gateway.ts'),outDir:dirname(compiled),emptyOutDir:false,minify:false,rollupOptions:{external:['electron'],output:{format:'cjs',entryFileNames:'gateway.cjs'}}}})
   await mkdir(join(root,'source'))
-  const names=[entry,'scripts/probe-continuity-harness.mjs','scripts/fixtures/continuity-live-gateway.ts','scripts/fixtures/continuity-scripted-model.ts','scripts/fixtures/continuity-live-budget.ts','scripts/fixtures/probe-transport.ts','scripts/fixtures/world-probe-stream.ts','scripts/fixtures/world-probe-admission.ts','scripts/continuity-live-plan.json']
+  const names=[entry,'scripts/probe-continuity-harness.mjs','scripts/fixtures/continuity-live-gateway.ts','scripts/fixtures/continuity-scripted-model.ts','scripts/fixtures/continuity-live-budget.ts','scripts/fixtures/probe-transport.ts','scripts/fixtures/probe-response-deadline.ts','scripts/fixtures/world-probe-stream.ts','scripts/fixtures/world-probe-admission.ts','scripts/continuity-live-plan.json']
   const manifest={}
   for(const file of names){const target=file.replaceAll('/','__');await writeFile(join(root,'source',target),await readFile(join(repo,file)),{flag:'wx'});manifest[file]=await sha(join(repo,file))}
   manifest['bundle/gateway.cjs']=await sha(compiled)
@@ -79,7 +79,7 @@ export async function createContinuityHarness(batch, entry, { firstRequestOnly =
     assert.equal((await send({type:'question.answer',questionId:q.id,answer:choice})).status,'accepted')
   }
   const wait=async(predicate,code,options={})=>{
-    const deadline=Date.now()+120000
+    const deadline=Date.now()+plan.defaults.turnTimeoutMs
     while(Date.now()<deadline){
       const s=await snapshot(),g=await gateway();assert.equal(g.halted,false,'GATEWAY_HALTED:'+code)
       if(options.approvals)await approve(s)

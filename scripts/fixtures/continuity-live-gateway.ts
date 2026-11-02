@@ -12,6 +12,7 @@ import { systemClock as clock } from '../../src/main/clock'
 import { completedJournalRecords } from './world-probe-admission'
 import { createWorldProbeStream } from './world-probe-stream'
 import { observeProbeTransport } from './probe-transport'
+import { createProbeResponseDeadline } from './probe-response-deadline'
 import { createContinuityProbeBudget, compactAdmission } from './continuity-live-budget'
 import { createContinuityScriptedModel, requestObjects, workPackage, scriptedResponse, messageText, type ProbeRequest } from './continuity-scripted-model'
 import plan from '../continuity-live-plan.json'
@@ -25,7 +26,7 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
   assert.ok(!captureOnly || firstRequestOnly && !selfTest, 'CAPTURE_SCOPE_REQUIRED')
   const limits = firstRequestOnly ? { ...fullLimits, ...plan.firstRequestLimits } : fullLimits
   assert.ok(limits && ['work', 'memory'].includes(batch), 'INVALID_BATCH')
-  mkdirSync(root, { recursive: true }); writeFileSync(join(root, 'gateway-start.json'), JSON.stringify({ batch, selfTest, limits }), { flag: 'wx' })
+  mkdirSync(root, { recursive: true }); writeFileSync(join(root, 'gateway-start.json'), JSON.stringify({ batch, selfTest, limits, responseTimeouts: plan.defaults.responseTimeouts }), { flag: 'wx' })
   const ledger = createResourceBudget({ root: join(root, 'budget'), clock, configurable: true })
   assert.equal(ledger.dispatch({ protocolVersion: 1, epoch: 'probe', requestId: randomUUID(), type: 'resources.configure', dailyTotalUnits: limits.maximumReservedUnits, dailyAutonomousUnits: limits.maximumAutonomousUnits }), undefined)
   const budget = createContinuityProbeBudget(limits, (units, bucket) => ledger.reserveModel(units, bucket))
@@ -90,9 +91,13 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
     }
     const sample: Record<string, unknown> = { phase, slot, ticket, units, bucket, startedAt: new Date(clock.nowMs()).toISOString(), ok: false, error: null, status: null, inputTokens: null, outputTokens: null }
     samples.push(sample); save()
-    const abort = new AbortController(); active.add(abort); let timeout = false
-    const stop = clock.after(45000, () => { timeout = true; abort.abort() }), began = clock.nowMs()
-    res.on('close', () => { if (!res.writableEnded) abort.abort() })
+    const abort = new AbortController(); active.add(abort)
+    const began = clock.nowMs(), deadline = createProbeResponseDeadline(clock, plan.defaults.responseTimeouts, () => abort.abort())
+    sample.responseTiming = deadline.diagnostics
+    const onAbort = () => { deadline.stop(); if (!sample.ok) sample.cancelReason ??= deadline.diagnostics.timeoutPhase ? 'timeout' : 'gateway-closed-or-cancelled' }
+    abort.signal.addEventListener('abort', onAbort, { once: true })
+    const onClose = () => { if (!res.writableEnded) { sample.cancelReason = 'downstream-closed'; abort.abort() } }
+    res.on('close', onClose)
     let transport: ReturnType<typeof observeProbeTransport> | undefined
     try {
       let response: Response
@@ -113,30 +118,31 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
         transport = observeProbeTransport(endpoint, () => clock.nowMs()); sample.transport = transport.diagnostics
         response = await fetch(endpoint, { method: 'POST', redirect: 'error', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (isEmbedding ? embedding!.apiKey : config[slot].api_key) }, body: raw, signal: abort.signal })
       }
-      sample.status = response.status; assert.ok(response.ok && response.body, 'PROVIDER_FAILED')
+      deadline.headers(); sample.status = response.status; assert.ok(response.ok && response.body, 'PROVIDER_FAILED')
       res.writeHead(200, { 'Content-Type': body.stream && !isEmbedding ? 'text/event-stream' : 'application/json' })
       const reader = response.body.getReader(), decoder = new TextDecoder(), stream = createWorldProbeStream((i, o) => { sample.inputTokens = i; sample.outputTokens = o })
       let bytes = 0, json = ''
       try {
         while (true) {
           const chunk = await reader.read(); if (chunk.done) break
+          deadline.chunk(chunk.value.length)
           bytes += chunk.value.length; assert.ok(bytes <= 2 * 1024 * 1024, 'RESPONSE_TOO_LARGE')
           const text = decoder.decode(chunk.value, { stream: true })
-          if (body.stream && !isEmbedding) { stream.push(text); res.write(chunk.value); if (stream.terminalSentinelSeen()) { stream.end(); sample.ok = true; sample.completionBasis = 'sentinel'; res.end(); abort.abort(); break } }
+          if (body.stream && !isEmbedding) { stream.push(text); res.write(chunk.value); if (stream.terminalSentinelSeen()) { stream.end(); sample.ok = true; sample.completionBasis = 'sentinel'; deadline.complete(); res.end(); abort.abort(); break } }
           else json += text
         }
         if (!sample.ok) {
           if (body.stream && !isEmbedding) { stream.push(decoder.decode()); stream.end(); sample.completionBasis = 'eof' }
           else { json += decoder.decode(); const parsed = JSON.parse(json); assert.ok(isEmbedding ? Array.isArray(parsed.data?.[0]?.embedding) : parsed.choices?.[0]?.message, 'INVALID_RESPONSE'); res.write(json); sample.inputTokens = parsed.usage?.prompt_tokens ?? null; sample.outputTokens = parsed.usage?.completion_tokens ?? null }
-          sample.ok = true
+          sample.ok = true; deadline.complete()
         }
       } finally { await reader.cancel().catch(() => {}); reader.releaseLock() }
       sample.stream = body.stream && !isEmbedding ? stream.diagnostics() : null
     } catch (error) {
       if (selfTest) sample.fixtureDiagnostic = { message: error instanceof Error ? error.message : String(error), request: body }
-      halted = true; sample.ok = false; sample.error = timeout ? 'TIMEOUT' : error instanceof Error && /^[A-Z_:]+$/.test(error.message) ? error.message : 'RESPONSE_FAILED'
+      halted = true; sample.ok = false; sample.error = deadline.diagnostics.timeoutPhase ? 'TIMEOUT' : error instanceof Error && /^[A-Z_:]+$/.test(error.message) ? error.message : 'RESPONSE_FAILED'
       if (!res.headersSent) res.writeHead(502)
-    } finally { transport?.close(); stop(); active.delete(abort); sample.elapsedMs = clock.nowMs() - began; res.end(); save() }
+    } finally { transport?.close(); deadline.stop(); abort.signal.removeEventListener('abort', onAbort); res.off('close', onClose); active.delete(abort); sample.elapsedMs = clock.nowMs() - began; res.end(); save() }
   })().catch(error => { halted = true; denials.push({ phase, code: error instanceof Error ? error.message.match(/^[A-Z_]+/)?.[0] ?? error.name : 'GATEWAY_ERROR' }); save(); if (!res.headersSent) res.writeHead(403); res.end() }) })
   await new Promise<void>(done => server.listen(0, '127.0.0.1', done)); const address = server.address(); assert.ok(address && typeof address !== 'string')
   const endpoint = 'http://127.0.0.1:' + address.port, providers: Record<string, unknown> = {}, capabilities: Record<string, unknown> = {}

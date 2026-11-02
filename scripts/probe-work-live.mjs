@@ -15,7 +15,7 @@ $watcher=[System.IO.FileSystemWatcher]::new($taskDirectory)
 try {
   [System.IO.File]::WriteAllText((Join-Path $taskDirectory ('entered-'+$Tag)), ('{"pid":'+$PID+'}'))
   while(-not [System.IO.File]::Exists($gate)) {
-    $change=$watcher.WaitForChanged([System.IO.WatcherChangeTypes]::All,180000)
+    $change=$watcher.WaitForChanged([System.IO.WatcherChangeTypes]::All,${h.report.receipt.barrierTimeoutMs})
     if($change.TimedOut){throw 'BARRIER_DEADLINE'}
   }
   Write-Output ('BARRIER_RELEASED_'+$Tag)

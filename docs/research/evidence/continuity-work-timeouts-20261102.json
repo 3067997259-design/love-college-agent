@@ -1,0 +1,307 @@
+{
+  "version": 1,
+  "date": "2026-11-02",
+  "sourceBaseCommit": "b8afb3a",
+  "scope": "Segmented probe timeouts and one renewed live work batch; no production package changes",
+  "candidateAsarSha256": "2894e350aa7143b7b3f237a1cbeb1c5ff66ffb78a6d782129b4af39031a3a67b",
+  "policy": {
+    "responseTimeouts": {
+      "firstResponseMs": 120000,
+      "idleMs": 60000,
+      "totalMs": 300000
+    },
+    "turnTimeoutMs": 600000,
+    "barrierTimeoutMs": 1800000
+  },
+  "verification": {
+    "unitFiles": 5,
+    "unitPassed": 33,
+    "nodeTypecheck": true,
+    "changedPathLint": true,
+    "diffCheck": true,
+    "preflightLiveSourceAndBundleIdentical": true
+  },
+  "selfTest": {
+    "root": "D:\\lca-continuity-candidate-20261101\\profiles\\work-timeouts-selftest-20261102-1",
+    "ok": true,
+    "checks": {
+      "foregroundCompletesWhileWorkerToolBlocked": true,
+      "supplementDurableInOriginalWork": true,
+      "currentRevisionFileAndCheckpoint": true,
+      "immediateDeliveryContextHasVerifiedEvidence": true,
+      "ambiguousAmendmentDoesNotChangeEitherWork": true,
+      "stopIsolatedToOneRoot": true,
+      "recoveryUsesNewGenerationWithoutApprovalReplay": true,
+      "noDuplicateDelivery": true
+    },
+    "modelRequests": 29,
+    "reservedUnits": 130520,
+    "autonomousUnits": 16120,
+    "upstreamRequests": 0,
+    "reportSha256": "67da0f6fa6d131d13949ea0761548933eafb433d1194f9c97943cdc5f00cdf06"
+  },
+  "live": {
+    "root": "D:\\lca-continuity-candidate-20261101\\profiles\\work-timeouts-live-20261102-1",
+    "ok": false,
+    "error": "GATEWAY_HALTED:CHAT_NOT_COMPLETED:work-chat\n\ntrue !== false\n",
+    "checks": {},
+    "closed": {
+      "closedAt": "2026-11-02T02:11:07.6544150+00:00",
+      "reason": "first failure stopped work acceptance; connection reset before request headers/body",
+      "authorizationId": "aeb1d4de-cd63-48fb-a442-fb54900577d9",
+      "modelRequests": 7,
+      "reservedUnits": 99644,
+      "autonomousUnits": 0,
+      "embeddingRequests": 0,
+      "successfulResponses": 6,
+      "runnerRetries": 0,
+      "applicationProbeRetries": 0,
+      "transportConnectErrorEvents": 2,
+      "inFlight": 0,
+      "barrierProcessExited": true,
+      "completeWorkAcceptance": false
+    },
+    "samples": [
+      {
+        "phase": "work-create-a",
+        "slot": "chat",
+        "startedAt": "2026-11-02T01:59:11.135Z",
+        "ok": true,
+        "status": 200,
+        "error": null,
+        "inputTokens": 12963,
+        "outputTokens": 68,
+        "elapsedMs": 67926,
+        "responseTiming": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": 66990,
+          "firstByteMs": 66994,
+          "lastByteMs": 67910,
+          "completedMs": 67911,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        }
+      },
+      {
+        "phase": "work-create-a",
+        "slot": "chat",
+        "startedAt": "2026-11-02T02:00:20.669Z",
+        "ok": true,
+        "status": 200,
+        "error": null,
+        "inputTokens": 13100,
+        "outputTokens": 19,
+        "elapsedMs": 72610,
+        "responseTiming": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": 69729,
+          "firstByteMs": 69729,
+          "lastByteMs": 72608,
+          "completedMs": 72608,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        }
+      },
+      {
+        "phase": "work-create-a",
+        "slot": "chat",
+        "startedAt": "2026-11-02T02:01:34.680Z",
+        "ok": true,
+        "status": 200,
+        "error": null,
+        "inputTokens": 13148,
+        "outputTokens": 190,
+        "elapsedMs": 63722,
+        "responseTiming": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": 63133,
+          "firstByteMs": 63134,
+          "lastByteMs": 63720,
+          "completedMs": 63720,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        }
+      },
+      {
+        "phase": "work-create-a",
+        "slot": "chat",
+        "startedAt": "2026-11-02T02:02:40.541Z",
+        "ok": true,
+        "status": 200,
+        "error": null,
+        "inputTokens": 14124,
+        "outputTokens": 93,
+        "elapsedMs": 72264,
+        "responseTiming": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": 69446,
+          "firstByteMs": 69446,
+          "lastByteMs": 72262,
+          "completedMs": 72262,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        }
+      },
+      {
+        "phase": "work-create-a",
+        "slot": "work",
+        "startedAt": "2026-11-02T02:02:42.759Z",
+        "ok": true,
+        "status": 200,
+        "error": null,
+        "inputTokens": 13897,
+        "outputTokens": 42,
+        "elapsedMs": 67854,
+        "responseTiming": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": 67354,
+          "firstByteMs": 67355,
+          "lastByteMs": 67852,
+          "completedMs": 67852,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        }
+      },
+      {
+        "phase": "work-create-a",
+        "slot": "work",
+        "startedAt": "2026-11-02T02:03:53.842Z",
+        "ok": true,
+        "status": 200,
+        "error": null,
+        "inputTokens": 14110,
+        "outputTokens": 42,
+        "elapsedMs": 63038,
+        "responseTiming": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": 62993,
+          "firstByteMs": 62993,
+          "lastByteMs": 63037,
+          "completedMs": 63037,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        }
+      },
+      {
+        "phase": "work-chat",
+        "slot": "chat",
+        "startedAt": "2026-11-02T02:05:04.077Z",
+        "ok": false,
+        "status": null,
+        "error": "RESPONSE_FAILED",
+        "inputTokens": null,
+        "outputTokens": null,
+        "elapsedMs": 6617,
+        "responseTiming": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": null,
+          "firstByteMs": null,
+          "lastByteMs": null,
+          "completedMs": null,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        }
+      }
+    ],
+    "failedTransportEvents": [
+      {
+        "stage": "request-created",
+        "elapsedMs": 2
+      },
+      {
+        "stage": "connect-started",
+        "elapsedMs": 2
+      },
+      {
+        "stage": "connect-error",
+        "elapsedMs": 3294,
+        "code": "ECONNRESET"
+      },
+      {
+        "stage": "connect-error",
+        "elapsedMs": 6595,
+        "code": "ECONNRESET"
+      },
+      {
+        "stage": "request-error",
+        "elapsedMs": 6596,
+        "code": "ECONNRESET"
+      }
+    ],
+    "approvals": 1,
+    "workId": "7f3cf46b-78e2-47d8-8b02-cdaad23f7232",
+    "generation": 1,
+    "objectiveRevision": 1,
+    "barrierEntered": true,
+    "barrierReleased": false,
+    "resultFileExists": false,
+    "cleanupUncertain": false,
+    "files": {
+      "report.json": "cb9062eb66870f13667867babc7638cea44947e08d1b247b3a44a23383a13add",
+      "gateway-report.json": "8d3cc8fe8bfa95a0bcc43373d2606c8161c13869a055ebe66499b908f0bdbceb",
+      "authorization.json": "651485694f924d2e4aa1c3531845c5306da9f56407a0e87da60a62e9f04ced61",
+      "run.json": "f93921523af899a3bca80592f69be5787a4a43d773014d980c539cc4540e8fff",
+      "source-manifest.json": "760d5ecf63ed8aa832693799a20e4673757095c030db281c53a1be51cfdd5fbe",
+      "closed.json": "6951a8dd0c9e0b6fd1ea240dc4b4f70d29e263a2dd65e8f1c0050b3fe02ed74a",
+      "budget/usage.jsonl": "7f3a9c52456fdcfe0c1f3f2ceff35053b40c1154e61aa2b8d91ea1d45b548ca7",
+      "projects/first/barrier.ps1": "2285c0afb3453a0470c1a91da463cec0f43019caa4bd035d1d7d4977331eb8d6",
+      "projects/first/entered-A1": "025618caebf13a76dc65ecfcf1cd7437e2f6f9aa122d511958cc14a20cc016e2"
+    },
+    "knownSuccessfulUsageTokens": 81796,
+    "successfulFirstByteRangeMs": [
+      62993,
+      69729
+    ],
+    "failedRequestUsage": "Unknown: no HTTP response or provider usage received."
+  },
+  "sourceManifest": {
+    "scripts/probe-work-live.mjs": "54ea1cb03153bdc55dba2446bc64e6b19658bc946bf2c309aedd8a9c803a88d6",
+    "scripts/probe-continuity-harness.mjs": "ce65e3fc07bc44b90b5b29dd8ffa0aaa8c630012536f972115a90693862b7ad9",
+    "scripts/fixtures/continuity-live-gateway.ts": "392602815618d0a7b9336008d9f2d397ceccf28ccfc4abe492ef03f6792adf44",
+    "scripts/fixtures/continuity-scripted-model.ts": "67f466c82755ac776406d43e3ef4beecf61da153689fcc069af6cbba68bbd310",
+    "scripts/fixtures/continuity-live-budget.ts": "8d74dab3374bd6464f1d90b0789ddf7634a9dc9249dc3321d36cedb9ad6c8325",
+    "scripts/fixtures/probe-transport.ts": "427c01a8d86e19ab4f87a04b9f9065f91e3f576de43ad04dbf4582a01f5c1cb9",
+    "scripts/fixtures/probe-response-deadline.ts": "77a098bf9c8bc021f2b364ac008450dcbe7487f4dfc5dc31ca30856fcdba85e9",
+    "scripts/fixtures/world-probe-stream.ts": "c6fa49708756d80832d6af9181f0e8e1f1467566e60270b5cd1cebac7c46f71f",
+    "scripts/fixtures/world-probe-admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+    "scripts/continuity-live-plan.json": "52936d23ba97ee404a22bf85fb67835b272467da80b8c3bdb3ce365abdc629be",
+    "bundle/gateway.cjs": "d2c6940852ed266268e6481948520106519c6c1a48daccdc7859001ed8dfabc0"
+  },
+  "interpretation": {
+    "timeoutChange": "All six successful responses had first body data after 45 seconds (62.993 to 69.729 seconds) and completed under the new policy without a timeout.",
+    "failure": "The seventh request failed during connection establishment with ECONNRESET at 6.617 seconds. No connected, headers-sent or body-sent event was observed; no probe deadline fired.",
+    "transportEvents": "Two connect-error events occurred within one request-created attempt; do not count them as two model calls or claim there were no internal connection attempts.",
+    "causeLimit": "A reset cannot locate the failing component among the provider edge and intervening network/proxy. Provider service fluctuation remains a hypothesis.",
+    "acceptance": "Persistent work creation and actual tool-barrier entry were observed. Foreground chat did not complete; amendment, file checkpoint, follow-up, stop isolation, restart and duplicate-delivery live assertions remain unpassed.",
+    "cleanup": "Gateway halted with zero in-flight requests; the recorded barrier PID no longer existed after app shutdown. No automatic retry or next live window.",
+    "errorReference": "https://nodejs.org/api/errors.html#common-system-errors"
+  }
+}
