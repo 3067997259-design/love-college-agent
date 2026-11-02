@@ -1,7 +1,16 @@
 import { expect, it } from 'vitest'
 import { createContinuityProbeBudget, compactAdmission } from '../../scripts/fixtures/continuity-live-budget'
+import plan from '../../scripts/continuity-live-plan.json'
 
 const limits = { maximumModelRequests: 3, maximumReservedUnits: 10_000, maximumAutonomousUnits: 5000, maximumEmbeddingRequests: 2, maximumEmbeddingInputCharacters: 20 }
+it('enforces a separate one-request retry even when the first response used little quota', () => {
+  const charges: number[] = [], b = createContinuityProbeBudget(plan.firstRequestLimits, units => { charges.push(units) })
+  expect(() => b.model('auto', 1, 'autonomous')).toThrow('AUTONOMOUS_UNITS_EXHAUSTED')
+  expect(() => b.embedding('embed', 'tea')).toThrow('EMBEDDING_BUDGET_EXHAUSTED')
+  b.model('first', 1, 'work')
+  expect(() => b.model('retry', 1, 'work')).toThrow('MODEL_REQUESTS_EXHAUSTED')
+  expect(charges).toEqual([1]); expect(b.view().modelRequests).toBe(1)
+})
 it('binds compaction only to one new published unconsumed ledger receipt', () => {
   const old = { kind: 'model', id: 'old', units: 100, bucket: 'work' }, fresh = { ...old, id: 'new' }, baseline = new Set(['old'])
   expect(compactAdmission([old, fresh], baseline, () => false)).toEqual({ ticket: 'compact:new', units: 100, bucket: 'work' })

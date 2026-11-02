@@ -2,6 +2,7 @@
   "version": 1,
   "authorization": "required-per-batch; previous provider probe grant is closed",
   "defaults": { "sameSavedChatModel": true, "independentProfiles": true, "firstFailureStopsBatch": true, "automaticRetry": false, "oracleExcludedFromModelInput": true, "requestTimeoutMs": 45000, "turnTimeoutMs": 120000 },
+  "firstRequestLimits": { "maximumModelRequests": 1, "maximumReservedUnits": 16000, "maximumAutonomousUnits": 0, "maximumEmbeddingRequests": 0, "maximumEmbeddingInputCharacters": 0 },
   "batches": [
     {
       "id": "world", "maximumModelRequests": 12, "maximumReservedUnits": 256000, "maximumAutonomousUnits": 0,

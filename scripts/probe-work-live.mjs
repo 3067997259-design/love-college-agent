@@ -3,7 +3,8 @@ import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createContinuityHarness, workRecords, journalRows, sha } from './probe-continuity-harness.mjs'
 
-const h=await createContinuityHarness('work','scripts/probe-work-live.mjs')
+const firstRequestOnly=process.argv.includes('--first-request-only')
+const h=await createContinuityHarness('work','scripts/probe-work-live.mjs',{firstRequestOnly})
 const present=async path=>access(path).then(()=>true,()=>false)
 const barrier=`param([ValidatePattern('^[AB][12]$')][string]$Tag)
 $ErrorActionPreference='Stop'
@@ -21,16 +22,25 @@ try {
 `
 const project=async name=>{const path=join(h.root,'projects',name);await mkdir(path,{recursive:true});await writeFile(join(path,'barrier.ps1'),barrier,{flag:'wx'});return path}
 const target=w=>({identity:w.identity,expectedRevision:w.revision})
+const startInput=label=>`请启动独立工作 WORK_${label}，保持前台能聊天。在当前项目的 PowerShell 进程里先执行 & .\\barrier.ps1 ${label}1，等这个命令真正结束后再写 result.txt，最初内容是 TEA。以后以我补充的新要求为准。恢复时用新运行代次作为屏障编号。写完后用实际文件证据提交工作检查点。`
 const controls=async(id,type)=>{const w=(await h.snapshot()).continuousWorks.items.find(w=>w.identity.workId===id);assert.ok(w);assert.equal((await h.send({type,target:target(w)})).status,'accepted')}
 const start=async(path,label,step)=>{
   await h.chooseProject(path)
   const before=new Set((await h.snapshot()).continuousWorks.items.map(w=>w.identity.workId))
-  await h.chat(`请启动独立工作 WORK_${label}，保持前台能聊天。在当前项目的 PowerShell 进程里先执行 & .\\barrier.ps1 ${label}1，等这个命令真正结束后再写 result.txt，最初内容是 TEA。以后以我补充的新要求为准。恢复时用新运行代次作为屏障编号。写完后用实际文件证据提交工作检查点。`,step,{approvals:true})
+  await h.chat(startInput(label),step,{approvals:true})
   const s=await h.wait(async s=>s.continuousWorks.items.some(w=>!before.has(w.identity.workId))&&await present(join(path,'entered-'+label+'1')),'WORK_TOOL_BARRIER_NOT_ENTERED',{approvals:true})
   return s.continuousWorks.items.find(w=>!before.has(w.identity.workId))
 }
 let failure
 try{
+  if(firstRequestOnly){
+    await h.chooseProject(await project('first'));await h.phase('work-create-a')
+    assert.equal((await h.send({type:'message.send',text:startInput('A')})).status,'accepted')
+    await h.wait((s,g)=>g.samples.length===1&&typeof g.samples[0].elapsedMs==='number','FIRST_RESPONSE_NOT_FINISHED')
+    const g=await h.gateway();assert.equal(g.samples[0].ok,true);assert.equal(g.modelRequests,1);assert.equal(g.autonomousUnits,0);assert.equal(g.embeddingRequests,0)
+    h.checks.providerFirstResponseComplete=true;h.checks.singleRequestOnly=true
+    h.report.scope='provider-first-response-only; work execution is not assessed';h.report.ok=true
+  }else{
   const first=await project('first'),a=await start(first,'A','work-create-a')
   assert.equal(await present(join(first,'result.txt')),false)
   const workerBefore=(await h.gateway()).samples.filter(s=>s.slot==='work').length
@@ -81,5 +91,6 @@ try{
   h.checks.noDuplicateDelivery=true
   h.report.workReceipts=records.map(w=>({identity:w.identity,status:w.status,inputs:w.inputs,deliveries:w.deliveries,checkpoints:w.checkpoints,evidence:w.evidence}))
   await h.review();h.report.ok=true
+  }
 }catch(error){failure=error}
 finally{await h.finalize(failure)}

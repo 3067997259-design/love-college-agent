@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "date": "2026-11-02",
+  "scope": "user-authorized one-request retry; provider connectivity only, not work scenario acceptance",
+  "runnerBaseCommit": "306a05b",
+  "root": "D:/lca-continuity-candidate-20261101/profiles/work-request-live-20261102-1",
+  "package": {
+    "version": "1.2.0-continuity.4",
+    "asarSha256": "2894e350aa7143b7b3f237a1cbeb1c5ff66ffb78a6d782129b4af39031a3a67b",
+    "currentPackageAndBridgeMatch": true
+  },
+  "authorization": {
+    "id": "0eda00c0-a4fc-4144-82d9-405627b61e17",
+    "authorizedAt": "2026-11-02T00:29:09.6000836Z",
+    "maximumModelRequests": 1,
+    "maximumReservedUnits": 16000,
+    "maximumAutonomousUnits": 0,
+    "maximumEmbeddingRequests": 0,
+    "grantConsumed": true
+  },
+  "result": {
+    "ok": false,
+    "modelRequests": 1,
+    "reservedUnits": 16000,
+    "autonomousUnits": 0,
+    "embeddingRequests": 0,
+    "samples": [
+      {
+        "phase": "work-create-a",
+        "slot": "chat",
+        "ticket": "c773bb5ecaf6771ce06eda537f5a0546eb88ab75ea88eb65337f06061e1f4ebd",
+        "units": 16000,
+        "bucket": "work",
+        "startedAt": "2026-11-02T00:29:30.670Z",
+        "ok": false,
+        "error": "TIMEOUT",
+        "status": null,
+        "inputTokens": null,
+        "outputTokens": null,
+        "transport": {
+          "transport": "node-fetch",
+          "events": [
+            {
+              "stage": "request-created",
+              "elapsedMs": 9
+            },
+            {
+              "stage": "connect-started",
+              "elapsedMs": 10
+            },
+            {
+              "stage": "connected",
+              "elapsedMs": 633
+            },
+            {
+              "stage": "headers-sent",
+              "elapsedMs": 634
+            },
+            {
+              "stage": "body-sent",
+              "elapsedMs": 638
+            },
+            {
+              "stage": "request-error",
+              "elapsedMs": 45002
+            }
+          ]
+        },
+        "elapsedMs": 45006
+      }
+    ],
+    "denials": [],
+    "inFlightAtClose": 0,
+    "cleanupUncertain": false,
+    "ledgerMatches": true
+  },
+  "product": {
+    "journalTypes": {
+      "session/header": 1,
+      "life/state": 3,
+      "onboarding/state": 1,
+      "companion/mode": 1,
+      "user/message": 1,
+      "turn/start": 1,
+      "inbox/drain": 1,
+      "work/turn": 1,
+      "model/attempt": 1
+    },
+    "workCount": 0,
+    "resultFileExists": false,
+    "fixtureFiles": [
+      "barrier.ps1"
+    ],
+    "taskStatusBeforeShutdown": "running"
+  },
+  "checks": {
+    "unit": {
+      "files": 4,
+      "passed": 25,
+      "scope": "transport, bounded quota, stream completion and admission"
+    },
+    "nodeTypecheck": true,
+    "changedPathLint": true,
+    "localSingleRequestPreflight": {
+      "root": "D:/lca-continuity-candidate-20261101/profiles/work-request-selftest-20261102-1",
+      "ok": true,
+      "requests": 1,
+      "reservedUnits": 16000,
+      "autonomousUnits": 0,
+      "reportSha256": "d6a88e4e70a2acc4e4e3ccd0786977b1ccd74ee67b10bb406a21aa904999e583"
+    },
+    "sameFrozenProbeSources": true
+  },
+  "conclusion": "Node fetch connected after 633 ms and body-sent was observed after 638 ms. No response headers arrived before the 45006 ms timeout. Client transmission is evidenced; provider application acceptance, model processing and actual billing remain unknown. No further upstream requests or work scenario acceptance.",
+  "files": {
+    "report.json": "467c3c41dd7d78f125a8ee86444f7f84a2ca67716f039acd2af1e8c5f0e2aaa3",
+    "gateway-report.json": "65c05946b9e21ef775efced532fcbacaebde9927724809437f0267ee4062356a",
+    "run.json": "515a4eff7810d805865f7ee4bc052ef29488e090b5be4c96d60e7737c966c077",
+    "authorization.json": "d781a9b247d86df120eec9509c4f18c0a9829925e6fbae1cb0c75f60cfc119e0",
+    "source-manifest.json": "c1d7a0667de032439438d7db4c5dd71dc742653560f3db00d44ba368cbf1d841",
+    "budget/usage.jsonl": "7552ec074679eb5ad4a217002a73f0cab069eaca977353bf513e0afd711076f1"
+  }
+}

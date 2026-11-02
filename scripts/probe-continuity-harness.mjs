@@ -21,18 +21,20 @@ export async function workRecords(profile) {
   }
   return [...current.values()]
 }
-export async function createContinuityHarness(batch, entry) {
+export async function createContinuityHarness(batch, entry, { firstRequestOnly = false } = {}) {
   const repo=resolve(import.meta.dirname,'..'), selfTest=process.argv.includes('--self-test')
   assert.ok(process.env.LCA_CONTINUITY_PROBE_RUN && process.env.LCA_TEST_EXECUTABLE,'ISOLATED_RUN_AND_PACKAGE_REQUIRED')
   assert.ok(selfTest || process.env.LCA_REAL_MODEL==='1','LIVE_OPT_IN_REQUIRED')
   const root=resolve(process.env.LCA_CONTINUITY_PROBE_RUN),exe=resolve(process.env.LCA_TEST_EXECUTABLE)
-  const plan=JSON.parse(await readFile(join(repo,'scripts/continuity-live-plan.json'),'utf8')), limits=plan.batches.find(p=>p.id===batch)
-  assert.ok(limits,'UNKNOWN_BATCH')
+  const plan=JSON.parse(await readFile(join(repo,'scripts/continuity-live-plan.json'),'utf8')), fullLimits=plan.batches.find(p=>p.id===batch)
+  assert.ok(fullLimits,'UNKNOWN_BATCH');assert.ok(!firstRequestOnly||batch==='work','FIRST_REQUEST_WORK_ONLY')
+  const limits=firstRequestOnly?{...fullLimits,...plan.firstRequestLimits}:fullLimits
   let grant
   if(!selfTest){
     assert.ok(process.env.LCA_CONTINUITY_AUTH_FILE && process.env.LCA_PROVIDERS_FILE,'BATCH_AUTHORIZATION_REQUIRED')
     grant=JSON.parse(await readFile(process.env.LCA_CONTINUITY_AUTH_FILE,'utf8'))
     assert.ok(grant.authorized===true && grant.batch===batch && grant.authorizationId,'BATCH_AUTHORIZATION_REQUIRED')
+    assert.equal(grant.firstRequestOnly===true,firstRequestOnly,'AUTHORIZATION_SCOPE_MISMATCH')
     for(const field of ['maximumModelRequests','maximumReservedUnits','maximumAutonomousUnits','maximumEmbeddingRequests','maximumEmbeddingInputCharacters'])assert.equal(grant[field],limits[field],'BATCH_AUTHORIZATION_MISMATCH:'+field)
     if(batch==='memory')assert.ok(grant.embeddingAuthorized===true&&process.env.LCA_MEMORY_CONNECTION_FILE,'EMBEDDING_AUTHORIZATION_REQUIRED')
   }
@@ -40,7 +42,7 @@ export async function createContinuityHarness(batch, entry) {
   const packageBridge={}
   const resources=join(dirname(exe),'resources')
   for(const file of await walk(join(resources,'lca-bridge')))packageBridge[file.slice(resources.length+1).replaceAll('\\','/')]=await sha(file)
-  const receipt={batch,selfTest,limits,asarSha256:await sha(join(resources,'app.asar')),packageBridge,probeManifest:'source-manifest.json'}
+  const receipt={batch,selfTest,firstRequestOnly,limits,asarSha256:await sha(join(resources,'app.asar')),packageBridge,probeManifest:'source-manifest.json'}
   await writeFile(join(root,'run.json'),JSON.stringify(receipt,null,2),{flag:'wx'})
   if(grant){
     assert.equal(grant.asarSha256,receipt.asarSha256,'AUTHORIZED_PACKAGE_CHANGED')
@@ -51,7 +53,7 @@ export async function createContinuityHarness(batch, entry) {
   const compiled=join(repo,'.cache','continuity-live',randomUUID(),'gateway.cjs')
   await build({configFile:false,logLevel:'error',build:{ssr:join(repo,'scripts/fixtures/continuity-live-gateway.ts'),outDir:dirname(compiled),emptyOutDir:false,minify:false,rollupOptions:{external:['electron'],output:{format:'cjs',entryFileNames:'gateway.cjs'}}}})
   await mkdir(join(root,'source'))
-  const names=[entry,'scripts/probe-continuity-harness.mjs','scripts/fixtures/continuity-live-gateway.ts','scripts/fixtures/continuity-scripted-model.ts','scripts/fixtures/continuity-live-budget.ts','scripts/fixtures/world-probe-stream.ts','scripts/fixtures/world-probe-admission.ts','scripts/continuity-live-plan.json']
+  const names=[entry,'scripts/probe-continuity-harness.mjs','scripts/fixtures/continuity-live-gateway.ts','scripts/fixtures/continuity-scripted-model.ts','scripts/fixtures/continuity-live-budget.ts','scripts/fixtures/probe-transport.ts','scripts/fixtures/world-probe-stream.ts','scripts/fixtures/world-probe-admission.ts','scripts/continuity-live-plan.json']
   const manifest={}
   for(const file of names){const target=file.replaceAll('/','__');await writeFile(join(root,'source',target),await readFile(join(repo,file)),{flag:'wx'});manifest[file]=await sha(join(repo,file))}
   manifest['bundle/gateway.cjs']=await sha(compiled)
@@ -60,7 +62,7 @@ export async function createContinuityHarness(batch, entry) {
   const env={...runtimeEnv(repo),LCA_TEST_SILENT:'1',LCA_MCP_PORT:'0',LCA_CDP_PORT:'0'}
   delete env.ELECTRON_RENDERER_URL;delete env.DSH_ROOT;delete env.LCA_BOOTH
   let helper,instance,page,profile=join(root,'profiles/main'),providers
-  const approvals=[],answers=[],checks={},report={ok:false,batch,selfTest,receipt,checks,approvals,answers,error:null}
+  const approvals=[],answers=[],checks={},report={ok:false,batch,selfTest,firstRequestOnly,receipt,checks,approvals,answers,error:null}
   const snapshot=()=>page.evaluate(()=>window.lca.getSnapshot())
   const send=body=>page.evaluate(async body=>{const state=await window.lca.getSnapshot();return window.lca.dispatch({...body,protocolVersion:1,epoch:state.epoch,requestId:crypto.randomUUID()})},body)
   const gateway=()=>helper.evaluate(()=>globalThis.continuityProbe.state())
@@ -145,7 +147,7 @@ export async function createContinuityHarness(batch, entry) {
   }
   try{
     helper=await _electron.launch({executablePath:exe,args:[],env:{...env,LCA_DATA_DIR:join(root,'helper'),LCA_PROVIDERS_FILE:join(root,'absent.json')},timeout:30000})
-    providers=await helper.evaluate(async(_,input)=>{globalThis.continuityProbe=await process.mainModule.require(input.compiled).startContinuityGateway(input);return globalThis.continuityProbe.providersFile},{compiled,root,batch,selfTest,authorized:selfTest?undefined:process.env.LCA_PROVIDERS_FILE,embeddingConfig:selfTest?undefined:process.env.LCA_MEMORY_CONNECTION_FILE})
+    providers=await helper.evaluate(async(_,input)=>{globalThis.continuityProbe=await process.mainModule.require(input.compiled).startContinuityGateway(input);return globalThis.continuityProbe.providersFile},{compiled,root,batch,selfTest,firstRequestOnly,authorized:selfTest?undefined:process.env.LCA_PROVIDERS_FILE,embeddingConfig:selfTest?undefined:process.env.LCA_MEMORY_CONNECTION_FILE})
     await launch()
   }catch(error){await finalize(error);throw error}
   return {root,selfTest,limits,report,checks,answers,snapshot,send,gateway,phase,wait,chat,chooseProject,launch,closeApp,finalize,

@@ -11,15 +11,18 @@ import { createResourceBudget } from '../../src/main/resources/service'
 import { systemClock as clock } from '../../src/main/clock'
 import { completedJournalRecords } from './world-probe-admission'
 import { createWorldProbeStream } from './world-probe-stream'
+import { observeProbeTransport } from './probe-transport'
 import { createContinuityProbeBudget, compactAdmission } from './continuity-live-budget'
 import { createContinuityScriptedModel, requestObjects, workPackage, scriptedResponse, messageText, type ProbeRequest } from './continuity-scripted-model'
 import plan from '../continuity-live-plan.json'
 
 const files = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() && !['chromium', 'dsh-home', 'artifacts', 'rooms'].includes(e.name) ? files(join(dir, e.name)) : e.isFile() ? [join(dir, e.name)] : [])
 const hash = (text: string) => createHash('sha256').update(text).digest('hex')
-export async function startContinuityGateway(input: { root: string; batch: 'work' | 'memory'; selfTest: boolean; authorized?: string; embeddingConfig?: string }) {
+export async function startContinuityGateway(input: { root: string; batch: 'work' | 'memory'; selfTest: boolean; firstRequestOnly?: boolean; authorized?: string; embeddingConfig?: string }) {
   assert.ok(process.versions.electron, 'ELECTRON_MAIN_REQUIRED')
-  const { root, batch, selfTest } = input, limits = plan.batches.find(p => p.id === batch)!
+  const { root, batch, selfTest, firstRequestOnly = false } = input, fullLimits = plan.batches.find(p => p.id === batch)!
+  assert.ok(!firstRequestOnly || batch === 'work', 'FIRST_REQUEST_WORK_ONLY')
+  const limits = firstRequestOnly ? { ...fullLimits, ...plan.firstRequestLimits } : fullLimits
   assert.ok(limits && ['work', 'memory'].includes(batch), 'INVALID_BATCH')
   mkdirSync(root, { recursive: true }); writeFileSync(join(root, 'gateway-start.json'), JSON.stringify({ batch, selfTest, limits }), { flag: 'wx' })
   const ledger = createResourceBudget({ root: join(root, 'budget'), clock, configurable: true })
@@ -53,10 +56,12 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
   const rows = () => [join(profile, 'journals'), join(profile, 'continuous-work')].flatMap(files).filter(f => /[\\/]journals[\\/]/.test(f) && f.endsWith('.jsonl')).flatMap(file => completedJournalRecords(readFileSync(file, 'utf8')).map(row => ({ file, row, ticket: hash(file + ':' + row.turnId + ':' + row.attempt + ':' + row.slot) })))
   const usage = () => completedJournalRecords(readFileSync(join(profile, 'runtime-resources/usage.jsonl'), 'utf8'))
   let compactBaseline = new Set<string>()
-  const state = () => ({ batch, selfTest, phase, halted, ...budget.view(), inFlight: active.size, samples, denials, captures: captured })
+  const state = () => ({ batch, selfTest, firstRequestOnly, phase, halted, ...budget.view(), inFlight: active.size, samples, denials, captures: captured })
   const save = () => writeFileSync(join(root, 'gateway-report.json'), JSON.stringify(state(), null, 2))
   const server = createServer((req, res) => { void (async () => {
     assert.ok(req.method === 'POST' && req.headers.authorization === 'Bearer ' + key && !req.headers.origin && profile && !halted, 'UNADMITTED_REQUEST')
+    // A diagnostic retry is one upstream response, never a resumed work batch.
+    if (firstRequestOnly && budget.view().modelRequests >= 1) { denials.push({ phase, code: 'FIRST_REQUEST_SCOPE_COMPLETE' }); save(); res.writeHead(403); res.end(); return }
     const slot = /^\/(chat|work|background|embedding)\/v1\/(chat\/completions|embeddings)$/.exec(req.url ?? '')?.[1]
     assert.ok(slot && (slot !== 'background' || batch === 'memory') && (slot !== 'embedding' || embedding), 'SLOT_NOT_AUTHORIZED')
     let raw = ''; for await (const chunk of req) { raw += chunk; assert.ok(raw.length <= 2 * 1024 * 1024, 'INPUT_TOO_LARGE') }
@@ -82,11 +87,12 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
       captured.push({ phase, slot, ticket, references: refs, tools: body.tools?.map(t => t.function.name) ?? [], ...(selfTest ? { toolResults: body.messages.filter(m => m.role === 'tool').slice(-2) } : {}), userInput: slot === 'background' ? undefined : messageText(body.messages.findLast(m => m.role === 'user')?.content).split('\n\n').at(-1),
         ...(slot === 'background' ? { extractionInput: requestObjects(body).findLast(o => 'userText' in o || 'assistantText' in o) ?? null } : {}) })
     }
-    const sample: Record<string, unknown> = { phase, slot, ticket, units, bucket, ok: false, error: null, status: null, inputTokens: null, outputTokens: null }
+    const sample: Record<string, unknown> = { phase, slot, ticket, units, bucket, startedAt: new Date(clock.nowMs()).toISOString(), ok: false, error: null, status: null, inputTokens: null, outputTokens: null }
     samples.push(sample); save()
     const abort = new AbortController(); active.add(abort); let timeout = false
     const stop = clock.after(45000, () => { timeout = true; abort.abort() }), began = clock.nowMs()
     res.on('close', () => { if (!res.writableEnded) abort.abort() })
+    let transport: ReturnType<typeof observeProbeTransport> | undefined
     try {
       let response: Response
       if (selfTest) {
@@ -98,6 +104,7 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
         } else response = new Response(scriptedResponse(body, fake(body, phase, slot)), { headers: { 'content-type': body.stream ? 'text/event-stream' : 'application/json' } })
       } else {
         const endpoint = (isEmbedding ? embedding!.baseUrl : config[slot].base_url).replace(/\/+$/, '') + (isEmbedding ? '/embeddings' : '/chat/completions')
+        transport = observeProbeTransport(endpoint, () => clock.nowMs()); sample.transport = transport.diagnostics
         response = await fetch(endpoint, { method: 'POST', redirect: 'error', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (isEmbedding ? embedding!.apiKey : config[slot].api_key) }, body: raw, signal: abort.signal })
       }
       sample.status = response.status; assert.ok(response.ok && response.body, 'PROVIDER_FAILED')
@@ -123,7 +130,7 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
       if (selfTest) sample.fixtureDiagnostic = { message: error instanceof Error ? error.message : String(error), request: body }
       halted = true; sample.ok = false; sample.error = timeout ? 'TIMEOUT' : error instanceof Error && /^[A-Z_:]+$/.test(error.message) ? error.message : 'RESPONSE_FAILED'
       if (!res.headersSent) res.writeHead(502)
-    } finally { stop(); active.delete(abort); sample.elapsedMs = clock.nowMs() - began; res.end(); save() }
+    } finally { transport?.close(); stop(); active.delete(abort); sample.elapsedMs = clock.nowMs() - began; res.end(); save() }
   })().catch(error => { halted = true; denials.push({ phase, code: error instanceof Error ? error.message.match(/^[A-Z_]+/)?.[0] ?? error.name : 'GATEWAY_ERROR' }); save(); if (!res.headersSent) res.writeHead(403); res.end() }) })
   await new Promise<void>(done => server.listen(0, '127.0.0.1', done)); const address = server.address(); assert.ok(address && typeof address !== 'string')
   const endpoint = 'http://127.0.0.1:' + address.port, providers: Record<string, unknown> = {}, capabilities: Record<string, unknown> = {}
