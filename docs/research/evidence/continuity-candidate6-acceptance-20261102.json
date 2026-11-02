@@ -1,0 +1,289 @@
+{
+  "version": 1,
+  "candidate": "1.2.0-continuity.6",
+  "build": {
+    "version": 1,
+    "appVersion": "1.2.0-continuity.6",
+    "installerFileName": "Love-College-Agent-1.2.0-continuity.6-Setup.exe",
+    "sourceRevision": "bca659afe1b96dad7300c419fa589d8e76d5a6e9",
+    "trackedDirty": false,
+    "runtimePreparation": "reused-prepared-tree",
+    "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+    "builtAtIso": "2026-11-02T08:51:53.480Z",
+    "installerBytes": 315478257,
+    "installerSha256": "d57c7f0596f11d27a080e997283474b0c09e723456dda8cfff7566f86fd7bb09",
+    "asarSha256": "4ffb8878b57affdf7631e29360fa014f5aaa5b4ddbff024c0c8f45b13b838924"
+  },
+  "buildReceiptSha256": "536d2cab492ce6bae397b6bd34f2a3ed88027546e4c3d9f0d9447319f949c803",
+  "scope": {
+    "installed": false,
+    "published": false,
+    "newRealModelRequests": 0,
+    "newRealEmbeddingRequests": 0,
+    "realPostgres": true,
+    "dailyProfileModified": false
+  },
+  "cleanup": {
+    "workBarrierProcesses": [
+      { "pid": 35980, "running": false },
+      { "pid": 38732, "running": false },
+      { "pid": 61060, "running": false },
+      { "pid": 37356, "running": false }
+    ],
+    "packageMirrorContainer": "exited",
+    "airiOriginalContainer": "exited",
+    "remainingFreeBytes": { "C": 12656738304, "D": 6613733376 }
+  },
+  "staticChecks": [
+    {
+      "command": "tsc --noEmit -p tsconfig.node.json",
+      "exitCode": 0
+    },
+    {
+      "command": "eslint scripts/continuity-postgres-gate.mjs scripts/smoke-memory-mirror.mjs scripts/fixtures/memory-mirror-product.ts",
+      "exitCode": 0
+    },
+    {
+      "command": "production build inside package-win --reuse-prepared-runtime",
+      "exitCode": 0
+    }
+  ],
+  "runtime": {
+    "ok": true,
+    "counts": {
+      "runtime": 11489,
+      "bridge": 22,
+      "native": 3
+    },
+    "asarSha256": "4ffb8878b57affdf7631e29360fa014f5aaa5b4ddbff024c0c8f45b13b838924"
+  },
+  "package": {
+    "path": "test-results\\continuity\\candidate6-package-20261102\\package-9a4611eb-3a70-471c-8c29-71d2d9731cb4\\report.json",
+    "sha256": "a9c189a5d328158739850b49369e721f6d212e6e97492cb0f8b9540680475b42",
+    "source": "297d4e923018d7d415d09387757b64dae61d42491e614fff7f11514e67ff6b28",
+    "target": "unpacked",
+    "checks": [
+      {
+        "name": "sqlite",
+        "code": 0,
+        "timedOut": false,
+        "log": "sqlite.log"
+      },
+      {
+        "name": "continuity",
+        "code": 0,
+        "timedOut": false,
+        "log": "continuity.log"
+      },
+      {
+        "name": "memory",
+        "code": 0,
+        "timedOut": false,
+        "log": "memory.log"
+      },
+      {
+        "name": "v12-recovery",
+        "code": 0,
+        "timedOut": false,
+        "log": "v12-recovery.log"
+      }
+    ]
+  },
+  "preflights": {
+    "work": {
+      "path": "<isolated-profiles>/work-candidate6-selftest-20261102-1/report.json",
+      "sha256": "b9e9765b779c9d943aa7fd5ff41d8ab5f7570a0d7da3043213c2ae832052c91e",
+      "asarSha256": "4ffb8878b57affdf7631e29360fa014f5aaa5b4ddbff024c0c8f45b13b838924",
+      "checks": {
+        "foregroundCompletesWhileWorkerToolBlocked": true,
+        "supplementDurableInOriginalWork": true,
+        "currentRevisionFileAndCheckpoint": true,
+        "immediateDeliveryContextHasVerifiedEvidence": true,
+        "ambiguousAmendmentDoesNotChangeEitherWork": true,
+        "stopIsolatedToOneRoot": true,
+        "recoveryUsesNewGenerationWithoutApprovalReplay": true,
+        "noDuplicateDelivery": true
+      },
+      "localModelRequests": 29,
+      "localEmbeddingRequests": 0,
+      "upstreamRequests": 0
+    },
+    "memory": {
+      "path": "<isolated-profiles>/memory-candidate6-selftest-20261102-1/report.json",
+      "sha256": "fb49541ebd86d8ae78f7c45dd976280a8d1884e60485f8603dc61c7719d86659",
+      "asarSha256": "4ffb8878b57affdf7631e29360fa014f5aaa5b4ddbff024c0c8f45b13b838924",
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true,
+        "actualCompactionPreservesHistoryAndCurrentFact": true,
+        "correctedFactSurvivesRestart": true,
+        "successfulInputsExtractedWithoutDuplicateCapture": true,
+        "forgottenFactUnavailable": true,
+        "nonemptyRestoreDoesNotResurrectForgottenFact": true
+      },
+      "localModelRequests": 27,
+      "localEmbeddingRequests": 30,
+      "upstreamRequests": 0
+    }
+  },
+  "mirror": {
+    "source": {
+      "path": "test-results\\continuity\\candidate6-mirror-preflight-20261102\\postgres-bebda200-bcc6-4bae-bb9e-9804083bd599\\report.json",
+      "sha256": "4f9cce01eee7f7fc20e01b6c27a63b748c800ff8b2c881e526502db52f785e8c",
+      "productSha256": "a1c107475b43d39e237335afe6fd5699ddd498d36a28bbff4ecc09c7b5e16547",
+      "report": {
+        "status": "passed",
+        "mode": "product",
+        "realPostgres": true,
+        "container": "lca-continuity-pg-a9d5d318-a576-48bd-b43c-6a9c0ae5914d",
+        "reason": null,
+        "checks": [
+          "settings_enable_and_original_outbox_reach_real_postgres",
+          "offline_correction_and_pending_outbox_survive_restart",
+          "retry_invalidates_old_fact_without_duplicate_delivery",
+          "nonempty_save_with_pending_forget_excludes_connections",
+          "restore_rotates_mirror_epoch_and_stale_remote_fact_does_not_return",
+          "saved_connection_pause_resume_is_idempotent_and_private",
+          "restored_epoch_and_forget_survive_another_restart"
+        ],
+        "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+        "containerStopped": true
+      },
+      "product": {
+        "ok": true,
+        "source": "476651c26f6254004ac573fbc2ab6ad02bc216cdd426e470d2a8dccb95400b0f",
+        "target": "source",
+        "profile": "D:\\lca-continuity-candidate-20261101\\profiles\\mirror-product-d73cce12-4fbe-4b8e-ae1f-595188b6edc4",
+        "checks": [
+          "settings_enable_and_original_outbox_reach_real_postgres",
+          "offline_correction_and_pending_outbox_survive_restart",
+          "retry_invalidates_old_fact_without_duplicate_delivery",
+          "nonempty_save_with_pending_forget_excludes_connections",
+          "restore_rotates_mirror_epoch_and_stale_remote_fact_does_not_return",
+          "saved_connection_pause_resume_is_idempotent_and_private",
+          "restored_epoch_and_forget_survive_another_restart"
+        ],
+        "realPostgres": true,
+        "realModels": false,
+        "realEmbedding": false,
+        "vectorCalls": 3,
+        "fixture": {
+          "kind": "pre-existing approved long-term facts; promotion not assessed",
+          "ids": {
+            "kept": "0be6c282-7979-4458-84ed-1861f0a53475",
+            "corrected": "10323b9f-deda-473e-a599-ef03506a5736",
+            "forgotten": "98abaf4d-d587-4018-ad4a-de583e226a38"
+          }
+        },
+        "correctionLabel": "更正后的内容镜像夹具：任务目标最初为茶。",
+        "saveSha256": "6cb2d7269d8197534c342dcb74f4344497b8b0e9f0ecaf6a98dfebfd50bc59d4",
+        "namespaces": {
+          "before": "lca_memory_a56176f496a7b21c31b99a1f1cc88556",
+          "after": "lca_memory_92865999b4d434315813a2bbb4847b9c"
+        }
+      }
+    },
+    "package": {
+      "path": "test-results\\continuity\\candidate6-mirror-package-20261102\\postgres-1adca55e-7592-416a-a86d-a24d5c2e8904\\report.json",
+      "sha256": "e8643ac96c6090916c9ed045a4a91275025a72f36bc6181a6722b1a47e54cf7f",
+      "productSha256": "afc36524e8c4326ea82ac247cb6678df8bb8f7788f75a351a743cc14f0a69fa5",
+      "report": {
+        "status": "passed",
+        "mode": "product",
+        "realPostgres": true,
+        "container": "lca-continuity-pg-df59ad88-ac13-410d-aff0-1ab9c429a9c7",
+        "reason": null,
+        "checks": [
+          "settings_enable_and_original_outbox_reach_real_postgres",
+          "offline_correction_and_pending_outbox_survive_restart",
+          "retry_invalidates_old_fact_without_duplicate_delivery",
+          "nonempty_save_with_pending_forget_excludes_connections",
+          "restore_rotates_mirror_epoch_and_stale_remote_fact_does_not_return",
+          "saved_connection_pause_resume_is_idempotent_and_private",
+          "restored_epoch_and_forget_survive_another_restart"
+        ],
+        "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+        "containerStopped": true
+      },
+      "product": {
+        "ok": true,
+        "source": "297d4e923018d7d415d09387757b64dae61d42491e614fff7f11514e67ff6b28",
+        "target": "unpacked",
+        "profile": "D:\\lca-continuity-candidate-20261101\\profiles\\mirror-product-e7d57136-61fa-40ec-afc2-abcf69ac2fdd",
+        "checks": [
+          "settings_enable_and_original_outbox_reach_real_postgres",
+          "offline_correction_and_pending_outbox_survive_restart",
+          "retry_invalidates_old_fact_without_duplicate_delivery",
+          "nonempty_save_with_pending_forget_excludes_connections",
+          "restore_rotates_mirror_epoch_and_stale_remote_fact_does_not_return",
+          "saved_connection_pause_resume_is_idempotent_and_private",
+          "restored_epoch_and_forget_survive_another_restart"
+        ],
+        "realPostgres": true,
+        "realModels": false,
+        "realEmbedding": false,
+        "vectorCalls": 3,
+        "asarSha256": "4ffb8878b57affdf7631e29360fa014f5aaa5b4ddbff024c0c8f45b13b838924",
+        "fixture": {
+          "kind": "pre-existing approved long-term facts; promotion not assessed",
+          "ids": {
+            "kept": "3ec4974f-f5a6-4a12-aebd-5c30ae396791",
+            "corrected": "79beabf8-429c-4087-a077-3acee912725d",
+            "forgotten": "2325dda2-f6a0-43ab-a801-48e3908c7029"
+          }
+        },
+        "correctionLabel": "更正后的内容镜像夹具：任务目标最初为茶。",
+        "saveSha256": "ed28b87b436b622530b3d9e851958772f4db56128a97416108e2966c4218b786",
+        "namespaces": {
+          "before": "lca_memory_22c2507e2785c9843b78fb4f53a3fb4a",
+          "after": "lca_memory_a6422978ddd5ba98ac71fdfdf92b7ee5"
+        }
+      }
+    }
+  },
+  "failures": [
+    {
+      "path": "test-results\\continuity\\candidate6-mirror-preflight-20261102\\postgres-9728bc94-d1bf-4311-af12-aa09c007ef8d\\product.json",
+      "sha256": "1bfa6552cdfbb51f126dbbf94df235e20e89422b44c5ded5926d2716575025a0",
+      "phase": "offline-correction",
+      "error": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByLabel('更正后的内容', { exact: true })\u001b[22m\n"
+    },
+    {
+      "path": "test-results\\continuity\\candidate6-mirror-preflight-20261102\\postgres-e95edd3b-1cf8-43c2-a497-fea33ae21790\\product.json",
+      "sha256": "6903801e679c545bd6daf912d44a1d6c73215181807228a0cb80ea0fd6620375",
+      "phase": "offline-forget-and-save",
+      "error": "PENDING_OUTBOX_SAVE_FAILED"
+    },
+    {
+      "path": "test-results\\continuity\\candidate6-mirror-preflight-20261102\\postgres-4d88ffe0-2225-406c-b6b6-62779453ff46\\product.json",
+      "sha256": "a687a1235db536911154d37d09bd80c9ad1e44b6f7d57c59c194694a0237166f",
+      "phase": "offline-forget-and-save",
+      "error": "PENDING_OUTBOX_SAVE_FAILED:internal"
+    },
+    {
+      "path": "test-results\\continuity\\candidate6-mirror-diagnostic-20261102\\postgres-80c06b75-2a55-4d06-9bb1-86093de5220f\\product.json",
+      "sha256": "ca13b242726ac29b12eebdde5ff848b8852e41a9ec5b3b6087356bb1339983db",
+      "phase": "offline-forget-and-save",
+      "error": "PENDING_OUTBOX_SAVE_FAILED:internal"
+    }
+  ],
+  "scopeOfCode": "Only production delta from candidate 5 is the previously committed pgvector repository repair. New code this turn adds product mirror acceptance and fixture; temporary diagnostics were removed.",
+  "pending": [
+    "fresh-authorized real work run including stop/restart/resume/dedup",
+    "candidate-6 real model/embedding coverage",
+    "installed upgrade",
+    "second Windows",
+    "90 retrieval cases and 24 story quality/cost matrix",
+    "longitudinal day-use"
+  ],
+  "failureResolution": {
+    "label": "Implicit label includes textarea content; use existing facts-region textbox locator and require the correction action.",
+    "backup": "Synthetic SQLite repro: 154-character backup destination passed, 269-character destination failed SQLITE_CANTOPEN. Product fixture now uses testDataRoot; original failures retained. General long-path support was not changed.",
+    "sqliteRepro": ".local-data/sqlite-path-6808d4f7-e2a8-4dae-8052-6381304f3e34/report.json"
+  },
+  "authorizationPreparation": {
+    "path": "test-results\\continuity\\candidate6-proposed-live-20261102\\preflight-evidence.json",
+    "authorized": false,
+    "requestsMade": 0
+  }
+}
