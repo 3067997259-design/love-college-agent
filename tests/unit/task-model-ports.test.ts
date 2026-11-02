@@ -76,6 +76,42 @@ describe('production task model ports without runtime model calls', () => {
     complete(response({ markdown: 'LATE_WORK_MUST_NOT_COMMIT' })); await Promise.resolve(); await Promise.resolve()
     expect(JSON.stringify(f.rows)).not.toMatch(/SYNTHETIC_STALLED_INPUT|LATE_WORK_MUST_NOT_COMMIT/)
   })
+  it.each(['extract', 'reconcile'] as const)('allows AIRI %s to finish after thirty seconds when its stream remains active', async kind => {
+    const f = fixture(); let calls = 0; let body!: ReadableStreamDefaultController<Uint8Array>
+    let observedSignal!: AbortSignal
+    const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => {
+      calls++; observedSignal = init.signal!
+      return new Response(new ReadableStream<Uint8Array>({ start(controller) { body = controller } }), { headers: { 'Content-Type': 'text/event-stream' } })
+    })
+    const pending = kind === 'extract'
+      ? ports.memory!.airi!.extract({ sessionId: 's', scope: { userId: 'u', characterId: 'c' }, userText: 'SYNTHETIC_MEMORY', assistantText: '', mood: { valence: 0 } }, new AbortController().signal)
+      : ports.memory!.airi!.reconcile!({ candidates: [], operations: [] }, new AbortController().signal)
+    // Same boundary as the real failure: data before 30 s, completion after it.
+    f.clock.advanceBy(28_000); body.enqueue(new TextEncoder().encode(': provider heartbeat\n\n'))
+    for (let i = 0; i < 12; i++) await Promise.resolve()
+    f.clock.advanceBy(7_000)
+    expect(observedSignal.aborted).toBe(false)
+    const value = kind === 'extract' ? [] : { decisions: [] }
+    body.enqueue(new TextEncoder().encode(await response(value).text())); body.close()
+    expect(await pending).toEqual(kind === 'extract' ? [] : JSON.stringify(value))
+    expect(calls).toBe(1)
+    expect(f.rows.filter(row => row.type === 'model/attempt' && row.status === 'started')).toHaveLength(1)
+    expect(JSON.stringify(f.rows)).not.toContain('SYNTHETIC_MEMORY')
+  })
+  it('bounds AIRI extraction at 120 seconds and cancels immediately on caller abort', async () => {
+    for (const stop of ['deadline', 'caller'] as const) {
+      const f = fixture(); let complete!: (value: Response) => void
+      const ports = createTaskModelPorts(configs, f.clock, f.store, async () => new Promise<Response>(resolve => { complete = resolve }))
+      const parent = new AbortController()
+      const pending = ports.memory!.airi!.extract({ sessionId: 's', scope: { userId: 'u', characterId: 'c' }, userText: 'SYNTHETIC_CANCELLED_MEMORY', assistantText: '', mood: { valence: 0 } }, parent.signal)
+      const rejected = expect(pending).rejects.toMatchObject({ kind: stop === 'deadline' ? 'timeout' : 'cancelled' })
+      if (stop === 'deadline') f.clock.advanceBy(120_000); else parent.abort()
+      await rejected
+      complete(response([])); for (let i = 0; i < 12; i++) await Promise.resolve()
+      expect(f.rows.filter(row => row.type === 'model/attempt' && row.status === 'started')).toHaveLength(1)
+      expect(JSON.stringify(f.rows)).not.toContain('SYNTHETIC_CANCELLED_MEMORY')
+    }
+  })
   it('extracts a legal long CJK message then its short successor without duplicating local grounding sources', async () => {
     const f = fixture(); const requests: { userText: string; assistantText: string }[] = []; const scheduler = createScheduler(f.clock)
     const text = '可见材料'.repeat(2500)

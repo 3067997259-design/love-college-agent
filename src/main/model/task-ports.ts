@@ -25,6 +25,10 @@ import { parseMemoryTurnExtractions } from '../memory/airi/core'
 import { generateMemoryReconciliation } from '../memory/airi/repository/reconciliation'
 import { MEMORY_CAPTURE_PROMPT } from '../memory/airi/prompt'
 
+// AIRI extraction/reconciliation can keep streaming past thirty seconds. Match
+// the model client's total bound; its idle timeout and caller cancellation remain.
+const MEMORY_JSON_TIMEOUT_MS = 120_000
+
 /** Machine JSON tasks only. Persona, diary and dream wording remain on the voice line. */
 export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, clock: Clock, store: SessionStore, fetcher?: Parameters<typeof createModelClient>[3], budget?: ResourceAdmissions, followMain = false) {
   const clients = { background: createModelClient(providers, ['background'], clock, fetcher), privacy: createModelClient(providers, ['privacy'], clock, fetcher), chat: createModelClient(providers, ['chat'], clock, fetcher) }
@@ -56,14 +60,14 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
   const memory: MemoryModel | null = providers.has('background') ? { source: 'real',
     airi: {
       extract: async (input, signal) => {
-        const output = await json('background', MEMORY_CAPTURE_PROMPT, { userText: input.userText, assistantText: input.assistantText, mood: input.mood }, signal ?? new AbortController().signal, 4096, true)
+        const output = await json('background', MEMORY_CAPTURE_PROMPT, { userText: input.userText, assistantText: input.assistantText, mood: input.mood }, signal ?? new AbortController().signal, 4096, true, false, 'autonomous', MEMORY_JSON_TIMEOUT_MS)
         if (!Array.isArray(output) || output.length > 20) throw new MemoryFailure('memory-invalid-output')
         const extracted = parseMemoryTurnExtractions(output, { sessionId: input.sessionId })
         if (extracted.length !== output.length) throw new MemoryFailure('memory-invalid-output')
         return extracted
       },
       reconcile: (input, signal) => generateMemoryReconciliation(input, async (messages, settings) => {
-        const output = await json('background', messages[0].content, JSON.parse(messages[1].content), settings.abortSignal, 4096, true)
+        const output = await json('background', messages[0].content, JSON.parse(messages[1].content), settings.abortSignal, 4096, true, false, 'autonomous', MEMORY_JSON_TIMEOUT_MS)
         settings.onStreamEvent({ type: 'text-delta', text: JSON.stringify(output) })
       }, signal),
     },
