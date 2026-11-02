@@ -1,0 +1,457 @@
+{
+  "date": "2026-11-02",
+  "candidate": "1.2.0-continuity.5",
+  "asarSha256": "3d8359df83237b6d8a53a852d8a826d1d7424c6c4ea79d5a3d4d1da7ec152737",
+  "batches": {
+    "work": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\work-candidate5-live-20261102-1",
+      "authorizationId": "3b76ffb5-a45f-4ee2-8fb2-1b6f2b081643",
+      "limits": {
+        "id": "work",
+        "maximumModelRequests": 48,
+        "maximumReservedUnits": 1048576,
+        "maximumAutonomousUnits": 65536,
+        "offlineEvidence": [
+          "work-execution",
+          "collaboration",
+          "recovery"
+        ],
+        "steps": [
+          "In a fresh temporary project, create a persistent work to write result.txt with TEA and provide a file checkpoint. Its first file operation waits on a test barrier.",
+          "While the barrier remains held, send an unrelated chat message. Require foreground completion before releasing the tool.",
+          "Supplement the original work: replace TEA with COFFEE. Require the durable new revision and original-root accepted receipt while the tool is blocked; require consumption after releasing the barrier.",
+          "Verify result.txt content and its checkpoint hash, then immediately ask what changed and why, before memory extraction.",
+          "Start two independent temporary-project works. Ask an ambiguous amendment: require clarification and unchanged revisions. Explicitly stop one work; the other must remain active.",
+          "Restart the isolated profile. Require pending work to be marked for reconciliation; explicitly continue it with a new generation. No old approval may be reused."
+        ],
+        "oracle": [
+          "Read actual file bytes and hashes; model claims and task-board receipts cannot prove completion.",
+          "Keep workId, revision and generation receipts for every step.",
+          "No duplicate delivery, cross-root cancellation, implicit ambiguous update or unapproved replay."
+        ],
+        "review": "automatic state/file assertions plus agent review of final delivery and immediate follow-up"
+      },
+      "automaticReportOk": false,
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    {\n+     id: '019fcd88-342f-4f91-853a-9e6fba3f068c',\n-     id: 'db833c97-e023-48d8-a2f8-af0f0db46fcc',\n      revision: 1\n    },\n    {\n+     id: 'db833c97-e023-48d8-a2f8-af0f0db46fcc',\n-     id: '019fcd88-342f-4f91-853a-9e6fba3f068c',\n      revision: 1\n    }\n  ]\n",
+      "checks": {
+        "foregroundCompletesWhileWorkerToolBlocked": true,
+        "supplementDurableInOriginalWork": true,
+        "currentRevisionFileAndCheckpoint": true,
+        "immediateDeliveryContextHasVerifiedEvidence": true
+      },
+      "audit": {
+        "boundedBehavior": "Four automatic checks passed; recorded ambiguity answer asks which work and what change. Both target objective revisions remained 1; failure was array order only.",
+        "unexecuted": [
+          "stop isolation",
+          "restart reconciliation",
+          "new generation resume",
+          "old approval rejection",
+          "final delivery deduplication"
+        ],
+        "reportPreserved": true
+      },
+      "batch": "work",
+      "closed": true,
+      "reuseAllowed": false,
+      "reportSha256": "56624e180593d15356fe56590d5c7729b94a4a40cc2e4516d27b6514ce841443",
+      "inFlight": 0,
+      "halted": true,
+      "modelRequests": 28,
+      "embeddingRequests": 0,
+      "reservedUnits": 407434,
+      "autonomousUnits": 30167,
+      "embeddingCharacters": 0,
+      "completeResponses": 27,
+      "incompleteResponses": 1,
+      "sourceManifestSha256": "760d5ecf63ed8aa832693799a20e4673757095c030db281c53a1be51cfdd5fbe",
+      "gatewayReportSha256": "ad671d8863fdf9bd581fc35af973f789939684a724a2766120959c389fbd75c9"
+    },
+    "memory": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\memory-candidate5-live-20261102-1",
+      "authorizationId": "c3498eaa-b42d-4183-9620-997cd948f664",
+      "limits": {
+        "id": "memory",
+        "maximumModelRequests": 32,
+        "maximumReservedUnits": 1048576,
+        "maximumAutonomousUnits": 262144,
+        "maximumEmbeddingRequests": 48,
+        "maximumEmbeddingInputCharacters": 200000,
+        "offlineEvidence": [
+          "memory-conversation",
+          "memory",
+          "backup",
+          "native-recovery"
+        ],
+        "steps": [
+          "In a fresh owner/profile, ask to remember a preference for tea. Verify the operation is pending review, approve through the normal memory command, then recall with a paraphrase.",
+          "Correct the preference to coffee through conversation and approve the new revision; the earlier tea statements remain in original history as conflicting historical evidence.",
+          "Run actual DSH /compact, ask again, restart and ask again. Require coffee as the current preference and the original history to remain readable.",
+          "Forget the preference through the normal operation/review flow; export a nonempty private save and restore into a fresh profile. Verify no current fact or old outbox resurrects it.",
+          "Verify extraction contains only allowed successful original inputs (including bounded prefixes), without derived assistant answers or duplicate input capture."
+        ],
+        "companionChecks": [
+          "The separate memory-conversation/execution gates cover old-day summary conflict and original decisions crossing Worker roots.",
+          "experience-index tests use ManualClock for day/week/month coverage; these are simulated-time tests, not real elapsed-day evidence."
+        ],
+        "oracle": [
+          "Track source IDs, operation IDs and revisions separately from answer wording.",
+          "Unreviewed, superseded and forgotten facts must not enter current recall.",
+          "Background extraction and compaction count toward the same batch; autonomous allowance is a subset, not additional spending.",
+          "Real embedding needs a separately configured and authorized connection; do not substitute scripted vectors and report real embedding success."
+        ],
+        "review": "automatic storage/source/recovery assertions plus agent review of answer use"
+      },
+      "automaticReportOk": false,
+      "error": "Unexpected end of JSON input",
+      "checks": {
+        "rememberReviewAndRecall": true,
+        "correctionSupersedesOldFact": true,
+        "actualCompactionPreservesHistoryAndCurrentFact": true,
+        "correctedFactSurvivesRestart": true,
+        "successfulInputsExtractedWithoutDuplicateCapture": true,
+        "forgottenFactUnavailable": true,
+        "nonemptyRestoreDoesNotResurrectForgottenFact": true
+      },
+      "audit": {
+        "boundedBehavior": "All seven product assertions and the ten-answer semantic review passed. Automatic report failed only while parsing a partially published review file.",
+        "productAssertionsPassed": 7,
+        "semanticReview": {
+          "batch": "memory",
+          "accepted": true,
+          "reason": "Reviewed all ten recorded answers against seven completed state assertions. Remember/correct/forget are accurately described as pending before human review; tea becomes coffee, compact and restart keep the corrected fact, and both post-forget and post-restore answers report no current approved preference. The review covers this bounded preference lifecycle, not general retrieval quality."
+        },
+        "reviewSha256": "fa4e22fc6149e892ea381a5effb8430ce747e288b0470d5f2495b90ddf947e9e",
+        "saveSha256": "dc97c789b509d7d5e1c5ab759192fa912cd10cf87cc055d234e5453a369fd4f2",
+        "reportPreserved": true,
+        "scope": "bounded preference lifecycle only; not general retrieval quality, typed Voyage query/document roles, or mirror product UI"
+      },
+      "batch": "memory",
+      "closed": true,
+      "reuseAllowed": false,
+      "reportSha256": "770a64f69a216d5fd791faeaf79bf03c77b8b57a2759d9eef17020855c9d3c68",
+      "inFlight": 0,
+      "halted": true,
+      "modelRequests": 31,
+      "embeddingRequests": 30,
+      "reservedUnits": 479052,
+      "autonomousUnits": 119782,
+      "embeddingCharacters": 4775,
+      "completeResponses": 61,
+      "incompleteResponses": 0,
+      "sourceManifestSha256": "8eddf39537f80e7bd76b32038a2e020796b89745792263cc19a19a18d01631f1",
+      "gatewayReportSha256": "7694313a61c2e2c809b741cce1ad20f39f5496a0a071ee76231d4525ec5de545"
+    }
+  },
+  "postgres": [
+    {
+      "root": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate5-postgres-20261102\\postgres-17e33d03-8061-4a39-a658-96d2bf393f48",
+      "report": {
+        "status": "failed",
+        "realPostgres": false,
+        "container": "lca-continuity-pg-69bae65f-6f9b-4001-af27-31b0087dc7d0",
+        "reason": "POSTGRES_TESTS_FAILED",
+        "checks": [],
+        "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+        "containerStopped": true
+      },
+      "reportSha256": "861ac64a40052a09e66313f8f44605f785c3443adc20846be7c447149bc508a0",
+      "unitSha256": "ca9dd56a48f2a84c429a28cc7d0975ed24623752cb3756027686ba80055958a6",
+      "passed": 0,
+      "failed": 8,
+      "pending": 0,
+      "failures": [
+        {
+          "name": "reconnects after private DB outage without resurrecting a deleted origin",
+          "error": [
+            "Error: connect ECONNREFUSED 127.0.0.1:52463"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) shares vector types across private namespaces without sharing facts",
+          "error": [
+            "Error: connect ECONNREFUSED 127.0.0.1:52463"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) repairs a legacy private vector extension while preserving existing rows and isolation",
+          "error": [
+            "Error: connect ECONNREFUSED 127.0.0.1:52463"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) keeps an absent or concurrently arriving origin forgotten across two connections",
+          "error": [
+            "Error: connect ECONNREFUSED 127.0.0.1:52463"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) ensures the schema, then inserts, searches, lists, and removes a fragment",
+          "error": [
+            "Error: connect ECONNREFUSED 127.0.0.1:52463"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) redelivers the same originId idempotently and inserts without an originId",
+          "error": [
+            "Error: connect ECONNREFUSED 127.0.0.1:52463"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) keeps a deleted fact deleted when its originId is redelivered",
+          "error": [
+            "Error: connect ECONNREFUSED 127.0.0.1:52463"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) propagates review, supersede, and delete updates by originId",
+          "error": [
+            "Error: connect ECONNREFUSED 127.0.0.1:52463"
+          ]
+        }
+      ]
+    },
+    {
+      "root": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate5-postgres-20261102\\postgres-64d8a523-6413-4027-b966-c6c2e90d39f0",
+      "report": {
+        "status": "passed",
+        "realPostgres": true,
+        "container": "lca-continuity-pg-0134cfbd-68f3-4659-8ded-522b3626065f",
+        "reason": null,
+        "checks": [
+          "reconnects after private DB outage without resurrecting a deleted origin",
+          "memory repository (real Postgres) shares vector types across private namespaces without sharing facts",
+          "memory repository (real Postgres) repairs a legacy private vector extension while preserving existing rows and isolation",
+          "memory repository (real Postgres) keeps an absent or concurrently arriving origin forgotten across two connections",
+          "memory repository (real Postgres) ensures the schema, then inserts, searches, lists, and removes a fragment",
+          "memory repository (real Postgres) redelivers the same originId idempotently and inserts without an originId",
+          "memory repository (real Postgres) keeps a deleted fact deleted when its originId is redelivered",
+          "memory repository (real Postgres) propagates review, supersede, and delete updates by originId"
+        ],
+        "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+        "containerStopped": true
+      },
+      "reportSha256": "3dcf2488a7e68209841543074482d509270bc388d271ac421c714735a32c74d0",
+      "unitSha256": "283d1080aded1a37ffe7b4e0bc9773b26ceaf2eccfb8440850c8ca4c16c00279",
+      "passed": 8,
+      "failed": 0,
+      "pending": 0,
+      "failures": []
+    },
+    {
+      "root": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate5-postgres-20261102\\postgres-857bc72d-1b06-40e1-a4e6-fdfc72c89884",
+      "report": {
+        "status": "failed",
+        "realPostgres": false,
+        "container": "lca-continuity-pg-437c5e01-f6c9-4bbd-a383-7c5b16fa95ce",
+        "reason": "POSTGRES_TESTS_FAILED",
+        "checks": [],
+        "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+        "containerStopped": true
+      },
+      "reportSha256": "0823b2407ccfe1d1474373b84aae86c016c9fe7650f294e61f42363d8afcba84",
+      "unitSha256": "08345bb0dcd657081f6bcc25750c37b7dd0162efb55a10d4ca907d86910dc14a",
+      "passed": 1,
+      "failed": 5,
+      "pending": 0,
+      "failures": [
+        {
+          "name": "reconnects after private DB outage without resurrecting a deleted origin",
+          "error": [
+            "PostgresError: type \"vector\" does not exist"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) ensures the schema, then inserts, searches, lists, and removes a fragment",
+          "error": [
+            "PostgresError: type \"vector\" does not exist"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) redelivers the same originId idempotently and inserts without an originId",
+          "error": [
+            "PostgresError: type \"vector\" does not exist"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) keeps a deleted fact deleted when its originId is redelivered",
+          "error": [
+            "PostgresError: type \"vector\" does not exist"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) propagates review, supersede, and delete updates by originId",
+          "error": [
+            "PostgresError: type \"vector\" does not exist"
+          ]
+        }
+      ]
+    },
+    {
+      "root": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate5-postgres-20261102\\postgres-9660d5e8-f5a6-4419-8984-7e89e51c73e0",
+      "report": {
+        "status": "failed",
+        "realPostgres": false,
+        "container": "lca-continuity-pg-47c16b81-b3ba-417a-8a80-9861e736f32a",
+        "reason": "POSTGRES_TESTS_FAILED",
+        "checks": [],
+        "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+        "containerStopped": true
+      },
+      "reportSha256": "79c147fce1ffa04142b59b2485a6cd2bc1ac844ffdb6dd178b46be7a555db167",
+      "unitSha256": "ab644cd653177dcb4dd60aa25198483ea70430f40a879519aedf096983c1167d",
+      "passed": 4,
+      "failed": 2,
+      "pending": 0,
+      "failures": [
+        {
+          "name": "reconnects after private DB outage without resurrecting a deleted origin",
+          "error": [
+            "Error: MEMORY_MIRROR_NAMESPACE_INVALID"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) keeps an absent or concurrently arriving origin forgotten across two connections",
+          "error": [
+            "Error: MEMORY_MIRROR_NAMESPACE_INVALID"
+          ]
+        }
+      ]
+    },
+    {
+      "root": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate5-postgres-20261102\\postgres-9dcb02cb-7a89-4112-8bb7-97b7cbdb7cf0",
+      "report": {
+        "status": "failed",
+        "realPostgres": false,
+        "container": "lca-continuity-pg-ef2d83ae-f2a8-4231-afdf-2dd9e6b08761",
+        "reason": "POSTGRES_TESTS_FAILED",
+        "checks": [],
+        "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+        "containerStopped": true
+      },
+      "reportSha256": "5f97fa4ff6556a30a46283891d21d56b63c6cca83edbd6e358e9b6ac0b546e91",
+      "unitSha256": "4a2cc1e59dcc663b093e45bde5eb9668f822cc904a13e0c7a6f533825a5aef64",
+      "passed": 5,
+      "failed": 3,
+      "pending": 0,
+      "failures": [
+        {
+          "name": "reconnects after private DB outage without resurrecting a deleted origin",
+          "error": [
+            "Error: Test timed out in 120000ms."
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) shares vector types across private namespaces without sharing facts",
+          "error": [
+            "AssertionError: expected [] to deeply equal [ 'Owner 0' ]"
+          ]
+        },
+        {
+          "name": "memory repository (real Postgres) repairs a legacy private vector extension while preserving existing rows and isolation",
+          "error": [
+            "AssertionError: expected [] to deeply equal [ Array(1) ]"
+          ]
+        }
+      ]
+    }
+  ],
+  "docker": {
+    "backup": {
+      "ok": true,
+      "method": "cold zip archive with both source files held read-only and independently verified SHA-256",
+      "dockerStopped": true,
+      "wslStopped": true,
+      "files": [
+        {
+          "source": "D:\\DockerData\\main\\ext4.vhdx",
+          "entry": "main/ext4.vhdx",
+          "bytes": 109051904,
+          "sha256": "1ac952031006ca153023c0d979c5ac647096dad1ae2b3ea68023013fd100d8d5",
+          "verified": true
+        },
+        {
+          "source": "D:\\DockerData\\disk\\docker_data.vhdx",
+          "entry": "disk/docker_data.vhdx",
+          "bytes": 2428502016,
+          "sha256": "c6f9671ff1cbb099ccaf8c6c7c5d255f0e8fc161fcf0ae17513edbac9a4deebd",
+          "verified": true
+        }
+      ],
+      "archive": "docker-data.zip",
+      "error": null,
+      "archiveBytes": 938663614,
+      "archiveSha256": "f2e267f6dc4862e8e97b9843a84bd2b5e63805b7b6d8553a45f644fd0f44453e"
+    },
+    "registry": {
+      "scope": "HKCU only",
+      "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Docker Desktop",
+      "before": "absent",
+      "values": {
+        "InstallLocation": "D:\\Docker\\Desktop",
+        "DisplayName": "Docker Desktop",
+        "DisplayVersion": "4.96.3",
+        "Version": "244472",
+        "InstallType": "exe",
+        "Publisher": "Docker Inc."
+      },
+      "basis": "Signed installed RegisterProductStep and ExistingInstallation.FromRegistry metadata; original successful per-user installation log",
+      "backupSha256": "f2e267f6dc4862e8e97b9843a84bd2b5e63805b7b6d8553a45f644fd0f44453e",
+      "registryWritten": true
+    },
+    "engineResponded": true,
+    "version": "Docker Desktop 4.96.3 (244472), Engine 29.9.2",
+    "airiContainer": "airi-memory-v3-20261027",
+    "airiContainerRemainedStopped": true,
+    "allFiveTestContainersStopped": true
+  },
+  "workOfflineRecheck": {
+    "root": "D:\\lca-continuity-candidate-20261101\\profiles\\work-candidate5-selftest-20261102-2",
+    "ok": true,
+    "checks": {
+      "foregroundCompletesWhileWorkerToolBlocked": true,
+      "supplementDurableInOriginalWork": true,
+      "currentRevisionFileAndCheckpoint": true,
+      "immediateDeliveryContextHasVerifiedEvidence": true,
+      "ambiguousAmendmentDoesNotChangeEitherWork": true,
+      "stopIsolatedToOneRoot": true,
+      "recoveryUsesNewGenerationWithoutApprovalReplay": true,
+      "noDuplicateDelivery": true
+    },
+    "externalRequests": 0,
+    "localModelRequests": 29,
+    "reportSha256": "07d7c6b9613836d656c5000ef6e781eac10ca7074acd06ad55aaf3f6e490c46e"
+  },
+  "validation": {
+    "relatedUnitTests": 11,
+    "failedUnitTests": 0,
+    "nodeTypecheck": "passed",
+    "scopedLint": "passed",
+    "productionBuild": "passed",
+    "reviewPublication": {
+      "ok": true,
+      "checks": [
+        "complete atomic publication",
+        "existing decision preserved",
+        "finalized batch rejected"
+      ],
+      "externalCalls": 0
+    }
+  },
+  "packaging": {
+    "newPackageBuilt": false,
+    "reason": "Insufficient free space to retain old candidates plus cold backup and build a new candidate safely.",
+    "observedCandidate5Bytes": 1192080606,
+    "cFreeBytes": 1020698624,
+    "dFreeBytes": 675827712,
+    "sourceFixesAreNotInCandidate5": true
+  },
+  "sourceHashes": {
+    "src/main/memory/airi/pgvector/repository.ts": "ef286cef74052fbb0647d819f20dce9567526101268a65d90509bbf0b7756370",
+    "scripts/continuity-postgres-gate.mjs": "d84b87fd915d88fd2160558f80a698e1f2ba644e628f34cffcf339e5bbdec364",
+    "scripts/probe-work-live.mjs": "92bbf5ca91301eeb569fc7adef9c9ce3eb027358951078d7ce9f10c8d428b690",
+    "scripts/publish-continuity-review.mjs": "ad1bb0c29baa6b7eda928817318601a920c519a6740208bbd168685bebac28e1",
+    "tests/unit/airi/pgvector/repository.integration.test.ts": "4c4f8dd825ab66bdbba5f17fd2b4808901fdae9920bc164531965a0bf3cb6e8f",
+    "tests/unit/airi/pgvector/recovery.integration.test.ts": "5e97a0aa137f65f4187ce1770675e36752e1475c234afea704e3fc48210d0dae"
+  },
+  "buildMainSha256": "43a9345c9363eca94c0719fa83d3701647e6dfafd8bc723422e66b0eb8fa23f6"
+}

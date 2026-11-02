@@ -68,7 +68,8 @@ try{
   h.checks.immediateDeliveryContextHasVerifiedEvidence=true
   const pa=await project('parallel-a'),pb=await project('parallel-b')
   const wa=await start(pa,'A','work-create-a-second'),wb=await start(pb,'B','work-create-b')
-  const revisions=()=>h.snapshot().then(s=>s.continuousWorks.items.filter(w=>[wa.identity.workId,wb.identity.workId].includes(w.identity.workId)).map(w=>({id:w.identity.workId,revision:w.identity.objectiveRevision})))
+  // Snapshot rows follow recent activity; compare target versions by identity, not UI order.
+  const revisions=()=>h.snapshot().then(s=>s.continuousWorks.items.filter(w=>[wa.identity.workId,wb.identity.workId].includes(w.identity.workId)).map(w=>({id:w.identity.workId,revision:w.identity.objectiveRevision})).sort((a,b)=>a.id.localeCompare(b.id)))
   const before=await revisions();await h.chat('把那个任务改一下。','work-ambiguous',{clarification:true});assert.deepEqual(await revisions(),before)
   h.checks.ambiguousAmendmentDoesNotChangeEitherWork=true
   await controls(wa.identity.workId,'work.stop')
