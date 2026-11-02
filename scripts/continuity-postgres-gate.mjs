@@ -8,7 +8,8 @@ import { createServer } from 'node:net'
 const root = resolve(process.env.LCA_CONTINUITY_RUN_DIR ?? 'test-results/continuity', 'postgres-' + randomUUID())
 mkdirSync(join(root, 'docker-config'), { recursive: true })
 const container = 'lca-continuity-pg-' + randomUUID()
-const report = { status: 'unavailable', realPostgres: false, container, reason: null, checks: [] }
+const product = process.argv.includes('--product')
+const report = { status: 'unavailable', mode: product ? 'product' : 'repository', realPostgres: false, container, reason: null, checks: [] }
 const save = () => writeFileSync(join(root, 'report.json'), JSON.stringify(report, null, 2))
 const docker = args => spawnSync('docker', ['--config', join(root, 'docker-config'), ...args], { encoding: 'utf8', windowsHide: true, timeout: 60_000 })
 let created = false
@@ -38,15 +39,22 @@ try {
       }
       if (!ready) throw new Error('DATABASE_NOT_READY')
       const output = join(root, 'unit.json')
-      const run = spawnSync(process.execPath, ['node_modules/vitest/vitest.mjs', 'run', 'tests/unit/airi/pgvector/repository.integration.test.ts', 'tests/unit/airi/pgvector/recovery.integration.test.ts', '--no-file-parallelism', '--reporter=json', '--outputFile=' + output], {
-        encoding: 'utf8', windowsHide: true, timeout: 240_000,
-        env: { ...process.env, LCA_MEMORY_TEST_POSTGRES: '1', LCA_MEMORY_TEST_DATABASE_URL: `postgresql://postgres:${password}@127.0.0.1:${port}/lca_acceptance`, LCA_TEST_PG_CONTAINER: container, LCA_TEST_DOCKER_CONFIG: join(root, 'docker-config') },
+      const args = product ? ['scripts/smoke-memory-mirror.mjs'] : ['node_modules/vitest/vitest.mjs', 'run', 'tests/unit/airi/pgvector/repository.integration.test.ts', 'tests/unit/airi/pgvector/recovery.integration.test.ts', '--no-file-parallelism', '--reporter=json', '--outputFile=' + output]
+      const run = spawnSync(process.execPath, args, {
+        encoding: 'utf8', windowsHide: true, timeout: product ? 600_000 : 240_000,
+        env: { ...process.env, LCA_MEMORY_TEST_POSTGRES: '1', LCA_MEMORY_TEST_DATABASE_URL: `postgresql://postgres:${password}@127.0.0.1:${port}/lca_acceptance`, LCA_TEST_PG_CONTAINER: container, LCA_TEST_DOCKER_CONFIG: join(root, 'docker-config'), LCA_TEST_PG_REPORT: root },
       })
       // Error output can contain connection URLs. Keep only sanitized totals.
       if (run.status !== 0) throw new Error('POSTGRES_TESTS_FAILED')
-      const unit = JSON.parse(readFileSync(output, 'utf8'))
-      if (unit.numPendingTests || unit.numFailedTests || unit.numPassedTests !== 8) throw new Error('POSTGRES_TESTS_INCOMPLETE')
-      report.checks = unit.testResults.flatMap(suite => suite.assertionResults.map(test => test.fullName))
+      if (product) {
+        const result = JSON.parse(readFileSync(join(root, 'product.json'), 'utf8'))
+        if (!result.ok || result.checks.length !== 7 || result.cleanupUncertain) throw new Error('POSTGRES_PRODUCT_TEST_INCOMPLETE')
+        report.checks = result.checks
+      } else {
+        const unit = JSON.parse(readFileSync(output, 'utf8'))
+        if (unit.numPendingTests || unit.numFailedTests || unit.numPassedTests !== 8) throw new Error('POSTGRES_TESTS_INCOMPLETE')
+        report.checks = unit.testResults.flatMap(suite => suite.assertionResults.map(test => test.fullName))
+      }
       report.status = 'passed'; report.realPostgres = true
     }
   }
