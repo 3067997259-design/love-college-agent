@@ -36,3 +36,5 @@
 本次通过 2 项实际本地 cURL 测试（stdin 转义／精确请求、禁止重定向），Node 类型检查、修改路径 lint，以及独立 Electron 主进程的本地 cURL 与账本预跑。预跑和实测冻结源码及 bundle 一致。没有修改产品运行时代码或重建候选。
 
 原始目录：`D:\lca-continuity-candidate-20261101\profiles\provider-curl-live-20261102-1`。[结构化证据](evidence/continuity-provider-curl-20261102.json)保留安全响应摘要、时序、账本和文件哈希。前两次失败记录见[工作请求诊断](continuity-work-live-20261102.md)。
+
+后续另行授权的[8 次控制变量复现](continuity-provider-diagnosis-20261102.md)记录了相同最小请求在 Node 和 cURL 下的超时、随后成功，以及完整输入和原入口成功。它推翻了“只有 Node 必然失败”的解释；具体中间网络或 provider 内部原因仍需日志定位。

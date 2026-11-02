@@ -18,10 +18,11 @@ import plan from '../continuity-live-plan.json'
 
 const files = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() && !['chromium', 'dsh-home', 'artifacts', 'rooms'].includes(e.name) ? files(join(dir, e.name)) : e.isFile() ? [join(dir, e.name)] : [])
 const hash = (text: string) => createHash('sha256').update(text).digest('hex')
-export async function startContinuityGateway(input: { root: string; batch: 'work' | 'memory'; selfTest: boolean; firstRequestOnly?: boolean; authorized?: string; embeddingConfig?: string }) {
+export async function startContinuityGateway(input: { root: string; batch: 'work' | 'memory'; selfTest: boolean; firstRequestOnly?: boolean; captureOnly?: boolean; authorized?: string; embeddingConfig?: string }) {
   assert.ok(process.versions.electron, 'ELECTRON_MAIN_REQUIRED')
-  const { root, batch, selfTest, firstRequestOnly = false } = input, fullLimits = plan.batches.find(p => p.id === batch)!
+  const { root, batch, selfTest, firstRequestOnly = false, captureOnly = false } = input, fullLimits = plan.batches.find(p => p.id === batch)!
   assert.ok(!firstRequestOnly || batch === 'work', 'FIRST_REQUEST_WORK_ONLY')
+  assert.ok(!captureOnly || firstRequestOnly && !selfTest, 'CAPTURE_SCOPE_REQUIRED')
   const limits = firstRequestOnly ? { ...fullLimits, ...plan.firstRequestLimits } : fullLimits
   assert.ok(limits && ['work', 'memory'].includes(batch), 'INVALID_BATCH')
   mkdirSync(root, { recursive: true }); writeFileSync(join(root, 'gateway-start.json'), JSON.stringify({ batch, selfTest, limits }), { flag: 'wx' })
@@ -56,7 +57,7 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
   const rows = () => [join(profile, 'journals'), join(profile, 'continuous-work')].flatMap(files).filter(f => /[\\/]journals[\\/]/.test(f) && f.endsWith('.jsonl')).flatMap(file => completedJournalRecords(readFileSync(file, 'utf8')).map(row => ({ file, row, ticket: hash(file + ':' + row.turnId + ':' + row.attempt + ':' + row.slot) })))
   const usage = () => completedJournalRecords(readFileSync(join(profile, 'runtime-resources/usage.jsonl'), 'utf8'))
   let compactBaseline = new Set<string>()
-  const state = () => ({ batch, selfTest, firstRequestOnly, phase, halted, ...budget.view(), inFlight: active.size, samples, denials, captures: captured })
+  const state = () => ({ batch, selfTest, firstRequestOnly, captureOnly, upstreamRequests: selfTest || captureOnly ? 0 : budget.view().modelRequests + budget.view().embeddingRequests, phase, halted, ...budget.view(), inFlight: active.size, samples, denials, captures: captured })
   const save = () => writeFileSync(join(root, 'gateway-report.json'), JSON.stringify(state(), null, 2))
   const server = createServer((req, res) => { void (async () => {
     assert.ok(req.method === 'POST' && req.headers.authorization === 'Bearer ' + key && !req.headers.origin && profile && !halted, 'UNADMITTED_REQUEST')
@@ -95,7 +96,12 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
     let transport: ReturnType<typeof observeProbeTransport> | undefined
     try {
       let response: Response
-      if (selfTest) {
+      if (captureOnly) {
+        assert.ok(!isEmbedding && !raw.includes(config[slot].api_key), 'CAPTURE_CREDENTIAL_OR_SCOPE_VIOLATION')
+        writeFileSync(join(root, 'captured-request.json'), raw, { flag: 'wx' })
+        sample.captureSha256 = hash(raw)
+        response = new Response(scriptedResponse(body, { text: 'REQUEST_CAPTURED_OFFLINE' }), { headers: { 'content-type': body.stream ? 'text/event-stream' : 'application/json' } })
+      } else if (selfTest) {
         if (isEmbedding) {
           // A declared beverage fixture cluster exercises retrieval wiring, never semantic quality.
           const digest = createHash('sha256').update(/饮料|喝茶|咖啡/.test(body.input!) ? 'synthetic-beverage-cluster' : body.input!).digest()

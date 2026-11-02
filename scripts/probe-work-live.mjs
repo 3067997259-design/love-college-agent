@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { createContinuityHarness, workRecords, journalRows, sha } from './probe-continuity-harness.mjs'
 
 const firstRequestOnly=process.argv.includes('--first-request-only')
-const h=await createContinuityHarness('work','scripts/probe-work-live.mjs',{firstRequestOnly})
+const captureOnly=process.argv.includes('--capture-request')
+const h=await createContinuityHarness('work','scripts/probe-work-live.mjs',{firstRequestOnly,captureOnly})
 const present=async path=>access(path).then(()=>true,()=>false)
 const barrier=`param([ValidatePattern('^[AB][12]$')][string]$Tag)
 $ErrorActionPreference='Stop'
@@ -38,8 +39,9 @@ try{
     assert.equal((await h.send({type:'message.send',text:startInput('A')})).status,'accepted')
     await h.wait((s,g)=>g.samples.length===1&&typeof g.samples[0].elapsedMs==='number','FIRST_RESPONSE_NOT_FINISHED')
     const g=await h.gateway();assert.equal(g.samples[0].ok,true);assert.equal(g.modelRequests,1);assert.equal(g.autonomousUnits,0);assert.equal(g.embeddingRequests,0)
-    h.checks.providerFirstResponseComplete=true;h.checks.singleRequestOnly=true
-    h.report.scope='provider-first-response-only; work execution is not assessed';h.report.ok=true
+    h.checks[captureOnly?'offlineRequestCaptured':'providerFirstResponseComplete']=true;h.checks.singleRequestOnly=true
+    if(captureOnly)assert.equal(g.upstreamRequests,0)
+    h.report.scope=captureOnly?'offline request capture; no upstream request':'provider-first-response-only; work execution is not assessed';h.report.ok=true
   }else{
   const first=await project('first'),a=await start(first,'A','work-create-a')
   assert.equal(await present(join(first,'result.txt')),false)

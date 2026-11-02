@@ -15,7 +15,7 @@ await writeFile(join(root,'authorization.json'),JSON.stringify({id:randomUUID(),
 const compiled=join(repo,'.cache','curl-probe',randomUUID(),'probe.cjs')
 await build({configFile:false,logLevel:'error',build:{ssr:join(repo,'scripts/fixtures/provider-curl-probe.ts'),outDir:dirname(compiled),emptyOutDir:false,minify:false,rollupOptions:{external:['electron'],output:{format:'cjs',entryFileNames:'probe.cjs'}}}})
 const manifest={};await mkdir(join(root,'source'))
-for(const file of ['scripts/probe-provider-curl.mjs','scripts/fixtures/provider-curl-probe.ts','scripts/fixtures/curl-transport.ts']){const contents=await readFile(join(repo,file));manifest[file]=hash(contents);await writeFile(join(root,'source',file.replaceAll('/','__')),contents,{flag:'wx'})}
+for(const file of ['scripts/probe-provider-curl.mjs','scripts/fixtures/provider-curl-probe.ts','scripts/fixtures/curl-transport.ts','scripts/fixtures/probe-response.ts']){const contents=await readFile(join(repo,file));manifest[file]=hash(contents);await writeFile(join(root,'source',file.replaceAll('/','__')),contents,{flag:'wx'})}
 manifest['probe.cjs']=hash(await readFile(compiled));await writeFile(join(root,'probe.cjs'),await readFile(compiled),{flag:'wx'});await writeFile(join(root,'source-manifest.json'),JSON.stringify(manifest,null,2),{flag:'wx'})
 const env={...runtimeEnv(repo),LCA_DATA_DIR:join(root,'helper'),LCA_PROVIDERS_FILE:join(root,'absent.json'),LCA_TEST_SILENT:'1',LCA_MCP_PORT:'0',LCA_CDP_PORT:'0'}
 delete env.ELECTRON_RENDERER_URL;delete env.DSH_ROOT;delete env.LCA_BOOTH
