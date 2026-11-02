@@ -2015,7 +2015,150 @@
     "scopedLint": "passed",
     "productionBuild": "passed",
     "realRequestsAfterFix": 0,
-    "newPackage": false,
+    "newPackage": {
+      "release": "test-results/continuity/release-continuity-5",
+      "receipt": {
+        "version": 1,
+        "appVersion": "1.2.0-continuity.5",
+        "installerFileName": "Love-College-Agent-1.2.0-continuity.5-Setup.exe",
+        "sourceRevision": "4a3ed9d74c10636d767b24045ef10322caec7921",
+        "trackedDirty": false,
+        "runtimePreparation": "reused-prepared-tree",
+        "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+        "builtAtIso": "2026-11-02T04:06:06.565Z",
+        "installerBytes": 315477460,
+        "installerSha256": "15421def1a5ee6e16e8096a9b9020d71fe22d2e423a525a12104f1f7bcb848c6",
+        "asarSha256": "3d8359df83237b6d8a53a852d8a826d1d7424c6c4ea79d5a3d4d1da7ec152737"
+      },
+      "gate": {
+        "report": "test-results/continuity/candidate5-package-20261102/package-87095d20-1b25-4012-b5aa-2cf364bb8d2b/report.json",
+        "sha256": "c9a1cf9bc1c7a86f6ee72ba966b48dbda4d2deb2c49dd0eb2a927c5373c2a2bf",
+        "source": "d4ea01227474e0420dbdb068a6ec5241ed9580308c833611eba55358d3a80aa4",
+        "checks": [
+          {
+            "name": "sqlite",
+            "code": 0,
+            "timedOut": false,
+            "log": "sqlite.log"
+          },
+          {
+            "name": "continuity",
+            "code": 0,
+            "timedOut": false,
+            "log": "continuity.log"
+          },
+          {
+            "name": "memory",
+            "code": 0,
+            "timedOut": false,
+            "log": "memory.log"
+          },
+          {
+            "name": "v12-recovery",
+            "code": 0,
+            "timedOut": false,
+            "log": "v12-recovery.log"
+          }
+        ],
+        "installed": false,
+        "realServices": false
+      },
+      "preflights": [
+        {
+          "batch": "work",
+          "root": "D:/lca-continuity-candidate-20261101/profiles/work-candidate5-selftest-20261102-1",
+          "reportSha256": "f45a4020d474c52b2d1e33b88bbd661e8b0997ede670389ec6656e11f1b2e59b",
+          "manifestSha256": "760d5ecf63ed8aa832693799a20e4673757095c030db281c53a1be51cfdd5fbe",
+          "checks": {
+            "foregroundCompletesWhileWorkerToolBlocked": true,
+            "supplementDurableInOriginalWork": true,
+            "currentRevisionFileAndCheckpoint": true,
+            "immediateDeliveryContextHasVerifiedEvidence": true,
+            "ambiguousAmendmentDoesNotChangeEitherWork": true,
+            "stopIsolatedToOneRoot": true,
+            "recoveryUsesNewGenerationWithoutApprovalReplay": true,
+            "noDuplicateDelivery": true
+          },
+          "modelRequests": 29,
+          "embeddingRequests": 0,
+          "realRequests": 0,
+          "packageBridge": {
+            "lca-bridge/collaboration-state.js": "2efbb43f1952247547f0bcb1a124dd8c4f94b36b3e1a8e58c3e872168734ebbb",
+            "lca-bridge/collaboration.js": "6ab5bb25ac1783404d46305dd6a315f3ae719a42d3616b58f2b0086909501301",
+            "lca-bridge/cordis.patch.yml": "3e3aaf2f4afe35b84adc511c90c5303e26d25dd7feec49f9793ebf428401e861",
+            "lca-bridge/extension-files.d.ts": "03ab7412ddf5481e81b5b180aac5e7d5cf152a4915d563c4091884f91f1e2033",
+            "lca-bridge/extension-files.js": "63b7688e980ccca2cccbf958062b792f9adfd9dd21e1fa8e5d9f22f79cae013d",
+            "lca-bridge/extensions.js": "2468a59c52456661a4e2cbfa1fae83a464caa757a142c6fb37f7baad31ad4d5f",
+            "lca-bridge/family.js": "988fc0630075b39eb272309dab3cd5618ad16a531f2648fa106d31192a3a5996",
+            "lca-bridge/index.js": "7a64b422863dc3aaeb8cec13d5dc6342206c67730702785ce6f08ef181352757",
+            "lca-bridge/member-steps.js": "a7b537de9ed536fe351bf934418126abdce19d0fc7d15dda4f41d0db03179d1a",
+            "lca-bridge/package.json": "3f27f9efac1db3f5c784405ed2e14e8d5a0e4919bb71df59fab2798e7acdbf29",
+            "lca-bridge/policy.js": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615",
+            "lca-bridge/profile.d.ts": "7343dd7de15d7f1014c155721545d683e82239f80f676034f8cbf9e399cae5f9",
+            "lca-bridge/profile.js": "24249a7d08d50edf32a526d461f9b2168c34abe7466f4f01aedd344bc80a1a5b",
+            "lca-bridge/provenance.js": "4eb8c93cb593d232e553d486ea40a12874a5f69af37d01d618c7c590fa51b2b6",
+            "lca-bridge/runtime-tools.d.ts": "4b9eb83731715f4738261b99e21f03caaad669d45d62e997bb6fd5595517bd10",
+            "lca-bridge/runtime-tools.js": "389ad836950dd9d8dfe0f02f7e28e81f49d150910202fad9e330a2606cc2843e",
+            "lca-bridge/skill-files.d.ts": "093356b1438e4152cbb3b0a250e0bcf4b7b36c8d599a43a13665251b3dcdf9f2",
+            "lca-bridge/skill-files.js": "1450e051165840056963977cb8de90ef69fd45a6c7ba9aef7cdfd9557cd8c503",
+            "lca-bridge/skills.js": "ceac29dbb832b513bf89b8f18cb76d2854878d71510a2b695f621c56d33cddaa",
+            "lca-bridge/state.js": "58b1659d603c0f44929c83acc272d7b1b1ea4eb3e900abd68f3199adc3c106ff",
+            "lca-bridge/work-evidence.d.ts": "e71521696c0676905eec6ab9f440d6fb5004cfb386e78f5d55e88faa69e12021",
+            "lca-bridge/work-evidence.js": "d534f221e4519b60c21f6ce5a28b23bf431d29534c4972320e3674884130c8b0"
+          }
+        },
+        {
+          "batch": "memory",
+          "root": "D:/lca-continuity-candidate-20261101/profiles/memory-candidate5-selftest-20261102-1",
+          "reportSha256": "4056e3edb1c20c26e43d23ccda884164836e1f2e2c05dc6f9e3507c206020d67",
+          "manifestSha256": "8eddf39537f80e7bd76b32038a2e020796b89745792263cc19a19a18d01631f1",
+          "checks": {
+            "rememberReviewAndRecall": true,
+            "correctionSupersedesOldFact": true,
+            "actualCompactionPreservesHistoryAndCurrentFact": true,
+            "correctedFactSurvivesRestart": true,
+            "successfulInputsExtractedWithoutDuplicateCapture": true,
+            "forgottenFactUnavailable": true,
+            "nonemptyRestoreDoesNotResurrectForgottenFact": true
+          },
+          "modelRequests": 27,
+          "embeddingRequests": 30,
+          "realRequests": 0,
+          "packageBridge": {
+            "lca-bridge/collaboration-state.js": "2efbb43f1952247547f0bcb1a124dd8c4f94b36b3e1a8e58c3e872168734ebbb",
+            "lca-bridge/collaboration.js": "6ab5bb25ac1783404d46305dd6a315f3ae719a42d3616b58f2b0086909501301",
+            "lca-bridge/cordis.patch.yml": "3e3aaf2f4afe35b84adc511c90c5303e26d25dd7feec49f9793ebf428401e861",
+            "lca-bridge/extension-files.d.ts": "03ab7412ddf5481e81b5b180aac5e7d5cf152a4915d563c4091884f91f1e2033",
+            "lca-bridge/extension-files.js": "63b7688e980ccca2cccbf958062b792f9adfd9dd21e1fa8e5d9f22f79cae013d",
+            "lca-bridge/extensions.js": "2468a59c52456661a4e2cbfa1fae83a464caa757a142c6fb37f7baad31ad4d5f",
+            "lca-bridge/family.js": "988fc0630075b39eb272309dab3cd5618ad16a531f2648fa106d31192a3a5996",
+            "lca-bridge/index.js": "7a64b422863dc3aaeb8cec13d5dc6342206c67730702785ce6f08ef181352757",
+            "lca-bridge/member-steps.js": "a7b537de9ed536fe351bf934418126abdce19d0fc7d15dda4f41d0db03179d1a",
+            "lca-bridge/package.json": "3f27f9efac1db3f5c784405ed2e14e8d5a0e4919bb71df59fab2798e7acdbf29",
+            "lca-bridge/policy.js": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615",
+            "lca-bridge/profile.d.ts": "7343dd7de15d7f1014c155721545d683e82239f80f676034f8cbf9e399cae5f9",
+            "lca-bridge/profile.js": "24249a7d08d50edf32a526d461f9b2168c34abe7466f4f01aedd344bc80a1a5b",
+            "lca-bridge/provenance.js": "4eb8c93cb593d232e553d486ea40a12874a5f69af37d01d618c7c590fa51b2b6",
+            "lca-bridge/runtime-tools.d.ts": "4b9eb83731715f4738261b99e21f03caaad669d45d62e997bb6fd5595517bd10",
+            "lca-bridge/runtime-tools.js": "389ad836950dd9d8dfe0f02f7e28e81f49d150910202fad9e330a2606cc2843e",
+            "lca-bridge/skill-files.d.ts": "093356b1438e4152cbb3b0a250e0bcf4b7b36c8d599a43a13665251b3dcdf9f2",
+            "lca-bridge/skill-files.js": "1450e051165840056963977cb8de90ef69fd45a6c7ba9aef7cdfd9557cd8c503",
+            "lca-bridge/skills.js": "ceac29dbb832b513bf89b8f18cb76d2854878d71510a2b695f621c56d33cddaa",
+            "lca-bridge/state.js": "58b1659d603c0f44929c83acc272d7b1b1ea4eb3e900abd68f3199adc3c106ff",
+            "lca-bridge/work-evidence.d.ts": "e71521696c0676905eec6ab9f440d6fb5004cfb386e78f5d55e88faa69e12021",
+            "lca-bridge/work-evidence.js": "d534f221e4519b60c21f6ce5a28b23bf431d29534c4972320e3674884130c8b0"
+          }
+        }
+      ],
+      "proposedAuthorization": {
+        "path": "test-results/continuity/candidate5-live-ready-20261102",
+        "authorized": false
+      },
+      "sourceFixCommits": [
+        "4cde054",
+        "271a795"
+      ]
+    },
     "earlierVerificationFailures": [
       {
         "stage": "bridge fixture",
@@ -2029,7 +2172,7 @@
     ]
   },
   "limitations": [
-    "Same candidate 4 only; source fixes are not included in that package.",
+    "Real results belong to candidate 4; candidate 5 contains the fixes and passed package/offline preflights, with zero real requests.",
     "Voyage calls used compatible localhost relay and omitted optional input_type; direct query/document role behavior has unit evidence only.",
     "Full work stop/restart/idempotency and memory extraction/forget/export/restore remain unpassed on real services.",
     "PostgreSQL mirror unavailable until Docker installation is repaired; no current container or volume was modified.",

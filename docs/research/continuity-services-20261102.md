@@ -2,7 +2,7 @@
 
 本轮使用固定的 `1.2.0-continuity.4` 包内 EXE，工作与记忆各开一笔新授权、空 profile 和独立账本。用户在空的实验设置实例填写 `voyage-4-large` 连接，保存过程的模型／向量准入为 0；真实密钥只由 Electron 主进程读取。第二台 Windows 按用户的设备条件后置。
 
-**两条真实链路各通过前四组检查，随后首次失败停止，尚未完成整批验收。** 两笔授权已写关闭回执，未复用剩余额度。修复已通过离线检查和生产构建，尚未打入新候选包或进行真实复测。[结构化证据](evidence/continuity-services-20261102.json)保留报告指纹、逐请求时限、检查点和失败边界。
+**两条真实链路各通过前四组检查，随后首次失败停止，尚未完成整批验收。** 两笔授权已写关闭回执，未复用剩余额度。修复已进入独立 `continuity.5` 候选包，包内检查和完整本地预检通过，尚未进行真实复测。[结构化证据](evidence/continuity-services-20261102.json)保留报告指纹、逐请求时限、检查点和失败边界。
 
 ## 授权与实际消耗
 
@@ -62,6 +62,17 @@
 - 主进程类型检查、修改路径 lint、生产构建通过。
 - 初次新增 Worker 夹具漏传目标版本，被已有保护正确拒绝；修正夹具后再跑通过。初次类型检查发现测试输入缺 scope，已修正。失败目录保留，未降低产品保护来通过测试。
 
-本轮对应原计划阶段 3 的前台／工作分离缺陷修复，以及阶段 1、2、5、6 的真实服务验证。最新源码修复尚未进入 `continuity.4`。下一候选需要重新打包，完成新包预跑，再用新的真实授权窗口补齐失败后的场景；本轮成功结果只能归属于原固定包。Docker 镜像、第二台 Windows、隔离安装／升级、完整 90 条检索与 24 条故事矩阵和长期体验仍分别待验。
+本轮对应原计划阶段 3 的前台／工作分离缺陷修复，以及阶段 1、2、5、6 的真实服务验证。本轮真实成功结果只能归属于原固定 `continuity.4`；修复候选的离线证据列在下方。Docker 镜像、第二台 Windows、隔离安装／升级、完整 90 条检索与 24 条故事矩阵和长期体验仍分别待验。
 
 运行目录：`D:\lca-continuity-candidate-20261101\profiles\work-services-live-20261102-1`、`memory-services-live-20261102-1`；源码修复的 DSH 报告为 `test-results/continuity/state-lanes-20261102-2/report.json`。
+
+## 修复候选 continuity.5
+
+两项修复分别提交为 `4cde054`、`271a795`。从干净的 `4a3ed9d` 构建 Windows x64 NSIS 候选，目录为 `test-results/continuity/release-continuity-5/`；未安装或发布。此前的候选和失败 profile 均保留。
+
+- asar：`3d8359df83237b6d8a53a852d8a826d1d7424c6c4ea79d5a3d4d1da7ec152737`。
+- 安装包：`Love-College-Agent-1.2.0-continuity.5-Setup.exe`，315,477,460 字节，SHA-256 为 `15421def1a5ee6e16e8096a9b9020d71fe22d2e423a525a12104f1f7bcb848c6`。
+- 包内检查顺序通过 SQLite、完整记忆／工作非空恢复、记忆书页、工作恢复四项；原生 DuckDB／SQLite 文件存在并实际加载，完整非空恢复包含 21 条断言。
+- 同一包继续顺序通过工作 8 组、记忆 7 组完整预检，分别使用 29 次本地模型，以及 27 次本地模型／30 次本地向量请求。外部请求均为 0，关闭时无在途请求。
+
+新包预跑目录分别为 `work-candidate5-selftest-20261102-1`、`memory-candidate5-selftest-20261102-1`，位于上述独立 profiles 根。`test-results/continuity/candidate5-live-ready-20261102/` 已生成绑定此包、桥接与源码指纹的两份授权模板，均为 `authorized:false`。下一轮真实复测需要新的授权窗口，不继承本轮已关闭的余额。
