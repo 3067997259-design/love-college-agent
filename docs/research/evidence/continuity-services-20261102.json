@@ -1,0 +1,2063 @@
+{
+  "date": "2026-11-02",
+  "candidate": "1.2.0-continuity.4",
+  "sourceBeforeFix": "4c73fa2",
+  "batches": {
+    "work": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\work-services-live-20261102-1",
+      "authorizationId": "685f0a71-959e-4e2c-9a03-d22e3d22959f",
+      "limits": {
+        "id": "work",
+        "maximumModelRequests": 48,
+        "maximumReservedUnits": 1048576,
+        "maximumAutonomousUnits": 65536,
+        "offlineEvidence": [
+          "work-execution",
+          "collaboration",
+          "recovery"
+        ],
+        "steps": [
+          "In a fresh temporary project, create a persistent work to write result.txt with TEA and provide a file checkpoint. Its first file operation waits on a test barrier.",
+          "While the barrier remains held, send an unrelated chat message. Require foreground completion before releasing the tool.",
+          "Supplement the original work: replace TEA with COFFEE. Require the durable new revision and original-root accepted receipt while the tool is blocked; require consumption after releasing the barrier.",
+          "Verify result.txt content and its checkpoint hash, then immediately ask what changed and why, before memory extraction.",
+          "Start two independent temporary-project works. Ask an ambiguous amendment: require clarification and unchanged revisions. Explicitly stop one work; the other must remain active.",
+          "Restart the isolated profile. Require pending work to be marked for reconciliation; explicitly continue it with a new generation. No old approval may be reused."
+        ],
+        "oracle": [
+          "Read actual file bytes and hashes; model claims and task-board receipts cannot prove completion.",
+          "Keep workId, revision and generation receipts for every step.",
+          "No duplicate delivery, cross-root cancellation, implicit ambiguous update or unapproved replay."
+        ],
+        "review": "automatic state/file assertions plus agent review of final delivery and immediate follow-up"
+      },
+      "asarSha256": "2894e350aa7143b7b3f237a1cbeb1c5ff66ffb78a6d782129b4af39031a3a67b",
+      "packageBridge": {
+        "lca-bridge/collaboration-state.js": "2efbb43f1952247547f0bcb1a124dd8c4f94b36b3e1a8e58c3e872168734ebbb",
+        "lca-bridge/collaboration.js": "6ab5bb25ac1783404d46305dd6a315f3ae719a42d3616b58f2b0086909501301",
+        "lca-bridge/cordis.patch.yml": "3e3aaf2f4afe35b84adc511c90c5303e26d25dd7feec49f9793ebf428401e861",
+        "lca-bridge/extension-files.d.ts": "03ab7412ddf5481e81b5b180aac5e7d5cf152a4915d563c4091884f91f1e2033",
+        "lca-bridge/extension-files.js": "63b7688e980ccca2cccbf958062b792f9adfd9dd21e1fa8e5d9f22f79cae013d",
+        "lca-bridge/extensions.js": "2468a59c52456661a4e2cbfa1fae83a464caa757a142c6fb37f7baad31ad4d5f",
+        "lca-bridge/family.js": "988fc0630075b39eb272309dab3cd5618ad16a531f2648fa106d31192a3a5996",
+        "lca-bridge/index.js": "fc5baf2775a5321d00a57d76e24a3d8c0465f7c4136e233278a563112c1ddaf0",
+        "lca-bridge/member-steps.js": "a7b537de9ed536fe351bf934418126abdce19d0fc7d15dda4f41d0db03179d1a",
+        "lca-bridge/package.json": "3f27f9efac1db3f5c784405ed2e14e8d5a0e4919bb71df59fab2798e7acdbf29",
+        "lca-bridge/policy.js": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615",
+        "lca-bridge/profile.d.ts": "7343dd7de15d7f1014c155721545d683e82239f80f676034f8cbf9e399cae5f9",
+        "lca-bridge/profile.js": "24249a7d08d50edf32a526d461f9b2168c34abe7466f4f01aedd344bc80a1a5b",
+        "lca-bridge/provenance.js": "4eb8c93cb593d232e553d486ea40a12874a5f69af37d01d618c7c590fa51b2b6",
+        "lca-bridge/runtime-tools.d.ts": "4b9eb83731715f4738261b99e21f03caaad669d45d62e997bb6fd5595517bd10",
+        "lca-bridge/runtime-tools.js": "389ad836950dd9d8dfe0f02f7e28e81f49d150910202fad9e330a2606cc2843e",
+        "lca-bridge/skill-files.d.ts": "093356b1438e4152cbb3b0a250e0bcf4b7b36c8d599a43a13665251b3dcdf9f2",
+        "lca-bridge/skill-files.js": "1450e051165840056963977cb8de90ef69fd45a6c7ba9aef7cdfd9557cd8c503",
+        "lca-bridge/skills.js": "ceac29dbb832b513bf89b8f18cb76d2854878d71510a2b695f621c56d33cddaa",
+        "lca-bridge/state.js": "66af79ffa42d100987602e4ab68670c6a2985de653afb59a2c5a5ec8d56ae8c8",
+        "lca-bridge/work-evidence.d.ts": "e71521696c0676905eec6ab9f440d6fb5004cfb386e78f5d55e88faa69e12021",
+        "lca-bridge/work-evidence.js": "d534f221e4519b60c21f6ce5a28b23bf431d29534c4972320e3674884130c8b0"
+      },
+      "files": {
+        "run.json": "f93921523af899a3bca80592f69be5787a4a43d773014d980c539cc4540e8fff",
+        "source-manifest.json": "760d5ecf63ed8aa832693799a20e4673757095c030db281c53a1be51cfdd5fbe",
+        "authorization.json": "a1d3ddbe07b4b88736114f2ffea945558e00f6a67ba7a3bdbb9b406622da84fa",
+        "report.json": "b5269838b91dc3fe7e0b78d1d10ae9aec5b56d4245eef463774c2d9b969cc70b",
+        "gateway-report.json": "3e3277ea5ee2a545f4d5a9ce95465367b8246368f686567dfed5895f30ad3d50",
+        "closed.json": "2411b3ec7289632ad60dd9a573b5c7b1ad45c65f226e401dacec3c4490c45ea7"
+      },
+      "preflight": {
+        "root": "D:\\lca-continuity-candidate-20261101\\profiles\\work-timeouts-selftest-20261102-1",
+        "passed": true,
+        "sourceAndBundleIdentical": true,
+        "modelRequests": 29,
+        "embeddingRequests": 0,
+        "checks": {
+          "foregroundCompletesWhileWorkerToolBlocked": true,
+          "supplementDurableInOriginalWork": true,
+          "currentRevisionFileAndCheckpoint": true,
+          "immediateDeliveryContextHasVerifiedEvidence": true,
+          "ambiguousAmendmentDoesNotChangeEitherWork": true,
+          "stopIsolatedToOneRoot": true,
+          "recoveryUsesNewGenerationWithoutApprovalReplay": true,
+          "noDuplicateDelivery": true
+        }
+      },
+      "actual": {
+        "passed": false,
+        "error": "CHAT_FAILED:work-create-a-second",
+        "checks": {
+          "foregroundCompletesWhileWorkerToolBlocked": true,
+          "supplementDurableInOriginalWork": true,
+          "currentRevisionFileAndCheckpoint": true,
+          "immediateDeliveryContextHasVerifiedEvidence": true
+        },
+        "answers": [
+          {
+            "step": "work-create-a",
+            "userMessageId": "f572f23f-3173-4695-8e3d-22107466edef",
+            "turnId": "7b2030da-7bc4-4d50-9e29-a64320c12918",
+            "text": "`WORK_A` 已经启动了（工作 ID `8bcfdc45-6f59-484e-b6ba-a924db7097d8`），会在后台先跑 `& .\\barrier.ps1 A1`，等它真正结束再写 `result.txt` 并提交检查点。前台这边我都在，有新要求随时跟我说。"
+          },
+          {
+            "step": "work-chat",
+            "userMessageId": "95d10254-b67a-4061-847e-818728962904",
+            "turnId": "d67b2563-ea72-4250-87f2-56acefba0a1d",
+            "text": "温热的红茶就好。天有点凉，放在手边暖手也合适。你呢，想喝什么？"
+          },
+          {
+            "step": "work-amend",
+            "userMessageId": "e77ee33a-6e5a-4e65-9c1a-2cf8b72f1a89",
+            "turnId": "41f450a6-2f98-433d-8794-19542ff76155",
+            "text": "已经把补充要求转交给工作 `8bcfdc45-6f59-484e-b6ba-a924db7097d8` 了（目标修订版升到了 `2`）。那边会继续等 `& .\\barrier.ps1 A1` 结束，然后把 `result.txt` 写成 `COFFEE` 再提交检查点。"
+          },
+          {
+            "step": "work-followup",
+            "userMessageId": "5135fc20-90fa-457a-b81f-25b95668462f",
+            "turnId": "2bf3d0e9-837e-4893-9d28-34a0bdae65c5",
+            "text": "最后在 `result.txt` 里写的是 `COFFEE`。\n\n因为你最初交代启动 `WORK_A` 时说最初内容是 `TEA`，但也说了“以后以我补充的新要求为准”。后来在工作进行中，你给这项工作（`8bcfdc45-6f59-484e-b6ba-a924db7097d8`）追加了补充要求，明确让把 `result.txt` 的内容改成 `COFFEE`、不要 `TEA`，所以等阻塞命令 `& .\\barrier.ps1 A1` 结束后就按新要求写了 `COFFEE`。"
+          }
+        ],
+        "modelRequests": 19,
+        "embeddingRequests": 0,
+        "embeddingCharacters": 0,
+        "reservedUnits": 259885,
+        "autonomousUnits": 15388,
+        "successfulModelResponses": 19,
+        "successfulEmbeddingResponses": 0,
+        "measuredModelTokens": 290948,
+        "failedRequestUsageUnknown": false,
+        "inFlight": 0,
+        "closed": true,
+        "cleanupUncertain": false,
+        "samples": [
+          {
+            "slot": "chat",
+            "phase": "work-create-a",
+            "startedAt": "2026-11-02T03:33:40.909Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 6133,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 5565,
+              "firstByteMs": 5566,
+              "lastByteMs": 6128,
+              "completedMs": 6128,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "work-create-a",
+            "startedAt": "2026-11-02T03:33:47.631Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 5376,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 5215,
+              "firstByteMs": 5215,
+              "lastByteMs": 5375,
+              "completedMs": 5375,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "work-create-a",
+            "startedAt": "2026-11-02T03:33:53.497Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 10709,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 9639,
+              "firstByteMs": 9640,
+              "lastByteMs": 10708,
+              "completedMs": 10708,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "work-create-a",
+            "startedAt": "2026-11-02T03:34:04.990Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 8366,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 7294,
+              "firstByteMs": 7294,
+              "lastByteMs": 8365,
+              "completedMs": 8365,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "work",
+            "phase": "work-create-a",
+            "startedAt": "2026-11-02T03:34:05.611Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 6055,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 5584,
+              "firstByteMs": 5585,
+              "lastByteMs": 6055,
+              "completedMs": 6055,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "work",
+            "phase": "work-create-a",
+            "startedAt": "2026-11-02T03:34:13.327Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 6981,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 6566,
+              "firstByteMs": 6566,
+              "lastByteMs": 6980,
+              "completedMs": 6980,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "work-chat",
+            "startedAt": "2026-11-02T03:34:22.646Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 14796,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 14072,
+              "firstByteMs": 14072,
+              "lastByteMs": 14795,
+              "completedMs": 14795,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "work-amend",
+            "startedAt": "2026-11-02T03:34:39.180Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 17873,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 15173,
+              "firstByteMs": 15173,
+              "lastByteMs": 17872,
+              "completedMs": 17872,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "work-amend",
+            "startedAt": "2026-11-02T03:34:58.071Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 14952,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 12878,
+              "firstByteMs": 12878,
+              "lastByteMs": 14951,
+              "completedMs": 14951,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "work-amend",
+            "startedAt": "2026-11-02T03:35:13.800Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 27356,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 26360,
+              "firstByteMs": 26360,
+              "lastByteMs": 27355,
+              "completedMs": 27355,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "work",
+            "phase": "work-amend",
+            "startedAt": "2026-11-02T03:35:42.179Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 70626,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 69153,
+              "firstByteMs": 69153,
+              "lastByteMs": 70626,
+              "completedMs": 70626,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "work",
+            "phase": "work-amend",
+            "startedAt": "2026-11-02T03:36:54.598Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 43570,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 42464,
+              "firstByteMs": 42464,
+              "lastByteMs": 43569,
+              "completedMs": 43569,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "work",
+            "phase": "work-amend",
+            "startedAt": "2026-11-02T03:37:38.820Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 21291,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 20006,
+              "firstByteMs": 20006,
+              "lastByteMs": 21290,
+              "completedMs": 21291,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "work",
+            "phase": "work-amend",
+            "startedAt": "2026-11-02T03:38:00.748Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 12283,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 11327,
+              "firstByteMs": 11328,
+              "lastByteMs": 12283,
+              "completedMs": 12283,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "work",
+            "phase": "work-amend",
+            "startedAt": "2026-11-02T03:38:13.736Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 6728,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 6492,
+              "firstByteMs": 6492,
+              "lastByteMs": 6727,
+              "completedMs": 6728,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "work-followup",
+            "startedAt": "2026-11-02T03:38:22.770Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 21888,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 18423,
+              "firstByteMs": 18424,
+              "lastByteMs": 21887,
+              "completedMs": 21888,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "work-followup",
+            "startedAt": "2026-11-02T03:38:45.287Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 7384,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 7183,
+              "firstByteMs": 7183,
+              "lastByteMs": 7382,
+              "completedMs": 7383,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "work-followup",
+            "startedAt": "2026-11-02T03:38:53.132Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 6390,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 5392,
+              "firstByteMs": 5392,
+              "lastByteMs": 6389,
+              "completedMs": 6389,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "work-create-a-second",
+            "startedAt": "2026-11-02T03:39:02.120Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 8762,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 7677,
+              "firstByteMs": 7678,
+              "lastByteMs": 8761,
+              "completedMs": 8761,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          }
+        ],
+        "workReceipts": [
+          {
+            "identity": {
+              "owner": {
+                "userId": "local-user",
+                "characterId": "default-character",
+                "dataRootId": "80571309395bf702a1ac8f0f507aba6bfef44d6c13f1602f03497d78e62147e3"
+              },
+              "projectId": "ccb25a800d6c3d71ab9df265dbae357a8eaf0a6cc48331b1554758dc37261788",
+              "workId": "8bcfdc45-6f59-484e-b6ba-a924db7097d8",
+              "generation": 1,
+              "objectiveRevision": 2
+            },
+            "status": "completed",
+            "checkpoints": [
+              {
+                "id": "dfbb75ad5f5aae94430a4716dc8d5c38ae2b4870e808ac0ed23ecfa30f5b7a4c",
+                "identity": {
+                  "owner": {
+                    "userId": "local-user",
+                    "characterId": "default-character",
+                    "dataRootId": "80571309395bf702a1ac8f0f507aba6bfef44d6c13f1602f03497d78e62147e3"
+                  },
+                  "projectId": "ccb25a800d6c3d71ab9df265dbae357a8eaf0a6cc48331b1554758dc37261788",
+                  "workId": "8bcfdc45-6f59-484e-b6ba-a924db7097d8",
+                  "generation": 1,
+                  "objectiveRevision": 2
+                },
+                "objective": "WORK_A: In the current project's PowerShell process, first run & .\\barrier.ps1 A1 and wait for the command to truly finish before writing result.txt. Initial content of result.txt is TEA, subject to any later user supplements. If resumed in a new run generation, use the new generation number for the barrier (e.g., A<generation>). After writing result.txt, submit the work checkpoint with actual file evidence.",
+                "decisionIds": [
+                  "f572f23f-3173-4695-8e3d-22107466edef",
+                  "e77ee33a-6e5a-4e65-9c1a-2cf8b72f1a89"
+                ],
+                "evidenceIds": [
+                  "743bb8e90de0d0d1b0e81479e023753eb5cf64ce583c44f98dda7869dbe4b8e2"
+                ],
+                "outcome": "completed",
+                "explanation": "已在当前项目执行完 & .\\barrier.ps1 A1，并按你补充的新要求将 COFFEE 写入 result.txt。",
+                "unresolved": [],
+                "nextStep": null,
+                "createdAt": 1793590693256
+              }
+            ],
+            "evidence": [
+              {
+                "id": "bf1f83420f691b67bb81fa8b5973c745f4cdab8a5ef202c2611aac17fd5a36d5",
+                "identity": {
+                  "owner": {
+                    "userId": "local-user",
+                    "characterId": "default-character",
+                    "dataRootId": "80571309395bf702a1ac8f0f507aba6bfef44d6c13f1602f03497d78e62147e3"
+                  },
+                  "projectId": "ccb25a800d6c3d71ab9df265dbae357a8eaf0a6cc48331b1554758dc37261788",
+                  "workId": "8bcfdc45-6f59-484e-b6ba-a924db7097d8",
+                  "generation": 1,
+                  "objectiveRevision": 1
+                },
+                "rootSessionId": "session-5f855937-0bef-4e6e-a8df-7027439aae1c",
+                "callId": "call_78359",
+                "kind": "tool",
+                "status": "unverified",
+                "relativePath": null,
+                "beforeHash": null,
+                "afterHash": null,
+                "bytes": null,
+                "exitCode": null,
+                "restricted": false,
+                "observedAt": 1793590451946
+              },
+              {
+                "id": "58cbdc601aee5bc8f396d41de3ae9d7b6ecdefb410f4b88add53d50dba65b209",
+                "identity": {
+                  "owner": {
+                    "userId": "local-user",
+                    "characterId": "default-character",
+                    "dataRootId": "80571309395bf702a1ac8f0f507aba6bfef44d6c13f1602f03497d78e62147e3"
+                  },
+                  "projectId": "ccb25a800d6c3d71ab9df265dbae357a8eaf0a6cc48331b1554758dc37261788",
+                  "workId": "8bcfdc45-6f59-484e-b6ba-a924db7097d8",
+                  "generation": 1,
+                  "objectiveRevision": 1
+                },
+                "rootSessionId": "session-5f855937-0bef-4e6e-a8df-7027439aae1c",
+                "callId": "call_78362",
+                "kind": "command",
+                "status": "failed",
+                "relativePath": null,
+                "beforeHash": null,
+                "afterHash": null,
+                "bytes": null,
+                "exitCode": null,
+                "restricted": false,
+                "observedAt": 1793590452323
+              },
+              {
+                "id": "d9a8b868dca1ff907b108a919026b9c1f0f4d275c36d437a34e9ce9fa2672547",
+                "identity": {
+                  "owner": {
+                    "userId": "local-user",
+                    "characterId": "default-character",
+                    "dataRootId": "80571309395bf702a1ac8f0f507aba6bfef44d6c13f1602f03497d78e62147e3"
+                  },
+                  "projectId": "ccb25a800d6c3d71ab9df265dbae357a8eaf0a6cc48331b1554758dc37261788",
+                  "workId": "8bcfdc45-6f59-484e-b6ba-a924db7097d8",
+                  "generation": 1,
+                  "objectiveRevision": 1
+                },
+                "rootSessionId": "session-5f855937-0bef-4e6e-a8df-7027439aae1c",
+                "callId": "call_106273",
+                "kind": "command",
+                "status": "passed",
+                "relativePath": null,
+                "beforeHash": null,
+                "afterHash": null,
+                "bytes": null,
+                "exitCode": 0,
+                "restricted": false,
+                "observedAt": 1793590541896
+              },
+              {
+                "id": "d6821f24eaccabc528affabc1732c355517aa6ee948dd1d24fb2ef34fd6473eb",
+                "identity": {
+                  "owner": {
+                    "userId": "local-user",
+                    "characterId": "default-character",
+                    "dataRootId": "80571309395bf702a1ac8f0f507aba6bfef44d6c13f1602f03497d78e62147e3"
+                  },
+                  "projectId": "ccb25a800d6c3d71ab9df265dbae357a8eaf0a6cc48331b1554758dc37261788",
+                  "workId": "8bcfdc45-6f59-484e-b6ba-a924db7097d8",
+                  "generation": 1,
+                  "objectiveRevision": 2
+                },
+                "rootSessionId": "session-5f855937-0bef-4e6e-a8df-7027439aae1c",
+                "callId": "call_59841",
+                "kind": "tool",
+                "status": "unverified",
+                "relativePath": null,
+                "beforeHash": null,
+                "afterHash": null,
+                "bytes": null,
+                "exitCode": null,
+                "restricted": false,
+                "observedAt": 1793590613052
+              },
+              {
+                "id": "97ff51f735d5bd36a09803b128eb1384cb005306a12fa5fc4bea1022a955042a",
+                "identity": {
+                  "owner": {
+                    "userId": "local-user",
+                    "characterId": "default-character",
+                    "dataRootId": "80571309395bf702a1ac8f0f507aba6bfef44d6c13f1602f03497d78e62147e3"
+                  },
+                  "projectId": "ccb25a800d6c3d71ab9df265dbae357a8eaf0a6cc48331b1554758dc37261788",
+                  "workId": "8bcfdc45-6f59-484e-b6ba-a924db7097d8",
+                  "generation": 1,
+                  "objectiveRevision": 2
+                },
+                "rootSessionId": "session-5f855937-0bef-4e6e-a8df-7027439aae1c",
+                "callId": "call_59842",
+                "kind": "tool",
+                "status": "unverified",
+                "relativePath": null,
+                "beforeHash": null,
+                "afterHash": null,
+                "bytes": null,
+                "exitCode": null,
+                "restricted": false,
+                "observedAt": 1793590614344
+              },
+              {
+                "id": "743bb8e90de0d0d1b0e81479e023753eb5cf64ce583c44f98dda7869dbe4b8e2",
+                "identity": {
+                  "owner": {
+                    "userId": "local-user",
+                    "characterId": "default-character",
+                    "dataRootId": "80571309395bf702a1ac8f0f507aba6bfef44d6c13f1602f03497d78e62147e3"
+                  },
+                  "projectId": "ccb25a800d6c3d71ab9df265dbae357a8eaf0a6cc48331b1554758dc37261788",
+                  "workId": "8bcfdc45-6f59-484e-b6ba-a924db7097d8",
+                  "generation": 1,
+                  "objectiveRevision": 2
+                },
+                "rootSessionId": "session-5f855937-0bef-4e6e-a8df-7027439aae1c",
+                "callId": "call_81826",
+                "kind": "artifact",
+                "status": "passed",
+                "relativePath": "result.txt",
+                "beforeHash": null,
+                "afterHash": "967d1f886b03dc749aea3ef70b666ffad4921aa26a5af80130a15d18e02afc68",
+                "bytes": 6,
+                "exitCode": null,
+                "restricted": false,
+                "observedAt": 1793590658498
+              },
+              {
+                "id": "a0388fb1e789f5a109c8979efecc8e58c1068e5f72e9529a9017c784e78b3628",
+                "identity": {
+                  "owner": {
+                    "userId": "local-user",
+                    "characterId": "default-character",
+                    "dataRootId": "80571309395bf702a1ac8f0f507aba6bfef44d6c13f1602f03497d78e62147e3"
+                  },
+                  "projectId": "ccb25a800d6c3d71ab9df265dbae357a8eaf0a6cc48331b1554758dc37261788",
+                  "workId": "8bcfdc45-6f59-484e-b6ba-a924db7097d8",
+                  "generation": 1,
+                  "objectiveRevision": 2
+                },
+                "rootSessionId": "session-5f855937-0bef-4e6e-a8df-7027439aae1c",
+                "callId": "call_90015",
+                "kind": "tool",
+                "status": "unverified",
+                "relativePath": null,
+                "beforeHash": null,
+                "afterHash": null,
+                "bytes": null,
+                "exitCode": null,
+                "restricted": false,
+                "observedAt": 1793590680331
+              },
+              {
+                "id": "041bd60fac6c20463853d65c63847a1332413007c6fd175b63927824dd19ade4",
+                "identity": {
+                  "owner": {
+                    "userId": "local-user",
+                    "characterId": "default-character",
+                    "dataRootId": "80571309395bf702a1ac8f0f507aba6bfef44d6c13f1602f03497d78e62147e3"
+                  },
+                  "projectId": "ccb25a800d6c3d71ab9df265dbae357a8eaf0a6cc48331b1554758dc37261788",
+                  "workId": "8bcfdc45-6f59-484e-b6ba-a924db7097d8",
+                  "generation": 1,
+                  "objectiveRevision": 2
+                },
+                "rootSessionId": "session-5f855937-0bef-4e6e-a8df-7027439aae1c",
+                "callId": "call_121277",
+                "kind": "tool",
+                "status": "unverified",
+                "relativePath": null,
+                "beforeHash": null,
+                "afterHash": null,
+                "bytes": null,
+                "exitCode": null,
+                "restricted": false,
+                "observedAt": 1793590693313
+              }
+            ],
+            "deliveries": [
+              {
+                "eventId": "checkpoint:dfbb75ad5f5aae94430a4716dc8d5c38ae2b4870e808ac0ed23ecfa30f5b7a4c",
+                "checkpointId": "dfbb75ad5f5aae94430a4716dc8d5c38ae2b4870e808ac0ed23ecfa30f5b7a4c",
+                "state": "consumed"
+              }
+            ]
+          }
+        ],
+        "failureReview": {
+          "existingMode": "work",
+          "requestedMode": "work",
+          "nativeToolsInFailingReply": 0,
+          "replyKind": "valid-dedicated-state-envelope",
+          "finish": "stop",
+          "transportComplete": true,
+          "guard": "same-mode change rejected",
+          "diagnosis": "foreground received legacy chat-to-work handoff prompt despite fixed foreground lane",
+          "partialAnswersAccepted": true,
+          "fullWorkAcceptance": false
+        }
+      }
+    },
+    "memory": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\memory-services-live-20261102-1",
+      "authorizationId": "50ec44cc-249e-4983-95a5-b38bc523711d",
+      "limits": {
+        "id": "memory",
+        "maximumModelRequests": 32,
+        "maximumReservedUnits": 1048576,
+        "maximumAutonomousUnits": 262144,
+        "maximumEmbeddingRequests": 48,
+        "maximumEmbeddingInputCharacters": 200000,
+        "offlineEvidence": [
+          "memory-conversation",
+          "memory",
+          "backup",
+          "native-recovery"
+        ],
+        "steps": [
+          "In a fresh owner/profile, ask to remember a preference for tea. Verify the operation is pending review, approve through the normal memory command, then recall with a paraphrase.",
+          "Correct the preference to coffee through conversation and approve the new revision; the earlier tea statements remain in original history as conflicting historical evidence.",
+          "Run actual DSH /compact, ask again, restart and ask again. Require coffee as the current preference and the original history to remain readable.",
+          "Forget the preference through the normal operation/review flow; export a nonempty private save and restore into a fresh profile. Verify no current fact or old outbox resurrects it.",
+          "Verify extraction contains only allowed successful original inputs (including bounded prefixes), without derived assistant answers or duplicate input capture."
+        ],
+        "companionChecks": [
+          "The separate memory-conversation/execution gates cover old-day summary conflict and original decisions crossing Worker roots.",
+          "experience-index tests use ManualClock for day/week/month coverage; these are simulated-time tests, not real elapsed-day evidence."
+        ],
+        "oracle": [
+          "Track source IDs, operation IDs and revisions separately from answer wording.",
+          "Unreviewed, superseded and forgotten facts must not enter current recall.",
+          "Background extraction and compaction count toward the same batch; autonomous allowance is a subset, not additional spending.",
+          "Real embedding needs a separately configured and authorized connection; do not substitute scripted vectors and report real embedding success."
+        ],
+        "review": "automatic storage/source/recovery assertions plus agent review of answer use"
+      },
+      "asarSha256": "2894e350aa7143b7b3f237a1cbeb1c5ff66ffb78a6d782129b4af39031a3a67b",
+      "packageBridge": {
+        "lca-bridge/collaboration-state.js": "2efbb43f1952247547f0bcb1a124dd8c4f94b36b3e1a8e58c3e872168734ebbb",
+        "lca-bridge/collaboration.js": "6ab5bb25ac1783404d46305dd6a315f3ae719a42d3616b58f2b0086909501301",
+        "lca-bridge/cordis.patch.yml": "3e3aaf2f4afe35b84adc511c90c5303e26d25dd7feec49f9793ebf428401e861",
+        "lca-bridge/extension-files.d.ts": "03ab7412ddf5481e81b5b180aac5e7d5cf152a4915d563c4091884f91f1e2033",
+        "lca-bridge/extension-files.js": "63b7688e980ccca2cccbf958062b792f9adfd9dd21e1fa8e5d9f22f79cae013d",
+        "lca-bridge/extensions.js": "2468a59c52456661a4e2cbfa1fae83a464caa757a142c6fb37f7baad31ad4d5f",
+        "lca-bridge/family.js": "988fc0630075b39eb272309dab3cd5618ad16a531f2648fa106d31192a3a5996",
+        "lca-bridge/index.js": "fc5baf2775a5321d00a57d76e24a3d8c0465f7c4136e233278a563112c1ddaf0",
+        "lca-bridge/member-steps.js": "a7b537de9ed536fe351bf934418126abdce19d0fc7d15dda4f41d0db03179d1a",
+        "lca-bridge/package.json": "3f27f9efac1db3f5c784405ed2e14e8d5a0e4919bb71df59fab2798e7acdbf29",
+        "lca-bridge/policy.js": "ed0ac7be0144bfc677c843923b9523ef92278bc9ef3b6d5fb6d03688382f0615",
+        "lca-bridge/profile.d.ts": "7343dd7de15d7f1014c155721545d683e82239f80f676034f8cbf9e399cae5f9",
+        "lca-bridge/profile.js": "24249a7d08d50edf32a526d461f9b2168c34abe7466f4f01aedd344bc80a1a5b",
+        "lca-bridge/provenance.js": "4eb8c93cb593d232e553d486ea40a12874a5f69af37d01d618c7c590fa51b2b6",
+        "lca-bridge/runtime-tools.d.ts": "4b9eb83731715f4738261b99e21f03caaad669d45d62e997bb6fd5595517bd10",
+        "lca-bridge/runtime-tools.js": "389ad836950dd9d8dfe0f02f7e28e81f49d150910202fad9e330a2606cc2843e",
+        "lca-bridge/skill-files.d.ts": "093356b1438e4152cbb3b0a250e0bcf4b7b36c8d599a43a13665251b3dcdf9f2",
+        "lca-bridge/skill-files.js": "1450e051165840056963977cb8de90ef69fd45a6c7ba9aef7cdfd9557cd8c503",
+        "lca-bridge/skills.js": "ceac29dbb832b513bf89b8f18cb76d2854878d71510a2b695f621c56d33cddaa",
+        "lca-bridge/state.js": "66af79ffa42d100987602e4ab68670c6a2985de653afb59a2c5a5ec8d56ae8c8",
+        "lca-bridge/work-evidence.d.ts": "e71521696c0676905eec6ab9f440d6fb5004cfb386e78f5d55e88faa69e12021",
+        "lca-bridge/work-evidence.js": "d534f221e4519b60c21f6ce5a28b23bf431d29534c4972320e3674884130c8b0"
+      },
+      "files": {
+        "run.json": "79bdde3b81f8ee45cbd7c80f4a69f29caf50568afeeb7633cb7413776843f4bb",
+        "source-manifest.json": "8eddf39537f80e7bd76b32038a2e020796b89745792263cc19a19a18d01631f1",
+        "authorization.json": "0143e1e19ffe44c5a51e7cbc13c2118f461495dcdbde95e42f8a3ca16ea3650b",
+        "report.json": "ceb22cd5754003885b35a8f3e81d10a8c067608f8ec5bb70b7fbc0e0445ba4f9",
+        "gateway-report.json": "0d4e8efcf8b30180a710c0b1c58d675bf2b40e91ba94d764e6d99dd734798b39",
+        "closed.json": "d67067de47f19b9c5fd6f8302bd7a95053257438af4fb5ba33aa0c05e34c1906"
+      },
+      "preflight": {
+        "root": "D:\\lca-continuity-candidate-20261101\\profiles\\memory-services-selftest-20261102-1",
+        "passed": true,
+        "sourceAndBundleIdentical": true,
+        "modelRequests": 27,
+        "embeddingRequests": 30,
+        "checks": {
+          "rememberReviewAndRecall": true,
+          "correctionSupersedesOldFact": true,
+          "actualCompactionPreservesHistoryAndCurrentFact": true,
+          "correctedFactSurvivesRestart": true,
+          "successfulInputsExtractedWithoutDuplicateCapture": true,
+          "forgottenFactUnavailable": true,
+          "nonemptyRestoreDoesNotResurrectForgottenFact": true
+        }
+      },
+      "actual": {
+        "passed": false,
+        "error": "GATEWAY_HALTED:EXTRACTION_NOT_SETTLED\n\ntrue !== false\n",
+        "checks": {
+          "rememberReviewAndRecall": true,
+          "correctionSupersedesOldFact": true,
+          "actualCompactionPreservesHistoryAndCurrentFact": true,
+          "correctedFactSurvivesRestart": true
+        },
+        "answers": [
+          {
+            "step": "remember",
+            "userMessageId": "fcc11b68-7058-4874-bac8-7c2c17c1c6a3",
+            "turnId": "515d2764-fdb3-40a5-a388-c843b8ccd86c",
+            "text": "已经提了一条“饮料偏好：喜欢喝茶”的记忆草稿，现在是待审阅状态，你去记忆设置里确认一下就会正式记下来。"
+          },
+          {
+            "step": "recall-tea",
+            "userMessageId": "b5ac6490-719d-4c3a-9459-18c3a315a77d",
+            "turnId": "7feb6dd2-5742-4857-a73e-16c570e90341",
+            "text": "当前已经过审阅生效的记忆里记着：你平时喜欢喝茶。"
+          },
+          {
+            "step": "correct",
+            "userMessageId": "eccd462b-6efb-42a6-911c-6b4e3dc2c7ce",
+            "turnId": "bcf7e903-4103-4513-b713-f2843aa065c4",
+            "text": "查过了，原记忆是第 2 版。已经把更正提上去：改成你现在喜欢喝咖啡、不再喝茶。还在待审阅状态，你去记忆设置里确认一下就好。"
+          },
+          {
+            "step": "recall-coffee",
+            "userMessageId": "48816973-1f35-4a5f-8ebf-909464af3f72",
+            "turnId": "3439cebd-4d76-4d73-b216-fd989667d58a",
+            "text": "查过了，当前已审阅的记忆（版本 `2`）写的是：你现在喜欢喝咖啡，不再喝茶。"
+          },
+          {
+            "step": "filler",
+            "userMessageId": "6ca46756-c547-425e-979a-44d777240c66",
+            "turnId": "d916030b-be59-4f0a-b9d4-1273ec7e4a07",
+            "text": "嗯。看到了，这段不用记。"
+          },
+          {
+            "step": "after-compact",
+            "userMessageId": "01269110-e387-4939-a47b-8936fb4a3131",
+            "turnId": "26e9e865-137c-4203-afca-526e9f3ec61d",
+            "text": "查过了。当前已审阅的记忆（ID `2f0d28a6-0d22-493f-8e85-705e9d63d3f3`，版本 2）里记着：你现在喜欢喝咖啡，不再喝茶。"
+          },
+          {
+            "step": "after-restart",
+            "userMessageId": "68f5d2d2-5880-4ce4-a362-733d6cea3070",
+            "turnId": "d70bb864-5fa0-48e2-b565-d3c9069dda3a",
+            "text": "查过了。当前已审阅的记忆（ID `2f0d28a6-0d22-493f-8e85-705e9d63d3f3`，版本 2）里记着：你现在喜欢喝咖啡，不再喝茶。"
+          }
+        ],
+        "modelRequests": 22,
+        "embeddingRequests": 20,
+        "embeddingCharacters": 4380,
+        "reservedUnits": 334735,
+        "autonomousUnits": 91515,
+        "successfulModelResponses": 21,
+        "successfulEmbeddingResponses": 20,
+        "measuredModelTokens": 241435,
+        "failedRequestUsageUnknown": true,
+        "inFlight": 0,
+        "closed": true,
+        "cleanupUncertain": false,
+        "samples": [
+          {
+            "slot": "embedding",
+            "phase": "remember",
+            "startedAt": "2026-11-02T03:37:23.831Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 1579,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 1544,
+              "firstByteMs": 1547,
+              "lastByteMs": 1575,
+              "completedMs": 1576,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "remember",
+            "startedAt": "2026-11-02T03:37:25.445Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 350,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 304,
+              "firstByteMs": 304,
+              "lastByteMs": 349,
+              "completedMs": 350,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "remember",
+            "startedAt": "2026-11-02T03:37:26.281Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 32261,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 30773,
+              "firstByteMs": 30773,
+              "lastByteMs": 32257,
+              "completedMs": 32257,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "remember",
+            "startedAt": "2026-11-02T03:37:58.807Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 8540,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 7506,
+              "firstByteMs": 7507,
+              "lastByteMs": 8539,
+              "completedMs": 8539,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "recall-tea",
+            "startedAt": "2026-11-02T03:38:07.862Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 1779,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 1099,
+              "firstByteMs": 1099,
+              "lastByteMs": 1778,
+              "completedMs": 1779,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "recall-tea",
+            "startedAt": "2026-11-02T03:38:09.722Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 367,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 331,
+              "firstByteMs": 331,
+              "lastByteMs": 367,
+              "completedMs": 367,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "recall-tea",
+            "startedAt": "2026-11-02T03:38:10.121Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 354,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 312,
+              "firstByteMs": 312,
+              "lastByteMs": 353,
+              "completedMs": 354,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "recall-tea",
+            "startedAt": "2026-11-02T03:38:10.774Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 8225,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 7310,
+              "firstByteMs": 7311,
+              "lastByteMs": 8223,
+              "completedMs": 8223,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "recall-tea",
+            "startedAt": "2026-11-02T03:38:19.071Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 958,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 918,
+              "firstByteMs": 918,
+              "lastByteMs": 958,
+              "completedMs": 958,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "recall-tea",
+            "startedAt": "2026-11-02T03:38:20.266Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 12139,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 10489,
+              "firstByteMs": 10490,
+              "lastByteMs": 12139,
+              "completedMs": 12139,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "recall-tea",
+            "startedAt": "2026-11-02T03:38:32.608Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 23731,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 20172,
+              "firstByteMs": 20172,
+              "lastByteMs": 23730,
+              "completedMs": 23730,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "correct",
+            "startedAt": "2026-11-02T03:38:56.514Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 983,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 930,
+              "firstByteMs": 930,
+              "lastByteMs": 983,
+              "completedMs": 983,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "correct",
+            "startedAt": "2026-11-02T03:38:57.527Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 361,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 312,
+              "firstByteMs": 312,
+              "lastByteMs": 360,
+              "completedMs": 360,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "correct",
+            "startedAt": "2026-11-02T03:38:58.182Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 11258,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 9620,
+              "firstByteMs": 9620,
+              "lastByteMs": 11257,
+              "completedMs": 11257,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "correct",
+            "startedAt": "2026-11-02T03:39:09.514Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 1912,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 1876,
+              "firstByteMs": 1876,
+              "lastByteMs": 1912,
+              "completedMs": 1912,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "correct",
+            "startedAt": "2026-11-02T03:39:11.752Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 6932,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 6311,
+              "firstByteMs": 6311,
+              "lastByteMs": 6931,
+              "completedMs": 6931,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "correct",
+            "startedAt": "2026-11-02T03:39:18.880Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 19759,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 16619,
+              "firstByteMs": 16619,
+              "lastByteMs": 19758,
+              "completedMs": 19758,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "correct",
+            "startedAt": "2026-11-02T03:39:38.843Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 6119,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 5782,
+              "firstByteMs": 5782,
+              "lastByteMs": 6119,
+              "completedMs": 6119,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "recall-coffee",
+            "startedAt": "2026-11-02T03:39:45.508Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 952,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 912,
+              "firstByteMs": 912,
+              "lastByteMs": 952,
+              "completedMs": 952,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "recall-coffee",
+            "startedAt": "2026-11-02T03:39:46.512Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 335,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 292,
+              "firstByteMs": 292,
+              "lastByteMs": 335,
+              "completedMs": 335,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "recall-coffee",
+            "startedAt": "2026-11-02T03:39:46.874Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 340,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 294,
+              "firstByteMs": 294,
+              "lastByteMs": 339,
+              "completedMs": 340,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "recall-coffee",
+            "startedAt": "2026-11-02T03:39:47.502Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 18568,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 16740,
+              "firstByteMs": 16740,
+              "lastByteMs": 18567,
+              "completedMs": 18567,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "recall-coffee",
+            "startedAt": "2026-11-02T03:40:06.270Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 23860,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 23804,
+              "firstByteMs": 23804,
+              "lastByteMs": 23859,
+              "completedMs": 23859,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "filler",
+            "startedAt": "2026-11-02T03:40:30.311Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 971,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 927,
+              "firstByteMs": 927,
+              "lastByteMs": 971,
+              "completedMs": 971,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "filler",
+            "startedAt": "2026-11-02T03:40:31.307Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 342,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 297,
+              "firstByteMs": 297,
+              "lastByteMs": 342,
+              "completedMs": 342,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "filler",
+            "startedAt": "2026-11-02T03:40:31.841Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 8978,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 8032,
+              "firstByteMs": 8032,
+              "lastByteMs": 8978,
+              "completedMs": 8978,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "compact",
+            "startedAt": "2026-11-02T03:40:41.058Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 17303,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 8299,
+              "firstByteMs": 8299,
+              "lastByteMs": 17302,
+              "completedMs": 17302,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "after-compact",
+            "startedAt": "2026-11-02T03:40:58.612Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 1568,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 1568,
+              "firstByteMs": 1568,
+              "lastByteMs": 1568,
+              "completedMs": 1568,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "after-compact",
+            "startedAt": "2026-11-02T03:41:00.204Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 370,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 325,
+              "firstByteMs": 325,
+              "lastByteMs": 370,
+              "completedMs": 370,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "after-compact",
+            "startedAt": "2026-11-02T03:41:00.771Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 6836,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 6394,
+              "firstByteMs": 6394,
+              "lastByteMs": 6835,
+              "completedMs": 6835,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "after-compact",
+            "startedAt": "2026-11-02T03:41:07.669Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 1860,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 1820,
+              "firstByteMs": 1820,
+              "lastByteMs": 1859,
+              "completedMs": 1860,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "after-compact",
+            "startedAt": "2026-11-02T03:41:09.854Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 20335,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 17392,
+              "firstByteMs": 17392,
+              "lastByteMs": 20334,
+              "completedMs": 20334,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "after-restart",
+            "startedAt": "2026-11-02T03:41:35.507Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 977,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 916,
+              "firstByteMs": 916,
+              "lastByteMs": 976,
+              "completedMs": 977,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "after-restart",
+            "startedAt": "2026-11-02T03:41:36.518Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 341,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 295,
+              "firstByteMs": 295,
+              "lastByteMs": 341,
+              "completedMs": 341,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "after-restart",
+            "startedAt": "2026-11-02T03:41:37.241Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 9131,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 8587,
+              "firstByteMs": 8588,
+              "lastByteMs": 9130,
+              "completedMs": 9130,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "embedding",
+            "phase": "after-restart",
+            "startedAt": "2026-11-02T03:41:46.450Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 1472,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 1432,
+              "firstByteMs": 1432,
+              "lastByteMs": 1472,
+              "completedMs": 1472,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "chat",
+            "phase": "after-restart",
+            "startedAt": "2026-11-02T03:41:48.268Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 7365,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 6606,
+              "firstByteMs": 6606,
+              "lastByteMs": 7364,
+              "completedMs": 7364,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "background",
+            "phase": "extract",
+            "startedAt": "2026-11-02T03:41:55.936Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 6866,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 5966,
+              "firstByteMs": 5966,
+              "lastByteMs": 6865,
+              "completedMs": 6865,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "background",
+            "phase": "extract",
+            "startedAt": "2026-11-02T03:42:02.916Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 14416,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 12045,
+              "firstByteMs": 12045,
+              "lastByteMs": 14415,
+              "completedMs": 14415,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "background",
+            "phase": "extract",
+            "startedAt": "2026-11-02T03:42:17.424Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 8741,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 8060,
+              "firstByteMs": 8060,
+              "lastByteMs": 8740,
+              "completedMs": 8740,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "background",
+            "phase": "extract",
+            "startedAt": "2026-11-02T03:42:26.262Z",
+            "ok": true,
+            "status": 200,
+            "error": null,
+            "elapsedMs": 4278,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 4206,
+              "firstByteMs": 4206,
+              "lastByteMs": 4278,
+              "completedMs": 4278,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          },
+          {
+            "slot": "background",
+            "phase": "extract",
+            "startedAt": "2026-11-02T03:42:30.634Z",
+            "ok": false,
+            "status": 200,
+            "error": "RESPONSE_FAILED",
+            "elapsedMs": 30012,
+            "responseTiming": {
+              "policy": {
+                "firstResponseMs": 120000,
+                "idleMs": 60000,
+                "totalMs": 300000
+              },
+              "headersMs": 28745,
+              "firstByteMs": 28745,
+              "lastByteMs": 28745,
+              "completedMs": null,
+              "timeoutPhase": null,
+              "timeoutMs": null
+            }
+          }
+        ],
+        "failureReview": {
+          "phase": "extract",
+          "slot": "background",
+          "requestNumber": 22,
+          "httpStatus": 200,
+          "firstDataMs": 28745,
+          "abortedAtMs": 30012,
+          "gatewayTimeoutPhase": null,
+          "applicationOuterDeadlineMs": 30000,
+          "partialAnswersAccepted": true,
+          "fullMemoryAcceptance": false
+        }
+      }
+    }
+  },
+  "verification": {
+    "unit": {
+      "files": 5,
+      "passed": 77,
+      "repeatAfterTypeOnlyFixtureFix": {
+        "file": "tests/unit/task-model-ports.test.ts",
+        "passed": 15
+      }
+    },
+    "bridge": {
+      "report": "test-results/continuity/state-lanes-20261102-2/report.json",
+      "sha256": "ce50f86dc3c32581e638eb5430dcc86f10bc127dd227958c814b2c84f2ac9758",
+      "cases": [
+        {
+          "name": "state-foreground",
+          "ok": true,
+          "checks": {
+            "stayedChat": true,
+            "prompt": true,
+            "nativeWriteRefused": true,
+            "noSwitch": true,
+            "completed": true
+          },
+          "modelRequests": 2,
+          "exitCode": 0
+        },
+        {
+          "name": "state-foreground-sign",
+          "ok": true,
+          "checks": {
+            "oneRequest": true,
+            "stayedChat": true,
+            "stateApproved": true,
+            "noWorkContinuation": true,
+            "replyPublished": true,
+            "completed": true
+          },
+          "modelRequests": 1,
+          "exitCode": 0
+        },
+        {
+          "name": "state-worker",
+          "ok": true,
+          "checks": {
+            "workerModel": true,
+            "noStateProtocol": true,
+            "wrote": true,
+            "noSwitch": true,
+            "completed": true
+          },
+          "modelRequests": 2,
+          "exitCode": 0
+        },
+        {
+          "name": "state-text-handoff",
+          "ok": true,
+          "checks": {
+            "oneChatThenWork": true,
+            "sameTurn": true,
+            "stateApproved": true,
+            "prompt": true,
+            "continuation": true,
+            "wrote": true,
+            "noProtocolInBook": true
+          },
+          "modelRequests": 3,
+          "exitCode": 0
+        },
+        {
+          "name": "state-stale",
+          "ok": true,
+          "checks": {
+            "noSwitch": true,
+            "completed": true,
+            "warned": true
+          },
+          "modelRequests": 1,
+          "exitCode": 0
+        },
+        {
+          "name": "state-refused",
+          "ok": true,
+          "checks": {
+            "noSwitch": true,
+            "oneDecision": true,
+            "warned": true,
+            "completed": true
+          },
+          "modelRequests": 1,
+          "exitCode": 0
+        },
+        {
+          "name": "state-work",
+          "ok": true,
+          "checks": {
+            "direct": true,
+            "wrote": true,
+            "completed": true,
+            "noHandoff": true
+          },
+          "modelRequests": 2,
+          "exitCode": 0
+        }
+      ]
+    },
+    "nodeTypecheck": "passed",
+    "scopedLint": "passed",
+    "productionBuild": "passed",
+    "realRequestsAfterFix": 0,
+    "newPackage": false,
+    "earlierVerificationFailures": [
+      {
+        "stage": "bridge fixture",
+        "cause": "new worker fixture omitted workRevision; write was correctly denied",
+        "preservedRoot": "test-results/continuity/state-lanes-20261102-1"
+      },
+      {
+        "stage": "typecheck",
+        "cause": "new extraction fixture omitted required scope; fixed"
+      }
+    ]
+  },
+  "limitations": [
+    "Same candidate 4 only; source fixes are not included in that package.",
+    "Voyage calls used compatible localhost relay and omitted optional input_type; direct query/document role behavior has unit evidence only.",
+    "Full work stop/restart/idempotency and memory extraction/forget/export/restore remain unpassed on real services.",
+    "PostgreSQL mirror unavailable until Docker installation is repaired; no current container or volume was modified.",
+    "Second Windows, isolated installation/upgrade, full 90+24 live matrix and longitudinal use remain separate."
+  ],
+  "postgres": {
+    "status": "unavailable",
+    "realPostgres": false,
+    "container": "lca-continuity-pg-edaf1e03-cd66-4a65-b138-bc4cd32e9694",
+    "reason": "DOCKER_UNAVAILABLE",
+    "checks": [],
+    "report": "test-results/continuity/services-postgres-20261102/postgres-9fef4b48-1fba-45b7-83e3-c66fb0eff97c/report.json",
+    "sha256": "9e4196270fd49f119f00b33a2756d654f26742ae2cc8c052ef06ff0c8fbb1dd4",
+    "dockerVersion": "4.96.3.244472",
+    "installationRegistryAbsent": true,
+    "installationSignatures": "Valid Docker Inc.",
+    "wslDistributionPresent": true,
+    "disks": [
+      {
+        "path": "D:/DockerData/main/ext4.vhdx",
+        "bytes": 109051904
+      },
+      {
+        "path": "D:/DockerData/disk/docker_data.vhdx",
+        "bytes": 2428502016
+      }
+    ],
+    "dataContentsVerified": false,
+    "existingAiriDatabaseAccessed": false
+  }
+}

@@ -19,7 +19,7 @@
 | 1.2 开发候选与未完成门槛 | [1.2.0-rc.3 验收](releases/1.2.0-rc.3.md)、[rc.2 历史](releases/1.2.0-rc.2.md)、[P6 组合恢复](research/v1.2-p6-20261024.md) |
 | 连续协作者与完整记忆实验候选 | [阶段 0–6、候选清单与回退](research/continuous-implementation-20261101.md)、[统一计划](research/lca-continuity-memory-context-plan-20261101.md) |
 | 工作与记忆实测准备 | [普通产品预跑、压缩恢复修复与额度](research/continuity-probes-preflight-20261102.md)、[取消计划真实单例](research/continuity-world-cancelled-20261102.md) |
-| 真实工作测试 | [分段超时与最新工作复测](research/continuity-work-timeouts-20261102.md)、[控制变量诊断与 CSV 对账](research/continuity-provider-diagnosis-20261102.md)、[最初工作超时](research/continuity-work-live-20261102.md)、[第一次 cURL 成功](research/continuity-provider-curl-20261102.md) |
+| 真实工作、记忆与向量测试 | [最新实测、修复与 Docker 阻塞](research/continuity-services-20261102.md)、[分段超时与断网记录](research/continuity-work-timeouts-20261102.md)、[控制变量诊断与 CSV 对账](research/continuity-provider-diagnosis-20261102.md)、[最初工作超时](research/continuity-work-live-20261102.md)、[第一次 cURL 成功](research/continuity-provider-curl-20261102.md) |
 | 参考机制、依赖和素材来源 | [参考与来源](reference-research.md)、[第三方说明](../THIRD_PARTY_NOTICES.md) |
 | 复现实验及其证据边界 | [研究索引](research/README.md) |
 | 初始交付与旧文档 | [项目历史](history.md) |
