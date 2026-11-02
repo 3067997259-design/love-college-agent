@@ -2,21 +2,51 @@
 // Upstream: packages/memory-pgvector/src/repository.integration.test.ts
 import { describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
+import postgres from 'postgres'
 
 import { connectMemoryRepository, ensureMemorySchema } from '../../../../src/main/memory/airi/pgvector/repository'
 
-// Integration walkthrough against a real Postgres (pgvector) database.
-// Skips unless DATABASE_URL points at a reachable server — the local
-// workflow is `docker compose -f server/docker-compose.yaml up -d db` with
-// the credentials from that compose file, then:
-//   DATABASE_URL=postgresql://... pnpm -F @proj-airi/memory-pgvector exec vitest run src/repository.integration.test.ts
-// This is a separately authorized integration run, never an ambient daily DB.
+// Run through scripts/continuity-postgres-gate.mjs against its private Docker DB.
+// The explicit test opt-in never consumes an ambient daily DATABASE_URL.
 const connectionString = process.env.LCA_MEMORY_TEST_POSTGRES === '1' ? process.env.LCA_MEMORY_TEST_DATABASE_URL?.trim() : undefined
 const vector = (seed: number) => Array.from({ length: 768 }, (_, i) => Math.sin(seed + i / 50) * 0.5)
 
 describe.skipIf(!connectionString)('memory repository (real Postgres)', () => {
+  it('shares vector types across private namespaces without sharing facts', { timeout: 60_000 }, async () => {
+    const namespaces = Array.from({ length: 2 }, () => `lca_memory_${randomUUID().replaceAll('-', '')}`)
+    await Promise.all(namespaces.map(namespace => ensureMemorySchema(connectionString!, namespace)))
+    const connections = namespaces.map(namespace => connectMemoryRepository(connectionString!, undefined, namespace))
+    try {
+      for (const [i, { repository }] of connections.entries()) {
+        await repository.insert({ originId: 'same-origin', content: `Owner ${i}`, category: 'chat', memoryType: 'long_term', importance: 5, valence: 0, arousal: 0, tags: [], reviewStatus: 'approved', embedding: vector(i + 1) })
+      }
+      for (const [i, { repository }] of connections.entries()) {
+        expect((await repository.list({ limit: 10 })).map(fact => fact.content)).toEqual([`Owner ${i}`])
+        expect((await repository.search({ embedding: vector(i + 1), limit: 10 })).map(fact => fact.content)).toEqual([`Owner ${i}`])
+      }
+    } finally { await Promise.all(connections.map(connection => connection.close())) }
+  })
+
+  it('repairs a legacy private vector extension while preserving existing rows and isolation', { timeout: 60_000 }, async () => {
+    const legacy = `lca_memory_${randomUUID().replaceAll('-', '')}`, next = `lca_memory_${randomUUID().replaceAll('-', '')}`
+    await ensureMemorySchema(connectionString!, legacy)
+    const first = connectMemoryRepository(connectionString!, undefined, legacy)
+    const sql = postgres(connectionString!)
+    let second: ReturnType<typeof connectMemoryRepository> | undefined
+    try {
+      const original = await first.repository.insert({ originId: 'legacy', content: 'Preserved legacy fact', category: 'chat', memoryType: 'long_term', importance: 5, valence: 0, arousal: 0, tags: [], reviewStatus: 'approved', embedding: vector(4) })
+      await sql.unsafe(`ALTER EXTENSION vector SET SCHEMA "${legacy}"`)
+      await ensureMemorySchema(connectionString!, next)
+      second = connectMemoryRepository(connectionString!, undefined, next)
+      expect(await second.repository.list({ limit: 10 })).toEqual([])
+      expect((await first.repository.search({ embedding: vector(4), limit: 10 })).map(fact => fact.id)).toEqual([original.id])
+      const [extension] = await sql`SELECT n.nspname FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace WHERE e.extname = 'vector'`
+      expect(extension.nspname).toBe('public')
+    } finally { await first.close(); await second?.close(); await sql.end() }
+  })
+
   it('keeps an absent or concurrently arriving origin forgotten across two connections', { timeout: 60_000 }, async () => {
-    const namespace = `lca_memory_test_${randomUUID().replaceAll('-', '')}`
+    const namespace = `lca_memory_${randomUUID().replaceAll('-', '')}`
     await ensureMemorySchema(connectionString!, namespace)
     const first = connectMemoryRepository(connectionString!, undefined, namespace)
     const second = connectMemoryRepository(connectionString!, undefined, namespace)

@@ -583,7 +583,9 @@ export function connectMemoryRepository(connectionString: string, clock: Pick<Cl
   return {
     repository: createMemoryRepository(db, clock),
     close: async () => {
-      await client.end()
+      // A lost server can leave the driver's graceful close pending forever.
+      // Bound disposal; this does not turn an unknown write into a receipt.
+      await client.end({ timeout: 5 })
     },
   }
 }
@@ -599,7 +601,22 @@ export async function ensureMemorySchema(connectionString: string, namespace?: s
   const client = postgres(connectionString, memoryPostgresOptions(namespace))
   try {
     if (namespace) await client.unsafe(`CREATE SCHEMA IF NOT EXISTS "${namespace}"`)
-    await client`CREATE EXTENSION IF NOT EXISTS vector`
+    // Extensions are database-wide. The first owner's search_path must not put
+    // vector's types/operators in a private schema that later owners cannot see.
+    await client.begin(async tx => {
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended('lca_memory:vector-extension', 0))`
+      await tx`CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public`
+      const [extension] = await tx<{ schema_name: string }[]>`
+        SELECT n.nspname AS schema_name FROM pg_extension e
+        JOIN pg_namespace n ON n.oid = e.extnamespace WHERE e.extname = 'vector'
+      `
+      if (extension.schema_name !== 'public') {
+        // Repair the old LCA initialization without moving memory tables or
+        // taking over an extension installed in an unrelated custom schema.
+        if (!/^lca_memory_[a-f0-9]{32}$/.test(extension.schema_name)) throw new Error('MEMORY_MIRROR_VECTOR_SCHEMA_UNSUPPORTED')
+        await tx`ALTER EXTENSION vector SET SCHEMA public`
+      }
+    })
     await client`CREATE TABLE IF NOT EXISTS memory_fragments (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       content text NOT NULL,
@@ -714,7 +731,7 @@ export async function ensureMemorySchema(connectionString: string, namespace?: s
     await client`CREATE INDEX IF NOT EXISTS memory_short_term_ideas_status_index ON memory_short_term_ideas (status)`
   }
   finally {
-    await client.end()
+    await client.end({ timeout: 5 })
   }
 }
 

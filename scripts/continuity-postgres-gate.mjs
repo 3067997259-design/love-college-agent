@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { createServer } from 'node:net'
 
 const root = resolve(process.env.LCA_CONTINUITY_RUN_DIR ?? 'test-results/continuity', 'postgres-' + randomUUID())
 mkdirSync(join(root, 'docker-config'), { recursive: true })
@@ -19,11 +20,17 @@ try {
     else {
       report.imageId = image.stdout.trim()
       const password = randomUUID() // synthetic disposable credential, never a daily DB
-      const started = docker(['run', '-d', '--name', container, '--label', 'lca.continuity-test=true', '-p', '127.0.0.1::5432', '-e', 'POSTGRES_DB=lca_acceptance', '-e', 'POSTGRES_PASSWORD=' + password, report.imageId])
+      // Docker may choose a different anonymous host port after stop/start.
+      // Allocate an unused port once and bind it explicitly for recovery tests.
+      const reservation = createServer()
+      await new Promise((done, reject) => { reservation.once('error', reject); reservation.listen(0, '127.0.0.1', done) })
+      const requestedPort = reservation.address().port
+      await new Promise((done, reject) => reservation.close(error => error ? reject(error) : done()))
+      const started = docker(['run', '-d', '--name', container, '--label', 'lca.continuity-test=true', '-p', `127.0.0.1:${requestedPort}:5432`, '-e', 'POSTGRES_DB=lca_acceptance', '-e', 'POSTGRES_PASSWORD=' + password, report.imageId])
       if (started.status !== 0) throw new Error('ISOLATED_DATABASE_START_FAILED')
       created = true
       const port = docker(['port', container, '5432/tcp']).stdout.trim().match(/^127\.0\.0\.1:(\d+)$/)?.[1]
-      if (!port) throw new Error('ISOLATED_PORT_MISSING')
+      if (!port || Number(port) !== requestedPort) throw new Error('ISOLATED_PORT_MISSING')
       let ready = false
       for (let i = 0; i < 60; i++) {
         if (docker(['exec', container, 'pg_isready', '-U', 'postgres', '-d', 'lca_acceptance']).status === 0) { ready = true; break }
@@ -38,7 +45,7 @@ try {
       // Error output can contain connection URLs. Keep only sanitized totals.
       if (run.status !== 0) throw new Error('POSTGRES_TESTS_FAILED')
       const unit = JSON.parse(readFileSync(output, 'utf8'))
-      if (unit.numPendingTests || unit.numFailedTests || unit.numPassedTests !== 6) throw new Error('POSTGRES_TESTS_INCOMPLETE')
+      if (unit.numPendingTests || unit.numFailedTests || unit.numPassedTests !== 8) throw new Error('POSTGRES_TESTS_INCOMPLETE')
       report.checks = unit.testResults.flatMap(suite => suite.assertionResults.map(test => test.fullName))
       report.status = 'passed'; report.realPostgres = true
     }
