@@ -2,6 +2,7 @@
   "candidate": "1.2.0-continuity.10",
   "packaged": true,
   "externalRequests": 0,
+  "externalRequestsScope": "Local acceptance in this record only; the separately authorized 2026-11-04 live window is recorded in liveQualityEvidence.",
   "source": {
     "src/main/dsh/execution.ts": "c1a327fed92d9e66e3372608e2edefd6fda77ac3efb614d103b28c3991273df2",
     "src/main/dsh/host.ts": "1ee0bdb4c9e0be72919d759779a74a8070dae4081a8030ab18161cab24de7f31",
@@ -1916,7 +1917,8 @@
       "sourceRemoved": true
     }
   },
-  "liveQuality": "not authorized or run for this candidate; original story batch closed at S05",
+  "liveQuality": "2026-11-04 authorized retrieval stopped at case 20 after 19 completed cases and 79 Voyage requests; entire window closed, stories not started. Subsequent offline diagnostics also exposed an allocation failure; no new live authorization is ready.",
+  "liveQualityEvidence": "continuity-candidate10-quality-live-20261104.json",
   "build": {
     "path": "C:/.lca-cache/continuity10-release-20261103/build-receipt.json",
     "sha256": "9721d9cb50aca304c3d1e0303cd1ea1e776bce4b992f931eedefa36439ff8f8e",

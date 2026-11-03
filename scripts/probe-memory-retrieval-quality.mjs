@@ -15,6 +15,7 @@ const plan = await read(join(repo, 'scripts/memory-quality-plan.json'))
 const names = [
   'scripts/probe-memory-retrieval-quality.mjs', 'scripts/memory-quality-plan.json',
   'scripts/fixtures/memory-retrieval-quality.ts', 'scripts/fixtures/continuity-live-budget.ts',
+  'scripts/fixtures/memory-retrieval-diagnostics.ts',
   'tests/fixtures/memory-quality-corpus.json', 'src/main/memory/airi/core/evaluation.ts',
 ]
 const sources = Object.fromEntries(await Promise.all(names.map(async name => [name, await sha(join(repo, name))])))
