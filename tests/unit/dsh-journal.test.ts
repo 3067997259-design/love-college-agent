@@ -571,7 +571,10 @@ describe('DSH work in the LCA journal', () => {
     f.emit({ t: 'message', text: '好，记成 Markdown，放桌面。', toolCalls: [] })
     f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
     const seen = f.store.records().find((row) => row.type === 'model/seen')
-    expect(seen?.type === 'model/seen' && seen.messages.map((message) => message.content)).toEqual(['帮我记下来', '格式：Markdown\n放在哪？：桌面', '好，记成 Markdown，放桌面。'])
+    expect(seen?.type === 'model/seen' && seen.messages.map((message) => message.content)).toEqual(['帮我记下来', 'Markdown\n桌面', '好，记成 Markdown，放桌面。'])
+    const original = f.store.records().find(row => row.type === 'user/message' && row.text === '格式：Markdown\n放在哪？：桌面')
+    expect(original?.type).toBe('user/message')
+    if (original?.type === 'user/message' && seen?.type === 'model/seen') expect(seen.originalEvents).toContainEqual({ index: 1, eventId: original.id })
     f.journal.close()
   })
 
