@@ -9,6 +9,9 @@ import type { SourceMail } from '../mail/types'
 export interface ToolContext { clock: Clock; store: SessionStore; turnId: string; callId?: string; signal: AbortSignal
   /** Main-issued authored message, already delivered to this root. Never a tool argument. */
   userMessageId?: string
+  /** Originals delivered in this turn, including committed clarification replies.
+   * Work routing may join a reply to its request; history and tool text are excluded. */
+  userMessageIds?: readonly string[]
 }
 type JsonValue = Extract<JournalInput, { type: 'tool/result' }>['raw']
 export interface CandidateSeed {
