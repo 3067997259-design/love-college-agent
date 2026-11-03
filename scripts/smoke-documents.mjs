@@ -7,15 +7,23 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, electronLaunchTarget, initializeTestBook, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, testDataRoot, electronLaunchTarget, initializeTestBook, openSettings } from './runtime-env.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'documents-smoke-' + randomUUID())
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const runId = randomUUID(); const data = join(testDataRoot(root), 'documents-smoke-' + runId)
 const sceneId = randomUUID(); const profile = join(data, 'developer', sceneId)
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-test-providers.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '19530' }
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-test-providers.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '0' }
 let instance; let page; let client
-async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 }); page = await instance.firstWindow(); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
+let stage = 'setup'; const rendererErrors = []
+async function launch() {
+  stage = 'launch'; instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 })
+  stage = 'first-window'; page = await instance.firstWindow({ timeout: 30_000 }); page.setDefaultTimeout(30_000)
+  page.on('pageerror', error => rendererErrors.push(error.message))
+  stage = 'initialize-book'; await initializeTestBook(page)
+  stage = 'room-ready'; await page.locator('[data-mode][data-pose]').waitFor()
+  stage = 'book-ready'
+}
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
-async function waitFor(predicate, error) { for (let i = 0; i < 150; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(error) }
+async function waitFor(predicate, error) { stage = error; for (let i = 0; i < 150; i++) { if (predicate(await snapshot())) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(error) }
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, epoch: s.epoch, protocolVersion: 1, requestId: crypto.randomUUID() }) }, body)
 const openTools = () => openSettings(page)
 const closeTools = () => page.getByRole('button', { name: '关闭', exact: true }).click()
@@ -82,6 +90,7 @@ try {
     { text: 'DOCUMENT_METADATA_CHECK_COMPLETED', toolCalls: [], delayMs: 0 },
   ] } })
   await slash('synthetic metadata-only document check')
+  stage = 'metadata-tool-answer'
   await page.locator('.msg-text').filter({ hasText: 'DOCUMENT_METADATA_CHECK_COMPLETED' }).waitFor()
   const context = await client.callTool({ name: 'get_context', arguments: {} }); safe(context)
   assert.ok(JSON.stringify(context).includes('get_processed_files'), 'DOCUMENT_TOOL_NOT_EXECUTED')
@@ -118,4 +127,11 @@ try {
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results', 'documents.png') })
   await instance.close(); await launch(); assert.equal((await snapshot()).privacy.fileFilteringEnabled, false)
   console.log('Documents smoke: native drop/chooser, staged mail PDF, local persistent /privacy, actual isolated PDF process and Markdown preview, metadata-only tool/MCP/journal, explicit retry, malformed/no-text PDF refusal, cancel and restart; real IMAP/model not attempted.')
+} catch (error) {
+  const state = await Promise.race([snapshot().catch(() => null), new Promise(done => setTimeout(() => done(null), 2000))])
+  await mkdir(join(root, 'test-results'), { recursive: true })
+  await writeFile(join(root, 'test-results', 'documents-failure-' + runId + '.json'), JSON.stringify({ error: String(error), stage, data, rendererErrors,
+    state: state && { onboarding: state.onboarding.status, windows: state.windows, task: state.task?.status, mode: state.companion.mode,
+      documents: state.documents.jobs.map(job => ({ status: job.status, error: job.error?.code })) } }, null, 2))
+  throw error
 } finally { await client?.close(); await instance?.close() }

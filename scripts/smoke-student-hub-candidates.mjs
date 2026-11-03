@@ -6,15 +6,15 @@ import { fileURLToPath } from 'node:url'
 import Database from 'better-sqlite3'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const data = join(root, '.local-data', `student-hub-candidates-${randomUUID()}`)
-const hub = join(root, '.local-data', `student-hub-fixture-${randomUUID()}`)
+const data = join(testDataRoot(root), `student-hub-candidates-${randomUUID()}`)
+const hub = join(testDataRoot(root), `student-hub-fixture-${randomUUID()}`)
 const pluginSource = join(root, 'plugin-packages', 'student-hub-candidates')
 const dbPath = join(hub, 'var', 'student_hub.sqlite3')
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-test-providers.json'),
-  LCA_MCP_PORT: '0', LCA_CDP_PORT: '19583', LCA_STUDENT_HUB_ROOT: hub, LCA_STUDENT_HUB_DB: dbPath }
+  LCA_MCP_PORT: '0', LCA_CDP_PORT: '0', LCA_STUDENT_HUB_ROOT: hub, LCA_STUDENT_HUB_DB: dbPath }
 let instance
 let page
 
@@ -89,7 +89,7 @@ try {
 } finally {
   await instance?.close().catch(() => {})
   for (const path of [data, hub]) {
-    if (path.startsWith(join(root, '.local-data', path.includes('student-hub-fixture-') ? 'student-hub-fixture-' : 'student-hub-candidates-'))) {
+    if (path.startsWith(join(testDataRoot(root), path.includes('student-hub-fixture-') ? 'student-hub-fixture-' : 'student-hub-candidates-'))) {
       await rm(path, { recursive: true, force: true }).catch(() => {})
     }
   }

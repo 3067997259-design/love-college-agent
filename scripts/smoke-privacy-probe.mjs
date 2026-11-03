@@ -5,8 +5,8 @@ import { spawn } from 'node:child_process'
 import { mkdir, writeFile, readdir, readFile, appendFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { runtimeEnv } from './runtime-env.mjs'
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'privacy-probe-smoke-' + randomUUID())
+import { testDataRoot, runtimeEnv } from './runtime-env.mjs'
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(testDataRoot(root), 'privacy-probe-smoke-' + randomUUID())
 let mode = 'success'; let calls = 0; let otherCalls = 0
 const server = createServer(async (request, response) => {
   let text = ''; for await (const chunk of request) text += chunk; calls++
@@ -33,7 +33,7 @@ try {
     if (mode === 'success') {
       // A legacy/rest profile is rejected before launching the app, since its
       // pending completion event could otherwise start chat during bootstrap.
-      const journals = join(root, '.local-data', 'privacy-live-' + report.profileId, 'journals'); const owner = (await readdir(journals))[0]
+      const journals = join(testDataRoot(root), 'privacy-live-' + report.profileId, 'journals'); const owner = (await readdir(journals))[0]
       const folder = join(journals, owner); const file = join(folder, (await readdir(folder)).filter((name) => name.endsWith('.jsonl')).sort().at(-1))
       const rows = (await readFile(file, 'utf8')).trim().split('\n').map(JSON.parse)
       await appendFile(file, JSON.stringify({ version: 1, seq: rows.at(-1).seq + 1, atMs: Date.now(), type: 'companion/mode', mode: 'rest', requestId: 'fixture-rest', commandHash: 'fixture-rest' }) + '\n')

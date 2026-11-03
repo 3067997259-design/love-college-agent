@@ -15,7 +15,7 @@ const hash = async (p) => createHash('sha256').update(await readFile(p)).digest(
 assert.equal(await hash(baseInstaller), 'e6b23c25afbd329d880302f0d15f6c7388f9366097e813cd214b5a0cd5c9b403')
 assert.equal(receipt.trackedDirty, false)
 assert.equal(await hash(candidateInstaller), receipt.installerSha256)
-const id = randomUUID(), folder = join('C:/', '.lca-cache', 'upgrade-tests', id), install = join(folder, 'installed'), data = join(folder, 'book'), project = join(folder, 'project')
+const id = randomUUID(), folder = join(resolve(process.env.LCA_UPGRADE_TEST_ROOT ?? 'C:/.lca-cache/upgrade-tests'), id), install = join(folder, 'installed'), data = join(folder, 'book'), project = join(folder, 'project')
 const evidence = join(root, 'test-results', 'p6-upgrade-' + id), archive = join(folder, 'from-1.1.0.lca-save'), user = join(folder, 'user')
 for (const p of [evidence, data, project, user, join(user, 'Documents'), join(user, 'AppData/Roaming'), join(user, 'AppData/Local'), join(folder, 'tmp')]) await mkdir(p, { recursive: true })
 let requests = 0

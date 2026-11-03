@@ -8,14 +8,14 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, electronLaunchTarget, initializeTestBook } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, electronLaunchTarget, initializeTestBook } from './runtime-env.mjs'
 
-const root = resolve(import.meta.dirname, '..'), id = randomUUID(), data = join(root, '.local-data', `p4-smoke-${id}`), scene = randomUUID()
+const root = resolve(import.meta.dirname, '..'), id = randomUUID(), data = join(testDataRoot(root), `p4-smoke-${id}`), scene = randomUUID()
 const profile = join(data, 'developer', scene), dshProfile = join(profile, 'dsh-home', 'profiles', 'lca'), user = join(data, 'user')
 const pictures = join(root, 'test-results', `p4-${id}`), bundle = join(data, 'fixture-bundle'), source = join(data, 'fixture-skill')
 const checks = [], name = 'lca-p4-fixture'
 let instance, page, client, center
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19593', LCA_MCP_PORT: '0',
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '0', LCA_MCP_PORT: '0',
   USERPROFILE: user, HOME: user, APPDATA: join(user, 'AppData', 'Roaming'), LOCALAPPDATA: join(user, 'AppData', 'Local') }
 const verifyNodeBuild = process.argv.includes('--verify-node-build')
 if (verifyNodeBuild) {

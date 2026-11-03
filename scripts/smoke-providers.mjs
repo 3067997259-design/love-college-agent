@@ -6,10 +6,10 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const data = join(root, '.local-data', `providers-smoke-${randomUUID()}`)
+const data = join(testDataRoot(root), `providers-smoke-${randomUUID()}`)
 const requests = []
 const server = createServer((request, response) => {
   void (async () => {
@@ -26,7 +26,7 @@ const server = createServer((request, response) => {
   })().catch(() => { if (!response.headersSent) response.writeHead(500).end(); else response.end() })
 })
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '19574' }
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '0' }
 let instance; let page
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 async function waitFor(test, message) {
@@ -121,5 +121,5 @@ try {
 } finally {
   await instance?.close().catch(() => {})
   server.closeAllConnections(); await new Promise((done) => server.close(done))
-  if (resolve(data).startsWith(join(resolve(root), '.local-data', 'providers-smoke-'))) await rm(data, { recursive: true, force: true })
+  if (resolve(data).startsWith(join(testDataRoot(root), 'providers-smoke-'))) await rm(data, { recursive: true, force: true })
 }

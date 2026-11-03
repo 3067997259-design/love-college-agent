@@ -1,0 +1,339 @@
+{
+  "productModelSlots": {
+    "status": "passed",
+    "sha256": "96ed6907def35a9191bcf89f9e36f3f13c765bfa8a37b56a7c53748d2df01ec7",
+    "log": "test-results/continuity/candidate9-model-slots-20261103.log"
+  },
+  "retrievalFirstPreflight": {
+    "status": "failed",
+    "path": "C:\\.lca-cache\\continuity9-tests\\retrieval-preflight-20261103-1\\report.json",
+    "sha256": "4cb0c925f75a623e7e5b3fff56be4bd980db9c95374e3e8785970b6c63cb4faa",
+    "cause": "not-established; no upstream requests; diagnostic added before isolated recheck, production timeouts and thresholds unchanged"
+  },
+  "installation": {
+    "first": {
+      "path": "test-results/continuity/candidate9-installed-package-20261103-1.json",
+      "sha256": "14f8c662563fa77f2206b0f8bfa3aedeebc65c09fd20e6b9293cee401632992f",
+      "report": {
+        "ok": false,
+        "status": "failed",
+        "executionTarget": "installed",
+        "appVersion": "1.2.0-continuity.9",
+        "atIso": "2026-11-03T14:37:57.288Z",
+        "installer": "C:\\.lca-cache\\continuity9-release-20261103\\Love-College-Agent-1.2.0-continuity.9-Setup.exe",
+        "buildReceipt": {
+          "version": 1,
+          "appVersion": "1.2.0-continuity.9",
+          "installerFileName": "Love-College-Agent-1.2.0-continuity.9-Setup.exe",
+          "sourceRevision": "7a196d095f16b80f5c6f1fb0755f4f6bcd060624",
+          "trackedDirty": false,
+          "runtimePreparation": "reused-prepared-tree",
+          "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+          "builtAtIso": "2026-11-03T14:24:47.710Z",
+          "installerBytes": 315480790,
+          "installerSha256": "17d7d11831a54a33064dbfc892c6decdf02042c25dd805e57bc0ecd1f0c5c9d0",
+          "asarSha256": "a6a693c3b0ffaf9e40d981b5875097eccebc506413dfc585326cad4163687612"
+        },
+        "stage": "scenario:documents",
+        "completedScenarios": [
+          "model-routing",
+          "model-slots"
+        ]
+      }
+    },
+    "firstLog": {
+      "path": "test-results/continuity/candidate9-installed-package-20261103-1.log",
+      "sha256": "ee29b253e88c9e5ff2b6130f2be582efaa34aa68d1324140771e60b5516e81ec"
+    },
+    "shortRootRecheck": {
+      "path": "test-results/continuity/candidate9-installed-package-20261103-2.json",
+      "sha256": "a4303f335c80abfa89e60e2a2f8074459287e9d2c8f55b8a25f48190a0c17c30",
+      "report": {
+        "ok": false,
+        "status": "failed",
+        "executionTarget": "installed",
+        "appVersion": "1.2.0-continuity.9",
+        "atIso": "2026-11-03T14:58:34.110Z",
+        "installer": "C:\\.lca-cache\\continuity9-release-20261103\\Love-College-Agent-1.2.0-continuity.9-Setup.exe",
+        "buildReceipt": {
+          "version": 1,
+          "appVersion": "1.2.0-continuity.9",
+          "installerFileName": "Love-College-Agent-1.2.0-continuity.9-Setup.exe",
+          "sourceRevision": "7a196d095f16b80f5c6f1fb0755f4f6bcd060624",
+          "trackedDirty": false,
+          "runtimePreparation": "reused-prepared-tree",
+          "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+          "builtAtIso": "2026-11-03T14:24:47.710Z",
+          "installerBytes": 315480790,
+          "installerSha256": "17d7d11831a54a33064dbfc892c6decdf02042c25dd805e57bc0ecd1f0c5c9d0",
+          "asarSha256": "a6a693c3b0ffaf9e40d981b5875097eccebc506413dfc585326cad4163687612"
+        },
+        "stage": "scenario:life-work",
+        "completedScenarios": [
+          "model-routing",
+          "model-slots",
+          "documents",
+          "campus",
+          "memory",
+          "harness",
+          "gifts",
+          "onboarding"
+        ]
+      }
+    }
+  },
+  "retrievalPreflight": {
+    "path": "C:\\.lca-cache\\continuity9-tests\\retrieval-preflight-20261103-2\\report.json",
+    "sha256": "66b5623ded515cea14ec2d3106d5557e7a2332afb62172b42ce471f5b457c292",
+    "report": {
+      "ok": true,
+      "selfTest": true,
+      "qualityAssessed": false,
+      "qualityPassed": null,
+      "casesCompleted": 90,
+      "upstreamRequests": 0,
+      "corpusCounts": {
+        "zh": 20,
+        "en": 20
+      },
+      "counts": {
+        "modelRequests": 0,
+        "embeddingRequests": 212,
+        "embeddingCharacters": 5360,
+        "reservedUnits": 445270,
+        "autonomousUnits": 445270
+      },
+      "error": null,
+      "stage": "query:near-miss-10",
+      "diagnostic": null
+    }
+  },
+  "mirror": {
+    "path": "test-results/continuity/candidate9-release-gates-20261103/postgres-6543a7e3-0457-4aa1-83a6-577d8135eb44/product.json",
+    "sha256": "b99eba9a15617bcfd405ff0ce2350ce6eb51273d1c42df6da361a44b774ace7a",
+    "report": {
+      "ok": true,
+      "source": "86a8423d953ff4263e57bcf2fdb05efa90b98c7b8791431ab5f12be78be35291",
+      "target": "unpacked",
+      "profile": "C:\\.lca-cache\\continuity9-tests\\profiles\\mirror-product-848b09fe-2b51-4c35-b2f2-bcb0c2276d06",
+      "checks": [
+        "settings_enable_and_original_outbox_reach_real_postgres",
+        "offline_correction_and_pending_outbox_survive_restart",
+        "retry_invalidates_old_fact_without_duplicate_delivery",
+        "nonempty_save_with_pending_forget_excludes_connections",
+        "restore_rotates_mirror_epoch_and_stale_remote_fact_does_not_return",
+        "saved_connection_pause_resume_is_idempotent_and_private",
+        "restored_epoch_and_forget_survive_another_restart"
+      ],
+      "realPostgres": true,
+      "realModels": false,
+      "realEmbedding": false,
+      "vectorCalls": 3,
+      "asarSha256": "a6a693c3b0ffaf9e40d981b5875097eccebc506413dfc585326cad4163687612",
+      "fixture": {
+        "kind": "pre-existing approved long-term facts; promotion not assessed",
+        "ids": {
+          "kept": "2244633f-425f-4880-8ed4-e3608bb5b19f",
+          "corrected": "9ba3f0cc-8107-48e1-a1bf-1b54f58542d2",
+          "forgotten": "d2a331ee-6cd9-4b2c-9a26-a91a3820db98"
+        }
+      },
+      "correctionLabel": "更正后的内容镜像夹具：任务目标最初为茶。",
+      "saveSha256": "0dbc15ffc902ff7247050dfdcc63d77672cc19b2aa27dfe9d30b46ff8bc0e038",
+      "namespaces": {
+        "before": "lca_memory_0a3937da0eee3a2f16d207ba2bb88265",
+        "after": "lca_memory_ffad5d9961708f4c6cfd24aa3377a1e6"
+      }
+    }
+  },
+  "postgres": {
+    "path": "test-results/continuity/candidate9-release-gates-20261103/postgres-d07daca1-d411-4730-9758-9ae98fd11aa4/report.json",
+    "sha256": "3ef9ed74dfb455a1f80d5009241f33e716fffae54bdf9a41db946cca1019ed13",
+    "report": {
+      "status": "passed",
+      "mode": "repository",
+      "realPostgres": true,
+      "container": "lca-continuity-pg-44ddf072-7a7d-4725-8abd-0565d8b72c53",
+      "reason": null,
+      "checks": [
+        "reconnects after private DB outage without resurrecting a deleted origin",
+        "memory repository (real Postgres) shares vector types across private namespaces without sharing facts",
+        "memory repository (real Postgres) repairs a legacy private vector extension while preserving existing rows and isolation",
+        "memory repository (real Postgres) keeps an absent or concurrently arriving origin forgotten across two connections",
+        "memory repository (real Postgres) ensures the schema, then inserts, searches, lists, and removes a fragment",
+        "memory repository (real Postgres) redelivers the same originId idempotently and inserts without an originId",
+        "memory repository (real Postgres) keeps a deleted fact deleted when its originId is redelivered",
+        "memory repository (real Postgres) propagates review, supersede, and delete updates by originId"
+      ],
+      "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+      "containerStopped": true
+    }
+  },
+  "static": {
+    "giftAndQuillRerun": {
+      "passed": 9,
+      "failed": 0
+    },
+    "corpusTests": {
+      "passed": 6,
+      "failed": 0
+    },
+    "lint": "passed",
+    "rendererTypes": "passed",
+    "unitFirstRun": {
+      "skipped": 8,
+      "failed": 2,
+      "passed": 985
+    },
+    "failedUnitRepair": "gift budget fixtures now explicitly accept the second proposal",
+    "mainTypes": "passed"
+  },
+  "productGifts": {
+    "status": "passed",
+    "sha256": "beddb5e5657b53348f8b069cd1a3e5e2f619e1ac19ce57cc0a64040f3c857927",
+    "log": "test-results/continuity/candidate9-gifts-20261103.log"
+  },
+  "published": false,
+  "upgrade": "not-run-for-candidate9",
+  "candidate": {
+    "version": 1,
+    "appVersion": "1.2.0-continuity.9",
+    "installerFileName": "Love-College-Agent-1.2.0-continuity.9-Setup.exe",
+    "sourceRevision": "7a196d095f16b80f5c6f1fb0755f4f6bcd060624",
+    "trackedDirty": false,
+    "runtimePreparation": "reused-prepared-tree",
+    "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+    "builtAtIso": "2026-11-03T14:24:47.710Z",
+    "installerBytes": 315480790,
+    "installerSha256": "17d7d11831a54a33064dbfc892c6decdf02042c25dd805e57bc0ecd1f0c5c9d0",
+    "asarSha256": "a6a693c3b0ffaf9e40d981b5875097eccebc506413dfc585326cad4163687612"
+  },
+  "storiesPreflight": {
+    "path": "C:\\.lca-cache\\continuity9-tests\\stories-preflight-20261103-1\\report.json",
+    "sha256": "0bd0cd1241dd7443166ec7d44653bdf91bb4f0677c1a823c0cf84b80edba0778",
+    "report": {
+      "ok": true,
+      "selfTest": true,
+      "qualityPassed": null,
+      "coverage": "24 controlled service-integration stories using production AIRI, context assembly, persistent work and DSH. Setup chat and worker decisions use local scripted responses; facts are reviewed through production transactions, day summaries are deterministic source quotes. Final answers and their tool steps use the saved real chat model; final retrieval uses real Voyage. This measures retrieval, injection, answer use and action compliance; it does not re-evaluate automatic fact extraction or replace the normal-product acceptance evidence.",
+      "status": "complete",
+      "currentStory": "S24",
+      "error": null,
+      "completed": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S12",
+        "S13",
+        "S14",
+        "S15",
+        "S16",
+        "S17",
+        "S18",
+        "S19",
+        "S20",
+        "S21",
+        "S22",
+        "S23",
+        "S24"
+      ],
+      "reviews": [],
+      "upstreamRequests": 0,
+      "counts": {
+        "modelRequests": 26,
+        "embeddingRequests": 77,
+        "embeddingCharacters": 949,
+        "reservedUnits": 306541,
+        "autonomousUnits": 160501
+      }
+    }
+  },
+  "realServiceRetest": "not-authorized-or-run",
+  "documentPathDiagnosis": {
+    "failedLongProfile": {
+      "path": "test-results/documents-failure-fed75fae-6180-4c3d-9417-e938637a1f05.json",
+      "sha256": "bbe5c8efd5c8b5b612610b76a962e29a1caa56adc2c26a70355139fdd3281693",
+      "report": {
+        "error": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.msg-text').filter({ hasText: 'DOCUMENT_METADATA_CHECK_COMPLETED' }) to be visible\u001b[22m\n",
+        "stage": "ISOLATED_ORGANIZING_FAILED",
+        "data": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\.local-data\\documents-smoke-fed75fae-6180-4c3d-9417-e938637a1f05",
+        "rendererErrors": [],
+        "state": {
+          "onboarding": "completed",
+          "windows": {
+            "mode": "book",
+            "diagnosticsOpen": false,
+            "miniPresentation": "transparent",
+            "miniFallbackReason": null,
+            "miniBounds": null,
+            "miniAlwaysOnTop": false,
+            "miniClickThrough": false
+          },
+          "task": "failed",
+          "mode": "quiet",
+          "documents": [
+            {
+              "status": "ready"
+            },
+            {
+              "status": "ready"
+            }
+          ]
+        }
+      }
+    },
+    "shortProfilePassed": {
+      "path": "test-results/continuity/candidate9-documents-diagnostic-20261103-1.log",
+      "sha256": "a6f7de613cce6f31732975f87d974af6459886952d02ffd6766c0efebe5fc94f"
+    },
+    "controlledDshStartup": {
+      "path": "test-results/continuity/dsh-start-diagnostic-ef0f645a-66c0-4e48-9a84-fc65f9cd31eb.json",
+      "sha256": "fa667d53cf0de5be5b1e2574d03e5440db1e0649fce1eafb7128f1b5ce44d561",
+      "report": {
+        "runtime": "v24.14.0",
+        "results": [
+          {
+            "name": "short",
+            "dataDir": "C:\\.lca-cache\\continuity9-tests\\documents-smoke-de08805c-b379-4653-ac66-30b13eb95b23\\developer\\da1281eb-c439-419a-ae16-82556af1d119",
+            "workspace": "C:\\.lca-cache\\continuity9-tests\\documents-smoke-de08805c-b379-4653-ac66-30b13eb95b23\\developer\\da1281eb-c439-419a-ae16-82556af1d119\\rooms\\2be6da680dca6cf2a82e1bc2c01c88fdc27619baa3c91a8496c130a67daddb7e\\书桌",
+            "workspaceLength": 205,
+            "ready": true,
+            "events": [
+              "hello",
+              "init-ok"
+            ],
+            "stderr": "",
+            "exitCode": null
+          },
+          {
+            "name": "long",
+            "dataDir": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\.local-data\\documents-smoke-2be2cbfc-a139-41dd-8066-e348f82d2774\\developer\\d2014753-a82d-4604-b22e-9521e6846445",
+            "workspace": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\.local-data\\documents-smoke-2be2cbfc-a139-41dd-8066-e348f82d2774\\developer\\d2014753-a82d-4604-b22e-9521e6846445\\rooms\\2be6da680dca6cf2a82e1bc2c01c88fdc27619baa3c91a8496c130a67daddb7e\\书桌",
+            "workspaceLength": 260,
+            "ready": false,
+            "events": [],
+            "stderr": "",
+            "error": {
+              "code": "ENOENT",
+              "message": "spawn C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\release-continuity-9\\win-unpacked\\LoveCollegeAgent.exe ENOENT"
+            },
+            "streamError": {
+              "code": "ENOTCONN",
+              "message": "read ENOTCONN"
+            }
+          }
+        ]
+      }
+    },
+    "conclusion": "Candidate DSH IPC initializes at a 205-character cwd; a 260-character cwd fails spawn with ENOENT and pipe ENOTCONN. Test scenarios now honor the explicitly isolated short data root. This is not arbitrary-long-path product acceptance.",
+    "originalFailurePreserved": true
+  }
+}

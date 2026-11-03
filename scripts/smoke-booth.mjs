@@ -5,8 +5,8 @@ import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'booth-' + randomUUID())
+import { testDataRoot, runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(testDataRoot(root), 'booth-' + randomUUID())
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json') }; delete env.LCA_BOOTH
 const owner = ['local-user', 'default-character']; const hash = (text) => createHash('sha256').update(text).digest('hex'); let instance; let page
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())

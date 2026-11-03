@@ -35,6 +35,7 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
   const report = { ok: false, selfTest: input.selfTest, qualityAssessed: !input.selfTest, qualityPassed: null as boolean | null,
     coverage: plan.measurement, failurePolicy: plan.failurePolicy, limits: plan.limits, acceptance: plan.acceptance,
     upstreamRequests: 0, samples, casesCompleted: 0, corpusCounts: { zh: 0, en: 0 }, counts: budget.view(), error: null as string | null,
+    stage: 'setup', diagnostic: null as string | null,
     result: null as Awaited<ReturnType<typeof evaluateProductionMemoryRetrievalTrace>> | null }
   const save = () => { report.counts = budget.view(); writeFileSync(join(input.root, 'report.json'), JSON.stringify(report, null, 2)) }
   const raw = createApiMemoryEmbeddingSource({ ...config, clock: systemClock, fetch: async (url, init) => {
@@ -71,6 +72,7 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
     assert.equal(new Set(corpus.documents.map(doc => doc.id)).size, 20)
     const corpora = new Map<string, { engine: ReturnType<typeof createMemoryEngine>; scope: { userId: string; characterId: string }; ids: Map<string, string> }>()
     for (const language of ['zh', 'en'] as const) {
+      report.stage = language + ':initialize'; save()
       const scope = { userId: 'retrieval-fixture-' + language, characterId: 'taozi' }
       const engine = createMemoryEngine({ root: join(input.root, language), owner: { ...scope, dataRootId: 'quality-' + language }, clock: corpusClock,
         embedding: () => source, held: () => false, waitForRestore: async () => {}, journal: () => {},
@@ -80,6 +82,7 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
       const ids = new Map<string, string>()
       // Fixture facts pass through the original proposal/review transactions. Labels stay in this evaluator's map.
       for (const [index, doc] of corpus.documents.entries()) {
+        report.stage = language + ':seed:' + index; save()
         const operationId = 'seed-' + language + '-' + index
         const operation = await engine.runtime.proposeOperation({ scope, sessionId: 'corpus', turnId: operationId,
           sourceContext: { sessionId: 'corpus', messageId: operationId, neighbors: [] }, isCurrent: () => true },
@@ -88,12 +91,14 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
         assert.ok(operation.fragmentId); ids.set(operation.fragmentId, doc.id); report.corpusCounts[language]++; save()
       }
       // Explicit settings-style migration is awaited. Do not hide first-turn initialization timeouts by changing thresholds.
+      report.stage = language + ':migrate'; save()
       await engine.runtime.refreshEmbedding(); await engine.runtime.idle()
       assert.equal(failure, null); assert.equal(engine.runtime.embeddingMigration.value.state, 'complete', 'VECTOR_MIGRATION_FAILED')
       corpora.set(language, { engine, scope, ids })
     }
     report.result = await evaluateProductionMemoryRetrievalTrace(async query => {
       const item = MEMORY_RETRIEVAL_EVALUATION_CASES[report.casesCompleted]
+      report.stage = 'query:' + item.id; save()
       assert.equal(query, item.query)
       const { engine, scope, ids } = corpora.get(item.stratum === 'zh-to-en' ? 'en' : 'zh')!
       const trace = await engine.runtime.retrieveEvaluationTrace(query, 'quality', scope)
@@ -113,7 +118,7 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
     report.ok = input.selfTest || report.qualityPassed === true
     if (!report.ok) report.error = 'FROZEN_QUALITY_THRESHOLD_NOT_MET'
     writeFileSync(join(input.root, 'metrics.md'), formatProductionMemoryEvaluationReport(report.result))
-  } catch { report.error = failure ?? 'RETRIEVAL_FIXTURE_OR_STORAGE_FAILED' }
+  } catch (cause) { report.error = failure ?? 'RETRIEVAL_FIXTURE_OR_STORAGE_FAILED'; if (input.selfTest) report.diagnostic = cause instanceof Error ? cause.message : 'UNKNOWN_OFFLINE_FAILURE' }
   finally { for (const engine of engines.reverse()) await engine.dispose(); ledger.close(); save() }
   return report
 }

@@ -5,12 +5,12 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const data = join(root, '.local-data', `student-hub-package-${randomUUID()}`)
+const data = join(testDataRoot(root), `student-hub-package-${randomUUID()}`)
 const packageConfig = join(root, 'plugin-packages', 'student-hub', 'mcp.json')
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '19576' }
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '0' }
 let instance; let page
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 async function waitFor(test, message) { for (let i = 0; i < 120; i++) { if (await test()) return; await new Promise((done) => setTimeout(done, 100)) } throw new Error(message) }
@@ -36,5 +36,5 @@ try {
   console.log(JSON.stringify({ ok: true, probe: 'student-hub-package', imported: true, displayName: true, disabledByDefault: true, privacyAlways: true, noProcessStarted: true }))
 } finally {
   await instance?.close().catch(() => {})
-  if (resolve(data).startsWith(join(resolve(root), '.local-data', 'student-hub-package-'))) await rm(data, { recursive: true, force: true })
+  if (resolve(data).startsWith(join(testDataRoot(root), 'student-hub-package-'))) await rm(data, { recursive: true, force: true })
 }

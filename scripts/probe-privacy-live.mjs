@@ -5,12 +5,12 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { runtimeEnv, testDataRoot, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const inspectId = process.argv[2] === '--inspect' ? process.argv[3] : undefined
 if (inspectId) assert.match(inspectId, /^[a-f0-9-]{36}$/)
-const profileId = inspectId ?? randomUUID(); const data = join(root, '.local-data', 'privacy-live-' + profileId)
+const profileId = inspectId ?? randomUUID(); const data = join(testDataRoot(root), 'privacy-live-' + profileId)
 // Credentials are read only by the application main process. No import/copy,
 // renderer reads, real mail, ordinary conversation or repeated file submission.
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data }; delete env.LCA_BOOTH

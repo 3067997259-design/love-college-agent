@@ -7,11 +7,11 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, whenIdle } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, initializeTestBook, electronLaunchTarget, whenIdle } from './runtime-env.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'showcase-' + randomUUID()); const sceneId = randomUUID()
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(testDataRoot(root), 'showcase-' + randomUUID()); const sceneId = randomUUID()
 const profile = join(data, 'developer', sceneId)
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19559', LCA_MCP_PORT: '0' }
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '0', LCA_MCP_PORT: '0' }
 let instance; let page; let client; let now = Date.parse('2026-10-16T18:00:00+08:00')
 const proof = []; const sha = (text) => createHash('sha256').update(text).digest('hex')
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())

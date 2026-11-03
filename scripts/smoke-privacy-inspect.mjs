@@ -1,3 +1,4 @@
+import { testDataRoot } from './runtime-env.mjs'
 // 只读回归：--inspect 遇到非终态资料任务必须在启动应用前拒绝，不发任何模型请求。
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
@@ -7,7 +8,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const id = randomUUID(); const data = join(root, '.local-data', 'privacy-live-' + id)
+const id = randomUUID(); const data = join(testDataRoot(root), 'privacy-live-' + id)
 const owner = 'a'.repeat(64); const journalDir = join(data, 'journals', owner)
 const report = join(root, 'test-results', 'privacy-inspect-refusal-' + id + '.json')
 try {

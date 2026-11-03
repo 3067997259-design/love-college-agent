@@ -9,9 +9,9 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'resources-smoke-' + randomUUID())
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(testDataRoot(root), 'resources-smoke-' + randomUUID())
 let calls = 0
 const server = createServer((request, response) => { void (async () => { for await (const chunk of request) { void chunk }; calls++; response.writeHead(200, { 'Content-Type': 'text/event-stream' }).end('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: '合成预算回复' }, finish_reason: 'stop' }] }) + '\n\ndata: [DONE]\n\n') })().catch(() => response.end()) })
 await new Promise((done) => server.listen(0, '127.0.0.1', done)); await mkdir(data, { recursive: true })
@@ -72,7 +72,7 @@ try {
   const voiceRoot = join(data, 'voice-case'); const sceneId = randomUUID(); const voiceProfile = join(voiceRoot, 'developer', sceneId)
   await mkdir(voiceProfile, { recursive: true }); await writeFile(join(voiceRoot, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))
   await writeFile(join(voiceProfile, 'clock.json'), JSON.stringify({ nowMs: Date.parse('2026-10-17T12:00:00+08:00'), rate: 1, frozen: true }))
-  env = { ...runtimeEnv(root), LCA_DATA_DIR: voiceRoot, LCA_PROVIDERS_FILE: join(voiceRoot, 'absent.json'), LCA_CDP_PORT: '19568', LCA_MCP_PORT: '0' }; await launch()
+  env = { ...runtimeEnv(root), LCA_DATA_DIR: voiceRoot, LCA_PROVIDERS_FILE: join(voiceRoot, 'absent.json'), LCA_CDP_PORT: '0', LCA_MCP_PORT: '0' }; await launch()
   const connection = JSON.parse(await readFile(join(voiceProfile, 'debug-connection.json'), 'utf8')); client = new Client({ name: 'resource-voice-smoke', version: '1.0.0' }); await client.connect(new StreamableHTTPClientTransport(new URL(connection.url), { requestInit: { headers: { Authorization: 'Bearer ' + connection.token } } }))
   const voiceArchive = join(voiceRoot, 'before-speech.lca-save'); await exportBook(voiceArchive)
   await accepted({ type: 'voice.set', enabled: true }); const script = await client.callTool({ name: 'set_fake_model', arguments: { script: [{ text: '合成语音预算核对。', toolCalls: [], delayMs: 0 }] } }); assert.ok(!script.isError)

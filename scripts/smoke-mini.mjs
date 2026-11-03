@@ -7,11 +7,11 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'mini-smoke-' + randomUUID()); const sceneId = randomUUID()
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(testDataRoot(root), 'mini-smoke-' + randomUUID()); const sceneId = randomUUID()
 const profile = join(data, 'developer', sceneId)
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-config.json'), LCA_CDP_PORT: '19534', LCA_MCP_PORT: '0' }
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-config.json'), LCA_CDP_PORT: '0', LCA_MCP_PORT: '0' }
 let instance; let book; let mini; let client
 async function launch() {
   instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 })

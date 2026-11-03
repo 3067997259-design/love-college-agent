@@ -9,9 +9,9 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings, whenIdle } from './runtime-env.mjs'
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'optical-' + randomUUID()); let sceneId = randomUUID()
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19571', LCA_MCP_PORT: '0' }
+import { testDataRoot, runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings, whenIdle } from './runtime-env.mjs'
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(testDataRoot(root), 'optical-' + randomUUID()); let sceneId = randomUUID()
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '0', LCA_MCP_PORT: '0' }
 const credential = 'SYNTHETIC_OPTICAL_' + randomUUID(); const requests = []; let hang = false; let interrupted = 0
 const server = createServer(async (req, res) => {
   let bytes = Buffer.alloc(0); for await (const chunk of req) { bytes = Buffer.concat([bytes, chunk]); if (bytes.length > 4000000) { res.writeHead(413).end(); return } }

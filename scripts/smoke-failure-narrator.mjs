@@ -6,8 +6,8 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, whenIdle } from './runtime-env.mjs'
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'failure-narrator-' + randomUUID())
+import { testDataRoot, runtimeEnv, initializeTestBook, electronLaunchTarget, whenIdle } from './runtime-env.mjs'
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(testDataRoot(root), 'failure-narrator-' + randomUUID())
 const credential = 'synthetic-failure-private-key'; const vendorBody = 'PRIVATE_UPSTREAM_ERROR_BODY'; const requests = []; let mode = 'configuration'; let phase = 0
 // Her conversation runs on DSH: LCA tools carry the lca_ prefix, your words are the last text block of their message
 // (LCA's references come first), and DSH adds its own reminders and runtime context as user messages.

@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
 import JSZip from 'jszip'
-import { runtimeEnv, electronLaunchTarget, openSettingsGroup, openSettings, whenIdle } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, electronLaunchTarget, openSettingsGroup, openSettings, whenIdle } from './runtime-env.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'onboarding-smoke-' + randomUUID())
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(testDataRoot(root), 'onboarding-smoke-' + randomUUID())
 const backendOnly = process.argv.includes('--backend-only'); const requests = []
 const server = createServer(async (request, response) => {
   let input = ''; for await (const chunk of request) input += chunk
@@ -20,7 +20,7 @@ const server = createServer(async (request, response) => {
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 await mkdir(data, { recursive: true }); const fixture = join(data, 'synthetic-providers.json')
 await writeFile(fixture, JSON.stringify({ providers: { chat: { base_url: 'http://127.0.0.1:' + server.address().port + '/v1', api_key: 'synthetic-test-only', model: 'synthetic-test-only' } } }))
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: join(data, 'source'), LCA_PROVIDERS_FILE: fixture, LCA_CDP_PORT: '19535', LCA_MCP_PORT: '0' }
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: join(data, 'source'), LCA_PROVIDERS_FILE: fixture, LCA_CDP_PORT: '0', LCA_MCP_PORT: '0' }
 let instance; let page
 async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 }); page = await instance.firstWindow(); await page.locator('[data-mode][data-pose]').waitFor() }
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())

@@ -8,7 +8,9 @@ const base = resolve(process.env.LCA_CONTINUITY_RUN_DIR ?? 'test-results/continu
 mkdirSync(base, { recursive: true }); const root = mkdtempSync(join(base, 'gate-'))
 await build({ configFile: false, logLevel: 'error', build: { ssr: true, outDir: join(root, 'bundle'), emptyOutDir: false, minify: false,
   rollupOptions: { input: resolve('scripts/fixtures/work-execution.ts'), external: ['electron', 'better-sqlite3'], output: { format: 'cjs', entryFileNames: 'execution.cjs' } } } })
-const child = spawn(process.execPath, [join(root, 'bundle/execution.cjs'), root, repo], { cwd: repo, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+// The report directory may be on another volume; native externals still belong
+// to this checkout, not to an ancestor of the generated fixture bundle.
+const child = spawn(process.execPath, [join(root, 'bundle/execution.cjs'), root, repo], { cwd: repo, env: { ...process.env, NODE_PATH: join(repo, 'node_modules') }, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
 const output = []; child.stdout.on('data', chunk => output.push(chunk)); child.stderr.on('data', chunk => output.push(chunk))
 let timedOut = false
 const deadline = setTimeout(() => { timedOut = true; child.kill() }, 120_000)

@@ -8,13 +8,13 @@ import ts from 'typescript'
 import JSZip from 'jszip'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettingsGroup, openSettings, closeSettings, whenIdle } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, initializeTestBook, electronLaunchTarget, openSettingsGroup, openSettings, closeSettings, whenIdle } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const stdioMode = process.argv.find((arg) => arg.startsWith('--stdio='))?.slice(8)
 if (stdioMode && !['whole', 'fragmented', 'near-limit', 'image-oversize', 'transport-oversize'].includes(stdioMode)) throw new Error('INVALID_STDIO_SCENARIO')
 const legacy = process.argv.includes('--legacy'); const failureExpected = legacy || stdioMode?.endsWith('oversize')
-const data = join(root, '.local-data', 'minecraft-images-' + randomUUID()); const profile = join(data, 'booth')
+const data = join(testDataRoot(root), 'minecraft-images-' + randomUUID()); const profile = join(data, 'booth')
 await mkdir(data, { recursive: true })
 // Reuse only this repository's explicit synthetic MCP fixture in the Node test server.
 for (const [source, target, replacements] of [
@@ -24,6 +24,9 @@ for (const [source, target, replacements] of [
 ]) {
   let code = ts.transpileModule(await readFile(join(root, 'src/main', source), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
   for (const [from, to] of replacements) code = code.replace(from, to)
+  // Relocated fixtures cannot resolve bare ESM imports through this checkout's
+  // ancestors. Pin only their declared synthetic-server dependencies.
+  code = code.replace(/from (['"])(zod|@modelcontextprotocol\/sdk\/[^'"]+)\1/g, (_match, _quote, name) => 'from ' + JSON.stringify(import.meta.resolve(name)))
   await writeFile(join(data, target), code)
 }
 const { startMcpFixture } = await import(pathToFileURL(join(data, 'fixture-mcp.mjs')).href)
@@ -32,8 +35,8 @@ const statsPath = join(data, 'stdio-stats.json')
 if (stdioMode) {
   const helper = join(data, 'stdio-game.mjs')
   await writeFile(helper, `
-import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
-import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
+import {McpServer} from ${JSON.stringify(import.meta.resolve('@modelcontextprotocol/sdk/server/mcp.js'))};
+import {StdioServerTransport} from ${JSON.stringify(import.meta.resolve('@modelcontextprotocol/sdk/server/stdio.js'))};
 import {writeFile} from 'node:fs/promises';
 import {createMinecraftFixture} from './fixture-game.mjs';
 import {syntheticGamePng} from './fixture-image.mjs';

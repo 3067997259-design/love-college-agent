@@ -5,13 +5,13 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const data = join(root, '.local-data', `plugins-smoke-${randomUUID()}`)
+const data = join(testDataRoot(root), `plugins-smoke-${randomUUID()}`)
 const source = join(data, 'fixture-plugin')
 const mcpFile = join(data, 'fixture-mcp.json')
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '19573' }
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '0' }
 let instance; let page
 
 async function waitFor(test, message) {
@@ -91,5 +91,5 @@ try {
   console.log(JSON.stringify({ ok: true, probe: 'plugins', localInstall: true, codeApproval: true, skillsSeparate: true, mcpPathImport: true, mcpApproval: true, settingsShortcut: true, composerEntry: true, syntheticOnly: true }))
 } finally {
   await instance?.close().catch(() => {})
-  if (resolve(data).startsWith(join(resolve(root), '.local-data', 'plugins-smoke-'))) await rm(data, { recursive: true, force: true })
+  if (resolve(data).startsWith(join(testDataRoot(root), 'plugins-smoke-'))) await rm(data, { recursive: true, force: true })
 }

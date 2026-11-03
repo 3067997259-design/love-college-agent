@@ -7,12 +7,12 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, electronLaunchTarget, initializeTestBook, openSettings } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, electronLaunchTarget, initializeTestBook, openSettings } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const data = join(root, '.local-data', `campus-smoke-${randomUUID()}`)
+const data = join(testDataRoot(root), `campus-smoke-${randomUUID()}`)
 const sceneId = randomUUID(); const profile = join(data, 'developer', sceneId)
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-test-providers.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '19529' }
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-test-providers.json'), LCA_MCP_PORT: '0', LCA_CDP_PORT: '0' }
 let instance; let page; let client
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 async function launch() {

@@ -6,10 +6,10 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, electronLaunchTarget, initializeTestBook } from './runtime-env.mjs'
+import { testDataRoot, runtimeEnv, electronLaunchTarget, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const data = join(root, '.local-data', `harness-smoke-${randomUUID()}`)
+const data = join(testDataRoot(root), `harness-smoke-${randomUUID()}`)
 mkdirSync(data, { recursive: true })
 // Her conversation runs on DSH: LCA's tools carry the lca_ prefix, user content may arrive as text blocks, and DSH
 // adds its own <system-reminder> user messages. The legacy loop's request shape is covered in developer mode.

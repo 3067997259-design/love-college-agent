@@ -6,10 +6,10 @@ import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, electronLaunchTarget, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, testDataRoot, electronLaunchTarget, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(import.meta.dirname, '..')
-const data = join(root, 'test-results', `state-routing-${randomUUID()}`)
+const data = join(testDataRoot(root), `state-routing-${randomUUID()}`)
 mkdirSync(data, { recursive: true })
 const textOf = (content) => typeof content === 'string' ? content : (content ?? []).map((part) => part.text ?? '').join('')
 const frame = (delta, finish_reason) => `data: ${JSON.stringify({ choices: [{ index: 0, delta, finish_reason }] })}\n\n`
@@ -27,7 +27,8 @@ const server = createServer(async (req, res) => {
   requests.push({ task, model: body.model })
   if (task === 'state-probe:stale') { sawStale(); await staleReleased }
   res.writeHead(200, { 'content-type': 'text/event-stream' })
-  if (body.model === 'mock-chat') {
+  assert.equal(body.model, 'mock-chat', 'FOREGROUND_MUST_KEEP_CHAT_ROUTE')
+  if (task === 'state-probe:mode' || task === 'state-probe:stale') {
     assert.ok(token)
     res.end(frame({ content: JSON.stringify({ lca_state: { mode: 'work', token }, reply: '我来处理。' }) }, 'stop') + 'data: [DONE]\n\n')
   } else if (!tool) {
@@ -38,7 +39,7 @@ await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 const provider = (model) => ({ base_url: `http://127.0.0.1:${server.address().port}/v1`, api_key: 'synthetic-key', model })
 const settings = join(data, 'synthetic-providers.json')
 writeFileSync(settings, JSON.stringify({ providers: { chat: provider('mock-chat'), work: provider('mock-work') }, routing: { work: 'independent', background: 'independent', privacy: 'independent' } }))
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: settings, LCA_TEST_SILENT: '1' }
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: settings, LCA_TEST_SILENT: '1', LCA_MCP_PORT: '0', LCA_CDP_PORT: '0' }
 let instance, page
 const start = async () => { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30000 }); page = await instance.firstWindow(); page.setDefaultTimeout(45000); await initializeTestBook(page) }
 const mode = async (label) => { await page.locator('.door-sign').click(); await page.getByRole('menuitemradio', { name: new RegExp('^' + label) }).click() }
@@ -47,13 +48,14 @@ const idle = () => page.waitForFunction(async () => (await window.lca.getSnapsho
 const completed = async (task) => { await page.getByText(`${task} completed`, { exact: true }).waitFor(); await idle() }
 try {
   await start()
-  await send('state-probe:handoff'); await completed('state-probe:handoff')
-  assert.deepEqual(requests.map((r) => r.model), ['mock-chat', 'mock-work', 'mock-work'])
+  await send('state-probe:mode 请把门牌切到工作中。')
+  await page.getByText('我来处理。', { exact: true }).waitFor(); await idle()
+  assert.deepEqual(requests.map((r) => r.model), ['mock-chat'])
   assert.equal((await page.evaluate(() => window.lca.getSnapshot())).companion.mode, 'work')
   assert.ok(!(await page.locator('body').innerText()).includes('lca_state'))
   await mode('休息'); await mode('工作中')
   await send('state-probe:direct'); await completed('state-probe:direct')
-  assert.deepEqual(requests.filter((r) => r.task === 'state-probe:direct').map((r) => r.model), ['mock-work', 'mock-work'])
+  assert.deepEqual(requests.filter((r) => r.task === 'state-probe:direct').map((r) => r.model), ['mock-chat', 'mock-chat'])
   await mode('休息'); await send('state-probe:stale')
   await Promise.race([staleSeen, new Promise((_resolve, reject) => { const t = setTimeout(() => reject(new Error('STALE_REQUEST_TIMEOUT')), 45000); t.unref() })])
   await mode('安静'); releaseStale()
@@ -71,8 +73,8 @@ try {
   assert.equal((await page.evaluate(() => window.lca.getSnapshot())).companion.mode, 'work')
   assert.equal(requests.length, count)
   await send('state-probe:restart'); await completed('state-probe:restart')
-  assert.deepEqual(requests.filter((r) => r.task === 'state-probe:restart').map((r) => r.model), ['mock-work', 'mock-work'])
-  const result = { ok: true, kind: 'synthetic-local-http', checks: ['text handoff in same turn', 'manual work entry', 'stale response refused', 'restart persists mode without replay', 'LCA clock tool roundtrip'], requests }
+  assert.deepEqual(requests.filter((r) => r.task === 'state-probe:restart').map((r) => r.model), ['mock-chat', 'mock-chat'])
+  const result = { ok: true, kind: 'synthetic-local-http', checks: ['text state change without a worker-model continuation', 'manual work sign keeps the foreground chat route', 'stale response refused', 'restart persists mode without replay', 'LCA clock tool roundtrip'], requests }
   writeFileSync(join(data, 'report.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify({ ...result, data }, null, 2))
 } catch (error) {

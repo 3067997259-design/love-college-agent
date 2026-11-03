@@ -6,9 +6,9 @@ import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, electronLaunchTarget, initializeTestBook, openSettings, closeSettings } from './runtime-env.mjs'
+import { runtimeEnv, testDataRoot, electronLaunchTarget, initializeTestBook, openSettings, closeSettings } from './runtime-env.mjs'
 
-const root = resolve(import.meta.dirname, '..'), data = join(root, 'test-results', 'model-capabilities-' + randomUUID()), user = join(data, 'user')
+const root = resolve(import.meta.dirname, '..'), data = join(testDataRoot(root), 'model-capabilities-' + randomUUID()), user = join(data, 'user')
 for (const name of ['Documents', 'Desktop', 'Downloads', 'AppData/Roaming', 'AppData/Local']) mkdirSync(join(user, name), { recursive: true })
 const requests = [], checks = []
 const textOf = (c) => typeof c === 'string' ? c : (c ?? []).filter((b) => b.type === 'text').map((b) => b.text ?? '').join('')
