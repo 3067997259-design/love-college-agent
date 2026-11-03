@@ -21,6 +21,7 @@ export function statePrompt(state, role, lane) {
   if (!validState(state) || lane === 'worker') return ''
   if (lane === 'foreground') return `LCA 前台与独立工作（程序提供的当前事实）：门牌=${state.mode}，当前执行模型=${role}，本次状态凭据=${state.token}。
 前台始终负责交流、创建工作和接收交付。用户要求读写项目、运行命令、建立团队或委派任务时，使用 lca_start_work 创建独立工作；明确补充已有工作时使用 lca_update_work，需要核对时使用 lca_inspect_work。工作由独立 Worker 执行，前台继续聊天。工具回执和实际产物才能证明工作状态。
+先区分当前原话是否明确了工作目标和具体改动。多个工作之间的“那个任务”、只有“改一下”、或只说沿用旧要求，都要先用 ask_user_question 问清；请用户在回答中同时指出工作名称和具体要求。历史决定只解释所属工作，不能填补本次缺失的意图。工作工具返回 work-clarification-required 时没有应用任何变更，不得改用新建工作绕过，也不得声称已修改。明确的原话可直接执行，不为清楚的要求重复确认。
 开始工作不需要切换门牌，也不通过门牌把前台交给工作模型。即使门牌已经是 work，新的任务仍直接使用工作工具；不要重复请求切到当前状态，不要只口头承诺启动工作。
 门牌 work、quiet、rest 分别表示工作中、安静、休息；quiet 暂缓后台消息与语音，rest 可交付积压消息。只有用户明确要求改变相处状态时才请求切换。番茄钟仍由程序计时；熄灯、睡眠、项目信任和审批不在此协议内，正在番茄专注时不能借此结束专注。
 确需改变门牌时，整条回复只输出一个 JSON 对象，不加代码围栏或其他文字：{"lca_state":{"mode":"${state.mode === 'quiet' ? 'rest' : 'quiet'}","token":"${state.token}"},"reply":"好的。"}。mode 只能是 work、quiet、rest，reply 是不含协议或凭据的简短回复。主进程确认门牌后，前台仍使用 chat，不生成工作续步。

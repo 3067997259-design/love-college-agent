@@ -258,13 +258,16 @@ export function createContinuousWork(options: {
       if (!work) return { error: 'invalid-command' }
       const id = work.identity.workId
       if (command.type === 'work.supplement') {
-        const decision = options.decision(command.decisionId)
-        if (!modifiable.has(work.status) || !decision || work.decisions.some(item => item.id === decision.id) || work.decisions.length >= 64 || work.inputs.length >= 256) return { error: 'invalid-command' }
+        const ids = [...new Set([...(command.clarifiedDecisionIds ?? []), command.decisionId])]
+        const decisions = ids.map(options.decision)
+        if (!modifiable.has(work.status) || decisions.some(item => !item) || work.decisions.some(item => item.id === command.decisionId) || work.inputs.length >= 256) return { error: 'invalid-command' }
+        const added = (decisions as WorkDecision[]).filter(item => !work.decisions.some(previous => previous.id === item.id))
+        if (work.decisions.length + added.length > 64) return { error: 'invalid-command' }
         // Exact original speech is preserved separately from the routed explanation.
         const completed = work.status === 'completed'
         if (completed) { work.identity.generation++; work.runStartedAt = clock.nowMs(); work.subscriptionId = randomUUID(); work.consumedThrough = work.inputs.at(-1)?.sequence ?? 0; work.checkpointId = null }
-        work.decisions.push(decision); work.identity.objectiveRevision++; work.revision++
-        work.inputs.push(newInput(work, operationId, completed ? 'resume' : 'supplement', completed ? work.decisions.map(item => item.id) : [decision.id]))
+        work.decisions.push(...added); work.identity.objectiveRevision++; work.revision++
+        work.inputs.push(newInput(work, operationId, completed ? 'resume' : 'supplement', completed ? work.decisions.map(item => item.id) : ids))
         if (completed || work.status === 'waiting' && !live.has(id)) { work.status = 'queued'; work.waitingFor = 'project' }
         persist(work, 'supplemented', operationId, command)
         const entry = live.get(id)
@@ -303,6 +306,8 @@ export function createContinuousWork(options: {
       if (work) markDelivery(structuredClone(work), eventId, 'consumed')
     },
     get: (id: string) => { const work = works.get(id); return work ? structuredClone(work) : null },
+    // Routing checks must cover archived/older work too, beyond the 100-row UI.
+    requestWorks: () => structuredClone([...works.values()]),
     busy: () => live.size > 0,
     stateChanged: () => { if (options.held()) for (const work of [...works.values()]) if (live.has(work.identity.workId) && work.status !== 'stopping') stop(structuredClone(work), 'paused', randomUUID(), { cause: 'held' }); for (const id of works.keys()) deliver(id); schedule() },
     untrust: (project: string) => { for (const entry of live.values()) entry.runtime.untrust(project) },

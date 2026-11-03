@@ -69,9 +69,20 @@ try{
   const pa=await project('parallel-a'),pb=await project('parallel-b')
   const wa=await start(pa,'A','work-create-a-second'),wb=await start(pb,'B','work-create-b')
   // Snapshot rows follow recent activity; compare target versions by identity, not UI order.
-  const revisions=()=>h.snapshot().then(s=>s.continuousWorks.items.filter(w=>[wa.identity.workId,wb.identity.workId].includes(w.identity.workId)).map(w=>({id:w.identity.workId,revision:w.identity.objectiveRevision})).sort((a,b)=>a.id.localeCompare(b.id)))
+  const revisions=()=>h.snapshot().then(s=>s.continuousWorks.items.map(w=>({id:w.identity.workId,revision:w.identity.objectiveRevision,generation:w.identity.generation,status:w.status})).sort((a,b)=>a.id.localeCompare(b.id)))
   const before=await revisions();await h.chat('把那个任务改一下。','work-ambiguous',{clarification:true});assert.deepEqual(await revisions(),before)
   h.checks.ambiguousAmendmentDoesNotChangeEitherWork=true
+  assert.ok(h.report.clarification,'AMBIGUOUS_REQUEST_NOT_CLARIFIED')
+  h.checks.ambiguousAmendmentDoesNotCreateWork=true
+  if(h.selfTest){
+    await h.chat('把那个任务的 result.txt 内容改成 TEA，末尾加一个换行。','work-clarified',{clarification:true,clarificationAnswer:'WORK_B'})
+    const clarified=(await workRecords(h.profile())).find(work=>work.identity.workId===wb.identity.workId)
+    assert.equal(clarified.identity.objectiveRevision,wb.identity.objectiveRevision+1)
+    assert.equal(clarified.inputs.at(-1).decisionIds.length,2)
+    assert.equal(clarified.decisions.at(-1).text,'WORK_B')
+    assert.equal(clarified.decisions.at(-2).text,'把那个任务的 result.txt 内容改成 TEA，末尾加一个换行。')
+    h.checks.clarificationOriginalsReachSameWork=true
+  }
   await controls(wa.identity.workId,'work.stop')
   await h.wait(s=>s.continuousWorks.items.find(w=>w.identity.workId===wa.identity.workId)?.status==='stopped','STOP_NOT_SETTLED')
   assert.ok(['running','waiting'].includes((await h.snapshot()).continuousWorks.items.find(w=>w.identity.workId===wb.identity.workId).status))

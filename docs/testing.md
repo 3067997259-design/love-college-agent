@@ -88,7 +88,9 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 指定 `LCA_WORLD_PROBE_CASE=early-return` 可只运行第五例，硬限 1 次请求／16,000 单位。`--self-test --hold-after-done` 用本地服务复现协议已结束而 HTTP 仍开放的条件；原探针误报、修复及额外授权后的真实单例结果见[单例复测记录](research/continuity-world-single-retest-20261101.md)。
 
-`test:continuity:work-live` 与 `test:continuity:memory-live` 通过指定包的普通产品入口执行工作和记忆整链路。`--self-test` 使用本地脚本服务；真实执行另需匹配包／桥接指纹和批次额度的一次性授权。`test:continuity:prepare-probe <work目录> <memory目录> <新输出目录>` 只生成待授权模板。工作交付的自主额度包含在总额内；记忆还单独限制向量请求及字符数。结果、恢复缺陷修复、使用方法和未测边界见[工作／记忆预跑](research/continuity-probes-preflight-20261102.md)。取消世界单例另见[真实结果](research/continuity-world-cancelled-20261102.md)。
+`test:continuity:work-live` 与 `test:continuity:memory-live` 通过指定包的普通产品入口执行工作和记忆整链路。`--self-test` 使用本地脚本服务；仅此模式下，省略 `LCA_TEST_EXECUTABLE` 可以复用 `pnpm build` 后的源码 Electron，报告记录 out 文件与桥接指纹，不能记为包内验收。两种模式均要求全新的 `LCA_CONTINUITY_PROBE_RUN`。真实执行仍要求固定包、匹配包／桥接指纹和批次额度的一次性授权。`test:continuity:prepare-probe <work目录> <memory目录> <新输出目录>` 只生成待授权模板。工作交付的自主额度包含在总额内；记忆还单独限制向量请求及字符数。结果、恢复缺陷修复、使用方法和未测边界见[工作／记忆预跑](research/continuity-probes-preflight-20261102.md)。取消世界单例另见[真实结果](research/continuity-world-cancelled-20261102.md)。
+
+工作 self-test 故意重放 `inspect_work → 猜测 update_work → 额外 start_work`，再测试用户撤回后再次调用修改也被拒绝；随后验证正常澄清的两条原文确实进入同一工作。含糊场景对整个工作集合、目标版本、代次和状态做前后比较，并要求实际出现澄清，不能只检查原先两项的版本。`work-request.test.ts` 另覆盖原文作用域、名称与旧输出值混淆、审批／未提交回答、重复创建、重开去重及明确请求的正常执行。
 
 当前独立候选为 `continuity.6`：同包基础四项、本地工作八组、记忆七组和真实本机 PostgreSQL 镜像产品七组通过，见[候选 6 验收](research/continuity-candidate6-acceptance-20261102.md)。该本地轮次没有安装／发布或真实模型调用。`continuity.5` 的真实记忆七组及人工语义复核完成，但收尾 JSON 读取竞态使原自动报告失败；工作在排序断言处停止，当轮未执行尾段。旧版本结果、消耗及 Docker 修复见[候选 5 续验](research/continuity-candidate5-acceptance-20261102.md)，此前失败见[首轮服务实测](research/continuity-services-20261102.md)。`dsh-bridge-check.mjs state-foreground state-foreground-sign state-worker` 可离线验证独立车道下的门牌与工具范围。
 

@@ -21,6 +21,7 @@ type Reply = { text?: string; tool?: string; args?: unknown }
 /** Protocol fixture, used only in --self-test. No scripted text enters real-model requests. */
 export function createContinuityScriptedModel() {
   const workerSteps = new Map<string, number>()
+  const foregroundSteps = new Map<string, number>()
   return (body: ProbeRequest, phase: string, slot: string): Reply => {
     const objects = requestObjects(body)
     const allText = body.messages.map(m => messageText(m.content)).join('\n')
@@ -67,7 +68,32 @@ export function createContinuityScriptedModel() {
       assert.ok(work, 'SCRIPTED_WORK_REFERENCE_MISSING')
       return call('update_work', { workId: work.identity.workId, expectedRevision: work.revision, action: 'supplement' })
     }
-    if (phase === 'work-ambiguous') return !toolMessages.length ? call('ask_user_question', { questions: [{ id: 'target', question: '你要修改任务 A 还是任务 B？请明确工作编号。' }] }) : { text: '已保留两个任务的原要求。' }
+    if (phase === 'work-ambiguous' || phase === 'work-clarified') {
+      const step = foregroundSteps.get(phase) ?? 0; foregroundSteps.set(phase, step + 1)
+      const work = workReferences(objects).find(w => w.status === 'running' && w.label.includes('WORK_B'))
+      assert.ok(work, 'SCRIPTED_WORK_B_MISSING')
+      const update = () => call('update_work', { workId: work.identity.workId, expectedRevision: work.revision, action: 'supplement', ...(phase === 'work-clarified' ? { targetQuote: 'WORK_B' } : {}) })
+      if (phase === 'work-clarified') {
+        if (step === 0) return call('ask_user_question', { questions: [{ id: 'target', question: '要修改哪项工作？请填写 WORK_A 或 WORK_B。' }] })
+        if (step === 1) return update()
+        assert.ok(!messageText(body.messages.findLast(m => m.role === 'tool')?.content).includes('work-clarification-required'), 'CLARIFIED_UPDATE_REJECTED')
+        return { text: '已把明确的要求补充进 WORK_B。' }
+      }
+      // Replay the observed failure instead of relying on an obedient mock.
+      if (step === 0) return call('inspect_work', {})
+      if (step === 1) return update()
+      if (step === 2) {
+        assert.ok(allText.includes('work-clarification-required'), 'GUESSED_UPDATE_NOT_REJECTED')
+        return call('start_work', { objective: '补充 WORK_B：result.txt 改成 COFFEE，不要 TEA。', acceptance: ['COFFEE'] })
+      }
+      if (step === 3) {
+        assert.ok(messageText(body.messages.findLast(m => m.role === 'tool')?.content).includes('work-clarification-required'), 'EXTRA_WORK_NOT_REJECTED')
+        return call('ask_user_question', { questions: [{ id: 'target', question: '要修改哪项工作，具体改成什么？请同时说明。' }] })
+      }
+      if (step === 4) return update()
+      assert.ok(messageText(body.messages.findLast(m => m.role === 'tool')?.content).includes('request-withdrawn'), 'WITHDRAWAL_NOT_ENFORCED')
+      return { text: '已保留两个任务的原要求。' }
+    }
     if (phase === 'work-followup') {
       assert.ok(workReferences(objects).some(w => w.checkpoint?.published), 'SCRIPTED_CHECKPOINT_MISSING')
       return { text: 'result.txt 已按你的后续要求改成 COFFEE，文件检查点已经确认。' }

@@ -194,14 +194,14 @@ async function run() {
     clock.advanceBy(86_400_000); await memory.maintenance()
     checks.oldDayActuallyRolled = store.scope.sessionId !== firstPage && store.history!().some(row => row.type === 'memory/summary' && row.summary.text.includes('DEADLINE_FRIDAY'))
     phase = 'start'
-    await chat('[[START_A]] Please start task A.'); await holdA.promise
+    await chat('[[START_A]] Please start task A, labelled [[WORK_A]], and report actual fixture evidence.'); await holdA.promise
     const a = service.view().items.find(work => work.identity.projectId === 'A')!.identity.workId
     phase = 'chat-while-held'; await chat('[[CHAT]] How is your day?')
     checks.foregroundCompletesWhileToolHeld = service.get(a)?.status === 'running'
     await chat('[[UPDATE_A]] For task A use NEW_VALUE.'); const decision = source()
     const update = { type: 'work.supplement', target: target(a), text: decision.text, decisionId: decision.id }
     assert.equal(send(update, 'update-a').status, 'accepted'); assert.equal(send(update, 'update-a').status, 'accepted')
-    selected = 'B'; await chat('[[START_B]] Please start task B.'); await holdB.promise
+    selected = 'B'; await chat('[[START_B]] Please start task B, labelled [[WORK_B]], and report actual fixture evidence.'); await holdB.promise
     const b = service.view().items.find(work => work.identity.projectId === 'B')!.identity.workId
     checks.twoWorkerRoots = service.view().active === 2
     const beforeAmbiguous = [service.get(a)!.identity.objectiveRevision, service.get(b)!.identity.objectiveRevision]

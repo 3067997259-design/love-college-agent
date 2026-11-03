@@ -4,7 +4,8 @@ import { access, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { build } from 'vite'
 import { _electron } from 'playwright'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import electron from 'electron'
+import { runtimeEnv, initializeTestBook, electronLaunchTarget } from './runtime-env.mjs'
 
 export const sha = async file => createHash('sha256').update(await readFile(file)).digest('hex')
 export const walk = async dir => { try { return (await Promise.all((await readdir(dir, { withFileTypes: true })).flatMap(e => e.isDirectory() && !['chromium','dsh-home','artifacts','rooms'].includes(e.name) ? [walk(join(dir,e.name))] : e.isFile() ? [[join(dir,e.name)]] : []))).flat() } catch(error) { if(error.code==='ENOENT') return []; throw error } }
@@ -23,9 +24,9 @@ export async function workRecords(profile) {
 }
 export async function createContinuityHarness(batch, entry, { firstRequestOnly = false, captureOnly = false } = {}) {
   const repo=resolve(import.meta.dirname,'..'), selfTest=process.argv.includes('--self-test')
-  assert.ok(process.env.LCA_CONTINUITY_PROBE_RUN && process.env.LCA_TEST_EXECUTABLE,'ISOLATED_RUN_AND_PACKAGE_REQUIRED')
+  assert.ok(process.env.LCA_CONTINUITY_PROBE_RUN && (selfTest || process.env.LCA_TEST_EXECUTABLE),'ISOLATED_RUN_AND_PACKAGE_REQUIRED')
   assert.ok(selfTest || process.env.LCA_REAL_MODEL==='1','LIVE_OPT_IN_REQUIRED')
-  const root=resolve(process.env.LCA_CONTINUITY_PROBE_RUN),exe=resolve(process.env.LCA_TEST_EXECUTABLE)
+  const root=resolve(process.env.LCA_CONTINUITY_PROBE_RUN),target=electronLaunchTarget(repo,electron),source=!process.env.LCA_TEST_EXECUTABLE
   const plan=JSON.parse(await readFile(join(repo,'scripts/continuity-live-plan.json'),'utf8')), fullLimits=plan.batches.find(p=>p.id===batch)
   assert.ok(fullLimits,'UNKNOWN_BATCH');assert.ok(!firstRequestOnly||batch==='work','FIRST_REQUEST_WORK_ONLY')
   assert.ok(!captureOnly||firstRequestOnly&&!selfTest,'CAPTURE_SCOPE_REQUIRED')
@@ -42,9 +43,12 @@ export async function createContinuityHarness(batch, entry, { firstRequestOnly =
   }
   await mkdir(root,{recursive:true})
   const packageBridge={}
-  const resources=join(dirname(exe),'resources')
-  for(const file of await walk(join(resources,'lca-bridge')))packageBridge[file.slice(resources.length+1).replaceAll('\\','/')]=await sha(file)
-  const receipt={batch,selfTest,firstRequestOnly,captureOnly,limits,responseTimeouts:plan.defaults.responseTimeouts,turnTimeoutMs:plan.defaults.turnTimeoutMs,barrierTimeoutMs:plan.defaults.barrierTimeoutMs,asarSha256:await sha(join(resources,'app.asar')),packageBridge,probeManifest:'source-manifest.json'}
+  const resources=join(dirname(target.executablePath),'resources'),bridgeRoot=source?join(repo,'dsh/lca-bridge'):join(resources,'lca-bridge')
+  for(const file of await walk(bridgeRoot))packageBridge['lca-bridge/'+file.slice(bridgeRoot.length+1).replaceAll('\\','/')]=await sha(file)
+  const sourceBuild={}
+  if(source)for(const file of await walk(join(repo,'out')))sourceBuild[file.slice(repo.length+1).replaceAll('\\','/')]=await sha(file)
+  if(source)assert.ok(sourceBuild['out/main/index.cjs']&&sourceBuild['out/renderer/index.html'],'SOURCE_BUILD_REQUIRED')
+  const receipt={batch,selfTest,source,firstRequestOnly,captureOnly,limits,responseTimeouts:plan.defaults.responseTimeouts,turnTimeoutMs:plan.defaults.turnTimeoutMs,barrierTimeoutMs:plan.defaults.barrierTimeoutMs,asarSha256:source?null:await sha(join(resources,'app.asar')),sourceBuild,packageBridge,probeManifest:'source-manifest.json'}
   await writeFile(join(root,'run.json'),JSON.stringify(receipt,null,2),{flag:'wx'})
   if(grant){
     assert.equal(grant.asarSha256,receipt.asarSha256,'AUTHORIZED_PACKAGE_CHANGED')
@@ -94,7 +98,7 @@ export async function createContinuityHarness(batch, entry, { firstRequestOnly =
     profile=next;await mkdir(profile,{recursive:true})
     if(batch==='memory')await helper.evaluate((_,profile)=>globalThis.continuityProbe.installEmbedding(profile),profile)
     await helper.evaluate((_,profile)=>globalThis.continuityProbe.activate(profile),profile)
-    instance=await _electron.launch({executablePath:exe,args:[],env:{...env,LCA_DATA_DIR:profile,LCA_PROVIDERS_FILE:providers},timeout:30000})
+    instance=await _electron.launch({...target,env:{...env,LCA_DATA_DIR:profile,LCA_PROVIDERS_FILE:providers},timeout:30000})
     if(selfTest)await instance.evaluate(()=>{
       const cp=process.mainModule.require('node:child_process'),spawn=cp.spawn
       globalThis.probeDshErrors=[]
@@ -116,7 +120,7 @@ export async function createContinuityHarness(batch, entry, { firstRequestOnly =
       if(options.clarification&&!clarificationAnswered&&s.question?.status==='waiting'&&s.question.kind!=='approval'){
         assert.ok(s.question.items?.length,'CLARIFICATION_ITEMS_MISSING')
         report.clarification={id:s.question.id,items:s.question.items}
-        assert.equal((await send({type:'question.answer',questionId:s.question.id,answers:s.question.items.map(item=>({id:item.id,selected:[],custom:'先不改，两个任务保持原要求。'}))})).status,'accepted')
+        assert.equal((await send({type:'question.answer',questionId:s.question.id,answers:s.question.items.map(item=>({id:item.id,selected:[],custom:options.clarificationAnswer??'先不改，两个任务保持原要求。'}))})).status,'accepted')
         clarificationAnswered=true
       }
       const rows=await journalRows(profile)
@@ -148,7 +152,7 @@ export async function createContinuityHarness(batch, entry, { firstRequestOnly =
     console.log(JSON.stringify({root,ok:report.ok,batch,selfTest,error:report.error,checks,gateway:report.gateway?{...report.gateway,captures:undefined,samples:report.gateway.samples?.length}:null}))
   }
   try{
-    helper=await _electron.launch({executablePath:exe,args:[],env:{...env,LCA_DATA_DIR:join(root,'helper'),LCA_PROVIDERS_FILE:join(root,'absent.json')},timeout:30000})
+    helper=await _electron.launch({...target,env:{...env,LCA_DATA_DIR:join(root,'helper'),LCA_PROVIDERS_FILE:join(root,'absent.json')},timeout:30000})
     providers=await helper.evaluate(async(_,input)=>{globalThis.continuityProbe=await process.mainModule.require(input.compiled).startContinuityGateway(input);return globalThis.continuityProbe.providersFile},{compiled,root,batch,selfTest,firstRequestOnly,captureOnly,authorized:selfTest?undefined:process.env.LCA_PROVIDERS_FILE,embeddingConfig:selfTest?undefined:process.env.LCA_MEMORY_CONNECTION_FILE})
     await launch()
   }catch(error){await finalize(error);throw error}

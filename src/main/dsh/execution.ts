@@ -370,9 +370,9 @@ export function createDshExecution(options: {
     if (!tool.validate(input)) throw new Error('invalid-tool-arguments: one JSON object matching the tool schema')
     if (tool.templateId === 'memory.optical') current.impressions = true
     if (tool.templateId.startsWith('memory.') || tool.templateId.startsWith('history.') || tool.templateId.startsWith('work.')) current.memoryDerived = true
-    const userMessageId = current.seen.findLast(message => message.role === 'user' && message.originalEventId
-      && store.records().some(row => row.type === 'user/message' && row.id === message.originalEventId))?.originalEventId
-    const result = await tool.run(input, { clock, store, turnId: current.lcaTurnId, callId, signal: current.asks.signal, userMessageId })
+    const userMessageIds = current.seen.flatMap(message => message.role === 'user' && message.originalEventId
+      && store.records().some(row => row.type === 'user/message' && row.id === message.originalEventId) ? [message.originalEventId] : [])
+    const result = await tool.run(input, { clock, store, turnId: current.lcaTurnId, callId, signal: current.asks.signal, userMessageId: userMessageIds.at(-1), userMessageIds })
     if (!result.ok) throw new Error(clip(JSON.stringify(result.visible), 400))
     // An original she asked to read rides with the result, so the bridge retires it with the turn's other sources (D2).
     return { value: result.original === undefined ? result.visible : { ...result.visible as Record<string, unknown>, original: result.original }, source: sourceOf(tool.templateId) }
