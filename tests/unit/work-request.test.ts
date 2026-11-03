@@ -10,6 +10,7 @@ import type { SessionStore } from '../../src/main/store/session'
 import type { ToolContext } from '../../src/main/harness/tools'
 import { createContinuousWork } from '../../src/main/work/service'
 import { workTools } from '../../src/main/work/tools'
+import { authoredUserMessage } from '../../src/main/questions/authored'
 
 const cleanup: (() => void | Promise<void>)[] = []
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close() })
@@ -23,7 +24,7 @@ async function fixture(count = 2) {
   const say = (text: string) => { const id = randomUUID(); store.append({ type: 'user/message', id, text, requestId: id, commandHash: id }); messages.push(id); return id }
   const options = { root: join(root, 'work'), owner: { userId: 'u', characterId: 'c', dataRootId: 'test' }, clock,
     project: (id: string) => ({ id, path: root }), safeText: (text: string) => text, available: () => true, held: () => false, changed: () => {},
-    decision: (id: string) => { const row = store.records().find(item => item.type === 'user/message' && item.id === id); return row?.type === 'user/message' ? { id, text: row.text, atMs: row.atMs } : null },
+    decision: (id: string) => authoredUserMessage(store.records(), id),
     createRuntime: () => ({ deliver: async (input: { text: string; eventId: string }) => { delivered.push(input) }, invalidateWork: () => {}, close: async () => {}, busy: () => true, stateChanged: () => {}, untrust: () => {}, efforts: () => {} }) }
   let service = createContinuousWork(options)
   cleanup.push(() => service.close())
@@ -45,9 +46,10 @@ async function fixture(count = 2) {
   }, ctx)
   const create = (input: Record<string, unknown> = {}) => run('work.create', { objective: 'MODEL INVENTED COFFEE', acceptance: ['COFFEE'], ...input })
   const snapshot = () => service.requestWorks().map(work => ({ identity: work.identity, decisions: work.decisions, inputs: work.inputs, objective: work.objective }))
-  const reply = (text: string, { approval = false, committed = true, turnId = 'foreground-turn' } = {}) => {
+  const reply = (text: string, { approval = false, committed = true, turnId = 'foreground-turn', multiple = false } = {}) => {
     const id = randomUUID(), callId = randomUUID()
-    store.append({ type: 'question/requested', id, turnId, callId, question: 'Model proposes a change to COFFEE?', choices: ['WORK_B'], ...(approval ? { approval: true as const } : {}) })
+    store.append({ type: 'question/requested', id, turnId, callId, question: 'Model proposes a change to COFFEE?', choices: ['WORK_B'], ...(approval ? { approval: true as const } : {}),
+      ...(multiple ? { items: [{ id: 'target', header: 'WORK_B', question: 'Target?', options: [], multiSelect: false }, { id: 'change', header: 'COFFEE', question: 'Change?', options: [], multiSelect: false }] } : {}) })
     const answerMessageId = say(text)
     store.append({ type: 'question/answered', id, turnId, answerMessageId })
     if (committed) store.append({ type: 'question/committed', id, turnId, answerMessageId })
@@ -141,6 +143,15 @@ describe('current authored work requests, independent of model obedience', () =>
   it('does not adopt details written in the model question when the answer is only yes', async () => {
     const f = await fixture(1); f.say('把那个任务改一下。'); f.reply('好的')
     expect(await f.update()).toMatchObject({ reason: 'requirement-required' })
+  })
+
+  it('excludes model-written multi-question headings from both routing and stored decisions', async () => {
+    const f = await fixture(); f.say('把那个任务改一下。'); f.reply('WORK_B：好的\nCOFFEE：好的', { multiple: true })
+    expect(await f.update(undefined, { targetQuote: 'WORK_B', requirementQuote: 'COFFEE' })).toMatchObject({ reason: 'quote-not-in-request' })
+    f.say('把那个任务的输出改成 TEA。'); const answer = f.reply('WORK_B：WORK_B\nCOFFEE：保持 TEA。', { multiple: true })
+    expect(await f.update(undefined, { targetQuote: 'WORK_B' })).not.toHaveProperty('error')
+    expect(f.get(f.works[1]).decisions.at(-1)).toMatchObject({ id: answer, text: 'WORK_B\n保持 TEA。' })
+    expect(JSON.parse(f.delivered.at(-1)!.text).userDecisions.at(-1).text).toBe('WORK_B\n保持 TEA。')
   })
 
   it('honors withdrawal after a question and a later ordinary message supersedes its chain', async () => {

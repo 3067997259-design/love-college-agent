@@ -120,7 +120,7 @@ export async function createContinuityHarness(batch, entry, { firstRequestOnly =
       if(options.clarification&&!clarificationAnswered&&s.question?.status==='waiting'&&s.question.kind!=='approval'){
         assert.ok(s.question.items?.length,'CLARIFICATION_ITEMS_MISSING')
         report.clarification={id:s.question.id,items:s.question.items}
-        assert.equal((await send({type:'question.answer',questionId:s.question.id,answers:s.question.items.map(item=>({id:item.id,selected:[],custom:options.clarificationAnswer??'先不改，两个任务保持原要求。'}))})).status,'accepted')
+        assert.equal((await send({type:'question.answer',questionId:s.question.id,answers:s.question.items.map(item=>({id:item.id,selected:[],custom:options.clarificationAnswers?.[item.id]??options.clarificationAnswer??'先不改，两个任务保持原要求。'}))})).status,'accepted')
         clarificationAnswered=true
       }
       const rows=await journalRows(profile)

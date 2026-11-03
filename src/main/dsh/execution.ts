@@ -5,6 +5,7 @@ import type { AppEvent, PublicErrorCode } from '../../shared'
 import { readClock, type Clock } from '../clock'
 import { failureNarration } from '../harness/failure'
 import type { HarnessTool } from '../harness/tools'
+import { authoredUserMessage } from '../questions/authored'
 import type { JournalInput } from '../journal/schema'
 import type { SessionStore } from '../store/session'
 import type { ExtensionRuntime } from './extensions'
@@ -391,8 +392,8 @@ export function createDshExecution(options: {
     const raw = await options.question(items, { turnId: current.lcaTurnId, callId: callId ?? randomUUID(), signal: AbortSignal.any([signal, current.asks.signal]) })
     if (raw.status === 'declined') return { answers: items.map((item) => ({ id: item.id, selected: [] })) }
     if (raw.status !== 'answered' || !Array.isArray(raw.answers)) return { error: UNANSWERED[String(raw.status)] ?? 'The question was withdrawn before the user answered.' }
-    const row = store.records().findLast((entry) => entry.type === 'user/message' && entry.id === raw.answerMessageId)
-    if (row?.type === 'user/message') current.seen.push({ role: 'user', content: row.text, originalEventId: row.id })
+    const row = typeof raw.answerMessageId === 'string' ? authoredUserMessage(store.records(), raw.answerMessageId) : null
+    if (row) current.seen.push({ role: 'user', content: row.text, originalEventId: row.id })
     if (callId) options.answered?.({ turnId: current.lcaTurnId, callId })
     return { answers: raw.answers }
   }

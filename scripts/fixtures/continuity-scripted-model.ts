@@ -74,7 +74,10 @@ export function createContinuityScriptedModel() {
       assert.ok(work, 'SCRIPTED_WORK_B_MISSING')
       const update = () => call('update_work', { workId: work.identity.workId, expectedRevision: work.revision, action: 'supplement', ...(phase === 'work-clarified' ? { targetQuote: 'WORK_B' } : {}) })
       if (phase === 'work-clarified') {
-        if (step === 0) return call('ask_user_question', { questions: [{ id: 'target', question: '要修改哪项工作？请填写 WORK_A 或 WORK_B。' }] })
+        if (step === 0) return call('ask_user_question', { questions: [
+          { id: 'target', header: '目标工作', question: '要修改哪项工作？请填写 WORK_A 或 WORK_B。' },
+          { id: 'detail', header: 'COFFEE（仅问题标题）', question: '具体要求是什么？' },
+        ] })
         if (step === 1) return update()
         assert.ok(!messageText(body.messages.findLast(m => m.role === 'tool')?.content).includes('work-clarification-required'), 'CLARIFIED_UPDATE_REJECTED')
         return { text: '已把明确的要求补充进 WORK_B。' }

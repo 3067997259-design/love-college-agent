@@ -75,11 +75,11 @@ try{
   assert.ok(h.report.clarification,'AMBIGUOUS_REQUEST_NOT_CLARIFIED')
   h.checks.ambiguousAmendmentDoesNotCreateWork=true
   if(h.selfTest){
-    await h.chat('把那个任务的 result.txt 内容改成 TEA，末尾加一个换行。','work-clarified',{clarification:true,clarificationAnswer:'WORK_B'})
+    await h.chat('把那个任务的 result.txt 内容改成 TEA，末尾加一个换行。','work-clarified',{clarification:true,clarificationAnswers:{target:'WORK_B',detail:'保持 TEA，末尾加一个换行。'}})
     const clarified=(await workRecords(h.profile())).find(work=>work.identity.workId===wb.identity.workId)
     assert.equal(clarified.identity.objectiveRevision,wb.identity.objectiveRevision+1)
     assert.equal(clarified.inputs.at(-1).decisionIds.length,2)
-    assert.equal(clarified.decisions.at(-1).text,'WORK_B')
+    assert.equal(clarified.decisions.at(-1).text,'WORK_B\n保持 TEA，末尾加一个换行。')
     assert.equal(clarified.decisions.at(-2).text,'把那个任务的 result.txt 内容改成 TEA，末尾加一个换行。')
     h.checks.clarificationOriginalsReachSameWork=true
   }
@@ -101,6 +101,15 @@ try{
   h.report.approvalsBeforeRestart=[...oldApprovalIds]
   await h.wait(async s=>s.task?.status==='completed'&&(await workRecords(h.profile())).filter(w=>w.status==='completed').every(w=>w.deliveries?.length===1&&w.deliveries[0].state==='consumed'),'DELIVERY_NOT_CONSUMED',{approvals:true})
   const records=await workRecords(h.profile()),rows=await journalRows(h.profile())
+  if(h.selfTest){
+    const answer=records.find(work=>work.identity.workId===wb.identity.workId).decisions.find(decision=>decision.text==='WORK_B\n保持 TEA，末尾加一个换行。')
+    assert.ok(answer,'AUTHORED_CLARIFICATION_MISSING')
+    const front=rows.filter(row=>row.type==='model/seen').flatMap(row=>(row.originalEvents??[]).filter(event=>event.eventId===answer.id).map(event=>row.messages[event.index].content))
+    const worker=rows.filter(row=>row.type==='work/seen').flatMap(row=>row.originals.filter(original=>original.id===answer.id).map(original=>original.text))
+    assert.ok(front.length&&worker.length,'CLARIFICATION_NOT_OBSERVED_IN_BOTH_ROOTS')
+    assert.ok([...front,...worker].every(text=>text===answer.text),'QUESTION_HEADINGS_LEAKED_INTO_AUTHORED_EXPERIENCE')
+    h.checks.clarificationHasSameAuthoredContentAcrossRoots=true
+  }
   for(const work of records.filter(w=>w.status==='completed')){assert.equal(work.deliveries.length,1);assert.equal(work.deliveries[0].state,'consumed');assert.equal(rows.filter(r=>r.type==='inbox/event'&&r.id===work.deliveries[0].eventId).length,1)}
   h.checks.noDuplicateDelivery=true
   h.report.workReceipts=records.map(w=>({identity:w.identity,status:w.status,inputs:w.inputs,deliveries:w.deliveries,checkpoints:w.checkpoints,evidence:w.evidence}))

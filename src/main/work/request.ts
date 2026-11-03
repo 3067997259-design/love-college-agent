@@ -1,5 +1,6 @@
 import type { ToolContext } from '../harness/tools'
 import type { WorkDecision, WorkRecord } from './journal'
+import { authoredUserMessage } from '../questions/authored'
 
 export interface WorkRequest { decisions: WorkDecision[]; text: string; latest: WorkDecision }
 
@@ -13,13 +14,13 @@ export function authoredWorkRequest(context: ToolContext): WorkRequest | null {
   const approvals = new Set(rows.flatMap(row => row.type === 'question/requested' && row.approval ? [row.id] : []))
   const decisions: WorkDecision[] = []
   for (const id of ids.toReversed()) {
-    const row = rows.find(item => item.type === 'user/message' && item.id === id)
-    if (row?.type !== 'user/message') return null
+    const decision = authoredUserMessage(rows, id)
+    if (!decision) return null
     const answer = rows.find(item => item.type === 'question/answered' && item.answerMessageId === id)
     if (answer?.type === 'question/answered') {
       if (answer.turnId !== context.turnId || approvals.has(answer.id) || !rows.some(item => item.type === 'question/committed' && item.id === answer.id && item.turnId === context.turnId && item.answerMessageId === id)) return null
     }
-    decisions.unshift({ id, text: row.text, atMs: row.atMs })
+    decisions.unshift(decision)
     if (!answer) break
   }
   if (!decisions.length || decisions.length > 8) return null

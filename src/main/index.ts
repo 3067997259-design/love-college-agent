@@ -36,6 +36,7 @@ import { createContinuousWork, type ContinuousWorkService, type WorkRuntimeConte
 import { openWorkStore } from './work/store'
 import { workTools, workCompletionTools, workContext } from './work/tools'
 import { workExperience } from './work/experience'
+import { authoredUserMessage } from './questions/authored'
 import { dshLocations } from './dsh/locations'
 import { startDshHost, type DshHost } from './dsh/host'
 import { createExtensions, type ExtensionsService, type ExtensionRuntime } from './dsh/extensions'
@@ -752,13 +753,7 @@ void app.whenReady().then(async () => {
       safeText: text => privateCredentials.reduce((safe, key) => key ? safe.replaceAll(key, '[redacted]') : safe, redactSecrets(text)),
       available: () => !!dshExecution,
       held: () => { const state = store!.projection(); return state.lightsOut || state.sleeping || !!backup?.isBusy() || !!modelSettings?.isBusy() || !!memorySettings?.isBusy() },
-      decision: id => {
-        const rows = store!.history?.() ?? store!.records()
-        const approvals = new Set(rows.flatMap(row => row.type === 'question/requested' && row.approval ? [row.id] : []))
-        if (rows.some(row => row.type === 'question/answered' && row.answerMessageId === id && approvals.has(row.id))) return null
-        const row = rows.find(row => row.type === 'user/message' && row.id === id)
-        return row?.type === 'user/message' ? { id, text: row.text, atMs: row.atMs } : null
-      },
+      decision: id => authoredUserMessage(store!.history?.() ?? store!.records(), id),
       observed: workExperiences.observed,
       deliverCheckpoint: (work, checkpoint) => workExperiences.deliver(work, checkpoint, (text, eventId) => dshExecution?.postEvent('work', text, eventId) ?? false),
       createRuntime: context => {
