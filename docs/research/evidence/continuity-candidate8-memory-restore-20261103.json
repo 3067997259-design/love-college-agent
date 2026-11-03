@@ -1,0 +1,605 @@
+{
+  "version": 1,
+  "date": "2026-11-03",
+  "result": "live-tail-incomplete-offline-stream-diagnostics-repaired",
+  "candidate": {
+    "version": "1.2.0-continuity.8",
+    "asarSha256": "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14"
+  },
+  "scope": {
+    "restoreOnly": true,
+    "sourceArchive": "D:\\lca-continuity-candidate-20261101\\profiles\\memory-candidate8-live-20261103-1\\nonempty.lca-save",
+    "archiveSha256": "5566af01d6912fd88c18846a0171c006ef7aa504f14cb2d703e847139dc4963c",
+    "maximumModelRequests": 6,
+    "maximumReservedUnits": 196608,
+    "maximumAutonomousUnits": 65536,
+    "maximumEmbeddingRequests": 12,
+    "maximumEmbeddingInputCharacters": 20000
+  },
+  "closed": {
+    "authorizationId": "974edbba-b36b-4d2c-9efb-4e35b5b9c8b6",
+    "closedAtIso": "2026-11-03T07:23:31.463Z",
+    "result": "stopped-application-admission-ambiguous",
+    "reuseAllowed": false,
+    "halted": true,
+    "inFlight": 0,
+    "cleanupUncertain": false,
+    "actual": {
+      "modelRequests": 1,
+      "embeddingRequests": 3,
+      "embeddingCharacters": 154,
+      "reservedUnits": 22602,
+      "autonomousUnits": 6602
+    },
+    "reportSha256": "1b81d70c3852af061343d38568cfee74375c0f0a5147b63ad99b92c9127231fa"
+  },
+  "initialPreflight": {
+    "directory": "D:/lca-continuity-candidate-20261101/profiles/memory-restore-candidate8-selftest-20261103-1",
+    "reportSha256": "37077b2da941c204e1f6a2a4d9e22935107977c503c5d95e90f4f143c2208407",
+    "gatewayReportSha256": "25b6ad78872abcb14d36bc865b440cfe3edec64dd4679e9045951e2f546231d6",
+    "sourceManifest": {
+      "scripts/probe-memory-restore.mjs": "6e7a7568d4b36a699d6782733d7143dc7c355379f089f47af7603efa6da5e345",
+      "scripts/probe-continuity-harness.mjs": "03723d064263f198a4b5404d7c862069739e31aa5af1fc1a8a32cc15bf26421e",
+      "scripts/fixtures/continuity-live-gateway.ts": "fa48a13791cb0f335b742d5a3b08b74283cb80a848c4c475e4be9970081d3377",
+      "scripts/fixtures/continuity-scripted-model.ts": "6d855951ca5beb202e8eb918cd13670f2b365d6016e744c4b8dad9e851cd6174",
+      "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+      "scripts/fixtures/probe-transport.ts": "427c01a8d86e19ab4f87a04b9f9065f91e3f576de43ad04dbf4582a01f5c1cb9",
+      "scripts/fixtures/probe-response-deadline.ts": "77a098bf9c8bc021f2b364ac008450dcbe7487f4dfc5dc31ca30856fcdba85e9",
+      "scripts/fixtures/world-probe-stream.ts": "c6fa49708756d80832d6af9181f0e8e1f1467566e60270b5cd1cebac7c46f71f",
+      "scripts/fixtures/world-probe-admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+      "scripts/continuity-live-plan.json": "2aec874eb267cf602a740402fdcca167b0fa7f334048e8493595f873e049aa4d",
+      "bundle/gateway.cjs": "977a478ee73b4a9f7ca2745ae8c20d9f0405874c41449ee8472bc1664feb7096"
+    },
+    "ok": true,
+    "selfTest": true,
+    "checks": {
+      "nonemptyArchiveRestored": true,
+      "retiredHistoryAndAppliedForgetRestored": true,
+      "currentMemoryReadAndAnswerDelivered": true,
+      "noFactOrOperationResurrection": true,
+      "originalHistoryPreserved": true
+    },
+    "error": null,
+    "answersDelivered": 1,
+    "cleanupUncertain": false,
+    "counts": {
+      "modelRequests": 2,
+      "embeddingRequests": 4,
+      "embeddingCharacters": 158,
+      "reservedUnits": 24782,
+      "autonomousUnits": 8662,
+      "upstreamRequests": 0,
+      "inFlight": 0
+    },
+    "halted": true,
+    "denials": [],
+    "modelSamples": [
+      {
+        "slot": "chat",
+        "phase": "after-restore",
+        "status": 200,
+        "ok": true,
+        "error": null,
+        "elapsedMs": 4,
+        "completionBasis": "sentinel",
+        "stream": {
+          "frames": 2,
+          "doneMarkers": 1,
+          "finishReasonSeen": true,
+          "endCalled": true,
+          "eofTailCharacters": 0,
+          "invalidJsonFrames": 0,
+          "lastBoundary": "separator",
+          "lastKind": "done",
+          "pendingCharacters": 0
+        }
+      },
+      {
+        "slot": "chat",
+        "phase": "after-restore",
+        "status": 200,
+        "ok": true,
+        "error": null,
+        "elapsedMs": 2,
+        "completionBasis": "sentinel",
+        "stream": {
+          "frames": 2,
+          "doneMarkers": 1,
+          "finishReasonSeen": true,
+          "endCalled": true,
+          "eofTailCharacters": 0,
+          "invalidJsonFrames": 0,
+          "lastBoundary": "separator",
+          "lastKind": "done",
+          "pendingCharacters": 0
+        }
+      }
+    ],
+    "restoreReceipts": {
+      "restoreArchiveSha256": "5566af01d6912fd88c18846a0171c006ef7aa504f14cb2d703e847139dc4963c",
+      "restoredMessages": 18,
+      "originalRows": 18,
+      "currentReviewedFacts": 0,
+      "retiredFacts": [
+        {
+          "id": "6bf1bf40-a34f-400d-aaea-5200605bb1c7",
+          "revision": 3,
+          "content": "平时喜欢喝茶。",
+          "factStatus": "superseded"
+        }
+      ],
+      "operations": [
+        {
+          "operationId": "tool:0f254b79e6032fd80aba3a35d8889ca2f9a28aaa0155577656df703ae2558e52",
+          "kind": "remember",
+          "status": "applied"
+        },
+        {
+          "operationId": "tool:36eafb92ba5e179eefa512967329c672e41f109bd037893ec17f2c2ec30fdd47",
+          "kind": "correct",
+          "status": "applied"
+        },
+        {
+          "operationId": "tool:df39be1ea7d12df6a91dbb60efe1bea9620e14ee10b435f88264f2df2d5f8afc",
+          "kind": "forget",
+          "status": "applied"
+        }
+      ],
+      "memoryReads": [
+        {
+          "turnId": "58022bbf-b4f9-41df-93aa-374a0d80d6c3",
+          "callId": "0dce02c4-ef63-404c-a616-40fa06f0ed6f",
+          "templateId": "memory.search",
+          "status": "completed"
+        }
+      ]
+    }
+  },
+  "live": {
+    "directory": "D:/lca-continuity-candidate-20261101/profiles/memory-restore-candidate8-live-20261103-1",
+    "reportSha256": "1b81d70c3852af061343d38568cfee74375c0f0a5147b63ad99b92c9127231fa",
+    "gatewayReportSha256": "d6d77fcfd7f679e1ec868ca025b522d3e9aa36fa8322014be13625fd6bdb9cea",
+    "sourceManifest": {
+      "scripts/probe-memory-restore.mjs": "6e7a7568d4b36a699d6782733d7143dc7c355379f089f47af7603efa6da5e345",
+      "scripts/probe-continuity-harness.mjs": "03723d064263f198a4b5404d7c862069739e31aa5af1fc1a8a32cc15bf26421e",
+      "scripts/fixtures/continuity-live-gateway.ts": "fa48a13791cb0f335b742d5a3b08b74283cb80a848c4c475e4be9970081d3377",
+      "scripts/fixtures/continuity-scripted-model.ts": "6d855951ca5beb202e8eb918cd13670f2b365d6016e744c4b8dad9e851cd6174",
+      "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+      "scripts/fixtures/probe-transport.ts": "427c01a8d86e19ab4f87a04b9f9065f91e3f576de43ad04dbf4582a01f5c1cb9",
+      "scripts/fixtures/probe-response-deadline.ts": "77a098bf9c8bc021f2b364ac008450dcbe7487f4dfc5dc31ca30856fcdba85e9",
+      "scripts/fixtures/world-probe-stream.ts": "c6fa49708756d80832d6af9181f0e8e1f1467566e60270b5cd1cebac7c46f71f",
+      "scripts/fixtures/world-probe-admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+      "scripts/continuity-live-plan.json": "2aec874eb267cf602a740402fdcca167b0fa7f334048e8493595f873e049aa4d",
+      "bundle/gateway.cjs": "977a478ee73b4a9f7ca2745ae8c20d9f0405874c41449ee8472bc1664feb7096"
+    },
+    "ok": false,
+    "selfTest": false,
+    "checks": {
+      "nonemptyArchiveRestored": true,
+      "retiredHistoryAndAppliedForgetRestored": true
+    },
+    "error": "GATEWAY_HALTED:CHAT_NOT_COMPLETED:after-restore\n\ntrue !== false\n",
+    "answersDelivered": 0,
+    "cleanupUncertain": false,
+    "counts": {
+      "modelRequests": 1,
+      "embeddingRequests": 3,
+      "embeddingCharacters": 154,
+      "reservedUnits": 22602,
+      "autonomousUnits": 6602,
+      "upstreamRequests": 4,
+      "inFlight": 0
+    },
+    "halted": true,
+    "denials": [
+      {
+        "phase": "after-restore",
+        "code": "APPLICATION_ADMISSION_AMBIGUOUS"
+      }
+    ],
+    "modelSamples": [
+      {
+        "slot": "chat",
+        "phase": "after-restore",
+        "status": 200,
+        "ok": true,
+        "error": null,
+        "elapsedMs": 84649,
+        "completionBasis": "sentinel",
+        "stream": {
+          "frames": 2,
+          "doneMarkers": 1,
+          "finishReasonSeen": false,
+          "endCalled": true,
+          "eofTailCharacters": 0,
+          "invalidJsonFrames": 0,
+          "lastBoundary": "separator",
+          "lastKind": "done",
+          "pendingCharacters": 0
+        }
+      }
+    ],
+    "restoreReceipts": null
+  },
+  "finding": {
+    "observed": "First model SSE took 84649 ms, had 2 frames and DONE but no finish_reason; no answer or tool execution reached the fresh turn. A later HTTP attempt had no new application admission and was denied.",
+    "originalPayloadRetained": false,
+    "exactUpstreamPayloadKnown": false,
+    "oldGatewaySuccessWasOnlyTerminalEvidence": true,
+    "reproduction": "A synthetic empty choices frame plus DONE reproduces the same admission denial. This does not prove the exact original upstream payload.",
+    "repair": "Reject empty model output and in-stream provider errors; preserve shape-only diagnostics on failure. No allowance for unadmitted retries was added.",
+    "productionSourceChanged": false,
+    "packageChanged": false
+  },
+  "beforeFixEmptyReproduction": {
+    "directory": "D:/lca-continuity-candidate-20261101/profiles/memory-restore-empty-repro-20261103-1",
+    "reportSha256": "2c873d699f88bd37ee48539295a8e43fbd1d759fa4501cbb17dd52d2bae48658",
+    "gatewayReportSha256": "778533d8126839423b5dfe8554879965d7097ba03b0eacbdae1c82412777c313",
+    "sourceManifest": {
+      "scripts/probe-memory-restore.mjs": "f50f1b4f922b0aa7c82d2a4adf5bdbfcc3b5b90dae08226cceb17372a3d8c43a",
+      "scripts/probe-continuity-harness.mjs": "20208e79734e9a9b3858bccd756a26153c2dc3cf5d6c5b5d0f4adaf1e9de971b",
+      "scripts/fixtures/continuity-live-gateway.ts": "815e140ed752fe83b52b51e1cc1b0117d41fa1073d10c30b200e336aa727ed55",
+      "scripts/fixtures/continuity-scripted-model.ts": "6d855951ca5beb202e8eb918cd13670f2b365d6016e744c4b8dad9e851cd6174",
+      "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+      "scripts/fixtures/probe-transport.ts": "427c01a8d86e19ab4f87a04b9f9065f91e3f576de43ad04dbf4582a01f5c1cb9",
+      "scripts/fixtures/probe-response-deadline.ts": "77a098bf9c8bc021f2b364ac008450dcbe7487f4dfc5dc31ca30856fcdba85e9",
+      "scripts/fixtures/world-probe-stream.ts": "c6fa49708756d80832d6af9181f0e8e1f1467566e60270b5cd1cebac7c46f71f",
+      "scripts/fixtures/world-probe-admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+      "scripts/continuity-live-plan.json": "2aec874eb267cf602a740402fdcca167b0fa7f334048e8493595f873e049aa4d",
+      "bundle/gateway.cjs": "05f8442e3c255e259ccf52d8bc6522c0c8e1776a2583f4a9b2a0e4eeec58e3b2"
+    },
+    "ok": false,
+    "selfTest": true,
+    "checks": {
+      "nonemptyArchiveRestored": true,
+      "retiredHistoryAndAppliedForgetRestored": true
+    },
+    "error": "GATEWAY_HALTED:CHAT_NOT_COMPLETED:after-restore\n\ntrue !== false\n",
+    "answersDelivered": 0,
+    "cleanupUncertain": false,
+    "counts": {
+      "modelRequests": 1,
+      "embeddingRequests": 3,
+      "embeddingCharacters": 154,
+      "reservedUnits": 22602,
+      "autonomousUnits": 6602,
+      "upstreamRequests": 0,
+      "inFlight": 0
+    },
+    "halted": true,
+    "denials": [
+      {
+        "phase": "after-restore",
+        "code": "APPLICATION_ADMISSION_AMBIGUOUS"
+      }
+    ],
+    "modelSamples": [
+      {
+        "slot": "chat",
+        "phase": "after-restore",
+        "status": 200,
+        "ok": true,
+        "error": null,
+        "elapsedMs": 3,
+        "completionBasis": "sentinel",
+        "stream": {
+          "frames": 2,
+          "doneMarkers": 1,
+          "finishReasonSeen": false,
+          "endCalled": true,
+          "eofTailCharacters": 0,
+          "invalidJsonFrames": 0,
+          "lastBoundary": "separator",
+          "lastKind": "done",
+          "pendingCharacters": 0
+        }
+      }
+    ],
+    "restoreReceipts": null
+  },
+  "fixedOffline": {
+    "empty": {
+      "directory": "D:/lca-continuity-candidate-20261101/profiles/memory-restore-fixed-empty-20261103-1",
+      "reportSha256": "97052bad88d855b1f4d53ecc0e3a0b710cf612ecb63816c2f723a972d236b5d7",
+      "gatewayReportSha256": "85ea2e4134ef1c75d1da007fa56f2cf6430bae72787a2965db8c08dcd059dc4c",
+      "sourceManifest": {
+        "scripts/probe-memory-restore.mjs": "f50f1b4f922b0aa7c82d2a4adf5bdbfcc3b5b90dae08226cceb17372a3d8c43a",
+        "scripts/probe-continuity-harness.mjs": "20208e79734e9a9b3858bccd756a26153c2dc3cf5d6c5b5d0f4adaf1e9de971b",
+        "scripts/fixtures/continuity-live-gateway.ts": "c1f5f1071d6aca2b607275f61d1146a876d688c152bb774a80dc6d82bd7daf82",
+        "scripts/fixtures/continuity-scripted-model.ts": "6d855951ca5beb202e8eb918cd13670f2b365d6016e744c4b8dad9e851cd6174",
+        "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+        "scripts/fixtures/probe-transport.ts": "427c01a8d86e19ab4f87a04b9f9065f91e3f576de43ad04dbf4582a01f5c1cb9",
+        "scripts/fixtures/probe-response-deadline.ts": "77a098bf9c8bc021f2b364ac008450dcbe7487f4dfc5dc31ca30856fcdba85e9",
+        "scripts/fixtures/world-probe-stream.ts": "2a01d4e27d2a5de2d33497d3127524238a4f59ba595c5b56e9d68eacd32c08dc",
+        "scripts/fixtures/world-probe-admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+        "scripts/continuity-live-plan.json": "2aec874eb267cf602a740402fdcca167b0fa7f334048e8493595f873e049aa4d",
+        "bundle/gateway.cjs": "2772c152894ac5fc51822a99ebd5d94ed8078c50cc6d6834af66e474ea2c6c8a"
+      },
+      "ok": false,
+      "selfTest": true,
+      "checks": {
+        "nonemptyArchiveRestored": true,
+        "retiredHistoryAndAppliedForgetRestored": true
+      },
+      "error": "GATEWAY_HALTED:CHAT_NOT_COMPLETED:after-restore\n\ntrue !== false\n",
+      "answersDelivered": 0,
+      "cleanupUncertain": false,
+      "counts": {
+        "modelRequests": 1,
+        "embeddingRequests": 3,
+        "embeddingCharacters": 154,
+        "reservedUnits": 22602,
+        "autonomousUnits": 6602,
+        "upstreamRequests": 0,
+        "inFlight": 0
+      },
+      "halted": true,
+      "denials": [],
+      "modelSamples": [
+        {
+          "slot": "chat",
+          "phase": "after-restore",
+          "status": 200,
+          "ok": false,
+          "error": "EMPTY_MODEL_RESPONSE",
+          "elapsedMs": 1,
+          "stream": {
+            "frames": 2,
+            "doneMarkers": 1,
+            "finishReasonSeen": false,
+            "endCalled": true,
+            "eofTailCharacters": 0,
+            "invalidJsonFrames": 0,
+            "lastBoundary": "separator",
+            "lastKind": "done",
+            "pendingCharacters": 0,
+            "contentSeen": false,
+            "toolCallSeen": false,
+            "refusalSeen": false,
+            "reasoningSeen": false,
+            "providerErrorFrames": 0
+          }
+        }
+      ],
+      "restoreReceipts": null
+    },
+    "error": {
+      "directory": "D:/lca-continuity-candidate-20261101/profiles/memory-restore-fixed-error-20261103-1",
+      "reportSha256": "aa88c136e5409f7ce66e23e1913bee9ea4abc91a14917f57601734feba33beae",
+      "gatewayReportSha256": "f11e41978fd67fb96e29bb377a18a494451991523dd7022f6a0f74f6fb9d5579",
+      "sourceManifest": {
+        "scripts/probe-memory-restore.mjs": "f50f1b4f922b0aa7c82d2a4adf5bdbfcc3b5b90dae08226cceb17372a3d8c43a",
+        "scripts/probe-continuity-harness.mjs": "20208e79734e9a9b3858bccd756a26153c2dc3cf5d6c5b5d0f4adaf1e9de971b",
+        "scripts/fixtures/continuity-live-gateway.ts": "c1f5f1071d6aca2b607275f61d1146a876d688c152bb774a80dc6d82bd7daf82",
+        "scripts/fixtures/continuity-scripted-model.ts": "6d855951ca5beb202e8eb918cd13670f2b365d6016e744c4b8dad9e851cd6174",
+        "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+        "scripts/fixtures/probe-transport.ts": "427c01a8d86e19ab4f87a04b9f9065f91e3f576de43ad04dbf4582a01f5c1cb9",
+        "scripts/fixtures/probe-response-deadline.ts": "77a098bf9c8bc021f2b364ac008450dcbe7487f4dfc5dc31ca30856fcdba85e9",
+        "scripts/fixtures/world-probe-stream.ts": "2a01d4e27d2a5de2d33497d3127524238a4f59ba595c5b56e9d68eacd32c08dc",
+        "scripts/fixtures/world-probe-admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+        "scripts/continuity-live-plan.json": "2aec874eb267cf602a740402fdcca167b0fa7f334048e8493595f873e049aa4d",
+        "bundle/gateway.cjs": "2772c152894ac5fc51822a99ebd5d94ed8078c50cc6d6834af66e474ea2c6c8a"
+      },
+      "ok": false,
+      "selfTest": true,
+      "checks": {
+        "nonemptyArchiveRestored": true,
+        "retiredHistoryAndAppliedForgetRestored": true
+      },
+      "error": "GATEWAY_HALTED:CHAT_NOT_COMPLETED:after-restore\n\ntrue !== false\n",
+      "answersDelivered": 0,
+      "cleanupUncertain": false,
+      "counts": {
+        "modelRequests": 1,
+        "embeddingRequests": 3,
+        "embeddingCharacters": 154,
+        "reservedUnits": 22602,
+        "autonomousUnits": 6602,
+        "upstreamRequests": 0,
+        "inFlight": 0
+      },
+      "halted": true,
+      "denials": [],
+      "modelSamples": [
+        {
+          "slot": "chat",
+          "phase": "after-restore",
+          "status": 200,
+          "ok": false,
+          "error": "PROVIDER_STREAM_ERROR",
+          "elapsedMs": 2,
+          "stream": {
+            "frames": 1,
+            "doneMarkers": 0,
+            "finishReasonSeen": false,
+            "endCalled": false,
+            "eofTailCharacters": 0,
+            "invalidJsonFrames": 0,
+            "lastBoundary": "separator",
+            "lastKind": "json",
+            "pendingCharacters": 14,
+            "contentSeen": false,
+            "toolCallSeen": false,
+            "refusalSeen": false,
+            "reasoningSeen": false,
+            "providerErrorFrames": 1
+          }
+        }
+      ],
+      "restoreReceipts": null
+    },
+    "positive": {
+      "directory": "D:/lca-continuity-candidate-20261101/profiles/memory-restore-fixed-positive-20261103-1",
+      "reportSha256": "bcf92004080510e6c2eb0afdedf91302f45ef736ab298e93860f4d5fff7a5e4a",
+      "gatewayReportSha256": "5ea495b2665de29c8b127c640b25bb656191e3593d5b2852f52a4214b536368e",
+      "sourceManifest": {
+        "scripts/probe-memory-restore.mjs": "f50f1b4f922b0aa7c82d2a4adf5bdbfcc3b5b90dae08226cceb17372a3d8c43a",
+        "scripts/probe-continuity-harness.mjs": "20208e79734e9a9b3858bccd756a26153c2dc3cf5d6c5b5d0f4adaf1e9de971b",
+        "scripts/fixtures/continuity-live-gateway.ts": "c1f5f1071d6aca2b607275f61d1146a876d688c152bb774a80dc6d82bd7daf82",
+        "scripts/fixtures/continuity-scripted-model.ts": "6d855951ca5beb202e8eb918cd13670f2b365d6016e744c4b8dad9e851cd6174",
+        "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+        "scripts/fixtures/probe-transport.ts": "427c01a8d86e19ab4f87a04b9f9065f91e3f576de43ad04dbf4582a01f5c1cb9",
+        "scripts/fixtures/probe-response-deadline.ts": "77a098bf9c8bc021f2b364ac008450dcbe7487f4dfc5dc31ca30856fcdba85e9",
+        "scripts/fixtures/world-probe-stream.ts": "2a01d4e27d2a5de2d33497d3127524238a4f59ba595c5b56e9d68eacd32c08dc",
+        "scripts/fixtures/world-probe-admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+        "scripts/continuity-live-plan.json": "2aec874eb267cf602a740402fdcca167b0fa7f334048e8493595f873e049aa4d",
+        "bundle/gateway.cjs": "2772c152894ac5fc51822a99ebd5d94ed8078c50cc6d6834af66e474ea2c6c8a"
+      },
+      "ok": true,
+      "selfTest": true,
+      "checks": {
+        "nonemptyArchiveRestored": true,
+        "retiredHistoryAndAppliedForgetRestored": true,
+        "currentMemoryReadAndAnswerDelivered": true,
+        "noFactOrOperationResurrection": true,
+        "originalHistoryPreserved": true
+      },
+      "error": null,
+      "answersDelivered": 1,
+      "cleanupUncertain": false,
+      "counts": {
+        "modelRequests": 2,
+        "embeddingRequests": 4,
+        "embeddingCharacters": 158,
+        "reservedUnits": 24782,
+        "autonomousUnits": 8662,
+        "upstreamRequests": 0,
+        "inFlight": 0
+      },
+      "halted": true,
+      "denials": [],
+      "modelSamples": [
+        {
+          "slot": "chat",
+          "phase": "after-restore",
+          "status": 200,
+          "ok": true,
+          "error": null,
+          "elapsedMs": 4,
+          "completionBasis": "sentinel",
+          "stream": {
+            "frames": 2,
+            "doneMarkers": 1,
+            "finishReasonSeen": true,
+            "endCalled": true,
+            "eofTailCharacters": 0,
+            "invalidJsonFrames": 0,
+            "lastBoundary": "separator",
+            "lastKind": "done",
+            "pendingCharacters": 0,
+            "contentSeen": false,
+            "toolCallSeen": true,
+            "refusalSeen": false,
+            "reasoningSeen": false,
+            "providerErrorFrames": 0
+          }
+        },
+        {
+          "slot": "chat",
+          "phase": "after-restore",
+          "status": 200,
+          "ok": true,
+          "error": null,
+          "elapsedMs": 2,
+          "completionBasis": "sentinel",
+          "stream": {
+            "frames": 2,
+            "doneMarkers": 1,
+            "finishReasonSeen": true,
+            "endCalled": true,
+            "eofTailCharacters": 0,
+            "invalidJsonFrames": 0,
+            "lastBoundary": "separator",
+            "lastKind": "done",
+            "pendingCharacters": 0,
+            "contentSeen": true,
+            "toolCallSeen": false,
+            "refusalSeen": false,
+            "reasoningSeen": false,
+            "providerErrorFrames": 0
+          }
+        }
+      ],
+      "restoreReceipts": {
+        "restoreArchiveSha256": "5566af01d6912fd88c18846a0171c006ef7aa504f14cb2d703e847139dc4963c",
+        "restoredMessages": 18,
+        "originalRows": 18,
+        "currentReviewedFacts": 0,
+        "retiredFacts": [
+          {
+            "id": "6bf1bf40-a34f-400d-aaea-5200605bb1c7",
+            "revision": 3,
+            "content": "平时喜欢喝茶。",
+            "factStatus": "superseded"
+          }
+        ],
+        "operations": [
+          {
+            "operationId": "tool:0f254b79e6032fd80aba3a35d8889ca2f9a28aaa0155577656df703ae2558e52",
+            "kind": "remember",
+            "status": "applied"
+          },
+          {
+            "operationId": "tool:36eafb92ba5e179eefa512967329c672e41f109bd037893ec17f2c2ec30fdd47",
+            "kind": "correct",
+            "status": "applied"
+          },
+          {
+            "operationId": "tool:df39be1ea7d12df6a91dbb60efe1bea9620e14ee10b435f88264f2df2d5f8afc",
+            "kind": "forget",
+            "status": "applied"
+          }
+        ],
+        "memoryReads": [
+          {
+            "turnId": "61ef9bd8-dda1-44aa-97f1-9d70082c0d55",
+            "callId": "513d451a-9bc8-47aa-879f-8c4784b0a048",
+            "templateId": "memory.search",
+            "status": "completed"
+          }
+        ]
+      }
+    }
+  },
+  "verification": {
+    "unit": {
+      "files": 3,
+      "total": 28,
+      "passed": 28,
+      "failed": 0,
+      "report": "test-results/continuity/memory-restore-stream-20261103-1.json"
+    },
+    "mainTypecheckExit": 0,
+    "changedPathLintExit": 0,
+    "scopeGuards": {
+      "ok": true,
+      "externalCalls": 0,
+      "checks": [
+        {
+          "name": "old-full-grant",
+          "expected": "RESTORE_AUTHORIZATION_MISMATCH",
+          "rejectedBeforeRunCreation": true
+        },
+        {
+          "name": "changed-archive",
+          "expected": "AUTHORIZED_ARCHIVE_CHANGED",
+          "rejectedBeforeRunCreation": true
+        }
+      ]
+    }
+  },
+  "nextWindow": {
+    "authorized": false,
+    "template": "test-results/continuity/candidate8-memory-restore-fixed-ready-20261103/authorization.proposed.json",
+    "preflightReportSha256": "bcf92004080510e6c2eb0afdedf91302f45ef736ab298e93860f4d5fff7a5e4a",
+    "firstFailureStops": true,
+    "previousQuotaReusable": false
+  },
+  "remaining": [
+    "Real restore-tail final answer and semantic review",
+    "Full 90 retrieval and 24 story quality/cost matrix",
+    "Actual install/upgrade",
+    "Second Windows device",
+    "Long-running daily use"
+  ]
+}

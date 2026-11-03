@@ -13,18 +13,19 @@ import { completedJournalRecords } from './world-probe-admission'
 import { createWorldProbeStream } from './world-probe-stream'
 import { observeProbeTransport } from './probe-transport'
 import { createProbeResponseDeadline } from './probe-response-deadline'
-import { createContinuityProbeBudget, compactAdmission } from './continuity-live-budget'
+import { createContinuityProbeBudget, compactAdmission, continuityProbeLimits } from './continuity-live-budget'
 import { createContinuityScriptedModel, requestObjects, workPackage, scriptedResponse, messageText, type ProbeRequest } from './continuity-scripted-model'
 import plan from '../continuity-live-plan.json'
 
 const files = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() && !['chromium', 'dsh-home', 'artifacts', 'rooms'].includes(e.name) ? files(join(dir, e.name)) : e.isFile() ? [join(dir, e.name)] : [])
 const hash = (text: string) => createHash('sha256').update(text).digest('hex')
-export async function startContinuityGateway(input: { root: string; batch: 'work' | 'memory'; selfTest: boolean; firstRequestOnly?: boolean; captureOnly?: boolean; authorized?: string; embeddingConfig?: string }) {
+export async function startContinuityGateway(input: { root: string; batch: 'work' | 'memory'; selfTest: boolean; selfTestModelFault?: 'empty-stream' | 'error-stream' | null; firstRequestOnly?: boolean; captureOnly?: boolean; restoreOnly?: boolean; authorized?: string; embeddingConfig?: string }) {
   assert.ok(process.versions.electron, 'ELECTRON_MAIN_REQUIRED')
-  const { root, batch, selfTest, firstRequestOnly = false, captureOnly = false } = input, fullLimits = plan.batches.find(p => p.id === batch)!
+  const { root, batch, selfTest, firstRequestOnly = false, captureOnly = false, restoreOnly = false } = input
+  assert.ok(!input.selfTestModelFault || selfTest && ['empty-stream', 'error-stream'].includes(input.selfTestModelFault), 'SELF_TEST_FAULT_SCOPE_REQUIRED')
   assert.ok(!firstRequestOnly || batch === 'work', 'FIRST_REQUEST_WORK_ONLY')
   assert.ok(!captureOnly || firstRequestOnly && !selfTest, 'CAPTURE_SCOPE_REQUIRED')
-  const limits = firstRequestOnly ? { ...fullLimits, ...plan.firstRequestLimits } : fullLimits
+  const limits = continuityProbeLimits(plan, batch, { firstRequestOnly, restoreOnly })
   assert.ok(limits && ['work', 'memory'].includes(batch), 'INVALID_BATCH')
   mkdirSync(root, { recursive: true }); writeFileSync(join(root, 'gateway-start.json'), JSON.stringify({ batch, selfTest, limits, responseTimeouts: plan.defaults.responseTimeouts }), { flag: 'wx' })
   const ledger = createResourceBudget({ root: join(root, 'budget'), clock, configurable: true })
@@ -58,7 +59,7 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
   const rows = () => [join(profile, 'journals'), join(profile, 'continuous-work')].flatMap(files).filter(f => /[\\/]journals[\\/]/.test(f) && f.endsWith('.jsonl')).flatMap(file => completedJournalRecords(readFileSync(file, 'utf8')).map(row => ({ file, row, ticket: hash(file + ':' + row.turnId + ':' + row.attempt + ':' + row.slot) })))
   const usage = () => completedJournalRecords(readFileSync(join(profile, 'runtime-resources/usage.jsonl'), 'utf8'))
   let compactBaseline = new Set<string>()
-  const state = () => ({ batch, selfTest, firstRequestOnly, captureOnly, upstreamRequests: selfTest || captureOnly ? 0 : budget.view().modelRequests + budget.view().embeddingRequests, phase, halted, ...budget.view(), inFlight: active.size, samples, denials, captures: captured })
+  const state = () => ({ batch, selfTest, firstRequestOnly, captureOnly, restoreOnly, upstreamRequests: selfTest || captureOnly ? 0 : budget.view().modelRequests + budget.view().embeddingRequests, phase, halted, ...budget.view(), inFlight: active.size, samples, denials, captures: captured })
   const save = () => writeFileSync(join(root, 'gateway-report.json'), JSON.stringify(state(), null, 2))
   const server = createServer((req, res) => { void (async () => {
     assert.ok(req.method === 'POST' && req.headers.authorization === 'Bearer ' + key && !req.headers.origin && profile && !halted, 'UNADMITTED_REQUEST')
@@ -112,6 +113,10 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
           const digest = createHash('sha256').update(/饮料|喝茶|咖啡/.test(body.input!) ? 'synthetic-beverage-cluster' : body.input!).digest()
           const vector = Array.from({ length: 768 }, (_, i) => (digest[i % digest.length] - 128) / 128)
           response = new Response(JSON.stringify({ data: [{ embedding: vector, index: 0 }], usage: { prompt_tokens: 10, total_tokens: 10 } }), { headers: { 'content-type': 'application/json' } })
+        } else if (input.selfTestModelFault) {
+          assert.ok(body.stream, 'STREAM_FAULT_REQUIRES_STREAM')
+          const value = input.selfTestModelFault === 'empty-stream' ? { choices: [] } : { error: { type: 'server_error', message: 'synthetic upstream error' } }
+          response = new Response('data: ' + JSON.stringify(value) + '\n\ndata: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
         } else response = new Response(scriptedResponse(body, fake(body, phase, slot)), { headers: { 'content-type': body.stream ? 'text/event-stream' : 'application/json' } })
       } else {
         const endpoint = (isEmbedding ? embedding!.baseUrl : config[slot].base_url).replace(/\/+$/, '') + (isEmbedding ? '/embeddings' : '/chat/completions')
@@ -128,16 +133,19 @@ export async function startContinuityGateway(input: { root: string; batch: 'work
           deadline.chunk(chunk.value.length)
           bytes += chunk.value.length; assert.ok(bytes <= 2 * 1024 * 1024, 'RESPONSE_TOO_LARGE')
           const text = decoder.decode(chunk.value, { stream: true })
-          if (body.stream && !isEmbedding) { stream.push(text); res.write(chunk.value); if (stream.terminalSentinelSeen()) { stream.end(); sample.ok = true; sample.completionBasis = 'sentinel'; deadline.complete(); res.end(); abort.abort(); break } }
+          if (body.stream && !isEmbedding) {
+            stream.push(text)
+            if (stream.terminalSentinelSeen()) { stream.end(); stream.assertModelOutput(); res.write(chunk.value); sample.ok = true; sample.completionBasis = 'sentinel'; deadline.complete(); res.end(); abort.abort(); break }
+            res.write(chunk.value)
+          }
           else json += text
         }
         if (!sample.ok) {
-          if (body.stream && !isEmbedding) { stream.push(decoder.decode()); stream.end(); sample.completionBasis = 'eof' }
+          if (body.stream && !isEmbedding) { stream.push(decoder.decode()); stream.end(); stream.assertModelOutput(); sample.completionBasis = 'eof' }
           else { json += decoder.decode(); const parsed = JSON.parse(json); assert.ok(isEmbedding ? Array.isArray(parsed.data?.[0]?.embedding) : parsed.choices?.[0]?.message, 'INVALID_RESPONSE'); res.write(json); sample.inputTokens = parsed.usage?.prompt_tokens ?? null; sample.outputTokens = parsed.usage?.completion_tokens ?? null }
           sample.ok = true; deadline.complete()
         }
-      } finally { await reader.cancel().catch(() => {}); reader.releaseLock() }
-      sample.stream = body.stream && !isEmbedding ? stream.diagnostics() : null
+      } finally { sample.stream = body.stream && !isEmbedding ? stream.diagnostics() : null; await reader.cancel().catch(() => {}); reader.releaseLock() }
     } catch (error) {
       if (selfTest) sample.fixtureDiagnostic = { message: error instanceof Error ? error.message : String(error), request: body }
       halted = true; sample.ok = false; sample.error = deadline.diagnostics.timeoutPhase ? 'TIMEOUT' : error instanceof Error && /^[A-Z_:]+$/.test(error.message) ? error.message : 'RESPONSE_FAILED'

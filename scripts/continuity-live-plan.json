@@ -3,6 +3,7 @@
   "authorization": "required-per-batch; previous provider probe grant is closed",
   "defaults": { "sameSavedChatModel": true, "independentProfiles": true, "firstFailureStopsBatch": true, "automaticRetry": false, "oracleExcludedFromModelInput": true, "responseTimeouts": { "firstResponseMs": 120000, "idleMs": 60000, "totalMs": 300000 }, "turnTimeoutMs": 600000, "barrierTimeoutMs": 1800000 },
   "firstRequestLimits": { "maximumModelRequests": 1, "maximumReservedUnits": 16000, "maximumAutonomousUnits": 0, "maximumEmbeddingRequests": 0, "maximumEmbeddingInputCharacters": 0 },
+  "memoryRestoreLimits": { "maximumModelRequests": 6, "maximumReservedUnits": 196608, "maximumAutonomousUnits": 65536, "maximumEmbeddingRequests": 12, "maximumEmbeddingInputCharacters": 20000 },
   "batches": [
     {
       "id": "world", "maximumModelRequests": 12, "maximumReservedUnits": 256000, "maximumAutonomousUnits": 0,

@@ -1,8 +1,20 @@
 import { expect, it } from 'vitest'
-import { createContinuityProbeBudget, compactAdmission } from '../../scripts/fixtures/continuity-live-budget'
+import { createContinuityProbeBudget, compactAdmission, continuityProbeLimits } from '../../scripts/fixtures/continuity-live-budget'
 import plan from '../../scripts/continuity-live-plan.json'
 
 const limits = { maximumModelRequests: 3, maximumReservedUnits: 10_000, maximumAutonomousUnits: 5000, maximumEmbeddingRequests: 2, maximumEmbeddingInputCharacters: 20 }
+it('keeps full batches intact and isolates the smaller restore scope from work and one-request probes', () => {
+  for(const batch of ['work','memory'])expect(continuityProbeLimits(plan,batch)).toEqual(plan.batches.find(item=>item.id===batch))
+  expect(continuityProbeLimits(plan,'memory',{restoreOnly:true})).toMatchObject(plan.memoryRestoreLimits)
+  expect(()=>continuityProbeLimits(plan,'work',{restoreOnly:true})).toThrow('RESTORE_SCOPE_REQUIRED')
+  expect(()=>continuityProbeLimits(plan,'memory',{restoreOnly:true,firstRequestOnly:true})).toThrow()
+})
+it('enforces a fresh six-request restore ceiling rather than reusing full-batch allowance', () => {
+  const b=createContinuityProbeBudget(continuityProbeLimits(plan,'memory',{restoreOnly:true}),()=>{})
+  for(let i=0;i<6;i++)b.model('restore-'+i,1000,'work')
+  expect(()=>b.model('extra',1000,'work')).toThrow('MODEL_REQUESTS_EXHAUSTED')
+  expect(b.view().modelRequests).toBe(6)
+})
 it('enforces a separate one-request retry even when the first response used little quota', () => {
   const charges: number[] = [], b = createContinuityProbeBudget(plan.firstRequestLimits, units => { charges.push(units) })
   expect(() => b.model('auto', 1, 'autonomous')).toThrow('AUTONOMOUS_UNITS_EXHAUSTED')

@@ -5,6 +5,19 @@ export interface ContinuityProbeLimits {
   maximumEmbeddingRequests?: number; maximumEmbeddingInputCharacters?: number
 }
 
+/** Keep normal batches unchanged; a fresh restore-only grant is never a resumed full batch. */
+export function continuityProbeLimits(
+  plan: { batches: (ContinuityProbeLimits & { id: string })[]; firstRequestLimits: ContinuityProbeLimits; memoryRestoreLimits: ContinuityProbeLimits },
+  batch: string,
+  scope: { firstRequestOnly?: boolean; restoreOnly?: boolean } = {},
+) {
+  const full = plan.batches.find(item => item.id === batch)
+  assert.ok(full, 'UNKNOWN_BATCH')
+  assert.ok(!scope.firstRequestOnly || batch === 'work', 'FIRST_REQUEST_WORK_ONLY')
+  assert.ok(!scope.restoreOnly || batch === 'memory' && !scope.firstRequestOnly, 'RESTORE_SCOPE_REQUIRED')
+  return { ...full, ...(scope.firstRequestOnly ? plan.firstRequestLimits : scope.restoreOnly ? plan.memoryRestoreLimits : {}) }
+}
+
 /** Explicit compaction reserves without a conversation turn/model journal row. */
 export function compactAdmission(rows: Record<string, unknown>[], baseline: Set<string>, consumed: (ticket: string) => boolean) {
   const fresh = rows.filter(row => row.kind === 'model' && typeof row.id === 'string' && !baseline.has(row.id) && !consumed('compact:' + row.id))

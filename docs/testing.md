@@ -102,6 +102,8 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 该次获授权的[真实记忆复测](research/continuity-candidate8-memory-live-20261103.md)中参数两项通过，记忆前六组和恢复状态已验证，但恢复后的第 33 次模型请求触及 32 次硬上限；保留自动 `ok:false`，没有用事后九条回复复核替代完整通过。下一次应在新授权下独立补恢复尾段。
 
+独立入口 `node scripts/probe-memory-restore.mjs --self-test` 已补齐，绑定原非空存档、固定包和新数据目录；`--prepare <通过的预检目录> <新模板>` 仅生成未授权模板。真实尾段曾因首个模型流未交付输出、再次 HTTP 尝试缺少新准入而停止；随后空流／流内错误诊断修复和正常尾段五项离线检查通过，见[尾段结果与新窗口范围](research/continuity-candidate8-memory-restore-20261103.md)。`[DONE]` 本身不等于有可用输出；故障注入只能用于离线模式，不能放宽真实调用准入。旧窗口关闭后不可续用额度，真实最终答复仍待复测。
+
 人工审阅 `answers-for-review.json` 后，先在另一文件写完 `{ "batch": "work或memory", "accepted": true, "reason": "实际核对依据" }`，再用 `node scripts/publish-continuity-review.mjs <运行目录> <决定文件>` 原子发布。若审阅不通过，设置 `accepted: false` 并说明原因。发布器不覆盖已有回执、不修改已结束批次，不调用模型。不要直接创建目标 `semantic-review.json` 后逐步写入。
 
 - `probe:student-hub-live` 要求显式 `LCA_STUDENT_HUB_LIVE=1`，使用临时库的只读邮件范围；不扩大到课程提交或外部写入。
