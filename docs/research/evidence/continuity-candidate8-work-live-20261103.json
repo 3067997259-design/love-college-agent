@@ -2,6 +2,13 @@
   "version": 1,
   "date": "2026-11-03",
   "result": "passed",
+  "userAcceptance": {
+    "date": "2026-11-03",
+    "statement": "确认可以验收。下一步工作是什么？",
+    "scope": "Candidate 8 bounded live work integration checks and semantic review described in this report.",
+    "accepted": true,
+    "releaseAuthorized": false
+  },
   "candidate": {
     "version": "1.2.0-continuity.8",
     "sourceRevision": "35d319742861cb2bfb393a697fa9560fcae7cd74",
