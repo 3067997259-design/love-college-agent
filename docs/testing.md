@@ -96,7 +96,7 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 上述本地轮次之后，候选 6 的新授权真实工作批次完成 31 次完整响应；前四组通过，第五组含糊指令实际改变 WORK_B 版本并额外创建工作，首次失败后已停止并关闭额度。这个缺陷与旧排序误报不同；停止／恢复尾段没有继续执行，见[真实工作失败与边界](research/continuity-candidate6-work-live-20261102.md)。
 
-该缺陷的主进程修复、原文与澄清边界、故意发送错误工具调用的回归和本机候选 8 结果见[修复与离线复验](research/continuity-work-request-20261103.md)。真实工作复测仍需新的任务授权；候选 6 的余额不复用。
+该缺陷的主进程修复、原文与澄清边界、故意发送错误工具调用的回归和本机候选 8 结果见[修复与离线复验](research/continuity-work-request-20261103.md)。随后获授权的[候选 8 真实工作复测](research/continuity-candidate8-work-live-20261103.md)以 36 次请求完成九项检查与语义核对，零向量调用；该批已关闭，下一批另需授权，候选 6／8 的余额均不复用。
 
 人工审阅 `answers-for-review.json` 后，先在另一文件写完 `{ "batch": "work或memory", "accepted": true, "reason": "实际核对依据" }`，再用 `node scripts/publish-continuity-review.mjs <运行目录> <决定文件>` 原子发布。若审阅不通过，设置 `accepted: false` 并说明原因。发布器不覆盖已有回执、不修改已结束批次，不调用模型。不要直接创建目标 `semantic-review.json` 后逐步写入。
 

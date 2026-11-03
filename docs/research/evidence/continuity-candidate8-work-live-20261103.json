@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "date": "2026-11-03",
+  "result": "passed",
+  "candidate": {
+    "version": "1.2.0-continuity.8",
+    "sourceRevision": "35d319742861cb2bfb393a697fa9560fcae7cd74",
+    "asarSha256": "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14"
+  },
+  "runDirectory": "D:/lca-continuity-candidate-20261101/profiles/work-candidate8-live-20261103-1",
+  "authorization": {
+    "id": "a2858c53-d834-444b-a348-f4b00200f26a",
+    "approvedAtIso": "2026-11-03T02:29:00.914Z",
+    "maximumModelRequests": 48,
+    "maximumReservedUnits": 1048576,
+    "maximumAutonomousUnits": 65536,
+    "embeddingRequestsAllowed": 0,
+    "firstFailureStops": true
+  },
+  "actual": {
+    "modelRequests": 36,
+    "upstreamRequests": 36,
+    "reservedUnits": 533709,
+    "autonomousUnits": 63039,
+    "embeddingRequests": 0,
+    "allResponsesComplete": true,
+    "allStatuses200": true,
+    "responseMs": {
+      "min": 3883,
+      "median": 5732.5,
+      "max": 27299
+    },
+    "quotaDenials": 0
+  },
+  "checks": {
+    "foregroundCompletesWhileWorkerToolBlocked": true,
+    "supplementDurableInOriginalWork": true,
+    "currentRevisionFileAndCheckpoint": true,
+    "immediateDeliveryContextHasVerifiedEvidence": true,
+    "ambiguousAmendmentDoesNotChangeEitherWork": true,
+    "ambiguousAmendmentDoesNotCreateWork": true,
+    "stopIsolatedToOneRoot": true,
+    "recoveryUsesNewGenerationWithoutApprovalReplay": true,
+    "noDuplicateDelivery": true
+  },
+  "ambiguous": {
+    "userText": "?????????",
+    "question": {
+      "id": "2313b1cc-c097-4e13-b9f0-7a8e0492efa7",
+      "items": [
+        {
+          "id": "clarify_work_update",
+          "header": "确认要修改的工作和要求",
+          "question": "现在有 WORK_A 和 WORK_B 两个任务在跑。你想改哪一个，具体要改成什么？请直接写出工作名称（如 WORK_A 或 WORK_B）和具体的修改要求。",
+          "options": [],
+          "multiSelect": false
+        }
+      ]
+    },
+    "answer": {
+      "step": "work-ambiguous",
+      "userMessageId": "f4eeb37b-5e3f-42c3-80e4-514b1fe9a587",
+      "turnId": "ed8eb7e9-f6cc-4223-9299-9c9eb0325c07",
+      "text": "好，那就不动了，`WORK_A` 和 `WORK_B` 都继续按原来的要求跑。"
+    },
+    "activities": [
+      {
+        "callId": "call_549481",
+        "templateId": "user.ask"
+      }
+    ],
+    "misroutedMutationAttempted": false
+  },
+  "semanticReview": {
+    "batch": "work",
+    "accepted": true,
+    "reviewer": "Codex",
+    "reviewedAtIso": "2026-11-03T02:36:44.298Z",
+    "reason": "Reviewed all seven direct replies, the actual clarification card, both automatic final deliveries, persisted work identities, input receipts and output bytes. The first work correctly changes TEA to COFFEE only after the explicit amendment and barrier release; its immediate explanation matches revision 2 and the verified hash. The ambiguous request asks for both target and concrete change; after the scripted withdrawal, both original work versions and the full work set remain unchanged. Stopped A has no result file. B resumes in generation 2, finishes the B2 command with observed exit 0 and writes TEA; both final deliveries match their published checkpoints and occur once. All nine automated checks passed. This review does not certify arbitrary natural language, long-term use or other real services."
+  },
+  "deliveries": [
+    {
+      "turnId": "946729de-157a-47ed-b214-cf5eec3cf63a",
+      "text": "`WORK_A`（`7d556c6b-f99c-4eee-963a-6ab7c827da00`）已经做完交付了。\n\n- 最后写进 `result.txt` 的内容是 `COFFEE`（已登记文件产物检查点，哈希为 `967d1f88...`）。\n- 改变内容是因为你在 `& .\\barrier.ps1 A1` 还在等待时追加了补充要求，指定把 `result.txt` 的内容改成 `COFFEE`、不要原来的 `TEA`；等阻塞命令正常结束后，就按你最新的要求写了 `COFFEE`。"
+    },
+    {
+      "turnId": "a1c22da9-648c-4233-8396-32334321fd01",
+      "text": "`WORK_B`（`59a6b9a4-9324-4cc0-ba3e-73ce0eec3006`）做完了。\n\n- 在代次 2 恢复后，已在当前项目的 PowerShell 进程里执行完 `& .\\barrier.ps1 B2`（退出码 `0`）。\n- 命令真正结束后，把 `TEA` 写进了 `result.txt`，并用实际文件证据提交了检查点。"
+    }
+  ],
+  "works": [
+    {
+      "workId": "7d556c6b-f99c-4eee-963a-6ab7c827da00",
+      "projectId": "35225b5155734e57c889aa008e901efa5c71db81ccfb600f6adf9014429ca519",
+      "generation": 1,
+      "objectiveRevision": 2,
+      "status": "completed",
+      "decisionIds": [
+        "743c9048-948b-4bc4-82a8-4e1498a55db5",
+        "9c7fa12d-1d8e-4a3b-a72c-7c4a347b166c"
+      ],
+      "deliveryCount": 1,
+      "deliveries": [
+        {
+          "eventId": "checkpoint:8bb093a0cc03e6ca4f15ae3868ecd260a213f6819091201a36ab9f46c21575c5",
+          "checkpointId": "8bb093a0cc03e6ca4f15ae3868ecd260a213f6819091201a36ab9f46c21575c5",
+          "state": "consumed"
+        }
+      ],
+      "checkpoints": [
+        {
+          "id": "8bb093a0cc03e6ca4f15ae3868ecd260a213f6819091201a36ab9f46c21575c5",
+          "generation": 1,
+          "objectiveRevision": 2,
+          "outcome": "completed",
+          "evidenceIds": [
+            "a938467027bd7f2a16f7f8539e1df50c0dd84830396e91aaa03ff7abf4efc241"
+          ]
+        }
+      ]
+    },
+    {
+      "workId": "a5d7aa93-be2e-4b0a-9d95-dc3e9f4e8fb1",
+      "projectId": "f57cc951b30a160f3341de69963bc16cd825bef0a0d02c44e608af13a906b643",
+      "generation": 1,
+      "objectiveRevision": 1,
+      "status": "stopped",
+      "decisionIds": [
+        "a6dfaacd-eb51-4e79-8e54-40697a23624e"
+      ],
+      "deliveryCount": 0,
+      "deliveries": [],
+      "checkpoints": []
+    },
+    {
+      "workId": "59a6b9a4-9324-4cc0-ba3e-73ce0eec3006",
+      "projectId": "ad1c7029bdb77717f25517f505f12734cd9bb49c67e3b09513b943ae4b63cb22",
+      "generation": 2,
+      "objectiveRevision": 1,
+      "status": "completed",
+      "decisionIds": [
+        "3fc5e1bc-691a-4b07-8164-58430e490394"
+      ],
+      "deliveryCount": 1,
+      "deliveries": [
+        {
+          "eventId": "checkpoint:da5b17a216e821e57b871b13deb9a7e626e313b3c328afe4e39004efe77f91cb",
+          "checkpointId": "da5b17a216e821e57b871b13deb9a7e626e313b3c328afe4e39004efe77f91cb",
+          "state": "consumed"
+        }
+      ],
+      "checkpoints": [
+        {
+          "id": "da5b17a216e821e57b871b13deb9a7e626e313b3c328afe4e39004efe77f91cb",
+          "generation": 2,
+          "objectiveRevision": 1,
+          "outcome": "completed",
+          "evidenceIds": [
+            "5a93923f1cf338dcabd7c8304cfb86244541e4c77b706f4e79521536a740c49e",
+            "297801d0853f200c57fcb7ee01ec6c773127d2eaf5ed4a9cc9506ffbda384bd5"
+          ]
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "project": "first",
+      "exists": true,
+      "text": "COFFEE",
+      "sha256": "967d1f886b03dc749aea3ef70b666ffad4921aa26a5af80130a15d18e02afc68"
+    },
+    {
+      "project": "parallel-a",
+      "exists": false
+    },
+    {
+      "project": "parallel-b",
+      "exists": true,
+      "text": "TEA",
+      "sha256": "9b0e2ae93d55cc54ed35b0485d6b52add0f85b492d96861dce77ad1679ceec95"
+    }
+  ],
+  "approvalReplay": {
+    "retiredIds": [
+      "80f289d8-02cf-4e8d-a303-322701838596",
+      "824a43f7-ded3-428a-a6e6-4bff6d63f210",
+      "61589990-0ba8-40e1-964e-87b15b4f5010"
+    ],
+    "rejected": true,
+    "scope": "Replayed approval IDs rejected; persistent trust for the three isolated test projects was retained."
+  },
+  "closure": {
+    "version": 1,
+    "authorizationId": "a2858c53-d834-444b-a348-f4b00200f26a",
+    "closedAtIso": "2026-11-03T02:38:01.728Z",
+    "result": "passed",
+    "reuseAllowed": false,
+    "automaticRetry": false,
+    "inFlight": 0,
+    "gatewayHalted": true,
+    "modelRequests": 36,
+    "embeddingRequests": 0,
+    "reservedUnits": 533709,
+    "autonomousUnits": 63039,
+    "reportSha256": "e25a37fbcd2b3c9ca1209c37af40f3345d7892cf6b8bd9ea2700f98a157d26cf",
+    "semanticReviewSha256": "36b898d267bd1145c815ec7f6e29cf9ceceb37a7a70d406f06d3789e616b3ac5",
+    "barrierProcesses": [
+      48124,
+      27328,
+      47152,
+      46124
+    ],
+    "allBarrierProcessesExited": true
+  },
+  "hashes": {
+    "report": "e25a37fbcd2b3c9ca1209c37af40f3345d7892cf6b8bd9ea2700f98a157d26cf",
+    "gateway": "3390f138c524eefbdd412392ff6b95988d34b8bb7fd95e6c0d220b58a9053131",
+    "sourceManifest": "b1720da212d767bd8f0aa0016f4b8d75e5e6d65d88082a2df3be8e8a2818212c",
+    "semanticReview": "36b898d267bd1145c815ec7f6e29cf9ceceb37a7a70d406f06d3789e616b3ac5",
+    "authorization": "4957720fa2600075b743b4848015fdd97bab4905e2f882b405d39c619e8b8444",
+    "closed": "d0f3cddf518c3cb0d3fdee67f1aaac5225806283026f549abae4b1a5e3f9c954"
+  },
+  "limitations": [
+    "One bounded live work run, not arbitrary language or long-term stability.",
+    "Model clarified proactively here; adversarial mutation rejection and positive multi-question source normalization were separately tested offline.",
+    "No real embeddings, mirror quality matrix, installed upgrade or second Windows test."
+  ]
+}
