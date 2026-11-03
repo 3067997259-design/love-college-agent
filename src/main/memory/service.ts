@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { AppCommand, MemoryView, PublicErrorCode } from '../../shared'
+import type { AppCommand, GiftSourceView, MemoryView, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { Scheduler } from '../scheduler'
 import type { SessionStore } from '../store/session'
@@ -123,6 +123,12 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     options.facts.disclose(requestId, entries.filter((entry): entry is { id: string; revision: number } => typeof entry?.id === 'string' && Number.isSafeInteger(entry?.revision)))
   }
   return { maintenance,
+    giftSources: (): GiftSourceView[] => {
+      repository.refresh()
+      const historical = repository.view().items.filter(item => item.kind === 'experience' && !item.supersededBy && item.sources.length)
+        .slice(-20).map(item => ({ id: item.id, text: item.text.slice(0, 240) }))
+      return [...historical, ...options.facts.giftSources()]
+    },
     initialize: async () => { try { await options.facts.refresh() } catch { status = 'failed'; error = { code: 'unavailable', retryable: true }; options.changed() } },
     reference: async (query: string, requestId: string, firstOfSession: boolean): Promise<Record<string, unknown> | null> => {
       if (!allowed()) return null

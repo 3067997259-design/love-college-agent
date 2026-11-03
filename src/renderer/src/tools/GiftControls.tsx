@@ -17,7 +17,7 @@ function GiftModel({ gift }: { gift: GeneratedGiftView }) {
 export function GiftControls({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: AppBridge }) {
   const [selected, setSelected] = useState(''); const [objectId, setObjectId] = useState<GiftObjectId>('cup'); const [error, setError] = useState('')
   const view = snapshot.gifts; if (!view) return null
-  const memories = snapshot.memory?.items.filter((memory) => memory.kind === 'experience' && !memory.supersededBy) ?? []
+  const memories = view.sources ?? snapshot.memory?.items.filter((memory) => memory.kind === 'experience' && !memory.supersededBy) ?? []
   const send = async (body: Parameters<typeof sendCommand>[2]) => { const result = await sendCommand(bridge, snapshot.epoch, body); setError(result.ok ? '' : result.code) }
   return <div aria-label="生成礼物控制"><h2>生成礼物</h2><p>{view.configured ? '已配置 · 每天最多一次提交（失败也计入）' : '尚未配置生成服务'} · 物件描述不含姓名、课程或邮件</p>
     <select aria-label="礼物来源经历" value={selected} onChange={(event) => setSelected(event.target.value)}><option value="">选择已见经历</option>{memories.map((memory) => <option key={memory.id} value={memory.id}>{memory.text.slice(0, 45)}</option>)}</select>

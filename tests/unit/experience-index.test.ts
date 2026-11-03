@@ -121,6 +121,21 @@ describe('coverage-based experience projection', () => {
     expect(f.repository.view().summaries).toEqual([])
   })
 
+  it('fails closed when a fixture supplies a bare message ID instead of a successful-input identity', async () => {
+    const f = fixture(); f.seen('old-decision', 'The deadline is Friday.')
+    const facts = testMemoryFacts(f.store, f.clock); closes.push(facts.close); f.usePolicy(facts.experiencePolicy)
+    const old = await facts.propose('remember-turn', 'old-decision', 'bare-remember', { kind: 'remember', content: 'The deadline is Friday.' }, signal())
+    await facts.review(old.operationId, true); f.nextDay(); f.seen('new-decision', 'The deadline is now Saturday.')
+    const original = facts.factViews()[0]
+    const corrected = await facts.propose('correction-turn', 'new-decision', 'bare-correction', { kind: 'correct', targetId: original.id, expectedRevision: original.revision, content: 'The deadline is now Saturday.' }, signal())
+    await facts.review(corrected.operationId, true)
+    expect(facts.experiencePolicy().legacyCutoff).toBe(f.clock.nowMs())
+    expect(facts.factViews().find(item => item.id === original.id)?.factStatus).toBe('superseded')
+    const page = f.index.index().days[0]
+    expect(f.index.expand(page.sessionId, page.revision, 0, true).fragments).toEqual([])
+    expect(seenFragments(f.store.history!(), true, true).some(item => item.sourceEventId === 'old-decision')).toBe(true)
+  })
+
   it('rolls up full week/month coverage with bounded calls and no recursive memory input', async () => {
     const f = fixture()
     for (let i = 0; i < 31; i++) {

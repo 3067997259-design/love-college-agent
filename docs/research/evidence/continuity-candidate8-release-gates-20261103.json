@@ -1,0 +1,431 @@
+{
+    "date":  "2026-11-03",
+    "candidate":  {
+                      "version":  1,
+                      "appVersion":  "1.2.0-continuity.8",
+                      "installerFileName":  "Love-College-Agent-1.2.0-continuity.8-Setup.exe",
+                      "sourceRevision":  "35d319742861cb2bfb393a697fa9560fcae7cd74",
+                      "trackedDirty":  false,
+                      "runtimePreparation":  "reused-prepared-tree",
+                      "runtimeLockSha256":  "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+                      "builtAtIso":  "2026-11-03T02:14:51.275Z",
+                      "installerBytes":  315481032,
+                      "installerSha256":  "81d307938aadd070474e6406313c6eb05d8b5ade668f3e0468b7fc7fecf1819c",
+                      "asarSha256":  "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14"
+                  },
+    "releaseGates":  [
+                         "exact-candidate-mirror",
+                         "90-retrieval-and-24-stories",
+                         "actual-install-and-upgrade"
+                     ],
+    "secondWindowsAndLongTermAreReleaseGates":  false,
+    "mirror":  {
+                   "path":  "test-results/continuity/candidate8-release-gates-20261103/postgres-1103041b-4a5a-442b-93d7-0787ab965478",
+                   "product":  {
+                                   "ok":  true,
+                                   "source":  "2f29203ae7033d18ed9aff45189c3517e7154d81581779b82baaa19e35a64fff",
+                                   "target":  "unpacked",
+                                   "profile":  "D:\\lca-continuity-candidate-20261101\\profiles\\mirror-product-0d1c878d-1f5a-406b-b2b1-3ffffab54043",
+                                   "checks":  [
+                                                  "settings_enable_and_original_outbox_reach_real_postgres",
+                                                  "offline_correction_and_pending_outbox_survive_restart",
+                                                  "retry_invalidates_old_fact_without_duplicate_delivery",
+                                                  "nonempty_save_with_pending_forget_excludes_connections",
+                                                  "restore_rotates_mirror_epoch_and_stale_remote_fact_does_not_return",
+                                                  "saved_connection_pause_resume_is_idempotent_and_private",
+                                                  "restored_epoch_and_forget_survive_another_restart"
+                                              ],
+                                   "realPostgres":  true,
+                                   "realModels":  false,
+                                   "realEmbedding":  false,
+                                   "vectorCalls":  3,
+                                   "asarSha256":  "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14",
+                                   "fixture":  {
+                                                   "kind":  "pre-existing approved long-term facts; promotion not assessed",
+                                                   "ids":  {
+                                                               "kept":  "e316033d-2c51-439d-a402-91aded84f399",
+                                                               "corrected":  "dee68e02-e593-4a0a-8098-95a6ad3f865f",
+                                                               "forgotten":  "afe986e7-ab26-4ab9-9c55-7c4d0ce4a13b"
+                                                           }
+                                               },
+                                   "correctionLabel":  "更正后的内容镜像夹具：任务目标最初为茶。",
+                                   "saveSha256":  "b496944f8e8ac6531c0c404eba5fbcc01d52e0dfd4dec3ea68fa35c11c32c465",
+                                   "namespaces":  {
+                                                      "before":  "lca_memory_91a37fa1df096d611a98e3c41cec5dbc",
+                                                      "after":  "lca_memory_97175b2b9a866e97fd74454f8eb8cf27"
+                                                  }
+                               },
+                   "reportSha256":  "beaa2a3682a88bc663b56e4bfbc05677da1a82c2a2c821114ce86ba7c5965610",
+                   "report":  {
+                                  "status":  "passed",
+                                  "mode":  "product",
+                                  "realPostgres":  true,
+                                  "container":  "lca-continuity-pg-d8bf58d7-30cd-4f9e-ad1f-11ece50c7f74",
+                                  "reason":  null,
+                                  "checks":  [
+                                                 "settings_enable_and_original_outbox_reach_real_postgres",
+                                                 "offline_correction_and_pending_outbox_survive_restart",
+                                                 "retry_invalidates_old_fact_without_duplicate_delivery",
+                                                 "nonempty_save_with_pending_forget_excludes_connections",
+                                                 "restore_rotates_mirror_epoch_and_stale_remote_fact_does_not_return",
+                                                 "saved_connection_pause_resume_is_idempotent_and_private",
+                                                 "restored_epoch_and_forget_survive_another_restart"
+                                             ],
+                                  "imageId":  "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+                                  "containerStopped":  true
+                              }
+               },
+    "upgrade":  {
+                    "path":  "test-results/p6-upgrade-55498e1f-c6c8-43e0-9351-7e526fd21a99/report.json",
+                    "reportSha256":  "a8bb4b4b0f8a9454e97ce278cd525d4340878a4832d473bf1b5114fa6bc5a919",
+                    "report":  {
+                                   "syntheticOnly":  true,
+                                   "installed":  true,
+                                   "upgraded":  true,
+                                   "secondMachine":  false,
+                                   "baselineVersion":  "1.1.0",
+                                   "candidate":  {
+                                                     "version":  1,
+                                                     "appVersion":  "1.2.0-continuity.8",
+                                                     "installerFileName":  "Love-College-Agent-1.2.0-continuity.8-Setup.exe",
+                                                     "sourceRevision":  "35d319742861cb2bfb393a697fa9560fcae7cd74",
+                                                     "trackedDirty":  false,
+                                                     "runtimePreparation":  "reused-prepared-tree",
+                                                     "runtimeLockSha256":  "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+                                                     "builtAtIso":  "2026-11-03T02:14:51.275Z",
+                                                     "installerBytes":  315481032,
+                                                     "installerSha256":  "81d307938aadd070474e6406313c6eb05d8b5ade668f3e0468b7fc7fecf1819c",
+                                                     "asarSha256":  "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14"
+                                                 },
+                                   "checks":  [
+                                                  "actual-1.1.0-installer-and-normal-book-with-synthetic-chat-project-and-save",
+                                                  "same-install-path-upgrade-preserves-onboarding-mode-project-session-and-append-only-history",
+                                                  "upgraded-book-can-complete-a-new-DSH-turn-and-preserve-user-profile-configuration",
+                                                  "upgraded-cold-restart-preserves-new-history-without-model-replay",
+                                                  "1.1.0-private-save-restores-in-candidate-with-safety-backup-and-no-replay"
+                                              ],
+                                   "cleanup":  "owned-test-install-uninstalled",
+                                   "profileConfigurationPreserved":  true,
+                                   "ok":  true,
+                                   "modelRequests":  2,
+                                   "archiveBytes":  5073
+                               }
+                },
+    "retrieval":  {
+                      "authorization":  {
+                                            "authorized":  true,
+                                            "authorizationId":  "2c8772d7-be2a-4eb1-9acc-59aac6d0abf3",
+                                            "batch":  "candidate8-memory-retrieval-90",
+                                            "maximumModelRequests":  0,
+                                            "maximumEmbeddingRequests":  220,
+                                            "maximumEmbeddingInputCharacters":  50000,
+                                            "maximumReservedUnits":  700000,
+                                            "maximumAutonomousUnits":  700000,
+                                            "expectedModel":  "voyage-4-large",
+                                            "asarSha256":  "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14",
+                                            "sources":  {
+                                                            "scripts/probe-memory-retrieval-quality.mjs":  "8bf8e60e69013585f35bd7fff42d85d0d9f9789cfbc0561b5b0652a7f3ea445a",
+                                                            "scripts/memory-quality-plan.json":  "bb3da7922f2187a4125851a5bd490dd53863504397508a8ffd92e3ebad88ec95",
+                                                            "scripts/fixtures/memory-retrieval-quality.ts":  "ed1abafda2db563037b5049c54aa2eeb0f8e6dcceb33adc07155490e7a551995",
+                                                            "scripts/fixtures/continuity-live-budget.ts":  "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+                                                            "tests/fixtures/memory-quality-corpus.json":  "357b9193c6c02304b0c19a6deddeae60ed2b3b6cc8df5f559896eaa745352e2d",
+                                                            "src/main/memory/airi/core/evaluation.ts":  "5bf9d8e0188d6da011100b24789aec35d8c09afbbf4abd0855cd30df94b6ba9d"
+                                                        },
+                                            "bundleSha256":  "ce3bd85dbb3215c2cab52629b970195268aceb1deef09cc40cd34fdc60891670",
+                                            "preflight":  {
+                                                              "root":  "C:\\.lca-cache\\continuity8-tests\\retrieval-preflight-20261103-3",
+                                                              "reportSha256":  "eac58c7c15d8b95990357cc252b2af32564ce2f44ecf1ccb1769b55a31bee24d"
+                                                          },
+                                            "firstFailureStops":  true,
+                                            "failurePolicy":  "Stop on the first transport, admission, storage or protocol failure; no retry. Individual relevance misses are measurements, and the frozen aggregate thresholds decide acceptance after all 90 cases. Self-test is wiring evidence only.",
+                                            "unitDefinition":  "Admission estimates, not money; autonomous is included in total.",
+                                            "approvedAtIso":  "2026-11-03T13:46:39.1140041Z",
+                                            "approval":  "用户：授权这批 90 条检索测试；0 模型，220 向量，50000 字符，700000 单位；首次服务失败即停。"
+                                        },
+                      "reportSha256":  "8366aad01d8b0fd2f2246f44f61f421e5ae57de5c59de2a966530d023c533db6",
+                      "closed":  {
+                                     "ok":  true,
+                                     "reuseAllowed":  false,
+                                     "cleanupUncertain":  false
+                                 },
+                      "misses":  [
+                                     {
+                                         "caseId":  "long-zh-09",
+                                         "originalQuery":  "我想把留学计划和考试准备放在同一个时间表里查看。",
+                                         "retrievedIds":  [
+
+                                                          ]
+                                     },
+                                     {
+                                         "caseId":  "zh-to-en-07",
+                                         "originalQuery":  "我拒绝哪一条职业路径？",
+                                         "retrievedIds":  [
+
+                                                          ]
+                                     },
+                                     {
+                                         "caseId":  "negation-09",
+                                         "originalQuery":  "我不想删除留学规划。",
+                                         "retrievedIds":  [
+                                                              "fact-no-study-abroad"
+                                                          ]
+                                     },
+                                     {
+                                         "caseId":  "temporal-05",
+                                         "originalQuery":  "当前协议核对优先于接口实现。",
+                                         "retrievedIds":  [
+
+                                                          ]
+                                     },
+                                     {
+                                         "caseId":  "near-miss-07",
+                                         "originalQuery":  "奖学金截止日期和课程作业不是同一件事。",
+                                         "retrievedIds":  [
+
+                                                          ]
+                                     },
+                                     {
+                                         "caseId":  "near-miss-08",
+                                         "originalQuery":  "留学城市的天气不是我的留学规划。",
+                                         "retrievedIds":  [
+
+                                                          ]
+                                     }
+                                 ],
+                      "counts":  {
+                                     "modelRequests":  0,
+                                     "embeddingRequests":  212,
+                                     "embeddingCharacters":  5360,
+                                     "reservedUnits":  445270,
+                                     "autonomousUnits":  445270
+                                 },
+                      "path":  "C:\\.lca-cache\\continuity8-tests\\retrieval-live-20261103-1",
+                      "qualityPassed":  true,
+                      "metrics":  {
+                                      "caseCount":  90,
+                                      "recallAtK":  0.9333333333333333,
+                                      "meanReciprocalRank":  0.9055555555555556,
+                                      "precisionAtK":  0.3111111111111108,
+                                      "falsePositiveRateAtK":  0.17777777777777787,
+                                      "averageQueryTokenCount":  0,
+                                      "averageAdditionalQueryTokenCount":  0,
+                                      "averageRetrievalLatencyMs":  1131.207341111112,
+                                      "missingQueryTokenCount":  90,
+                                      "missingAdditionalQueryTokenCount":  90,
+                                      "missingRetrievalLatency":  0,
+                                      "averageCostUsd":  0,
+                                      "missingCostCount":  90,
+                                      "byStratum":  {
+                                                        "short-zh":  {
+                                                                         "caseCount":  10,
+                                                                         "recallAtK":  1,
+                                                                         "meanReciprocalRank":  0.95,
+                                                                         "precisionAtK":  0.33333333333333337,
+                                                                         "falsePositiveRateAtK":  0.26666666666666666
+                                                                     },
+                                                        "long-zh":  {
+                                                                        "caseCount":  10,
+                                                                        "recallAtK":  0.9,
+                                                                        "meanReciprocalRank":  0.9,
+                                                                        "precisionAtK":  0.3,
+                                                                        "falsePositiveRateAtK":  0.16666666666666666
+                                                                    },
+                                                        "en-to-zh":  {
+                                                                         "caseCount":  10,
+                                                                         "recallAtK":  1,
+                                                                         "meanReciprocalRank":  1,
+                                                                         "precisionAtK":  0.33333333333333337,
+                                                                         "falsePositiveRateAtK":  0.19999999999999998
+                                                                     },
+                                                        "zh-to-en":  {
+                                                                         "caseCount":  10,
+                                                                         "recallAtK":  0.9,
+                                                                         "meanReciprocalRank":  0.9,
+                                                                         "precisionAtK":  0.3,
+                                                                         "falsePositiveRateAtK":  0.16666666666666666
+                                                                     },
+                                                        "negation":  {
+                                                                         "caseCount":  10,
+                                                                         "recallAtK":  0.9,
+                                                                         "meanReciprocalRank":  0.85,
+                                                                         "precisionAtK":  0.3,
+                                                                         "falsePositiveRateAtK":  0.2333333333333333
+                                                                     },
+                                                        "multi-fact":  {
+                                                                           "caseCount":  10,
+                                                                           "recallAtK":  1,
+                                                                           "meanReciprocalRank":  0.9,
+                                                                           "precisionAtK":  0.33333333333333337,
+                                                                           "falsePositiveRateAtK":  0.26666666666666666
+                                                                       },
+                                                        "temporal":  {
+                                                                         "caseCount":  10,
+                                                                         "recallAtK":  0.9,
+                                                                         "meanReciprocalRank":  0.85,
+                                                                         "precisionAtK":  0.3,
+                                                                         "falsePositiveRateAtK":  0.16666666666666666
+                                                                     },
+                                                        "unrelated-long":  {
+                                                                               "caseCount":  10,
+                                                                               "recallAtK":  1,
+                                                                               "meanReciprocalRank":  1,
+                                                                               "precisionAtK":  0.33333333333333337,
+                                                                               "falsePositiveRateAtK":  0
+                                                                           },
+                                                        "near-miss":  {
+                                                                          "caseCount":  10,
+                                                                          "recallAtK":  0.8,
+                                                                          "meanReciprocalRank":  0.8,
+                                                                          "precisionAtK":  0.26666666666666666,
+                                                                          "falsePositiveRateAtK":  0.13333333333333333
+                                                                      }
+                                                    }
+                                  }
+                  },
+    "stories":  {
+                    "preflightCompleted":  24,
+                    "cause":  "Fixture used bare message UUID; production tool uses event:UUID. Unmatched correction source triggered conservative legacyCutoff; superseded fact remained stored. Fixed fixture has no real retest yet.",
+                    "root":  "C:\\.lca-cache\\continuity8-tests\\stories-live-20261103-1",
+                    "preflight":  "C:\\.lca-cache\\continuity8-tests\\stories-preflight-20261103-4",
+                    "report":  {
+                                   "ok":  false,
+                                   "selfTest":  false,
+                                   "qualityPassed":  null,
+                                   "coverage":  "24 controlled service-integration stories using production AIRI, context assembly, persistent work and DSH. Setup chat and worker decisions use local scripted responses; facts are reviewed through production transactions, day summaries are deterministic source quotes. Final answers and their tool steps use the saved real chat model; final retrieval uses real Voyage. This measures retrieval, injection, answer use and action compliance; it does not re-evaluate automatic fact extraction or replace the normal-product acceptance evidence.",
+                                   "status":  "failed",
+                                   "currentStory":  "S05",
+                                   "error":  "STORY_ACCEPTANCE_FAILED",
+                                   "completed":  [
+                                                     "S01",
+                                                     "S02",
+                                                     "S03",
+                                                     "S04"
+                                                 ],
+                                   "reviews":  [
+                                                   {
+                                                       "id":  "S01",
+                                                       "verdict":  "pass",
+                                                       "resultSha256":  "761c792440da71a87d3ece2401f775e8ef4f420b6e95cb5c5bf72dac7b58e7e6",
+                                                       "reason":  "回答明确保留原来的外观设置、不单独加分区；成功输入引用了同一来源的已批准 active 记忆 revision 2，内容与原始决定一致，未发起新增分区操作。"
+                                                   },
+                                                   {
+                                                       "id":  "S02",
+                                                       "resultSha256":  "dcd936aecbc1c7bbc0a3a4938a75aca06f41156b99e38c87044c974a08602eb9",
+                                                       "reason":  "跨日后回答准确复述先给结果再给证据。实际 memory.search、history.index、history.expand 完成；最后一次成功输入包含旧页原始 user 片段，来源未退役，已批准事实同值，无冗长过程或新偏好。",
+                                                       "verdict":  "pass"
+                                                   },
+                                                   {
+                                                       "resultSha256":  "f3110e3474b8214d2574acb32c310bb644f2cdb920d03fa5ed54042c659a058f",
+                                                       "reason":  "跨日回答包含英文及可编辑 LaTeX，没有替换成仅图片。成功输入引用 approved active revision 2 的原报告偏好，并实际完成 memory.read，来源对应旧页，符合固定两项要求。",
+                                                       "id":  "S03",
+                                                       "verdict":  "pass"
+                                                   },
+                                                   {
+                                                       "reason":  "回答把普通进度留在工作卡，仅急件和待批准用系统通知。两条原偏好均已批准，当前引用含通知限制及实际 running 工作状态；没有逐页通知或改动工作，符合固定行为要求。",
+                                                       "resultSha256":  "e00afa6e386c9b1e590e95e94959f7165970fcf8a6f812161f6b0204c551f79c",
+                                                       "id":  "S04",
+                                                       "verdict":  "pass"
+                                                   },
+                                                   {
+                                                       "reason":  "当前交付回答周六正确，但固定追问要求查旧安排时称原话已移除、查不到原先哪天，没有恢复周五。旧 fact 实际仍以 superseded revision 3 保留，history.expand 却返回零片段；该证据不满足保留历史的固定 oracle。停止全批，原因需离线追查，不重试。",
+                                                       "id":  "S05",
+                                                       "resultSha256":  "cd42d038f1d29c21732677256aa6282182c4f69ad48073ee7366b657941517f4",
+                                                       "verdict":  "fail"
+                                                   }
+                                               ],
+                                   "upstreamRequests":  38,
+                                   "counts":  {
+                                                  "modelRequests":  16,
+                                                  "embeddingRequests":  22,
+                                                  "embeddingCharacters":  297,
+                                                  "reservedUnits":  214416,
+                                                  "autonomousUnits":  45915
+                                              }
+                               },
+                    "cases":  [
+                                  {
+                                      "followUp":  null,
+                                      "sha256":  "761c792440da71a87d3ece2401f775e8ef4f420b6e95cb5c5bf72dac7b58e7e6",
+                                      "id":  "S01",
+                                      "question":  "文字大小的入口应该放哪？",
+                                      "answer":  "放在原来的外观设置里，不单独加分区。需要我现在按这个去改吗？"
+                                  },
+                                  {
+                                      "followUp":  null,
+                                      "sha256":  "dcd936aecbc1c7bbc0a3a4938a75aca06f41156b99e38c87044c974a08602eb9",
+                                      "id":  "S02",
+                                      "question":  "我平时希望你怎么汇报排查结果？",
+                                      "answer":  "你之前说过，技术结论先给结果，再给证据。"
+                                  },
+                                  {
+                                      "followUp":  null,
+                                      "sha256":  "f3110e3474b8214d2574acb32c310bb644f2cdb920d03fa5ed54042c659a058f",
+                                      "id":  "S03",
+                                      "question":  "这次报告用什么格式交？",
+                                      "answer":  "按你之前的习惯，报告默认用英文，保留可编辑的 LaTeX。这次要是没有别的要求，还按这个来？"
+                                  },
+                                  {
+                                      "followUp":  null,
+                                      "sha256":  "e00afa6e386c9b1e590e95e94959f7165970fcf8a6f812161f6b0204c551f79c",
+                                      "id":  "S04",
+                                      "question":  "每处理完一页资料要通知我吗？",
+                                      "answer":  "不通知。你之前说过，普通进度放在工作卡上就好，只有急件和等你批准时才发系统通知。"
+                                  },
+                                  {
+                                      "followUp":  {
+                                                       "question":  "那原先的交付安排是什么？请查一下当时的记录。",
+                                                       "answer":  "翻了一下当时的记录，更早的那条原话已经移除了，现在只留着改成周六交这一条，查不到原先定的是哪天。"
+                                                   },
+                                      "sha256":  "cd42d038f1d29c21732677256aa6282182c4f69ad48073ee7366b657941517f4",
+                                      "id":  "S05",
+                                      "question":  "现在按哪天安排交付？",
+                                      "answer":  "按这周六，也就是 11 月 7 日来安排。"
+                                  }
+                              ],
+                    "closed":  {
+                                   "ok":  false,
+                                   "reuseAllowed":  false,
+                                   "cleanupUncertain":  false
+                               },
+                    "status":  "closed-at-first-semantic-failure",
+                    "reportSha256":  "59e01a05aff202bf7af58481b10af7100a10adcfd6a6628d1a34d995ebc8106a"
+                },
+    "freshInstall":  {
+                         "giftProductRegression":  {
+                                                       "sha256":  "3c737fbdf25190078c9a12db4179813de4eb153bfd7945d67111ab964a4eed91",
+                                                       "nextCandidateRequired":  true,
+                                                       "failure":  "REVIEWED_EXPERIENCE_NOT_AVAILABLE_FOR_GIFT",
+                                                       "report":  "test-results/gifts-failure-4f360eba-5233-4bac-b3c3-510b1491db22.json"
+                                                   },
+                         "originalFailureCause":  "not-established",
+                         "secondReportSha256":  "49e0c3eb2e829e9c2911582fc2591b864236d168e95f93f1ddc42118de4946e0",
+                         "modelSlots":  "passed targeted same-package rerun after adapting test to AIRI capture contract",
+                         "initialReport":  "test-results/continuity/candidate8-installed-package-20261103.json",
+                         "secondReport":  {
+                                              "ok":  false,
+                                              "status":  "failed",
+                                              "executionTarget":  "installed",
+                                              "appVersion":  "1.2.0-continuity.8",
+                                              "atIso":  "2026-11-03T13:58:50.799Z",
+                                              "installer":  "C:\\.lca-cache\\continuity8-release-20261103\\Love-College-Agent-1.2.0-continuity.8-Setup.exe",
+                                              "buildReceipt":  {
+                                                                   "version":  1,
+                                                                   "appVersion":  "1.2.0-continuity.8",
+                                                                   "installerFileName":  "Love-College-Agent-1.2.0-continuity.8-Setup.exe",
+                                                                   "sourceRevision":  "35d319742861cb2bfb393a697fa9560fcae7cd74",
+                                                                   "trackedDirty":  false,
+                                                                   "runtimePreparation":  "reused-prepared-tree",
+                                                                   "runtimeLockSha256":  "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+                                                                   "builtAtIso":  "2026-11-03T02:14:51.275Z",
+                                                                   "installerBytes":  315481032,
+                                                                   "installerSha256":  "81d307938aadd070474e6406313c6eb05d8b5ade668f3e0468b7fc7fecf1819c",
+                                                                   "asarSha256":  "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14"
+                                                               },
+                                              "stage":  "scenario:model-slots",
+                                              "completedScenarios":  [
+                                                                         "model-routing"
+                                                                     ]
+                                          },
+                         "status":  "not-passed"
+                     }
+}

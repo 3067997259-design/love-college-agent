@@ -24,6 +24,36 @@ const fixture = () => {
 }
 
 describe('successful-input continuity at the product adapter', () => {
+  it('offers only reviewed witnessed experiences to gifts, without writing the retired journal memory engine', async () => {
+    const f = fixture(); f.source('bridge', 'bridge-message', 'We built a paper bridge together.')
+    const signal = new AbortController().signal
+    await f.facts.capture(f.facts.pendingSources(), { extract: async input => [{ content: input.userText, category: 'experience', memoryType: 'short_term', importance: 5, valence: 0, arousal: 0, tags: [], sessionId: input.sessionId }] }, signal)
+    expect(f.facts.giftSources()).toEqual([])
+    const original = f.facts.factViews()[0]; await f.facts.reviewFact(original.id, original.revision, true)
+    expect(f.facts.giftSources()).toEqual([{ id: original.id, text: 'We built a paper bridge together.' }])
+    f.source('correction', 'bridge-correction', 'We built a wooden bridge together.')
+    const current = f.facts.factViews()[0]
+    const correction = await f.facts.propose('correction', 'event:bridge-correction', 'correct-bridge', { kind: 'correct', targetId: current.id, expectedRevision: current.revision, content: 'We built a wooden bridge together.' }, signal)
+    await f.facts.review(correction.operationId, true)
+    expect(f.facts.giftSources()).toEqual([{ id: correction.fragmentId, text: 'We built a wooden bridge together.' }])
+    const replacement = f.facts.factViews().find(item => item.id === correction.fragmentId)!
+    await f.facts.propose('forget', 'event:forget-bridge', 'forget-bridge', { kind: 'forget', targetId: replacement.id, expectedRevision: replacement.revision }, signal)
+    await f.facts.review('forget-bridge', true); await f.facts.refresh()
+    expect(f.facts.giftSources()).toEqual([])
+    expect(f.rows.some(row => row.type === 'memory/batch')).toBe(false)
+  })
+
+  it('does not turn an unwitnessed or non-experience reviewed fact into gift material', async () => {
+    const f = fixture(), signal = new AbortController().signal
+    f.source('preference', 'preference-message', 'I like tea.')
+    await f.facts.capture(f.facts.pendingSources(), { extract: async input => [{ content: input.userText, category: 'chat', memoryType: 'short_term', importance: 5, valence: 0, arousal: 0, tags: [], sessionId: input.sessionId }] }, signal)
+    const preference = f.facts.factViews()[0]; await f.facts.reviewFact(preference.id, preference.revision, true)
+    const repository = (await f.facts.runtime.initialize())!
+    await repository.insert({ content: 'Unwitnessed experience.', scope: { userId: 'u', characterId: 'c' }, memoryType: 'short_term', category: 'experience', importance: 5, valence: 0, arousal: 0, tags: [], reviewStatus: 'approved', factStatus: 'active', now: f.clock.nowMs(), sourceContext: { sessionId: 'day-1', messageId: 'event:never-seen', neighbors: [] } })
+    await f.facts.refresh()
+    expect(f.facts.factViews()).toHaveLength(2); expect(f.facts.giftSources()).toEqual([])
+  })
+
   it('deduplicates the original user decision across roots while preserving diary selection', () => {
     const f = fixture(); f.source('foreground', 'decision-one', 'Keep the original deadline.')
     f.rows.push({ version: 1, seq: f.rows.length + 1, atMs: f.clock.nowMs(), type: 'session/header', sessionId: 'worker-page', userId: 'u', characterId: 'c' })
@@ -98,12 +128,14 @@ describe('successful-input continuity at the product adapter', () => {
     const f = fixture(); f.source('restricted-later', 'user-decision', 'A user decision.')
     f.store.append({ type: 'model/seen', turnId: 'restricted-later', source: 'fake', messages: [{ role: 'assistant', content: 'It is due on Friday.' }], eligibleIndexes: [0] })
     const source = f.facts.pendingSources().find(source => source.role === 'assistant')!
-    await f.facts.capture([source], { extract: async input => [{ content: input.assistantText, category: 'chat', memoryType: 'short_term', importance: 5, valence: 0, arousal: 0, tags: [], sessionId: input.sessionId }] }, new AbortController().signal)
+    await f.facts.capture([source], { extract: async input => [{ content: input.assistantText, category: 'experience', memoryType: 'short_term', importance: 5, valence: 0, arousal: 0, tags: [], sessionId: input.sessionId }] }, new AbortController().signal)
     const fact = f.facts.factViews()[0]; await f.facts.reviewFact(fact.id, fact.revision, true)
     expect(await f.facts.search('due', 'before-retirement')).toHaveLength(1)
+    expect(f.facts.giftSources()).toHaveLength(1)
     f.store.append({ type: 'turn/degraded', turnId: 'restricted-later', sources: ['web'] })
     expect(await f.facts.search('due', 'after-retirement')).toEqual([])
     expect(f.facts.factViews()).toEqual([])
+    expect(f.facts.giftSources()).toEqual([])
     expect(f.facts.pendingSources().every(source => source.role === 'user')).toBe(true)
   })
 })

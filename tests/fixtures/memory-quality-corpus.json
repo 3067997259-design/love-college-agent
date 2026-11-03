@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "frozenOn": "2026-11-03",
+  "purpose": "Canonical documents for the unchanged AIRI 90-query retrieval fixture. Equal age, importance and access history. Opposing facts are retrieval distractors, not a coherent user biography. No query copies, gold labels, case ids or expected ranks are embedded.",
+  "documents": [
+    { "id": "fact-scholarship", "zh": "我的学习目标包括争取奖学金资助，申请时要整理成绩单、个人陈述和推荐材料。", "en": "My education goals include securing a scholarship. I need to assemble transcripts, a personal statement and recommendations for the application." },
+    { "id": "fact-study-abroad", "zh": "我打算到国外继续学习，需要选择学校，准备语言考试，并安排申请时间。", "en": "I intend to pursue education overseas, choose universities, prepare language exams and schedule applications." },
+    { "id": "fact-appearance", "zh": "我刚去理发店换了一个新发型，个人外观与之前不同了。", "en": "I recently got a different haircut at the salon, changing my personal appearance." },
+    { "id": "fact-test-first", "zh": "我的开发习惯是先阅读并运行已有测试，再修改接口实现，避免引入回归。", "en": "My development preference is to read and run existing tests before modifying interface implementations, to avoid regressions." },
+    { "id": "fact-protocol-first", "zh": "调整 API 时，我要求先查阅接口文档、核对协议契约，再进入实现。", "en": "Before changing an API, I require checking interface documentation and the protocol contract before implementation." },
+    { "id": "fact-work-avoidance", "zh": "遇到现实压力时，我有时会埋头工作和编程，用忙碌暂时回避面对这些压力。", "en": "Under real-life stress I sometimes immerse myself in work and programming to temporarily avoid confronting it." },
+    { "id": "fact-no-startup", "zh": "我对创办企业这条职业道路没有兴趣，不打算成为创业者。", "en": "I am not interested in founding a business as a career and do not intend to become an entrepreneur." },
+    { "id": "fact-no-study-abroad", "zh": "我没有到海外求学的打算，即使出国旅行也不代表计划留学。", "en": "I have no intention of studying overseas; a trip abroad would be travel rather than an education plan." },
+    { "id": "fact-no-work-avoidance", "zh": "我选择通过运动应对压力，不靠加班或写代码逃避现实。", "en": "I choose physical exercise to handle stress, rather than overtime or coding as an escape from reality." },
+    { "id": "fact-no-appearance", "zh": "我本人没有更换发型；朋友理发或线上头像变化，都不能算成我的实际外观变化。", "en": "I have not changed my own hairstyle. A friend's haircut or a different online avatar is not a change to my physical appearance." },
+    { "id": "fact-unrelated-01", "zh": "明日出门可能遇到降雨，常坐的公交也有改道，需要带伞并提前查路线。", "en": "Tomorrow's outing may be rainy and my usual bus is being rerouted, so I need an umbrella and an updated route." },
+    { "id": "fact-unrelated-02", "zh": "我准备借一本讲家庭园艺的书，学习养护屋里的盆栽。", "en": "I plan to borrow a home gardening book to learn how to care for my indoor plants." },
+    { "id": "fact-unrelated-03", "zh": "今晚做饭的采购单里有米、青菜和几样水果。", "en": "My shopping list for tonight's dinner contains rice, vegetables and some fruit." },
+    { "id": "fact-unrelated-04", "zh": "最近看的影片给我留下印象的是镜头摄影和音乐，两者都很有特色。", "en": "The cinematography and music of the film I recently watched were both distinctive and memorable." },
+    { "id": "fact-unrelated-05", "zh": "我打算休息日收拾屋子，把窗玻璃也擦干净。", "en": "I intend to tidy the room on my day off and clean the windowpanes." },
+    { "id": "fact-unrelated-06", "zh": "我读到一则关于市政建设的报道，主题是交通与公共配套设施。", "en": "I read a municipal development news report about transportation and public infrastructure." },
+    { "id": "fact-unrelated-07", "zh": "下次骑车前要给轮胎打气，检查制动是否正常。", "en": "Before my next bicycle ride I need to inflate the tires and check the brakes." },
+    { "id": "fact-unrelated-08", "zh": "每天早起使用咖啡机之前，需要检查并补充储水罐里的水。", "en": "Before using the coffee machine each morning, I need to check and refill its water reservoir." },
+    { "id": "fact-unrelated-09", "zh": "家里的猫快吃完口粮了，得趁宠物店开门时补买。", "en": "The cat's food at home is almost finished; I need to restock while the pet shop is open." },
+    { "id": "fact-unrelated-10", "zh": "我要收拾电脑桌面的文档，按照日期建文件夹归类。", "en": "I want to organize the documents on my computer desktop into folders by date." }
+  ]
+}

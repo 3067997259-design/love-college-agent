@@ -10,10 +10,11 @@ import { runtimeEnv, initializeTestBook } from '../scripts/runtime-env.mjs'
 const root = resolve(import.meta.dirname, '..'), release = resolve(process.env.LCA_RELEASE_DIR)
 const receipt = JSON.parse(await readFile(join(release, 'build-receipt.json'), 'utf8'))
 const baseInstaller = process.env.LCA_BASELINE_INSTALLER
+const candidateInstaller = resolve(process.env.LCA_TEST_INSTALLER ?? join(release, receipt.installerFileName))
 const hash = async (p) => createHash('sha256').update(await readFile(p)).digest('hex')
 assert.equal(await hash(baseInstaller), 'e6b23c25afbd329d880302f0d15f6c7388f9366097e813cd214b5a0cd5c9b403')
 assert.equal(receipt.trackedDirty, false)
-assert.equal(await hash(join(release, receipt.installerFileName)), receipt.installerSha256)
+assert.equal(await hash(candidateInstaller), receipt.installerSha256)
 const id = randomUUID(), folder = join('C:/', '.lca-cache', 'upgrade-tests', id), install = join(folder, 'installed'), data = join(folder, 'book'), project = join(folder, 'project')
 const evidence = join(root, 'test-results', 'p6-upgrade-' + id), archive = join(folder, 'from-1.1.0.lca-save'), user = join(folder, 'user')
 for (const p of [evidence, data, project, user, join(user, 'Documents'), join(user, 'AppData/Roaming'), join(user, 'AppData/Local'), join(folder, 'tmp')]) await mkdir(p, { recursive: true })
@@ -70,7 +71,7 @@ try {
   }
   const journals = join(data, 'journals'), owner = (await readdir(journals))[0], journalFile = (await readdir(join(journals, owner))).find((f) => f.endsWith('.jsonl')), journalPath = join(journals, owner, journalFile), journalBytes = await readFile(journalPath)
   pass('actual-1.1.0-installer-and-normal-book-with-synthetic-chat-project-and-save')
-  stage = 'upgrade'; await own(); await run(join(release, receipt.installerFileName), ['/S', '/currentuser', `/D=${install}`], 900000); await own()
+  stage = 'upgrade'; await own(); await run(candidateInstaller, ['/S', '/currentuser', `/D=${install}`], 900000); await own()
   assert.equal(await hash(join(install, 'resources/app.asar')), receipt.asarSha256); report.upgraded = true
   await launch(); assert.equal(await instance.evaluate(({ app }) => app.getVersion()), receipt.appVersion)
   const current = await snapshot(); assert.equal(current.onboarding.status, old.onboarding.status); assert.equal(current.onboarding.userName, old.onboarding.userName); assert.equal(current.companion.mode, old.companion.mode); assert.equal(current.work.current.path, old.work.current.path); assert.equal(current.scope.sessionId, old.scope.sessionId)
@@ -82,7 +83,8 @@ try {
   pass('upgraded-cold-restart-preserves-new-history-without-model-replay')
   stage = 'restore-old-save'; await instance.evaluate(({ dialog, app }, path) => { app.relaunch = () => {}; dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }) }, archive)
   await send({ type: 'backup.import' }); await until((s) => s.backup.status === 'awaiting-confirmation', 'OLD_SAVE_IMPORT_FAILED')
-  const restoreId = (await snapshot()).backup.restoreId, closed = instance.waitForEvent('close'); await send({ type: 'backup.restore', restoreId }); await closed; instance = null; await launch()
+  const restoreState = (await snapshot()).backup, restoreId = restoreState.incoming?.id ?? restoreState.restoreId, closed = instance.waitForEvent('close')
+  assert.equal((await send({ type: 'backup.restore', restoreId })).status, 'accepted'); await closed; instance = null; await launch()
   const restored = await snapshot(); assert.equal(restored.backup.status, 'restored'); assert.ok(restored.backup.safetyBackupId); assert.ok(restored.messages.some((m) => m.text === 'P6_OLD_VERSION_NOTE')); assert.ok(!restored.messages.some((m) => m.text === 'P6_NEW_VERSION_AFTER_SAVE'))
   assert.equal(requests, beforeRestart); pass('1.1.0-private-save-restores-in-candidate-with-safety-backup-and-no-replay')
   await close(); report.ok = true; report.modelRequests = requests; report.archiveBytes = (await stat(archive)).size

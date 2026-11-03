@@ -36,5 +36,5 @@ export function giftName(gift: Pick<GeneratedGiftView, 'objectId' | 'motif'>): s
 
 /** 礼物来自哪段经历：只取快照里已有的记忆条目文字，找不到就不编 */
 export function sourceText(snapshot: AppSnapshot, memoryId: string): string | null {
-  return snapshot.memory?.items.find((item) => item.id === memoryId)?.text ?? null
+  return snapshot.gifts?.sources?.find((item) => item.id === memoryId)?.text ?? snapshot.memory?.items.find((item) => item.id === memoryId)?.text ?? null
 }

@@ -28,7 +28,8 @@ function fixture() {
   const memory = { view: () => projectMemory(store.records()), refresh: () => {}, append: store.append, close: () => {} }
   store.append({ type: 'model/seen', turnId: 't', source: 'fake', messages: [{ role: 'user', content: '合成的共同纸桥经历' }], eligibleIndexes: [0] })
   store.append({ type: 'memory/batch', source: 'fake', batchId: 'a'.repeat(64), keys: [], entries: [{ id: 'mem:proof', kind: 'experience', text: '合成的共同纸桥经历', topic: null, supersedes: [], sources: [{ id: 'seen-proof', sessionId: store.scope.sessionId, frameSeq: 2, index: 0, offset: 0, atMs: 1000 }] }] })
-  return { root, clock, store, assets, scheduler, memory }
+  const sources = () => memory.view().items.filter(item => item.kind === 'experience' && !item.supersededBy && item.sources.length).map(item => ({ id: item.id, text: item.text }))
+  return { root, clock, store, assets, scheduler, memory, sources }
 }
 async function apiFixture(badDownload = false) {
   const submissions: string[] = []; let polls = 0; let downloadAuthorization: string | undefined
@@ -78,7 +79,9 @@ describe('Rodin MCP lifecycle, provenance, privacy and local assets', () => {
     focus(); service.reconcile(); await service.idle(); expect(submits).toBe(1); expect(service.view().items[0].status).toBe('making')
     service.reconcile(); await service.idle(); expect(service.view().items[0].status).toBe('ready'); service.reconcile(); expect(service.view().items[0].status).toBe('ready')
     f.store.append({ type: 'pomodoro/state', view: idleTimer(), pauseReason: null, cause: 'elapsed' }); service.reconcile(); expect(service.view().items[0].status).toBe('given')
-    expect(service.dispatch(propose)).toBeUndefined(); focus(); expect(service.dispatch({ ...base, type: 'gift.start', giftId: service.view().items[1].id })).toBe('budget-exceeded')
+    expect(service.dispatch(propose)).toBeUndefined(); focus()
+    const nextGift = service.view().items[1].id; expect(service.dispatch({ ...base, type: 'gift.accept', giftId: nextGift })).toBeUndefined()
+    expect(service.dispatch({ ...base, type: 'gift.start', giftId: nextGift })).toBe('budget-exceeded')
     expect(JSON.stringify(f.store.records())).not.toMatch(/PRIVATE_RODIN_HANDLE|SYNTHETIC_RODIN_KEY/)
   })
   it('refuses missing configuration and tampered local model bytes', async () => {
@@ -86,6 +89,23 @@ describe('Rodin MCP lifecycle, provenance, privacy and local assets', () => {
     expect(disabled.dispatch({ protocolVersion: 1, requestId: 'r', epoch: 'e', type: 'gift.propose', sourceMemoryId: 'mem:proof', objectId: 'leaf', motif: 'plain' })).toBe('not-configured')
     const asset = f.assets.write(syntheticGlb(), 'glb'); expect(f.assets.owned(asset.sha256)).toBeUndefined(); f.store.append({ type: 'asset/stored', asset }); expect(f.assets.owned(asset.sha256)).toEqual(asset)
     const bytes = f.assets.read(asset); bytes[25] ^= 1; writeFileSync(join(f.root, 'artifacts', asset.sha256 + '.glb'), bytes); expect(() => f.assets.read(asset)).toThrow('ASSET_INVALID')
+  })
+  it('rechecks a withdrawn experience before acceptance and before an approved submission starts', async () => {
+    const f = fixture(); let available = true, submits = 0
+    const port = { call: async () => { submits++; return { accepted: true } }, close: async () => {} }
+    const service = createGiftService({ ...f, sources: () => available ? f.sources() : [], port, source: 'fake', changed: () => {}, open: () => {} })
+    cleanups.push(service.close); f.scheduler.cancel('gifts.lifecycle')
+    const base = { protocolVersion: 1 as const, requestId: 'r', epoch: 'e' }
+    expect(service.dispatch({ ...base, type: 'gift.propose', sourceMemoryId: 'mem:proof', objectId: 'shell', motif: 'plain' })).toBeUndefined()
+    const giftId = service.view().items[0].id
+    f.store.append({ type: 'pomodoro/state', view: { ...idleTimer(), phase: 'focus', status: 'running', remainingMs: 60000, endsAtMs: 61000, plannedCount: 1, focusIndex: 1, phaseDurationMs: 60000 }, pauseReason: null, cause: 'started' })
+    expect(service.dispatch({ ...base, type: 'gift.start', giftId })).toBe('unavailable')
+    expect(submits).toBe(0); available = false
+    expect(service.dispatch({ ...base, type: 'gift.accept', giftId })).toBe('evidence-unavailable')
+    available = true; expect(service.dispatch({ ...base, type: 'gift.accept', giftId })).toBeUndefined(); available = false
+    expect(service.dispatch({ ...base, type: 'gift.start', giftId })).toBe('evidence-unavailable')
+    service.reconcile(); await service.idle(); expect(submits).toBe(0)
+    expect(service.view().sources).toEqual([])
   })
   it('ignores a late result after cancel and does not refund the submission budget', async () => {
     const f = fixture(); const asset = f.assets.write(syntheticGlb(), 'glb'); let deliver: (value: unknown) => void = () => {}
@@ -96,6 +116,8 @@ describe('Rodin MCP lifecycle, provenance, privacy and local assets', () => {
     service.dispatch(proposal); service.reconcile(); await service.idle(); expect(service.view().items[0].status).toBe('proposed'); const id = service.view().items[0].id; service.dispatch({ ...base, type: 'gift.accept', giftId: id }); service.reconcile(); await service.idle(); service.reconcile()
     expect(service.isBusy()).toBe(true); service.dispatch({ ...base, type: 'gift.cancel', giftId: id }); deliver({ state: 'ready', asset }); await service.idle()
     expect(service.isBusy()).toBe(false); expect(service.view().items[0].status).toBe('cancelled'); expect(f.assets.owned(asset.sha256)).toBeUndefined()
-    service.dispatch(proposal); expect(service.dispatch({ ...base, type: 'gift.start', giftId: service.view().items[1].id })).toBe('budget-exceeded')
+    service.dispatch(proposal); const nextGift = service.view().items[1].id
+    expect(service.dispatch({ ...base, type: 'gift.accept', giftId: nextGift })).toBeUndefined()
+    expect(service.dispatch({ ...base, type: 'gift.start', giftId: nextGift })).toBe('budget-exceeded')
   })
 })

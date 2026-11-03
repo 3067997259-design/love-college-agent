@@ -1,17 +1,16 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import type { AppCommand, GeneratedGiftView, GiftsView, PublicErrorCode } from '../../shared'
+import type { AppCommand, GeneratedGiftView, GiftSourceView, GiftsView, PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import type { Scheduler } from '../scheduler'
 import type { SessionStore } from '../store/session'
-import type { MemoryRepository } from '../memory/repository'
 import type { HarnessTool } from '../harness/tools'
 import { GiftMcpFailure, type RodinMcp } from './mcp'
 import { giftSpecSchema } from './schema'
 import { assetUrl, binaryAssetSchema } from '../storage/assets'
 import { sessionDayKey } from '../journal/file'
 
-export function createGiftService(options: { clock: Clock; scheduler: Scheduler; store: SessionStore; memory: MemoryRepository; port: RodinMcp | null; source: 'real' | 'fake'; changed(): void; open(assetRef: string): void }) {
+export function createGiftService(options: { clock: Clock; scheduler: Scheduler; store: SessionStore; sources(): readonly GiftSourceView[]; port: RodinMcp | null; source: 'real' | 'fake'; changed(): void; open(assetRef: string): void }) {
   const { clock, scheduler, store } = options; const records = () => store.history?.() ?? store.records()
   let worker: Promise<void> | undefined; let active: AbortController | undefined; let disposed = false; let enabled = true
   const read = () => { const gifts = new Map<string, GeneratedGiftView>(); for (const row of records()) if (row.type === 'gift/state') gifts.set(row.gift.id, row.gift); return [...gifts.values()] }
@@ -36,6 +35,8 @@ export function createGiftService(options: { clock: Clock; scheduler: Scheduler;
     if (!options.port) return 'not-configured'
     if (!enabled || disposed || worker || store.projection().lightsOut || store.projection().pomodoro.phase !== 'focus') return 'unavailable'
     if (gift.status !== 'proposed') return 'invalid-command'
+    if (gift.acceptedAtMs === undefined) return 'unavailable'
+    if (!options.sources().some(source => source.id === gift.sourceMemoryId)) return 'evidence-unavailable'
     if (reserved() >= 1) return 'budget-exceeded'
     perform(gift, true)
   }
@@ -49,15 +50,14 @@ export function createGiftService(options: { clock: Clock; scheduler: Scheduler;
   scheduler.schedule('gifts.lifecycle', clock.nowMs() + 5000, reconcile, { everyMs: 5000 })
   return {
     isBusy: () => !!worker,
-    view: (): GiftsView => ({ configured: !!options.port && enabled, dailyLimit: 1, items: read() }), reconcile,
+    view: (): GiftsView => ({ configured: !!options.port && enabled, dailyLimit: 1, items: read(), sources: options.sources() }), reconcile,
     dispatch: (command: AppCommand): PublicErrorCode | undefined => {
       if (disposed || !enabled) return 'unavailable'
       if (command.type === 'gift.propose') {
         if (!options.port) return 'not-configured'
         const body = giftSpecSchema.safeParse({ sourceMemoryId: command.sourceMemoryId, objectId: command.objectId, motif: command.motif })
         if (!body.success) return 'invalid-command'
-        options.memory.refresh(); const memory = options.memory.view().items.find((item) => item.id === command.sourceMemoryId && item.kind === 'experience' && !item.supersededBy)
-        if (!memory || !memory.sources.length) return 'evidence-unavailable'
+        if (!options.sources().some(source => source.id === command.sourceMemoryId)) return 'evidence-unavailable'
         if (read().some((gift) => ['proposed', 'making', 'ready'].includes(gift.status))) return 'unavailable'
         commit({ ...body.data, id: randomUUID(), source: options.source, status: 'proposed', createdAtMs: clock.nowMs(), readyAtMs: null, givenAtMs: null }); return
       }
@@ -65,6 +65,7 @@ export function createGiftService(options: { clock: Clock; scheduler: Scheduler;
       const gift = update(command.giftId); if (!gift) return 'invalid-command'
       if (command.type === 'gift.accept') {
         if (gift.status !== 'proposed' || gift.acceptedAtMs !== undefined) return gift.status === 'proposed' ? undefined : 'invalid-command'
+        if (!options.sources().some(source => source.id === gift.sourceMemoryId)) return 'evidence-unavailable'
         commit({ ...gift, acceptedAtMs: clock.nowMs() }); return
       }
       if (command.type === 'gift.start') return start(gift)

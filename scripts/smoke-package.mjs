@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 import { dirname, join, relative, resolve, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
-import { runtimeEnv, initializeTestBook } from './runtime-env.mjs'
+import { runtimeEnv, testDataRoot, initializeTestBook } from './runtime-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const unpackedOnly = process.argv.includes('--unpacked-only')
@@ -15,8 +15,8 @@ const buildReceipt = JSON.parse(await readFile(join(release, 'build-receipt.json
 const appVersion = buildReceipt.appVersion
 assert.match(appVersion, /^\d+\.\d+\.\d+(?:-[a-z0-9.]+)?$/)
 assert.equal(buildReceipt.installerFileName, `Love-College-Agent-${appVersion}-Setup.exe`)
-const installer = join(release, buildReceipt.installerFileName)
-const reportPath = join(root, `test-results/package${unpackedOnly ? '-unpacked' : ''}-report.json`)
+const installer = resolve(process.env.LCA_TEST_INSTALLER ?? join(release, buildReceipt.installerFileName))
+const reportPath = resolve(process.env.LCA_PACKAGE_REPORT ?? join(root, `test-results/package${unpackedOnly ? '-unpacked' : ''}-report.json`))
 await mkdir(dirname(reportPath), { recursive: true })
 await writeFile(reportPath, JSON.stringify({ ok: false, status: 'not-completed', attemptStartedAtIso: new Date().toISOString(), installer }, null, 2))
 assert.equal(buildReceipt.version, 1); assert.match(buildReceipt.sourceRevision, /^[a-f0-9]{40}$/)
@@ -31,25 +31,27 @@ assert.equal(files.some((file) => /(^|[/\\])(secrets|\.local-data|\.env)([/\\]|$
 assert.ok(files.includes('/out/main/index.cjs'))
 // better-sqlite3 13 stores the @electron/rebuild output in prebuilds/win32-x64.node.
 assert.ok((await stat(join(release, 'win-unpacked/resources/app.asar.unpacked/node_modules/better-sqlite3/prebuilds/win32-x64.node'))).isFile())
-const cache = process.platform === 'win32' ? 'D:\\.lca-cache\\install-tests' : join(root, '.cache/install-tests')
+const cache = resolve(process.env.LCA_INSTALL_TEST_ROOT ?? (process.platform === 'win32' ? 'D:\\.lca-cache\\install-tests' : join(root, '.cache/install-tests')))
 await mkdir(cache, { recursive: true })
 const installDir = join(cache, randomUUID())
 const rel = relative(resolve(cache), resolve(installDir))
 assert.ok(rel && !rel.startsWith('..') && !isAbsolute(rel), 'Unsafe test installation path')
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: join(root, '.local-data', `package-smoke-${randomUUID()}`) }
+const dataRoot = testDataRoot(root)
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: join(dataRoot, `package-smoke-${randomUUID()}`) }
 env.LCA_PROVIDERS_FILE = join(env.LCA_DATA_DIR, 'absent-test-providers.json')
 function run(exe, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(exe, args, { env, cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = ''; let errors = ''; child.stdout?.on('data', (chunk) => { output = (output + chunk.toString()).slice(-16_384) }); child.stderr?.on('data', (chunk) => { errors = (errors + chunk.toString()).slice(-16_384) })
-    const deadline = setTimeout(() => { child.kill(); reject(new Error('PACKAGE_CHECK_TIMEOUT')) }, 300_000)
+    const installerProcess = /(?:-Setup|Uninstall LoveCollegeAgent)\.exe$/i.test(exe)
+    const deadline = setTimeout(() => { child.kill(); reject(new Error('PACKAGE_CHECK_TIMEOUT')) }, installerProcess ? 900_000 : 300_000)
     child.on('error', () => { clearTimeout(deadline); reject(new Error('PACKAGE_CHECK_LAUNCH_FAILED')) })
     child.on('exit', (code) => { clearTimeout(deadline); if (code === 0) resolve(output); else reject(new Error('PACKAGE_CHECK_FAILED: ' + (args.find((arg) => arg.endsWith('.mjs'))?.split(/[\\/]/).at(-1) ?? args.find((arg) => arg.startsWith('--lca-probe=')) ?? (exe.endsWith('powershell.exe') ? 'registry' : 'installer-or-uninstaller')) + ':' + code + ' OUT=' + output.slice(-3000) + ' ERR=' + errors.slice(-3000))) })
   })
 }
 async function probe(exe, name) {
   // Every destructive synthetic probe owns a fresh profile; none uses the UI profile or a user's data.
-  env.LCA_DATA_DIR = join(root, '.local-data', `package-probe-${name}-${randomUUID()}`)
+  env.LCA_DATA_DIR = join(dataRoot, `package-probe-${name}-${randomUUID()}`)
   env.LCA_PROVIDERS_FILE = join(env.LCA_DATA_DIR, 'absent-test-providers.json')
   const output = await run(exe, [`--lca-probe=${name}`], { capture: true })
   const line = output.split(/\r?\n/).find((item) => item.startsWith('LCA_PROBE:'))
@@ -60,7 +62,7 @@ let installed = false
 let stage = 'preflight'; const completedScenarios = []
 try {
   if (process.platform === 'win32' && !unpackedOnly) {
-    const occupied = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "$found = Get-ChildItem -LiteralPath 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall' -ErrorAction SilentlyContinue | Get-ItemProperty | Where-Object { $_.DisplayName -like 'Love College Agent*' }; if ($found) { 'occupied' } else { 'free' }"], { capture: true })
+    const occupied = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "$found = @('HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall','HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall','HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall') | ForEach-Object { Get-ChildItem -LiteralPath $_ -ErrorAction SilentlyContinue | Get-ItemProperty | Where-Object { $_.DisplayName -like 'Love College Agent*' } }; if ($found -or (Get-Process -Name LoveCollegeAgent -ErrorAction SilentlyContinue)) { 'occupied' } else { 'free' }"], { capture: true })
     assert.equal(occupied.trim(), 'free', 'Existing user installation detected; test refuses to upgrade or uninstall it.')
   }
   const unpacked = join(release, 'win-unpacked/LoveCollegeAgent.exe')
@@ -73,7 +75,7 @@ try {
     for (const name of ['sqlite', 'journal', 'pomodoro', 'backup', 'memory', 'life', 'documents', 'questions', 'dsh-spike']) { stage = 'installed-probe:' + name; await probe(exe, name) }
   }
   stage = unpackedOnly ? 'unpacked-ui-restart' : 'installed-ui-restart'
-  env.LCA_DATA_DIR = join(root, '.local-data', `installed-ui-${randomUUID()}`)
+  env.LCA_DATA_DIR = join(dataRoot, `installed-ui-${randomUUID()}`)
   env.LCA_PROVIDERS_FILE = join(env.LCA_DATA_DIR, 'absent-test-providers.json')
   const launch = () => _electron.launch({ executablePath: exe, args: [], env, timeout: 30_000 })
   instance = await launch(); let page = await instance.firstWindow(); await initializeTestBook(page)

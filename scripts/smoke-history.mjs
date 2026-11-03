@@ -8,13 +8,22 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, openSettings, whenIdle } from './runtime-env.mjs'
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'history-smoke-' + randomUUID()); let sceneId = randomUUID()
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19547', LCA_MCP_PORT: '0' }
+import { runtimeEnv, initializeTestBook, openSettings, whenIdle, testDataRoot } from './runtime-env.mjs'
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const runId = randomUUID(); const data = join(testDataRoot(root), 'history-smoke-' + runId); let sceneId = randomUUID()
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '0', LCA_MCP_PORT: '0' }
 let instance; let page; let client
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
 const send = (body) => page.evaluate(async (body) => { const s = await window.lca.getSnapshot(); return window.lca.dispatch({ ...body, protocolVersion: 1, epoch: s.epoch, requestId: body.requestId ?? crypto.randomUUID() }) }, body)
-async function waitFor(test, error) { for (let index = 0; index < 160; index++) { if (test(await snapshot())) return; await new Promise((resolve) => setTimeout(resolve, 100)) }; throw new Error(error) }
+async function waitFor(test, error) {
+  let state
+  for (let index = 0; index < 600; index++) {
+    state = await snapshot(); if (test(state)) return
+    if (/HISTORY_(EXPORT|IMPORT)_FAILED/.test(error) && state.backup.status === 'failed') break
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  await writeFile(join(root, 'test-results', 'history-failure-' + runId + '.json'), JSON.stringify({ error, data, sceneId, backup: state.backup, memoryEngine: state.memory?.engine }, null, 2))
+  throw new Error(error + (state.backup?.error?.code ? ':' + state.backup.error.code : ''))
+}
 async function debug(name, args = {}) { const result = await client.callTool({ name, arguments: args }); assert.ok(!result.isError); return JSON.parse(result.content[0].text) }
 async function setupScene() {
   await mkdir(join(data, 'developer', sceneId), { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId }))

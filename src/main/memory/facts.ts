@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import type { Clock } from '../clock'
 import type { SessionStore } from '../store/session'
 import type { ContinuityOwner, MemoryEngineStatus, MemoryFactView, MemoryReviewView } from '../../shared/continuity'
+import type { GiftSourceView } from '../../shared'
 import { createMemoryEngine } from './engine'
 import { createMemoryRuntimeState } from './storage/state'
 import type { MemoryDatabaseClient } from './storage/client'
@@ -100,6 +101,14 @@ export function createMemoryFacts(options: {
   const rememberedByTurn = new Map<string, MemoryReadReference[]>()
   return {
     runtime, refresh, factViews,
+    giftSources: (): GiftSourceView[] => {
+      const witnessed = seenFragments(history(), true, true)
+      return fragments.filter(fact => visible(fact) && !proposalFacts.has(fact.id) && fact.category === 'experience'
+        && fact.reviewStatus === 'approved' && fact.factStatus === 'active'
+        && witnessed.some(source => sourceId(source) === fact.sourceContext?.messageId && source.sessionId === fact.sourceContext?.sessionId
+          && (source.origin === 'user' || source.origin === 'model')))
+        .slice(0, 200).map(fact => ({ id: fact.id, text: fact.content.slice(0, 240) }))
+    },
     archive: async (credentials: readonly string[] = []) => { await migrate(); return engine.archive(credentials) },
     experiencePolicy: () => structuredClone(experiencePolicy),
     operations: () => structuredClone(operations),

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "batch": "candidate8-memory-retrieval-90",
+  "expectedModel": "voyage-4-large",
+  "productionCommit": "35d319742861cb2bfb393a697fa9560fcae7cd74",
+  "asarSha256": "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14",
+  "limits": {
+    "maximumModelRequests": 0,
+    "maximumEmbeddingRequests": 220,
+    "maximumEmbeddingInputCharacters": 50000,
+    "maximumReservedUnits": 700000,
+    "maximumAutonomousUnits": 700000
+  },
+  "acceptance": {
+    "cases": 90,
+    "strata": 9,
+    "minimumRecallAt3": 0.9,
+    "minimumStratumRecallAt3": 0.8,
+    "minimumMrrAt3": 0.8
+  },
+  "measurement": "Unchanged AIRI queries and gold ids; default production SQL, threshold, ranking and query normalization. Twenty approved fixture documents per language. Only zh-to-en uses the English corpus. Gold labels never enter embedding input or retrieval.",
+  "failurePolicy": "Stop on the first transport, admission, storage or protocol failure; no retry. Individual relevance misses are measurements, and the frozen aggregate thresholds decide acceptance after all 90 cases. Self-test is wiring evidence only."
+}

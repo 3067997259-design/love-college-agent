@@ -6,9 +6,9 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron } from 'playwright'
 import electronPath from 'electron'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
+import { runtimeEnv, testDataRoot, initializeTestBook, electronLaunchTarget, openSettings } from './runtime-env.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'slots-smoke-' + randomUUID())
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(testDataRoot(root), 'slots-smoke-' + randomUUID())
 const requests = []; let denyPrivacy = false
 const paper = '我把纸桥放在书桌上，给它取名叫周五桥。'
 const server = createServer((request, response) => {
@@ -19,8 +19,9 @@ const server = createServer((request, response) => {
     let output
     if (body.model === 'slot-chat') output = 'SYNTHETIC_MAIN_VISIBLE'
     else if (body.model === 'slot-background') {
-      const fragments = JSON.parse(body.messages[1].content); const source = fragments.find((fragment) => fragment.text.includes(paper))
-      output = JSON.stringify({ items: source ? [{ sourceId: source.id, quote: paper, kind: 'experience', topic: '纸桥', replaceTopic: false }] : [] })
+      const source = JSON.parse(body.messages[1].content)
+      assert.equal(typeof source.userText, 'string'); assert.equal(typeof source.assistantText, 'string')
+      output = JSON.stringify(source.userText.includes(paper) ? [{ content: paper, memoryType: 'short_term', category: 'experience', importance: 5, valence: 0, arousal: 0, tags: [] }] : [])
     } else if (body.model === 'slot-privacy') output = JSON.stringify({ markdown: '# 合成 HTTP 整理\n\nUSER_ONLY_SLOT_OUTPUT\n\nRAW_ONLY_SLOT_CONTENT', deadline: null })
     else throw new Error('UNEXPECTED_SLOT')
     response.writeHead(200, { 'Content-Type': 'text/event-stream' }).end('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: output }, finish_reason: 'stop' }], usage: { prompt_tokens: 20, completion_tokens: 10 } }) + '\n\ndata: [DONE]\n\n')
@@ -32,7 +33,7 @@ providers.providers.tts = { protocol: 'openai-speech', base_url: 'https://speech
 const expectedTts = structuredClone(providers.providers.tts)
 providers.description = 'Synthetic legacy bootstrap configuration annotation'
 for (const entry of Object.values(providers.providers)) entry.description = 'Synthetic provider annotation'
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-config.json') }
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent-config.json'), LCA_CDP_PORT: '0', LCA_MCP_PORT: '0' }
 let instance; let page
 async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30_000 }); page = await instance.firstWindow(); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
 const snapshot = () => page.evaluate(() => window.lca.getSnapshot())
@@ -55,7 +56,13 @@ try {
   assert.deepEqual(s.voice, { enabled: false, available: true, source: 'real' }) // Configuration only; never enable or contact this synthetic HTTPS target.
   assert.equal(s.memory.source, 'real'); assert.equal(s.memory.status, 'idle'); assert.equal(s.runtime.developer.mode, 'normal'); assert.equal(s.mailbox.status, 'blocked')
   await send({ type: 'mode.set', mode: 'quiet' }); await send({ type: 'message.send', text: paper }); await waitFor((s) => s.task?.status === 'completed', 'NORMAL_CHAT_FAILED')
-  await send({ type: 'memory.extract' }); await waitFor((s) => s.memory.status === 'idle' && s.memory.items.length === 1, 'NORMAL_BACKGROUND_MEMORY_FAILED')
+  assert.equal((await send({ type: 'memory.extract' })).status, 'accepted')
+  await waitFor((s) => s.memory.status === 'idle' && s.memory.facts.length === 1, 'NORMAL_BACKGROUND_MEMORY_FAILED')
+  const fact = (await snapshot()).memory.facts[0]
+  assert.equal(fact.content, paper); assert.equal(fact.reviewStatus, 'pending'); assert.equal(fact.factStatus, 'active')
+  assert.equal((await snapshot()).memory.items.length, 0, 'RETIRED_MEMORY_WRITER_USED')
+  const capture = requests.find((request) => request.model === 'slot-background' && JSON.parse(request.messages[1].content).userText?.includes(paper))
+  assert.ok(capture, 'SUCCESSFUL_USER_INPUT_NOT_CAPTURED')
   assert.equal((await send({ type: 'privacy.set', enabled: true })).status, 'accepted')
   const source = join(data, 'synthetic-private.txt'); await writeFile(source, 'RAW_ONLY_SLOT_CONTENT\nAPI key: sk-syntheticprivateinputcredential1234567')
   await page.getByLabel('选择资料文件', { exact: true }).setInputFiles(source)

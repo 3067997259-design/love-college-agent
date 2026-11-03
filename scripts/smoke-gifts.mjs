@@ -8,10 +8,10 @@ import electronPath from 'electron'
 import JSZip from 'jszip'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, electronLaunchTarget, openSettings, whenIdle } from './runtime-env.mjs'
+import { runtimeEnv, testDataRoot, initializeTestBook, electronLaunchTarget, openSettings, whenIdle } from './runtime-env.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const data = join(root, '.local-data', 'gifts-smoke-' + randomUUID()); let sceneId = randomUUID()
-const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '19536', LCA_MCP_PORT: '0' }
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'); const runId = randomUUID(); const data = join(testDataRoot(root), 'gifts-smoke-' + runId); let sceneId = randomUUID()
+const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '0', LCA_MCP_PORT: '0' }
 let instance; let page; let client
 const errors = []
 async function launch() { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30000 }); page = await instance.firstWindow(); page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()) }); await initializeTestBook(page); await page.locator('[data-mode][data-pose]').waitFor() }
@@ -26,8 +26,12 @@ try {
   await client.connect(new StreamableHTTPClientTransport(new URL(connection.url), { requestInit: { headers: { Authorization: 'Bearer ' + connection.token } } }))
   await debug('set_clock', { frozen: true }); await debug('set_fake_model', { script: [{ text: '合成共同经历回应', toolCalls: [], delayMs: 0 }] })
   await send({ type: 'message.send', text: '我把纸桥放在书桌上，给它取名叫周五桥。' }); await waitFor((s) => s.task?.status === 'completed', 'GIFT_CONTEXT_NOT_READY')
-  await send({ type: 'memory.extract' }); await waitFor((s) => s.memory.items.some((memory) => memory.kind === 'experience'), 'GIFT_MEMORY_NOT_READY')
-  const sourceMemory = (await snapshot()).memory.items.find((memory) => memory.kind === 'experience')
+  await send({ type: 'memory.extract' }); await waitFor((s) => s.memory.status === 'idle' && s.memory.facts.some((memory) => memory.content.includes('周五桥')), 'GIFT_MEMORY_NOT_READY')
+  const sourceMemory = (await snapshot()).memory.facts.find((memory) => memory.content.includes('周五桥'))
+  assert.equal((await send({ type: 'memory.fact.review', id: sourceMemory.id, expectedRevision: sourceMemory.revision, approve: true })).status, 'accepted')
+  await waitFor((s) => s.memory.facts.some((memory) => memory.id === sourceMemory.id && memory.reviewStatus === 'approved'), 'GIFT_MEMORY_REVIEW_NOT_SAVED')
+  assert.ok((await snapshot()).gifts.sources?.some((memory) => memory.id === sourceMemory.id), 'REVIEWED_EXPERIENCE_NOT_AVAILABLE_FOR_GIFT')
+  assert.equal((await snapshot()).memory.items.length, 0, 'RETIRED_MEMORY_WRITER_USED')
   await tools(); await page.getByRole('combobox', { name: '礼物来源经历', exact: true }).selectOption(sourceMemory.id); await page.getByRole('button', { name: '提议礼物', exact: true }).click()
   await waitFor((s) => s.gifts.items[0]?.status === 'proposed', 'GIFT_NOT_PROPOSED')
   await send({ type: 'pomodoro.plan', plan: { label: '礼物合成验收', plannedCount: 1, focusDurationMs: 60000, shortBreakDurationMs: 20000, longBreakDurationMs: 20000, longBreakEvery: 4, timing: 'demo' } })
@@ -61,4 +65,8 @@ try {
   assert.equal(errors.length, 0, 'RESTORED_MODEL_VIEWER_CONSOLE_ERROR')
   await mkdir(join(root, 'test-results'), { recursive: true }); await page.screenshot({ path: join(root, 'test-results', 'gifts.png') })
   console.log('Gifts Electron: witnessed experience / UI proposal, focus-only MCP making, validated GLB through owned local protocol and real model-viewer load (settings panel and in-book gift card), ready versus rest-given, private-handle exclusion, actual archive and blank-profile restore / 3D reload verified; fake generation only.')
+} catch (error) {
+  await mkdir(join(root, 'test-results'), { recursive: true })
+  await writeFile(join(root, 'test-results', 'gifts-failure-' + runId + '.json'), JSON.stringify({ error: String(error), data, snapshot: await snapshot().catch(() => null) }, null, 2))
+  throw error
 } finally { await client?.close(); await instance?.close() }

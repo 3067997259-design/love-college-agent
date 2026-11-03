@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "batch": "candidate8-memory-stories-24",
+  "productionCommit": "35d319742861cb2bfb393a697fa9560fcae7cd74",
+  "asarSha256": "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14",
+  "expectedEmbeddingModel": "voyage-4-large",
+  "limits": {
+    "maximumModelRequests": 96,
+    "maximumEmbeddingRequests": 220,
+    "maximumEmbeddingInputCharacters": 100000,
+    "maximumReservedUnits": 3145728,
+    "maximumAutonomousUnits": 851968
+  },
+  "responseTimeouts": { "firstResponseMs": 120000, "idleMs": 60000, "totalMs": 300000 },
+  "coverage": "24 controlled service-integration stories using production AIRI, context assembly, persistent work and DSH. Setup chat and worker decisions use local scripted responses; facts are reviewed through production transactions, day summaries are deterministic source quotes. Final answers and their tool steps use the saved real chat model; final retrieval uses real Voyage. This measures retrieval, injection, answer use and action compliance; it does not re-evaluate automatic fact extraction or replace the normal-product acceptance evidence.",
+  "acceptance": "All 24 structural scenarios must pass, and each live final answer must receive an evidence-backed semantic review against the frozen oracle. No paid judge, keyword-only pass, repeated sampling or oracle injection. Inconclusive does not pass.",
+  "followUps": { "S05": "那原先的交付安排是什么？请查一下当时的记录。", "S07": "项目乙的端口也需要跟着改吗？" },
+  "failurePolicy": "First transport, storage, admission, structural or semantic failure closes the entire batch. Pause after each live answer for a local review file before advancing. All counters survive story/profile/day changes. No automatic retries or reuse of a closed authorization."
+}

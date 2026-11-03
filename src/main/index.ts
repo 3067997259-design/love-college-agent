@@ -845,7 +845,7 @@ void app.whenReady().then(async () => {
     const rodinConfig = prepared.developer ? null : await readRodinConfig(providersFile)
     const rodinApi = prepared.developer ? { submit: async () => ({ uuid: randomUUID(), subscription_key: 'synthetic-private-handle' }), poll: async () => 'ready' as const, download: async () => syntheticGlb() } : rodinConfig ? createRodinApi(rodinConfig, clock) : null
     const rodinPort = rodinApi ? await createRodinMcp(rodinApi, binaryAssets, dataDir, clock) : null
-    gifts = createGiftService({ clock, store, scheduler, memory: memoryRepository, port: rodinPort, source: prepared.developer ? 'fake' : 'real', changed: () => controller?.refresh('task'),
+    gifts = createGiftService({ clock, store, scheduler, sources: () => memory!.giftSources(), port: rodinPort, source: prepared.developer ? 'fake' : 'real', changed: () => controller?.refresh('task'),
       open: (ref) => { const asset = binaryAssets.owned(ref.slice(6)); if (!asset) throw new Error('ASSET_UNAVAILABLE'); void shell.openPath(join(dataDir, assetPath(asset))) } })
     controller.attachGifts(gifts)
     plugins.registerBuiltin('gifts', '礼物与生成', [...quillTools(quill), ...giftTools(gifts)])
