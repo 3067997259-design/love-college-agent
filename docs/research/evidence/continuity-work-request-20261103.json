@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "date": "2026-11-03",
+  "candidate": {
+    "version": 1,
+    "appVersion": "1.2.0-continuity.8",
+    "installerFileName": "Love-College-Agent-1.2.0-continuity.8-Setup.exe",
+    "sourceRevision": "35d319742861cb2bfb393a697fa9560fcae7cd74",
+    "trackedDirty": false,
+    "runtimePreparation": "reused-prepared-tree",
+    "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+    "builtAtIso": "2026-11-03T02:14:51.275Z",
+    "installerBytes": 315481032,
+    "installerSha256": "81d307938aadd070474e6406313c6eb05d8b5ade668f3e0468b7fc7fecf1819c",
+    "asarSha256": "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14"
+  },
+  "installed": false,
+  "published": false,
+  "realServicesCalled": false,
+  "unitTests": {
+    "files": 10,
+    "passed": 127,
+    "wholeRepository": false
+  },
+  "staticChecks": {
+    "nodeTypecheck": true,
+    "rendererTypecheck": true,
+    "changedPathLint": true,
+    "productionBuild": true,
+    "windowsBuild": true
+  },
+  "package": {
+    "directory": "test-results/continuity/candidate8-package-20261103/package-4e19674a-1629-43a2-93cf-7935dc64ce57",
+    "reportSha256": "d82a50fba2b21e7c5bf269ed850a0d59c4e4385cc04d0796213cb46a60a7dcdf",
+    "checks": [
+      "sqlite",
+      "continuity",
+      "memory",
+      "v12-recovery"
+    ]
+  },
+  "execution": {
+    "directory": "test-results/continuity/execution/gate-1s0F7N",
+    "reportSha256": "00c624f03b441bb2e5430d7958916c6747dc3eb747bf16e03de76c90b4585fe6",
+    "checks": {
+      "oldDayActuallyRolled": true,
+      "foregroundCompletesWhileToolHeld": true,
+      "twoWorkerRoots": true,
+      "ambiguousUpdateHasNoImplicitTarget": true,
+      "supplementReachedOriginalRoot": true,
+      "duplicateEventNotExecuted": true,
+      "stopDoesNotCancelOtherRoot": true,
+      "oldUnissuedActionRejected": true,
+      "newestDecisionUsed": true,
+      "turnEndNotTaskCompletion": true,
+      "roleRoutes": true,
+      "workerTranscriptNotInFrontJournal": true,
+      "consumptionReceipts": true,
+      "nativeFileEvidenceCompletesWork": true,
+      "deliveryBeforeMemoryExtraction": true,
+      "immediateFollowupUsesCheckpoint": true,
+      "singleDelivery": true,
+      "originalDecisionsNotRecaptured": true,
+      "handoffsNotNewExperiences": true,
+      "historicalExpansionMarksSupersededValue": true,
+      "nextDayUsesSameWorkIdentity": true,
+      "realDayRolloverWithWorkHistory": true,
+      "oldSummaryCannotOverrideNewFact": true,
+      "originalHistoryStillPresent": true
+    }
+  },
+  "bridge": {
+    "directory": "test-results/dsh-bridge-24f53a43-ae1b-4031-8d6c-edebce871c55",
+    "passed": [
+      "state-foreground",
+      "state-foreground-sign",
+      "state-worker"
+    ]
+  },
+  "work": {
+    "directory": "D:/lca-continuity-candidate-20261101/profiles/work-candidate8-selftest-20261103-1",
+    "reportSha256": "6c31f44ba3cbe46e3b9073f48027c873c1089c855f82f464cc841631737e0175",
+    "manifestSha256": "b1720da212d767bd8f0aa0016f4b8d75e5e6d65d88082a2df3be8e8a2818212c",
+    "checks": {
+      "foregroundCompletesWhileWorkerToolBlocked": true,
+      "supplementDurableInOriginalWork": true,
+      "currentRevisionFileAndCheckpoint": true,
+      "immediateDeliveryContextHasVerifiedEvidence": true,
+      "ambiguousAmendmentDoesNotChangeEitherWork": true,
+      "ambiguousAmendmentDoesNotCreateWork": true,
+      "clarificationOriginalsReachSameWork": true,
+      "stopIsolatedToOneRoot": true,
+      "recoveryUsesNewGenerationWithoutApprovalReplay": true,
+      "clarificationHasSameAuthoredContentAcrossRoots": true,
+      "noDuplicateDelivery": true
+    },
+    "modelRequests": 36,
+    "upstreamRequests": 0,
+    "embeddingRequests": 0,
+    "inFlight": 0
+  },
+  "proposedAuthorization": {
+    "authorized": false,
+    "file": "test-results/continuity/candidate8-authorizations-20261103/work-authorization.proposed.json",
+    "sha256": "cf2e03401c84f3065a458388f04705e6e7fb71a5a4dab84d25c66a98df2570b3",
+    "modelRequests": 48,
+    "reservedUnits": 1048576,
+    "autonomousUnits": 65536,
+    "embeddingRequests": 0,
+    "firstFailureStops": true
+  },
+  "retainedFailure": {
+    "report": "docs/research/continuity-candidate6-work-live-20261102.md",
+    "closedGrantReused": false
+  },
+  "remaining": [
+    "real work and semantic review",
+    "full unified regression on this candidate",
+    "real embedding and mirror quality matrix",
+    "installed upgrade",
+    "second Windows",
+    "longitudinal use"
+  ]
+}

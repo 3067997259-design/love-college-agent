@@ -92,9 +92,11 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 工作 self-test 故意重放 `inspect_work → 猜测 update_work → 额外 start_work`，再测试用户撤回后再次调用修改也被拒绝；随后验证正常澄清的两条原文确实进入同一工作。含糊场景对整个工作集合、目标版本、代次和状态做前后比较，并要求实际出现澄清，不能只检查原先两项的版本。`work-request.test.ts` 另覆盖原文作用域、名称与旧输出值混淆、审批／未提交回答、重复创建、重开去重及明确请求的正常执行。
 
-当前独立候选为 `continuity.6`：同包基础四项、本地工作八组、记忆七组和真实本机 PostgreSQL 镜像产品七组通过，见[候选 6 验收](research/continuity-candidate6-acceptance-20261102.md)。该本地轮次没有安装／发布或真实模型调用。`continuity.5` 的真实记忆七组及人工语义复核完成，但收尾 JSON 读取竞态使原自动报告失败；工作在排序断言处停止，当轮未执行尾段。旧版本结果、消耗及 Docker 修复见[候选 5 续验](research/continuity-candidate5-acceptance-20261102.md)，此前失败见[首轮服务实测](research/continuity-services-20261102.md)。`dsh-bridge-check.mjs state-foreground state-foreground-sign state-worker` 可离线验证独立车道下的门牌与工具范围。
+此前独立候选 `continuity.6` 的同包基础四项、本地工作八组、记忆七组和真实本机 PostgreSQL 镜像产品七组通过，见[候选 6 验收](research/continuity-candidate6-acceptance-20261102.md)。该本地轮次没有安装／发布或真实模型调用。`continuity.5` 的真实记忆七组及人工语义复核完成，但收尾 JSON 读取竞态使原自动报告失败；工作在排序断言处停止，当轮未执行尾段。旧版本结果、消耗及 Docker 修复见[候选 5 续验](research/continuity-candidate5-acceptance-20261102.md)，此前失败见[首轮服务实测](research/continuity-services-20261102.md)。`dsh-bridge-check.mjs state-foreground state-foreground-sign state-worker` 可离线验证独立车道下的门牌与工具范围。
 
 上述本地轮次之后，候选 6 的新授权真实工作批次完成 31 次完整响应；前四组通过，第五组含糊指令实际改变 WORK_B 版本并额外创建工作，首次失败后已停止并关闭额度。这个缺陷与旧排序误报不同；停止／恢复尾段没有继续执行，见[真实工作失败与边界](research/continuity-candidate6-work-live-20261102.md)。
+
+该缺陷的主进程修复、原文与澄清边界、故意发送错误工具调用的回归和本机候选 8 结果见[修复与离线复验](research/continuity-work-request-20261103.md)。真实工作复测仍需新的任务授权；候选 6 的余额不复用。
 
 人工审阅 `answers-for-review.json` 后，先在另一文件写完 `{ "batch": "work或memory", "accepted": true, "reason": "实际核对依据" }`，再用 `node scripts/publish-continuity-review.mjs <运行目录> <决定文件>` 原子发布。若审阅不通过，设置 `accepted: false` 并说明原因。发布器不覆盖已有回执、不修改已结束批次，不调用模型。不要直接创建目标 `semantic-review.json` 后逐步写入。
 
