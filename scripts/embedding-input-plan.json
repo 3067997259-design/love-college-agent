@@ -1,0 +1,11 @@
+{
+  "batch": "embedding-input-types",
+  "expectedModel": "voyage-4-large",
+  "limits": {
+    "maximumModelRequests": 0,
+    "maximumEmbeddingRequests": 2,
+    "maximumEmbeddingInputCharacters": 2000,
+    "maximumReservedUnits": 10000,
+    "maximumAutonomousUnits": 10000
+  }
+}
