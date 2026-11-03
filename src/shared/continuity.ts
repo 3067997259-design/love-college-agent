@@ -87,7 +87,7 @@ export interface ContinuousWorksView {
 
 export type ContinuousWorkCommand =
   | { type: 'work.create'; projectId: string; objective: string; acceptance: readonly string[]; decisionIds: readonly string[] }
-  | { type: 'work.supplement'; target: WorkTarget; text: string; decisionId: string }
+  | { type: 'work.supplement'; target: WorkTarget; text: string; decisionId: string; clarifiedDecisionIds?: readonly string[] }
   | { type: 'work.pause'; target: WorkTarget }
   | { type: 'work.stop'; target: WorkTarget }
   | { type: 'work.resume'; target: WorkTarget }
