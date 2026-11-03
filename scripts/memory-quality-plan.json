@@ -1,9 +1,9 @@
 {
     "version":  1,
-    "batch":  "candidate9-memory-retrieval-90",
+    "batch":  "candidate10-memory-retrieval-90",
     "expectedModel":  "voyage-4-large",
-    "productionCommit":  "7a196d095f16b80f5c6f1fb0755f4f6bcd060624",
-    "asarSha256":  "a6a693c3b0ffaf9e40d981b5875097eccebc506413dfc585326cad4163687612",
+    "productionCommit":  "06902493ca5346b12f3f4dc8ef8ef7a3ade5ad80",
+    "asarSha256":  "0450288c63ea23372def623d8b172f01d687fd0d2c642eb71555481154de61f6",
     "limits":  {
                    "maximumModelRequests":  0,
                    "maximumEmbeddingRequests":  220,

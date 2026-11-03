@@ -1,6 +1,6 @@
 {
-  "candidate": "continuity.10 preparation",
-  "packaged": false,
+  "candidate": "1.2.0-continuity.10",
+  "packaged": true,
   "externalRequests": 0,
   "source": {
     "src/main/dsh/execution.ts": "c1a327fed92d9e66e3372608e2edefd6fda77ac3efb614d103b28c3991273df2",
@@ -1916,5 +1916,1076 @@
       "sourceRemoved": true
     }
   },
-  "liveQuality": "not authorized or run for this candidate; original story batch closed at S05"
+  "liveQuality": "not authorized or run for this candidate; original story batch closed at S05",
+  "build": {
+    "path": "C:/.lca-cache/continuity10-release-20261103/build-receipt.json",
+    "sha256": "9721d9cb50aca304c3d1e0303cd1ea1e776bce4b992f931eedefa36439ff8f8e",
+    "receipt": {
+      "version": 1,
+      "appVersion": "1.2.0-continuity.10",
+      "installerFileName": "Love-College-Agent-1.2.0-continuity.10-Setup.exe",
+      "sourceRevision": "06902493ca5346b12f3f4dc8ef8ef7a3ade5ad80",
+      "trackedDirty": false,
+      "runtimePreparation": "reused-prepared-tree",
+      "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+      "builtAtIso": "2026-11-03T15:29:36.195Z",
+      "installerBytes": 315481295,
+      "installerSha256": "dd64b818d8384b0ac76982337642ce19f4ad5d0e944db5176b229d42d7c41853",
+      "asarSha256": "0450288c63ea23372def623d8b172f01d687fd0d2c642eb71555481154de61f6"
+    }
+  },
+  "packagedAcceptance": {
+    "externalRequests": 0,
+    "upgrade": {
+      "path": "test-results/p6-upgrade-ca1c05b4-2e40-4f7a-8076-731a50dade32/report.json",
+      "sha256": "47ab592cc754e7629bd3ce4497c8337af6fc0b16118d2159c6dc36b14ea78bb2",
+      "report": {
+        "syntheticOnly": true,
+        "installed": true,
+        "upgraded": true,
+        "secondMachine": false,
+        "baselineVersion": "1.1.0",
+        "candidate": {
+          "version": 1,
+          "appVersion": "1.2.0-continuity.10",
+          "installerFileName": "Love-College-Agent-1.2.0-continuity.10-Setup.exe",
+          "sourceRevision": "06902493ca5346b12f3f4dc8ef8ef7a3ade5ad80",
+          "trackedDirty": false,
+          "runtimePreparation": "reused-prepared-tree",
+          "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+          "builtAtIso": "2026-11-03T15:29:36.195Z",
+          "installerBytes": 315481295,
+          "installerSha256": "dd64b818d8384b0ac76982337642ce19f4ad5d0e944db5176b229d42d7c41853",
+          "asarSha256": "0450288c63ea23372def623d8b172f01d687fd0d2c642eb71555481154de61f6"
+        },
+        "checks": [
+          "actual-1.1.0-installer-and-normal-book-with-synthetic-chat-project-and-save",
+          "same-install-path-upgrade-preserves-onboarding-mode-project-session-and-append-only-history",
+          "upgraded-book-can-complete-a-new-DSH-turn-and-preserve-user-profile-configuration",
+          "upgraded-cold-restart-preserves-new-history-without-model-replay",
+          "1.1.0-private-save-restores-in-candidate-with-safety-backup-and-no-replay"
+        ],
+        "cleanup": "owned-test-install-uninstalled",
+        "profileConfigurationPreserved": true,
+        "ok": true,
+        "modelRequests": 2,
+        "archiveBytes": 5068
+      }
+    },
+    "postgres": [
+      {
+        "path": "test-results\\continuity\\candidate10-release-gates-20261103\\postgres-471d911c-483e-4f09-bfa8-21ce94795885\\report.json",
+        "sha256": "c977d995a764c9dc7b48cd807c190eead50f30a97b1963e210245b1904bb4ba4",
+        "report": {
+          "status": "passed",
+          "mode": "repository",
+          "realPostgres": true,
+          "container": "lca-continuity-pg-e1994589-b9cb-4505-85ea-7719e2a210a0",
+          "reason": null,
+          "checks": [
+            "reconnects after private DB outage without resurrecting a deleted origin",
+            "memory repository (real Postgres) shares vector types across private namespaces without sharing facts",
+            "memory repository (real Postgres) repairs a legacy private vector extension while preserving existing rows and isolation",
+            "memory repository (real Postgres) keeps an absent or concurrently arriving origin forgotten across two connections",
+            "memory repository (real Postgres) ensures the schema, then inserts, searches, lists, and removes a fragment",
+            "memory repository (real Postgres) redelivers the same originId idempotently and inserts without an originId",
+            "memory repository (real Postgres) keeps a deleted fact deleted when its originId is redelivered",
+            "memory repository (real Postgres) propagates review, supersede, and delete updates by originId"
+          ],
+          "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+          "containerStopped": true
+        }
+      },
+      {
+        "path": "test-results\\continuity\\candidate10-release-gates-20261103\\postgres-61b64f85-bfb6-40ff-8b9e-dddc687a7adc\\report.json",
+        "sha256": "133befa6ad5c5eb9ff3ed3f2566ae8ed5b9965ffa86d8c20e448f51dffe1f1ed",
+        "report": {
+          "status": "passed",
+          "mode": "product",
+          "realPostgres": true,
+          "container": "lca-continuity-pg-53548e9a-0518-45f7-a2f7-bd4ae82fc4d8",
+          "reason": null,
+          "checks": [
+            "settings_enable_and_original_outbox_reach_real_postgres",
+            "offline_correction_and_pending_outbox_survive_restart",
+            "retry_invalidates_old_fact_without_duplicate_delivery",
+            "nonempty_save_with_pending_forget_excludes_connections",
+            "restore_rotates_mirror_epoch_and_stale_remote_fact_does_not_return",
+            "saved_connection_pause_resume_is_idempotent_and_private",
+            "restored_epoch_and_forget_survive_another_restart"
+          ],
+          "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+          "containerStopped": true
+        },
+        "product": {
+          "path": "test-results\\continuity\\candidate10-release-gates-20261103\\postgres-61b64f85-bfb6-40ff-8b9e-dddc687a7adc\\product.json",
+          "sha256": "ee62b59c6dfb60af4c290c33ac2f50682e697fd11d36133997e2b52ac144e121",
+          "report": {
+            "ok": true,
+            "source": "9c905a715d6992ce3ace0a37f9e531ea43a131f79f0ca4966f5f9328e1513265",
+            "target": "unpacked",
+            "profile": "D:\\.lca-cache\\continuity10-tests\\mirror-profiles\\mirror-product-11983692-54ff-425d-bdd2-f7923d9c8313",
+            "checks": [
+              "settings_enable_and_original_outbox_reach_real_postgres",
+              "offline_correction_and_pending_outbox_survive_restart",
+              "retry_invalidates_old_fact_without_duplicate_delivery",
+              "nonempty_save_with_pending_forget_excludes_connections",
+              "restore_rotates_mirror_epoch_and_stale_remote_fact_does_not_return",
+              "saved_connection_pause_resume_is_idempotent_and_private",
+              "restored_epoch_and_forget_survive_another_restart"
+            ],
+            "realPostgres": true,
+            "realModels": false,
+            "realEmbedding": false,
+            "vectorCalls": 3,
+            "asarSha256": "0450288c63ea23372def623d8b172f01d687fd0d2c642eb71555481154de61f6",
+            "fixture": {
+              "kind": "pre-existing approved long-term facts; promotion not assessed",
+              "ids": {
+                "kept": "f3037ad7-ba20-4381-a323-f453f804ce75",
+                "corrected": "02348c7a-5293-49bf-b50b-d574f39e5d93",
+                "forgotten": "5a74cfd1-ba70-4c87-ac8a-c857f4dbd7d5"
+              }
+            },
+            "correctionLabel": "更正后的内容镜像夹具：任务目标最初为茶。",
+            "saveSha256": "840fb7146ce6c1ef2addc4d10798960c605e717fdd1befcb0bad8494db10ef57",
+            "namespaces": {
+              "before": "lca_memory_381ec80caeb6f2d1e0a1d352e2956a66",
+              "after": "lca_memory_b695e0aae6536777a82abbec348a061a"
+            }
+          }
+        }
+      }
+    ],
+    "freshInstallation": {
+      "path": "test-results/continuity/candidate10-installed-package-20261103-1.json",
+      "sha256": "ed3ba1bf7e03d1b2d06bd6a83e38df4f6675fdd5ce2ae05e4e86d3178da48165",
+      "report": {
+        "ok": true,
+        "status": "passed",
+        "atIso": "2026-11-03T15:52:08.474Z",
+        "installer": "C:\\.lca-cache\\continuity10-release-20261103\\Love-College-Agent-1.2.0-continuity.10-Setup.exe",
+        "bytes": 315481295,
+        "sha256": "dd64b818d8384b0ac76982337642ce19f4ad5d0e944db5176b229d42d7c41853",
+        "executionTarget": "installed",
+        "appVersion": "1.2.0-continuity.10",
+        "unsigned": true,
+        "secretsExcluded": true,
+        "nativeUnpacked": true,
+        "unpackedProbes": true,
+        "installedProbes": true,
+        "privateSaveProbe": true,
+        "installedUiRestart": true,
+        "unpackedUiRestart": false,
+        "historyQuoteAndPhoto": true,
+        "secondCircleProbes": [
+          "memory",
+          "life"
+        ],
+        "buildReceipt": {
+          "version": 1,
+          "appVersion": "1.2.0-continuity.10",
+          "installerFileName": "Love-College-Agent-1.2.0-continuity.10-Setup.exe",
+          "sourceRevision": "06902493ca5346b12f3f4dc8ef8ef7a3ade5ad80",
+          "trackedDirty": false,
+          "runtimePreparation": "reused-prepared-tree",
+          "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+          "builtAtIso": "2026-11-03T15:29:36.195Z",
+          "installerBytes": 315481295,
+          "installerSha256": "dd64b818d8384b0ac76982337642ce19f4ad5d0e944db5176b229d42d7c41853",
+          "asarSha256": "0450288c63ea23372def623d8b172f01d687fd0d2c642eb71555481154de61f6"
+        },
+        "thirdCircleScenarios": [
+          "model-routing",
+          "model-slots",
+          "documents",
+          "campus",
+          "memory",
+          "harness",
+          "gifts",
+          "onboarding",
+          "life-work",
+          "sleep",
+          "optical",
+          "minecraft",
+          "minecraft-images",
+          "minecraft-stdio",
+          "minecraft-mining",
+          "voice",
+          "booth",
+          "mini",
+          "showcase",
+          "life-port",
+          "resources",
+          "questions",
+          "settings",
+          "failure-narrator",
+          "privacy-probe",
+          "providers",
+          "plugins",
+          "student-hub-package",
+          "student-hub-candidates",
+          "pomodoro",
+          "room",
+          "extensions",
+          "collaboration",
+          "v12-recovery"
+        ],
+        "syntheticServices": true,
+        "realProviderQualityAccepted": false
+      }
+    },
+    "installationCleanup": {
+      "path": "test-results/continuity/candidate10-install-cleanup-20261103.json",
+      "sha256": "aae3e75d7a86d8307a6970530835e472698c935e4b489a0e07cc934da7480405",
+      "report": {
+        "registryEntries": [],
+        "processes": [],
+        "testInstallUnregistered": true,
+        "appProcessesClosed": true
+      }
+    },
+    "quality": {
+      "retrieval": {
+        "report": {
+          "path": "D:\\.lca-cache\\continuity10-tests\\retrieval-preflight-20261104-2\\report.json",
+          "sha256": "723ec9361d76ff86f4525eaae165412281a78bd23932aaafa7b980765c5320cf",
+          "summary": {
+            "ok": true,
+            "selfTest": true,
+            "qualityPassed": null,
+            "completed": 90,
+            "upstreamRequests": 0,
+            "counts": {
+              "modelRequests": 0,
+              "embeddingRequests": 212,
+              "embeddingCharacters": 5360,
+              "reservedUnits": 445270,
+              "autonomousUnits": 445270
+            },
+            "storageDiagnostics": {
+              "requests": 1846,
+              "sampledPeakRssBytes": 893296640
+            }
+          }
+        },
+        "run": {
+          "path": "D:\\.lca-cache\\continuity10-tests\\retrieval-preflight-20261104-2\\run.json",
+          "sha256": "978a4359ea122ceb278a7cbaa9ca005e1cf7e2aff4755edfa7505ef29a46c4c9",
+          "report": {
+            "selfTest": true,
+            "batch": "candidate10-memory-retrieval-90",
+            "limits": {
+              "maximumModelRequests": 0,
+              "maximumEmbeddingRequests": 220,
+              "maximumEmbeddingInputCharacters": 50000,
+              "maximumReservedUnits": 700000,
+              "maximumAutonomousUnits": 700000
+            },
+            "asarSha256": "0450288c63ea23372def623d8b172f01d687fd0d2c642eb71555481154de61f6",
+            "sources": {
+              "scripts/probe-memory-retrieval-quality.mjs": "8bf8e60e69013585f35bd7fff42d85d0d9f9789cfbc0561b5b0652a7f3ea445a",
+              "scripts/memory-quality-plan.json": "ef7e5fce477f3ffd54b0fba74c9ff6d4642c1a6e2420a30ceea180c1ba7be30a",
+              "scripts/fixtures/memory-retrieval-quality.ts": "0b575b260f842779c521445fcab03a5487dbef0555e666b13bf125ff0d5e1267",
+              "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+              "tests/fixtures/memory-quality-corpus.json": "357b9193c6c02304b0c19a6deddeae60ed2b3b6cc8df5f559896eaa745352e2d",
+              "src/main/memory/airi/core/evaluation.ts": "5bf9d8e0188d6da011100b24789aec35d8c09afbbf4abd0855cd30df94b6ba9d"
+            },
+            "bundleSha256": "8213b4d48c0c39a49700b0bf78f84159b59b79a0f39668bd628b39bb59da36e4",
+            "productionCommit": "06902493ca5346b12f3f4dc8ef8ef7a3ade5ad80",
+            "credentialReader": "isolated Electron main only"
+          }
+        },
+        "closed": {
+          "path": "D:\\.lca-cache\\continuity10-tests\\retrieval-preflight-20261104-2\\closed.json",
+          "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a",
+          "report": {
+            "ok": true,
+            "reuseAllowed": false,
+            "cleanupUncertain": false
+          }
+        },
+        "liveAuthorized": false
+      },
+      "stories": {
+        "report": {
+          "path": "D:\\.lca-cache\\continuity10-tests\\stories-preflight-20261104-1\\report.json",
+          "sha256": "0bd0cd1241dd7443166ec7d44653bdf91bb4f0677c1a823c0cf84b80edba0778",
+          "summary": {
+            "ok": true,
+            "selfTest": true,
+            "qualityPassed": null,
+            "completed": [
+              "S01",
+              "S02",
+              "S03",
+              "S04",
+              "S05",
+              "S06",
+              "S07",
+              "S08",
+              "S09",
+              "S10",
+              "S11",
+              "S12",
+              "S13",
+              "S14",
+              "S15",
+              "S16",
+              "S17",
+              "S18",
+              "S19",
+              "S20",
+              "S21",
+              "S22",
+              "S23",
+              "S24"
+            ],
+            "upstreamRequests": 0,
+            "counts": {
+              "modelRequests": 26,
+              "embeddingRequests": 77,
+              "embeddingCharacters": 949,
+              "reservedUnits": 306541,
+              "autonomousUnits": 160501
+            }
+          }
+        },
+        "run": {
+          "path": "D:\\.lca-cache\\continuity10-tests\\stories-preflight-20261104-1\\run.json",
+          "sha256": "8087f18cd288df74842cf5f6e8c78be4c70052eb49c55bfefd8c328e71628db3",
+          "report": {
+            "selfTest": true,
+            "batch": "candidate10-memory-stories-24",
+            "limits": {
+              "maximumModelRequests": 96,
+              "maximumEmbeddingRequests": 220,
+              "maximumEmbeddingInputCharacters": 100000,
+              "maximumReservedUnits": 3145728,
+              "maximumAutonomousUnits": 851968
+            },
+            "asarSha256": "0450288c63ea23372def623d8b172f01d687fd0d2c642eb71555481154de61f6",
+            "sources": {
+              "scripts/probe-memory-stories-quality.mjs": "2c255601595a506e1588e326d7fa5c0f4c2582d6cb29502d13f8c7289273151b",
+              "scripts/memory-stories-plan.json": "272bdae660ec54432102592322575418a5017abef55626fd35bcfe128d32e376",
+              "scripts/fixtures/memory-stories-quality.ts": "591413dadfd3cd7c8b5bafbf58d0b89ab5c1a2e44b290c8546da8d32c8363d88",
+              "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+              "tests/fixtures/continuity-stories.json": "1ec38f6058c05c99de270d30cc199af7e2bf4bf6c8ceb8b36bc2578c4d512de1",
+              "scripts/fixtures/memory-story-io.ts": "f93669e661c837fb86844dc685e63b8cde95726ec2357f9f443c1406ad4e05ad",
+              "scripts/fixtures/memory-story-harness.ts": "e5ea35ac78d6201a77dfd232d8ff229a7ad14ee344a14bae985570f7e3707588",
+              "scripts/fixtures/memory-story-cases.ts": "e0764ab879cc755c2059c1591c52f8057a45f4977346d22da9a7dd01c15310ec",
+              "scripts/fixtures/world-probe-stream.ts": "66cf5484fe6a8466dc7718e1741fcd2e46dbab2ab412f5c620311fe29d319878",
+              "scripts/fixtures/probe-response-deadline.ts": "77a098bf9c8bc021f2b364ac008450dcbe7487f4dfc5dc31ca30856fcdba85e9",
+              "scripts/fixtures/continuity-scripted-model.ts": "6d855951ca5beb202e8eb918cd13670f2b365d6016e744c4b8dad9e851cd6174"
+            },
+            "bundleSha256": "855c83ddc2766d3b36a59d97d715166e0acef8a7d5fe004653e91837fcc8e59c",
+            "productionCommit": "06902493ca5346b12f3f4dc8ef8ef7a3ade5ad80",
+            "credentialReader": "isolated Electron main only"
+          }
+        },
+        "closed": {
+          "path": "D:\\.lca-cache\\continuity10-tests\\stories-preflight-20261104-1\\closed.json",
+          "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a",
+          "report": {
+            "ok": true,
+            "reuseAllowed": false,
+            "cleanupUncertain": false
+          }
+        },
+        "liveAuthorized": false
+      },
+      "retrievalOriginalFailure": {
+        "report": {
+          "path": "D:/.lca-cache/continuity10-tests/retrieval-preflight-20261104-1/report.json",
+          "sha256": "2d6950f43dbfddc588cd8e1a788103298c67fdf8996f7635e2d2fe1e35d22609",
+          "report": {
+            "ok": false,
+            "selfTest": true,
+            "qualityAssessed": false,
+            "qualityPassed": null,
+            "coverage": "Unchanged AIRI queries and gold ids; default production SQL, threshold, ranking and query normalization. Twenty approved fixture documents per language. Only zh-to-en uses the English corpus. Gold labels never enter embedding input or retrieval.",
+            "failurePolicy": "Stop on the first transport, admission, storage or protocol failure; no retry. Individual relevance misses are measurements, and the frozen aggregate thresholds decide acceptance after all 90 cases. Self-test is wiring evidence only.",
+            "limits": {
+              "maximumModelRequests": 0,
+              "maximumEmbeddingRequests": 220,
+              "maximumEmbeddingInputCharacters": 50000,
+              "maximumReservedUnits": 700000,
+              "maximumAutonomousUnits": 700000
+            },
+            "acceptance": {
+              "cases": 90,
+              "strata": 9,
+              "minimumRecallAt3": 0.9,
+              "minimumStratumRecallAt3": 0.8,
+              "minimumMrrAt3": 0.8
+            },
+            "upstreamRequests": 0,
+            "samples": [],
+            "casesCompleted": 0,
+            "corpusCounts": {
+              "zh": 20,
+              "en": 0
+            },
+            "counts": {
+              "modelRequests": 0,
+              "embeddingRequests": 0,
+              "embeddingCharacters": 0,
+              "reservedUnits": 0,
+              "autonomousUnits": 0
+            },
+            "error": "RETRIEVAL_FIXTURE_OR_STORAGE_FAILED",
+            "stage": "zh:migrate",
+            "diagnostic": "Out of Memory Error: Allocation failure",
+            "result": null
+          }
+        },
+        "closed": {
+          "path": "D:/.lca-cache/continuity10-tests/retrieval-preflight-20261104-1/closed.json",
+          "sha256": "5f3b7b4edeffd231a821f43ecb798b3c9e565c5e408597ff8ad8931a82ff9741",
+          "report": {
+            "ok": false,
+            "reuseAllowed": false,
+            "cleanupUncertain": false
+          }
+        },
+        "conclusion": "Native allocation failure during zh migration; zero upstream requests. A fresh unchanged-product preflight passed after reclaiming space and adding offline diagnostics. Direct cause remains unconfirmed.",
+        "diagnostics": [
+          {
+            "path": "test-results/continuity/candidate10-duckdb-list-diagnostic-20261104.json",
+            "sha256": "881135246097575fe08ad8e74aa5092abb83adab37f6cebd1c3839e063a86f17"
+          },
+          {
+            "path": "test-results/continuity/candidate10-duckdb-result-lifetime-20261104.json",
+            "sha256": "ad62e0c6fca8c12134b4da48a7c9567237bcd9030afa5a42c0dca7d42275f94c"
+          },
+          {
+            "path": "test-results/continuity/candidate10-duckdb-update-lifetime-20261104.json",
+            "sha256": "ab06bfe6817f40fc49b5d3ded57e6c82dc8c244c65f3556f5745677edfa7f47e"
+          }
+        ]
+      }
+    },
+    "state-routing": {
+      "path": "test-results/continuity/candidate10-state-routing-20261103.log",
+      "sha256": "859f267177d897a7136b55e3bb933b3c7b3cc9914f39d0f217ce7b842862a1dc",
+      "report": {
+        "ok": true,
+        "kind": "synthetic-local-http",
+        "checks": [
+          "text state change without a worker-model continuation",
+          "manual work sign keeps the foreground chat route",
+          "stale response refused",
+          "restart persists mode without replay",
+          "LCA clock tool roundtrip"
+        ],
+        "requests": [
+          {
+            "task": "state-probe:mode",
+            "model": "mock-chat"
+          },
+          {
+            "task": "state-probe:direct",
+            "model": "mock-chat"
+          },
+          {
+            "task": "state-probe:direct",
+            "model": "mock-chat"
+          },
+          {
+            "task": "state-probe:stale",
+            "model": "mock-chat"
+          },
+          {
+            "task": "state-probe:restart",
+            "model": "mock-chat"
+          },
+          {
+            "task": "state-probe:restart",
+            "model": "mock-chat"
+          }
+        ],
+        "data": "D:\\.lca-cache\\continuity10-tests\\extra-profiles\\state-routing-f97978db-3afa-4095-a198-27bb603fc0e3"
+      }
+    },
+    "model-capabilities": {
+      "path": "test-results/continuity/candidate10-model-capabilities-20261103.log",
+      "sha256": "b692cbceffd3ebe0a12a745f2a5a594c22e906a3ec23637cd79debe25add1236",
+      "report": {
+        "ok": true,
+        "data": "D:\\.lca-cache\\continuity10-tests\\extra-profiles\\model-capabilities-eece3155-4361-43ad-9cf8-01c3b6b9999d",
+        "checks": [
+          "saved declaration reported separately from actual DSH metadata without a probe",
+          "actual HTTP reasoning value mapped and output bounded",
+          "off can omit the parameter or send the explicitly declared API value",
+          "declared image capability reaches a real multimodal HTTP request",
+          "text-only declaration rejects image tool locally and sends only its text error",
+          "model switch does not inherit declarations; switching back restores its saved declaration",
+          "runtime default off mapping is stated in UI and verified on the wire",
+          "restart persistence, zero replay and credential-safe projection",
+          "reset removes manual request behavior even when the unsaved draft is invalid"
+        ],
+        "requests": [
+          {
+            "task": "caps-wire:text",
+            "model": "caps-model-a",
+            "outputLimit": 512,
+            "reasoning": "vendor_medium",
+            "imageCount": 0
+          },
+          {
+            "task": "caps-wire:off-omitted",
+            "model": "caps-model-a",
+            "outputLimit": 512,
+            "reasoning": null,
+            "imageCount": 0
+          },
+          {
+            "task": "caps-wire:off-mapped",
+            "model": "caps-model-a",
+            "outputLimit": 512,
+            "reasoning": "vendor_off",
+            "imageCount": 0
+          },
+          {
+            "task": "caps-wire:image",
+            "model": "caps-model-a",
+            "outputLimit": 512,
+            "reasoning": "vendor_medium",
+            "imageCount": 0
+          },
+          {
+            "task": "caps-wire:image",
+            "model": "caps-model-a",
+            "outputLimit": 512,
+            "reasoning": "vendor_medium",
+            "imageCount": 1
+          },
+          {
+            "task": "caps-wire:image-denied",
+            "model": "caps-model-a",
+            "outputLimit": 512,
+            "reasoning": "vendor_medium",
+            "imageCount": 0
+          },
+          {
+            "task": "caps-wire:image-denied",
+            "model": "caps-model-a",
+            "outputLimit": 512,
+            "reasoning": "vendor_medium",
+            "imageCount": 0
+          },
+          {
+            "task": "caps-wire:default-mapped-off",
+            "model": "caps-model-a",
+            "outputLimit": 512,
+            "reasoning": "vendor_off",
+            "imageCount": 0
+          },
+          {
+            "task": "caps-wire:reset",
+            "model": "caps-model-a",
+            "outputLimit": 32768,
+            "reasoning": null,
+            "imageCount": 0
+          }
+        ]
+      }
+    },
+    "dshHostCollaboration": {
+      "originalFailure": {
+        "path": "test-results/continuity/candidate10-dsh-collaboration-20261103.log",
+        "sha256": "96213524c06668f3b131daf4ce56089b7fc926aaa51ffeab0c752ec01faf4b8f",
+        "reason": "Relocated test bundle could not resolve zod; no scenario executed."
+      },
+      "repair": "Pin the external zod module to its resolved checkout URL; production unchanged.",
+      "final": {
+        "path": "D:/.lca-cache/continuity9-tests/cache/tmp/lca-collaboration-probe-o2BklG/report.json",
+        "sha256": "435914c324da58b93d1fe888ac3920c86021af894025492a2c5b9e96bc5264ff",
+        "report": {
+          "checks": [
+            "ordinary-and-team-coexist-with-single-controls-and-selection-guidance",
+            "main-rejects-cross-project-and-stale-targets",
+            "team-revision-dependency-cycle-and-write-overlap-with-helper-membership-denied",
+            "task-text-retired-before-model-read-and-stays-retired-after-claim",
+            "distinct-roster-and-resident-limits-and-existing-member-reuse",
+            "family-stop-does-not-free-roster",
+            "cold-recovery-keeps-source-retirement-and-operation-receipt-without-replay",
+            "autonomous-family-shares-six-step-cap-and-bucket-after-lead-is-idle",
+            "member-label-inherits-parent-source-before-first-step-and-stays-retired-on-reuse",
+            "member-step-events-bounded-history-failure-and-isolated-read",
+            "member-message-phase-and-restricted-targets-withheld",
+            "failed-creation-retains-roster-slot"
+          ],
+          "requests": 85,
+          "admissions": [
+            {
+              "phase": "COEXIST",
+              "bucket": "work"
+            },
+            {
+              "phase": "COEXIST",
+              "bucket": "work"
+            },
+            {
+              "phase": "COEXIST",
+              "bucket": "work"
+            },
+            {
+              "phase": "COEXIST",
+              "bucket": "work"
+            },
+            {
+              "phase": "COEXIST",
+              "bucket": "work"
+            },
+            {
+              "phase": "COEXIST",
+              "bucket": "work"
+            },
+            {
+              "phase": "COEXIST",
+              "bucket": "work"
+            },
+            {
+              "phase": "COEXIST",
+              "bucket": "work"
+            },
+            {
+              "phase": "COEXIST",
+              "bucket": "work"
+            },
+            {
+              "phase": "BOARD",
+              "bucket": "work"
+            },
+            {
+              "phase": "BOARD",
+              "bucket": "work"
+            },
+            {
+              "phase": "BOARD",
+              "bucket": "work"
+            },
+            {
+              "phase": "BOARD",
+              "bucket": "work"
+            },
+            {
+              "phase": "BOARD",
+              "bucket": "work"
+            },
+            {
+              "phase": "BOARD",
+              "bucket": "work"
+            },
+            {
+              "phase": "BOARD",
+              "bucket": "work"
+            },
+            {
+              "phase": "BOARD",
+              "bucket": "work"
+            },
+            {
+              "phase": "BOARD",
+              "bucket": "work"
+            },
+            {
+              "phase": "BOARD",
+              "bucket": "work"
+            },
+            {
+              "phase": "SOURCE",
+              "bucket": "work"
+            },
+            {
+              "phase": "SOURCE",
+              "bucket": "work"
+            },
+            {
+              "phase": "SOURCE",
+              "bucket": "work"
+            },
+            {
+              "phase": "RETIRE",
+              "bucket": "work"
+            },
+            {
+              "phase": "RETIRE",
+              "bucket": "work"
+            },
+            {
+              "phase": "RETIRE",
+              "bucket": "work"
+            },
+            {
+              "phase": "RETIRE",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "CAPACITY",
+              "bucket": "work"
+            },
+            {
+              "phase": "STOPPED",
+              "bucket": "work"
+            },
+            {
+              "phase": "STOPPED",
+              "bucket": "work"
+            },
+            {
+              "phase": "STOPPED",
+              "bucket": "work"
+            },
+            {
+              "phase": "STOPPED",
+              "bucket": "work"
+            },
+            {
+              "phase": "STOPPED",
+              "bucket": "work"
+            },
+            {
+              "phase": "AUTO",
+              "bucket": "autonomous"
+            },
+            {
+              "phase": "AUTO",
+              "bucket": "autonomous"
+            },
+            {
+              "phase": "AUTO",
+              "bucket": "autonomous"
+            },
+            {
+              "phase": "AUTO",
+              "bucket": "autonomous"
+            },
+            {
+              "phase": "AUTO",
+              "bucket": "autonomous"
+            },
+            {
+              "phase": "AUTO",
+              "bucket": "autonomous"
+            },
+            {
+              "phase": "LABEL1",
+              "bucket": "work"
+            },
+            {
+              "phase": "LABEL1",
+              "bucket": "work"
+            },
+            {
+              "phase": "LABEL1",
+              "bucket": "work"
+            },
+            {
+              "phase": "LABEL1",
+              "bucket": "work"
+            },
+            {
+              "phase": "LABEL2",
+              "bucket": "work"
+            },
+            {
+              "phase": "LABEL2",
+              "bucket": "work"
+            },
+            {
+              "phase": "LABEL2",
+              "bucket": "work"
+            },
+            {
+              "phase": "LABEL2",
+              "bucket": "work"
+            },
+            {
+              "phase": "LABEL2",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STEPS",
+              "bucket": "work"
+            },
+            {
+              "phase": "STOPPED",
+              "bucket": "work"
+            },
+            {
+              "phase": "STOPPED",
+              "bucket": "work"
+            }
+          ],
+          "runtime": {
+            "name": "lca-dsh-runtime",
+            "private": true,
+            "description": "DeepSeek Harness runtime shipped with LCA (MIT, https://github.com/deepseek-ai/deepseek-harness). Pinned; installed and trimmed by scripts/prepare-dsh-runtime.mjs. zod is pinned to the one version every DSH package asks for, so it is installed once instead of fifty times.",
+            "dependencies": {
+              "@deepseek-ai/dsh": "0.2.1-rc.2",
+              "pnpm": "11.24.0"
+            },
+            "overrides": {
+              "zod": "4.4.3"
+            }
+          },
+          "realServices": false
+        }
+      },
+      "exit": {
+        "path": "D:/.lca-cache/continuity9-tests/cache/tmp/lca-collaboration-probe-o2BklG/exit.json",
+        "sha256": "7a97b9b4d758a3929b8a2be53fbe189c9ba9378d6fbb8190d37f7cc14f5cf5d3",
+        "report": {
+          "code": 0
+        }
+      }
+    },
+    "realQualityAuthorization": [
+      {
+        "path": "test-results/continuity/candidate10-retrieval-quality-authorization.json",
+        "sha256": "916d3986129dc8a33cb7a1eadd0281007a2fed522a1420e6eb816b92ea72b134",
+        "report": {
+          "authorized": false,
+          "authorizationId": null,
+          "batch": "candidate10-memory-retrieval-90",
+          "maximumModelRequests": 0,
+          "maximumEmbeddingRequests": 220,
+          "maximumEmbeddingInputCharacters": 50000,
+          "maximumReservedUnits": 700000,
+          "maximumAutonomousUnits": 700000,
+          "expectedModel": "voyage-4-large",
+          "asarSha256": "0450288c63ea23372def623d8b172f01d687fd0d2c642eb71555481154de61f6",
+          "sources": {
+            "scripts/probe-memory-retrieval-quality.mjs": "8bf8e60e69013585f35bd7fff42d85d0d9f9789cfbc0561b5b0652a7f3ea445a",
+            "scripts/memory-quality-plan.json": "ef7e5fce477f3ffd54b0fba74c9ff6d4642c1a6e2420a30ceea180c1ba7be30a",
+            "scripts/fixtures/memory-retrieval-quality.ts": "0b575b260f842779c521445fcab03a5487dbef0555e666b13bf125ff0d5e1267",
+            "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+            "tests/fixtures/memory-quality-corpus.json": "357b9193c6c02304b0c19a6deddeae60ed2b3b6cc8df5f559896eaa745352e2d",
+            "src/main/memory/airi/core/evaluation.ts": "5bf9d8e0188d6da011100b24789aec35d8c09afbbf4abd0855cd30df94b6ba9d"
+          },
+          "bundleSha256": "8213b4d48c0c39a49700b0bf78f84159b59b79a0f39668bd628b39bb59da36e4",
+          "preflight": {
+            "root": "D:\\.lca-cache\\continuity10-tests\\retrieval-preflight-20261104-2",
+            "reportSha256": "723ec9361d76ff86f4525eaae165412281a78bd23932aaafa7b980765c5320cf"
+          },
+          "firstFailureStops": true,
+          "failurePolicy": "Stop on the first transport, admission, storage or protocol failure; no retry. Individual relevance misses are measurements, and the frozen aggregate thresholds decide acceptance after all 90 cases. Self-test is wiring evidence only.",
+          "unitDefinition": "Admission estimates, not money; autonomous is included in total."
+        }
+      },
+      {
+        "path": "test-results/continuity/candidate10-stories-quality-authorization.json",
+        "sha256": "0979785bb516a10a9e4769c116cd1f86d7db6d77b4f0864b680f5d967090c910",
+        "report": {
+          "authorized": false,
+          "authorizationId": null,
+          "batch": "candidate10-memory-stories-24",
+          "maximumModelRequests": 96,
+          "maximumEmbeddingRequests": 220,
+          "maximumEmbeddingInputCharacters": 100000,
+          "maximumReservedUnits": 3145728,
+          "maximumAutonomousUnits": 851968,
+          "expectedEmbeddingModel": "voyage-4-large",
+          "asarSha256": "0450288c63ea23372def623d8b172f01d687fd0d2c642eb71555481154de61f6",
+          "sources": {
+            "scripts/probe-memory-stories-quality.mjs": "2c255601595a506e1588e326d7fa5c0f4c2582d6cb29502d13f8c7289273151b",
+            "scripts/memory-stories-plan.json": "272bdae660ec54432102592322575418a5017abef55626fd35bcfe128d32e376",
+            "scripts/fixtures/memory-stories-quality.ts": "591413dadfd3cd7c8b5bafbf58d0b89ab5c1a2e44b290c8546da8d32c8363d88",
+            "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+            "tests/fixtures/continuity-stories.json": "1ec38f6058c05c99de270d30cc199af7e2bf4bf6c8ceb8b36bc2578c4d512de1",
+            "scripts/fixtures/memory-story-io.ts": "f93669e661c837fb86844dc685e63b8cde95726ec2357f9f443c1406ad4e05ad",
+            "scripts/fixtures/memory-story-harness.ts": "e5ea35ac78d6201a77dfd232d8ff229a7ad14ee344a14bae985570f7e3707588",
+            "scripts/fixtures/memory-story-cases.ts": "e0764ab879cc755c2059c1591c52f8057a45f4977346d22da9a7dd01c15310ec",
+            "scripts/fixtures/world-probe-stream.ts": "66cf5484fe6a8466dc7718e1741fcd2e46dbab2ab412f5c620311fe29d319878",
+            "scripts/fixtures/probe-response-deadline.ts": "77a098bf9c8bc021f2b364ac008450dcbe7487f4dfc5dc31ca30856fcdba85e9",
+            "scripts/fixtures/continuity-scripted-model.ts": "6d855951ca5beb202e8eb918cd13670f2b365d6016e744c4b8dad9e851cd6174"
+          },
+          "bundleSha256": "855c83ddc2766d3b36a59d97d715166e0acef8a7d5fe004653e91837fcc8e59c",
+          "preflight": {
+            "root": "D:\\.lca-cache\\continuity10-tests\\stories-preflight-20261104-1",
+            "reportSha256": "0bd0cd1241dd7443166ec7d44653bdf91bb4f0677c1a823c0cf84b80edba0778"
+          },
+          "firstFailureStops": true,
+          "failurePolicy": "First transport, storage, admission, structural or semantic failure closes the entire batch. Pause after each live answer for a local review file before advancing. All counters survive story/profile/day changes. No automatic retries or reuse of a closed authorization.",
+          "unitDefinition": "Admission estimates, not money; autonomous is included in total."
+        }
+      }
+    ],
+    "storagePreservation": {
+      "duplicateInstaller": {
+        "path": "test-results/continuity/candidate10-duplicate-cache-cleanup-20261104.json",
+        "sha256": "bb1b4defa46c177faaf59689a204554b37f5cabb0e3721637afe3eb4d4036aab",
+        "report": {
+          "removedDuplicate": "C:\\.lca-cache\\continuity9-release-20261103\\Love-College-Agent-1.2.0-continuity.9-Setup.exe",
+          "retainedOriginal": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\release-continuity-9\\Love-College-Agent-1.2.0-continuity.9-Setup.exe",
+          "verifiedSha256": "17d7d11831a54a33064dbfc892c6decdf02042c25dd805e57bc0ecd1f0c5c9d0",
+          "freedBytes": 315480790,
+          "recursiveDeletion": false
+        }
+      },
+      "oldUnpackedArchive": {
+        "path": "test-results/continuity/candidate10-candidate9-archive-20261104.json",
+        "sha256": "eb76d4ec6cb45638371af84d18e71934bd14cfa99af56348dfe535f9f6e9558f",
+        "summary": {
+          "archive": "D:\\.lca-cache\\continuity10-tests\\archives\\candidate9-win-unpacked-20261104.zip",
+          "archiveSha256": "3135f0fba2ab284575010633f6612551570cdbe8fd6ac4771878a405b60d681f",
+          "archiveBytes": 403430957,
+          "sourceRemoved": true,
+          "originalBytes": 876283937,
+          "source": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\release-continuity-9\\win-unpacked",
+          "verifiedFileCount": 11660
+        }
+      }
+    }
+  }
 }

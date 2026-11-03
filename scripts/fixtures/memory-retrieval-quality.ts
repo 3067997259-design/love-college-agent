@@ -36,6 +36,7 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
     coverage: plan.measurement, failurePolicy: plan.failurePolicy, limits: plan.limits, acceptance: plan.acceptance,
     upstreamRequests: 0, samples, casesCompleted: 0, corpusCounts: { zh: 0, en: 0 }, counts: budget.view(), error: null as string | null,
     stage: 'setup', diagnostic: null as string | null,
+    storageDiagnostics: input.selfTest ? { requests: 0, sampledPeakRssBytes: process.memoryUsage().rss } : null,
     result: null as Awaited<ReturnType<typeof evaluateProductionMemoryRetrievalTrace>> | null }
   const save = () => { report.counts = budget.view(); writeFileSync(join(input.root, 'report.json'), JSON.stringify(report, null, 2)) }
   const raw = createApiMemoryEmbeddingSource({ ...config, clock: systemClock, fetch: async (url, init) => {
@@ -76,7 +77,26 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
       const scope = { userId: 'retrieval-fixture-' + language, characterId: 'taozi' }
       const engine = createMemoryEngine({ root: join(input.root, language), owner: { ...scope, dataRootId: 'quality-' + language }, clock: corpusClock,
         embedding: () => source, held: () => false, waitForRestore: async () => {}, journal: () => {},
-        openDatabase: async path => { const database = createMemoryDatabaseClient(createNativeMemoryDatabase(), systemClock); await database.open(path); return database } })
+        openDatabase: async path => {
+          const native = createNativeMemoryDatabase()
+          const database = createMemoryDatabaseClient({ request: async request => {
+            if (report.storageDiagnostics) report.storageDiagnostics.requests++
+            try { return await native.request(request) }
+            catch (error) {
+              // Offline fixtures contain only this repository's synthetic corpus.
+              // Live failures never record SQL or raw provider error text.
+              if (input.selfTest) writeFileSync(join(input.root, 'storage-failure.json'), JSON.stringify({
+                stage: report.stage, kind: request.kind, ...('sql' in request ? { sql: request.sql } : {}),
+                diagnostic: error instanceof Error ? error.message : 'UNKNOWN_OFFLINE_FAILURE', memory: process.memoryUsage(),
+              }, null, 2))
+              throw error
+            }
+            finally {
+              if (report.storageDiagnostics) report.storageDiagnostics.sampledPeakRssBytes = Math.max(report.storageDiagnostics.sampledPeakRssBytes, process.memoryUsage().rss)
+            }
+          } }, systemClock)
+          await database.open(path); return database
+        } })
       engines.push(engine)
       assert.ok(await engine.runtime.initialize(), 'DATABASE_UNAVAILABLE')
       const ids = new Map<string, string>()
