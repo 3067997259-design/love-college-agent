@@ -1,0 +1,325 @@
+{
+  "version": 1,
+  "date": "2026-11-03",
+  "result": "offline-passed-live-pending",
+  "source": {
+    "regressionRevision": "10304a28d62a940cfa177f69f80011e8491641cf",
+    "fingerprint": "cc4dbab1fe3c35d8873797c102e0ce08a038746585884a51b77f079031eb9b64",
+    "productionRevision": "35d319742861cb2bfb393a697fa9560fcae7cd74",
+    "productionUnchangedSinceCandidateBuild": true,
+    "extraProbeAddedAfterUnifiedRun": true
+  },
+  "candidate": {
+    "version": "1.2.0-continuity.8",
+    "asarSha256": "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14",
+    "installed": false,
+    "published": false
+  },
+  "unified": {
+    "directory": "test-results/continuity/candidate-qBF2gF",
+    "ok": true,
+    "tasks": [
+      {
+        "name": "sources",
+        "exitCode": 0
+      },
+      {
+        "name": "typecheck-main",
+        "exitCode": 0
+      },
+      {
+        "name": "typecheck-renderer",
+        "exitCode": 0
+      },
+      {
+        "name": "lint",
+        "exitCode": 0
+      },
+      {
+        "name": "unit",
+        "exitCode": 0
+      },
+      {
+        "name": "native-storage",
+        "exitCode": 0
+      },
+      {
+        "name": "dsh-bridge",
+        "exitCode": 0
+      },
+      {
+        "name": "dsh-family",
+        "exitCode": 0
+      },
+      {
+        "name": "dsh-collaboration",
+        "exitCode": 0
+      },
+      {
+        "name": "memory-conversation",
+        "exitCode": 0
+      },
+      {
+        "name": "work-execution",
+        "exitCode": 0
+      },
+      {
+        "name": "native-recovery",
+        "exitCode": 0
+      },
+      {
+        "name": "build",
+        "exitCode": 0
+      },
+      {
+        "name": "world-reference",
+        "exitCode": 0
+      },
+      {
+        "name": "life-port",
+        "exitCode": 0
+      },
+      {
+        "name": "memory",
+        "exitCode": 0
+      },
+      {
+        "name": "model-routing",
+        "exitCode": 0
+      },
+      {
+        "name": "collaboration",
+        "exitCode": 0
+      },
+      {
+        "name": "backup",
+        "exitCode": 0
+      },
+      {
+        "name": "recovery",
+        "exitCode": 0
+      },
+      {
+        "name": "postgres-isolated",
+        "exitCode": 0
+      },
+      {
+        "name": "continuity-t1-t16",
+        "exitCode": 0
+      }
+    ],
+    "unit": {
+      "passed": 968,
+      "failed": 0,
+      "skipped": 8,
+      "files": 141
+    },
+    "t1t16": {
+      "ok": true,
+      "cases": [
+        {
+          "id": "T1",
+          "ok": true
+        },
+        {
+          "id": "T2",
+          "ok": true
+        },
+        {
+          "id": "T3",
+          "ok": true
+        },
+        {
+          "id": "T4",
+          "ok": true
+        },
+        {
+          "id": "T5",
+          "ok": true
+        },
+        {
+          "id": "T6",
+          "ok": true
+        },
+        {
+          "id": "T7",
+          "ok": true
+        },
+        {
+          "id": "T8",
+          "ok": true
+        },
+        {
+          "id": "T9",
+          "ok": true
+        },
+        {
+          "id": "T10",
+          "ok": true
+        },
+        {
+          "id": "T11",
+          "ok": true
+        },
+        {
+          "id": "T12",
+          "ok": true
+        },
+        {
+          "id": "T13",
+          "ok": true
+        },
+        {
+          "id": "T14",
+          "ok": true
+        },
+        {
+          "id": "T15",
+          "ok": true
+        },
+        {
+          "id": "T16",
+          "ok": true
+        }
+      ]
+    },
+    "postgres": {
+      "status": "passed",
+      "realPostgres": true,
+      "checks": 8,
+      "container": "lca-continuity-pg-5eb3b888-b609-49d2-a03c-227b20155323",
+      "containerStopped": true
+    },
+    "hashes": {
+      "report": "b8848c433ed66650eb5facd8be8a24e34f8d356ca4c05a042eb4c046d3257fac",
+      "unit": "61b61f18e00bdd0404ac913315653e9e354f6e1f7ad093a38da4097c23617d0d",
+      "t1t16": "ce4db4ff27cf2fd063a68ea43eb9e4fcbe9897a8fc12a0c7dcf1266202a837a2",
+      "postgres": "3cd8ff2a93c16c032466d5e049c3467099ce1ac024e1306e7fbbf7a2a5acd1b9"
+    }
+  },
+  "memory": {
+    "directory": "D:\\lca-continuity-candidate-20261101\\profiles\\memory-candidate8-selftest-20261103-1",
+    "ok": true,
+    "selfTest": true,
+    "checks": {
+      "rememberReviewAndRecall": true,
+      "correctionSupersedesOldFact": true,
+      "actualCompactionPreservesHistoryAndCurrentFact": true,
+      "correctedFactSurvivesRestart": true,
+      "successfulInputsExtractedWithoutDuplicateCapture": true,
+      "forgottenFactUnavailable": true,
+      "nonemptyRestoreDoesNotResurrectForgottenFact": true
+    },
+    "modelRequests": 27,
+    "embeddingRequests": 30,
+    "embeddingCharacters": 4749,
+    "upstreamRequests": 0,
+    "reportSha256": "4bb32921c034493a7d43a467be270c09441c60540d7b7c0e3a736201194cac08",
+    "sourceManifestSha256": "72d154429ab3a7c4806c8ff65425b689c705df75bc47cc1e355dd71c4de1de3f",
+    "saveSha256": "f837bf14b032e5ce6bbfd101eae4075c203bd7179899bc0790e7ca37c867b9ca"
+  },
+  "embeddingParameters": {
+    "directory": "D:\\lca-continuity-candidate-20261101\\profiles\\embedding-candidate8-selftest-20261103-2",
+    "ok": true,
+    "error": null,
+    "coverage": "production-adapter input roles, not retrieval quality",
+    "samples": [
+      {
+        "inputType": "document",
+        "inputCharacters": 17,
+        "status": 200,
+        "phase": "complete",
+        "ok": true,
+        "dimensions": 1024,
+        "elapsedMs": 18,
+        "usage": {
+          "promptTokens": 16,
+          "totalTokens": 16
+        }
+      },
+      {
+        "inputType": "query",
+        "inputCharacters": 17,
+        "status": 200,
+        "phase": "complete",
+        "ok": true,
+        "dimensions": 1024,
+        "elapsedMs": 3,
+        "usage": {
+          "promptTokens": 16,
+          "totalTokens": 16
+        }
+      }
+    ],
+    "forwardedRequests": 2,
+    "counts": {
+      "modelRequests": 0,
+      "embeddingRequests": 2,
+      "embeddingCharacters": 34,
+      "reservedUnits": 4198,
+      "autonomousUnits": 4198
+    },
+    "selfTest": true,
+    "limits": {
+      "maximumModelRequests": 0,
+      "maximumEmbeddingRequests": 2,
+      "maximumEmbeddingInputCharacters": 2000,
+      "maximumReservedUnits": 10000,
+      "maximumAutonomousUnits": 10000
+    },
+    "upstreamRequests": 0,
+    "reportSha256": "00d3270d4c47f0decd3e96c88025a451a871cdf164b78e5721093f647dc0d932",
+    "receiptSha256": "828e3cd9ca1795ed13ca6a1b85d801494d0a1fe0f5f2b35df82c93b14796a25b",
+    "closed": {
+      "ok": true,
+      "reuseAllowed": false,
+      "cleanupUncertain": false
+    },
+    "relatedUnit": {
+      "passed": 17,
+      "failed": 0,
+      "files": 3,
+      "report": "test-results/continuity/embedding-input-unit-20261103-2.json",
+      "sha256": "b455904fc7fb91aa2a33b31798217e918a855818806926d6821b93abb8f1df6e"
+    },
+    "runnerGuards": {
+      "ok": true,
+      "checks": [
+        "reusing a self-test run refuses before overwriting any original report",
+        "unauthorized live mode refuses before run creation or reading a connection"
+      ],
+      "originalHashes": {
+        "run.json": "828e3cd9ca1795ed13ca6a1b85d801494d0a1fe0f5f2b35df82c93b14796a25b",
+        "report.json": "00d3270d4c47f0decd3e96c88025a451a871cdf164b78e5721093f647dc0d932",
+        "closed.json": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a"
+      },
+      "externalCalls": 0
+    },
+    "firstFailure": {
+      "directory": "D:\\lca-continuity-candidate-20261101\\profiles\\embedding-candidate8-selftest-20261103-1",
+      "preserved": true,
+      "externalCalls": 0,
+      "diagnosis": "Bundle outside checkout could not resolve better-sqlite3; use the existing checkout-cache loading pattern. Budget minimum also corrected before retry."
+    }
+  },
+  "limitations": [
+    "The full suite predates the new supplemental test tools; their 17 related tests and packaged helper self-test are separate evidence. Production files and the candidate package are unchanged.",
+    "Memory self-test uses synthetic vectors; the parameter probe is a production-adapter check, not normal-product coverage or retrieval quality.",
+    "No real model or Voyage calls in this preparation. Installed upgrade, second Windows and long-term use remain separate."
+  ],
+  "livePlanAtPreparation": {
+    "authorized": false,
+    "directory": "test-results/continuity/candidate8-memory-ready-20261103",
+    "order": [
+      "embedding-input-types",
+      "memory"
+    ],
+    "firstFailureStopsWholeWindow": true,
+    "maximumModelRequests": 32,
+    "maximumEmbeddingRequests": 50,
+    "maximumEmbeddingInputCharacters": 202000,
+    "maximumReservedUnits": 1058576,
+    "maximumAutonomousUnits": 272144
+  },
+  "followup": "continuity-candidate8-memory-live-20261103.json"
+}

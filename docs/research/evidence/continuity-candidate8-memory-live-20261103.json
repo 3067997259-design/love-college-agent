@@ -1,0 +1,308 @@
+{
+  "version": 1,
+  "date": "2026-11-03",
+  "result": "parameter-passed-memory-incomplete-request-cap",
+  "candidate": {
+    "version": "1.2.0-continuity.8",
+    "asarSha256": "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14"
+  },
+  "authorization": {
+    "authorizationId": "9b3c974e-6903-4987-9cb3-a679b0f75dbc",
+    "approvedAtIso": "2026-11-03T03:37:00.956Z",
+    "authorized": true,
+    "firstFailureStopsWholeWindow": true,
+    "automaticRetry": false,
+    "reuseAllowed": false,
+    "maximumModelRequests": 32,
+    "maximumEmbeddingRequests": 50,
+    "maximumEmbeddingInputCharacters": 202000,
+    "maximumReservedUnits": 1058576,
+    "maximumAutonomousUnits": 272144,
+    "order": [
+      "embedding-input-types",
+      "memory"
+    ]
+  },
+  "closed": {
+    "authorizationId": "9b3c974e-6903-4987-9cb3-a679b0f75dbc",
+    "closedAtIso": "2026-11-03T03:47:01.035Z",
+    "result": "parameter-passed-memory-incomplete-request-cap",
+    "reuseAllowed": false,
+    "firstFailureStopped": true,
+    "inFlight": 0,
+    "actual": {
+      "modelRequests": 32,
+      "embeddingRequests": 33,
+      "embeddingCharacters": 4825,
+      "reservedUnits": 493973,
+      "autonomousUnits": 132531
+    },
+    "parameterReportSha256": "7af03c7113afca03f4dc66e1b04142f24664c58a1c28925d6b2d6d34c1a69173",
+    "memoryReportSha256": "25c1e4d8d6cad68c3255f8d45313565ae4896a395ed3042e8783ede7eddbafba",
+    "memoryClosedSha256": "33b38ad751d92f838bdb2daf73495073c954c763ba9208a2e7ed7c8d3607d60a",
+    "remainingQuotaNotReusable": true
+  },
+  "parameter": {
+    "directory": "D:/lca-continuity-candidate-20261101/profiles/embedding-candidate8-live-20261103-1",
+    "ok": true,
+    "error": null,
+    "coverage": "production-adapter input roles, not retrieval quality",
+    "samples": [
+      {
+        "inputType": "document",
+        "inputCharacters": 17,
+        "status": 200,
+        "phase": "complete",
+        "ok": true,
+        "dimensions": 1024,
+        "elapsedMs": 2436
+      },
+      {
+        "inputType": "query",
+        "inputCharacters": 17,
+        "status": 200,
+        "phase": "complete",
+        "ok": true,
+        "dimensions": 1024,
+        "elapsedMs": 1775
+      }
+    ],
+    "forwardedRequests": 2,
+    "counts": {
+      "modelRequests": 0,
+      "embeddingRequests": 2,
+      "embeddingCharacters": 34,
+      "reservedUnits": 4198,
+      "autonomousUnits": 4198
+    },
+    "selfTest": false,
+    "limits": {
+      "maximumModelRequests": 0,
+      "maximumEmbeddingRequests": 2,
+      "maximumEmbeddingInputCharacters": 2000,
+      "maximumReservedUnits": 10000,
+      "maximumAutonomousUnits": 10000
+    },
+    "upstreamRequests": 2,
+    "closed": {
+      "ok": true,
+      "reuseAllowed": false,
+      "cleanupUncertain": false
+    },
+    "reportSha256": "7af03c7113afca03f4dc66e1b04142f24664c58a1c28925d6b2d6d34c1a69173",
+    "receiptSha256": "e91d12d04bb9eaf928cf4e78aad441e115759570ace61c93b0ef706af2751f20"
+  },
+  "memory": {
+    "directory": "D:/lca-continuity-candidate-20261101/profiles/memory-candidate8-live-20261103-1",
+    "ok": false,
+    "error": "GATEWAY_HALTED:CHAT_NOT_COMPLETED:after-restore\n\ntrue !== false\n",
+    "checks": {
+      "rememberReviewAndRecall": true,
+      "correctionSupersedesOldFact": true,
+      "actualCompactionPreservesHistoryAndCurrentFact": true,
+      "correctedFactSurvivesRestart": true,
+      "successfulInputsExtractedWithoutDuplicateCapture": true,
+      "forgottenFactUnavailable": true
+    },
+    "counts": {
+      "modelRequests": 32,
+      "embeddingRequests": 31,
+      "embeddingCharacters": 4791,
+      "reservedUnits": 489775,
+      "autonomousUnits": 128333
+    },
+    "allForwardedResponses200AndComplete": true,
+    "denials": [
+      {
+        "phase": "after-restore",
+        "code": "MODEL_REQUESTS_EXHAUSTED"
+      }
+    ],
+    "requestsByPhase": {
+      "remember": {
+        "chat": 2,
+        "background": 0,
+        "embedding": 2
+      },
+      "recall-tea": {
+        "chat": 3,
+        "background": 0,
+        "embedding": 4
+      },
+      "correct": {
+        "chat": 3,
+        "background": 0,
+        "embedding": 3
+      },
+      "recall-coffee": {
+        "chat": 2,
+        "background": 0,
+        "embedding": 4
+      },
+      "filler": {
+        "chat": 1,
+        "background": 0,
+        "embedding": 2
+      },
+      "compact": {
+        "chat": 1,
+        "background": 0,
+        "embedding": 0
+      },
+      "after-compact": {
+        "chat": 2,
+        "background": 0,
+        "embedding": 3
+      },
+      "after-restart": {
+        "chat": 3,
+        "background": 0,
+        "embedding": 3
+      },
+      "extract": {
+        "chat": 0,
+        "background": 7,
+        "embedding": 0
+      },
+      "forget": {
+        "chat": 4,
+        "background": 0,
+        "embedding": 3
+      },
+      "after-forget": {
+        "chat": 3,
+        "background": 0,
+        "embedding": 4
+      },
+      "after-restore": {
+        "chat": 1,
+        "background": 0,
+        "embedding": 3
+      }
+    },
+    "partialSemanticReview": {
+      "version": 1,
+      "batch": "memory",
+      "reviewType": "post-run-partial-semantic-audit",
+      "originalBatchPassed": false,
+      "changesOriginalReport": false,
+      "answers": [
+        {
+          "step": "remember",
+          "turnId": "a09b0376-437e-4230-ae18-e8155eabeeef",
+          "text": "我已经把“平时喜欢喝茶”这条偏好整理成待审阅的记忆提议了，你可以在记忆设置里确认。确认后就会正式记下来。",
+          "accepted": true,
+          "reason": "Explicitly pending review, no premature success claim."
+        },
+        {
+          "step": "recall-tea",
+          "turnId": "080fa4be-8c59-4796-8765-97cf7e5ff57c",
+          "text": "查过了，当前已审阅的记忆里写着：你平时喜欢喝茶。",
+          "accepted": true,
+          "reason": "Reviewed tea preference matches the fact active at that phase."
+        },
+        {
+          "step": "correct",
+          "turnId": "a3d1e8a5-db32-4899-a7ed-4eaf2f3121bd",
+          "text": "已经查过最新版本的记忆（ID `6bf1bf40-a34f-400d-aaea-5200605bb1c7`，版本 `2`），并提交了更正申请，把“饮料偏好”改成“现在喜欢喝咖啡，不再喝茶。”。\n\n现在状态是待审阅，你去记忆设置里确认一下就会生效。",
+          "accepted": true,
+          "reason": "Correction is explicitly pending review; prior tea ID/revision matches the latest reviewed original."
+        },
+        {
+          "step": "recall-coffee",
+          "turnId": "be84f0bb-eb07-4b08-9bc9-ccf08f10ef84",
+          "text": "按当前已经审阅生效的记忆（第 2 版），你的饮料偏好是：现在喜欢喝咖啡，不再喝茶。",
+          "accepted": true,
+          "reason": "Current coffee value matches the approved correction; old tea is superseded."
+        },
+        {
+          "step": "filler",
+          "turnId": "74f03bd0-c9db-422a-84ae-c729f7b0863f",
+          "text": "嗯，知道了，这段不记。",
+          "accepted": true,
+          "reason": "No new preference claimed; unrelated input does not become an active preference."
+        },
+        {
+          "step": "after-compact",
+          "turnId": "74b873c4-8388-4a62-8223-26b960fa7ff1",
+          "text": "查过了，当前已审阅的记忆（`70b3b336-9cb3-4332-b68d-c459532b6f64`，版本 2）里记着：你现在喜欢喝咖啡，不再喝茶。",
+          "accepted": true,
+          "reason": "Coffee fact ID and revision match the actual injected current reference."
+        },
+        {
+          "step": "after-restart",
+          "turnId": "8660161c-3fea-45c0-98dc-0c431d650c7d",
+          "text": "查过了。当前已审阅的记忆里记着，你现在喜欢喝咖啡，不喝茶了。",
+          "accepted": true,
+          "reason": "Coffee remains the current reviewed fact after restart."
+        },
+        {
+          "step": "forget",
+          "turnId": "e5c011f4-0794-46a9-9d87-69cedae50163",
+          "text": "已经查到最新的那条「饮料偏好」（第 2 版：现在喜欢喝咖啡，不再喝茶），提交了忘记申请。现在是待审阅状态，还没有正式删掉，你去记忆设置里确认一下就行。",
+          "accepted": true,
+          "reason": "Deletion is described as pending review, not already completed."
+        },
+        {
+          "step": "after-forget",
+          "turnId": "40c45daa-7bee-4dc0-b95f-ceeba2403fe6",
+          "text": "刚查了当前已审阅的记忆，里面已经没有你的饮料偏好了。",
+          "accepted": true,
+          "reason": "No current reviewed beverage preference, matching applied deletion."
+        }
+      ],
+      "missing": "after-restore final answer was never delivered; no semantic acceptance possible for this step",
+      "restoreState": {
+        "backupStatus": "restored",
+        "restoredMessages": 18,
+        "activeReviewedFacts": 0,
+        "facts": [
+          {
+            "id": "6bf1bf40-a34f-400d-aaea-5200605bb1c7",
+            "revision": 3,
+            "content": "平时喜欢喝茶。",
+            "status": "superseded"
+          }
+        ],
+        "operations": [
+          {
+            "id": "tool:df39be1ea7d12df6a91dbb60efe1bea9620e14ee10b435f88264f2df2d5f8afc",
+            "kind": "forget",
+            "status": "applied"
+          },
+          {
+            "id": "tool:36eafb92ba5e179eefa512967329c672e41f109bd037893ec17f2c2ec30fdd47",
+            "kind": "correct",
+            "status": "applied"
+          },
+          {
+            "id": "tool:0f254b79e6032fd80aba3a35d8889ca2f9a28aaa0155577656df703ae2558e52",
+            "kind": "remember",
+            "status": "applied"
+          }
+        ]
+      },
+      "sourceEvidence": {
+        "reportSha256": "25c1e4d8d6cad68c3255f8d45313565ae4896a395ed3042e8783ede7eddbafba",
+        "gatewaySha256": "50b3cb00888ee5c78cc98e55b916d653334780f328716cef3683ada2fb95fc97"
+      }
+    },
+    "saveSha256": "5566af01d6912fd88c18846a0171c006ef7aa504f14cb2d703e847139dc4963c",
+    "hashes": {
+      "report": "25c1e4d8d6cad68c3255f8d45313565ae4896a395ed3042e8783ede7eddbafba",
+      "gateway": "50b3cb00888ee5c78cc98e55b916d653334780f328716cef3683ada2fb95fc97",
+      "sourceManifest": "72d154429ab3a7c4806c8ff65425b689c705df75bc47cc1e355dd71c4de1de3f",
+      "offlineReview": "8f73d25eea257a35deb879b7a443a137372dee104d0d7cca9cff15a850a1a6cb",
+      "closed": "33b38ad751d92f838bdb2daf73495073c954c763ba9208a2e7ed7c8d3607d60a"
+    }
+  },
+  "interpretation": {
+    "failureOrigin": "The local test gateway refused request 33 before forwarding because the approved maximum was 32.",
+    "minimumAdditionalModelSteps": 1,
+    "providerTimeoutObserved": false,
+    "productDefectEstablished": false,
+    "completeMemoryAcceptance": false,
+    "unusedQuotaReusable": false
+  },
+  "next": "Prepare a separately authorized isolated restore/final-answer check bound to this nonempty save; do not resume or relabel this closed batch."
+}

@@ -98,6 +98,10 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 该缺陷的主进程修复、原文与澄清边界、故意发送错误工具调用的回归和本机候选 8 结果见[修复与离线复验](research/continuity-work-request-20261103.md)。随后获授权的[候选 8 真实工作复测](research/continuity-candidate8-work-live-20261103.md)以 36 次请求完成九项检查与语义核对，零向量调用；该批已关闭，下一批另需授权，候选 6／8 的余额均不复用。
 
+同一生产源码的 [22 步骤完整统一回归](research/continuity-candidate8-regression-20261103.md)随后通过，包含 968 项单测、另跑的 8 项本机 PostgreSQL 集成检查及 T1–T16。新增 `node scripts/probe-embedding-inputs.mjs --self-test` 在隔离 Electron 中调用生产适配器，单独验证 Voyage `document/query` 参数，不能替代普通产品记忆故事。固定包、新目录、授权模板和上限见[记忆／Voyage 复测说明](research/continuity-candidate8-memory-plan-20261103.md)；真实模式需单独授权，旧报告和额度不可复用。
+
+该次获授权的[真实记忆复测](research/continuity-candidate8-memory-live-20261103.md)中参数两项通过，记忆前六组和恢复状态已验证，但恢复后的第 33 次模型请求触及 32 次硬上限；保留自动 `ok:false`，没有用事后九条回复复核替代完整通过。下一次应在新授权下独立补恢复尾段。
+
 人工审阅 `answers-for-review.json` 后，先在另一文件写完 `{ "batch": "work或memory", "accepted": true, "reason": "实际核对依据" }`，再用 `node scripts/publish-continuity-review.mjs <运行目录> <决定文件>` 原子发布。若审阅不通过，设置 `accepted: false` 并说明原因。发布器不覆盖已有回执、不修改已结束批次，不调用模型。不要直接创建目标 `semantic-review.json` 后逐步写入。
 
 - `probe:student-hub-live` 要求显式 `LCA_STUDENT_HUB_LIVE=1`，使用临时库的只读邮件范围；不扩大到课程提交或外部写入。
