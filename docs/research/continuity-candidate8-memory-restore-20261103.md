@@ -1,5 +1,7 @@
 # 候选 8 恢复尾段补测：真实窗口停止，流诊断离线修复
 
+后续状态：同日获新授权的[第二次恢复尾段](continuity-candidate8-memory-restore-retest-20261103.md)五项和语义核对通过；原失败进一步定位为 DSH 的 `Stream ended without finish_reason`。本页保留第一次窗口及当时的结论边界。
+
 2026-11-03，用户批准补测[上轮记忆故事](continuity-candidate8-memory-live-20261103.md)缺少的恢复后最终回答。**非空恢复和退役／忘记状态再次通过；真实回答未完成。** 首个模型流没有在应用中产生回答或工具调用，后续 HTTP 尝试缺少新的应用准入回执，被网关拒绝。本窗口已经关闭，没有继续转发或复用余额。
 
 随后仅做离线复现和探针修复：空流和流内错误现在在首个请求处明确失败；正常恢复尾段五项检查、28 项相关单测、主进程类型检查和改动路径 lint 通过。真实尾段仍待新的授权窗口，不能用离线通过替代。结构化回执、原报告哈希及各次探针指纹见[证据文件](evidence/continuity-candidate8-memory-restore-20261103.json)。
@@ -50,6 +52,6 @@
 
 离线执行 `node scripts/probe-memory-restore.mjs --self-test`，先设置固定包 `LCA_TEST_EXECUTABLE`、新的 `LCA_CONTINUITY_PROBE_RUN` 和 `LCA_MEMORY_RESTORE_ARCHIVE`。随后 `--prepare <通过的预检目录> <新的授权模板路径>` 生成 `authorized:false` 模板；故障预检不能生成模板。
 
-最终模板为 `test-results/continuity/candidate8-memory-restore-fixed-ready-20261103/authorization.proposed.json`，绑定正常预跑报告 SHA-256 `bcf92004080510e6c2eb0afdedf91302f45ef736ab298e93860f4d5fff7a5e4a`。下一窗口仍仅补这一段，上限沿用 6 次模型、12 次向量／20,000 字符、196,608 总单位，其中自主 65,536；首次失败即停。真实模式另需批准文件、`LCA_REAL_MODEL=1` 及授权主进程读取的连接路径；当前模板尚未授权。
+最终模板为 `test-results/continuity/candidate8-memory-restore-fixed-ready-20261103/authorization.proposed.json`，绑定正常预跑报告 SHA-256 `bcf92004080510e6c2eb0afdedf91302f45ef736ab298e93860f4d5fff7a5e4a`。下一窗口仍仅补这一段，上限沿用 6 次模型、12 次向量／20,000 字符、196,608 总单位，其中自主 65,536；首次失败即停。真实模式另需批准文件、`LCA_REAL_MODEL=1` 及授权主进程读取的连接路径。模板最初保持未授权；用户随后另行批准并完成了上述第二次尾段，该窗口也已关闭，模板和余额均不能复用。
 
 原 90 条检索和新增 24 条故事的完整质量／成本矩阵、实际安装升级、第二台 Windows 和长期日用仍分别待验。本次修复解决探针误判和诊断缺口，不代表已修复或确认真实服务端的异常根因。

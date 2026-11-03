@@ -35,7 +35,12 @@ export function createWorldProbeStream(usage: (input: number | null, output: num
     complete: () => complete,
     terminalSentinelSeen: () => doneMarkers > 0,
     end: () => { endCalled = true; eofTailCharacters = buffer.length; if (buffer.trim()) consume(buffer, 'eof'); buffer = ''; if (!complete) throw new Error('INCOMPLETE_RESPONSE') },
-    assertModelOutput: () => { if (providerErrorFrames) throw new Error('PROVIDER_STREAM_ERROR'); if (!contentSeen && !toolCallSeen && !refusalSeen) throw new Error('EMPTY_MODEL_RESPONSE') },
+    assertModelOutput: () => {
+      if (providerErrorFrames) throw new Error('PROVIDER_STREAM_ERROR')
+      if (!contentSeen && !toolCallSeen && !refusalSeen) throw new Error('EMPTY_MODEL_RESPONSE')
+      // DSH requires a finish_reason even if a compatible endpoint sends DONE.
+      if (!finishReasonSeen) throw new Error('MISSING_FINISH_REASON')
+    },
     // Structural diagnostics only: no answer, reasoning, headers, or raw payload.
     diagnostics: () => ({ frames, doneMarkers, finishReasonSeen, endCalled, eofTailCharacters, invalidJsonFrames, lastBoundary, lastKind, pendingCharacters: buffer.length,
       contentSeen, toolCallSeen, refusalSeen, reasoningSeen, providerErrorFrames }),

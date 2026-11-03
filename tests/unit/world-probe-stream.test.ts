@@ -66,11 +66,21 @@ it('distinguishes terminal protocol frames from a usable model response', () => 
   }
 })
 
-it('accepts text, structured tools and refusals without requiring finish_reason before DONE', () => {
+it('accepts completed text, structured tools and refusals', () => {
   for (const delta of [{ content: 'answer' }, { content: [{ text: 'answer' }] }, { tool_calls: [{ function: { name: 'search_memory', arguments: '{}' } }] }, { function_call: { name: 'legacy_tool' } }, { refusal: 'cannot answer' }]) {
     const stream = createWorldProbeStream(() => {})
-    stream.push('data: ' + JSON.stringify({ choices: [{ delta }] }) + '\n\ndata: [DONE]\n\n')
+    stream.push('data: ' + JSON.stringify({ choices: [{ delta, finish_reason: 'stop' }] }) + '\n\ndata: [DONE]\n\n')
     stream.end(); expect(() => stream.assertModelOutput()).not.toThrow()
+  }
+})
+
+it('rejects content plus DONE without the finish_reason required by DSH', () => {
+  for (const delta of [{ content: 'answer' }, { tool_calls: [{ function: { name: 'search_memory', arguments: '{}' } }] }, { refusal: 'cannot answer' }]) {
+    const stream = createWorldProbeStream(() => {})
+    stream.push('data: ' + JSON.stringify({ choices: [{ delta }] }) + '\n\ndata: [DONE]\n\n')
+    stream.end()
+    expect(stream.diagnostics().finishReasonSeen).toBe(false)
+    expect(() => stream.assertModelOutput()).toThrow('MISSING_FINISH_REASON')
   }
 })
 

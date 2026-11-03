@@ -1,0 +1,499 @@
+{
+  "version": 1,
+  "date": "2026-11-03",
+  "result": "passed-restore-tail",
+  "candidate": {
+    "version": "1.2.0-continuity.8",
+    "asarSha256": "b4620f1409cca9e99216a89d1d08d43b2b5257a6faf7c7f0e60091367ab6bf14"
+  },
+  "run": {
+    "directory": "D:\\lca-continuity-candidate-20261101\\profiles\\memory-restore-candidate8-live-20261103-2",
+    "probeCommit": "41b4eca6bf78feab16e02e8b432ce39c50bfc04d",
+    "sourceManifest": {
+      "scripts/probe-memory-restore.mjs": "f50f1b4f922b0aa7c82d2a4adf5bdbfcc3b5b90dae08226cceb17372a3d8c43a",
+      "scripts/probe-continuity-harness.mjs": "20208e79734e9a9b3858bccd756a26153c2dc3cf5d6c5b5d0f4adaf1e9de971b",
+      "scripts/fixtures/continuity-live-gateway.ts": "c1f5f1071d6aca2b607275f61d1146a876d688c152bb774a80dc6d82bd7daf82",
+      "scripts/fixtures/continuity-scripted-model.ts": "6d855951ca5beb202e8eb918cd13670f2b365d6016e744c4b8dad9e851cd6174",
+      "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+      "scripts/fixtures/probe-transport.ts": "427c01a8d86e19ab4f87a04b9f9065f91e3f576de43ad04dbf4582a01f5c1cb9",
+      "scripts/fixtures/probe-response-deadline.ts": "77a098bf9c8bc021f2b364ac008450dcbe7487f4dfc5dc31ca30856fcdba85e9",
+      "scripts/fixtures/world-probe-stream.ts": "2a01d4e27d2a5de2d33497d3127524238a4f59ba595c5b56e9d68eacd32c08dc",
+      "scripts/fixtures/world-probe-admission.ts": "2fa5e590649f1af8d53d874442932fff2fd5f8b488447cc7b8c543967fe22a1f",
+      "scripts/continuity-live-plan.json": "2aec874eb267cf602a740402fdcca167b0fa7f334048e8493595f873e049aa4d",
+      "bundle/gateway.cjs": "2772c152894ac5fc51822a99ebd5d94ed8078c50cc6d6834af66e474ea2c6c8a"
+    },
+    "preflight": {
+      "root": "D:\\lca-continuity-candidate-20261101\\profiles\\memory-restore-fixed-positive-20261103-1",
+      "reportSha256": "bcf92004080510e6c2eb0afdedf91302f45ef736ab298e93860f4d5fff7a5e4a"
+    },
+    "restoreArchiveSha256": "5566af01d6912fd88c18846a0171c006ef7aa504f14cb2d703e847139dc4963c"
+  },
+  "authorization": {
+    "authorizationId": "b972444b-8078-472b-9426-2a29cb8dbff2",
+    "approvedAtIso": "2026-11-03T07:42:49.825Z",
+    "approval": "User: 授权进行一轮补测。再看看是为什么。",
+    "firstFailureStops": true,
+    "automaticRetry": false,
+    "maximumModelRequests": 6,
+    "maximumEmbeddingRequests": 12,
+    "maximumEmbeddingInputCharacters": 20000,
+    "maximumReservedUnits": 196608,
+    "maximumAutonomousUnits": 65536
+  },
+  "closed": {
+    "authorizationId": "b972444b-8078-472b-9426-2a29cb8dbff2",
+    "closedAtIso": "2026-11-03T07:50:31.338Z",
+    "result": "passed-restore-tail",
+    "reuseAllowed": false,
+    "halted": true,
+    "inFlight": 0,
+    "cleanupUncertain": false,
+    "actual": {
+      "modelRequests": 2,
+      "embeddingRequests": 4,
+      "embeddingCharacters": 164,
+      "reservedUnits": 41954,
+      "autonomousUnits": 8674
+    },
+    "reportSha256": "cc4a0462717142be7f094ec0c384ba3bc39ad896dffa31cbad466d456d717fb1"
+  },
+  "report": {
+    "ok": true,
+    "reportSha256": "cc4a0462717142be7f094ec0c384ba3bc39ad896dffa31cbad466d456d717fb1",
+    "gatewayReportSha256": "6140f410526e023abcaa3bb73606c7975bfb0b3bfce11fec37e8e051199c496d",
+    "checks": {
+      "nonemptyArchiveRestored": true,
+      "retiredHistoryAndAppliedForgetRestored": true,
+      "currentMemoryReadAndAnswerDelivered": true,
+      "noFactOrOperationResurrection": true,
+      "originalHistoryPreserved": true
+    },
+    "answers": [
+      {
+        "step": "after-restore",
+        "userMessageId": "97f0a7a8-3888-4408-92a3-d2e33206dcf9",
+        "turnId": "26749340-4db1-4885-8abc-85cd814758bb",
+        "text": "刚查过了，当前已审阅的记忆里没有你的饮料偏好。"
+      }
+    ],
+    "restoreReceipts": {
+      "restoreArchiveSha256": "5566af01d6912fd88c18846a0171c006ef7aa504f14cb2d703e847139dc4963c",
+      "restoredMessages": 18,
+      "originalRows": 18,
+      "currentReviewedFacts": 0,
+      "retiredFacts": [
+        {
+          "id": "6bf1bf40-a34f-400d-aaea-5200605bb1c7",
+          "revision": 3,
+          "content": "平时喜欢喝茶。",
+          "factStatus": "superseded"
+        }
+      ],
+      "operations": [
+        {
+          "operationId": "tool:0f254b79e6032fd80aba3a35d8889ca2f9a28aaa0155577656df703ae2558e52",
+          "kind": "remember",
+          "status": "applied"
+        },
+        {
+          "operationId": "tool:36eafb92ba5e179eefa512967329c672e41f109bd037893ec17f2c2ec30fdd47",
+          "kind": "correct",
+          "status": "applied"
+        },
+        {
+          "operationId": "tool:df39be1ea7d12df6a91dbb60efe1bea9620e14ee10b435f88264f2df2d5f8afc",
+          "kind": "forget",
+          "status": "applied"
+        }
+      ],
+      "memoryReads": [
+        {
+          "turnId": "26749340-4db1-4885-8abc-85cd814758bb",
+          "callId": "call_da5327d9d4f34dcd8f992f8b5fc22d9d",
+          "templateId": "memory.search",
+          "status": "completed"
+        }
+      ]
+    },
+    "semanticReview": {
+      "batch": "memory",
+      "accepted": true,
+      "reviewedBy": "Codex",
+      "reason": "恢复后的回答明确限定为当前已审阅记忆，并表示其中没有饮料偏好；与实际查询工具回执、当前已审阅事实为空、旧茶偏好已退役以及忘记操作已应用一致。没有重新声称用户偏好茶或咖啡，也没有把历史记录当成当前事实。",
+      "answerTurnId": "26749340-4db1-4885-8abc-85cd814758bb",
+      "checks": {
+        "currentReviewedScopeRespected": true,
+        "noSupersededPreferenceClaimed": true,
+        "answerMatchesRestoredState": true,
+        "actualMemoryToolRequiredByProbe": true
+      }
+    },
+    "actual": {
+      "modelRequests": 2,
+      "embeddingRequests": 4,
+      "embeddingCharacters": 164,
+      "reservedUnits": 41954,
+      "autonomousUnits": 8674
+    },
+    "upstreamRequests": 6,
+    "denials": [],
+    "modelSamples": [
+      {
+        "startedAt": "2026-11-03T07:43:08.436Z",
+        "status": 200,
+        "ok": true,
+        "error": null,
+        "units": 16000,
+        "inputTokens": 17210,
+        "outputTokens": 70,
+        "elapsedMs": 58906,
+        "responseTiming": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": 58882,
+          "firstByteMs": 58883,
+          "lastByteMs": 58899,
+          "completedMs": 58899,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        },
+        "stream": {
+          "frames": 6,
+          "doneMarkers": 1,
+          "finishReasonSeen": true,
+          "endCalled": true,
+          "eofTailCharacters": 0,
+          "invalidJsonFrames": 0,
+          "lastBoundary": "separator",
+          "lastKind": "done",
+          "pendingCharacters": 0,
+          "contentSeen": false,
+          "toolCallSeen": true,
+          "refusalSeen": false,
+          "reasoningSeen": false,
+          "providerErrorFrames": 0
+        },
+        "transportEvents": [
+          {
+            "stage": "request-created",
+            "elapsedMs": 1
+          },
+          {
+            "stage": "connect-started",
+            "elapsedMs": 1
+          },
+          {
+            "stage": "connected",
+            "elapsedMs": 621
+          },
+          {
+            "stage": "headers-sent",
+            "elapsedMs": 621
+          },
+          {
+            "stage": "body-sent",
+            "elapsedMs": 622
+          },
+          {
+            "stage": "response-headers",
+            "elapsedMs": 58882
+          },
+          {
+            "stage": "request-error",
+            "elapsedMs": 58901
+          }
+        ]
+      },
+      {
+        "startedAt": "2026-11-03T07:44:08.933Z",
+        "status": 200,
+        "ok": true,
+        "error": null,
+        "units": 17280,
+        "inputTokens": 17753,
+        "outputTokens": 20,
+        "elapsedMs": 9164,
+        "responseTiming": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": 9118,
+          "firstByteMs": 9118,
+          "lastByteMs": 9162,
+          "completedMs": 9162,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        },
+        "stream": {
+          "frames": 7,
+          "doneMarkers": 1,
+          "finishReasonSeen": true,
+          "endCalled": true,
+          "eofTailCharacters": 0,
+          "invalidJsonFrames": 0,
+          "lastBoundary": "separator",
+          "lastKind": "done",
+          "pendingCharacters": 0,
+          "contentSeen": true,
+          "toolCallSeen": false,
+          "refusalSeen": false,
+          "reasoningSeen": false,
+          "providerErrorFrames": 0
+        },
+        "transportEvents": [
+          {
+            "stage": "request-created",
+            "elapsedMs": 2
+          },
+          {
+            "stage": "connect-started",
+            "elapsedMs": 2
+          },
+          {
+            "stage": "connected",
+            "elapsedMs": 604
+          },
+          {
+            "stage": "headers-sent",
+            "elapsedMs": 604
+          },
+          {
+            "stage": "body-sent",
+            "elapsedMs": 606
+          },
+          {
+            "stage": "response-headers",
+            "elapsedMs": 9118
+          },
+          {
+            "stage": "request-error",
+            "elapsedMs": 9163
+          }
+        ]
+      }
+    ],
+    "embeddingSamples": [
+      {
+        "startedAt": "2026-11-03T07:43:05.591Z",
+        "status": 200,
+        "ok": true,
+        "error": null,
+        "elapsedMs": 1598
+      },
+      {
+        "startedAt": "2026-11-03T07:43:07.263Z",
+        "status": 200,
+        "ok": true,
+        "error": null,
+        "elapsedMs": 330
+      },
+      {
+        "startedAt": "2026-11-03T07:43:07.619Z",
+        "status": 200,
+        "ok": true,
+        "error": null,
+        "elapsedMs": 331
+      },
+      {
+        "startedAt": "2026-11-03T07:44:07.568Z",
+        "status": 200,
+        "ok": true,
+        "error": null,
+        "elapsedMs": 941
+      }
+    ]
+  },
+  "previousFailure": {
+    "directory": "D:\\lca-continuity-candidate-20261101\\profiles\\memory-restore-candidate8-live-20261103-1",
+    "originalReportSha256": "1b81d70c3852af061343d38568cfee74375c0f0a5147b63ad99b92c9127231fa",
+    "modelSamples": [
+      {
+        "startedAt": "2026-11-03T07:16:48.519Z",
+        "status": 200,
+        "ok": true,
+        "error": null,
+        "units": 16000,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "elapsedMs": 84649,
+        "responseTiming": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": 84642,
+          "firstByteMs": 84642,
+          "lastByteMs": 84642,
+          "completedMs": 84643,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        },
+        "stream": {
+          "frames": 2,
+          "doneMarkers": 1,
+          "finishReasonSeen": false,
+          "endCalled": true,
+          "eofTailCharacters": 0,
+          "invalidJsonFrames": 0,
+          "lastBoundary": "separator",
+          "lastKind": "done",
+          "pendingCharacters": 0
+        },
+        "transportEvents": [
+          {
+            "stage": "request-created",
+            "elapsedMs": 2
+          },
+          {
+            "stage": "connect-started",
+            "elapsedMs": 2
+          },
+          {
+            "stage": "connected",
+            "elapsedMs": 634
+          },
+          {
+            "stage": "headers-sent",
+            "elapsedMs": 634
+          },
+          {
+            "stage": "body-sent",
+            "elapsedMs": 635
+          },
+          {
+            "stage": "response-headers",
+            "elapsedMs": 84642
+          },
+          {
+            "stage": "request-error",
+            "elapsedMs": 84645
+          }
+        ]
+      }
+    ],
+    "denials": [
+      {
+        "phase": "after-restore",
+        "code": "APPLICATION_ADMISSION_AMBIGUOUS"
+      }
+    ],
+    "dshMetadata": [
+      {
+        "sessionSha256": "872f2b173c6bd49e7e4d1342df2f8ffa9c2b5207fc23764a77ce4a56f6e745af",
+        "frames": 8,
+        "rows": 20,
+        "events": [
+          {
+            "type": "assistant/attempt",
+            "time": 1793690293181,
+            "streamShapes": [
+              {
+                "keys": [
+                  "type",
+                  "time",
+                  "chunk"
+                ],
+                "type": "chunk"
+              },
+              {
+                "keys": [
+                  "type",
+                  "time",
+                  "chunk"
+                ],
+                "type": "chunk"
+              }
+            ]
+          },
+          {
+            "type": "llm/retry",
+            "time": 1793690293183,
+            "retry": 1,
+            "maxRetries": 5,
+            "delayMs": 494.6229446002531,
+            "policyKey": "[\"normal\",5,[\"EMPTY_RESPONSE\",\"RATE_LIMIT\",\"SERVER\",\"TIMEOUT\",\"TRANSPORT\"],500,10000,0.1]",
+            "failure": {
+              "code": "TRANSPORT",
+              "message": "Stream ended without finish_reason"
+            }
+          },
+          {
+            "type": "llm/retry-started",
+            "time": 1793690293680,
+            "retry": 1
+          },
+          {
+            "type": "assistant/attempt",
+            "time": 1793690293723,
+            "streamShapes": [
+              {
+                "keys": [
+                  "type",
+                  "time",
+                  "chunk"
+                ],
+                "type": "chunk"
+              },
+              {
+                "keys": [
+                  "type",
+                  "time",
+                  "chunk"
+                ],
+                "type": "chunk"
+              }
+            ]
+          },
+          {
+            "type": "turn/end",
+            "time": 1793690293731,
+            "reason": "error",
+            "code": "AUTH",
+            "message": "403 status code (no body)"
+          }
+        ]
+      }
+    ]
+  },
+  "findings": {
+    "confirmed": [
+      "Previous upstream SSE lacked finish_reason; DSH recorded TRANSPORT: Stream ended without finish_reason.",
+      "DSH started one internal retry, which had no fresh application admission and was denied locally. Its final AUTH/403 was not a provider authentication error.",
+      "The new run produced a completed memory.search and a final answer; both model streams contained finish_reason and usable output.",
+      "The first new request connected and sent its body within 622 ms, then waited until 58882 ms for response headers.",
+      "Transport request-error events after completed DONE frames correspond to the gateway cancelling its completed upstream reader, not evidence of a pre-completion network reset."
+    ],
+    "limits": [
+      "The exact old raw payload was not retained. Empty output remains a synthetic reproduction, not a direct observation of the old payload.",
+      "The provider internal reason for missing finish_reason is unknown. A transient upstream response fault is consistent with the evidence but not proven.",
+      "No new real requests were sent to diagnose the already closed old batch."
+    ],
+    "productionSourceChanged": false,
+    "packageChanged": false
+  },
+  "remaining": [
+    "Full 90 retrieval and 24 story quality/cost matrix",
+    "Actual install/upgrade",
+    "Second Windows device",
+    "Long-running daily use"
+  ],
+  "postRunOfflineFollowup": {
+    "change": "Require finish_reason for a model response to pass the DSH probe, even when it contains text and DONE.",
+    "error": "MISSING_FINISH_REASON",
+    "sourceSha256": "66cf5484fe6a8466dc7718e1741fcd2e46dbab2ab412f5c620311fe29d319878",
+    "testSha256": "89d34ba2b844d817711f7b12d113c54af49796494bce6850993e9cce0f51c797",
+    "unitPassed": 29,
+    "unitFailed": 0,
+    "unitReport": "test-results/continuity/memory-restore-finish-reason-20261103-1.json",
+    "mainTypecheckExit": 0,
+    "changedPathLintExit": 0,
+    "realCallsAfterClosure": 0,
+    "liveRunUsesEarlierProbeManifest": true
+  }
+}
