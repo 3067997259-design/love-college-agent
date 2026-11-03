@@ -476,7 +476,9 @@ export interface GeneratedGiftView {
   assetUrl?: string
   error?: PublicError
 }
-export interface GiftsView { configured: boolean; dailyLimit: number; items: readonly GeneratedGiftView[] }
+/** Safe text of currently permitted experience evidence, with no raw source bodies. */
+export interface GiftSourceView { id: string; text: string }
+export interface GiftsView { configured: boolean; dailyLimit: number; items: readonly GeneratedGiftView[]; sources?: readonly GiftSourceView[] }
 
 export interface AppSnapshot {
   /** Absent until the 1.2 adapters are available; absence never means an empty ready catalog. */
