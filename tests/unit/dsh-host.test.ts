@@ -58,7 +58,7 @@ function setup(patch: Partial<DshHostOptions> = {}) {
   const root = mkdtempSync(join(tmpdir(), 'lca-dsh-host-')); roots.push(root)
   const bridge = join(root, 'bridge'); mkdirSync(bridge)
   const child = Object.assign(new EventEmitter(), {
-    connected: true, stderr: { resume: vi.fn() }, kill: vi.fn(),
+    connected: true, pid: 1234 as number | undefined, stderr: Object.assign(new EventEmitter(), { resume: vi.fn() }), kill: vi.fn(),
     send: vi.fn((_command: Record<string, unknown>, callback?: (error: Error | null) => void) => { callback?.(null); return true }),
   })
   mocked.spawn.mockReturnValue(child)
@@ -172,10 +172,20 @@ it('closes once, rejects an opening request, and kills a child that never exits'
 
 it('handles a spawn failure before startup without waiting for an exit event', async () => {
   const f = setup(); const rejected = expect(f.host.started).rejects.toThrow('DSH_HOST_EXITED')
+  f.child.pid = undefined
   expect(() => f.child.emit('error', new Error('spawn failed'))).not.toThrow()
-  f.child.emit('close', null)
+  expect(() => f.child.stderr.emit('error', Object.assign(new Error('read ENOTCONN'), { code: 'ENOTCONN' }))).not.toThrow()
   await rejected; expect(await f.host.close()).toBe(null)
   f.clock.advanceBy(10_000); expect(f.child.kill).not.toHaveBeenCalled()
+})
+
+it('does not treat a live stderr failure as proof the child has exited', async () => {
+  const f = setup(); await f.start()
+  expect(() => f.child.stderr.emit('error', new Error('synthetic pipe failure'))).not.toThrow()
+  expect(f.host.available()).toBe(false)
+  const closing = f.host.close()
+  f.clock.advanceBy(10_000); expect(f.child.kill).toHaveBeenCalledOnce()
+  f.child.emit('exit', 1); expect(await closing).toBe(1)
 })
 
 it('admits registered descendants and refuses stale, foreign and unregistered origins before invoking handlers', async () => {

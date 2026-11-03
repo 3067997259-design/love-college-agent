@@ -7,6 +7,7 @@ export function createRootHost(options: { dataDir: string; launch?: typeof start
   type Lease = { callbacks: DshHostOptions; roots: Set<string>; tools: readonly DshTool[]; closed: boolean }
   const leases = new Set<Lease>(), owners = new Map<string, Lease>()
   let host: DshHost | undefined, closed = false, signature = ''
+  let restarting: Promise<void> | undefined
   const owner = (root: string) => { const lease = owners.get(root); return lease && !lease.closed ? lease : undefined }
   const allTools = () => {
     const merged = new Map<string, DshTool>()
@@ -23,6 +24,7 @@ export function createRootHost(options: { dataDir: string; launch?: typeof start
   }
   const launch: typeof startDshHost = callbacks => {
     if (closed) throw new Error('DSH_ROOT_HOST_CLOSED')
+    if (restarting) throw new Error('DSH_ROOT_HOST_RESTARTING')
     const lease: Lease = { callbacks, roots: new Set(), tools: callbacks.tools, closed: false }
     leases.add(lease)
     if (!host) {
@@ -81,6 +83,15 @@ export function createRootHost(options: { dataDir: string; launch?: typeof start
       })(),
     }
   }
-  return { launch, busy: () => [...leases].some(lease => !lease.closed && lease.roots.size > 0),
+  // Releasing one lease deliberately leaves other roots running. Extension
+  // maintenance must separately restart the physical host after all leases close.
+  const restart = (): Promise<void> => {
+    if (closed) return Promise.reject(new Error('DSH_ROOT_HOST_CLOSED'))
+    if (restarting) return restarting
+    if (leases.size) return Promise.reject(new Error('DSH_ROOT_HOST_BUSY'))
+    return restarting = (async () => { await host?.close(); host = undefined; signature = ''; owners.clear() })()
+      .finally(() => { restarting = undefined })
+  }
+  return { launch, restart, busy: () => [...leases].some(lease => !lease.closed && lease.roots.size > 0),
     close: async () => { closed = true; for (const lease of leases) lease.closed = true; await host?.close(); owners.clear(); leases.clear() } }
 }

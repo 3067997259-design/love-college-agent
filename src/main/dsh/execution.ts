@@ -152,6 +152,9 @@ export function createDshExecution(options: {
   processClock?: Clock
   /** Test seam; production launches the DSH child process. */
   launch?: typeof startDshHost
+  /** A pooled launch releases only this lease; explicit maintenance also restarts
+   * the shared process after verifying that no other lease still owns it. */
+  restartHost?(): Promise<void>
   rootPolicy?: DshRootPolicy
   /** Shared project trust, while private sessions and turns remain per root. */
   rulesFile?: string
@@ -218,7 +221,9 @@ export function createDshExecution(options: {
     const signature = JSON.stringify([store.scope.sessionId, options.project(), last?.seq, view.mode, view.lightsOut, view.sleeping])
     if (fresh || !modeState || signature !== modeSignature) {
       modeSignature = signature; modeState = { mode: view.mode, token: randomUUID() }
-      if (session && currentScope()) host?.state?.(session.id, modeState)
+      // openSession keeps a placeholder while DSH registers the root. State can
+      // change during that await; syncState(true) sends the latest value after open.
+      if (session?.id && currentScope()) host?.state?.(session.id, modeState)
     }
     return modeState
   }
@@ -702,7 +707,7 @@ export function createDshExecution(options: {
     stateChanged: () => {
       if (closed) return
       syncState()
-      if (session && (store.projection().lightsOut || store.projection().sleeping || !currentScope())) host?.cancel(session.id)
+      if (session?.id && (store.projection().lightsOut || store.projection().sleeping || !currentScope())) host?.cancel(session.id)
       if (!currentScope()) resetCollaboration()
       kick()
     },
@@ -725,6 +730,7 @@ export function createDshExecution(options: {
       const restart = async () => {
         const previous = host; host = undefined; session = undefined
         await previous?.close()
+        await options.restartHost?.()
         resetCollaboration()
         if (closed) throw new Error('DSH_EXECUTION_CLOSED')
         return ensureHost(resolve(options.project()))

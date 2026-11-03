@@ -662,7 +662,7 @@ void app.whenReady().then(async () => {
       const chat = chatModel()
       if (!dshPresent || !chat) return undefined
       const execution = createDshExecution({ store: executionStore, clock, processClock: systemClock, dataDir: executionDir, dshRoot, bridge: dshBridge, guardedRoots, source: scriptedEndpoint ? 'fake' : 'real',
-        launch: rootHost!.launch, rulesFile: join(dataDir, 'dsh-approvals.json'), rootPolicy: { role: worker ? 'worker' : 'foreground', work: worker?.work.identity ?? null },
+        launch: rootHost!.launch, restartHost: () => rootHost!.restart(), rulesFile: join(dataDir, 'dsh-approvals.json'), rootPolicy: { role: worker ? 'worker' : 'foreground', work: worker?.work.identity ?? null },
         evidence: worker?.evidence, successfulInputs: worker?.successfulInputs,
         consumed: worker?.consumed ?? (eventId => {
           if (!eventId.startsWith('checkpoint:')) return

@@ -112,10 +112,14 @@ export function startDshHost(options: DshHostOptions) {
   const exited = new Promise<number | null>((resolve) => {
     const finish = (code: number | null) => { hasExited = true; unavailable(); resolve(code) }
     child.once('exit', finish)
-    // A spawn failure emits close without exit; an IPC error alone does not prove the child stopped.
+    // Windows can fail CreateProcess and leave a broken pipe without emitting
+    // close. An absent pid proves no child started; a live IPC error does not.
+    child.on('error', () => { unavailable(); if (child.pid === undefined) finish(null) })
     child.once('close', finish)
   })
-  child.on('error', unavailable)
+  // ENOTCONN after a failed spawn must not become an uncaught Electron modal.
+  // Discard the vendor-capable stderr contents; report only host unavailability.
+  child.stderr?.on('error', unavailable)
   child.once('disconnect', unavailable)
   // connected can change between the check and send. The callback consumes asynchronous IPC errors too;
   // without it Node emits an unhandled 'error', which becomes a modal dialog in Electron's main process.

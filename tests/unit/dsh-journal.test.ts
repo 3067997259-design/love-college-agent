@@ -38,22 +38,23 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const asked: { question: string; choices: string[] }[] = []
   let project = join(root, 'project')
   let answer: (choices: string[]) => string | null | Promise<string | null> = (choices) => choices[0]
-  const host = { states: [] as DshConversationState[], options: undefined as DshHostOptions | undefined, opening: undefined as Promise<void> | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], degrades: [] as string[][], trusted: [] as string[], current: 'dsh-1' }
+  const host = { states: [] as DshConversationState[], options: undefined as DshHostOptions | undefined, opening: undefined as Promise<void> | undefined, onOpen: undefined as (() => void) | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], degrades: [] as string[][], trusted: [] as string[], current: 'dsh-1' }
+  let runtimeRestarts = 0
   const referenceAsks: boolean[] = []
   const startedTurns: { turnId: string; requestId: string }[] = []
   const answeredCalls: { turnId: string; callId: string }[] = []
   const hooks: string[] = []
   const launch = ((options: DshHostOptions) => {
     host.options = options
-    return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); if (host.opening) await host.opening; const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
+    return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); host.onOpen?.(); if (host.opening) await host.opening; const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
       collaboration: async () => ({ view: { status: 'ready', runtimeId: 'test-runtime', projectId: 'test-project', members: [], tasks: [] } }),
-      state: (_id: string, state: DshConversationState) => { host.states.push(state) },
-      send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: () => {}, untrust: () => {}, close: async () => null }
+      state: (id: string, state: DshConversationState) => { if (!id) throw new Error('DSH_ROOT_UNAVAILABLE'); host.states.push(state) },
+      send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: (id: string) => { if (!id) throw new Error('DSH_ROOT_UNAVAILABLE') }, untrust: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
   // Her questions go to the book's question card (questions/service.ts), as in index.ts.
   const questions = createQuestions({ store, clock, changed: () => {}, safeText: (text) => text })
   const execution = createDshExecution({ store, clock, dataDir: root, dshRoot: 'unused', bridge: 'unused', routes: { env: {}, chat: { provider: 'deepseek-official', model: 'deepseek-flash' }, work: { provider: 'deepseek-official', model: 'deepseek-flash' } }, guardedRoots: [],
-    project: () => project, persona: () => '', suffix: () => '', tools: () => [mailTool, fileTool, opticalTool],
+    project: () => project, persona: () => '', suffix: () => '', tools: () => [mailTool, fileTool, opticalTool], restartHost: async () => { runtimeRestarts++ },
     ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch, admit, revealed, started: (input) => { startedTurns.push(input) }, answered: (input) => { answeredCalls.push(input); questions.commit(input.turnId, [input.callId]) },
     question: (items, context) => questions.ask(items, { clock, store, ...context }).then((result) => result.raw as { status?: unknown; answers?: unknown; answerMessageId?: unknown }),
     foreground: () => { hooks.push('foreground') }, userWork: () => { hooks.push('userWork') }, settled: () => { hooks.push('settled') },
@@ -64,8 +65,30 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const opened = () => execution.prepared()
   const question = (questions: unknown, callId = 'call-ask') => host.options!.onQuestion!({ sessionId: host.current, callId, questions, signal: new AbortController().signal })
   const command = (body: Record<string, unknown>) => ({ protocolVersion: 1, epoch: 'test', requestId: 'answer-' + body.type, ...body }) as AppCommand
-  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, questions, question, command, referenceAsks, startedTurns, answeredCalls, hooks, setProject: (next: string) => { project = next }, nextDay: () => { currentScope = { ...currentScope, sessionId: 'next-day' } }, setAnswer: (next: typeof answer) => { answer = next } }
+  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, questions, question, command, referenceAsks, startedTurns, answeredCalls, hooks, get runtimeRestarts() { return runtimeRestarts }, setProject: (next: string) => { project = next }, nextDay: () => { currentScope = { ...currentScope, sessionId: 'next-day' } }, setAnswer: (next: typeof answer) => { answer = next } }
 }
+
+it('keeps state changes local until opening registers a root, then sends the latest state', async () => {
+  const f = setup()
+  let release!: () => void, entered!: () => void
+  f.host.opening = new Promise<void>(done => { release = done })
+  const opening = new Promise<void>(done => { entered = done }); f.host.onOpen = entered
+  try {
+    f.execution.postEvent('autonomous', 'A reading checkpoint is ready.', 'opening-event')
+    await opening
+    expect(f.host.states).toEqual([])
+    f.store.append({ type: 'companion/mode', mode: 'quiet', requestId: 'quiet', commandHash: 'quiet' })
+    expect(() => f.execution.stateChanged()).not.toThrow()
+    f.store.append({ type: 'companion/lights', lightsOut: true, requestId: 'off', commandHash: 'off' })
+    expect(() => f.execution.stateChanged()).not.toThrow()
+    expect(f.host.states).toEqual([])
+    f.store.append({ type: 'companion/lights', lightsOut: false, requestId: 'on', commandHash: 'on' })
+    f.store.append({ type: 'companion/mode', mode: 'rest', requestId: 'rest', commandHash: 'rest' })
+    f.execution.stateChanged(); release(); await f.opened()
+    expect(f.host.sent).toHaveLength(1)
+    expect(f.host.states.at(-1)?.mode).toBe('rest')
+  } finally { release(); await f.execution.close(); f.store.close() }
+})
 
 it('accepts a current root state request, persists it and retires its credential', async () => {
   const f = setup(); f.execution.send('请找帮手完成工作', 'state-start', 'hash'); await f.opened(); f.emit({ t: 'turn-start', turn: 1 })
@@ -124,6 +147,7 @@ it('withdraws old member addresses when extension maintenance replaces the runti
   f.emit({ t: 'turn-start', turn: 1 }); f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
   f.execution.collaboration.accept({ status: 'ready', runtimeId: 'old', projectId: 'project', members: [], tasks: [] })
   await f.execution.withExtensions(async ({ restart }) => { await restart() })
+  expect(f.runtimeRestarts).toBe(1)
   expect(f.execution.collaboration.view().runtimeId).toBeNull()
   expect(f.execution.collaboration.view().status).toBe('unavailable')
   await f.execution.close(); f.store.close()
