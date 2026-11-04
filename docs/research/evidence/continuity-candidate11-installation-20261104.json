@@ -1,0 +1,586 @@
+{
+  "status": "three-publication-gates-passed-on-candidate11",
+  "recordedAtIso": "2026-11-04T10:24:45.289Z",
+  "userAuthorization": "没问题，实际跑一次安装和升级验证。跑完，如果这个包没法，通过了就可以发包了。",
+  "publicationScope": "Publish this unchanged installer as v1.2.0-continuity.11 prerelease after all gates; do not merge main or replace the stable latest release.",
+  "productionCommit": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+  "build": {
+    "version": 1,
+    "appVersion": "1.2.0-continuity.11",
+    "installerFileName": "Love-College-Agent-1.2.0-continuity.11-Setup.exe",
+    "sourceRevision": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+    "trackedDirty": false,
+    "runtimePreparation": "reused-prepared-tree",
+    "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+    "builtAtIso": "2026-11-04T04:42:06.397Z",
+    "installerBytes": 315481865,
+    "installerSha256": "aa0fef4411bfbaa5ba2833807abc2c4ce1716b8d49308b9c5771bcf8a172df15",
+    "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef"
+  },
+  "buildReceipt": {
+    "path": "C:/.lca-cache/continuity11-release-20261104/build-receipt.json",
+    "sha256": "bcb3b66079f0ff20cce23082666488d2ee3ff85c5809b4555b1a46ecaf8a1857"
+  },
+  "testRevision": "2f100a1a97785b606250fb7947c403a480494ada",
+  "productionChanged": false,
+  "upgrade": {
+    "path": "test-results/p6-upgrade-40e7957c-2ffa-487d-9fea-9d73a4a3da50/report.json",
+    "sha256": "4b5c0b25f1a77982e50567130283725c4a69db9b1162b11752b68599ecd395d7",
+    "report": {
+      "syntheticOnly": true,
+      "installed": true,
+      "upgraded": true,
+      "secondMachine": false,
+      "baselineVersion": "1.1.0",
+      "candidate": {
+        "version": 1,
+        "appVersion": "1.2.0-continuity.11",
+        "installerFileName": "Love-College-Agent-1.2.0-continuity.11-Setup.exe",
+        "sourceRevision": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+        "trackedDirty": false,
+        "runtimePreparation": "reused-prepared-tree",
+        "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+        "builtAtIso": "2026-11-04T04:42:06.397Z",
+        "installerBytes": 315481865,
+        "installerSha256": "aa0fef4411bfbaa5ba2833807abc2c4ce1716b8d49308b9c5771bcf8a172df15",
+        "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef"
+      },
+      "checks": [
+        "actual-1.1.0-installer-and-normal-book-with-synthetic-chat-project-and-save",
+        "same-install-path-upgrade-preserves-onboarding-mode-project-session-and-append-only-history",
+        "upgraded-book-can-complete-a-new-DSH-turn-and-preserve-user-profile-configuration",
+        "upgraded-cold-restart-preserves-new-history-without-model-replay",
+        "1.1.0-private-save-restores-in-candidate-with-safety-backup-and-no-replay"
+      ],
+      "cleanup": "owned-test-install-uninstalled",
+      "profileConfigurationPreserved": true,
+      "ok": true,
+      "modelRequests": 2,
+      "archiveBytes": 5071
+    },
+    "log": {
+      "path": "test-results/continuity/candidate11-upgrade-20261104-1.log",
+      "sha256": "182fb3b980618f3dcde09aa5b5fc6f072b12b462bd02e5e83a4202f1be6d5845"
+    }
+  },
+  "freshInstall": {
+    "path": "test-results/continuity/candidate11-installed-20261104-1/package-report.json",
+    "sha256": "d578e500d48d61958d878b9b51a4930128bafb8bef39213796a13ccc4486b253",
+    "report": {
+      "ok": true,
+      "status": "passed",
+      "atIso": "2026-11-04T10:20:02.084Z",
+      "installer": "C:\\.lca-cache\\continuity11-release-20261104\\Love-College-Agent-1.2.0-continuity.11-Setup.exe",
+      "bytes": 315481865,
+      "sha256": "aa0fef4411bfbaa5ba2833807abc2c4ce1716b8d49308b9c5771bcf8a172df15",
+      "executionTarget": "installed",
+      "appVersion": "1.2.0-continuity.11",
+      "unsigned": true,
+      "secretsExcluded": true,
+      "nativeUnpacked": true,
+      "unpackedProbes": true,
+      "installedProbes": true,
+      "privateSaveProbe": true,
+      "installedUiRestart": true,
+      "unpackedUiRestart": false,
+      "historyQuoteAndPhoto": true,
+      "secondCircleProbes": [
+        "memory",
+        "life"
+      ],
+      "buildReceipt": {
+        "version": 1,
+        "appVersion": "1.2.0-continuity.11",
+        "installerFileName": "Love-College-Agent-1.2.0-continuity.11-Setup.exe",
+        "sourceRevision": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+        "trackedDirty": false,
+        "runtimePreparation": "reused-prepared-tree",
+        "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+        "builtAtIso": "2026-11-04T04:42:06.397Z",
+        "installerBytes": 315481865,
+        "installerSha256": "aa0fef4411bfbaa5ba2833807abc2c4ce1716b8d49308b9c5771bcf8a172df15",
+        "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef"
+      },
+      "thirdCircleScenarios": [
+        "model-routing",
+        "model-slots",
+        "documents",
+        "campus",
+        "memory",
+        "harness",
+        "gifts",
+        "onboarding",
+        "life-work",
+        "sleep",
+        "optical",
+        "minecraft",
+        "minecraft-images",
+        "minecraft-stdio",
+        "minecraft-mining",
+        "voice",
+        "booth",
+        "mini",
+        "showcase",
+        "life-port",
+        "resources",
+        "questions",
+        "settings",
+        "failure-narrator",
+        "privacy-probe",
+        "providers",
+        "plugins",
+        "student-hub-package",
+        "student-hub-candidates",
+        "pomodoro",
+        "room",
+        "extensions",
+        "collaboration",
+        "v12-recovery"
+      ],
+      "syntheticServices": true,
+      "realProviderQualityAccepted": false
+    },
+    "log": {
+      "path": "test-results/continuity/candidate11-installed-20261104-1/package.log",
+      "sha256": "f7cb065f994917953919de4955efcc256409596644150559446587d4afe88c22"
+    }
+  },
+  "installedAsar": {
+    "path": "test-results/continuity/candidate11-installed-20261104-1/installed-asar.json",
+    "sha256": "9c82f41cbfb85ec2a20757a22b231a9e061d71d52255701d0a02e2894e39ed87",
+    "report": {
+      "ok": true,
+      "path": "D:/.lca-cache/c11i-20261104/installs/51c57f49-dc99-4273-b74b-51a70ea88039/resources/app.asar",
+      "sha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef",
+      "bytes": 216872830,
+      "appVersion": "1.2.0-continuity.11",
+      "checkedAtIso": "2026-11-04T10:09:56.586Z"
+    }
+  },
+  "cleanup": {
+    "path": "test-results/continuity/candidate11-installed-20261104-1/post-cleanup.json",
+    "sha256": "68356f3b370b1d128815b5d7bb87bee6bacd97a018e9cb854bfd6a6451ed803c",
+    "report": {
+      "ok": true,
+      "registry": [],
+      "processes": [],
+      "testInstallExecutablesRemaining": 0,
+      "isolatedDataRoots": [
+        "D:\\.lca-cache\\c11i-20261104",
+        "D:\\.lca-cache\\c11u-20261104"
+      ],
+      "oldSavePreserved": {
+        "path": "D:\\.lca-cache\\c11u-20261104\\runs\\40e7957c-2ffa-487d-9fea-9d73a4a3da50\\from-1.1.0.lca-save",
+        "sha256": "6f6947a01c84dc2e5c6ac750bd86332430f478ff20f17a32aab76f9115ed7fa1",
+        "bytes": 5071
+      },
+      "userDailyProfileUsed": false,
+      "realServiceCalls": 0,
+      "checkedAtIso": "2026-11-04T10:24:32.8996858Z"
+    }
+  },
+  "scenarioArtifacts": {
+    "path": "test-results/continuity/candidate11-installed-20261104-1/captured-scenario-evidence.json",
+    "sha256": "0079ff4b6feeb403a7f00640c9786bea5d3c17cf2feac1a8a61b0f928be45a11",
+    "report": {
+      "ok": true,
+      "changed": [
+        {
+          "name": "campus.png",
+          "sha256": "d53562a00cbab60935c662234f9766e74f8bbced77fc9ee0e337bd23586a2635",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\campus.png",
+          "bytes": 763275,
+          "originalRestored": true
+        },
+        {
+          "name": "composer-paperclip.png",
+          "sha256": "e42945c1760f39265627273464e9f43b6febc3c6b5797b9a2a9828d2644c23e9",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\composer-paperclip.png",
+          "bytes": 665098,
+          "originalRestored": true
+        },
+        {
+          "name": "documents.png",
+          "sha256": "45270d35b9fb8925ef541cbd4ebb5a132ce8eb0252602aab7920f00d914b0db0",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\documents.png",
+          "bytes": 813632,
+          "originalRestored": true
+        },
+        {
+          "name": "gifts.png",
+          "sha256": "90babb6e36f2d18c487e3fb67cabe59feac7cfd8e3b675e08490d285d313d358",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\gifts.png",
+          "bytes": 531096,
+          "originalRestored": true
+        },
+        {
+          "name": "installed.png",
+          "sha256": "5b5c49f1fad038bef94246a909a9dc9b8691d6b0c118609356d393d42db7760b",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\installed.png",
+          "bytes": 667857,
+          "originalRestored": true
+        },
+        {
+          "name": "life-port-report.json",
+          "sha256": "50d8c73be8984eb8726cecf1d58e63516906b6260b4a9d25eeeff768c750bc7c",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\life-port-report.json",
+          "bytes": 328,
+          "originalRestored": true
+        },
+        {
+          "name": "memory.png",
+          "sha256": "9f7c8ca1adc87912ff0ecf6e711276a48bc13c2a48d29c0c52e60871cdee1749",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\memory.png",
+          "bytes": 933759,
+          "originalRestored": true
+        },
+        {
+          "name": "minecraft-images-report.json",
+          "sha256": "6bcd170a99459ad34f39324897d209742ed3f04630feec2c27779703effa1fc0",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\minecraft-images-report.json",
+          "bytes": 414,
+          "originalRestored": true
+        },
+        {
+          "name": "minecraft-mining-report.json",
+          "sha256": "53f89c4fe44c46443b62881fe14972dd3a37a44bcd60dde5bcc9169caae65ec4",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\minecraft-mining-report.json",
+          "bytes": 353,
+          "originalRestored": true
+        },
+        {
+          "name": "minecraft-stdio-fragmented-report.json",
+          "sha256": "69a6fa4e485997b2a2b965c6804d0ae2721a248e411f8dddfba30e300761ee6a",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\minecraft-stdio-fragmented-report.json",
+          "bytes": 545,
+          "originalRestored": true
+        },
+        {
+          "name": "minecraft-stdio-image-oversize-report.json",
+          "sha256": "7d813e1b1f77832c71347ea2004bc4e7fb5ad7351fe95128ebf018c4032cc571",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\minecraft-stdio-image-oversize-report.json",
+          "bytes": 363,
+          "originalRestored": true
+        },
+        {
+          "name": "minecraft-stdio-near-limit-report.json",
+          "sha256": "d2671a672dfd6e1db3f401806a134a35b4c0d8f83494bceeed39053939bb0152",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\minecraft-stdio-near-limit-report.json",
+          "bytes": 545,
+          "originalRestored": true
+        },
+        {
+          "name": "minecraft-stdio-transport-oversize-report.json",
+          "sha256": "25b91178b93715ade56d25e301da5fa496dab5e37038bef5d8542320ef90de1b",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\minecraft-stdio-transport-oversize-report.json",
+          "bytes": 367,
+          "originalRestored": true
+        },
+        {
+          "name": "minecraft-stdio-whole-report.json",
+          "sha256": "80c2bce0486050c30d8712219c4ee47d6e43c46de814fdf3cc562f2cc0b07bff",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\minecraft-stdio-whole-report.json",
+          "bytes": 543,
+          "originalRestored": true
+        },
+        {
+          "name": "mini.png",
+          "sha256": "1e4a4974d005e1fe0185b97534b845b437dbff6e7a8c7abb49b6fc4a53fd172f",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\mini.png",
+          "bytes": 150051,
+          "originalRestored": true
+        },
+        {
+          "name": "plugins-add.png",
+          "sha256": "2f7eb3fbc7a2bd55916eb788ec56e686b63c35dbc69c2b860ce351566086ebe2",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\plugins-add.png",
+          "bytes": 32554,
+          "originalRestored": true
+        },
+        {
+          "name": "plugins-center.png",
+          "sha256": "1bb64d7a663d74925b0d8b97c3215d68c142afcd0306c053f4ed5becc5d9bfe6",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\plugins-center.png",
+          "bytes": 181069,
+          "originalRestored": true
+        },
+        {
+          "name": "plugins-mcp.png",
+          "sha256": "e6aa457b48fadca2e46466d0d19eda0c04c3d96c05fd5987e2b010eff806f45b",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\plugins-mcp.png",
+          "bytes": 191579,
+          "originalRestored": true
+        },
+        {
+          "name": "plugins-skills.png",
+          "sha256": "3fa6c88baf012b6ee8ff998e46a68762e4dc6675511f2d4d9bbffdae4b52f7e8",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\plugins-skills.png",
+          "bytes": 101755,
+          "originalRestored": true
+        },
+        {
+          "name": "pomodoro.png",
+          "sha256": "89120876f37d6787e5be2f4dffc475bbc38d0c807c4666bae209fcb6d593168c",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\pomodoro.png",
+          "bytes": 716948,
+          "originalRestored": true
+        },
+        {
+          "name": "providers-connected.png",
+          "sha256": "cbf65ed61d878acde281f1dbb4dda29166549d2479aaf5ad8de3e9a5e2b8653c",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\providers-connected.png",
+          "bytes": 763293,
+          "originalRestored": true
+        },
+        {
+          "name": "providers-probe-failed.png",
+          "sha256": "6bb2d10e618f8f3f033993dbe73e9cdc30ba323e2b970907b123b54affd20933",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\providers-probe-failed.png",
+          "bytes": 535299,
+          "originalRestored": true
+        },
+        {
+          "name": "resources-report.json",
+          "sha256": "70b42dee16cadffa3f4ef66c64933fadb96df6c552780ac32baa53b957caead1",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\resources-report.json",
+          "bytes": 456,
+          "originalRestored": true
+        },
+        {
+          "name": "settings-providers.png",
+          "sha256": "406389a81674e191788fbe34c58582cf6b404154ece05c5128fa129746c099f4",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\settings-providers.png",
+          "bytes": 816076,
+          "originalRestored": true
+        },
+        {
+          "name": "settings-user.png",
+          "sha256": "d4abc7ee2edcc0e340cb74d15e50df5f059fa73f1d572807d14c82ec6ba399a8",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\settings-user.png",
+          "bytes": 773526,
+          "originalRestored": true
+        },
+        {
+          "name": "showcase-report.json",
+          "sha256": "174a0018ad6cdd2c02236c97c6972e916e2efa4fb209bb70353ddddab032527b",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\showcase-report.json",
+          "bytes": 544,
+          "originalRestored": true
+        },
+        {
+          "name": "showcase.png",
+          "sha256": "64985f22c23575a6fbe28bd7b637934ff23a842511399810610e355b4b8fed83",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\showcase.png",
+          "bytes": 800633,
+          "originalRestored": true
+        },
+        {
+          "name": "slash-menu.png",
+          "sha256": "9300b67bec0b60b45a7304ebcebb3e765d654623101d62b4312d02a87f2172a2",
+          "path": "C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\test-results\\continuity\\candidate11-installed-20261104-1\\new-root-files\\slash-menu.png",
+          "bytes": 842518,
+          "originalRestored": true
+        }
+      ],
+      "newDirectories": [
+        "p4-0f59b100-0b4e-4b68-9cc8-f3e9ec5d73b9",
+        "sleep-routine-46ade312-6823-4665-95fb-0317b36725f9",
+        "work-family-8029cf21-7f43-4bc4-920d-188da8254987",
+        "work-family-ad3c2ebf-987e-4ae7-8989-e5cec6d8e669"
+      ],
+      "restoredPriorFiles": 28
+    }
+  },
+  "previousSameCandidateChecks": {
+    "path": "docs/research/evidence/continuity-candidate11-outcome-20261104.json",
+    "sha256": "65f3e0a698b958596865b890eaf615e91cee8b2130eda99cce792e1be8777a34",
+    "fullUnit": 998,
+    "execution": 24,
+    "postgres": 8,
+    "mirror": 7,
+    "mirrorReceipt": {
+      "path": "D:/.lca-cache/continuity11-tests/postgres-20261104/postgres-b56b49fd-5d8b-4d88-b16c-3c4ebdbe4e55/report.json",
+      "sha256": "638cc7eaee2162b725610df8e83152faa8fdc70ca0b52e5d2aa1ff563ffdf736",
+      "report": {
+        "status": "passed",
+        "mode": "product",
+        "realPostgres": true,
+        "container": "lca-continuity-pg-2910e9f0-8d74-4640-ab58-da8a100ae73e",
+        "reason": null,
+        "checks": [
+          "settings_enable_and_original_outbox_reach_real_postgres",
+          "offline_correction_and_pending_outbox_survive_restart",
+          "retry_invalidates_old_fact_without_duplicate_delivery",
+          "nonempty_save_with_pending_forget_excludes_connections",
+          "restore_rotates_mirror_epoch_and_stale_remote_fact_does_not_return",
+          "saved_connection_pause_resume_is_idempotent_and_private",
+          "restored_epoch_and_forget_survive_another_restart"
+        ],
+        "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+        "containerStopped": true
+      }
+    }
+  },
+  "realQuality": {
+    "path": "docs/research/evidence/continuity-quality-complete-20261104.json",
+    "sha256": "d89bf1a7b03b358ce3b8df24d269554495819025f51390cfb5f24dbca722a909",
+    "retrieval": {
+      "caseCount": 90,
+      "recallAtK": 0.9444444444444444,
+      "meanReciprocalRank": 0.9166666666666666,
+      "precisionAtK": 0.31481481481481444,
+      "falsePositiveRateAtK": 0.17407407407407416,
+      "averageQueryTokenCount": 0,
+      "averageAdditionalQueryTokenCount": 0,
+      "averageRetrievalLatencyMs": 768.9055833333333,
+      "missingQueryTokenCount": 90,
+      "missingAdditionalQueryTokenCount": 90,
+      "missingRetrievalLatency": 0,
+      "averageCostUsd": 0,
+      "missingCostCount": 90,
+      "byStratum": {
+        "short-zh": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 0.95,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0.26666666666666666
+        },
+        "long-zh": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.16666666666666666
+        },
+        "en-to-zh": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 1,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0.19999999999999998
+        },
+        "zh-to-en": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.13333333333333333
+        },
+        "negation": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.85,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.2333333333333333
+        },
+        "multi-fact": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0.26666666666666666
+        },
+        "temporal": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.85,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.16666666666666666
+        },
+        "unrelated-long": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 1,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0
+        },
+        "near-miss": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.13333333333333333
+        }
+      }
+    },
+    "stories": 24,
+    "audit": {
+      "path": "test-results/continuity/candidate11-quality-final-result-20261104-2.json",
+      "sha256": "c50ac4fd5c3940b69e4f8fd50ce430fb9d8fd8efc1d0f5b6e3dd1eaa5b2ad570",
+      "auditor": {
+        "path": "scripts/audit-memory-quality.mjs",
+        "sha256": "5bb82760510065db1bdb08b9ad03a54030619f7c4572a53bb9dca02c4be1a515"
+      },
+      "passed": true,
+      "serviceCalls": 0,
+      "verifiedStories": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S12",
+        "S13",
+        "S14",
+        "S15",
+        "S16",
+        "S17",
+        "S18",
+        "S19",
+        "S20",
+        "S21",
+        "S22",
+        "S23",
+        "S24"
+      ],
+      "missingStories": [],
+      "errors": []
+    }
+  },
+  "spacePreservation": {
+    "compression": {
+      "path": "test-results/continuity/candidate11-install-space-compression-20261104-2.json",
+      "sha256": "2fc6d2e03d30661ef8d76502744a45d3257d737b1733fac69ea84bb0b4de4e9d",
+      "report": {
+        "ok": true,
+        "originalManifest": "test-results/continuity/candidate11-install-space-compression-20261104.json",
+        "originalManifestSha256": "c8f0da634a2991072d606ea37f4a4b29b00c1a1af9a8c417d383769967358931",
+        "previousAttempt": "compact.exe stopped at a path longer than MAX_PATH; available physical memory exceeded 7 GiB",
+        "selectedCount": 9676,
+        "maximumPathLength": 239,
+        "noDeletion": true,
+        "verifiedFiles": 10756,
+        "afterFreeBytes": 3059396608,
+        "finishedAtIso": "2026-11-04T09:52:42.3688094Z"
+      }
+    },
+    "duplicateInstaller": {
+      "path": "test-results/continuity/candidate11-install-duplicate-cache-removal-20261104.json",
+      "sha256": "f20d723325b263e4dd51eb9020b33aa86af96d208894b97868a12c737a4fde9a",
+      "report": {
+        "duplicate": "D:\\.lca-cache\\upgrade-tests\\ca1c05b4-2e40-4f7a-8076-731a50dade32\\user\\AppData\\Local\\love-college-agent-updater\\installer.exe",
+        "retainedOriginal": "C:\\.lca-cache\\continuity10-release-20261103\\Love-College-Agent-1.2.0-continuity.10-Setup.exe",
+        "sha256": "dd64b818d8384b0ac76982337642ce19f4ad5d0e944db5176b229d42d7c41853",
+        "bytes": 315481295,
+        "oldTestCleanup": "owned-test-install-uninstalled",
+        "removed": true,
+        "recursiveDeletion": false
+      }
+    }
+  },
+  "limitations": [
+    "same Windows machine",
+    "installation and upgrade use isolated synthetic providers; no new real service calls",
+    "second Windows and long-term daily use remain unverified",
+    "known conservative trust-transition projection and expression observations preserved"
+  ],
+  "releaseAllowed": true,
+  "releasePublished": false
+}
