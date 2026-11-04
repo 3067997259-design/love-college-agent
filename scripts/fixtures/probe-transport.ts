@@ -17,6 +17,7 @@ export function observeProbeTransport(endpoint: string, now: () => number) {
     ['client:connected', 'connected'], ['client:connectError', 'connect-error'],
     ['client:sendHeaders', 'headers-sent'], ['request:bodySent', 'body-sent'],
     ['request:headers', 'response-headers'], ['request:error', 'request-error'],
+    ['request:trailers', 'response-complete'],
   ]) {
     const listener = (message: unknown) => {
       if (!message || typeof message !== 'object') return

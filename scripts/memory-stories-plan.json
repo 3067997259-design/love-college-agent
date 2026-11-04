@@ -15,6 +15,17 @@
             "maximumAutonomousUnits": 65536
         }
     },
+    "remainingStories": {
+        "batch": "candidate11-remaining-stories-22",
+        "storyOrder": ["S17", "S18", "S19", "S21", "S22", "S23", "S24", "S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10", "S11", "S12", "S13", "S14", "S15"],
+        "limits": {
+            "maximumModelRequests": 88,
+            "maximumEmbeddingRequests": 204,
+            "maximumEmbeddingInputCharacters": 92000,
+            "maximumReservedUnits": 2883584,
+            "maximumAutonomousUnits": 786432
+        }
+    },
     "expectedEmbeddingModel":  "voyage-4-large",
     "limits":  {
                    "maximumModelRequests":  96,

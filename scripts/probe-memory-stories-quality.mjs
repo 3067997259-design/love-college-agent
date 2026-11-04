@@ -13,8 +13,10 @@ const read = async file => JSON.parse(await readFile(file, 'utf8'))
 const sha = async file => createHash('sha256').update(await readFile(file)).digest('hex')
 const basePlan = await read(join(repo, 'scripts/memory-stories-plan.json'))
 const workInterruptionOnly = process.argv.includes('--work-interruption')
-const plan = { ...basePlan, ...(workInterruptionOnly ? basePlan.workInterruptionRetest : {}) }
-const coverageScope = workInterruptionOnly ? 'work-interruption-only' : 'all-24-stories'
+const remainingStoriesOnly = process.argv.includes('--remaining-stories')
+assert.ok(!workInterruptionOnly || !remainingStoriesOnly, 'AMBIGUOUS_STORY_SCOPE')
+const plan = { ...basePlan, ...(workInterruptionOnly ? basePlan.workInterruptionRetest : remainingStoriesOnly ? basePlan.remainingStories : {}) }
+const coverageScope = workInterruptionOnly ? 'work-interruption-only' : remainingStoriesOnly ? 'remaining-22-stories' : 'all-24-stories'
 const names = [
   'scripts/probe-memory-stories-quality.mjs', 'scripts/memory-stories-plan.json',
   'scripts/fixtures/memory-stories-quality.ts', 'scripts/fixtures/continuity-live-budget.ts',
@@ -90,7 +92,7 @@ if (prepare >= 0) {
     timer = setTimeout(() => { void instance?.close().catch(() => {}) }, 4 * 60 * 60_000)
     stage = 'story-evaluation'
     const report = await instance.evaluate(async (_, input) => process.mainModule.require(input.compiled).runMemoryStoriesQuality(input),
-      { compiled, root, repo, selfTest, workInterruptionOnly, runtime: join(dirname(executable), 'resources/dsh-runtime'), bridge: join(dirname(executable), 'resources/lca-bridge'),
+      { compiled, root, repo, selfTest, workInterruptionOnly, remainingStoriesOnly, runtime: join(dirname(executable), 'resources/dsh-runtime'), bridge: join(dirname(executable), 'resources/lca-bridge'),
         authorized: selfTest ? undefined : resolve(process.env.LCA_PROVIDERS_FILE), embeddingConfig: selfTest ? undefined : resolve(process.env.LCA_MEMORY_CONNECTION_FILE) })
     ok = report.ok
     console.log(JSON.stringify({ root, ok, selfTest, coverageScope, qualityPassed: report.qualityPassed, fullSuitePassed: report.fullSuitePassed, completed: report.completed,

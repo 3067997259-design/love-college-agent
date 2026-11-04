@@ -12,11 +12,12 @@ import { MEMORY_RETRIEVAL_EVALUATION_CASES } from '../../src/main/memory/airi/co
 import { createResourceBudget } from '../../src/main/resources/service'
 import { createContinuityProbeBudget } from './continuity-live-budget'
 import { retrievalRuntimeFailure } from './memory-retrieval-diagnostics'
+import { observeProbeTransport } from './probe-transport'
 import corpus from '../../tests/fixtures/memory-quality-corpus.json'
 import plan from '../memory-quality-plan.json'
 
 type Configuration = { baseUrl: string; apiKey: string; model: string }
-type Sample = { id: number; kind: string; characters: number; status: number | null; headersMs: number | null; vectorReadyMs: number | null; elapsedMs: number | null; ok: boolean; inputSha256: string }
+type Sample = { id: number; kind: string; characters: number; status: number | null; headersMs: number | null; vectorReadyMs: number | null; elapsedMs: number | null; ok: boolean; inputSha256: string; transport?: ReturnType<typeof observeProbeTransport>['diagnostics'] }
 
 /** Controlled retrieval evaluation, not automatic extraction or a substitute for product stories. */
 export async function runMemoryRetrievalQuality(input: { root: string; selfTest: boolean; authorized?: string }) {
@@ -30,6 +31,8 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
   // Equal-age documents, but production IO deadlines must still expire in wall time.
   const corpusClock = { ...fixedTime, after: systemClock.after }
   const samples: Sample[] = []
+  const transportObservers = new Map<number, ReturnType<typeof observeProbeTransport>>()
+  const pendingEmbeddings = new Set<Promise<number[]>>()
   const budget = createContinuityProbeBudget(plan.limits, (units, bucket) => { ledger.reserveModel(units, bucket) })
   let failure: string | null = null
   const engines: ReturnType<typeof createMemoryEngine>[] = []
@@ -38,7 +41,8 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
     coverage: plan.measurement, failurePolicy: plan.failurePolicy, limits: plan.limits, acceptance: plan.acceptance,
     upstreamRequests: 0, samples, casesCompleted: 0, corpusCounts: { zh: 0, en: 0 }, counts: budget.view(), error: null as string | null,
     stage: 'setup', diagnostic: null as string | null,
-    runtimeFailure: null as (NonNullable<ReturnType<typeof retrievalRuntimeFailure>> & { elapsedMs: number }) | null,
+    runtimeFailure: null as (NonNullable<ReturnType<typeof retrievalRuntimeFailure>> & { elapsedMs: number; pendingSampleSnapshot: Sample[] }) | null,
+    embeddingDrain: { pendingAtFailure: 0, pendingAtClose: 0, settledWithoutRetry: true },
     storageHost: 'packaged-production-utility',
     storageDiagnostics: input.selfTest ? { sampledPeakMainRssBytes: process.memoryUsage().rss, sampledPeakWorkerPrivateKiB: 0, maximumWorkersObserved: 0 } : null,
     result: null as Awaited<ReturnType<typeof evaluateProductionMemoryRetrievalTrace>> | null }
@@ -62,6 +66,10 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
     try {
       budget.embedding('embedding:' + sample.id, body.input); save()
       if (!input.selfTest) { report.upstreamRequests++; save() }
+      if (!input.selfTest) {
+        const observer = observeProbeTransport(String(url), systemClock.nowMs)
+        transportObservers.set(sample.id, observer); sample.transport = observer.diagnostics
+      }
       const response = input.selfTest
         ? new Response(JSON.stringify({ data: [{ embedding: Array.from({ length: 1024 }, (_, i) => i === 0 ? 1 : 0) }] }))
         : await fetch(url, { ...init, redirect: 'error' })
@@ -72,17 +80,26 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
     } catch { failure = 'EMBEDDING_ADMISSION_OR_TRANSPORT_FAILED'; throw new Error(failure) }
     finally { save() }
   } })
-  const source = { ...raw, embed: async (text: string, kind?: 'query' | 'document') => {
+  const source = { ...raw, embed: (text: string, kind?: 'query' | 'document') => {
     assert.equal(failure, null, 'BATCH_ALREADY_FAILED')
     // Bind completion to this request, including a vector that arrives after the runtime deadline.
     const started = systemClock.nowMs(), sampleIndex = samples.length
-    try {
-      const vector = await raw.embed(text, kind)
-      samples[sampleIndex].ok = true; samples[sampleIndex].vectorReadyMs = systemClock.nowMs() - started
-      return vector
-    }
-    catch { failure ??= 'EMBEDDING_PROTOCOL_FAILED'; throw new Error(failure) }
-    finally { if (samples[sampleIndex]) samples[sampleIndex].elapsedMs = systemClock.nowMs() - started; save() }
+    const request = (async () => {
+      try {
+        const vector = await raw.embed(text, kind)
+        samples[sampleIndex].ok = true; samples[sampleIndex].vectorReadyMs = systemClock.nowMs() - started
+        return vector
+      }
+      catch { failure ??= 'EMBEDDING_PROTOCOL_FAILED'; throw new Error(failure) }
+      finally {
+        transportObservers.get(sampleIndex + 1)?.close(); transportObservers.delete(sampleIndex + 1)
+        if (samples[sampleIndex]) samples[sampleIndex].elapsedMs = systemClock.nowMs() - started
+        save()
+      }
+    })()
+    pendingEmbeddings.add(request)
+    void request.then(() => pendingEmbeddings.delete(request), () => pendingEmbeddings.delete(request))
+    return request
   } }
   try {
     assert.equal(raw.provider, 'voyage', 'VOYAGE_CONNECTION_REQUIRED')
@@ -132,7 +149,7 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
       const trace = await engine.runtime.retrieveEvaluationTrace(query, 'quality', scope)
       const runtimeFailure = retrievalRuntimeFailure(engine.runtime.databaseStatus.value === 'ready', engine.runtime.embeddingError.value)
       if (runtimeFailure) {
-        report.runtimeFailure = { ...runtimeFailure, elapsedMs: systemClock.nowMs() - started }
+        report.runtimeFailure = { ...runtimeFailure, elapsedMs: systemClock.nowMs() - started, pendingSampleSnapshot: structuredClone(samples.filter(sample => !sample.ok)) }
         failure ??= runtimeFailure.code
         save(); throw new Error(failure)
       }
@@ -152,6 +169,20 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
     if (!report.ok) report.error = 'FROZEN_QUALITY_THRESHOLD_NOT_MET'
     writeFileSync(join(input.root, 'metrics.md'), formatProductionMemoryEvaluationReport(report.result))
   } catch (cause) { report.error = failure ?? 'RETRIEVAL_FIXTURE_OR_STORAGE_FAILED'; if (input.selfTest) report.diagnostic = cause instanceof Error ? cause.message : 'UNKNOWN_OFFLINE_FAILURE' }
-  finally { for (const engine of engines.reverse()) await engine.dispose(); ledger.close(); save() }
+  finally {
+    // A runtime cutoff must not erase transport completion evidence. No next
+    // query is admitted, and a late vector never changes the failed verdict.
+    report.embeddingDrain.pendingAtFailure = pendingEmbeddings.size; save()
+    if (pendingEmbeddings.size) {
+      let cancel: (() => void) | undefined
+      await Promise.race([Promise.allSettled([...pendingEmbeddings]), new Promise<void>(resolve => { cancel = systemClock.after(31_000, resolve) })])
+      cancel?.()
+    }
+    report.embeddingDrain.pendingAtClose = pendingEmbeddings.size
+    report.embeddingDrain.settledWithoutRetry = pendingEmbeddings.size === 0
+    for (const observer of transportObservers.values()) observer.close()
+    for (const engine of engines.reverse()) await engine.dispose()
+    ledger.close(); save()
+  }
   return report
 }
