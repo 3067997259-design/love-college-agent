@@ -8,16 +8,18 @@ import { createStoryHarness } from './memory-story-harness'
 import { executeStory, storyIds, storyOracle } from './memory-story-cases'
 import plan from '../memory-stories-plan.json'
 
-export async function runMemoryStoriesQuality(input: { root: string; repo: string; runtime: string; bridge: string; selfTest: boolean; authorized?: string; embeddingConfig?: string }) {
-  const order = plan.storyOrder
-  assert.deepEqual([...order].sort(), [...storyIds].sort(), 'STORY_ORDER_MUST_INCLUDE_EACH_FROZEN_CASE_ONCE')
+export async function runMemoryStoriesQuality(input: { root: string; repo: string; runtime: string; bridge: string; selfTest: boolean; authorized?: string; embeddingConfig?: string; workInterruptionOnly?: boolean }) {
+  assert.deepEqual([...plan.storyOrder].sort(), [...storyIds].sort(), 'STORY_ORDER_MUST_INCLUDE_EACH_FROZEN_CASE_ONCE')
+  assert.deepEqual(plan.workInterruptionRetest.storyOrder, ['S16', 'S20'], 'INTERRUPTION_SCOPE_CHANGED')
+  const scope = input.workInterruptionOnly ? plan.workInterruptionRetest : plan
+  const order = scope.storyOrder
   const report = { ok: false, selfTest: input.selfTest, qualityPassed: null as boolean | null, coverage: plan.coverage, storageHost: 'packaged-production-utility',
-    storyOrder: order,
+    coverageScope: input.workInterruptionOnly ? 'work-interruption-only' : 'all-24-stories', fullSuitePassed: false, storyOrder: order,
     status: 'setup', currentStory: null as string | null, error: null as string | null, completed: [] as string[],
     reviews: [] as Record<string, unknown>[], upstreamRequests: 0, counts: {} }
   const save = () => writeFileSync(join(input.root, 'report.json'), JSON.stringify(report, null, 2))
   save()
-  const io = await createStoryQualityIO(input)
+  const io = await createStoryQualityIO({ ...input, limits: scope.limits })
   const reviewDir = join(input.root, 'reviews'); mkdirSync(reviewDir)
   let harness: Awaited<ReturnType<typeof createStoryHarness>> | undefined
   try {
@@ -49,8 +51,9 @@ export async function runMemoryStoriesQuality(input: { root: string; repo: strin
       }
       report.completed.push(id); report.status = 'story-completed'; save()
     }
-    assert.equal(report.completed.length, 24)
-    report.qualityPassed = input.selfTest ? null : report.reviews.length === 24 && report.reviews.every(item => item.verdict === 'pass')
+    assert.deepEqual(report.completed, order)
+    report.qualityPassed = input.selfTest ? null : report.reviews.length === order.length && report.reviews.every(item => item.verdict === 'pass')
+    report.fullSuitePassed = !input.workInterruptionOnly && report.qualityPassed === true
     report.ok = input.selfTest || report.qualityPassed === true; report.status = 'complete'
   } catch (error) {
     report.status = 'failed'

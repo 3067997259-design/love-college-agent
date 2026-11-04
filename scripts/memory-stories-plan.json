@@ -4,6 +4,17 @@
     "productionCommit":  "2c754566ad79e8121567b7e0f10aeff1f622c485",
     "asarSha256":  "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef",
     "storyOrder": ["S16", "S20", "S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10", "S11", "S12", "S13", "S14", "S15", "S17", "S18", "S19", "S21", "S22", "S23", "S24"],
+    "workInterruptionRetest": {
+        "batch": "candidate11-work-interruption-S16-S20",
+        "storyOrder": ["S16", "S20"],
+        "limits": {
+            "maximumModelRequests": 8,
+            "maximumEmbeddingRequests": 16,
+            "maximumEmbeddingInputCharacters": 8000,
+            "maximumReservedUnits": 262144,
+            "maximumAutonomousUnits": 65536
+        }
+    },
     "expectedEmbeddingModel":  "voyage-4-large",
     "limits":  {
                    "maximumModelRequests":  96,

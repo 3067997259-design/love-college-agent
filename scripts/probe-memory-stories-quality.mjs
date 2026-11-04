@@ -11,7 +11,10 @@ import { runtimeEnv } from './runtime-env.mjs'
 const repo = resolve(import.meta.dirname, '..')
 const read = async file => JSON.parse(await readFile(file, 'utf8'))
 const sha = async file => createHash('sha256').update(await readFile(file)).digest('hex')
-const plan = await read(join(repo, 'scripts/memory-stories-plan.json'))
+const basePlan = await read(join(repo, 'scripts/memory-stories-plan.json'))
+const workInterruptionOnly = process.argv.includes('--work-interruption')
+const plan = { ...basePlan, ...(workInterruptionOnly ? basePlan.workInterruptionRetest : {}) }
+const coverageScope = workInterruptionOnly ? 'work-interruption-only' : 'all-24-stories'
 const names = [
   'scripts/probe-memory-stories-quality.mjs', 'scripts/memory-stories-plan.json',
   'scripts/fixtures/memory-stories-quality.ts', 'scripts/fixtures/continuity-live-budget.ts',
@@ -31,7 +34,11 @@ if (prepare >= 0) {
   const closed = await read(join(root, 'closed.json'))
   assert.ok(report.ok && report.selfTest && report.qualityPassed === null && report.upstreamRequests === 0 && closed.ok && !closed.reuseAllowed, 'PREFLIGHT_NOT_PASSED')
   assert.deepEqual(receipt.sources, sources, 'PROBE_SOURCE_CHANGED')
-  const grant = { authorized: false, authorizationId: null, batch: plan.batch, ...plan.limits,
+  assert.equal(receipt.batch, plan.batch, 'PREFLIGHT_SCOPE_CHANGED')
+  assert.equal(report.coverageScope, coverageScope, 'PREFLIGHT_SCOPE_CHANGED')
+  assert.deepEqual(report.completed, plan.storyOrder, 'PREFLIGHT_SCOPE_CHANGED')
+  assert.deepEqual(receipt.limits, plan.limits, 'PREFLIGHT_LIMITS_CHANGED')
+  const grant = { authorized: false, authorizationId: null, batch: plan.batch, coverageScope, storyOrder: plan.storyOrder, ...plan.limits,
     expectedEmbeddingModel: plan.expectedEmbeddingModel, asarSha256: receipt.asarSha256, sources, bundleSha256: receipt.bundleSha256,
     preflight: { root, reportSha256: await sha(join(root, 'report.json')) }, firstFailureStops: true, failurePolicy: plan.failurePolicy,
     unitDefinition: 'Admission estimates, not money; autonomous is included in total.' }
@@ -50,6 +57,8 @@ if (prepare >= 0) {
     grant = await read(process.env.LCA_CONTINUITY_AUTH_FILE)
     assert.ok(grant.authorized === true && grant.authorizationId && grant.firstFailureStops === true, 'BATCH_AUTHORIZATION_REQUIRED')
     for (const name of ['batch', 'expectedEmbeddingModel', 'failurePolicy']) assert.equal(grant[name], plan[name], 'AUTHORIZATION_SCOPE_CHANGED')
+    assert.equal(grant.coverageScope, coverageScope, 'AUTHORIZATION_SCOPE_CHANGED')
+    assert.deepEqual(grant.storyOrder, plan.storyOrder, 'AUTHORIZATION_SCOPE_CHANGED')
     for (const [field, limit] of Object.entries(plan.limits)) assert.equal(grant[field], limit, 'LIMIT_CHANGED:' + field)
     assert.equal(grant.asarSha256, asarSha256, 'AUTHORIZED_PACKAGE_CHANGED')
     assert.deepEqual(grant.sources, sources, 'AUTHORIZED_SOURCE_CHANGED')
@@ -69,7 +78,7 @@ if (prepare >= 0) {
     const bundleSha256 = await sha(compiled)
     if (grant) assert.equal(bundleSha256, grant.bundleSha256, 'AUTHORIZED_BUNDLE_CHANGED')
     await mkdir(join(root, 'bundle')); await writeFile(join(root, 'bundle', 'probe.cjs'), await readFile(compiled), { flag: 'wx' })
-    await writeFile(join(root, 'run.json'), JSON.stringify({ selfTest, batch: plan.batch, limits: plan.limits, asarSha256, sources, bundleSha256,
+    await writeFile(join(root, 'run.json'), JSON.stringify({ selfTest, batch: plan.batch, coverageScope, storyOrder: plan.storyOrder, limits: plan.limits, asarSha256, sources, bundleSha256,
       productionCommit: plan.productionCommit, credentialReader: 'isolated Electron main only' }, null, 2), { flag: 'wx' })
     await mkdir(join(root, 'source'))
     for (const name of names) await writeFile(join(root, 'source', name.replaceAll('/', '__')), await readFile(join(repo, name)), { flag: 'wx' })
@@ -81,10 +90,10 @@ if (prepare >= 0) {
     timer = setTimeout(() => { void instance?.close().catch(() => {}) }, 4 * 60 * 60_000)
     stage = 'story-evaluation'
     const report = await instance.evaluate(async (_, input) => process.mainModule.require(input.compiled).runMemoryStoriesQuality(input),
-      { compiled, root, repo, selfTest, runtime: join(dirname(executable), 'resources/dsh-runtime'), bridge: join(dirname(executable), 'resources/lca-bridge'),
+      { compiled, root, repo, selfTest, workInterruptionOnly, runtime: join(dirname(executable), 'resources/dsh-runtime'), bridge: join(dirname(executable), 'resources/lca-bridge'),
         authorized: selfTest ? undefined : resolve(process.env.LCA_PROVIDERS_FILE), embeddingConfig: selfTest ? undefined : resolve(process.env.LCA_MEMORY_CONNECTION_FILE) })
     ok = report.ok
-    console.log(JSON.stringify({ root, ok, selfTest, qualityPassed: report.qualityPassed, completed: report.completed,
+    console.log(JSON.stringify({ root, ok, selfTest, coverageScope, qualityPassed: report.qualityPassed, fullSuitePassed: report.fullSuitePassed, completed: report.completed,
       upstreamRequests: report.upstreamRequests, counts: report.counts, error: report.error }))
   } catch (error) {
     await writeFile(join(root, 'runner-failure.json'), JSON.stringify({ error: 'STORY_QUALITY_PROBE_FAILED', stage, originalReportPreserved: true,

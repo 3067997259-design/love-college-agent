@@ -16,7 +16,7 @@ import { scriptedResponse, requestObjects, type ProbeRequest } from './continuit
 import plan from '../memory-stories-plan.json'
 
 type Reply = { text?: string; tool?: string; args?: unknown }
-export async function createStoryQualityIO(input: { root: string; selfTest: boolean; authorized?: string; embeddingConfig?: string }) {
+export async function createStoryQualityIO(input: { root: string; selfTest: boolean; authorized?: string; embeddingConfig?: string; limits: typeof plan.limits }) {
   assert.ok(process.versions.electron, 'ELECTRON_MAIN_REQUIRED')
   const config: ProviderConfig = input.selfTest
     ? { base_url: 'http://127.0.0.1', api_key: 'synthetic-only', model: 'quality-chat', capabilities: { contextWindow: 131072, maxOutputTokens: 8192 } }
@@ -28,8 +28,8 @@ export async function createStoryQualityIO(input: { root: string; selfTest: bool
   assert.equal(embeddingConfig?.model, plan.expectedEmbeddingModel, 'EMBEDDING_MODEL_CHANGED')
   const ledger = createResourceBudget({ root: join(input.root, 'budget'), clock: systemClock, configurable: true })
   assert.equal(ledger.dispatch({ protocolVersion: 1, epoch: 'quality-stories', requestId: 'limits', type: 'resources.configure',
-    dailyTotalUnits: plan.limits.maximumReservedUnits, dailyAutonomousUnits: plan.limits.maximumAutonomousUnits }), undefined)
-  const budget = createContinuityProbeBudget(plan.limits, (units, bucket) => { ledger.reserveModel(units, bucket) })
+    dailyTotalUnits: input.limits.maximumReservedUnits, dailyAutonomousUnits: input.limits.maximumAutonomousUnits }), undefined)
+  const budget = createContinuityProbeBudget(input.limits, (units, bucket) => { ledger.reserveModel(units, bucket) })
   let story = '', evaluating = false, halted = false, upstreamRequests = 0
   let script: (body: ProbeRequest) => Reply = () => ({ text: '已收到。' })
   const tickets: string[] = [], samples: Record<string, unknown>[] = [], references: Record<string, unknown>[] = []
