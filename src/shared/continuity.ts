@@ -30,6 +30,23 @@ export interface WorkIdentity {
 export type WorkStatus = 'queued' | 'running' | 'waiting' | 'paused' | 'stopping' | 'stopped' | 'review_required' | 'completed' | 'failed'
 export interface WorkTarget { identity: WorkIdentity; expectedRevision: number }
 
+/** Persisted before disposing a live root. Interruption does not prove that any
+ * external action was issued, completed, cancelled or rolled back. */
+export interface WorkInterruption {
+  generation: number
+  objectiveRevision: number
+  atMs: number
+  reason: 'stopped' | 'paused' | 'restarted' | 'disconnected' | 'failed'
+}
+
+/** Completion evidence and interruption history have separate meanings. A new
+ * generation or successful local checkpoint cannot settle earlier external effects. */
+export interface WorkResultState {
+  completion: 'unverified' | 'partial' | 'completed'
+  interruption: WorkInterruption | null
+  unconfirmedCommands: number
+}
+
 /** Safe book projection. Raw worker transcripts, third-party goals and paths stay in main. */
 export interface ContinuousWorkView {
   identity: WorkIdentity
@@ -41,6 +58,7 @@ export interface ContinuousWorkView {
   delivery?: { eventId: string; state: 'pending' | 'accepted' | 'consumed' | 'unknown' }
   /** Counts of current-version executor observations, never a model percentage. */
   progress?: { observedActions: number; changedFiles: number; completedCommands: number; failedActions: number; lastObservedAt: number | null }
+  result?: WorkResultState
   updatedAt: number
   controls: { supplement: boolean; pause: boolean; stop: boolean; resume: boolean }
 }
