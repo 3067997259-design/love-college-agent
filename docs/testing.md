@@ -26,6 +26,8 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 `--remaining-stories` 则只执行其余 22 条，与 `--work-interruption` 互斥；三个范围各自绑定预检与授权。用于同一候选分批验收时，必须另行核对各批证据的版本、判定条件与覆盖并集，不能把子集的 `qualityPassed` 当作完整 24 条通过。当前推进范围及原检索超时的诊断边界见[质量验收目标](research/continuity-quality-goal-20261104.md)。
 
+`node scripts/audit-memory-quality.mjs <输入清单.json> <新报告.json>` 是上述质量测试的离线汇总核验入口。清单指定 `retrievalRoot` 和 `storyRoots`，只读取测试报告、原始逐例结果、评审回执及源码快照；核对同一候选、真实请求、90 条重算评分及全部 24 条覆盖。缺项或证据不一致时报告 `ok: false` 并非零退出，不读取连接配置或发请求。
+
 自动验收现包含六个普通产品世界引用场景和生活作品入口；`test:continuity:world` 可在构建后单独执行。`test:continuity:postgres` 只对本次新建的独立 Docker pgvector 容器测试，缺环境时报告 unavailable；成功退出不意味着 PostgreSQL 已通过，需检查其 status。`test:continuity:prepare-live <本次报告目录>` 仅生成待授权的真实服务清单和额度建议，不调用模型。完整范围、失败记录及证据边界见[自动验收记录](research/continuity-automatic-acceptance-20261101.md)。
 
 `node scripts/continuity-postgres-gate.mjs --product` 复用同一隔离数据库入口，另跑正常设置页的镜像开启、断库更正、待同步队列重启、重试幂等、带待同步删除的非空存档、恢复后新镜像代次和再次重启共七组检查。使用预置的已审阅长期记忆和本地合成向量，不调用真实模型或 embedding，也不评估长期记忆晋升质量。构建后可直接测源码；设置 `LCA_TEST_EXECUTABLE` 可测指定包，报告记录 asar 哈希。`LCA_TEST_PGVECTOR_IMAGE` 指定已经存在的本地镜像；`LCA_TEST_DATA_ROOT` 为每次新 profile 提供短路径根，报告留在 `LCA_CONTINUITY_RUN_DIR`。Windows 上不要把 SQLite profile 嵌套到较长的报告路径中；测试退出后只停止本次容器，保留数据与失败证据。

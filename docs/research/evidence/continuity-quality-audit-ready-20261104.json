@@ -1,0 +1,227 @@
+{
+  "status": "audit-rejects-incomplete-and-synthetic-evidence",
+  "tool": {
+    "path": "scripts/audit-memory-quality.mjs",
+    "sha256": "0d552c1c71f3c1230d198026f62c9412e85d7af733996c2492875af9ec96b022"
+  },
+  "lint": {
+    "path": "test-results/continuity/candidate11-quality-audit-lint-20261104.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ok": true
+  },
+  "current": {
+    "path": "test-results/continuity/candidate11-quality-audit-current-result-20261104.json",
+    "sha256": "df126ad39a4c3b070ba58f96dfa40af4159cbea269562002bb42cbe4335e64e3",
+    "report": {
+      "ok": false,
+      "productionCommit": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+      "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef",
+      "scope": "90-real-retrieval-and-24-real-stories-across-bounded-windows",
+      "serviceCallsByAudit": 0,
+      "retrieval": null,
+      "storyRuns": [
+        {
+          "root": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1",
+          "originalWindowPassed": true,
+          "completed": [
+            "S16",
+            "S20"
+          ],
+          "receipts": [
+            {
+              "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\run.json",
+              "sha256": "c4b4b43a82c3a192f6ce589bf6f46b96535800380071dba1e80aadba8d8890ae"
+            },
+            {
+              "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\report.json",
+              "sha256": "58148f52b52c02ff2002a627ebb17cdf98efeccbe63f9fb35c7a9c01ecc7f913"
+            },
+            {
+              "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\closed.json",
+              "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a"
+            },
+            {
+              "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\authorization.json",
+              "sha256": "fa2ef38de4e2ced5ea01e06021a6d0cbaf2b32a54ebd0e3211e69e87d5616008"
+            }
+          ],
+          "reviewed": [
+            {
+              "id": "S16",
+              "result": {
+                "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\S16.json",
+                "sha256": "ca99cd584c81fe1bf731c9b7763a4236cc9f71c12e0a3ac5cbe0dac1abf0cdfb"
+              },
+              "review": {
+                "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\reviews\\S16.json",
+                "sha256": "99ca565ce71b8bb8f0650159b52bbfc954aa054878b1e5725bc80441e434b2b5"
+              }
+            },
+            {
+              "id": "S20",
+              "result": {
+                "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\S20.json",
+                "sha256": "3c3ecb3cfe7e07eab9e6cf22ec4377a4e327aa66e96ce685ce6d0fd5c9624ade"
+              },
+              "review": {
+                "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\reviews\\S20.json",
+                "sha256": "8531d49d192b915f1ea06714429644ad1c73b54af435968b9781cedcba9d2ff3"
+              }
+            }
+          ]
+        }
+      ],
+      "verifiedStories": [
+        "S16",
+        "S20"
+      ],
+      "missingStories": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S12",
+        "S13",
+        "S14",
+        "S15",
+        "S17",
+        "S18",
+        "S19",
+        "S21",
+        "S22",
+        "S23",
+        "S24"
+      ],
+      "errors": [
+        {
+          "kind": "retrieval",
+          "root": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-2",
+          "code": "AUDIT_EVIDENCE_MISSING_OR_INCONSISTENT"
+        }
+      ]
+    }
+  },
+  "preflight": {
+    "path": "test-results/continuity/candidate11-quality-audit-preflight-final-20261104.json",
+    "sha256": "8fc5dc9f5f38216304ac9cdbfb3fa9b44aaffbe1670554c8cc64171a647db2dd",
+    "report": {
+      "ok": false,
+      "productionCommit": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+      "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef",
+      "scope": "90-real-retrieval-and-24-real-stories-across-bounded-windows",
+      "serviceCallsByAudit": 0,
+      "retrieval": null,
+      "storyRuns": [
+        {
+          "root": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1",
+          "originalWindowPassed": true,
+          "completed": [
+            "S16",
+            "S20"
+          ],
+          "receipts": [
+            {
+              "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\run.json",
+              "sha256": "c4b4b43a82c3a192f6ce589bf6f46b96535800380071dba1e80aadba8d8890ae"
+            },
+            {
+              "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\report.json",
+              "sha256": "58148f52b52c02ff2002a627ebb17cdf98efeccbe63f9fb35c7a9c01ecc7f913"
+            },
+            {
+              "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\closed.json",
+              "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a"
+            },
+            {
+              "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\authorization.json",
+              "sha256": "fa2ef38de4e2ced5ea01e06021a6d0cbaf2b32a54ebd0e3211e69e87d5616008"
+            }
+          ],
+          "reviewed": [
+            {
+              "id": "S16",
+              "result": {
+                "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\S16.json",
+                "sha256": "ca99cd584c81fe1bf731c9b7763a4236cc9f71c12e0a3ac5cbe0dac1abf0cdfb"
+              },
+              "review": {
+                "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\reviews\\S16.json",
+                "sha256": "99ca565ce71b8bb8f0650159b52bbfc954aa054878b1e5725bc80441e434b2b5"
+              }
+            },
+            {
+              "id": "S20",
+              "result": {
+                "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\S20.json",
+                "sha256": "3c3ecb3cfe7e07eab9e6cf22ec4377a4e327aa66e96ce685ce6d0fd5c9624ade"
+              },
+              "review": {
+                "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\reviews\\S20.json",
+                "sha256": "8531d49d192b915f1ea06714429644ad1c73b54af435968b9781cedcba9d2ff3"
+              }
+            }
+          ]
+        }
+      ],
+      "verifiedStories": [
+        "S16",
+        "S20"
+      ],
+      "missingStories": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S12",
+        "S13",
+        "S14",
+        "S15",
+        "S17",
+        "S18",
+        "S19",
+        "S21",
+        "S22",
+        "S23",
+        "S24"
+      ],
+      "errors": [
+        {
+          "kind": "retrieval",
+          "root": "C:/.lca-cache/continuity11-tests/retrieval-preflight-20261104-2",
+          "code": "REAL_SERVICE_EVIDENCE_REQUIRED"
+        },
+        {
+          "kind": "stories",
+          "root": "C:/.lca-cache/continuity11-tests/remaining-preflight-20261104-1",
+          "code": "REAL_SERVICE_EVIDENCE_REQUIRED"
+        }
+      ]
+    }
+  },
+  "verification": {
+    "knownRealAccepted": [
+      "S16",
+      "S20"
+    ],
+    "missingCoverageRejected": true,
+    "selfTestRejected": true,
+    "fullyPassingSuiteAvailable": false
+  },
+  "noLiveCalls": true,
+  "goalComplete": false,
+  "authorizationState": "two-fresh-window-replies-still-pending"
+}
