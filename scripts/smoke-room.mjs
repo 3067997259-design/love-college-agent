@@ -23,8 +23,9 @@ try {
   await send({ type: 'message.send', text: '我把纸桥放在书桌上，给它取名叫周五桥。' }); await waitFor((s) => s.task?.status === 'completed', 'ROOM_CONTEXT_FAILED')
   await debug('set_clock', { nowMs: Date.parse('2026-10-17T12:00:00+08:00') }); await waitFor((s) => s.session.dayKey === '2026-10-17', 'DIARY_ROLLOVER_FAILED'); await send({ type: 'diary.write' }); await waitFor((s) => s.diary.entries.length > 0, 'DIARY_WRITE_FAILED')
   const id = (await snapshot()).diary.entries[0].id
-  assert.equal(await page.evaluate(async (id) => { try { await window.lca.readDiary(id); return false } catch { return true } }, id), true)
-  await debug('set_clock', { nowMs: Date.parse('2026-10-18T12:00:00+08:00') }); const entry = await page.evaluate((id) => window.lca.readDiary(id), id)
+  // A written diary opens at once; the next day it still has the same key and text.
+  const entry = await page.evaluate((id) => window.lca.readDiary(id), id)
+  await debug('set_clock', { nowMs: Date.parse('2026-10-18T12:00:00+08:00') }); assert.deepEqual(await page.evaluate((id) => window.lca.readDiary(id), id), entry)
   assert.ok(entry.subjective); assert.ok(entry.key); assert.ok(entry.text); assert.ok(!JSON.stringify(await snapshot()).includes(entry.key)); assert.ok(!JSON.stringify(await debug('get_context')).includes(entry.text))
   await openSettings(page); await page.getByRole('button', { name: '用户查阅日记', exact: true }).first().click(); await page.getByRole('article', { name: '用户独占日记' }).waitFor()
   await send({ type: 'room.rebuild' }); const rooms = join(data, 'developer', sceneId, 'rooms'); const room = join(rooms, (await readdir(rooms))[0]); const encrypted = await readFile(join(room, '日记', '2026-10-16.zip')); assert.ok(!encrypted.includes(Buffer.from(entry.text)))
@@ -40,5 +41,5 @@ try {
   await client.close(); client = undefined; const closed = instance.waitForEvent('close'); await send({ type: 'backup.restore', restoreId }); await closed; await launch(); await debug('set_clock', { nowMs: Date.parse('2026-10-18T12:00:00+08:00'), frozen: true })
   const restored = await page.evaluate((id) => window.lca.readDiary(id), id); assert.deepEqual(restored, entry)
   const restoredRooms = join(data, 'developer', sceneId, 'rooms'); const restoredRoom = join(restoredRooms, (await readdir(restoredRooms))[0]); assert.deepEqual(await readFile(join(restoredRoom, '日记', '2026-10-16.zip')), encrypted)
-  console.log('Room Electron: seen-only fake diary, locked then user-only key/read, metadata-only snapshots/debug, actual encrypted ZIP projection, native private export/import and unchanged key/ciphertext regeneration verified.')
+  console.log('Room Electron: seen-only fake diary readable at once with a user-only key/read, metadata-only snapshots/debug, actual encrypted ZIP projection, native private export/import and unchanged key/ciphertext regeneration verified.')
 } finally { await client?.close(); await instance?.close() }

@@ -25,9 +25,10 @@ import { parseMemoryTurnExtractions } from '../memory/airi/core'
 import { generateMemoryReconciliation } from '../memory/airi/repository/reconciliation'
 import { MEMORY_CAPTURE_PROMPT } from '../memory/airi/prompt'
 
-// AIRI extraction/reconciliation can keep streaming past thirty seconds. Match
-// the model client's total bound; its idle timeout and caller cancellation remain.
-const MEMORY_JSON_TIMEOUT_MS = 120_000
+// AIRI extraction/reconciliation and diary prose can keep streaming past thirty
+// seconds. Match the model client's total bound; its idle timeout and caller
+// cancellation remain.
+const STREAMING_JSON_TIMEOUT_MS = 120_000
 
 /** Machine JSON tasks only. Persona, diary and dream wording remain on the voice line. */
 export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, clock: Clock, store: SessionStore, fetcher?: Parameters<typeof createModelClient>[3], budget?: ResourceAdmissions, followMain = false) {
@@ -60,14 +61,14 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
   const memory: MemoryModel | null = providers.has('background') ? { source: 'real',
     airi: {
       extract: async (input, signal) => {
-        const output = await json('background', MEMORY_CAPTURE_PROMPT, { userText: input.userText, assistantText: input.assistantText, mood: input.mood }, signal ?? new AbortController().signal, 4096, true, false, 'autonomous', MEMORY_JSON_TIMEOUT_MS)
+        const output = await json('background', MEMORY_CAPTURE_PROMPT, { userText: input.userText, assistantText: input.assistantText, mood: input.mood }, signal ?? new AbortController().signal, 4096, true, false, 'autonomous', STREAMING_JSON_TIMEOUT_MS)
         if (!Array.isArray(output) || output.length > 20) throw new MemoryFailure('memory-invalid-output')
         const extracted = parseMemoryTurnExtractions(output, { sessionId: input.sessionId })
         if (extracted.length !== output.length) throw new MemoryFailure('memory-invalid-output')
         return extracted
       },
       reconcile: (input, signal) => generateMemoryReconciliation(input, async (messages, settings) => {
-        const output = await json('background', messages[0].content, JSON.parse(messages[1].content), settings.abortSignal, 4096, true, false, 'autonomous', MEMORY_JSON_TIMEOUT_MS)
+        const output = await json('background', messages[0].content, JSON.parse(messages[1].content), settings.abortSignal, 4096, true, false, 'autonomous', STREAMING_JSON_TIMEOUT_MS)
         settings.onStreamEvent({ type: 'text-delta', text: JSON.stringify(output) })
       }, signal),
     },
@@ -79,7 +80,7 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
   const document: DocumentPrivacyModel | null = providers.has('privacy') ? { source: 'real', ready: true, organize: (input, signal) => json('privacy', prompts.document, input, signal, 8192, false, false, 'work', 90_000) } : null
   const mainDocument: DocumentPrivacyModel | null = providers.has('chat') ? { source: 'real', ready: true, isolated: false, organize: (input, signal) => json('chat', prompts.document, input, signal, 8192, false, true, 'work', 90_000) } : null
   const narrow: PrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (text, signal) => json('privacy', prompts.narrowPrivacy, { text }, signal ?? new AbortController().signal, 512) } : null
-  const diary: DiaryModel | null = providers.has('background') ? { source: 'real', write: (input, signal) => { const card = (store.history?.() ?? store.records()).findLast((row) => row.type === 'character/definition'); return json('background', diaryPrompts.system, { character: { name: store.projection().onboarding.characterName, persona: card?.type === 'character/definition' ? card.definition.persona : BUILTIN_CARD.persona }, fragments: input }, signal, 1600, true) } } : null
+  const diary: DiaryModel | null = providers.has('background') ? { source: 'real', write: (input, signal) => { const card = (store.history?.() ?? store.records()).findLast((row) => row.type === 'character/definition'); return json('background', diaryPrompts.system, { character: { name: store.projection().onboarding.characterName, persona: card?.type === 'character/definition' ? card.definition.persona : BUILTIN_CARD.persona }, fragments: input }, signal, 1600, true, false, 'autonomous', STREAMING_JSON_TIMEOUT_MS) } } : null
   const lifeWork: LifeWorkModel | null = providers.has('background') ? { source: 'real', produce: async (input, signal) => workOutput.parse(await json('background', workProtocol.system, workModelInput.parse(input), signal, 4096)) } : null
   return { memory, mail, document, mainDocument, narrow, diary, lifeWork }
 }
