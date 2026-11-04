@@ -7,6 +7,7 @@ import { openJournal } from '../../src/main/journal/file'
 import { projectJournal } from '../../src/main/journal/projection'
 import { createScheduler } from '../../src/main/scheduler'
 import { createLife } from '../../src/main/life/service'
+import { idleTimer } from '../../src/main/pomodoro/schema'
 import type { SessionStore } from '../../src/main/store/session'
 import type { AppCommand } from '../../src/shared'
 const cleanups: (() => void)[] = []
@@ -51,6 +52,9 @@ it('expires yesterday proposals before today scheduling and rejects stale confir
   f.clock.advanceBy(f.clock.parse('2026-10-18T15:00:00+08:00') - f.clock.nowMs())
   f.store.append({ type: 'user/message', id: 'present', text: '在这里', requestId: 'present', commandHash: 'x' }); f.life.reconcile()
   expect(f.life.view().outings.find((outing) => outing.id === oldId)?.status).toBe('cancelled')
+  // You are here, so she does not head out by herself; today's outing is your proposal.
+  expect(f.life.view().outings.filter((outing) => outing.status !== 'cancelled')).toHaveLength(0)
+  expect(f.dispatch({ type: 'life.propose', place: 'swing' })).toBeUndefined()
   const today = f.life.view().outings.find((outing) => outing.status === 'proposed')!
   expect(f.dispatch({ type: 'life.depart', outingId: today.id })).toBeUndefined()
   expect(f.dispatch({ type: 'life.depart', outingId: oldId })).toBe('unavailable')
@@ -94,11 +98,42 @@ it('enumerates across midnight and only settles fully covered outings within 72 
   const midnight = createLife(f.options); f.scheduler.cancel('life.settle'); expect(midnight.view().outings).toHaveLength(0)
   f.clock.advanceBy(f.clock.parse('2026-10-20T16:00:00+08:00') - f.clock.nowMs())
   const restarted = createLife(f.options); f.scheduler.cancel('life.settle')
-  expect(restarted.view().outings.filter((outing) => outing.offline)).toMatchObject([{ startsAtMs: f.clock.parse('2026-10-18T15:00:00+08:00') }])
-  expect(restarted.view().outings).toHaveLength(1); expect(restarted.view().items).toHaveLength(1)
+  // Weekdays count too: the Sunday, Monday and Tuesday afternoons were all fully covered while closed.
+  const afternoons = ['2026-10-18', '2026-10-19', '2026-10-20'].map((day) => f.clock.parse(day + 'T15:00:00+08:00'))
+  expect(restarted.view().outings.filter((outing) => outing.offline).map((outing) => outing.startsAtMs)).toEqual(afternoons)
+  expect(restarted.view().outings).toHaveLength(3); expect(restarted.view().items).toHaveLength(3)
   // With an older saved watermark the window starts Saturday 16:00: Saturday's 15:00 trip is outside it.
   const older = fixture(); older.life.close(); older.clock.advanceBy(3 * 86400000 + 6 * 3600000)
   const bounded = createLife(older.options); older.scheduler.cancel('life.settle')
-  expect(bounded.view().outings.filter((outing) => outing.offline)).toHaveLength(1)
+  expect(bounded.view().outings.filter((outing) => outing.offline)).toHaveLength(3)
   expect(bounded.view().outings[0].startsAtMs).toBe(older.clock.parse('2026-10-18T15:00:00+08:00'))
+})
+
+const walkState = (f: ReturnType<typeof fixture>) => f.life.view().agenda.find((item) => item.kind === 'walk')?.state
+it('walks on a weekday afternoon once you have been away a while, waiting out busy moments', () => {
+  const f = fixture(); f.clock.advanceBy(f.clock.parse('2026-10-19T13:00:00+08:00') - f.clock.nowMs())
+  f.store.append({ type: 'user/message', id: 'class', text: '我去上课了', requestId: 'class', commandHash: 'x' }); f.life.reconcile()
+  // Monday 14:00: the window opens while she is busy. A busy minute no longer cancels the day.
+  f.clock.advanceBy(60 * 60000); f.busy(true); f.life.reconcile()
+  expect(walkState(f)).toBe('planned'); expect(f.life.view().locationId).toBe('room')
+  f.clock.advanceBy(20 * 60000); f.busy(false); f.life.reconcile()
+  expect(walkState(f)).toBe('settled'); expect(f.life.view().locationId).not.toBe('room')
+  expect(f.life.view().outings).toMatchObject([{ status: 'away', offline: false, startsAtMs: f.clock.nowMs() }])
+  f.clock.advanceBy(60 * 60000); f.life.reconcile()
+  expect(f.life.view().locationId).toBe('room'); expect(f.life.view().items).toHaveLength(1); expect(f.emit).toHaveBeenCalledOnce()
+  f.clock.advanceBy(30 * 60000); f.life.reconcile(); expect(f.life.view().outings).toHaveLength(1)
+})
+it('stays in right after you talk, during a running pomodoro and on a marked work day, and lets the day pass after 18:00', () => {
+  const f = fixture(); f.clock.advanceBy(f.clock.parse('2026-10-19T14:30:00+08:00') - f.clock.nowMs())
+  f.store.append({ type: 'user/message', id: 'here', text: '在吗', requestId: 'here', commandHash: 'x' }); f.life.reconcile()
+  expect(walkState(f)).toBe('planned')
+  // A break is for talking with you, so a running pomodoro keeps her in even outside focus.
+  f.clock.advanceBy(20 * 60000)
+  f.store.append({ type: 'pomodoro/state', view: { ...idleTimer(), phase: 'short-break', status: 'running', remainingMs: 300000, endsAtMs: f.clock.nowMs() + 300000, plannedCount: 1, focusIndex: 1, phaseDurationMs: 300000 }, pauseReason: null, cause: 'elapsed' })
+  f.life.reconcile(); expect(walkState(f)).toBe('planned'); expect(f.life.view().locationId).toBe('room')
+  f.store.append({ type: 'pomodoro/state', view: idleTimer(), pauseReason: null, cause: 'elapsed' })
+  expect(f.dispatch({ type: 'life.schedule', schedule: 'work' })).toBeUndefined(); f.life.reconcile()
+  expect(walkState(f)).toBe('planned'); expect(f.life.view().outings).toHaveLength(0)
+  f.clock.advanceBy(f.clock.parse('2026-10-19T18:00:00+08:00') - f.clock.nowMs()); f.life.reconcile()
+  expect(walkState(f)).toBe('skipped'); expect(f.life.view().outings).toHaveLength(0)
 })

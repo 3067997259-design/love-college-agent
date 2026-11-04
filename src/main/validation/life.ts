@@ -30,8 +30,11 @@ function probeProposalBoundary(root: string) {
     clock.advanceBy(7 * 3600000); life.close(); scheduler.dispose(); store.close()
     clock.advanceBy(22 * 3600000); store = openSessionStore(root, owner, clock); scheduler = createScheduler(clock)
     store.append({ type: 'user/message', id: 'present', text: 'SYNTHETIC_PRESENT', requestId: 'present', commandHash: 'probe' }); life = open()
+    // You are present, so she does not head out by herself; today's outing is a fresh proposal of yours.
+    const expired = life.view().outings.find((outing) => outing.id === oldId)?.status === 'cancelled' && life.view().outings.every((outing) => outing.status === 'cancelled')
+    if (!expired || send({ type: 'life.propose' })) throw new Error('LIFE_PROPOSAL_EXPIRY_FAILED')
     const proposed = life.view().outings.find((outing) => outing.status === 'proposed')
-    if (life.view().outings.find((outing) => outing.id === oldId)?.status !== 'cancelled' || !proposed) throw new Error('LIFE_PROPOSAL_EXPIRY_FAILED')
+    if (!proposed) throw new Error('LIFE_PROPOSAL_EXPIRY_FAILED')
     if (send({ type: 'life.depart', outingId: proposed.id }) || send({ type: 'life.depart', outingId: oldId }) !== 'unavailable' || life.view().outings.filter((outing) => outing.status === 'away').length !== 1) throw new Error('LIFE_SINGLE_DEPARTURE_FAILED')
     life.foreground(); if (life.view().outings.some((outing) => outing.status === 'away') || life.view().locationId !== 'room' || life.view().items.length) throw new Error('LIFE_RETURN_CONSISTENCY_FAILED')
   } finally { life.close(); scheduler.dispose(); store.close() }
@@ -43,7 +46,7 @@ function probeArrivalDay(root: string) {
   const open = () => { const result = createLife({ store, clock, scheduler, working: () => false, changed: () => {}, emit: () => {} }); scheduler.cancel('life.settle'); return result }
   let life = open()
   try {
-    // Keep Saturday's online proposal: it expires independently of Sunday's offline trip.
+    // Opening at 17:00 counts as being present, so Saturday has no online walk; Sunday's trip is offline.
     life.close(); scheduler.dispose(); store.close(); clock.advanceBy(23 * 3600000)
     store = openSessionStore(root, owner, clock); scheduler = createScheduler(clock); life = open()
     const outing = life.view().outings.find((entry) => entry.offline)

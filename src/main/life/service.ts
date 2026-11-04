@@ -7,8 +7,10 @@ import { lifeSchema } from './schema'
 import { outingReference, worldFactsNote } from './reference'
 import type { LifeWorkService } from './work/service'
 const DAY = 86_400_000
+/** She takes her walk some time in this afternoon window, once you have been away a while. */
+const WALK_WINDOW = { start: '14:00', end: '18:00' } as const
+const WALK_IDLE_MS = 15 * 60000
 export const calendarDay = (clock: Clock, at = clock.nowMs()) => clock.iso(at + 8 * 3600000).slice(0, 10)
-export const isWeekend = (clock: Clock, day: string) => { const weekday = ((Math.floor(clock.parse(day + 'T12:00:00+08:00') / DAY) + 4) % 7 + 7) % 7; return weekday === 0 || weekday === 6 }
 export function createLife(options: { store: SessionStore; clock: Clock; scheduler: Scheduler; working(): boolean; changed(): void; emit(id: string, facts: string): void; restored?: boolean; work?: LifeWorkService }) {
   const { clock, store } = options; const rows = () => store.history?.() ?? store.records()
   const previous = rows().findLast((row) => row.type === 'life/state')
@@ -16,7 +18,8 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
   const pendingFacts = new Map<string, string>()
   const save = () => { state.outings = state.outings.slice(-500); state.items = state.items.slice(-500); state = lifeSchema.parse(state); store.append({ type: 'life/state', view: state }); options.changed(); for (const [id, facts] of pendingFacts) options.emit(id, facts); pendingFacts.clear() }
   const working = () => options.working() || store.projection().sleeping || store.projection().mode !== 'rest' || store.projection().pomodoro.phase === 'focus' || state.userSchedule === 'work'
-  const resting = (day: string) => state.dayKey === day && state.userSchedule !== 'auto' ? state.userSchedule === 'rest' : isWeekend(clock, day)
+  // Weekdays included. Only a day the user marked as a work day keeps her in.
+  const walkDay = (day: string) => !(state.dayKey === day && state.userSchedule === 'work')
   const makeOuting = (day: string, at: number, offline: boolean, place?: OutingPlace): OutingView => {
     const digest = createHash('sha256').update(JSON.stringify([store.scope.userId, store.scope.characterId, day])).digest('hex')
     const destination = place ?? (parseInt(digest.slice(0, 2), 16) % 2 ? 'coast' : 'swing')
@@ -43,6 +46,22 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
     }
     pendingFacts.set(outing.id + ':return', JSON.stringify({ fictionalOuting: outingReference(outing, state.items, clock), broughtItem: state.items.find((item) => item.outingId === outing.id)?.kind ?? null, worldFactsNote, actualWorkWhileOffline: false }))
   }
+  // Opening the app counts as being here: she does not walk out the moment you arrive.
+  const startedAtMs = clock.nowMs()
+  // The walk waits for a free afternoon moment instead of one fixed check, so a busy minute no
+  // longer cancels the day. She stays in while a pomodoro runs: breaks are for talking with you.
+  const walk = (item: (typeof state)['agenda'][number], today: string, now: number) => {
+    const todays = state.outings.filter((outing) => outing.status !== 'cancelled' && calendarDay(clock, outing.startsAtMs) === today)
+    if (todays.some((outing) => outing.status !== 'proposed')) { item.state = 'settled'; return true }
+    if (now >= clock.parse(today + 'T' + WALK_WINDOW.end + ':00+08:00')) { item.state = 'skipped'; return true }
+    // A proposal you are still deciding on stays yours to confirm.
+    if (todays.length || working() || store.projection().pomodoro.status === 'running') return false
+    const present = Math.max(startedAtMs, rows().findLast((row) => row.type === 'user/message')?.atMs ?? 0)
+    if (now - present < WALK_IDLE_MS) return false
+    const outing = makeOuting(today, now, false)
+    if (state.outings.some((old) => old.id === outing.id) || !depart(outing, now)) return false
+    state.outings.push(outing); item.state = 'settled'; return true
+  }
   const reconcile = (startup = false) => {
     const now = clock.nowMs(); const wasLightsOut = store.projection().lightsOut; let changed = expireProposals(now)
     const overlapping = state.outings.filter((outing) => outing.status === 'away')
@@ -57,7 +76,7 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
       // a late shutdown skips a completed trip on the earlier-hour arrival day.
       for (let dayAt = clock.parse(calendarDay(clock, from) + 'T00:00:00+08:00'); dayAt <= now; dayAt += DAY) {
         const day = calendarDay(clock, dayAt); const start = clock.parse(day + 'T15:00:00+08:00'); const planned = makeOuting(day, start, true)
-        if (!resting(day) || start < from || planned.returnsAtMs > now || state.outings.some((outing) => outing.id === planned.id)) continue
+        if (!walkDay(day) || start < from || planned.returnsAtMs > now || state.outings.some((outing) => outing.id === planned.id)) continue
         planned.status = 'away'; state.outings.push(planned); settle(planned, planned.returnsAtMs, false); changed = true
       }
     }
@@ -67,7 +86,7 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
     }
     const today = calendarDay(clock)
     if (today !== state.dayKey || !state.agenda.length) {
-      state.dayKey = today; state.userSchedule = 'auto'; state.agenda = ([['read', '09:00'], ['write', '11:00'], ['walk', '15:00']] as const).map(([kind, time]) => ({ kind, atMs: clock.parse(today + 'T' + time + ':00+08:00'), state: 'planned' })); changed = true
+      state.dayKey = today; state.userSchedule = 'auto'; state.agenda = ([['read', '09:00'], ['write', '11:00'], ['walk', WALK_WINDOW.start]] as const).map(([kind, time]) => ({ kind, atMs: clock.parse(today + 'T' + time + ':00+08:00'), state: 'planned' })); changed = true
     }
     for (const item of state.agenda) if (item.kind !== 'walk' && options.work?.completed(item.kind, today) && item.state !== 'settled') { item.state = 'settled'; changed = true }
     if (!wasLightsOut && !store.projection().sleeping && !options.working()) for (const item of state.agenda) {
@@ -78,13 +97,9 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
         continue
       }
       if (item.state !== 'planned' || now < item.atMs) continue
+      if (item.kind === 'walk') { if (walk(item, today, now)) changed = true; continue }
       // Missing materials/model are skipped, never passed off as a completed work.
-      item.state = item.kind !== 'walk' || !resting(today) || working() ? 'skipped' : 'settled'; changed = true
-      if (item.kind === 'walk' && item.state === 'settled' && !state.outings.some((outing) => outing.status === 'away' || outing.status === 'proposed' || calendarDay(clock, outing.startsAtMs) === today)) {
-        const outing = makeOuting(today, now, false); state.outings.push(outing)
-        const lastUser = rows().findLast((row) => row.type === 'user/message')?.atMs ?? now
-        if (now - lastUser >= 15 * 60000) depart(outing, now)
-      }
+      item.state = 'skipped'; changed = true
     }
     if (changed || now - state.settledUntilMs >= 60000 || startup) { state.settledUntilMs = now; save() }
   }
