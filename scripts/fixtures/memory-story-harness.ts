@@ -11,8 +11,6 @@ import { createMemoryEngine } from '../../src/main/memory/engine'
 import { createMemoryService } from '../../src/main/memory/service'
 import { createFakeMemoryModel } from '../../src/main/memory/model'
 import { projectMemory } from '../../src/main/memory/projection'
-import { createMemoryDatabaseClient } from '../../src/main/memory/storage/client'
-import { createNativeMemoryDatabase } from '../../src/main/memory/storage/neo'
 import { memoryTools } from '../../src/main/memory/tools'
 import { createDshExecution, type DshExecution } from '../../src/main/dsh/execution'
 import { createRootHost } from '../../src/main/dsh/root-host'
@@ -55,8 +53,7 @@ export async function createStoryHarness(input: { id: string; root: string; repo
   let host = createRootHost({ dataDir: root })
   const experience = workExperience(store, () => evaluating && !input.selfTest ? 'real' : 'fake')
   const facts = createMemoryFacts({ root: join(root, 'facts'), clock: { ...clock, after: systemClock.after }, store, owner, embedding: () => vectors ? io.embedding : undefined,
-    ...(input.mirrorOffline ? { mirror: offlineMirror } : {}), held: () => false, waitForRestore: async () => {}, changed: () => controller.refresh('connection'),
-    openDatabase: async path => { const db = createMemoryDatabaseClient(createNativeMemoryDatabase(), systemClock); await db.open(path); return db } })
+    ...(input.mirrorOffline ? { mirror: offlineMirror } : {}), held: () => false, waitForRestore: async () => {}, changed: () => controller.refresh('connection') })
   const model = createFakeMemoryModel().model
   // Source fixture facts are explicitly reviewed; extraction is measured separately in the existing live lifecycle story.
   let extractionCalls = 0
@@ -202,8 +199,7 @@ export async function createStoryHarness(input: { id: string; root: string; repo
     async seedOtherCharacter() {
       const other = { ...owner, characterId: 'another-character' }, scope = { userId: other.userId, characterId: other.characterId }
       const engine = createMemoryEngine({ root: join(root, 'other-character'), owner: other, clock, embedding: () => undefined,
-        held: () => false, waitForRestore: async () => {}, journal: () => {},
-        openDatabase: async path => { const db = createMemoryDatabaseClient(createNativeMemoryDatabase(), systemClock); await db.open(path); return db } })
+        held: () => false, waitForRestore: async () => {}, journal: () => {} })
       try {
         const operationId = randomUUID()
         await engine.runtime.proposeOperation({ scope, sessionId: 'other-character-day', turnId: operationId,

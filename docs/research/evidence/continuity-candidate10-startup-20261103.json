@@ -1917,8 +1917,9 @@
       "sourceRemoved": true
     }
   },
-  "liveQuality": "2026-11-04 authorized retrieval stopped at case 20 after 19 completed cases and 79 Voyage requests; entire window closed, stories not started. Subsequent offline diagnostics also exposed an allocation failure; no new live authorization is ready.",
-  "liveQualityEvidence": "continuity-candidate10-quality-live-20261104.json",
+  "liveQuality": "2026-11-04 renewed window after correcting test storage host: real retrieval completed 90/90, Recall@3 0.933333 and MRR@3 0.903704; stories S01-S15 passed, S16 failed unresolved external outcome semantics. S17-S24 unrun; entire window closed without retry. Candidate not released.",
+  "liveQualityEvidence": "continuity-candidate10-quality-retest-20261104.json",
+  "previousLiveQualityEvidence": "continuity-candidate10-quality-live-20261104.json",
   "build": {
     "path": "C:/.lca-cache/continuity10-release-20261103/build-receipt.json",
     "sha256": "9721d9cb50aca304c3d1e0303cd1ea1e776bce4b992f931eedefa36439ff8f8e",

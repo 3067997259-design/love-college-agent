@@ -9,7 +9,7 @@ import { executeStory, storyIds, storyOracle } from './memory-story-cases'
 import plan from '../memory-stories-plan.json'
 
 export async function runMemoryStoriesQuality(input: { root: string; repo: string; runtime: string; bridge: string; selfTest: boolean; authorized?: string; embeddingConfig?: string }) {
-  const report = { ok: false, selfTest: input.selfTest, qualityPassed: null as boolean | null, coverage: plan.coverage,
+  const report = { ok: false, selfTest: input.selfTest, qualityPassed: null as boolean | null, coverage: plan.coverage, storageHost: 'packaged-production-utility',
     status: 'setup', currentStory: null as string | null, error: null as string | null, completed: [] as string[],
     reviews: [] as Record<string, unknown>[], upstreamRequests: 0, counts: {} }
   const save = () => writeFileSync(join(input.root, 'report.json'), JSON.stringify(report, null, 2))

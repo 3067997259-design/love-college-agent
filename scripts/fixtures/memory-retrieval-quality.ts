@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
+import { app } from 'electron'
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createManualClock, systemClock } from '../../src/main/clock'
 import { createMemoryEngine } from '../../src/main/memory/engine'
-import { createMemoryDatabaseClient } from '../../src/main/memory/storage/client'
-import { createNativeMemoryDatabase } from '../../src/main/memory/storage/neo'
+import { openUtilityMemoryDatabase } from '../../src/main/memory/storage/host'
 import { createApiMemoryEmbeddingSource } from '../../src/main/memory/airi/embedding'
 import { evaluateProductionMemoryRetrievalTrace, formatProductionMemoryEvaluationReport } from '../../src/main/memory/airi/evaluation'
 import { MEMORY_RETRIEVAL_EVALUATION_CASES } from '../../src/main/memory/airi/core'
@@ -33,14 +33,25 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
   const budget = createContinuityProbeBudget(plan.limits, (units, bucket) => { ledger.reserveModel(units, bucket) })
   let failure: string | null = null
   const engines: ReturnType<typeof createMemoryEngine>[] = []
+  const storagePids = new Set<number>()
   const report = { ok: false, selfTest: input.selfTest, qualityAssessed: !input.selfTest, qualityPassed: null as boolean | null,
     coverage: plan.measurement, failurePolicy: plan.failurePolicy, limits: plan.limits, acceptance: plan.acceptance,
     upstreamRequests: 0, samples, casesCompleted: 0, corpusCounts: { zh: 0, en: 0 }, counts: budget.view(), error: null as string | null,
     stage: 'setup', diagnostic: null as string | null,
     runtimeFailure: null as (NonNullable<ReturnType<typeof retrievalRuntimeFailure>> & { elapsedMs: number }) | null,
-    storageDiagnostics: input.selfTest ? { requests: 0, sampledPeakRssBytes: process.memoryUsage().rss } : null,
+    storageHost: 'packaged-production-utility',
+    storageDiagnostics: input.selfTest ? { sampledPeakMainRssBytes: process.memoryUsage().rss, sampledPeakWorkerPrivateKiB: 0, maximumWorkersObserved: 0 } : null,
     result: null as Awaited<ReturnType<typeof evaluateProductionMemoryRetrievalTrace>> | null }
-  const save = () => { report.counts = budget.view(); writeFileSync(join(input.root, 'report.json'), JSON.stringify(report, null, 2)) }
+  const save = () => {
+    report.counts = budget.view()
+    if (report.storageDiagnostics) {
+      const workers = app.getAppMetrics().filter(process => storagePids.has(process.pid))
+      report.storageDiagnostics.maximumWorkersObserved = Math.max(report.storageDiagnostics.maximumWorkersObserved, workers.length)
+      report.storageDiagnostics.sampledPeakWorkerPrivateKiB = Math.max(report.storageDiagnostics.sampledPeakWorkerPrivateKiB, workers.reduce((sum, process) => sum + (process.memory.privateBytes ?? 0), 0))
+      report.storageDiagnostics.sampledPeakMainRssBytes = Math.max(report.storageDiagnostics.sampledPeakMainRssBytes, process.memoryUsage().rss)
+    }
+    writeFileSync(join(input.root, 'report.json'), JSON.stringify(report, null, 2))
+  }
   const raw = createApiMemoryEmbeddingSource({ ...config, clock: systemClock, fetch: async (url, init) => {
     assert.equal(failure, null, 'BATCH_ALREADY_FAILED')
     const body = JSON.parse(String(init?.body))
@@ -83,27 +94,14 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
     for (const language of ['zh', 'en'] as const) {
       report.stage = language + ':initialize'; save()
       const scope = { userId: 'retrieval-fixture-' + language, characterId: 'taozi' }
+      // Use the candidate's production utility worker. Inlining both native databases
+      // into the evaluator main process changes their memory/GC lifetime.
       const engine = createMemoryEngine({ root: join(input.root, language), owner: { ...scope, dataRootId: 'quality-' + language }, clock: corpusClock,
         embedding: () => source, held: () => false, waitForRestore: async () => {}, journal: () => {},
         openDatabase: async path => {
-          const native = createNativeMemoryDatabase()
-          const database = createMemoryDatabaseClient({ request: async request => {
-            if (report.storageDiagnostics) report.storageDiagnostics.requests++
-            try { return await native.request(request) }
-            catch (error) {
-              // Offline fixtures contain only this repository's synthetic corpus.
-              // Live failures never record SQL or raw provider error text.
-              if (input.selfTest) writeFileSync(join(input.root, 'storage-failure.json'), JSON.stringify({
-                stage: report.stage, kind: request.kind, ...('sql' in request ? { sql: request.sql } : {}),
-                diagnostic: error instanceof Error ? error.message : 'UNKNOWN_OFFLINE_FAILURE', memory: process.memoryUsage(),
-              }, null, 2))
-              throw error
-            }
-            finally {
-              if (report.storageDiagnostics) report.storageDiagnostics.sampledPeakRssBytes = Math.max(report.storageDiagnostics.sampledPeakRssBytes, process.memoryUsage().rss)
-            }
-          } }, systemClock)
-          await database.open(path); return database
+          const database = await openUtilityMemoryDatabase({ path, clock: corpusClock })
+          const pid = database.pid(); assert.equal(typeof pid, 'number'); storagePids.add(pid!)
+          return database
         } })
       engines.push(engine)
       assert.ok(await engine.runtime.initialize(), 'DATABASE_UNAVAILABLE')
@@ -124,6 +122,7 @@ export async function runMemoryRetrievalQuality(input: { root: string; selfTest:
       assert.equal(failure, null); assert.equal(engine.runtime.embeddingMigration.value.state, 'complete', 'VECTOR_MIGRATION_FAILED')
       corpora.set(language, { engine, scope, ids })
     }
+    if (report.storageDiagnostics) assert.equal(report.storageDiagnostics.maximumWorkersObserved, 2, 'STORAGE_WORKERS_NOT_OBSERVED')
     report.result = await evaluateProductionMemoryRetrievalTrace(async query => {
       const item = MEMORY_RETRIEVAL_EVALUATION_CASES[report.casesCompleted]
       report.stage = 'query:' + item.id; save()
