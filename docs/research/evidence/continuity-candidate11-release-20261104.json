@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "status": "published-experimental-prerelease",
+  "recordedAtIso": "2026-11-04T10:36:15.334Z",
+  "userAuthorization": "Actual fresh installation and upgrade verification; publish the same package after both pass.",
+  "releaseAllowed": true,
+  "releasePublished": true,
+  "sourceBranch": "codex/continuous-work-p0",
+  "mainMerged": false,
+  "productionChangedAfterBuild": false,
+  "rebuiltForPublication": false,
+  "build": {
+    "version": 1,
+    "appVersion": "1.2.0-continuity.11",
+    "installerFileName": "Love-College-Agent-1.2.0-continuity.11-Setup.exe",
+    "sourceRevision": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+    "trackedDirty": false,
+    "runtimePreparation": "reused-prepared-tree",
+    "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+    "builtAtIso": "2026-11-04T04:42:06.397Z",
+    "installerBytes": 315481865,
+    "installerSha256": "aa0fef4411bfbaa5ba2833807abc2c4ce1716b8d49308b9c5771bcf8a172df15",
+    "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef"
+  },
+  "release": {
+    "id": 433781788,
+    "tag": "v1.2.0-continuity.11",
+    "title": "v1.2.0-continuity.11 · 连续协作者与完整记忆",
+    "url": "https://github.com/3067997259-design/love-college-agent/releases/tag/v1.2.0-continuity.11",
+    "target": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+    "publishedAtIso": "2026-11-04T10:33:56Z",
+    "draft": false,
+    "prerelease": true,
+    "notesVerified": true,
+    "assets": [
+      {
+        "id": 709105071,
+        "name": "Love-College-Agent-1.2.0-continuity.11-Setup.exe",
+        "size": 315481865,
+        "sha256": "aa0fef4411bfbaa5ba2833807abc2c4ce1716b8d49308b9c5771bcf8a172df15",
+        "url": "https://github.com/3067997259-design/love-college-agent/releases/download/v1.2.0-continuity.11/Love-College-Agent-1.2.0-continuity.11-Setup.exe"
+      },
+      {
+        "id": 709104965,
+        "name": "build-receipt.json",
+        "size": 608,
+        "sha256": "bcb3b66079f0ff20cce23082666488d2ee3ff85c5809b4555b1a46ecaf8a1857",
+        "url": "https://github.com/3067997259-design/love-college-agent/releases/download/v1.2.0-continuity.11/build-receipt.json"
+      },
+      {
+        "id": 709104956,
+        "name": "SHA256SUMS.txt",
+        "size": 200,
+        "sha256": "4cfeee81f736a0ea8a95037e50cd509a68da155bfbdfd13bcd5e518060f69ae1",
+        "url": "https://github.com/3067997259-design/love-college-agent/releases/download/v1.2.0-continuity.11/SHA256SUMS.txt"
+      }
+    ]
+  },
+  "tag": {
+    "ref": "refs/tags/v1.2.0-continuity.11",
+    "type": "commit",
+    "sha": "2c754566ad79e8121567b7e0f10aeff1f622c485"
+  },
+  "stableLatest": {
+    "draft": false,
+    "html_url": "https://github.com/3067997259-design/love-college-agent/releases/tag/v1.1.0",
+    "id": 419491916,
+    "prerelease": false,
+    "tag_name": "v1.1.0"
+  },
+  "installationAndUpgrade": {
+    "evidence": {
+      "path": "docs/research/evidence/continuity-candidate11-installation-20261104.json",
+      "sha256": "7c46244d3af0e6458492d4cc5b82b3668f54d723f3bb9d4713e2518ce176aeeb"
+    },
+    "freshInstalledScenarios": 34,
+    "freshInstalledPassed": 34,
+    "nativeProbesBeforeAndAfterInstall": true,
+    "uiRestartAndHistory": true,
+    "baselineVersion": "1.1.0",
+    "nonemptyUpgradeChecks": 5,
+    "nonemptyUpgradePassed": 5,
+    "oldSaveRestoreAndSafetyBackup": true,
+    "fixtureInstallationUninstalled": true,
+    "residualRegistrations": 0,
+    "residualProcesses": 0,
+    "dailyUserDataUsed": false,
+    "realServiceCalls": 0,
+    "syntheticServiceCoverage": true
+  },
+  "priorSameCandidateEvidence": [
+    {
+      "path": "docs/research/evidence/continuity-candidate11-outcome-20261104.json",
+      "sha256": "65f3e0a698b958596865b890eaf615e91cee8b2130eda99cce792e1be8777a34"
+    },
+    {
+      "path": "docs/research/evidence/continuity-quality-complete-20261104.json",
+      "sha256": "d89bf1a7b03b358ce3b8df24d269554495819025f51390cfb5f24dbca722a909"
+    }
+  ],
+  "verification": {
+    "checkedAtIso": "2026-11-04T10:34:19.898Z",
+    "localVsGitHubAssets": "All three sizes and SHA-256 digests match; exact same installer as installed tests.",
+    "draftBeforePublication": {
+      "path": "test-results/continuity/candidate11-release-draft-verified-20261104.json",
+      "sha256": "876128045d7275c43c9c4c3987c307dad67cb18a6311c7fc882c23ed59893f15"
+    },
+    "publishedMetadata": {
+      "path": "test-results/continuity/candidate11-release-published-metadata-20261104.json",
+      "sha256": "1b3c9361564edccc4bac315be2e07604c17cf7be00e14501914006d6cea45e7c"
+    },
+    "publishedAssets": {
+      "path": "test-results/continuity/candidate11-release-published-verified-20261104.json",
+      "sha256": "67c33b2e315745ad7e5a3357a0a281bc622b8388cdcc6cb89492e6ad6b9657c8"
+    },
+    "tagMetadata": {
+      "path": "test-results/continuity/candidate11-release-tag-20261104.json",
+      "sha256": "be52ad09d114efe808f4217b7f8a9754136ebde56c257e79dfaae66a581e608a"
+    },
+    "stableLatestMetadata": {
+      "path": "test-results/continuity/candidate11-stable-latest-20261104.json",
+      "sha256": "54be61d75d796460df887130b76f2e1df9fa4e5cb11d7d58d307d380627d5f9e"
+    }
+  },
+  "limitations": [
+    "Second Windows machine and long-term daily-use acceptance remain untested.",
+    "Installation and upgrade scenarios use isolated synthetic services; real retrieval and story results are separate prior evidence for the same candidate.",
+    "Installer is unsigned; Office conversion and voice input platform components are not bundled.",
+    "A 260-character project path remains unsupported by the tested DSH startup path.",
+    "Recorded minor wording and conservative project-trust status projection issues remain documented in release notes."
+  ]
+}

@@ -16,6 +16,7 @@
 | 检查命令、测试范围与真实服务 | [测试说明](testing.md) |
 | 近期维护方向与尚未承诺的探索 | [维护计划](maintenance.md) |
 | 版本变化与发布验证 | [更新记录](../CHANGELOG.md)、[v1.1.0](releases/1.1.0.md)、[v1.0.1](releases/1.0.1.md)、[v1.0.0](releases/1.0.0.md) |
+| 最新实验预发布与实际安装升级 | [1.2.0-continuity.11：下载、迁移回退与验证范围](releases/1.2.0-continuity.11.md)、[发布回执](research/evidence/continuity-candidate11-release-20261104.json) |
 | 1.2 开发候选与未完成门槛 | [1.2.0-rc.3 验收](releases/1.2.0-rc.3.md)、[rc.2 历史](releases/1.2.0-rc.2.md)、[P6 组合恢复](research/v1.2-p6-20261024.md) |
 | 连续协作者与完整记忆实验候选 | [阶段 0–6、候选清单与回退](research/continuous-implementation-20261101.md)、[统一计划](research/lca-continuity-memory-context-plan-20261101.md) |
 | 工作与记忆实测准备 | [普通产品预跑、压缩恢复修复与额度](research/continuity-probes-preflight-20261102.md)、[取消计划真实单例](research/continuity-world-cancelled-20261102.md) |
