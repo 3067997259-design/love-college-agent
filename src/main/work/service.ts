@@ -5,6 +5,7 @@ import type { PublicErrorCode } from '../../shared'
 import type { Clock } from '../clock'
 import { openWorkJournal, sameOwner, workDigest, workEvidenceSchema, checkpointProposalSchema, type CheckpointProposal, type WorkDecision, type WorkInput, type WorkRecord } from './journal'
 import { verifyWorkFile } from '../../../dsh/lca-bridge/work-evidence.js'
+import { recordWorkInterruption, workResultState, workResultContext } from './result'
 
 export interface WorkRuntime {
   deliver(input: { eventId: string; text: string; revision: number }): Promise<void>
@@ -60,6 +61,7 @@ export function createContinuousWork(options: {
   }
   // Restart never replays a delivery or approval whose final outcome was not observed.
   for (const work of [...works.values()]) if (recoverable.has(work.status)) {
+    if (work.status === 'running' || work.status === 'stopping') recordWorkInterruption(work, 'restarted', clock.nowMs())
     work.status = 'review_required'; work.waitingFor = 'recovery'; work.revision++
     for (const input of work.inputs) if (input.state === 'accepted' || input.state === 'pending') input.state = 'unknown'
     persist(work, 'recovered')
@@ -71,7 +73,7 @@ export function createContinuousWork(options: {
       failedActions: observations.filter(item => item.status === 'failed').length, lastObservedAt: observations.at(-1)?.observedAt ?? null }
   }
   const viewOf = (work: WorkRecord): ContinuousWorkView => ({ identity: structuredClone(work.identity), revision: work.revision, label: work.label, progress: progressOf(work),
-    status: work.status, waitingFor: work.waitingFor, checkpointId: work.checkpointId, updatedAt: work.updatedAt,
+    status: work.status, waitingFor: work.waitingFor, checkpointId: work.checkpointId, updatedAt: work.updatedAt, result: workResultState(work),
     ...(work.delivery ? { delivery: { eventId: work.delivery.eventId, state: work.delivery.state } } : {}),
     controls: { supplement: modifiable.has(work.status), pause: ['running', 'queued', 'waiting'].includes(work.status),
       stop: ['running', 'queued', 'waiting', 'paused', 'review_required'].includes(work.status), resume: resumable.has(work.status) && !live.has(work.identity.workId) } })
@@ -86,7 +88,7 @@ export function createContinuousWork(options: {
     kind: input.kind === 'supplement' ? 'work-decision-update' : 'work-package', identity: work.identity,
     objective: work.objective, objectiveOrigin: 'delegated-task-description', acceptance: work.acceptance,
     userDecisions: work.decisions.filter(decision => input.kind !== 'supplement' || input.decisionIds.includes(decision.id)),
-    checkpointId: work.checkpointId, eventId: input.eventId,
+    checkpointId: work.checkpointId, eventId: input.eventId, result: workResultContext(work),
     instruction: input.kind === 'resume' ? 'Resume only after reconciling existing files and effects. Prior approvals do not authorize a new action. Do not repeat actions with unknown results.'
       : 'Use the latest objective and exact user decisions. This is a referenced task package, not newly authored user speech. Tool receipts and actual outputs must support delivery.',
   })
@@ -166,6 +168,7 @@ export function createContinuousWork(options: {
     } catch {
       const work = current(id, entry.generation)
       if (work && !entry.closing && !closed && !failure) {
+        if (entry.runtime.busy()) recordWorkInterruption(work, 'failed', clock.nowMs())
         work.status = 'review_required'; work.waitingFor = 'recovery'; work.revision++
         for (const input of work.inputs) if (input.generation === entry.generation && ['pending', 'accepted'].includes(input.state)) input.state = 'unknown'
         persist(work, 'delivery-unknown'); void release(id, entry)
@@ -178,12 +181,13 @@ export function createContinuousWork(options: {
     catch {
       // Retain the project lock: disposal was not acknowledged.
       const work = current(id, entry.generation)
-      if (work && !failure) { work.status = 'review_required'; work.waitingFor = 'recovery'; work.revision++; persist(work, 'stop-unknown') }
+      if (work && !failure) { recordWorkInterruption(work, 'failed', clock.nowMs()); work.status = 'review_required'; work.waitingFor = 'recovery'; work.revision++; persist(work, 'stop-unknown') }
     } finally { options.changed(); schedule() }
   })()
   const settled = (id: string, generation: number, failed: boolean) => {
     const work = current(id, generation), entry = live.get(id)
     if (!work || !entry || entry.closing || closed || failure) return
+    if (failed) recordWorkInterruption(work, 'failed', clock.nowMs())
     if (failed && work.inputs.some(input => input.generation === generation && ['pending', 'accepted'].includes(input.state))) {
       work.status = 'review_required'; work.waitingFor = 'recovery'; work.revision++
       for (const input of work.inputs) if (input.generation === generation && ['pending', 'accepted'].includes(input.state)) input.state = 'unknown'
@@ -227,6 +231,9 @@ export function createContinuousWork(options: {
     sequence: (work.inputs.at(-1)?.sequence ?? 0) + 1, generation: work.identity.generation, revision: work.identity.objectiveRevision, kind, state: 'pending', consumedAt: null, decisionIds })
   const stop = (work: WorkRecord, outcome: 'paused' | 'stopped', operationId: string, input: unknown) => {
     const id = work.identity.workId, entry = live.get(id)
+    // Save before close: cancellation can retire the root before its last tool
+    // result arrives. This records interruption, never an inferred external write.
+    if (entry?.runtime.busy()) recordWorkInterruption(work, outcome, clock.nowMs())
     work.status = entry ? 'stopping' : outcome; work.waitingFor = null; work.revision++
     for (const event of work.inputs) if (event.state === 'pending') event.state = 'cancelled'; else if (event.state === 'accepted') event.state = 'unknown'
     persist(work, outcome === 'paused' ? 'pause-requested' : 'stop-requested', operationId, input)
@@ -314,6 +321,7 @@ export function createContinuousWork(options: {
     efforts: (value: { chat?: string; work?: string }) => { for (const entry of live.values()) entry.runtime.efforts(value) },
     disconnect: async () => {
       for (const work of structuredClone([...works.values()])) if (recoverable.has(work.status)) {
+        if (live.get(work.identity.workId)?.runtime.busy()) recordWorkInterruption(work, 'disconnected', clock.nowMs())
         work.status = 'review_required'; work.waitingFor = 'recovery'; work.revision++
         for (const input of work.inputs) if (['pending', 'accepted'].includes(input.state)) input.state = 'unknown'
         persist(work, 'disconnected')

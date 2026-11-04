@@ -21,6 +21,8 @@ export type CheckpointProposal = z.infer<typeof checkpointProposalSchema>
 const checkpointSchema = z.strictObject({ id: z.string().min(1).max(128), identity: workIdentitySchema, objective: z.string().max(20_000), decisionIds: z.array(z.string().max(128)).max(64),
   evidenceIds: z.array(z.string().max(128)).max(32), outcome: z.enum(['completed', 'partial']), explanation: z.string().max(4000), unresolved: z.array(z.string().max(1000)).max(16), nextStep: z.string().max(1000).nullable(), createdAt: z.number().int().nonnegative() })
 const deliverySchema = z.strictObject({ eventId: z.string().max(128), checkpointId: z.string().max(128), state: z.enum(['pending', 'accepted', 'consumed', 'unknown']) })
+const interruptionSchema = z.strictObject({ generation: z.number().int().positive(), objectiveRevision: z.number().int().positive(), atMs: z.number().int().nonnegative(),
+  reason: z.enum(['stopped', 'paused', 'restarted', 'disconnected', 'failed']) })
 export const workRecordSchema = z.strictObject({ identity: workIdentitySchema, revision: z.number().int().positive(), label: z.string().max(120),
   status: z.enum(['queued', 'running', 'waiting', 'paused', 'stopping', 'stopped', 'review_required', 'completed', 'failed']),
   waitingFor: z.enum(['approval', 'user', 'budget', 'project', 'recovery']).nullable(), projectPath: z.string().min(1).max(4096),
@@ -28,7 +30,7 @@ export const workRecordSchema = z.strictObject({ identity: workIdentitySchema, r
   createdAt: z.number().int().nonnegative(), updatedAt: z.number().int().nonnegative(), runStartedAt: z.number().int().nonnegative(),
   checkpointId: z.string().max(128).nullable(), subscriptionId: z.string().uuid(), consumedThrough: z.number().int().nonnegative(), inputs: z.array(inputSchema).max(256),
   evidence: z.array(workEvidenceSchema).max(512).optional(), checkpoints: z.array(checkpointSchema).max(128).optional(), observedInputs: z.array(z.string().max(128)).max(256).optional(),
-  delivery: deliverySchema.optional(), deliveries: z.array(deliverySchema).max(128).optional() })
+  delivery: deliverySchema.optional(), deliveries: z.array(deliverySchema).max(128).optional(), lastInterruption: interruptionSchema.optional() })
 export type WorkRecord = z.infer<typeof workRecordSchema>
 export type WorkDecision = z.infer<typeof workDecisionSchema>
 export type WorkInput = WorkRecord['inputs'][number]

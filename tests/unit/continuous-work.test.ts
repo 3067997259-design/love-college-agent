@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os'
 import { createManualClock } from '../../src/main/clock'
 import { createContinuousWork, type WorkRuntimeContext, type WorkRuntime } from '../../src/main/work/service'
 import { openWorkJournal } from '../../src/main/work/journal'
-import { inspectWorkArchive } from '../../src/main/work/archive'
+import { inspectWorkArchive, restoreWorkArchive } from '../../src/main/work/archive'
 import type { ContinuousWorkCommand, ContinuousWorkView, WorkEvidence } from '../../src/shared/continuity'
 import { captureWorkFile } from '../../dsh/lca-bridge/work-evidence.js'
-import { checkpointContext } from '../../src/main/work/tools'
+import { checkpointContext, workContext } from '../../src/main/work/tools'
 
 const owner = { userId: 'user', characterId: 'character', dataRootId: 'isolated-profile' }
 const services: ReturnType<typeof createContinuousWork>[] = []
@@ -17,7 +17,7 @@ const tick = async () => { for (let i = 0; i < 10; i++) await Promise.resolve() 
 const target = (work: ContinuousWorkView) => ({ identity: work.identity, expectedRevision: work.revision })
 function fixture(root = mkdtempSync(join(tmpdir(), 'lca-work-'))) {
   const clock = createManualClock(1_790_000_000_000)
-  const instances: { context: WorkRuntimeContext; events: string[]; revisions: number[]; stopped: boolean }[] = []
+  const instances: { context: WorkRuntimeContext; events: string[]; messages: string[]; revisions: number[]; stopped: boolean; onClose?: () => void }[] = []
   const observations: string[] = [], delivered = new Set<string>()
   let held = false
   const service = createContinuousWork({ root, owner, clock, available: () => true, held: () => held,
@@ -25,9 +25,9 @@ function fixture(root = mkdtempSync(join(tmpdir(), 'lca-work-'))) {
     observed: (_work, input) => { observations.push(input.eventId) },
     deliverCheckpoint: work => { delivered.add(work.delivery!.eventId); return 'accepted' },
     createRuntime: context => {
-      const instance = { context, events: [] as string[], revisions: [] as number[], stopped: false }; instances.push(instance)
-      const runtime: WorkRuntime = { deliver: async event => { instance.events.push(event.eventId) }, invalidateWork: value => { instance.revisions.push(value) },
-        close: async () => { instance.stopped = true }, busy: () => !instance.stopped, stateChanged: () => {}, untrust: () => {}, efforts: () => {} }
+      const instance: typeof instances[number] = { context, events: [], messages: [], revisions: [], stopped: false }; instances.push(instance)
+      const runtime: WorkRuntime = { deliver: async event => { instance.events.push(event.eventId); instance.messages.push(event.text) }, invalidateWork: value => { instance.revisions.push(value) },
+        close: async () => { instance.onClose?.(); instance.stopped = true }, busy: () => !instance.stopped, stateChanged: () => {}, untrust: () => {}, efforts: () => {} }
       return runtime
     } })
   services.push(service)
@@ -50,6 +50,52 @@ function fixture(root = mkdtempSync(join(tmpdir(), 'lca-work-'))) {
 }
 
 describe('durable work scheduling and delivery', () => {
+  it('persists interruption before cancellation and carries unknown effects into a resumed generation', async () => {
+    const f = fixture(), a = f.create('a'); await tick(); f.instances[0].context.consumed('create-a')
+    let beforeClose: unknown
+    f.instances[0].onClose = () => { beforeClose ??= openWorkJournal(join(f.root, 'events.log'), owner, f.clock).rows().at(-1)?.work }
+    f.service.dispatch({ type: 'work.stop', target: target(f.view(a.workId)) }, 'stop'); await tick()
+    const interruption = { generation: 1, objectiveRevision: 1, atMs: f.clock.nowMs(), reason: 'stopped' }
+    expect(beforeClose).toMatchObject({ status: 'stopping', lastInterruption: interruption })
+    expect(f.view(a.workId).result).toMatchObject({ completion: 'unverified', interruption })
+    expect(workContext(f.service).workCheckpoints[0]).toMatchObject({ result: { completion: 'unverified', interruption } })
+    f.service.dispatch({ type: 'work.resume', target: target(f.view(a.workId)) }, 'resume'); await tick()
+    expect(f.view(a.workId).identity.generation).toBe(2)
+    expect(f.view(a.workId).result?.interruption).toEqual(interruption)
+    expect(JSON.parse(f.instances[1].messages[0])).toMatchObject({ result: { interruption } })
+    await f.service.close(); const restored = fixture(f.root)
+    expect(restored.instances).toHaveLength(0)
+    expect(restored.view(a.workId).result).toMatchObject({ completion: 'unverified', interruption: { generation: 2, reason: 'restarted' } })
+  })
+
+  it('does not invent an execution interruption for queued work stopped before launch', async () => {
+    const f = fixture(), a = f.create('a')
+    f.service.dispatch({ type: 'work.stop', target: target(f.view(a.workId)) }, 'stop-before-start'); await tick()
+    expect(f.instances).toHaveLength(0)
+    expect(f.view(a.workId).result).toEqual({ completion: 'unverified', interruption: null, unconfirmedCommands: 0 })
+  })
+  it('preserves interruption across private archive restore and does not expose mutable state or raw tools', async () => {
+    const f = fixture(), a = f.create('a'); await tick(); f.instances[0].context.consumed('create-a')
+    f.hold(); await tick()
+    const original = f.view(a.workId).result!.interruption!
+    expect(original.reason).toBe('paused')
+    const bytes = readFileSync(join(f.root, 'events.log')), root = mkdtempSync(join(tmpdir(), 'lca-work-restored-'))
+    restoreWorkArchive({ path: join(root, 'events.log'), bytes, from: owner, owner, clock: f.clock, restoreId: 'interruption' })
+    const restored = fixture(root), projected = restored.view(a.workId)
+    expect(projected.result?.interruption).toEqual(original); expect(restored.instances).toHaveLength(0)
+    projected.result!.interruption!.reason = 'failed'
+    expect(restored.view(a.workId).result?.interruption).toEqual(original)
+    expect(JSON.stringify(workContext(restored.service))).not.toContain('projectPath')
+    expect(readFileSync(join(f.root, 'events.log'))).toEqual(bytes)
+  })
+  it('separates a new verified local checkpoint from the earlier interrupted execution', async () => {
+    const f = fixture(), a = f.create('a'); await tick(); f.instances[0].context.consumed('create-a')
+    f.service.dispatch({ type: 'work.stop', target: target(f.view(a.workId)) }, 'stop'); await tick()
+    f.service.dispatch({ type: 'work.resume', target: target(f.view(a.workId)) }, 'resume'); await tick()
+    f.instances[1].context.consumed('resume'); f.finish(1, [f.proof(1).id]); f.instances[1].context.settled(false); await tick()
+    expect(f.view(a.workId).result).toMatchObject({ completion: 'completed', interruption: { generation: 1, reason: 'stopped' } })
+    expect(f.view(a.workId).identity.generation).toBe(2)
+  })
   it('keeps an empty work catalog exportable before the first task is created', () => {
     const f = fixture()
     expect(inspectWorkArchive(readFileSync(join(f.root, 'events.log')), owner).works).toEqual([])

@@ -18,6 +18,7 @@ export function ContinuousWorks({ snapshot, bridge }: { snapshot: AppSnapshot; b
       const target = { identity: work.identity, expectedRevision: work.revision }
       return <li key={work.identity.workId}>
         <p>{work.label}</p><small>{status[work.status]}{work.waitingFor === 'approval' ? ' · 等你批准' : ''}</small>
+        {work.result?.interruption && work.result.completion === 'unverified' && <p><small>执行曾被中断，结果待核对。停止不代表外部动作已撤回。</small></p>}
         {!!work.progress?.observedActions && <p><small>已改动 {work.progress.changedFiles} 个文件 · 命令通过 {work.progress.completedCommands} 项{work.progress.failedActions ? ` · ${work.progress.failedActions} 次失败` : ''}</small></p>}
         <div>{work.controls.resume && <button type="button" onClick={() => { void send({ type: 'work.resume', target }) }}>核对并继续</button>}
           {work.controls.pause && <button type="button" onClick={() => { void send({ type: 'work.pause', target }) }}>暂停</button>}

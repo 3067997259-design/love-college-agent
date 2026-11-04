@@ -108,6 +108,9 @@ export async function executeStory(id: string, h: StoryHarness, repo: string) {
     if (id === 'S16') await h.stop(work)
     else { await h.restartServices(); assert.equal(h.work(work).status, 'review_required'); assert.equal(h.work(work).waitingFor, 'recovery') }
     checks.externalOutcomeUnknown = true; checks.onceApprovalRecorded = h.approvals.includes('允许这一次'); checks.work = h.work(work)
+    const projected = h.works().items.find(item => item.identity.workId === work)
+    assert.equal(projected?.result?.completion, 'unverified', 'INTERRUPTED_WORK_MUST_NOT_CLAIM_COMPLETION')
+    assert.equal(projected?.result?.interruption?.reason, id === 'S16' ? 'stopped' : 'restarted', 'INTERRUPTION_NOT_PROJECTED')
     finalAssertions = () => { assert.equal(h.external.requests, 1, 'UNKNOWN_WRITE_REPLAYED'); assert.equal(h.work(work).identity.generation, 1, 'UNAPPROVED_RESUME') }
   } else if (id === 'S17') {
     await h.chat(turns[0]); const work = h.start('A'); await h.plans.get(work)!.entered.promise

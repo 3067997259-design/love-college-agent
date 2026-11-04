@@ -7,6 +7,7 @@ import type { WorkIdentity } from '../../shared/continuity'
 import { checkpointProposalSchema } from './journal'
 import { createWorkInput as create, updateWorkInput as update } from './request-schema'
 import { authoredWorkRequest, checkWorkRequest } from './request'
+import { workResultContext } from './result'
 
 export function workTools(service: ContinuousWorkService): HarnessTool[] {
   const query = z.strictObject({ workId: z.string().uuid().optional() })
@@ -65,7 +66,8 @@ export function workTools(service: ContinuousWorkService): HarnessTool[] {
     run: async (input, context) => { context.signal.throwIfAborted(); const { workId } = query.parse(input)
       const work = workId ? service.get(workId) : null
       return value(workId ? work ? { identity: work.identity, revision: work.revision, status: work.status, objective: work.objective, acceptance: work.acceptance,
-        userDecisions: work.decisions, checkpointId: work.checkpointId, checkpoint: checkpointContext(work), receipts: work.inputs.map(({ eventId, state, revision, consumedAt }) => ({ eventId, state, revision, consumedAt })) } : { error: 'work-unavailable' } : service.view()) }
+        userDecisions: work.decisions, result: workResultContext(work), checkpointId: work.checkpointId, checkpoint: checkpointContext(work), receipts: work.inputs.map(({ eventId, state, revision, consumedAt }) => ({ eventId, state, revision, consumedAt })) } : { error: 'work-unavailable' }
+        : { ...service.view(), items: service.view().items.map(item => ({ ...item, result: workResultContext(service.get(item.identity.workId)!) })) }) }
     }]
 }
 
@@ -88,7 +90,7 @@ export function checkpointContext(work: NonNullable<ReturnType<ContinuousWorkSer
 export function workContext(service: ContinuousWorkService) {
   const works = service.view().items
   return { workCheckpoints: works.map(item => ({ identity: item.identity, revision: item.revision, label: item.label, status: item.status, waitingFor: item.waitingFor,
-    progress: item.progress, checkpoint: item.checkpointId ? checkpointContext(service.get(item.identity.workId)!) : null })),
+    progress: item.progress, result: workResultContext(service.get(item.identity.workId)!), checkpoint: item.checkpointId ? checkpointContext(service.get(item.identity.workId)!) : null })),
   currentDecisions: works.flatMap(item => service.get(item.identity.workId)!.decisions.toReversed().map(decision => ({ workId: item.identity.workId,
     objectiveRevision: item.identity.objectiveRevision, status: item.status, eventId: decision.id, atMs: decision.atMs, text: decision.text, authority: 'original-decision-for-this-work-only-not-new-speech' }))) }
 }

@@ -60,6 +60,19 @@ async function fixture(count = 2) {
 }
 
 describe('current authored work requests, independent of model obedience', () => {
+  it('exposes the same interrupted outcome in list and exact work queries without resuming', async () => {
+    const f = await fixture(1), id = f.works[0]
+    f.say(`停止工作 ${id}。`)
+    expect(await f.update(id, { action: 'stop' })).not.toHaveProperty('error')
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    const exact = await f.run('work.query', { workId: id })
+    const list = await f.run('work.query', {})
+    expect(exact).toMatchObject({ status: 'stopped', result: { completion: 'unverified', interruption: { reason: 'stopped', generation: 1 } } })
+    expect(list).toMatchObject({ items: [{ result: exact.result }] })
+    expect(JSON.stringify(exact.result)).toContain('先核对')
+    expect(JSON.stringify(exact.result)).not.toContain('projectPath')
+    expect(f.get(id).identity.generation).toBe(1)
+  })
   it('replays candidate 6 query -> guessed update -> invented create without any mutation', async () => {
     const f = await fixture(3)
     const oldDecision = f.messages[2]

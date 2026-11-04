@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { recordWorkInterruption } from './result'
 import { isAbsolute } from 'node:path'
 import type { Clock } from '../clock'
 import type { ContinuityOwner } from '../../shared/continuity'
@@ -42,6 +43,7 @@ export function restoreWorkArchive(options: { path: string; bytes: Uint8Array; f
   const journal = openWorkJournal(options.path, options.owner, options.clock)
   for (const original of snapshot.works) {
     const work = structuredClone(original)
+    if (work.status === 'running' || work.status === 'stopping') recordWorkInterruption(work, 'restarted', options.clock.nowMs())
     work.identity = { ...work.identity, owner: options.owner, generation: work.identity.generation + 1 }
     work.revision++; work.subscriptionId = randomUUID(); work.runStartedAt = options.clock.nowMs(); work.updatedAt = options.clock.nowMs()
     for (const input of work.inputs) if (input.state === 'pending' || input.state === 'accepted') input.state = 'unknown'
