@@ -8,15 +8,16 @@ import { createStoryHarness } from './memory-story-harness'
 import { executeStory, storyIds, storyOracle } from './memory-story-cases'
 import plan from '../memory-stories-plan.json'
 
-export async function runMemoryStoriesQuality(input: { root: string; repo: string; runtime: string; bridge: string; selfTest: boolean; authorized?: string; embeddingConfig?: string; workInterruptionOnly?: boolean; remainingStoriesOnly?: boolean }) {
+export async function runMemoryStoriesQuality(input: { root: string; repo: string; runtime: string; bridge: string; selfTest: boolean; authorized?: string; embeddingConfig?: string; workInterruptionOnly?: boolean; remainingStoriesOnly?: boolean; pendingStoriesOnly?: boolean }) {
   assert.deepEqual([...plan.storyOrder].sort(), [...storyIds].sort(), 'STORY_ORDER_MUST_INCLUDE_EACH_FROZEN_CASE_ONCE')
   assert.deepEqual(plan.workInterruptionRetest.storyOrder, ['S16', 'S20'], 'INTERRUPTION_SCOPE_CHANGED')
-  assert.ok(!input.workInterruptionOnly || !input.remainingStoriesOnly, 'AMBIGUOUS_STORY_SCOPE')
+  assert.ok([input.workInterruptionOnly, input.remainingStoriesOnly, input.pendingStoriesOnly].filter(Boolean).length <= 1, 'AMBIGUOUS_STORY_SCOPE')
   assert.deepEqual([...plan.remainingStories.storyOrder, ...plan.workInterruptionRetest.storyOrder].sort(), [...storyIds].sort(), 'REMAINING_STORY_SCOPE_CHANGED')
-  const scope = input.workInterruptionOnly ? plan.workInterruptionRetest : input.remainingStoriesOnly ? plan.remainingStories : plan
+  assert.deepEqual([...plan.pendingStories.storyOrder, 'S16', 'S17', 'S18', 'S19', 'S20', 'S21', 'S22'].sort(), [...storyIds].sort(), 'PENDING_STORY_SCOPE_CHANGED')
+  const scope = input.workInterruptionOnly ? plan.workInterruptionRetest : input.remainingStoriesOnly ? plan.remainingStories : input.pendingStoriesOnly ? plan.pendingStories : plan
   const order = scope.storyOrder
   const report = { ok: false, selfTest: input.selfTest, qualityPassed: null as boolean | null, coverage: plan.coverage, storageHost: 'packaged-production-utility',
-    coverageScope: input.workInterruptionOnly ? 'work-interruption-only' : input.remainingStoriesOnly ? 'remaining-22-stories' : 'all-24-stories', fullSuitePassed: false, storyOrder: order,
+    coverageScope: input.workInterruptionOnly ? 'work-interruption-only' : input.remainingStoriesOnly ? 'remaining-22-stories' : input.pendingStoriesOnly ? 'pending-17-stories' : 'all-24-stories', fullSuitePassed: false, storyOrder: order,
     status: 'setup', currentStory: null as string | null, error: null as string | null, completed: [] as string[],
     reviews: [] as Record<string, unknown>[], upstreamRequests: 0, counts: {} }
   const save = () => writeFileSync(join(input.root, 'report.json'), JSON.stringify(report, null, 2))
@@ -55,7 +56,7 @@ export async function runMemoryStoriesQuality(input: { root: string; repo: strin
     }
     assert.deepEqual(report.completed, order)
     report.qualityPassed = input.selfTest ? null : report.reviews.length === order.length && report.reviews.every(item => item.verdict === 'pass')
-    report.fullSuitePassed = !input.workInterruptionOnly && !input.remainingStoriesOnly && report.qualityPassed === true
+    report.fullSuitePassed = !input.workInterruptionOnly && !input.remainingStoriesOnly && !input.pendingStoriesOnly && report.qualityPassed === true
     report.ok = input.selfTest || report.qualityPassed === true; report.status = 'complete'
   } catch (error) {
     report.status = 'failed'

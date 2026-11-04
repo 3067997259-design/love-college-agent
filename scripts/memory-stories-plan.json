@@ -26,6 +26,17 @@
             "maximumAutonomousUnits": 786432
         }
     },
+    "pendingStories": {
+        "batch": "candidate11-pending-stories-17",
+        "storyOrder": ["S23", "S24", "S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10", "S11", "S12", "S13", "S14", "S15"],
+        "limits": {
+            "maximumModelRequests": 68,
+            "maximumEmbeddingRequests": 176,
+            "maximumEmbeddingInputCharacters": 80000,
+            "maximumReservedUnits": 2228224,
+            "maximumAutonomousUnits": 655360
+        }
+    },
     "expectedEmbeddingModel":  "voyage-4-large",
     "limits":  {
                    "maximumModelRequests":  96,

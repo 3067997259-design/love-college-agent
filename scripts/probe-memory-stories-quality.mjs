@@ -14,9 +14,10 @@ const sha = async file => createHash('sha256').update(await readFile(file)).dige
 const basePlan = await read(join(repo, 'scripts/memory-stories-plan.json'))
 const workInterruptionOnly = process.argv.includes('--work-interruption')
 const remainingStoriesOnly = process.argv.includes('--remaining-stories')
-assert.ok(!workInterruptionOnly || !remainingStoriesOnly, 'AMBIGUOUS_STORY_SCOPE')
-const plan = { ...basePlan, ...(workInterruptionOnly ? basePlan.workInterruptionRetest : remainingStoriesOnly ? basePlan.remainingStories : {}) }
-const coverageScope = workInterruptionOnly ? 'work-interruption-only' : remainingStoriesOnly ? 'remaining-22-stories' : 'all-24-stories'
+const pendingStoriesOnly = process.argv.includes('--pending-stories')
+assert.ok([workInterruptionOnly, remainingStoriesOnly, pendingStoriesOnly].filter(Boolean).length <= 1, 'AMBIGUOUS_STORY_SCOPE')
+const plan = { ...basePlan, ...(workInterruptionOnly ? basePlan.workInterruptionRetest : remainingStoriesOnly ? basePlan.remainingStories : pendingStoriesOnly ? basePlan.pendingStories : {}) }
+const coverageScope = workInterruptionOnly ? 'work-interruption-only' : remainingStoriesOnly ? 'remaining-22-stories' : pendingStoriesOnly ? 'pending-17-stories' : 'all-24-stories'
 const names = [
   'scripts/probe-memory-stories-quality.mjs', 'scripts/memory-stories-plan.json',
   'scripts/fixtures/memory-stories-quality.ts', 'scripts/fixtures/continuity-live-budget.ts',
@@ -24,6 +25,7 @@ const names = [
   'scripts/fixtures/memory-story-harness.ts', 'scripts/fixtures/memory-story-cases.ts',
   'scripts/fixtures/world-probe-stream.ts', 'scripts/fixtures/probe-response-deadline.ts',
   'scripts/fixtures/continuity-scripted-model.ts',
+  'scripts/fixtures/memory-story-embedding.ts', 'scripts/fixtures/probe-transport.ts',
 ]
 const sources = Object.fromEntries(await Promise.all(names.map(async name => [name, await sha(join(repo, name))])))
 // The fixture imports production code from this checkout: refuse drift from the packaged candidate.
@@ -92,7 +94,7 @@ if (prepare >= 0) {
     timer = setTimeout(() => { void instance?.close().catch(() => {}) }, 4 * 60 * 60_000)
     stage = 'story-evaluation'
     const report = await instance.evaluate(async (_, input) => process.mainModule.require(input.compiled).runMemoryStoriesQuality(input),
-      { compiled, root, repo, selfTest, workInterruptionOnly, remainingStoriesOnly, runtime: join(dirname(executable), 'resources/dsh-runtime'), bridge: join(dirname(executable), 'resources/lca-bridge'),
+      { compiled, root, repo, selfTest, workInterruptionOnly, remainingStoriesOnly, pendingStoriesOnly, runtime: join(dirname(executable), 'resources/dsh-runtime'), bridge: join(dirname(executable), 'resources/lca-bridge'),
         authorized: selfTest ? undefined : resolve(process.env.LCA_PROVIDERS_FILE), embeddingConfig: selfTest ? undefined : resolve(process.env.LCA_MEMORY_CONNECTION_FILE) })
     ok = report.ok
     console.log(JSON.stringify({ root, ok, selfTest, coverageScope, qualityPassed: report.qualityPassed, fullSuitePassed: report.fullSuitePassed, completed: report.completed,

@@ -1,0 +1,514 @@
+{
+  "status": "retrieval-passed-seven-stories-verified-seventeen-pending-fresh-authorization",
+  "recordedAtIso": "2026-11-04T06:56:58.121Z",
+  "userAuthorization": "两个批次都授权，可以继续测试",
+  "productionCommit": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+  "productionChanged": false,
+  "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef",
+  "retrieval": {
+    "root": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-2",
+    "complete": true,
+    "passed": true,
+    "counts": {
+      "modelRequests": 0,
+      "embeddingRequests": 212,
+      "embeddingCharacters": 5360,
+      "reservedUnits": 445270,
+      "autonomousUnits": 445270
+    },
+    "upstreamRequests": 212,
+    "metrics": {
+      "caseCount": 90,
+      "recallAtK": 0.9444444444444444,
+      "meanReciprocalRank": 0.9166666666666666,
+      "precisionAtK": 0.31481481481481444,
+      "falsePositiveRateAtK": 0.17407407407407416,
+      "averageQueryTokenCount": 0,
+      "averageAdditionalQueryTokenCount": 0,
+      "averageRetrievalLatencyMs": 768.9055833333333,
+      "missingQueryTokenCount": 90,
+      "missingAdditionalQueryTokenCount": 90,
+      "missingRetrievalLatency": 0,
+      "averageCostUsd": 0,
+      "missingCostCount": 90,
+      "byStratum": {
+        "short-zh": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 0.95,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0.26666666666666666
+        },
+        "long-zh": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.16666666666666666
+        },
+        "en-to-zh": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 1,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0.19999999999999998
+        },
+        "zh-to-en": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.13333333333333333
+        },
+        "negation": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.85,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.2333333333333333
+        },
+        "multi-fact": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0.26666666666666666
+        },
+        "temporal": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.85,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.16666666666666666
+        },
+        "unrelated-long": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 1,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0
+        },
+        "near-miss": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.13333333333333333
+        }
+      }
+    },
+    "misses": [
+      "long-zh-09",
+      "zh-to-en-07",
+      "negation-09",
+      "temporal-05",
+      "near-miss-08"
+    ],
+    "embeddingDrain": {
+      "pendingAtFailure": 0,
+      "pendingAtClose": 0,
+      "settledWithoutRetry": true
+    },
+    "maxEmbeddingMs": 1269,
+    "receipts": [
+      {
+        "path": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-2/run.json",
+        "sha256": "300649c07a5c977d427f4924c547fb58d2ed0a805c425a871c96233be076d449"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-2/report.json",
+        "sha256": "2fb43262cd8e4c9c3c0d892994a907f5a7a8d3e890558a8035afcaacdcc8381f"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-2/closed.json",
+        "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-2/authorization.json",
+        "sha256": "74424838e406801276fe454d895bbbb1141e3a42158af49971a921cce6ceefaf"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-2/metrics.md",
+        "sha256": "b6e28960bb2c2f5848f337a7df50f69d3b34eae7688baa95229968540b9f4dd6"
+      }
+    ]
+  },
+  "stories": {
+    "root": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1",
+    "originalWindowPassed": false,
+    "completed": [
+      "S17",
+      "S18",
+      "S19",
+      "S21",
+      "S22"
+    ],
+    "failedAt": "S23",
+    "error": "STORY_IO_FAILED",
+    "counts": {
+      "modelRequests": 12,
+      "embeddingRequests": 16,
+      "embeddingCharacters": 133,
+      "reservedUnits": 122681,
+      "autonomousUnits": 33167
+    },
+    "upstreamRequests": 28,
+    "halted": true,
+    "inFlight": 0,
+    "failedStorySamples": [
+      {
+        "story": "S23",
+        "kind": "embedding",
+        "inputType": "query",
+        "characters": 8,
+        "ok": true,
+        "status": 200,
+        "elapsedMs": 988
+      },
+      {
+        "story": "S23",
+        "kind": "embedding",
+        "inputType": "query",
+        "characters": 7,
+        "ok": true,
+        "status": 200,
+        "elapsedMs": 344
+      },
+      {
+        "story": "S23",
+        "kind": "model",
+        "ticket": "efa5ee4b-9b3d-4688-8c21-b06c3f961123",
+        "status": 200,
+        "ok": true,
+        "inputTokens": 10452,
+        "outputTokens": 44,
+        "deadline": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": 5346,
+          "firstByteMs": 5346,
+          "lastByteMs": 5451,
+          "completedMs": 5451,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        },
+        "stream": {
+          "frames": 7,
+          "doneMarkers": 1,
+          "finishReasonSeen": true,
+          "endCalled": true,
+          "eofTailCharacters": 0,
+          "invalidJsonFrames": 0,
+          "lastBoundary": "separator",
+          "lastKind": "done",
+          "pendingCharacters": 0,
+          "contentSeen": false,
+          "toolCallSeen": true,
+          "refusalSeen": false,
+          "reasoningSeen": false,
+          "providerErrorFrames": 0
+        },
+        "elapsedMs": 5451
+      },
+      {
+        "story": "S23",
+        "kind": "embedding",
+        "inputType": "query",
+        "characters": 2,
+        "ok": false,
+        "error": "VECTOR_ADMISSION_OR_TRANSPORT_FAILED"
+      },
+      {
+        "story": "S23",
+        "kind": "model",
+        "ticket": "bf43bd6e-9f98-40f9-9989-c4fb2141f51c",
+        "status": null,
+        "ok": false,
+        "inputTokens": null,
+        "outputTokens": null,
+        "deadline": {
+          "policy": {
+            "firstResponseMs": 120000,
+            "idleMs": 60000,
+            "totalMs": 300000
+          },
+          "headersMs": null,
+          "firstByteMs": null,
+          "lastByteMs": null,
+          "completedMs": null,
+          "timeoutPhase": null,
+          "timeoutMs": null
+        },
+        "elapsedMs": 5004,
+        "error": "MODEL_RESPONSE_FAILED"
+      },
+      {
+        "story": "S23",
+        "kind": "denial",
+        "ok": false
+      }
+    ],
+    "diagnosis": {
+      "observed": "S23 first model and first two vectors succeeded; subsequent query vector and next model failed before final answer",
+      "transportRootCause": "not determinable from original sanitized errors; no original transport-stage diagnostics",
+      "reproducedFixtureDefect": "samples.at(-1) can attach a late vector completion to a subsequent model sample",
+      "repair": "bind each sample to its embedding request; preserve safe transport diagnostics; deny next model while vector pending; drain issued requests without retry",
+      "productTimeoutsChanged": false,
+      "originalFailureReclassifiedAsPass": false
+    },
+    "receipts": [
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/run.json",
+        "sha256": "89a03b5d9577b9b7de0add65606215af4ff775c6346cf04893ebeec1c4303073"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/report.json",
+        "sha256": "9aa75ce9a8bd60da81ff3f9d8c5c132bea909950c58a0a334743cb3a8b1a0a0f"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/closed.json",
+        "sha256": "5f3b7b4edeffd231a821f43ecb798b3c9e565c5e408597ff8ad8931a82ff9741"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/authorization.json",
+        "sha256": "1173c83d54be9e9983baf4e4eb9ea742c332b71636f771aa30b68daaebdf1759"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/io.json",
+        "sha256": "c8a4dba65cb31dd0f907286f59a6cf159d7b7ee17c80da294c465c53a14a803b"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/S17.json",
+        "sha256": "32eb8848d1d80d5df7fdcc83d0dc7206c15bd88035c61980c3220e5c69df5d6c"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/reviews/S17.json",
+        "sha256": "d61176ccaf3d6be97cd11dd779245de9892ca79545711116c9993c834041273f"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/S18.json",
+        "sha256": "8353fa0191700b5f67a0992af6c9a785a2d0a6a9f8abf344b4e63bf55fa7d492"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/reviews/S18.json",
+        "sha256": "9f36f5ca1ec5e8a65f14470473b64b67e3d9dc2ba34f5fe4cd23ed8787aa612e"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/S19.json",
+        "sha256": "ca5c779cbf7393073b99c6910b82a8832d4a2aeb9124a161900b3d37f9c97d48"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/reviews/S19.json",
+        "sha256": "7964b11d7a0808f14e1f3f0d76827115b99281f1b177c962a826087aaf03c06c"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/S21.json",
+        "sha256": "212c700c2785939e25c78984a5d65c67074248e607f48d881647a1be36fb68f7"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/reviews/S21.json",
+        "sha256": "62a0e31e82ed8e4f2ce3c3356c2b9d1b525eb7b7bb01c466acc0b1a49a4c5cc9"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/S22.json",
+        "sha256": "cc0e630515e67f59d74bc9f1b2ad6fb673869a5416a6de6e14b526c96eecb0f7"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1/reviews/S22.json",
+        "sha256": "6a5a4da39e553c3edb067b78aa76cfe3e074ef181da34a0062210dc16f62f214"
+      }
+    ]
+  },
+  "offlineAudit": {
+    "path": "test-results/continuity/candidate11-quality-partial-result-20261104-2.json",
+    "sha256": "c80821cde9c2bdcad992c91f8987f2b9b73ef59420bae4a26a9e9eef0245f37c",
+    "verifiedStories": [
+      "S16",
+      "S17",
+      "S18",
+      "S19",
+      "S20",
+      "S21",
+      "S22"
+    ],
+    "missingStories": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S15",
+      "S23",
+      "S24"
+    ],
+    "errors": [],
+    "serviceCalls": 0,
+    "legacyIO": {
+      "sha256": "5907c8973a7f3db4554ada3fa19f88142fb379c45195bde94ba9c8beb0222040",
+      "scope": "completed clean cases only; original question, oracle, harness, budget and stream semantics unchanged"
+    }
+  },
+  "repairChecks": {
+    "unit": {
+      "path": "test-results/continuity/candidate11-story-io-repair-tests-20261104-final.log",
+      "sha256": "eacc5fe8892760015b3077a6f3db7e33b415b1392c1dfce197b1a5cf545d5696",
+      "passed": 17,
+      "files": 3
+    },
+    "typecheck": {
+      "path": "test-results/continuity/candidate11-story-io-repair-typecheck-20261104-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "ok": true
+    },
+    "lint": {
+      "path": "test-results/continuity/candidate11-story-io-repair-lint-20261104-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "ok": true
+    },
+    "scopeGuard": {
+      "path": "test-results/continuity/candidate11-pending-scope-guard-20261104-1.json",
+      "sha256": "7993213591a286d902910092916cc676dbe7f034cb0e763390a3b634b06d8335",
+      "ok": true,
+      "guards": [
+        {
+          "flags": [],
+          "expectedDenial": "PREFLIGHT_SCOPE_CHANGED",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        },
+        {
+          "flags": [
+            "--remaining-stories"
+          ],
+          "expectedDenial": "PREFLIGHT_SCOPE_CHANGED",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        },
+        {
+          "flags": [
+            "--work-interruption"
+          ],
+          "expectedDenial": "PREFLIGHT_SCOPE_CHANGED",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        },
+        {
+          "flags": [
+            "--pending-stories",
+            "--remaining-stories"
+          ],
+          "expectedDenial": "AMBIGUOUS_STORY_SCOPE",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        },
+        {
+          "flags": [
+            "--pending-stories",
+            "--work-interruption"
+          ],
+          "expectedDenial": "AMBIGUOUS_STORY_SCOPE",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        }
+      ]
+    }
+  },
+  "pendingPreflight": {
+    "root": "C:/.lca-cache/continuity11-tests/pending-preflight-20261104-1",
+    "completed": [
+      "S23",
+      "S24",
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S15"
+    ],
+    "counts": {
+      "modelRequests": 19,
+      "embeddingRequests": 61,
+      "embeddingCharacters": 791,
+      "reservedUnits": 256579,
+      "autonomousUnits": 127259
+    },
+    "upstreamRequests": 0,
+    "qualityPassed": null,
+    "receipts": [
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-preflight-20261104-1/run.json",
+        "sha256": "55b7e91b3cf78c9df5d2d4d26acae9379802645c9ef75a5525a1dd40adda994a"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-preflight-20261104-1/report.json",
+        "sha256": "e14f586cc8fbe89ef303764a25cdd234bb8fc740e74c60c09a7722f7b62b5e45"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-preflight-20261104-1/closed.json",
+        "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-preflight-20261104-1/io.json",
+        "sha256": "075cce19ad40e72856afae27eef172cbd82ed890a73a041d13519eaa382fe4b8"
+      }
+    ]
+  },
+  "freshAuthorizationPrepared": {
+    "path": "test-results/continuity/candidate11-pending-prepared-authorization-20261104-1.json",
+    "sha256": "126f614e9dcedbd27f20d7f8300695207b1758dce2887cf2fec47f1890062540",
+    "authorized": false,
+    "batch": "candidate11-pending-stories-17",
+    "storyOrder": [
+      "S23",
+      "S24",
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S15"
+    ],
+    "limits": {
+      "maximumModelRequests": 68,
+      "maximumEmbeddingRequests": 176,
+      "maximumEmbeddingInputCharacters": 80000,
+      "maximumReservedUnits": 2228224,
+      "maximumAutonomousUnits": 655360
+    }
+  },
+  "remaining": [
+    "17 fresh real stories after new explicit authorization",
+    "candidate 11 actual installation/upgrade outside this goal",
+    "second Windows and long-term daily use separate"
+  ]
+}

@@ -87,11 +87,20 @@ const verified = new Set()
 for (const rootArg of manifest.storyRoots ?? []) {
   try {
     const root = resolve(rootArg)
-    const { run, result, authorization, receipts } = common(root, ['tests/fixtures/continuity-stories.json', 'scripts/fixtures/memory-story-cases.ts', 'scripts/fixtures/memory-story-harness.ts', 'scripts/fixtures/memory-story-io.ts', 'scripts/fixtures/continuity-live-budget.ts', 'scripts/fixtures/world-probe-stream.ts', 'scripts/fixtures/probe-response-deadline.ts'])
+    const { run, result, authorization, receipts } = common(root, ['tests/fixtures/continuity-stories.json', 'scripts/fixtures/memory-story-cases.ts', 'scripts/fixtures/memory-story-harness.ts', 'scripts/fixtures/continuity-live-budget.ts', 'scripts/fixtures/world-probe-stream.ts', 'scripts/fixtures/probe-response-deadline.ts'])
+    const ioHash = run.sources['scripts/fixtures/memory-story-io.ts']
+    if (ioHash === sha(join(repo, 'scripts/fixtures/memory-story-io.ts'))) {
+      for (const path of ['scripts/fixtures/memory-story-embedding.ts', 'scripts/fixtures/probe-transport.ts']) assert.equal(run.sources[path], sha(join(repo, path)), 'STORY_IO_DEPENDENCY_CHANGED')
+    } else {
+      // Audited predecessor: same adapter/request/budget/stream semantics. New IO adds diagnostics,
+      // request-bound samples and a stricter pending-vector stop. Only its completed, clean cases qualify.
+      assert.equal(ioHash, '5907c8973a7f3db4554ada3fa19f88142fb379c45195bde94ba9c8beb0222040', 'UNAUDITED_STORY_IO_VERSION')
+    }
     assert.equal(authorization.expectedEmbeddingModel, storyPlan.expectedEmbeddingModel, 'VECTOR_MODEL_CHANGED')
     const io = read(join(root, 'io.json'))
     assert.equal(io.halted, true, 'STORY_IO_NOT_CLOSED')
     assert.equal(io.inFlight, 0, 'STORY_REQUEST_STILL_ACTIVE')
+    if (io.embedding) assert.ok(io.embedding.inFlight === 0 && io.embedding.drain.pendingAtClose === 0 && io.embedding.drain.settledWithoutRetry, 'STORY_VECTOR_STILL_ACTIVE')
     assert.deepEqual(io.counts, result.counts, 'STORY_ACCOUNTING_MISMATCH')
     assert.deepEqual(result.completed, run.storyOrder.slice(0, result.completed.length), 'STORY_ORDER_CHANGED')
     assert.equal(new Set(result.completed).size, result.completed.length, 'DUPLICATE_STORY_COVERAGE')
@@ -105,6 +114,7 @@ for (const rootArg of manifest.storyRoots ?? []) {
       assert.deepEqual(result.reviews.find(item => item.id === id), review, 'REVIEW_RECEIPT_MISMATCH')
       assert.ok(value.answer?.trim() && value.references?.length > 0, 'ANSWER_OR_SUCCESSFUL_INPUT_MISSING')
       const model = io.samples.filter(sample => sample.story === id && sample.kind === 'model')
+      assert.ok(io.samples.filter(sample => sample.story === id && sample.kind === 'embedding').every(sample => sample.ok && sample.status === 200 && Number.isFinite(sample.elapsedMs)), 'STORY_VECTOR_NOT_PASSED')
       assert.ok(model.length > 0 && model.every(sample => sample.ok && sample.status === 200), 'STORY_MODEL_CALL_NOT_PASSED')
       assert.ok(value.references.every(reference => model.some(sample => sample.ticket === reference.ticket)), 'SUCCESSFUL_INPUT_TICKET_MISMATCH')
       if (storyPlan.followUps[id]) {
