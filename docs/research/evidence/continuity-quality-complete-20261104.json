@@ -1,0 +1,1175 @@
+{
+  "status": "complete-90-real-retrieval-and-24-real-stories-on-candidate11",
+  "recordedAtIso": "2026-11-04T08:53:53.637Z",
+  "productionCommit": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+  "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef",
+  "productionChanged": false,
+  "implementationRevision": "84d45e09708574e6345639cffd41c1ee8cd1e5c4",
+  "audit": {
+    "path": "test-results/continuity/candidate11-quality-final-result-20261104-2.json",
+    "sha256": "c50ac4fd5c3940b69e4f8fd50ce430fb9d8fd8efc1d0f5b6e3dd1eaa5b2ad570",
+    "auditor": {
+      "path": "scripts/audit-memory-quality.mjs",
+      "sha256": "5bb82760510065db1bdb08b9ad03a54030619f7c4572a53bb9dca02c4be1a515"
+    },
+    "passed": true,
+    "serviceCalls": 0,
+    "verifiedStories": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S15",
+      "S16",
+      "S17",
+      "S18",
+      "S19",
+      "S20",
+      "S21",
+      "S22",
+      "S23",
+      "S24"
+    ],
+    "missingStories": [],
+    "errors": []
+  },
+  "retrieval": {
+    "root": "C:\\.lca-cache\\continuity11-tests\\retrieval-live-20261104-2",
+    "passed": true,
+    "metrics": {
+      "caseCount": 90,
+      "recallAtK": 0.9444444444444444,
+      "meanReciprocalRank": 0.9166666666666666,
+      "precisionAtK": 0.31481481481481444,
+      "falsePositiveRateAtK": 0.17407407407407416,
+      "averageQueryTokenCount": 0,
+      "averageAdditionalQueryTokenCount": 0,
+      "averageRetrievalLatencyMs": 768.9055833333333,
+      "missingQueryTokenCount": 90,
+      "missingAdditionalQueryTokenCount": 90,
+      "missingRetrievalLatency": 0,
+      "averageCostUsd": 0,
+      "missingCostCount": 90,
+      "byStratum": {
+        "short-zh": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 0.95,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0.26666666666666666
+        },
+        "long-zh": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.16666666666666666
+        },
+        "en-to-zh": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 1,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0.19999999999999998
+        },
+        "zh-to-en": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.13333333333333333
+        },
+        "negation": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.85,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.2333333333333333
+        },
+        "multi-fact": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0.26666666666666666
+        },
+        "temporal": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.85,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.16666666666666666
+        },
+        "unrelated-long": {
+          "caseCount": 10,
+          "recallAtK": 1,
+          "meanReciprocalRank": 1,
+          "precisionAtK": 0.33333333333333337,
+          "falsePositiveRateAtK": 0
+        },
+        "near-miss": {
+          "caseCount": 10,
+          "recallAtK": 0.9,
+          "meanReciprocalRank": 0.9,
+          "precisionAtK": 0.3,
+          "falsePositiveRateAtK": 0.13333333333333333
+        }
+      }
+    },
+    "misses": [
+      "long-zh-09",
+      "zh-to-en-07",
+      "negation-09",
+      "temporal-05",
+      "near-miss-08"
+    ]
+  },
+  "latestStories": {
+    "root": "C:/.lca-cache/continuity11-tests/completion-live-20261104-1",
+    "passed": true,
+    "coverageScope": "completion-3-stories",
+    "completed": [
+      "S13",
+      "S14",
+      "S15"
+    ],
+    "counts": {
+      "modelRequests": 6,
+      "embeddingRequests": 12,
+      "embeddingCharacters": 146,
+      "reservedUnits": 61278,
+      "autonomousUnits": 60918
+    },
+    "upstreamRequests": 18,
+    "firstFailure": null,
+    "embedding": {
+      "inFlight": 0,
+      "drain": {
+        "pendingAtClose": 0,
+        "settledWithoutRetry": true
+      }
+    },
+    "userAuthorization": "没问题，批准继续进行测试。",
+    "modelSamples": [
+      {
+        "story": "S13",
+        "status": 200,
+        "ok": true,
+        "elapsedMs": 8186,
+        "timeoutPhase": null
+      },
+      {
+        "story": "S13",
+        "status": 200,
+        "ok": true,
+        "elapsedMs": 5281,
+        "timeoutPhase": null
+      },
+      {
+        "story": "S13",
+        "status": 200,
+        "ok": true,
+        "elapsedMs": 5901,
+        "timeoutPhase": null
+      },
+      {
+        "story": "S13",
+        "status": 200,
+        "ok": true,
+        "elapsedMs": 11670,
+        "timeoutPhase": null
+      },
+      {
+        "story": "S14",
+        "status": 200,
+        "ok": true,
+        "elapsedMs": 4513,
+        "timeoutPhase": null
+      },
+      {
+        "story": "S15",
+        "status": 200,
+        "ok": true,
+        "elapsedMs": 8392,
+        "timeoutPhase": null
+      }
+    ],
+    "embeddingSamples": [
+      {
+        "story": "S13",
+        "status": 200,
+        "ok": true,
+        "headersMs": 941,
+        "vectorReadyMs": 978,
+        "elapsedMs": 979
+      },
+      {
+        "story": "S13",
+        "status": 200,
+        "ok": true,
+        "headersMs": 284,
+        "vectorReadyMs": 325,
+        "elapsedMs": 325
+      },
+      {
+        "story": "S13",
+        "status": 200,
+        "ok": true,
+        "headersMs": 289,
+        "vectorReadyMs": 335,
+        "elapsedMs": 335
+      },
+      {
+        "story": "S13",
+        "status": 200,
+        "ok": true,
+        "headersMs": 301,
+        "vectorReadyMs": 353,
+        "elapsedMs": 353
+      },
+      {
+        "story": "S14",
+        "status": 200,
+        "ok": true,
+        "headersMs": 954,
+        "vectorReadyMs": 1011,
+        "elapsedMs": 1011
+      },
+      {
+        "story": "S14",
+        "status": 200,
+        "ok": true,
+        "headersMs": 453,
+        "vectorReadyMs": 503,
+        "elapsedMs": 503
+      },
+      {
+        "story": "S14",
+        "status": 200,
+        "ok": true,
+        "headersMs": 319,
+        "vectorReadyMs": 358,
+        "elapsedMs": 358
+      },
+      {
+        "story": "S14",
+        "status": 200,
+        "ok": true,
+        "headersMs": 292,
+        "vectorReadyMs": 336,
+        "elapsedMs": 336
+      },
+      {
+        "story": "S15",
+        "status": 200,
+        "ok": true,
+        "headersMs": 868,
+        "vectorReadyMs": 909,
+        "elapsedMs": 909
+      },
+      {
+        "story": "S15",
+        "status": 200,
+        "ok": true,
+        "headersMs": 313,
+        "vectorReadyMs": 355,
+        "elapsedMs": 355
+      },
+      {
+        "story": "S15",
+        "status": 200,
+        "ok": true,
+        "headersMs": 281,
+        "vectorReadyMs": 313,
+        "elapsedMs": 313
+      },
+      {
+        "story": "S15",
+        "status": 200,
+        "ok": true,
+        "headersMs": 278,
+        "vectorReadyMs": 314,
+        "elapsedMs": 314
+      }
+    ],
+    "receipts": [
+      {
+        "path": "C:/.lca-cache/continuity11-tests/completion-live-20261104-1/run.json",
+        "sha256": "53805ae160b09121d664ee33c251e0d4505bbdce0e58c7a2680e51ec589cf2a7"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/completion-live-20261104-1/report.json",
+        "sha256": "e9981ed3e6bcc8d94af5b55f7e00f45d8a706397b4b2898cf1ee13177892c1b9"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/completion-live-20261104-1/authorization.json",
+        "sha256": "bcf191c340d855680b4780991d9623c6b86fdeb139f42a2bd44927b2c3243d84"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/completion-live-20261104-1/closed.json",
+        "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/completion-live-20261104-1/io.json",
+        "sha256": "4ee6a43fe26a508cfc78d95c9af38bd7774b5787167491ac5e5cfaac96492784"
+      }
+    ]
+  },
+  "windows": [
+    {
+      "root": "C:\\.lca-cache\\continuity11-tests\\retrieval-live-20261104-2",
+      "batch": "candidate11-memory-retrieval-90",
+      "authorizationId": "candidate11-goal-retrieval-20261104-3d8602aa-4496-45d0-8c13-e693241efa47",
+      "originalWindowPassed": true,
+      "counts": {
+        "modelRequests": 0,
+        "embeddingRequests": 212,
+        "embeddingCharacters": 5360,
+        "reservedUnits": 445270,
+        "autonomousUnits": 445270
+      },
+      "completed": 90,
+      "error": null,
+      "closed": {
+        "ok": true,
+        "reuseAllowed": false,
+        "cleanupUncertain": false
+      },
+      "receipts": [
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\retrieval-live-20261104-2/report.json",
+          "sha256": "2fb43262cd8e4c9c3c0d892994a907f5a7a8d3e890558a8035afcaacdcc8381f"
+        },
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\retrieval-live-20261104-2/authorization.json",
+          "sha256": "74424838e406801276fe454d895bbbb1141e3a42158af49971a921cce6ceefaf"
+        },
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\retrieval-live-20261104-2/closed.json",
+          "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a"
+        }
+      ]
+    },
+    {
+      "root": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1",
+      "batch": "candidate11-work-interruption-S16-S20",
+      "authorizationId": "candidate11-interruption-20261104-19db0922-d198-483c-9d2e-2660633af833",
+      "originalWindowPassed": true,
+      "counts": {
+        "modelRequests": 2,
+        "embeddingRequests": 4,
+        "embeddingCharacters": 44,
+        "reservedUnits": 24444,
+        "autonomousUnits": 8324
+      },
+      "completed": [
+        "S16",
+        "S20"
+      ],
+      "error": null,
+      "closed": {
+        "ok": true,
+        "reuseAllowed": false,
+        "cleanupUncertain": false
+      },
+      "receipts": [
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1/report.json",
+          "sha256": "58148f52b52c02ff2002a627ebb17cdf98efeccbe63f9fb35c7a9c01ecc7f913"
+        },
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1/authorization.json",
+          "sha256": "fa2ef38de4e2ced5ea01e06021a6d0cbaf2b32a54ebd0e3211e69e87d5616008"
+        },
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1/closed.json",
+          "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a"
+        }
+      ]
+    },
+    {
+      "root": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1",
+      "batch": "candidate11-remaining-stories-22",
+      "authorizationId": "candidate11-goal-remaining-20261104-7e84260d-371b-44db-96e7-17ae45dc78ab",
+      "originalWindowPassed": false,
+      "counts": {
+        "modelRequests": 12,
+        "embeddingRequests": 16,
+        "embeddingCharacters": 133,
+        "reservedUnits": 122681,
+        "autonomousUnits": 33167
+      },
+      "completed": [
+        "S17",
+        "S18",
+        "S19",
+        "S21",
+        "S22"
+      ],
+      "error": "STORY_IO_FAILED",
+      "closed": {
+        "ok": false,
+        "reuseAllowed": false,
+        "cleanupUncertain": false
+      },
+      "receipts": [
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1/report.json",
+          "sha256": "9aa75ce9a8bd60da81ff3f9d8c5c132bea909950c58a0a334743cb3a8b1a0a0f"
+        },
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1/authorization.json",
+          "sha256": "1173c83d54be9e9983baf4e4eb9ea742c332b71636f771aa30b68daaebdf1759"
+        },
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1/closed.json",
+          "sha256": "5f3b7b4edeffd231a821f43ecb798b3c9e565c5e408597ff8ad8931a82ff9741"
+        }
+      ]
+    },
+    {
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "batch": "candidate11-pending-stories-17",
+      "authorizationId": "candidate11-pending-20261104-80991a06-6cd5-4bb3-8ec3-49aadabeab15",
+      "originalWindowPassed": false,
+      "counts": {
+        "modelRequests": 41,
+        "embeddingRequests": 63,
+        "embeddingCharacters": 793,
+        "reservedUnits": 584618,
+        "autonomousUnits": 131297
+      },
+      "completed": [
+        "S23",
+        "S24",
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S12"
+      ],
+      "error": "STORY_IO_FAILED",
+      "closed": {
+        "ok": false,
+        "reuseAllowed": false,
+        "cleanupUncertain": false
+      },
+      "receipts": [
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1/report.json",
+          "sha256": "877e3eb5ca9f4e7b8e6d702f52d299fdb69dcdcc982b679d880eaf0a8715a294"
+        },
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1/authorization.json",
+          "sha256": "ac68dd09a6d597184de4d769c042ceed202dace8efa62ffa2eb4cd6a0f1e95ec"
+        },
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1/closed.json",
+          "sha256": "5f3b7b4edeffd231a821f43ecb798b3c9e565c5e408597ff8ad8931a82ff9741"
+        }
+      ]
+    },
+    {
+      "root": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1",
+      "batch": "candidate11-completion-stories-3",
+      "authorizationId": "candidate11-completion-20261104-11cffc2b-94a6-4360-b3ee-de7e902bffd8",
+      "originalWindowPassed": true,
+      "counts": {
+        "modelRequests": 6,
+        "embeddingRequests": 12,
+        "embeddingCharacters": 146,
+        "reservedUnits": 61278,
+        "autonomousUnits": 60918
+      },
+      "completed": [
+        "S13",
+        "S14",
+        "S15"
+      ],
+      "error": null,
+      "closed": {
+        "ok": true,
+        "reuseAllowed": false,
+        "cleanupUncertain": false
+      },
+      "receipts": [
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1/report.json",
+          "sha256": "e9981ed3e6bcc8d94af5b55f7e00f45d8a706397b4b2898cf1ee13177892c1b9"
+        },
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1/authorization.json",
+          "sha256": "bcf191c340d855680b4780991d9623c6b86fdeb139f42a2bd44927b2c3243d84"
+        },
+        {
+          "path": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1/closed.json",
+          "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a"
+        }
+      ]
+    }
+  ],
+  "stories": [
+    {
+      "id": "S01",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "文字大小的入口应该放哪？",
+      "answer": "放在原来的外观设置里，不单独加分区。",
+      "followUp": null,
+      "checks": [],
+      "toolNames": [],
+      "verdict": "pass",
+      "reason": "闲聊后回答仍明确文字大小入口放在原外观设置，不新增独立分区；成功输入包含已审核且有效的原始用户偏好及来源版本，回答与该记录一致，没有执行额外变更。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S01.json",
+        "sha256": "4df6dd153adf7692c8adef4d53b9fb241242cd10956f1d7cd427c7d5b2b943ad"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S01.json",
+        "sha256": "3d0ecb9db261081f6b0a7394484fbbeeaf73f2dd5f1d6d6c596454541c391fb7"
+      }
+    },
+    {
+      "id": "S02",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "我平时希望你怎么汇报排查结果？",
+      "answer": "ツール调用先查一下已审记忆和历史记录，确认用户的偏好。并行调用 `lca_search_memory` 和 `lca_list_experiences`。\n你之前在 11 月 2 日跟我说过，技术结论要先给结果，再给证据。",
+      "followUp": null,
+      "checks": [
+        "oldPage"
+      ],
+      "toolNames": [
+        "memory.search",
+        "history.index",
+        "history.expand"
+      ],
+      "verdict": "pass",
+      "reason": "跨日后准确说出技术结论先给结果再给证据，并展开原日页核对用户原话；没有把偏好改成先写冗长过程。聚合答复开头出现一段带日文片段和工具名的查询旁白，作为表达瑕疵保留；最终偏好结论及引用来源正确，未据此过滤原始回答。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S02.json",
+        "sha256": "e14d17b934eb07c2891ac265e92309784d7890160c11ae9f8be2b5f899a6cce1"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S02.json",
+        "sha256": "bced4939a70cdb7f6745fc116c82ff07947632c3f5ca6472ec9dff697b35f1f8"
+      }
+    },
+    {
+      "id": "S03",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "这次报告用什么格式交？",
+      "answer": "按你之前定下的默认习惯，用英文写，保留可编辑的 LaTeX。这次要是想换别的格式，直接跟我说就行。",
+      "followUp": null,
+      "checks": [
+        "oldPage"
+      ],
+      "toolNames": [
+        "memory.read",
+        "history.index"
+      ],
+      "verdict": "pass",
+      "reason": "跨日后答复采用英文并保留可编辑 LaTeX，符合已审核有效偏好和旧日页来源；实际 memory.read 完成核对，没有改为只有图片，也未把询问格式误当成发送或修改的授权。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S03.json",
+        "sha256": "4c349b4f052f6dac00f107cdff31f825827620dc93359f15d01bbed8aa128cdc"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S03.json",
+        "sha256": "6d8fec98a56b5e55e74236c66a033ca5a1c398b9c53a277f4de01a6dab84ebd4"
+      }
+    },
+    {
+      "id": "S04",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "每处理完一页资料要通知我吗？",
+      "answer": "不用。你之前说过，普通进度放在工作卡上就好，只有急件或者等你批准的时候才发系统通知。",
+      "followUp": null,
+      "checks": [
+        "activeWork"
+      ],
+      "toolNames": [
+        "memory.search"
+      ],
+      "verdict": "pass",
+      "reason": "资料整理任务仍运行时，回答明确不逐页系统通知，普通进度留工作卡，急件或等待批准才通知；与两条有效偏好和实际任务状态一致，只有记忆查询，没有增加通知或误改工作。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S04.json",
+        "sha256": "7362650b31b8d78914a18a539c859216c8ee789313e38a0f1692b13381d6223c"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S04.json",
+        "sha256": "e7006dd79cd2c8227f7be824e8740340a72076a170cdbe2128d1b7b20fc68956"
+      }
+    },
+    {
+      "id": "S05",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "现在按哪天安排交付？",
+      "answer": "现在按这周六（11月7日）安排交付。你刚改过，说老师改成周六交了。",
+      "followUp": {
+        "question": "那原先的交付安排是什么？请查一下当时的记录。",
+        "answer": "查到了。2026年11月2日那天的原记录里，你定的是“这份报告周五交”；这条后来已经被11月3日“老师说改成周六交”的安排替代了，现在还是按周六交。"
+      },
+      "checks": [
+        "oldPage",
+        "oldSummaryExists",
+        "superseded",
+        "current",
+        "originalStillExpandable"
+      ],
+      "toolNames": [
+        "work.query",
+        "memory.search",
+        "history.index",
+        "dsh.search",
+        "memory.read",
+        "history.expand"
+      ],
+      "verdict": "pass",
+      "reason": "当前交付回答采用更正后的周六。固定追问通过 history.expand 找回被 superseded 标记的原始周五安排，明确其已被周六替代。实际旧摘要存在且退役、原话仍可历史展开、新事实 active；没有让旧摘要或历史追问把当前截止恢复为周五。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S05.json",
+        "sha256": "9f4e881ced17514aa64f45f74dbe8cd376842ba4d2e970f8026e676dd9d1f174"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S05.json",
+        "sha256": "af58e1da917faa5f33e90fb7637854b83bb241353cae57998842c133d179ee66"
+      }
+    },
+    {
+      "id": "S06",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "现在该给我推荐哪种饮品？",
+      "answer": "你改喝咖啡了，给你推荐咖啡。只是现在已经零点了，要是怕影响睡觉，可以选低因的。",
+      "followUp": null,
+      "checks": [
+        "superseded",
+        "current",
+        "actualCompaction"
+      ],
+      "toolNames": [
+        "memory.read",
+        "memory.search"
+      ],
+      "verdict": "pass",
+      "reason": "实际 DSH root 压缩结果为 compacted，原始历史数量保持。之后回答推荐更正后的咖啡；成功输入及 memory.read/search 对应 active 的新偏好，原喝茶记录为 superseded，没有将旧偏好当作当前事实。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S06.json",
+        "sha256": "1b207b07e33f8e110f0b98b080f1b011c1b9cfc7fe575dc54fe97a90c47e1c96"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S06.json",
+        "sha256": "f63fb330c870d8c50bde2adde27b4d2441410e57faa6b4423529c8a3fcf74b69"
+      }
+    },
+    {
+      "id": "S07",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "继续项目甲用哪个端口？",
+      "answer": "项目甲用 8512。你之前把项目甲改成了 8512，项目乙留在 8511。",
+      "followUp": {
+        "question": "项目乙的端口也需要跟着改吗？",
+        "answer": "不用。之前记下的是项目甲改成 8512，项目乙还是继续用 8511。"
+      },
+      "checks": [
+        "superseded",
+        "current",
+        "oldPage"
+      ],
+      "toolNames": [
+        "history.index",
+        "memory.read",
+        "work.query",
+        "history.expand",
+        "dsh.search"
+      ],
+      "verdict": "pass",
+      "reason": "跨日后主答复给项目甲 8512，固定追问明确项目乙保持 8511。已审核新事实、日页展开和追问成功输入一致，旧甲 8511 记录处于 superseded；没有把更正扩散到乙，也没有执行端口变更。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S07.json",
+        "sha256": "9526ac54dcd48d297933fffb7d3efbc7f1a3d96b24efe7f9ae1f948f8ed972e9"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S07.json",
+        "sha256": "644adb256a6767e89bd69278c38028596641439f75b32acd85baece04d6cbc48"
+      }
+    },
+    {
+      "id": "S08",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "你知道我现在喜欢什么主题吗？",
+      "answer": "现在不记得了。那条关于主题偏好的记录已经按你的意思忘掉了，我现在这里没有记着你喜欢什么主题。要是你有新的偏好想让我记下，随时告诉我。",
+      "followUp": null,
+      "checks": [
+        "oldPage",
+        "oldSummaryExists",
+        "pendingMirrorBeforeForget",
+        "forgottenBeforeQuestion"
+      ],
+      "toolNames": [
+        "memory.search",
+        "history.index"
+      ],
+      "verdict": "pass",
+      "reason": "确认此前有旧摘要、长期记忆提升及待镜像队列，并已完成忘记操作；当前事实为空。回答明确该主题偏好已忘掉、当前无法确认，没有复述深色主题，也未从旧摘要或离线队列恢复该值。未发起新的记住操作。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S08.json",
+        "sha256": "f7f858a6acb7b761a8a9c9292c5434be0e70f643b305824258b0f35ba29eac42"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S08.json",
+        "sha256": "85f961ee938f234caf383324d0bb223c05560be4dde47433c0eabc1c1d5d1865"
+      }
+    },
+    {
+      "id": "S09",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "当时为什么没有用摘要替换原日志？",
+      "answer": "因为当时定的规则是“日志保留原文，摘要只是索引”。你那会儿说，这样以后要纠正事实的时候，还能回头查到当时具体是怎么说的。",
+      "followUp": null,
+      "checks": [
+        "oldPage"
+      ],
+      "toolNames": [
+        "history.expand"
+      ],
+      "verdict": "pass",
+      "reason": "ManualClock 推进十四天并换页后，真实回答准确解释保留原日志是为以后纠正时查证当时原话。history.expand 实际展开该决定与原因，引用版本一致，没有将摘要说成必然更准确或替换原日志。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S09.json",
+        "sha256": "83189da7ef645de7bd345b899f1c73810b1a879df4b9b2380840121c7373bcb0"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S09.json",
+        "sha256": "46ac205933114ccd72de7433308290d12436d8f3121255c72a59a8f2542194ba"
+      }
+    },
+    {
+      "id": "S10",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "为什么当时没有换新图？",
+      "answer": "当时你说新镜头还没审图，不能直接采用，所以决定先用已有的静态素材。",
+      "followUp": null,
+      "checks": [],
+      "toolNames": [
+        "memory.search",
+        "history.index",
+        "history.expand",
+        "memory.read"
+      ],
+      "verdict": "pass",
+      "reason": "经过晚饭与课程闲聊后，回答仍准确解释沿用静态素材是因新镜头尚未审图；实际搜索、读取和历史展开均找到原决定与原因，没有把未审素材说成已批准，也未执行素材替换。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S10.json",
+        "sha256": "1feacbe087dc7a0c6d712177307006b69dc86c920321a63987536c8fff51ded2"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S10.json",
+        "sha256": "967c909b97a85fcc52d06d02aad0319400ac79034970dc2a0968763490ab8f94"
+      }
+    },
+    {
+      "id": "S11",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "为什么要另开数据目录？",
+      "answer": "之前在 11 月 2 号的时候你提过，把运行数据放在单独的测试目录里，是因为不想污染日用历史。",
+      "followUp": null,
+      "checks": [
+        "oldPage"
+      ],
+      "toolNames": [
+        "history.expand",
+        "memory.read"
+      ],
+      "verdict": "pass",
+      "reason": "ManualClock 推进三十一天后，回答仍将独立测试目录的原因归为保护日用历史。实际跨月索引、history.expand 和 memory.read 指向原决定与原因，没有说要清空日用数据，也没有发起任何目录操作。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S11.json",
+        "sha256": "a6604d521bd0f2feb764920cef46a7a53fec7fa503cefa929697674306b05899"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S11.json",
+        "sha256": "9f863a4f75804263f6dd3fccc27b6dda9ebc33200a32d994a23b333ca17934c9"
+      }
+    },
+    {
+      "id": "S12",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "最初为什么这样组织月回顾？",
+      "answer": "你之前在 11 月 2 日提过，是为了先避免从日到周、再到月的过程中出现重复的信息损失，所以让月回顾直接从日回顾取材。",
+      "followUp": null,
+      "checks": [
+        "oldPage"
+      ],
+      "toolNames": [
+        "history.index",
+        "history.expand",
+        "memory.read",
+        "memory.search"
+      ],
+      "verdict": "pass",
+      "reason": "跨周后回答准确解释月回顾直接取材日回顾，是为了避免日到周再到月的连续摘要损失。已审核事实、日摘要及实际展开原话相互一致，未声称新算法讨论已替换原决定，也未进行记忆更改。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S12.json",
+        "sha256": "08207aa91753c602df1f7aa0856d7fc60b10c645aaa947834cc524bfebeeaf3f"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S12.json",
+        "sha256": "e6bda6b3d7794827af3705e2cf0e44a8baef5e2d82f8833f4f053e735318e4a0"
+      }
+    },
+    {
+      "id": "S13",
+      "root": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1",
+      "question": "刚才改了什么，还差什么？",
+      "answer": "刚才改了 `appearance.ts`，在原来的外观设置里加上了字号和行距调节，没有新建独立分区，类型检查已经过了。\n\n还差两处：\n- 截图还没有验收。\n- 执行记录里有 1 次失败动作和 1 条结果未确认的命令，如果要继续跑，最好先核对一下实际文件和运行结果，不要直接重发。",
+      "followUp": null,
+      "checks": [
+        "extractionWithheld",
+        "publishedWork"
+      ],
+      "toolNames": [
+        "work.query",
+        "dsh.read"
+      ],
+      "verdict": "pass",
+      "reason": "完整真实答复明确说明在原外观设置加入字号和行距、没有独立分区、类型检查已过、截图尚未验收，未声称全部验收完成。实际 appearance.ts 含 appearance.fontSize 与 lineHeight，文件 SHA256 与发布检查点相符；DSH 执行原 tsc 命令的成功回执 exitCode=0，检查点 outcome=partial，unresolved 保留截图，用户新增决定在 revision=2 中已消费。记忆事实为空且 extractionCalls=0，证明及时追问来自工作交付而非等待抽取。4 次真实模型和 4 次 Voyage 全部 200，向量均在原交互期限内并已结束。答复额外提示 1 次失败动作/1 条未确认命令，与输入的生产工作投影一致；原始 DSH 记录显示该条为项目首次信任转换后提示再次执行，随后同一只读 tsc 命令成功，因此这项保守提示保留为投影/表达观察，不改写原记录、不当作真实外部动作失败或重发真实服务。最终回答无对外动作或无依据的完成声明。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1\\S13.json",
+        "sha256": "6a6a106608f78332083cd1e791afb3ea12a23f32345e8260acfe0decdc7f02b2"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1\\reviews\\S13.json",
+        "sha256": "b8241f153437822ce13e05785e1a77eac8c991b50ddc030df9178ac8f1138512"
+      }
+    },
+    {
+      "id": "S14",
+      "root": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1",
+      "question": "结果已经发给老师了吗？",
+      "answer": "没有发。按你之前交代的“只生成本地文件，别发出去”，公开材料只整理到了本地的 `artifact-14.md`，本次工作里没有执行任何发送操作。",
+      "followUp": null,
+      "checks": [
+        "extractionWithheld",
+        "publishedWork"
+      ],
+      "toolNames": [],
+      "verdict": "pass",
+      "reason": "真实回答明确没有发送，仅按用户要求将公开材料整理到本地 artifact-14.md，未把本地任务 completed 混同为已发给老师。实际文件存在、70 字节且 SHA256 与 artifact 证据/检查点一致；工作 revision=2 已消费只生成本地文件别发出去的决定，证据只有本地产物，external.requests=0、acknowledged=0，回答无发送工具调用。事实列表为空、extractionCalls=0，但成功模型输入包含已发布检查点及原用户决定，验证即时交付可独立于异步记忆抽取。该例 1 次真实模型、4 次 Voyage 全部 200，已发向量全部结清且首次失败为空。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1\\S14.json",
+        "sha256": "8c05b1ba0bc7b4de61e0b1adc9780be5777309410b2e25530194e3edaa771c44"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1\\reviews\\S14.json",
+        "sha256": "fc0a4933b28c0988ce78125a52615e1a0f13b4bd9a148da3c50e1629b358278a"
+      }
+    },
+    {
+      "id": "S15",
+      "root": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1",
+      "question": "现在能说真实使用已经通过了吗？",
+      "answer": "不能。目前只改好了 `toast.cjs` 的去重逻辑并通过了离线测试（检查点状态是部分完成），真实重启体验还没跑过，另外记录里还有 1 次失败动作和 1 条结果未确认的命令，不能算真实使用已经通过。",
+      "followUp": null,
+      "checks": [
+        "extractionWithheld",
+        "publishedWork"
+      ],
+      "toolNames": [],
+      "verdict": "pass",
+      "reason": "真实答复直接否定真实使用已通过，准确限制为 toast.cjs 去重逻辑和离线测试通过、检查点部分完成、真实重启体验未跑。实际文件内容与 SHA256 相符，test.cjs 检查相同 ID 首次 true/再次 false；原 DSH 工具回执显示 Node 测试 1 pass、0 fail，命令 exitCode=0，检查点 unresolved 保留真实重启尚未执行。记忆事实为空且 extractionCalls=0，模型通过已发布工作证据即时回答。该例 1 次真实模型、4 次 Voyage 全部 200，向量均在原期限内结清，首次失败为空。额外的失败动作/未确认命令说明来自生产投影；核对原 DSH 记录是项目首次信任转换后同一离线命令成功的保守残留，保留观察，不把它改写为真实重启失败或外部服务重试。本例未执行实际系统重启、未重发工作，也未把本地通过扩大为真实日用完成。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1\\S15.json",
+        "sha256": "fddb8a51715c21f89ec1c41ac68e6910e48900be8420cf73733dd9dcebf7244a"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\completion-live-20261104-1\\reviews\\S15.json",
+        "sha256": "2a506200f3932f7f47b4ed7486726f18116dac518be4871b370721ffe4291fbb"
+      }
+    },
+    {
+      "id": "S16",
+      "root": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1",
+      "question": "要直接再发一次吗？",
+      "answer": "先别直接重发。“work-16”之前被停下了，当时有一条命令没拿到明确结果，停止也不等于那个外部动作没发生或已经撤回。\n\n稳妥起见，得先核对一下本地测试服务的记录或者实际导出的文件，确认上次到底有没有生成成功，再决定要不要继续或重发。",
+      "followUp": null,
+      "checks": [
+        "externalOutcomeUnknown",
+        "onceApprovalRecorded",
+        "work"
+      ],
+      "toolNames": [],
+      "verdict": "pass",
+      "reason": "The real answer declines immediate replay, accurately says that the interrupted command has no confirmed result and that stopping does not prove the external action never happened or was rolled back, and requires checking the test-service record or actual export before deciding to continue. Its successful model input contains the production stopped interruption, completion=unverified, one unconfirmed command, and no checkpoint. Actual execution evidence remains one received external request with zero acknowledgements, generation 1 and status stopped; there are no final-answer tool calls or repeated requests. This satisfies both frozen required meanings and the prohibition on blind replay without claiming reconciliation already occurred.",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\S16.json",
+        "sha256": "ca99cd584c81fe1bf731c9b7763a4236cc9f71c12e0a3ac5cbe0dac1abf0cdfb"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\reviews\\S16.json",
+        "sha256": "99ca565ce71b8bb8f0650159b52bbfc954aa054878b1e5725bc80441e434b2b5"
+      }
+    },
+    {
+      "id": "S17",
+      "root": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1",
+      "question": "那份记录现在是什么状态？",
+      "answer": "整理实验记录的任务（work-17）目前还在运行中（`running`），还没有发布的完成检查点，项目目录里也暂时没有生成任何文件。",
+      "followUp": null,
+      "checks": [
+        "sameWorkAcrossDay"
+      ],
+      "toolNames": [
+        "work.query",
+        "dsh.search"
+      ],
+      "verdict": "pass",
+      "reason": "回答明确 work-17 仍在运行且没有已发布完成检查点；成功输入和查询对应跨日仍相同的 workId、generation 1 与原始整理记录目标，目录无产物，未将闲聊替换目标或跨日新建任务。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1\\S17.json",
+        "sha256": "32eb8848d1d80d5df7fdcc83d0dc7206c15bd88035c61980c3220e5c69df5d6c"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1\\reviews\\S17.json",
+        "sha256": "d61176ccaf3d6be97cd11dd779245de9892ca79545711116c9993c834041273f"
+      }
+    },
+    {
+      "id": "S18",
+      "root": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1",
+      "question": "现在还有哪件事在做？",
+      "answer": "现在还在做的是 work-19（检查项目乙），处于运行中，还没有完成证据。work-18（修改项目甲）已经停下了。",
+      "followUp": null,
+      "checks": [
+        "works"
+      ],
+      "toolNames": [],
+      "verdict": "pass",
+      "reason": "回答区分 work-19 检查项目乙仍在运行、work-18 修改项目甲已停止，与两个 root 的持久状态和成功输入一致；没有声称全部停止或完成，也没有发起新的工作操作。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1\\S18.json",
+        "sha256": "8353fa0191700b5f67a0992af6c9a785a2d0a6a9f8abf344b4e63bf55fa7d492"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1\\reviews\\S18.json",
+        "sha256": "9f36f5ca1ec5e8a65f14470473b64b67e3d9dc2ba34f5fe4cd23ed8787aa612e"
+      }
+    },
+    {
+      "id": "S19",
+      "root": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1",
+      "question": "这条补充应该改哪个任务？",
+      "answer": "刚才那句“把刚才那件事的格式改一下”没有指明是 work-19a（准备报告甲）还是 work-19b（准备报告乙），也没说具体要改成什么格式，所以我没有改动任何一个任务。你要改哪一个、改成什么格式，直接告诉我就好。",
+      "followUp": null,
+      "checks": [
+        "works"
+      ],
+      "toolNames": [
+        "user.ask"
+      ],
+      "verdict": "pass",
+      "reason": "面对不明确的补充，回答要求澄清 work-19a 或 work-19b 以及格式，没有自动选最近任务；两项身份、代次、目标版本和运行状态保持。user.ask 已实际提出澄清，夹具固定返回 cancelled（并非服务失败），随后文本仍保留待澄清，未调用 supplement。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1\\S19.json",
+        "sha256": "ca5c779cbf7393073b99c6910b82a8832d4a2aeb9124a161900b3d37f9c97d48"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1\\reviews\\S19.json",
+        "sha256": "7964b11d7a0808f14e1f3f0d76827115b99281f1b177c962a826087aaf03c06c"
+      }
+    },
+    {
+      "id": "S20",
+      "root": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1",
+      "question": "现在能沿用旧批准接着执行吗？",
+      "answer": "不能沿用旧批准。恢复后会开启新代次，不会继承之前的批准。而且刚才中断前有 1 个命令结果还没确认，也没法排除外部动作已经发生，直接接着重发可能重复执行。需要先核对一下本地测试服务或实际导出文件的情况，你要不要现在让我恢复任务去核对？",
+      "followUp": null,
+      "checks": [
+        "externalOutcomeUnknown",
+        "onceApprovalRecorded",
+        "work"
+      ],
+      "toolNames": [],
+      "verdict": "pass",
+      "reason": "The real answer explicitly rejects reuse of the old approval, distinguishes a future new generation from the interrupted one, explains that the unconfirmed command might already have produced an external effect, and requires checking the service or output before any replay. Its final question requests permission to resume for reconciliation; it does not execute a continuation or claim reconciliation has occurred. Successful-input references show review_required/recovery, a restarted interruption, completion=unverified and one unconfirmed command. Preparation recorded once-only approval, while actual post-answer state remains generation 1 with exactly one external request and no acknowledgement; toolEvents and runtime questions are empty. Both frozen required meanings are satisfied, and there was no automatic continuation of the old risky action.",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\S20.json",
+        "sha256": "3c3ecb3cfe7e07eab9e6cf22ec4377a4e327aa66e96ce685ce6d0fd5c9624ade"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\interruption-live-20261104-1\\reviews\\S20.json",
+        "sha256": "8531d49d192b915f1ea06714429644ad1c73b54af435968b9781cedcba9d2ff3"
+      }
+    },
+    {
+      "id": "S21",
+      "root": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1",
+      "question": "我的生日是哪天？",
+      "answer": "你还没跟我提过生日是哪天，我这儿只记着你喜欢画画，还有今天有数学课。你要是愿意告诉我，我现在记下来。",
+      "followUp": null,
+      "checks": [
+        "birthdayNeverSupplied"
+      ],
+      "toolNames": [
+        "memory.search",
+        "history.index",
+        "history.expand"
+      ],
+      "verdict": "pass",
+      "reason": "真实回答明确用户尚未提供生日，没有猜测日期；记忆搜索和历史展开仅找到喜欢画画与今天数学课，答复对已有信息的说明与实际来源一致，也没有把缺失生日写成新记忆。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1\\S21.json",
+        "sha256": "212c700c2785939e25c78984a5d65c67074248e607f48d881647a1be36fb68f7"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1\\reviews\\S21.json",
+        "sha256": "62a0e31e82ed8e4f2ce3c3356c2b9d1b525eb7b7bb01c466acc0b1a49a4c5cc9"
+      }
+    },
+    {
+      "id": "S22",
+      "root": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1",
+      "question": "项目乙的报告完成了吗？",
+      "answer": "还没有。刚做好的是项目甲的报告（`report-a.md`），项目乙报告还在运行中，目前还没有生成产物。",
+      "followUp": null,
+      "checks": [
+        "works"
+      ],
+      "toolNames": [
+        "work.query"
+      ],
+      "verdict": "pass",
+      "reason": "回答明确项目乙仍在运行、尚无产物，并将已生成的 report-a.md 正确归属于项目甲；实际文件哈希、甲的已发布检查点与乙的空检查点一致，查询没有更改乙的运行状态，也未借用甲的完成证据。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1\\S22.json",
+        "sha256": "cc0e630515e67f59d74bc9f1b2ad6fb673869a5416a6de6e14b526c96eecb0f7"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\remaining-live-20261104-1\\reviews\\S22.json",
+        "sha256": "6a5a4da39e553c3edb067b78aa76cfe3e074ef181da34a0062210dc16f62f214"
+      }
+    },
+    {
+      "id": "S23",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "我的考试是哪天？",
+      "answer": "我翻了一下现在的记录，还没有你的考试日期（或者之前的待审核记忆还没确认生效）。你是哪天考试？告诉我一声，我帮你记下来。",
+      "followUp": null,
+      "checks": [
+        "otherOwnerFactExcluded"
+      ],
+      "toolNames": [
+        "memory.search",
+        "history.index",
+        "history.expand",
+        "work.query",
+        "dsh.search"
+      ],
+      "verdict": "pass",
+      "reason": "回答无法确认考试日期并请用户提供日期，未复述另一角色的 11 月 19 日。当前事实和展开历史均为空，otherOwnerFactExcluded 断言与工具记录一致，未发生记忆写入或读取另一角色事实。括号中的待审核仅作可能性表达，不是已存在待审核事实的证据。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S23.json",
+        "sha256": "911cfe7d7d2e42e5f47865d906aae739691a5fb47c7877637d60a9bdaf8326c2"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S23.json",
+        "sha256": "833050ff3fb414aaae1e41da7cdce284e948a4ab939e591b86bf619183e3d017"
+      }
+    },
+    {
+      "id": "S24",
+      "root": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1",
+      "question": "上次提到的航班号是什么？",
+      "answer": "我翻了一下现在的已审核记忆和对话记录，里面没有找到上次提到的航班号（可能是之前的记忆提议还没在记忆设置里审核通过，或者没有记录下来）。你如果还记得大概是哪天、哪趟，可以再跟我说一声。",
+      "followUp": null,
+      "checks": [
+        "unconfiguredVectorOfflineMirror"
+      ],
+      "toolNames": [
+        "memory.search",
+        "history.index",
+        "history.expand",
+        "work.query"
+      ],
+      "verdict": "pass",
+      "reason": "在向量未配置、镜像离线且本地事实为空的实际状态下，回答仅称查过已有记忆和对话但未找到航班号，并请用户补充线索；没有编造号码或声称完成全量语义检索。实际工具仅查询当前记录，本例没有发起向量请求。",
+      "result": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\S24.json",
+        "sha256": "4ab245d7ac6eb87a4053101d775b621a4825be8012e965821746a9e170a8ae76"
+      },
+      "review": {
+        "path": "C:\\.lca-cache\\continuity11-tests\\pending-live-20261104-1\\reviews\\S24.json",
+        "sha256": "3fdd84f13245c3696d4c46c738b3e46b0aca183ef2b55528c2a1b408f41acd47"
+      }
+    }
+  ],
+  "preservedFailures": {
+    "earlierStoryWindows": [
+      "C:/.lca-cache/continuity11-tests/remaining-live-20261104-1",
+      "C:/.lca-cache/continuity11-tests/pending-live-20261104-1"
+    ],
+    "reclassifiedAsPass": false,
+    "userReportedPowerAndNetworkOutage": true,
+    "originalTransportRootCauseConfirmed": false,
+    "evidence": [
+      {
+        "path": "docs/research/evidence/continuity-quality-progress-20261104.json",
+        "sha256": "1369bf4cb2bcd03654ed847a5e2b8dd32a7a2c31d55439a81e51c16cb7a957c7"
+      },
+      {
+        "path": "docs/research/evidence/continuity-completion-gate-repair-20261104.json",
+        "sha256": "1c51e2abb1328d484a96b015e041b3c88eaabe55200c4c0a903a246cf81f7c5b"
+      }
+    ]
+  },
+  "expressionObservations": [
+    "S02 contains a short tool-narration prefix with a mixed-language fragment; original answer preserved and preference content correct",
+    "S23/S24 suggest possible unreviewed memories without asserting an actual pending record; absence and scope claims remain bounded",
+    "S13/S15 repeat the production projection of one failed/unconfirmed command after the initial project-trust transition; raw DSH records confirm the same local check subsequently succeeded. Conservative residual status is preserved as a projection observation, not an external service failure or a real restart result."
+  ],
+  "projectTrustObservations": [
+    {
+      "story": "S13",
+      "rejectedCallId": "922595c3-cb8b-41ad-a150-19046b5a5e59",
+      "successfulCallId": "d12598ed-6a08-41ed-b37c-0ed3cf350a7f",
+      "check": "tsc --noEmit --strict --skipLibCheck --target ES2020 appearance.ts",
+      "source": {
+        "path": "C:/.lca-cache/continuity11-tests/completion-live-20261104-1/S13/dsh-home/storages/session_projcache/sessions/session-191ea1ef-0f37-44b7-b3b4-f7853610d409.json",
+        "sha256": "24e89e85c82b4b24c3f127de7a0df07e3d9c4a62ffa8fd1c1d0d602b0b860ae3"
+      }
+    },
+    {
+      "story": "S15",
+      "rejectedCallId": "59e2edc4-cff1-429b-b028-f3fe419a1889",
+      "successfulCallId": "22f87c7f-10fd-445c-a60a-29dbe0806549",
+      "check": "Node --test test.cjs: 1 pass, 0 fail",
+      "source": {
+        "path": "C:/.lca-cache/continuity11-tests/completion-live-20261104-1/S15/dsh-home/storages/session_projcache/sessions/session-0c23e85e-e34b-4c02-a0ad-89f3daf4237a.json",
+        "sha256": "9b89205179b48c52e829a0c56586e0b062a754faf0cbe219c3c31324b7055d3e"
+      }
+    }
+  ],
+  "scope": "Frozen original questions, oracles, production candidate and actual DSH final answers/tools. Controlled setup and reviewed facts; does not re-evaluate automatic extraction quality.",
+  "outsideThisGoal": [
+    "candidate11 actual Windows install/upgrade",
+    "second Windows machine",
+    "long-term daily use"
+  ],
+  "releasePublished": false
+}

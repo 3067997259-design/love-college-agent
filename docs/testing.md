@@ -28,6 +28,8 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 `node scripts/audit-memory-quality.mjs <输入清单.json> <新报告.json>` 是上述质量测试的离线汇总核验入口。清单指定 `retrievalRoot` 和 `storyRoots`，只读取测试报告、原始逐例结果、评审回执及源码快照；核对同一候选、真实请求、90 条重算评分及全部 24 条覆盖。缺项或证据不一致时报告 `ok: false` 并非零退出，不读取连接配置或发请求。
 
+候选 11 已完成上述完整核验：90 条检索达到固定阈值、四个独立授权窗口覆盖 24/24 条故事，最终报告 `ok: true`、无缺项或证据错误。逐例结果和失败修复记录见[最终验收记录](research/continuity-quality-goal-20261104.md)。真实范围为受控材料上的模型回答、工具步骤和 Voyage 检索；自动抽取质量、实际安装／升级、第二台 Windows 及长期体验保持各自证据边界。
+
 故事 IO 会将每个向量结果绑定到原请求，记录不含地址、密钥或正文的传输阶段和错误码。模型准入检查生产 runtime 的实际存储／向量错误；完工投递与用户上下文可交错准备，不能把任意在途查询当成超时。语义审阅前会等待已发出的向量结束并核对无失败；失败后不重试、不把迟到结果改判为通过。汇总核验允许明确审计过的旧 IO／harness 精确指纹组合保留其已完成且全部请求成功、查询未超时的案例，同时核对新 IO 依赖指纹和关闭时零在途向量；不通配接受任意旧夹具。
 
 自动验收现包含六个普通产品世界引用场景和生活作品入口；`test:continuity:world` 可在构建后单独执行。`test:continuity:postgres` 只对本次新建的独立 Docker pgvector 容器测试，缺环境时报告 unavailable；成功退出不意味着 PostgreSQL 已通过，需检查其 status。`test:continuity:prepare-live <本次报告目录>` 仅生成待授权的真实服务清单和额度建议，不调用模型。完整范围、失败记录及证据边界见[自动验收记录](research/continuity-automatic-acceptance-20261101.md)。
