@@ -24,11 +24,11 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 `node scripts/probe-memory-stories-quality.mjs --work-interruption` 仅复测冻结的 S16／S20，不带此选项仍为完整 24 条。预检加 `--self-test`，准备授权加 `--prepare <预检目录> <新模板>`，各阶段都必须使用相同范围，并设置固定的 `LCA_TEST_EXECUTABLE` 和新建 `LCA_QUALITY_RUN`。真实模式另需明确授权及已有的模型／向量配置；范围、顺序、限额和源码哈希必须与授权一致，不能拿两例预检生成全量授权。子集报告始终标记 `fullSuitePassed: false`，结果见[候选 11 独立复测](research/continuity-candidate11-interruption-live-20261104.md)。
 
-`--remaining-stories` 只执行其余 22 条；`--pending-stories` 是本候选七例已通过后剩下的固定 17 条（S23、S24、S01–S15）。这两个选项和 `--work-interruption` 互斥，各范围绑定自己的预检与授权。用于同一候选分批验收时，必须另行核对各批证据的版本、判定条件与覆盖并集，不能把子集的 `qualityPassed` 当作完整 24 条通过。当前推进范围及原检索超时的诊断边界见[质量验收目标](research/continuity-quality-goal-20261104.md)。
+`--remaining-stories` 只执行其余 22 条；`--pending-stories` 是本候选七例已通过后剩下的固定 17 条（S23、S24、S01–S15）；`--completion-stories` 只执行最后的 S13–S15。这三个选项和 `--work-interruption` 互斥，各范围绑定自己的预检与授权。用于同一候选分批验收时，必须另行核对各批证据的版本、判定条件与覆盖并集，不能把子集的 `qualityPassed` 当作完整 24 条通过。当前推进范围及原检索超时的诊断边界见[质量验收目标](research/continuity-quality-goal-20261104.md)。
 
 `node scripts/audit-memory-quality.mjs <输入清单.json> <新报告.json>` 是上述质量测试的离线汇总核验入口。清单指定 `retrievalRoot` 和 `storyRoots`，只读取测试报告、原始逐例结果、评审回执及源码快照；核对同一候选、真实请求、90 条重算评分及全部 24 条覆盖。缺项或证据不一致时报告 `ok: false` 并非零退出，不读取连接配置或发请求。
 
-故事 IO 会将每个向量结果绑定到原请求，记录不含地址、密钥或正文的传输阶段和错误码。向量尚未结束时不准入下一次模型请求；失败后只等待已发出的向量按原 30 秒上限结束，不重试、不把迟到结果改判为通过。汇总核验允许明确审计过的旧 IO 指纹保留其已完成且全部请求成功的案例，同时核对新 IO 的依赖指纹和关闭时零在途向量；不通配接受任意旧夹具。
+故事 IO 会将每个向量结果绑定到原请求，记录不含地址、密钥或正文的传输阶段和错误码。模型准入检查生产 runtime 的实际存储／向量错误；完工投递与用户上下文可交错准备，不能把任意在途查询当成超时。语义审阅前会等待已发出的向量结束并核对无失败；失败后不重试、不把迟到结果改判为通过。汇总核验允许明确审计过的旧 IO／harness 精确指纹组合保留其已完成且全部请求成功、查询未超时的案例，同时核对新 IO 依赖指纹和关闭时零在途向量；不通配接受任意旧夹具。
 
 自动验收现包含六个普通产品世界引用场景和生活作品入口；`test:continuity:world` 可在构建后单独执行。`test:continuity:postgres` 只对本次新建的独立 Docker pgvector 容器测试，缺环境时报告 unavailable；成功退出不意味着 PostgreSQL 已通过，需检查其 status。`test:continuity:prepare-live <本次报告目录>` 仅生成待授权的真实服务清单和额度建议，不调用模型。完整范围、失败记录及证据边界见[自动验收记录](research/continuity-automatic-acceptance-20261101.md)。
 

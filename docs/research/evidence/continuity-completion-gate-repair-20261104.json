@@ -1,0 +1,625 @@
+{
+  "status": "twenty-one-stories-verified-completion-three-await-fresh-authorization",
+  "recordedAtIso": "2026-11-04T07:59:21.187Z",
+  "productionCommit": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+  "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef",
+  "productionChanged": false,
+  "realWindow": {
+    "root": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1",
+    "authorization": "可能是因为刚才我在的地方跳闸了一次，网断了。批准新额度使用，继续把验收跑完",
+    "ok": false,
+    "completed": [
+      "S23",
+      "S24",
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12"
+    ],
+    "error": "STORY_IO_FAILED",
+    "counts": {
+      "modelRequests": 41,
+      "embeddingRequests": 63,
+      "embeddingCharacters": 793,
+      "reservedUnits": 584618,
+      "autonomousUnits": 131297
+    },
+    "upstreamRequests": 104,
+    "firstFailure": {
+      "code": "VECTOR_PENDING_AT_MODEL_ADMISSION",
+      "story": "S13",
+      "atMs": 1793778287973,
+      "pendingEmbeddings": [
+        {
+          "story": "S13",
+          "kind": "embedding",
+          "inputType": "query",
+          "characters": 12,
+          "ok": false,
+          "status": null,
+          "headersMs": null,
+          "vectorReadyMs": null,
+          "elapsedMs": null,
+          "transport": {
+            "transport": "node-fetch",
+            "events": [
+              {
+                "stage": "request-created",
+                "elapsedMs": 7
+              },
+              {
+                "stage": "headers-sent",
+                "elapsedMs": 11
+              },
+              {
+                "stage": "body-sent",
+                "elapsedMs": 11
+              }
+            ],
+            "headers": {
+              "connection": "keep-alive",
+              "accept": "*/*",
+              "accept-language": "*",
+              "sec-fetch-mode": "cors",
+              "user-agent": "node",
+              "accept-encoding": "br, gzip, deflate"
+            },
+            "peer": {
+              "addressHash": "46d28aca271b5eff5396c34496810f799cc760be268ecd8545da9cf7d25d3450",
+              "family": "IPv4",
+              "alpn": "http/1.1"
+            }
+          }
+        }
+      ]
+    },
+    "embedding": {
+      "inFlight": 0,
+      "drain": {
+        "pendingAtClose": 0,
+        "settledWithoutRetry": true
+      }
+    },
+    "s13Samples": [
+      {
+        "story": "S13",
+        "kind": "embedding",
+        "inputType": "query",
+        "characters": 12,
+        "ok": true,
+        "status": 200,
+        "headersMs": 980,
+        "vectorReadyMs": 1030,
+        "elapsedMs": 1030,
+        "transport": {
+          "transport": "node-fetch",
+          "events": [
+            {
+              "stage": "request-created",
+              "elapsedMs": 6
+            },
+            {
+              "stage": "connect-started",
+              "elapsedMs": 6
+            },
+            {
+              "stage": "connected",
+              "elapsedMs": 671
+            },
+            {
+              "stage": "headers-sent",
+              "elapsedMs": 671
+            },
+            {
+              "stage": "body-sent",
+              "elapsedMs": 672
+            },
+            {
+              "stage": "response-headers",
+              "elapsedMs": 963
+            },
+            {
+              "stage": "response-complete",
+              "elapsedMs": 1012
+            }
+          ],
+          "headers": {
+            "connection": "keep-alive",
+            "accept": "*/*",
+            "accept-language": "*",
+            "sec-fetch-mode": "cors",
+            "user-agent": "node",
+            "accept-encoding": "br, gzip, deflate"
+          },
+          "peer": {
+            "addressHash": "46d28aca271b5eff5396c34496810f799cc760be268ecd8545da9cf7d25d3450",
+            "family": "IPv4",
+            "alpn": "http/1.1"
+          }
+        }
+      },
+      {
+        "story": "S13",
+        "kind": "embedding",
+        "inputType": "query",
+        "characters": 11,
+        "ok": true,
+        "status": 200,
+        "headersMs": 376,
+        "vectorReadyMs": 398,
+        "elapsedMs": 398,
+        "transport": {
+          "transport": "node-fetch",
+          "events": [
+            {
+              "stage": "request-created",
+              "elapsedMs": 8
+            },
+            {
+              "stage": "headers-sent",
+              "elapsedMs": 9
+            },
+            {
+              "stage": "body-sent",
+              "elapsedMs": 9
+            },
+            {
+              "stage": "response-headers",
+              "elapsedMs": 359
+            },
+            {
+              "stage": "response-complete",
+              "elapsedMs": 382
+            }
+          ],
+          "headers": {
+            "connection": "keep-alive",
+            "accept": "*/*",
+            "accept-language": "*",
+            "sec-fetch-mode": "cors",
+            "user-agent": "node",
+            "accept-encoding": "br, gzip, deflate"
+          },
+          "peer": {
+            "addressHash": "46d28aca271b5eff5396c34496810f799cc760be268ecd8545da9cf7d25d3450",
+            "family": "IPv4",
+            "alpn": "http/1.1"
+          }
+        }
+      },
+      {
+        "story": "S13",
+        "kind": "embedding",
+        "inputType": "query",
+        "characters": 12,
+        "ok": true,
+        "status": 200,
+        "headersMs": 315,
+        "vectorReadyMs": 347,
+        "elapsedMs": 347,
+        "transport": {
+          "transport": "node-fetch",
+          "events": [
+            {
+              "stage": "request-created",
+              "elapsedMs": 7
+            },
+            {
+              "stage": "headers-sent",
+              "elapsedMs": 11
+            },
+            {
+              "stage": "body-sent",
+              "elapsedMs": 11
+            },
+            {
+              "stage": "response-headers",
+              "elapsedMs": 303
+            },
+            {
+              "stage": "response-complete",
+              "elapsedMs": 334
+            }
+          ],
+          "headers": {
+            "connection": "keep-alive",
+            "accept": "*/*",
+            "accept-language": "*",
+            "sec-fetch-mode": "cors",
+            "user-agent": "node",
+            "accept-encoding": "br, gzip, deflate"
+          },
+          "peer": {
+            "addressHash": "46d28aca271b5eff5396c34496810f799cc760be268ecd8545da9cf7d25d3450",
+            "family": "IPv4",
+            "alpn": "http/1.1"
+          }
+        }
+      }
+    ],
+    "allIssuedRequestsSucceeded": true,
+    "s13ModelRequests": 0,
+    "receipts": [
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/run.json",
+        "sha256": "c15e69576ebf2ccb5478ff0659f736095e59c94b105bc1790961389a6762d6f8"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/report.json",
+        "sha256": "877e3eb5ca9f4e7b8e6d702f52d299fdb69dcdcc982b679d880eaf0a8715a294"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/authorization.json",
+        "sha256": "ac68dd09a6d597184de4d769c042ceed202dace8efa62ffa2eb4cd6a0f1e95ec"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/closed.json",
+        "sha256": "5f3b7b4edeffd231a821f43ecb798b3c9e565c5e408597ff8ad8931a82ff9741"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/io.json",
+        "sha256": "240d0c2f8cad6edb28719d0426112d9f9aa1a79ac3b051bc916caa2063a3db0a"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S23.json",
+        "sha256": "911cfe7d7d2e42e5f47865d906aae739691a5fb47c7877637d60a9bdaf8326c2"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S23.json",
+        "sha256": "833050ff3fb414aaae1e41da7cdce284e948a4ab939e591b86bf619183e3d017"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S24.json",
+        "sha256": "4ab245d7ac6eb87a4053101d775b621a4825be8012e965821746a9e170a8ae76"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S24.json",
+        "sha256": "3fdd84f13245c3696d4c46c738b3e46b0aca183ef2b55528c2a1b408f41acd47"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S01.json",
+        "sha256": "4df6dd153adf7692c8adef4d53b9fb241242cd10956f1d7cd427c7d5b2b943ad"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S01.json",
+        "sha256": "3d0ecb9db261081f6b0a7394484fbbeeaf73f2dd5f1d6d6c596454541c391fb7"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S02.json",
+        "sha256": "e14d17b934eb07c2891ac265e92309784d7890160c11ae9f8be2b5f899a6cce1"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S02.json",
+        "sha256": "bced4939a70cdb7f6745fc116c82ff07947632c3f5ca6472ec9dff697b35f1f8"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S03.json",
+        "sha256": "4c349b4f052f6dac00f107cdff31f825827620dc93359f15d01bbed8aa128cdc"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S03.json",
+        "sha256": "6d8fec98a56b5e55e74236c66a033ca5a1c398b9c53a277f4de01a6dab84ebd4"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S04.json",
+        "sha256": "7362650b31b8d78914a18a539c859216c8ee789313e38a0f1692b13381d6223c"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S04.json",
+        "sha256": "e7006dd79cd2c8227f7be824e8740340a72076a170cdbe2128d1b7b20fc68956"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S05.json",
+        "sha256": "9f4e881ced17514aa64f45f74dbe8cd376842ba4d2e970f8026e676dd9d1f174"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S05.json",
+        "sha256": "af58e1da917faa5f33e90fb7637854b83bb241353cae57998842c133d179ee66"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S06.json",
+        "sha256": "1b207b07e33f8e110f0b98b080f1b011c1b9cfc7fe575dc54fe97a90c47e1c96"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S06.json",
+        "sha256": "f63fb330c870d8c50bde2adde27b4d2441410e57faa6b4423529c8a3fcf74b69"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S07.json",
+        "sha256": "9526ac54dcd48d297933fffb7d3efbc7f1a3d96b24efe7f9ae1f948f8ed972e9"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S07.json",
+        "sha256": "644adb256a6767e89bd69278c38028596641439f75b32acd85baece04d6cbc48"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S08.json",
+        "sha256": "f7f858a6acb7b761a8a9c9292c5434be0e70f643b305824258b0f35ba29eac42"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S08.json",
+        "sha256": "85f961ee938f234caf383324d0bb223c05560be4dde47433c0eabc1c1d5d1865"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S09.json",
+        "sha256": "83189da7ef645de7bd345b899f1c73810b1a879df4b9b2380840121c7373bcb0"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S09.json",
+        "sha256": "46ac205933114ccd72de7433308290d12436d8f3121255c72a59a8f2542194ba"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S10.json",
+        "sha256": "1feacbe087dc7a0c6d712177307006b69dc86c920321a63987536c8fff51ded2"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S10.json",
+        "sha256": "967c909b97a85fcc52d06d02aad0319400ac79034970dc2a0968763490ab8f94"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S11.json",
+        "sha256": "a6604d521bd0f2feb764920cef46a7a53fec7fa503cefa929697674306b05899"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S11.json",
+        "sha256": "9f863a4f75804263f6dd3fccc27b6dda9ebc33200a32d994a23b333ca17934c9"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/S12.json",
+        "sha256": "08207aa91753c602df1f7aa0856d7fc60b10c645aaa947834cc524bfebeeaf3f"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/reviews/S12.json",
+        "sha256": "e6bda6b3d7794827af3705e2cf0e44a8baef5e2d82f8833f4f053e735318e4a0"
+      }
+    ]
+  },
+  "diagnosis": {
+    "classification": "probe-false-positive",
+    "observed": "user question and checkpoint delivery overlapped; first model admission saw a second healthy reference query in flight",
+    "vectorReadyMs": 347,
+    "headersMs": 315,
+    "productionDeadlineExceeded": false,
+    "source": "src/main/dsh/execution.ts referenceFor/kick and actual S13 journal order",
+    "originalWindowRemainsFailed": true,
+    "networkFailureObserved": false,
+    "reproduced": {
+      "path": "test-results/continuity/candidate11-pending-guard-reproduction-20261104.json",
+      "sha256": "c3347c7434e3b5dbf20a9d793088d7a2103414dd9f94bf2eacc65e477ac89cb9",
+      "reproduced": true,
+      "archivedSource": {
+        "path": "C:/.lca-cache/continuity11-tests/pending-live-20261104-1/source/scripts__fixtures__memory-story-embedding.ts",
+        "sha256": "554af5d82ae9da269adcd417c673c5b32fd2d28ddd2516afd40d5996c9c1dd81"
+      },
+      "fixtureFetchCalls": 1,
+      "externalRequests": 0,
+      "vectorDurationMs": 347,
+      "vectorSucceeded": true,
+      "productionDeadlineExceeded": false,
+      "legacyModelAdmission": false,
+      "failures": [
+        "VECTOR_PENDING_AT_MODEL_ADMISSION"
+      ],
+      "explanation": "The exact archived guard rejects a healthy overlapping vector before any deadline. No provider or network used."
+    }
+  },
+  "repair": {
+    "description": "admission checks sanitized actual production database/embedding errors, not global pending count; keep request-bound samples and late-failure stop; settle issued vectors before semantic review",
+    "sourceReceipts": [
+      {
+        "path": "scripts/fixtures/memory-story-embedding.ts",
+        "sha256": "8bc1f7d01749b5c67ca4752eac4b923d4dc531d60203f73e418d5288fc065f7e"
+      },
+      {
+        "path": "scripts/fixtures/memory-story-io.ts",
+        "sha256": "ab18b1e253c467e24af7ea77c5c2c76fdb156f4fd0f1aa9bf8e929351b5ffeaf"
+      },
+      {
+        "path": "scripts/fixtures/memory-story-harness.ts",
+        "sha256": "977841bfc3d50d0888f46181be032d85bf811f792d6940b6cbb474680f418ea5"
+      },
+      {
+        "path": "scripts/fixtures/memory-stories-quality.ts",
+        "sha256": "ee2c9889d5c68e2536ea9e993aa4d29bd4e12acedfa69923212c7796febf6ac8"
+      },
+      {
+        "path": "scripts/probe-memory-stories-quality.mjs",
+        "sha256": "17495f306c5e2b89723a709bf4bf3e1e4dc90fca32038dc7583dd668825f9f39"
+      },
+      {
+        "path": "scripts/fixtures/memory-retrieval-diagnostics.ts",
+        "sha256": "453b676e3d38a954ca98d736c4a1345b6424b637ba7073d3a5073bec41247c24"
+      },
+      {
+        "path": "scripts/audit-memory-quality.mjs",
+        "sha256": "5bb82760510065db1bdb08b9ad03a54030619f7c4572a53bb9dca02c4be1a515"
+      }
+    ],
+    "modelTimeoutsChanged": false,
+    "productionEmbeddingTimeoutChanged": false,
+    "questionsOrOraclesChanged": false
+  },
+  "checks": {
+    "unit": {
+      "path": "test-results/continuity/candidate11-completion-gate-tests-20261104.log",
+      "sha256": "6546c495fd6ad006a830a2f930b91649a56b6af1333cc5834848559a24518658",
+      "passed": 22,
+      "files": 4
+    },
+    "typecheck": {
+      "path": "test-results/continuity/candidate11-completion-gate-typecheck-20261104.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "ok": true
+    },
+    "lint": {
+      "path": "test-results/continuity/candidate11-completion-gate-lint-20261104.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "ok": true
+    },
+    "scopeGuard": {
+      "path": "test-results/continuity/candidate11-completion-scope-guard-20261104-1.json",
+      "sha256": "1ba0a2d7650e897dbf520c52d1e71470c09487eb93d373fd95f0f2e8c183e69d",
+      "ok": true,
+      "guards": [
+        {
+          "flags": [],
+          "expectedDenial": "PREFLIGHT_SCOPE_CHANGED",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        },
+        {
+          "flags": [
+            "--remaining-stories"
+          ],
+          "expectedDenial": "PREFLIGHT_SCOPE_CHANGED",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        },
+        {
+          "flags": [
+            "--work-interruption"
+          ],
+          "expectedDenial": "PREFLIGHT_SCOPE_CHANGED",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        },
+        {
+          "flags": [
+            "--pending-stories"
+          ],
+          "expectedDenial": "PREFLIGHT_SCOPE_CHANGED",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        },
+        {
+          "flags": [
+            "--completion-stories",
+            "--remaining-stories"
+          ],
+          "expectedDenial": "AMBIGUOUS_STORY_SCOPE",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        },
+        {
+          "flags": [
+            "--completion-stories",
+            "--work-interruption"
+          ],
+          "expectedDenial": "AMBIGUOUS_STORY_SCOPE",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        },
+        {
+          "flags": [
+            "--completion-stories",
+            "--pending-stories"
+          ],
+          "expectedDenial": "AMBIGUOUS_STORY_SCOPE",
+          "grantCreated": false,
+          "upstreamRequests": 0
+        }
+      ]
+    }
+  },
+  "audit": {
+    "path": "test-results/continuity/candidate11-quality-after-pending-result-20261104-2.json",
+    "sha256": "f19412cf2ffef12f499f03a3aed2238970034cdb6816911710119caf21deaa46",
+    "verified": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S16",
+      "S17",
+      "S18",
+      "S19",
+      "S20",
+      "S21",
+      "S22",
+      "S23",
+      "S24"
+    ],
+    "missing": [
+      "S13",
+      "S14",
+      "S15"
+    ],
+    "errors": [],
+    "serviceCalls": 0
+  },
+  "preflight": {
+    "root": "C:/.lca-cache/continuity11-tests/completion-preflight-20261104-1",
+    "passed": true,
+    "completed": [
+      "S13",
+      "S14",
+      "S15"
+    ],
+    "counts": {
+      "modelRequests": 3,
+      "embeddingRequests": 12,
+      "embeddingCharacters": 146,
+      "reservedUnits": 25374,
+      "autonomousUnits": 25014
+    },
+    "upstreamRequests": 0,
+    "qualityPassed": null,
+    "receipts": [
+      {
+        "path": "C:/.lca-cache/continuity11-tests/completion-preflight-20261104-1/run.json",
+        "sha256": "16200688ef71494ce35840b277673165b6c021789b88a51f2af4289c3ca9626c"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/completion-preflight-20261104-1/report.json",
+        "sha256": "a97bb879bdf61dedf05586fff68223150b461a8f7d5f2907cf50e8808f0757e9"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/completion-preflight-20261104-1/closed.json",
+        "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a"
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/completion-preflight-20261104-1/io.json",
+        "sha256": "7e5f14555f066cbd07c3957f60f2826cac856f2fed1b2d946746f53df686bfd1"
+      }
+    ]
+  },
+  "nextGrant": {
+    "path": "test-results/continuity/candidate11-completion-prepared-authorization-20261104-1.json",
+    "sha256": "0538b79eb6c5a61f7055cd93fcfeec856ce48d85cae37a1d84942d158a05d27d",
+    "authorized": false,
+    "scope": "completion-3-stories",
+    "storyOrder": [
+      "S13",
+      "S14",
+      "S15"
+    ],
+    "limits": {
+      "maximumModelRequests": 12,
+      "maximumEmbeddingRequests": 32,
+      "maximumEmbeddingInputCharacters": 16000,
+      "maximumReservedUnits": 524288,
+      "maximumAutonomousUnits": 131072
+    }
+  },
+  "expressionObservations": [
+    "S02 includes a short tool narration with a mixed-language fragment; original answer and correct preference preserved",
+    "S23/S24 hedge about possible pending memory; no pending fact established"
+  ],
+  "releasePublished": false
+}

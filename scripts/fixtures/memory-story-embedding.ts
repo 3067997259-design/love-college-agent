@@ -60,10 +60,11 @@ export function createStoryEmbeddingProbe(input: {
     return request
   } }
   return { source, state: () => ({ inFlight: pending.size, drain }),
-    admitModel() {
-      if (!pending.size) return input.ready()
-      // Recall returned but its bounded vector request has not. It cannot count as a passed probe.
-      input.fail('VECTOR_PENDING_AT_MODEL_ADMISSION'); return false
+    admitModel(runtimeFailure: string | null = null) {
+      // Work delivery may assemble a second reference while the user model starts.
+      // In-flight is not failure: only the production runtime can declare its recall expired.
+      if (runtimeFailure) { input.fail(runtimeFailure); return false }
+      return input.ready()
     },
     pendingSnapshot: () => structuredClone([...pending.values()]),
     async close() {

@@ -27,6 +27,7 @@ import type { MemoryProposal } from '../../src/main/memory/airi/core'
 import type { MemoryHostPort } from '../../src/main/memory/airi/runtime'
 import { messageText, workPackage, type ProbeRequest } from './continuity-scripted-model'
 import type { StoryQualityIO } from './memory-story-io'
+import { retrievalRuntimeFailure } from './memory-retrieval-diagnostics'
 
 export const barrier = () => { let resolve!: () => void; const promise = new Promise<void>(done => { resolve = done }); return { promise, resolve } }
 type WorkPlan = { mode: 'hold' | 'finish' | 'external'; step: number; entered: ReturnType<typeof barrier>; release: ReturnType<typeof barrier>;
@@ -211,7 +212,8 @@ export async function createStoryHarness(input: { id: string; root: string; repo
     },
     async answer(question: string, useVectors = true) {
       await until(() => !foreground.busy()); await foreground.close()
-      evaluating = true; vectors = useVectors; io.evaluate()
+      evaluating = true; vectors = useVectors
+      io.evaluate(() => retrievalRuntimeFailure(facts.runtime.databaseStatus.value === 'ready', facts.runtime.embeddingError.value)?.code ?? null)
       if (vectors) { await facts.runtime.refreshEmbedding(); await facts.runtime.idle(); assert.equal(facts.runtime.embeddingMigration.value.state, 'complete') }
       foreground = createForeground(); controller.attachExecution(foreground, true)
       const before = store.history!().length; await chat(question)

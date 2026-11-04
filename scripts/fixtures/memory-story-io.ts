@@ -32,6 +32,7 @@ export async function createStoryQualityIO(input: { root: string; selfTest: bool
     dailyTotalUnits: input.limits.maximumReservedUnits, dailyAutonomousUnits: input.limits.maximumAutonomousUnits }), undefined)
   const budget = createContinuityProbeBudget(input.limits, (units, bucket) => { ledger.reserveModel(units, bucket) })
   let story = '', evaluating = false, halted = false, upstreamRequests = 0
+  let memoryFailure: (() => string | null) | undefined
   let firstFailure: { code: string; story: string; atMs: number; pendingEmbeddings: Record<string, unknown>[] } | null = null
   let script: (body: ProbeRequest) => Reply = () => ({ text: '已收到。' })
   const tickets: string[] = [], samples: Record<string, unknown>[] = [], references: Record<string, unknown>[] = []
@@ -100,12 +101,13 @@ export async function createStoryQualityIO(input: { root: string; selfTest: bool
   const relay = { ...config, base_url: `http://127.0.0.1:${address.port}/v1`, api_key: key }
   const routes = dshRoutes(relay, { ...relay, model: 'quality-worker-script' }, input.selfTest ? {} : await readModelEfforts(input.authorized!))
   return { routes, embedding, state,
+    settleEmbeddings: () => embeddingProbe.close(),
     activate(id: string, scripted: typeof script) { assert.ok(!halted && !active.size && !tickets.length && !embeddingProbe.state().inFlight, 'UNSETTLED_PREVIOUS_STORY'); story = id; script = scripted; evaluating = false; save() },
-    evaluate() { evaluating = true; save() },
+    evaluate(readMemoryFailure: () => string | null) { memoryFailure = readMemoryFailure; evaluating = true; save() },
     admit(worker: boolean, units: number, bucket: 'work' | 'autonomous') {
       if (halted) return 'budget-exceeded' as const
       if (!evaluating || worker) return null
-      if (!embeddingProbe.admitModel()) return 'budget-exceeded' as const
+      if (!embeddingProbe.admitModel(memoryFailure?.() ?? null)) return 'budget-exceeded' as const
       try { const ticket = randomUUID(); assert.equal(tickets.length, 0, 'UNCONSUMED_ADMISSION'); budget.model(ticket, units, bucket); tickets.push(ticket); save(); return null }
       catch { fail('MODEL_ADMISSION_FAILED'); return 'budget-exceeded' as const }
     },

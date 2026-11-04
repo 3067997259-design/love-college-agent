@@ -37,6 +37,17 @@
             "maximumAutonomousUnits": 655360
         }
     },
+    "completionStories": {
+        "batch": "candidate11-completion-stories-3",
+        "storyOrder": ["S13", "S14", "S15"],
+        "limits": {
+            "maximumModelRequests": 12,
+            "maximumEmbeddingRequests": 32,
+            "maximumEmbeddingInputCharacters": 16000,
+            "maximumReservedUnits": 524288,
+            "maximumAutonomousUnits": 131072
+        }
+    },
     "expectedEmbeddingModel":  "voyage-4-large",
     "limits":  {
                    "maximumModelRequests":  96,

@@ -87,14 +87,18 @@ const verified = new Set()
 for (const rootArg of manifest.storyRoots ?? []) {
   try {
     const root = resolve(rootArg)
-    const { run, result, authorization, receipts } = common(root, ['tests/fixtures/continuity-stories.json', 'scripts/fixtures/memory-story-cases.ts', 'scripts/fixtures/memory-story-harness.ts', 'scripts/fixtures/continuity-live-budget.ts', 'scripts/fixtures/world-probe-stream.ts', 'scripts/fixtures/probe-response-deadline.ts'])
+    const { run, result, authorization, receipts } = common(root, ['tests/fixtures/continuity-stories.json', 'scripts/fixtures/memory-story-cases.ts', 'scripts/fixtures/continuity-live-budget.ts', 'scripts/fixtures/world-probe-stream.ts', 'scripts/fixtures/probe-response-deadline.ts'])
     const ioHash = run.sources['scripts/fixtures/memory-story-io.ts']
     if (ioHash === sha(join(repo, 'scripts/fixtures/memory-story-io.ts'))) {
-      for (const path of ['scripts/fixtures/memory-story-embedding.ts', 'scripts/fixtures/probe-transport.ts']) assert.equal(run.sources[path], sha(join(repo, path)), 'STORY_IO_DEPENDENCY_CHANGED')
+      for (const path of ['scripts/fixtures/memory-story-harness.ts', 'scripts/fixtures/memory-story-embedding.ts', 'scripts/fixtures/probe-transport.ts', 'scripts/fixtures/memory-retrieval-diagnostics.ts']) assert.equal(run.sources[path], sha(join(repo, path)), 'STORY_IO_DEPENDENCY_CHANGED')
     } else {
-      // Audited predecessor: same adapter/request/budget/stream semantics. New IO adds diagnostics,
-      // request-bound samples and a stricter pending-vector stop. Only its completed, clean cases qualify.
-      assert.equal(ioHash, '5907c8973a7f3db4554ada3fa19f88142fb379c45195bde94ba9c8beb0222040', 'UNAUDITED_STORY_IO_VERSION')
+      // Exact audited predecessors, not a general waiver. Only completed clean cases qualify.
+      assert.ok(['5907c8973a7f3db4554ada3fa19f88142fb379c45195bde94ba9c8beb0222040', 'fde71596a4f0eaf0256c914181a8264e5e17b489c9a714d1afccce38635f85bd'].includes(ioHash), 'UNAUDITED_STORY_IO_VERSION')
+      assert.equal(run.sources['scripts/fixtures/memory-story-harness.ts'], 'd25c715ceeaef5ce8944980a8b06bc56f6b029fb24ac4eb5ef45e9529612d836', 'UNAUDITED_STORY_HARNESS_VERSION')
+      if (ioHash === 'fde71596a4f0eaf0256c914181a8264e5e17b489c9a714d1afccce38635f85bd') {
+        assert.equal(run.sources['scripts/fixtures/memory-story-embedding.ts'], '554af5d82ae9da269adcd417c673c5b32fd2d28ddd2516afd40d5996c9c1dd81', 'STORY_IO_DEPENDENCY_CHANGED')
+        assert.equal(run.sources['scripts/fixtures/probe-transport.ts'], '7e04f23ef2b54110cd24a7f6863bc3d9db7a71cf88c63dcb75581c91f31d9aa3', 'STORY_IO_DEPENDENCY_CHANGED')
+      }
     }
     assert.equal(authorization.expectedEmbeddingModel, storyPlan.expectedEmbeddingModel, 'VECTOR_MODEL_CHANGED')
     const io = read(join(root, 'io.json'))
@@ -115,6 +119,7 @@ for (const rootArg of manifest.storyRoots ?? []) {
       assert.ok(value.answer?.trim() && value.references?.length > 0, 'ANSWER_OR_SUCCESSFUL_INPUT_MISSING')
       const model = io.samples.filter(sample => sample.story === id && sample.kind === 'model')
       assert.ok(io.samples.filter(sample => sample.story === id && sample.kind === 'embedding').every(sample => sample.ok && sample.status === 200 && Number.isFinite(sample.elapsedMs)), 'STORY_VECTOR_NOT_PASSED')
+      if (ioHash !== sha(join(repo, 'scripts/fixtures/memory-story-io.ts'))) assert.ok(io.samples.filter(sample => sample.story === id && sample.kind === 'embedding' && sample.inputType === 'query').every(sample => sample.elapsedMs < 3000), 'LEGACY_QUERY_DEADLINE_NOT_VERIFIED')
       assert.ok(model.length > 0 && model.every(sample => sample.ok && sample.status === 200), 'STORY_MODEL_CALL_NOT_PASSED')
       assert.ok(value.references.every(reference => model.some(sample => sample.ticket === reference.ticket)), 'SUCCESSFUL_INPUT_TICKET_MISMATCH')
       if (storyPlan.followUps[id]) {

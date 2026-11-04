@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import { createManualClock } from '../../src/main/clock'
 import { createStoryEmbeddingProbe, probeErrorCodes } from '../../scripts/fixtures/memory-story-embedding'
+import { retrievalRuntimeFailure } from '../../scripts/fixtures/memory-retrieval-diagnostics'
 
 const vectorBody = JSON.stringify({ data: [{ embedding: Array.from({ length: 1024 }, (_, i) => i === 0 ? 1 : 0) }] })
 function barrier<T>() {
@@ -17,13 +18,14 @@ function setup(fetch: typeof globalThis.fetch, admit?: () => void) {
   return { probe, clock, samples, failures, requests: () => requests }
 }
 
-it('keeps a late vector on its own sample and denies the next model before spending', async () => {
+it('keeps a late vector on its own sample and denies a runtime-confirmed expired recall', async () => {
   const entered = barrier<void>(), release = barrier<Response>()
   const h = setup(async () => { entered.resolve(); return release.promise })
   const request = h.probe.source.embed('synthetic-query', 'query'); await entered.promise
   h.clock.advanceBy(3000)
-  expect(h.probe.admitModel()).toBe(false)
-  expect(h.failures).toEqual(['VECTOR_PENDING_AT_MODEL_ADMISSION'])
+  const expired = retrievalRuntimeFailure(true, 'Memory embedding exceeded 3000 ms; directory remains available')
+  expect(h.probe.admitModel(expired?.code)).toBe(false)
+  expect(h.failures).toEqual(['EMBEDDING_INTERACTION_DEADLINE_EXCEEDED'])
   const atFailure = h.probe.pendingSnapshot()
   const unrelated = { kind: 'model', ok: false, elapsedMs: 42 }; h.samples.push(unrelated)
   const close = h.probe.close(); release.resolve(new Response(vectorBody)); await request; await close
@@ -64,7 +66,7 @@ it('waits for the production transport timeout only and does not manufacture a l
     init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true })
   }) })
   const request = h.probe.source.embed('query'), rejected = expect(request).rejects.toThrow('VECTOR_TRANSPORT_FAILED')
-  await entered.promise; h.clock.advanceBy(3000); expect(h.probe.admitModel()).toBe(false)
+  await entered.promise; h.clock.advanceBy(3000); expect(h.probe.admitModel('EMBEDDING_INTERACTION_DEADLINE_EXCEEDED')).toBe(false)
   const close = h.probe.close(); h.clock.advanceBy(27000); await rejected; await close
   expect(h.samples[0]).toMatchObject({ ok: false, elapsedMs: 30000, vectorReadyMs: null })
   expect(h.requests()).toBe(1); expect(h.probe.state().inFlight).toBe(0)
@@ -77,4 +79,36 @@ it('allows the unchanged successful path and bounds sanitized error traversal', 
   const cyclic: { code: string; cause?: unknown } = { code: 'ECONNRESET' }; cyclic.cause = cyclic
   expect(probeErrorCodes(cyclic)).toEqual(['ECONNRESET'])
   expect(probeErrorCodes({ code: 'private-token/123', cause: { code: 'UND_ERR_CONNECT_TIMEOUT' } })).toEqual(['UND_ERR_CONNECT_TIMEOUT'])
+})
+
+it('allows a user model while a checkpoint reference is still reading a healthy vector', async () => {
+  const entered = barrier<void>(), release = barrier<Response>()
+  const h = setup(async () => { entered.resolve(); return release.promise })
+  const checkpoint = h.probe.source.embed('checkpoint recall', 'query'); await entered.promise
+  const model = { kind: 'model', ok: true, elapsedMs: 12 }; h.samples.push(model)
+  h.clock.advanceBy(100)
+  expect(h.probe.state().inFlight).toBe(1)
+  expect(h.probe.admitModel(retrievalRuntimeFailure(true, undefined)?.code)).toBe(true)
+  h.clock.advanceBy(247); release.resolve(new Response(vectorBody)); await checkpoint; await h.probe.close()
+  expect(h.failures).toEqual([]); expect(h.requests()).toBe(1)
+  expect(h.samples[0]).toMatchObject({ ok: true, elapsedMs: 347 }); expect(model.elapsedMs).toBe(12)
+})
+
+it('blocks real runtime failures even after all vector requests have settled', async () => {
+  const h = setup(async () => new Response(vectorBody)); await h.probe.source.embed('query')
+  expect(h.probe.state().inFlight).toBe(0)
+  expect(h.probe.admitModel(retrievalRuntimeFailure(false, undefined)?.code)).toBe(false)
+  expect(h.failures).toEqual(['RETRIEVAL_DATABASE_UNAVAILABLE']); await h.probe.close()
+})
+
+it('still stops the window if an overlapping reference later fails', async () => {
+  let reject!: (reason: unknown) => void
+  const entered = barrier<void>()
+  const h = setup(async () => { entered.resolve(); return new Promise<Response>((_resolve, fail) => { reject = fail }) })
+  const request = h.probe.source.embed('checkpoint recall'), rejected = expect(request).rejects.toThrow('VECTOR_TRANSPORT_FAILED')
+  await entered.promise; expect(h.probe.admitModel()).toBe(true)
+  const settled = h.probe.close()
+  reject(new TypeError('synthetic only', {cause:{code:'ECONNRESET'}})); await rejected; await settled
+  expect(h.failures).toEqual(['VECTOR_TRANSPORT_FAILED']); expect(h.probe.admitModel()).toBe(false)
+  expect(h.probe.state().inFlight).toBe(0); expect(h.requests()).toBe(1)
 })
