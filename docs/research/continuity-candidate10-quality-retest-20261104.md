@@ -2,6 +2,8 @@
 
 用户要求先大致确定原因、允许再测试一次后，使用全新数据和授权窗口完成本轮。90 条真实检索达到固定门槛；故事 S01–S15 通过，S16 首次语义失败后立即关闭，S17–S24 未运行。发包条件尚未满足。
 
+后续修复与另一授权窗口见[候选 11](continuity-candidate11-outcome-20261104.md)。本页保留候选 10 当时的结果，原失败及审查记录不改写。
+
 候选仍为 `1.2.0-continuity.10`，生产源码 `06902493ca5346b12f3f4dc8ef8ef7a3ade5ad80`。ASAR 为 `0450288c63ea23372def623d8b172f01d687fd0d2c642eb71555481154de61f6`，安装器为 `dd64b818d8384b0ac76982337642ce19f4ad5d0e944db5176b229d42d7c41853`。运行前重新核对二者，本轮未改生产代码、SQL、3 秒交互等待上限或评分规则。
 
 原始报告与逐例审查哈希见[版本化证据](evidence/continuity-candidate10-quality-retest-20261104.json)；[上一窗口](continuity-candidate10-quality-live-20261104.md)的失败报告保持原样。

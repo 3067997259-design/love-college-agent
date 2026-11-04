@@ -9,7 +9,10 @@ import { executeStory, storyIds, storyOracle } from './memory-story-cases'
 import plan from '../memory-stories-plan.json'
 
 export async function runMemoryStoriesQuality(input: { root: string; repo: string; runtime: string; bridge: string; selfTest: boolean; authorized?: string; embeddingConfig?: string }) {
+  const order = plan.storyOrder
+  assert.deepEqual([...order].sort(), [...storyIds].sort(), 'STORY_ORDER_MUST_INCLUDE_EACH_FROZEN_CASE_ONCE')
   const report = { ok: false, selfTest: input.selfTest, qualityPassed: null as boolean | null, coverage: plan.coverage, storageHost: 'packaged-production-utility',
+    storyOrder: order,
     status: 'setup', currentStory: null as string | null, error: null as string | null, completed: [] as string[],
     reviews: [] as Record<string, unknown>[], upstreamRequests: 0, counts: {} }
   const save = () => writeFileSync(join(input.root, 'report.json'), JSON.stringify(report, null, 2))
@@ -18,7 +21,7 @@ export async function runMemoryStoriesQuality(input: { root: string; repo: strin
   const reviewDir = join(input.root, 'reviews'); mkdirSync(reviewDir)
   let harness: Awaited<ReturnType<typeof createStoryHarness>> | undefined
   try {
-    for (const id of storyIds) {
+    for (const id of order) {
       report.currentStory = id; report.status = 'running'; save()
       harness = await createStoryHarness({ ...input, id, io, root: join(input.root, id), mirrorOffline: id === 'S08' || id === 'S24' })
       const result = await executeStory(id, harness, input.repo)

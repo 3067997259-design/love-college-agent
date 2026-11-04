@@ -42,7 +42,9 @@ try {
       const args = product ? ['scripts/smoke-memory-mirror.mjs'] : ['node_modules/vitest/vitest.mjs', 'run', 'tests/unit/airi/pgvector/repository.integration.test.ts', 'tests/unit/airi/pgvector/recovery.integration.test.ts', '--no-file-parallelism', '--reporter=json', '--outputFile=' + output]
       const run = spawnSync(process.execPath, args, {
         encoding: 'utf8', windowsHide: true, timeout: product ? 600_000 : 240_000,
-        env: { ...process.env, LCA_MEMORY_TEST_POSTGRES: '1', LCA_MEMORY_TEST_DATABASE_URL: `postgresql://postgres:${password}@127.0.0.1:${port}/lca_acceptance`, LCA_TEST_PG_CONTAINER: container, LCA_TEST_DOCKER_CONFIG: join(root, 'docker-config'), LCA_TEST_PG_REPORT: root },
+        // Fixture bundles may live on a different volume; their CJS externals
+        // still belong to this checkout, not the report directory's ancestors.
+        env: { ...process.env, NODE_PATH: join(resolve(import.meta.dirname, '..'), 'node_modules'), LCA_MEMORY_TEST_POSTGRES: '1', LCA_MEMORY_TEST_DATABASE_URL: `postgresql://postgres:${password}@127.0.0.1:${port}/lca_acceptance`, LCA_TEST_PG_CONTAINER: container, LCA_TEST_DOCKER_CONFIG: join(root, 'docker-config'), LCA_TEST_PG_REPORT: root },
       })
       // Error output can contain connection URLs. Keep only sanitized totals.
       if (run.status !== 0) throw new Error('POSTGRES_TESTS_FAILED')

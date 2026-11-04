@@ -1,0 +1,1834 @@
+{
+  "candidate": "1.2.0-continuity.11",
+  "productionCommit": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+  "interfaceCommit": "e4b548a",
+  "status": "repair-locally-verified-live-window-closed-before-stories",
+  "releaseAllowed": false,
+  "userAuthorization": "没问题，批准修复之后补测一次。",
+  "source": {
+    "src/shared/continuity.ts": "add1a83a1b89366d30c382db7681f015f2d233ec842c3ec78c76fd9a2c4c5d59",
+    "src/main/work/journal.ts": "bedb59a75730e33a135dbd625210c65b2803c35175d2957d04e72668e5590ce9",
+    "src/main/work/result.ts": "6eb683ad4bd575f38f2ae78568a0567446eb20edab4054af5781c52712870af8",
+    "src/main/work/service.ts": "db98f6c17170015ae109aed7add281b518c22c7c10c2e4fd0f8a22bcf4b75ec2",
+    "src/main/work/tools.ts": "0fd4f78e7b96cd949b8bae0663808988fcca4c5ad73a3c0cd564d8205699a543",
+    "src/main/work/archive.ts": "6a97cf738a3be446088cc48ca9e7a234173c46cf119af6377c5792848c070293",
+    "src/renderer/src/book/ContinuousWorks.tsx": "e7de8002e7d93b37e98f51711ae05d22e59646a4c13d8dd8d57a9b367dc9ca94"
+  },
+  "build": {
+    "path": "C:/.lca-cache/continuity11-release-20261104/build-receipt.json",
+    "sha256": "bcb3b66079f0ff20cce23082666488d2ee3ff85c5809b4555b1a46ecaf8a1857",
+    "report": {
+      "version": 1,
+      "appVersion": "1.2.0-continuity.11",
+      "installerFileName": "Love-College-Agent-1.2.0-continuity.11-Setup.exe",
+      "sourceRevision": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+      "trackedDirty": false,
+      "runtimePreparation": "reused-prepared-tree",
+      "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+      "builtAtIso": "2026-11-04T04:42:06.397Z",
+      "installerBytes": 315481865,
+      "installerSha256": "aa0fef4411bfbaa5ba2833807abc2c4ce1716b8d49308b9c5771bcf8a172df15",
+      "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef"
+    }
+  },
+  "checks": {
+    "regressionRed": {
+      "path": "test-results/continuity/candidate11-outcome-red-20261104.log",
+      "sha256": "61aae42854e88aacc3bb37fa37dacf4703b072a1afffa6a673934bfbe040315a",
+      "failed": 2,
+      "passed": 12
+    },
+    "focused": {
+      "path": "test-results/continuity/candidate11-outcome-regression-20261104.log",
+      "sha256": "fe841b5fae75a4aaf19be0f51c14b8cdc38baf2b6c81183759240a77847bd907",
+      "passed": 53,
+      "files": 6
+    },
+    "fullUnit": {
+      "path": "test-results/continuity/candidate11-unit-20261104.log",
+      "sha256": "de87456532b05890ae2afb7ea69801d98363ea405797146f7567d55a2e818c3d",
+      "passed": 998,
+      "skipped": 8,
+      "passedFiles": 143,
+      "skippedFiles": 2
+    },
+    "static": [
+      {
+        "path": "test-results/continuity/candidate11-typecheck-main-20261104.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "ok": true
+      },
+      {
+        "path": "test-results/continuity/candidate11-typecheck-web-20261104.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "ok": true
+      },
+      {
+        "path": "test-results/continuity/candidate11-lint-20261104.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "ok": true
+      },
+      {
+        "path": "test-results/continuity/candidate11-fixture-typecheck-20261104.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "ok": true
+      },
+      {
+        "path": "test-results/continuity/candidate11-fixture-lint-20261104.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "ok": true
+      }
+    ],
+    "execution": {
+      "path": "D:/.lca-cache/continuity11-tests/execution-20261104/execution/gate-T2Zl5i/report.json",
+      "sha256": "00c624f03b441bb2e5430d7958916c6747dc3eb747bf16e03de76c90b4585fe6",
+      "report": {
+        "ok": true,
+        "phase": "story-next-day",
+        "checks": {
+          "oldDayActuallyRolled": true,
+          "foregroundCompletesWhileToolHeld": true,
+          "twoWorkerRoots": true,
+          "ambiguousUpdateHasNoImplicitTarget": true,
+          "supplementReachedOriginalRoot": true,
+          "duplicateEventNotExecuted": true,
+          "stopDoesNotCancelOtherRoot": true,
+          "oldUnissuedActionRejected": true,
+          "newestDecisionUsed": true,
+          "turnEndNotTaskCompletion": true,
+          "roleRoutes": true,
+          "workerTranscriptNotInFrontJournal": true,
+          "consumptionReceipts": true,
+          "nativeFileEvidenceCompletesWork": true,
+          "deliveryBeforeMemoryExtraction": true,
+          "immediateFollowupUsesCheckpoint": true,
+          "singleDelivery": true,
+          "originalDecisionsNotRecaptured": true,
+          "handoffsNotNewExperiences": true,
+          "historicalExpansionMarksSupersededValue": true,
+          "nextDayUsesSameWorkIdentity": true,
+          "realDayRolloverWithWorkHistory": true,
+          "oldSummaryCannotOverrideNewFact": true,
+          "originalHistoryStillPresent": true
+        },
+        "requests": [
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "seed-memory"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "seed-memory"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "start"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "start"
+          },
+          {
+            "model": "work-script",
+            "root": "A",
+            "phase": "start"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "chat-while-held"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "chat-while-held"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "chat-while-held"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "chat-while-held"
+          },
+          {
+            "model": "work-script",
+            "root": "B",
+            "phase": "chat-while-held"
+          },
+          {
+            "model": "work-script",
+            "root": "A",
+            "phase": "updated-worker"
+          },
+          {
+            "model": "work-script",
+            "root": "A",
+            "phase": "updated-worker"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "stop-b"
+          },
+          {
+            "model": "work-script",
+            "root": "A",
+            "phase": "stale-action"
+          },
+          {
+            "model": "work-script",
+            "root": "A",
+            "phase": "story-complete"
+          },
+          {
+            "model": "work-script",
+            "root": "A",
+            "phase": "story-complete"
+          },
+          {
+            "model": "work-script",
+            "root": "A",
+            "phase": "story-complete"
+          },
+          {
+            "model": "work-script",
+            "root": "A",
+            "phase": "story-complete"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "story-complete"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "story-immediate-question"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "story-correct"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "story-correct"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "story-historical"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "story-historical"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "story-historical"
+          },
+          {
+            "model": "chat-script",
+            "root": "foreground",
+            "phase": "story-next-day"
+          }
+        ]
+      }
+    },
+    "packagedMemoryRecovery": {
+      "path": "D:/.lca-cache/continuity11-tests/package-20261104/package-0d6f9c2a-0ba3-4410-b37e-b1e2a4c4a9e8/report.json",
+      "sha256": "880c4c8d2df2f48dd0a9dbb4699060bb3cb170c929668281a6d0954d72d831d4",
+      "report": {
+        "ok": true,
+        "source": "403d098be8cf9b9ba8666b859040e0dcd62de9ed0a60c740d5127e9655ed86e1",
+        "receipt": {
+          "version": 1,
+          "appVersion": "1.2.0-continuity.11",
+          "installerFileName": "Love-College-Agent-1.2.0-continuity.11-Setup.exe",
+          "sourceRevision": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+          "trackedDirty": false,
+          "runtimePreparation": "reused-prepared-tree",
+          "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+          "builtAtIso": "2026-11-04T04:42:06.397Z",
+          "installerBytes": 315481865,
+          "installerSha256": "aa0fef4411bfbaa5ba2833807abc2c4ce1716b8d49308b9c5771bcf8a172df15",
+          "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef"
+        },
+        "target": "unpacked",
+        "installed": false,
+        "realServices": false,
+        "checks": [
+          {
+            "name": "sqlite",
+            "code": 0,
+            "timedOut": false,
+            "log": "sqlite.log"
+          },
+          {
+            "name": "continuity",
+            "code": 0,
+            "timedOut": false,
+            "log": "continuity.log"
+          },
+          {
+            "name": "memory",
+            "code": 0,
+            "timedOut": false,
+            "log": "memory.log"
+          },
+          {
+            "name": "v12-recovery",
+            "code": 0,
+            "timedOut": false,
+            "log": "v12-recovery.log"
+          }
+        ]
+      }
+    },
+    "postgres": {
+      "path": "D:/.lca-cache/continuity11-tests/postgres-20261104/postgres-96392730-5a68-42d1-9ecd-98646df2c413/report.json",
+      "sha256": "20cbab26df5812642c88f23ffac7e8cbc69b01e81fa6d6e0ba23d6b31e3facc1",
+      "report": {
+        "status": "passed",
+        "mode": "repository",
+        "realPostgres": true,
+        "container": "lca-continuity-pg-2b98e71d-66ce-401e-9e32-92e8327e44bc",
+        "reason": null,
+        "checks": [
+          "reconnects after private DB outage without resurrecting a deleted origin",
+          "memory repository (real Postgres) shares vector types across private namespaces without sharing facts",
+          "memory repository (real Postgres) repairs a legacy private vector extension while preserving existing rows and isolation",
+          "memory repository (real Postgres) keeps an absent or concurrently arriving origin forgotten across two connections",
+          "memory repository (real Postgres) ensures the schema, then inserts, searches, lists, and removes a fragment",
+          "memory repository (real Postgres) redelivers the same originId idempotently and inserts without an originId",
+          "memory repository (real Postgres) keeps a deleted fact deleted when its originId is redelivered",
+          "memory repository (real Postgres) propagates review, supersede, and delete updates by originId"
+        ],
+        "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+        "containerStopped": true
+      }
+    },
+    "mirror": {
+      "path": "D:/.lca-cache/continuity11-tests/postgres-20261104/postgres-b56b49fd-5d8b-4d88-b16c-3c4ebdbe4e55/report.json",
+      "sha256": "638cc7eaee2162b725610df8e83152faa8fdc70ca0b52e5d2aa1ff563ffdf736",
+      "report": {
+        "status": "passed",
+        "mode": "product",
+        "realPostgres": true,
+        "container": "lca-continuity-pg-2910e9f0-8d74-4640-ab58-da8a100ae73e",
+        "reason": null,
+        "checks": [
+          "settings_enable_and_original_outbox_reach_real_postgres",
+          "offline_correction_and_pending_outbox_survive_restart",
+          "retry_invalidates_old_fact_without_duplicate_delivery",
+          "nonempty_save_with_pending_forget_excludes_connections",
+          "restore_rotates_mirror_epoch_and_stale_remote_fact_does_not_return",
+          "saved_connection_pause_resume_is_idempotent_and_private",
+          "restored_epoch_and_forget_survive_another_restart"
+        ],
+        "imageId": "sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11",
+        "containerStopped": true
+      }
+    }
+  },
+  "preflight": {
+    "retrieval": {
+      "root": "C:/.lca-cache/continuity11-tests/retrieval-preflight-20261104-1",
+      "run": {
+        "path": "C:/.lca-cache/continuity11-tests/retrieval-preflight-20261104-1/run.json",
+        "sha256": "2911031bedf0ab9bf817a895707e3ec80d637c1505a45a87caf94851f3581495",
+        "report": {
+          "selfTest": true,
+          "batch": "candidate11-memory-retrieval-90",
+          "limits": {
+            "maximumModelRequests": 0,
+            "maximumEmbeddingRequests": 220,
+            "maximumEmbeddingInputCharacters": 50000,
+            "maximumReservedUnits": 700000,
+            "maximumAutonomousUnits": 700000
+          },
+          "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef",
+          "sources": {
+            "scripts/probe-memory-retrieval-quality.mjs": "6c6888ee95ac8f9d31d2b8e333343dbb15670a453833d8511788b18f1c97e719",
+            "scripts/memory-quality-plan.json": "526ed17de933aebbbbfdf0c7cc09e233a6140d16d948bd51b287c352e4a8c451",
+            "scripts/fixtures/memory-retrieval-quality.ts": "a6f6356ebcd52434ccd08c284cf746564aaea077f628aa13b82ae9a6a664bc71",
+            "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+            "scripts/fixtures/memory-retrieval-diagnostics.ts": "453b676e3d38a954ca98d736c4a1345b6424b637ba7073d3a5073bec41247c24",
+            "tests/fixtures/memory-quality-corpus.json": "357b9193c6c02304b0c19a6deddeae60ed2b3b6cc8df5f559896eaa745352e2d",
+            "src/main/memory/airi/core/evaluation.ts": "5bf9d8e0188d6da011100b24789aec35d8c09afbbf4abd0855cd30df94b6ba9d"
+          },
+          "bundleSha256": "1829e8cb688cad8da54ca71822b397bd405770b0ed08dda3b3eeb77b69d73130",
+          "productionCommit": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+          "credentialReader": "isolated Electron main only"
+        }
+      },
+      "report": {
+        "path": "C:/.lca-cache/continuity11-tests/retrieval-preflight-20261104-1/report.json",
+        "sha256": "a1149690d07b62e6c44395b270e6b970aff592dbbaa7a9f1b88524c8babf5da7"
+      },
+      "closed": {
+        "path": "C:/.lca-cache/continuity11-tests/retrieval-preflight-20261104-1/closed.json",
+        "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a",
+        "report": {
+          "ok": true,
+          "reuseAllowed": false,
+          "cleanupUncertain": false
+        }
+      },
+      "casesCompleted": 90,
+      "counts": {
+        "modelRequests": 0,
+        "embeddingRequests": 212,
+        "embeddingCharacters": 5360,
+        "reservedUnits": 445270,
+        "autonomousUnits": 445270
+      },
+      "storageDiagnostics": {
+        "sampledPeakMainRssBytes": 243892224,
+        "sampledPeakWorkerPrivateKiB": 1433212,
+        "maximumWorkersObserved": 2
+      },
+      "upstreamRequests": 0,
+      "qualityPassed": null
+    },
+    "stories": {
+      "root": "C:/.lca-cache/continuity11-tests/stories-preflight-20261104-1",
+      "run": {
+        "path": "C:/.lca-cache/continuity11-tests/stories-preflight-20261104-1/run.json",
+        "sha256": "46bd438a49e44725dbcc8650f32123f8e6ce8bbba3a08b927f9f22dd92e60e9d",
+        "report": {
+          "selfTest": true,
+          "batch": "candidate11-memory-stories-24",
+          "limits": {
+            "maximumModelRequests": 96,
+            "maximumEmbeddingRequests": 220,
+            "maximumEmbeddingInputCharacters": 100000,
+            "maximumReservedUnits": 3145728,
+            "maximumAutonomousUnits": 851968
+          },
+          "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef",
+          "sources": {
+            "scripts/probe-memory-stories-quality.mjs": "2c255601595a506e1588e326d7fa5c0f4c2582d6cb29502d13f8c7289273151b",
+            "scripts/memory-stories-plan.json": "cb1e6ee3d1de979d98cba2672362fc97419a6223c1ae0a1cf82dff6d02748029",
+            "scripts/fixtures/memory-stories-quality.ts": "ee14726687303ee9955dc4d161b14475632c7e939233725c2e64d25c206edcef",
+            "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+            "tests/fixtures/continuity-stories.json": "1ec38f6058c05c99de270d30cc199af7e2bf4bf6c8ceb8b36bc2578c4d512de1",
+            "scripts/fixtures/memory-story-io.ts": "f93669e661c837fb86844dc685e63b8cde95726ec2357f9f443c1406ad4e05ad",
+            "scripts/fixtures/memory-story-harness.ts": "d25c715ceeaef5ce8944980a8b06bc56f6b029fb24ac4eb5ef45e9529612d836",
+            "scripts/fixtures/memory-story-cases.ts": "d7a07352ae3b9bb4be6dfa242995f8c9e055a092e4c3218ac155415b8493a60e",
+            "scripts/fixtures/world-probe-stream.ts": "66cf5484fe6a8466dc7718e1741fcd2e46dbab2ab412f5c620311fe29d319878",
+            "scripts/fixtures/probe-response-deadline.ts": "77a098bf9c8bc021f2b364ac008450dcbe7487f4dfc5dc31ca30856fcdba85e9",
+            "scripts/fixtures/continuity-scripted-model.ts": "6d855951ca5beb202e8eb918cd13670f2b365d6016e744c4b8dad9e851cd6174"
+          },
+          "bundleSha256": "05ca42b979b9c7daf1765c91a9af73633320b3a03d4f52d7505f5a04a5beed17",
+          "productionCommit": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+          "credentialReader": "isolated Electron main only"
+        }
+      },
+      "report": {
+        "path": "C:/.lca-cache/continuity11-tests/stories-preflight-20261104-1/report.json",
+        "sha256": "22ecdc45e631a9d60aa95d98a09d253348f77b00d6e2962b13120cb72759209c"
+      },
+      "closed": {
+        "path": "C:/.lca-cache/continuity11-tests/stories-preflight-20261104-1/closed.json",
+        "sha256": "adddd2cbcb32c3ccc2e436bc15a1ee7e74228a6e2c4b84ab98bbf5794922874a",
+        "report": {
+          "ok": true,
+          "reuseAllowed": false,
+          "cleanupUncertain": false
+        }
+      },
+      "completed": [
+        "S16",
+        "S20",
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S12",
+        "S13",
+        "S14",
+        "S15",
+        "S17",
+        "S18",
+        "S19",
+        "S21",
+        "S22",
+        "S23",
+        "S24"
+      ],
+      "storyOrder": [
+        "S16",
+        "S20",
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S12",
+        "S13",
+        "S14",
+        "S15",
+        "S17",
+        "S18",
+        "S19",
+        "S21",
+        "S22",
+        "S23",
+        "S24"
+      ],
+      "counts": {
+        "modelRequests": 26,
+        "embeddingRequests": 77,
+        "embeddingCharacters": 949,
+        "reservedUnits": 306541,
+        "autonomousUnits": 160501
+      },
+      "upstreamRequests": 0,
+      "qualityPassed": null
+    },
+    "interruptionCases": [
+      {
+        "path": "C:/.lca-cache/continuity11-tests/stories-preflight-20261104-1/S16.json",
+        "sha256": "ad00f0b6919bfa5432bf84793526a550ba1dbd286009ebcc69baba3c28795fdd",
+        "id": "S16",
+        "selfTest": true,
+        "semanticQualityAssessed": false,
+        "checks": {
+          "externalOutcomeUnknown": true,
+          "onceApprovalRecorded": false
+        },
+        "works": {
+          "items": [
+            {
+              "identity": {
+                "owner": {
+                  "userId": "quality-S16",
+                  "characterId": "taozi",
+                  "dataRootId": "C:\\.lca-cache\\continuity11-tests\\stories-preflight-20261104-1\\S16"
+                },
+                "projectId": "A",
+                "workId": "a00935cf-df02-414b-a0a8-492908f500b6",
+                "generation": 1,
+                "objectiveRevision": 1
+              },
+              "revision": 8,
+              "label": "任务名“work-16”：尝试导出测试日历，只使用本地测试服务。",
+              "progress": {
+                "observedActions": 1,
+                "changedFiles": 0,
+                "completedCommands": 0,
+                "failedActions": 1,
+                "lastObservedAt": 1793635200000
+              },
+              "status": "stopped",
+              "waitingFor": null,
+              "checkpointId": null,
+              "updatedAt": 1793635200000,
+              "result": {
+                "completion": "unverified",
+                "interruption": {
+                  "generation": 1,
+                  "objectiveRevision": 1,
+                  "atMs": 1793635200000,
+                  "reason": "stopped"
+                },
+                "unconfirmedCommands": 1
+              },
+              "controls": {
+                "supplement": false,
+                "pause": false,
+                "stop": false,
+                "resume": true
+              }
+            }
+          ],
+          "active": 0,
+          "limit": 2,
+          "failure": null
+        },
+        "external": {
+          "requests": 1,
+          "acknowledged": 0
+        }
+      },
+      {
+        "path": "C:/.lca-cache/continuity11-tests/stories-preflight-20261104-1/S20.json",
+        "sha256": "4c17ac2885bc29324e30a97661ebe81e8631357788f720f3e4ded968bffcce2d",
+        "id": "S20",
+        "selfTest": true,
+        "semanticQualityAssessed": false,
+        "checks": {
+          "externalOutcomeUnknown": true,
+          "onceApprovalRecorded": true
+        },
+        "works": {
+          "items": [
+            {
+              "identity": {
+                "owner": {
+                  "userId": "quality-S20",
+                  "characterId": "taozi",
+                  "dataRootId": "C:\\.lca-cache\\continuity11-tests\\stories-preflight-20261104-1\\S20"
+                },
+                "projectId": "A",
+                "workId": "2e879b3a-a014-428d-b0f5-642cd215b843",
+                "generation": 1,
+                "objectiveRevision": 1
+              },
+              "revision": 7,
+              "label": "任务名“work-20”：尝试导出测试日历，只使用本地测试服务。",
+              "progress": {
+                "observedActions": 1,
+                "changedFiles": 0,
+                "completedCommands": 0,
+                "failedActions": 1,
+                "lastObservedAt": 1793635200000
+              },
+              "status": "review_required",
+              "waitingFor": "recovery",
+              "checkpointId": null,
+              "updatedAt": 1793635200000,
+              "result": {
+                "completion": "unverified",
+                "interruption": {
+                  "generation": 1,
+                  "objectiveRevision": 1,
+                  "atMs": 1793635200000,
+                  "reason": "restarted"
+                },
+                "unconfirmedCommands": 1
+              },
+              "controls": {
+                "supplement": true,
+                "pause": false,
+                "stop": true,
+                "resume": true
+              }
+            }
+          ],
+          "active": 0,
+          "limit": 2,
+          "failure": null
+        },
+        "external": {
+          "requests": 1,
+          "acknowledged": 0
+        }
+      }
+    ]
+  },
+  "preparationFailures": {
+    "wrongDefaultImageTag": {
+      "path": "D:/.lca-cache/continuity11-tests/postgres-20261104/postgres-1302a9d5-e2f5-41e2-ad63-0820de82b219/report.json",
+      "sha256": "03576d6c853f33745d4de23b37a4aca5e61b5388336008eb0fd348395ba4e3ff",
+      "report": {
+        "status": "unavailable",
+        "mode": "repository",
+        "realPostgres": false,
+        "container": "lca-continuity-pg-a6deea48-f50a-423b-8a54-226cd40aefbc",
+        "reason": "LOCAL_PGVECTOR_IMAGE_MISSING",
+        "checks": []
+      }
+    },
+    "crossVolumeFixtureDependency": {
+      "path": "D:/.lca-cache/continuity11-tests/postgres-20261104/postgres-b1d169a9-0636-48a5-9c25-c4532256852b/product.json",
+      "sha256": "9fe6b389a5837006ca7dd3a86b7aa3a510743cd2cbde9f299dbb8c853369f8bc",
+      "report": {
+        "ok": false,
+        "source": "403d098be8cf9b9ba8666b859040e0dcd62de9ed0a60c740d5127e9655ed86e1",
+        "target": "unpacked",
+        "profile": "D:\\.lca-cache\\continuity11-tests\\mirror-profiles\\mirror-product-c877d4f4-7a0f-4be0-8273-24144ffb58e7",
+        "checks": [],
+        "realPostgres": true,
+        "realModels": false,
+        "realEmbedding": false,
+        "vectorCalls": 0,
+        "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef",
+        "error": "Cannot find module 'zod'\nRequire stack:\n- D:\\.lca-cache\\continuity11-tests\\postgres-20261104\\postgres-b1d169a9-0636-48a5-9c25-c4532256852b\\fixture\\mirror.cjs\n- C:\\Users\\86130\\.codex\\worktrees\\lca-continuous-work-p0\\love, college&agent\\scripts\\smoke-memory-mirror.mjs",
+        "phase": "seed-existing-long-term-fixture"
+      }
+    },
+    "launchFlagBeforeClaim": {
+      "path": "test-results/continuity/candidate11-retrieval-launch-guard-20261104.json",
+      "sha256": "c3dc4b66be50f345e157f3aa8e986f264ec91ab9ee96fe2d7e35d1d19b61d4d1",
+      "report": {
+        "stage": "before-run-claim",
+        "error": "LIVE_EMBEDDING_AUTHORIZATION_REQUIRED",
+        "cause": "Launcher set LCA_REAL_MODEL instead of the retrieval runner's required LCA_REAL_EMBEDDING flag.",
+        "checkedBeforeCorrection": {
+          "authorizationUsedFileExists": false,
+          "runDirectoryExists": false
+        },
+        "credentialsRead": false,
+        "upstreamRequests": 0,
+        "log": "test-results/continuity/candidate11-retrieval-live-20261104-1.log",
+        "resolution": "Correct launch flag before first actual run; keep original guard failure log. No spent authorization or external action is replayed."
+      }
+    }
+  },
+  "live": {
+    "approvedWindow": {
+      "path": "test-results/continuity/candidate11-quality-live-authorization-20261104-1.json",
+      "sha256": "f78e2854682ca5d26ae30fc978d1f2a0c2b5d2c8a614084ab718f6e37ce8a552",
+      "report": {
+        "windowId": "candidate11-quality-20261104-5dcd3df0-9559-4a16-8ec0-63b24589c9db",
+        "authorized": true,
+        "authorizedAtIso": "2026-11-04T04:51:46.801Z",
+        "userAuthorization": "没问题，批准修复之后补测一次。",
+        "candidate": {
+          "version": 1,
+          "appVersion": "1.2.0-continuity.11",
+          "installerFileName": "Love-College-Agent-1.2.0-continuity.11-Setup.exe",
+          "sourceRevision": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+          "trackedDirty": false,
+          "runtimePreparation": "reused-prepared-tree",
+          "runtimeLockSha256": "c6a17143f0fc78eebef3fd73d4a0ca09ed7c9152b258a592af7da248d786d0f8",
+          "builtAtIso": "2026-11-04T04:42:06.397Z",
+          "installerBytes": 315481865,
+          "installerSha256": "aa0fef4411bfbaa5ba2833807abc2c4ce1716b8d49308b9c5771bcf8a172df15",
+          "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef"
+        },
+        "limits": {
+          "maximumModelRequests": 96,
+          "maximumEmbeddingRequests": 440,
+          "maximumEmbeddingInputCharacters": 150000,
+          "maximumReservedUnits": 3845728,
+          "maximumAutonomousUnits": 1551968
+        },
+        "order": [
+          "retrieval",
+          "stories"
+        ],
+        "firstFailureStopsEntireWindow": true,
+        "noRetries": true,
+        "noPreviousQuotaReuse": true,
+        "batches": [
+          {
+            "name": "retrieval",
+            "root": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-1",
+            "authorization": "test-results/continuity/candidate11-retrieval-live-authorization-20261104-1.json",
+            "authorizationId": "candidate11-quality-20261104-5dcd3df0-9559-4a16-8ec0-63b24589c9db:retrieval"
+          },
+          {
+            "name": "stories",
+            "root": "C:/.lca-cache/continuity11-tests/stories-live-20261104-1",
+            "authorization": "test-results/continuity/candidate11-stories-live-authorization-20261104-1.json",
+            "authorizationId": "candidate11-quality-20261104-5dcd3df0-9559-4a16-8ec0-63b24589c9db:stories"
+          }
+        ]
+      }
+    },
+    "closed": {
+      "path": "test-results/continuity/candidate11-quality-live-authorization-20261104-1.json.closed.json",
+      "sha256": "0f85a9444af8a1e0e384c5a5d17b2deda85e4aa283543319f0cb2544cce4c5ec",
+      "report": {
+        "windowId": "candidate11-quality-20261104-5dcd3df0-9559-4a16-8ec0-63b24589c9db",
+        "ok": false,
+        "closedAtIso": "2026-11-04T04:54:33.392Z",
+        "failedBatch": "retrieval",
+        "error": "EMBEDDING_INTERACTION_DEADLINE_EXCEEDED",
+        "counts": {
+          "modelRequests": 0,
+          "embeddingRequests": 80,
+          "embeddingCharacters": 3235,
+          "reservedUnits": 169593,
+          "autonomousUnits": 169593
+        },
+        "upstreamRequests": 80,
+        "batches": [
+          {
+            "name": "retrieval",
+            "started": true,
+            "ok": false,
+            "stage": "query:long-zh-10",
+            "completed": 19
+          },
+          {
+            "name": "stories",
+            "started": false,
+            "void": true
+          }
+        ],
+        "remainingQuotaVoided": true,
+        "reuseAllowed": false,
+        "cleanupUncertain": false
+      }
+    },
+    "retrieval": {
+      "root": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-1",
+      "run": {
+        "path": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-1/run.json",
+        "sha256": "2a61d9c29fc8557d17e67df8d5f510b7801259f53cba2edd198bc227b3a34e1d",
+        "report": {
+          "selfTest": false,
+          "batch": "candidate11-memory-retrieval-90",
+          "limits": {
+            "maximumModelRequests": 0,
+            "maximumEmbeddingRequests": 220,
+            "maximumEmbeddingInputCharacters": 50000,
+            "maximumReservedUnits": 700000,
+            "maximumAutonomousUnits": 700000
+          },
+          "asarSha256": "d6109d8b393daa6964ee4b1a14d24fb96f57c23e6d994194504ffa57904852ef",
+          "sources": {
+            "scripts/probe-memory-retrieval-quality.mjs": "6c6888ee95ac8f9d31d2b8e333343dbb15670a453833d8511788b18f1c97e719",
+            "scripts/memory-quality-plan.json": "526ed17de933aebbbbfdf0c7cc09e233a6140d16d948bd51b287c352e4a8c451",
+            "scripts/fixtures/memory-retrieval-quality.ts": "a6f6356ebcd52434ccd08c284cf746564aaea077f628aa13b82ae9a6a664bc71",
+            "scripts/fixtures/continuity-live-budget.ts": "d21b47553c69ad465072db727f6834c3db0b1205e7913e1e93cbd7ecdd6d3a80",
+            "scripts/fixtures/memory-retrieval-diagnostics.ts": "453b676e3d38a954ca98d736c4a1345b6424b637ba7073d3a5073bec41247c24",
+            "tests/fixtures/memory-quality-corpus.json": "357b9193c6c02304b0c19a6deddeae60ed2b3b6cc8df5f559896eaa745352e2d",
+            "src/main/memory/airi/core/evaluation.ts": "5bf9d8e0188d6da011100b24789aec35d8c09afbbf4abd0855cd30df94b6ba9d"
+          },
+          "bundleSha256": "1829e8cb688cad8da54ca71822b397bd405770b0ed08dda3b3eeb77b69d73130",
+          "productionCommit": "2c754566ad79e8121567b7e0f10aeff1f622c485",
+          "credentialReader": "isolated Electron main only"
+        }
+      },
+      "report": {
+        "path": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-1/report.json",
+        "sha256": "f23998b35368df28855dce52496a754c6a328aabd502939ad349a8b57e768a6c",
+        "report": {
+          "ok": false,
+          "selfTest": false,
+          "qualityAssessed": true,
+          "qualityPassed": null,
+          "coverage": "Unchanged AIRI queries and gold ids; default production SQL, threshold, ranking and query normalization. Twenty approved fixture documents per language. Only zh-to-en uses the English corpus. Gold labels never enter embedding input or retrieval.",
+          "failurePolicy": "Stop on the first transport, admission, storage or protocol failure; no retry. Individual relevance misses are measurements, and the frozen aggregate thresholds decide acceptance after all 90 cases. Self-test is wiring evidence only.",
+          "limits": {
+            "maximumModelRequests": 0,
+            "maximumEmbeddingRequests": 220,
+            "maximumEmbeddingInputCharacters": 50000,
+            "maximumReservedUnits": 700000,
+            "maximumAutonomousUnits": 700000
+          },
+          "acceptance": {
+            "cases": 90,
+            "strata": 9,
+            "minimumRecallAt3": 0.9,
+            "minimumStratumRecallAt3": 0.8,
+            "minimumMrrAt3": 0.8
+          },
+          "upstreamRequests": 80,
+          "samples": [
+            {
+              "id": 1,
+              "kind": "document",
+              "characters": 36,
+              "status": 200,
+              "headersMs": 1494,
+              "vectorReadyMs": 1512,
+              "elapsedMs": 1512,
+              "ok": true,
+              "inputSha256": "ec4c938988baf53dcd55c62a915a079215020c9ad09c68d7496714b1af2e50e8"
+            },
+            {
+              "id": 2,
+              "kind": "document",
+              "characters": 33,
+              "status": 200,
+              "headersMs": 296,
+              "vectorReadyMs": 332,
+              "elapsedMs": 332,
+              "ok": true,
+              "inputSha256": "6a3f80590426fd539d6da04fff6d04f960fba8eee0671889fa26019ce37387c6"
+            },
+            {
+              "id": 3,
+              "kind": "document",
+              "characters": 25,
+              "status": 200,
+              "headersMs": 351,
+              "vectorReadyMs": 383,
+              "elapsedMs": 383,
+              "ok": true,
+              "inputSha256": "b1357bd35c723a2ac887404463d75e9f850be14f0c06632344dc1036f6577518"
+            },
+            {
+              "id": 4,
+              "kind": "document",
+              "characters": 33,
+              "status": 200,
+              "headersMs": 308,
+              "vectorReadyMs": 342,
+              "elapsedMs": 342,
+              "ok": true,
+              "inputSha256": "5fbce3792608d7fc0ed234e70e5f9e2adfea0c2937aac79083b5581a8c5e6d6f"
+            },
+            {
+              "id": 5,
+              "kind": "document",
+              "characters": 33,
+              "status": 200,
+              "headersMs": 287,
+              "vectorReadyMs": 319,
+              "elapsedMs": 319,
+              "ok": true,
+              "inputSha256": "e935a31e3bfa42d081dba1e89823a989b64c3b5251ca21657884add31cbcdd85"
+            },
+            {
+              "id": 6,
+              "kind": "document",
+              "characters": 34,
+              "status": 200,
+              "headersMs": 271,
+              "vectorReadyMs": 306,
+              "elapsedMs": 306,
+              "ok": true,
+              "inputSha256": "1abfb228dd66641475d90e840b6272cf9d7f66412211e342f3485f44532e36d2"
+            },
+            {
+              "id": 7,
+              "kind": "document",
+              "characters": 26,
+              "status": 200,
+              "headersMs": 281,
+              "vectorReadyMs": 311,
+              "elapsedMs": 311,
+              "ok": true,
+              "inputSha256": "b543fe3f15425f96dba0a66bdab6d806e34899cced1bd705f1e069dfb2fc35c9"
+            },
+            {
+              "id": 8,
+              "kind": "document",
+              "characters": 27,
+              "status": 200,
+              "headersMs": 293,
+              "vectorReadyMs": 326,
+              "elapsedMs": 326,
+              "ok": true,
+              "inputSha256": "579c0b3b9d4a59584075e9c7faf4462f31c16e93da2563a39ba84992f0fda3e8"
+            },
+            {
+              "id": 9,
+              "kind": "document",
+              "characters": 25,
+              "status": 200,
+              "headersMs": 274,
+              "vectorReadyMs": 310,
+              "elapsedMs": 310,
+              "ok": true,
+              "inputSha256": "889880bffb21d1c9b0364af6ee367577d6085014bc70d4bc1c9d566f47be9714"
+            },
+            {
+              "id": 10,
+              "kind": "document",
+              "characters": 36,
+              "status": 200,
+              "headersMs": 304,
+              "vectorReadyMs": 338,
+              "elapsedMs": 338,
+              "ok": true,
+              "inputSha256": "0124fb4d1784babee84e9c1e94421db24c6a608c41ab7ee3cb6e086bf614e875"
+            },
+            {
+              "id": 11,
+              "kind": "document",
+              "characters": 32,
+              "status": 200,
+              "headersMs": 272,
+              "vectorReadyMs": 307,
+              "elapsedMs": 307,
+              "ok": true,
+              "inputSha256": "4440fd344c300c666d97f85bce0e5b6d2057ff9c9b20d70dbb046bf1f81f9323"
+            },
+            {
+              "id": 12,
+              "kind": "document",
+              "characters": 24,
+              "status": 200,
+              "headersMs": 275,
+              "vectorReadyMs": 308,
+              "elapsedMs": 308,
+              "ok": true,
+              "inputSha256": "884a990160c77ce6c16d5c03222678f5c1c7020afaef3c25d1814de26b4377aa"
+            },
+            {
+              "id": 13,
+              "kind": "document",
+              "characters": 20,
+              "status": 200,
+              "headersMs": 280,
+              "vectorReadyMs": 314,
+              "elapsedMs": 314,
+              "ok": true,
+              "inputSha256": "aa414ea24304c3f6269e978cc2cb5236e41e87d75ff4422722d07a604ea83fdf"
+            },
+            {
+              "id": 14,
+              "kind": "document",
+              "characters": 30,
+              "status": 200,
+              "headersMs": 318,
+              "vectorReadyMs": 347,
+              "elapsedMs": 347,
+              "ok": true,
+              "inputSha256": "abdcd07a5879a2e7d3f699888349d32a2608bcd483ad7ba1f46284efe4e3619c"
+            },
+            {
+              "id": 15,
+              "kind": "document",
+              "characters": 20,
+              "status": 200,
+              "headersMs": 322,
+              "vectorReadyMs": 370,
+              "elapsedMs": 370,
+              "ok": true,
+              "inputSha256": "524d683267873be522a2a431b4f992b16def57640a9088b41730ca2e8bea4e6b"
+            },
+            {
+              "id": 16,
+              "kind": "document",
+              "characters": 28,
+              "status": 200,
+              "headersMs": 345,
+              "vectorReadyMs": 381,
+              "elapsedMs": 381,
+              "ok": true,
+              "inputSha256": "a6a597590c777675886d7b2de84566d82671e0f51c3ba7cbb279c4a2ba4805c9"
+            },
+            {
+              "id": 17,
+              "kind": "document",
+              "characters": 21,
+              "status": 200,
+              "headersMs": 312,
+              "vectorReadyMs": 342,
+              "elapsedMs": 342,
+              "ok": true,
+              "inputSha256": "66ff65205a6e89cfe3f38ee13cb2712d9ccc747d80015b8c2c38b834f1ba89ed"
+            },
+            {
+              "id": 18,
+              "kind": "document",
+              "characters": 26,
+              "status": 200,
+              "headersMs": 296,
+              "vectorReadyMs": 339,
+              "elapsedMs": 339,
+              "ok": true,
+              "inputSha256": "7530257293aeaac7a7229531bdce694bd1b0951818b71012c0be41180299f778"
+            },
+            {
+              "id": 19,
+              "kind": "document",
+              "characters": 22,
+              "status": 200,
+              "headersMs": 312,
+              "vectorReadyMs": 354,
+              "elapsedMs": 354,
+              "ok": true,
+              "inputSha256": "c2abc0a40bb525367befe89439a3919eaaadc2f059c5ed141fa3c67bad344874"
+            },
+            {
+              "id": 20,
+              "kind": "document",
+              "characters": 23,
+              "status": 200,
+              "headersMs": 337,
+              "vectorReadyMs": 365,
+              "elapsedMs": 365,
+              "ok": true,
+              "inputSha256": "70ea835c15506aeebdd25c8490bfb208d2cafb87540d8cefb5589ee1b375b603"
+            },
+            {
+              "id": 21,
+              "kind": "document",
+              "characters": 144,
+              "status": 200,
+              "headersMs": 1736,
+              "vectorReadyMs": 1772,
+              "elapsedMs": 1772,
+              "ok": true,
+              "inputSha256": "a9015f576f67e73fd600f7cbb11a77a55a5fa2224f12ab64d16702fdf11588d2"
+            },
+            {
+              "id": 22,
+              "kind": "document",
+              "characters": 109,
+              "status": 200,
+              "headersMs": 273,
+              "vectorReadyMs": 318,
+              "elapsedMs": 318,
+              "ok": true,
+              "inputSha256": "617eed2a03c65a2a81d65f32c53d4b63dfe6238511f66aff6782185c9112a5d2"
+            },
+            {
+              "id": 23,
+              "kind": "document",
+              "characters": 81,
+              "status": 200,
+              "headersMs": 327,
+              "vectorReadyMs": 526,
+              "elapsedMs": 526,
+              "ok": true,
+              "inputSha256": "99f189fb7c44b95c4ad920eae7b8778ca377a3db8c8becf1aefba1a7e70b6e99"
+            },
+            {
+              "id": 24,
+              "kind": "document",
+              "characters": 125,
+              "status": 200,
+              "headersMs": 391,
+              "vectorReadyMs": 394,
+              "elapsedMs": 394,
+              "ok": true,
+              "inputSha256": "42679a7ffefff84947b4a77055c6a1b18388c6ead8b0411a881f8f2b9d98069d"
+            },
+            {
+              "id": 25,
+              "kind": "document",
+              "characters": 115,
+              "status": 200,
+              "headersMs": 384,
+              "vectorReadyMs": 501,
+              "elapsedMs": 501,
+              "ok": true,
+              "inputSha256": "9c8efedfcb355268515228db5b5bbc41ad51c2fa9be7ae58450596e191acc148"
+            },
+            {
+              "id": 26,
+              "kind": "document",
+              "characters": 110,
+              "status": 200,
+              "headersMs": 311,
+              "vectorReadyMs": 353,
+              "elapsedMs": 353,
+              "ok": true,
+              "inputSha256": "e3a02fa619f9d9e5507bd3ab081d7edb70dbc4a07f159039f304514afca7161d"
+            },
+            {
+              "id": 27,
+              "kind": "document",
+              "characters": 99,
+              "status": 200,
+              "headersMs": 298,
+              "vectorReadyMs": 332,
+              "elapsedMs": 332,
+              "ok": true,
+              "inputSha256": "348f12b6837e94c24b61049f9814fe057b7e54465829202d5b526befbd94dba0"
+            },
+            {
+              "id": 28,
+              "kind": "document",
+              "characters": 102,
+              "status": 200,
+              "headersMs": 300,
+              "vectorReadyMs": 328,
+              "elapsedMs": 328,
+              "ok": true,
+              "inputSha256": "4728ce76f32f5d7ef6effe8641cf8a3211914720f32c453d3d721c45c790548f"
+            },
+            {
+              "id": 29,
+              "kind": "document",
+              "characters": 102,
+              "status": 200,
+              "headersMs": 324,
+              "vectorReadyMs": 354,
+              "elapsedMs": 354,
+              "ok": true,
+              "inputSha256": "cefd86fcc05dbcf52f064178087269ef0e64d95a8d7035ae37d11574dfa82884"
+            },
+            {
+              "id": 30,
+              "kind": "document",
+              "characters": 127,
+              "status": 200,
+              "headersMs": 339,
+              "vectorReadyMs": 376,
+              "elapsedMs": 376,
+              "ok": true,
+              "inputSha256": "07c1843e521194288350ea27b4f4998cdcc705c03ca6aad606daba0490e4b028"
+            },
+            {
+              "id": 31,
+              "kind": "document",
+              "characters": 110,
+              "status": 200,
+              "headersMs": 721,
+              "vectorReadyMs": 755,
+              "elapsedMs": 755,
+              "ok": true,
+              "inputSha256": "ee3b1885357be9d4d2997b973158a3e120b4a73562d3ddd10f2df502b4c22322"
+            },
+            {
+              "id": 32,
+              "kind": "document",
+              "characters": 81,
+              "status": 200,
+              "headersMs": 323,
+              "vectorReadyMs": 351,
+              "elapsedMs": 351,
+              "ok": true,
+              "inputSha256": "784be615e9d5af221c605f0bbaa6f8e2ab178e60243b6052dfb5bb48334b44bf"
+            },
+            {
+              "id": 33,
+              "kind": "document",
+              "characters": 79,
+              "status": 200,
+              "headersMs": 284,
+              "vectorReadyMs": 321,
+              "elapsedMs": 321,
+              "ok": true,
+              "inputSha256": "f657fff14c31c66a806c9261d7d21fc363188305a612c3553fa12007b59dbcfc"
+            },
+            {
+              "id": 34,
+              "kind": "document",
+              "characters": 96,
+              "status": 200,
+              "headersMs": 346,
+              "vectorReadyMs": 382,
+              "elapsedMs": 382,
+              "ok": true,
+              "inputSha256": "d6b5caa333e4c7c3d421a1291d8cc6b4e97af2b70b8f4332ca24cab1fac0af86"
+            },
+            {
+              "id": 35,
+              "kind": "document",
+              "characters": 66,
+              "status": 200,
+              "headersMs": 288,
+              "vectorReadyMs": 325,
+              "elapsedMs": 325,
+              "ok": true,
+              "inputSha256": "c9a50ea7912e784cafb5850db51a61fb55c2fae6ec9c6350e51827eb387ca96b"
+            },
+            {
+              "id": 36,
+              "kind": "document",
+              "characters": 90,
+              "status": 200,
+              "headersMs": 273,
+              "vectorReadyMs": 307,
+              "elapsedMs": 307,
+              "ok": true,
+              "inputSha256": "2a0222edd63e28e92cfe00083b00bf18060aa9d1124c8f0502d812eb14af45bd"
+            },
+            {
+              "id": 37,
+              "kind": "document",
+              "characters": 77,
+              "status": 200,
+              "headersMs": 292,
+              "vectorReadyMs": 510,
+              "elapsedMs": 510,
+              "ok": true,
+              "inputSha256": "9c4e22299703b0433a1bbe8611670c902d23e81626f05d644ead84088bebf369"
+            },
+            {
+              "id": 38,
+              "kind": "document",
+              "characters": 93,
+              "status": 200,
+              "headersMs": 297,
+              "vectorReadyMs": 336,
+              "elapsedMs": 336,
+              "ok": true,
+              "inputSha256": "52dbe35ca60a9d4f47a56523a3aff869cb35a4703f5fa8724cced4fbdb4c69f1"
+            },
+            {
+              "id": 39,
+              "kind": "document",
+              "characters": 88,
+              "status": 200,
+              "headersMs": 326,
+              "vectorReadyMs": 356,
+              "elapsedMs": 356,
+              "ok": true,
+              "inputSha256": "7a800fd21500e59d577d7ad661d44cad21d7ad054e009f8bc13330b977fb9cb8"
+            },
+            {
+              "id": 40,
+              "kind": "document",
+              "characters": 77,
+              "status": 200,
+              "headersMs": 306,
+              "vectorReadyMs": 347,
+              "elapsedMs": 347,
+              "ok": true,
+              "inputSha256": "595861143b2bba20984f3f0bc480e70f93cfc829308f997940501991a555bd91"
+            },
+            {
+              "id": 41,
+              "kind": "query",
+              "characters": 10,
+              "status": 200,
+              "headersMs": 349,
+              "vectorReadyMs": 387,
+              "elapsedMs": 387,
+              "ok": true,
+              "inputSha256": "85558a763e9ace1068c99f2831df03ef59a512567052d82ec26a36591eab572e"
+            },
+            {
+              "id": 42,
+              "kind": "query",
+              "characters": 9,
+              "status": 200,
+              "headersMs": 282,
+              "vectorReadyMs": 319,
+              "elapsedMs": 319,
+              "ok": true,
+              "inputSha256": "2580c50c7351e93e5d5c647fb723d2661b7f5e386e02842e8857e2431fbe9db0"
+            },
+            {
+              "id": 43,
+              "kind": "query",
+              "characters": 9,
+              "status": 200,
+              "headersMs": 427,
+              "vectorReadyMs": 450,
+              "elapsedMs": 450,
+              "ok": true,
+              "inputSha256": "ccaddaebd1b6584c1e77b9b6740e19a4d32659830d1c77634be49cc504610135"
+            },
+            {
+              "id": 44,
+              "kind": "query",
+              "characters": 8,
+              "status": 200,
+              "headersMs": 305,
+              "vectorReadyMs": 339,
+              "elapsedMs": 339,
+              "ok": true,
+              "inputSha256": "0a46d129038121e26026a8221a3f9d91650ad7373767c7eca6c020fa05b74ed4"
+            },
+            {
+              "id": 45,
+              "kind": "query",
+              "characters": 9,
+              "status": 200,
+              "headersMs": 276,
+              "vectorReadyMs": 311,
+              "elapsedMs": 311,
+              "ok": true,
+              "inputSha256": "3240e8b8717643a32794e7c832347b0a6b500f7b4c6a9739e724edab4e0656c4"
+            },
+            {
+              "id": 46,
+              "kind": "query",
+              "characters": 8,
+              "status": 200,
+              "headersMs": 510,
+              "vectorReadyMs": 545,
+              "elapsedMs": 545,
+              "ok": true,
+              "inputSha256": "03bb1184bb23ea978d5849252975ed0e4da123ebd632b014b4e40c2b66487c8d"
+            },
+            {
+              "id": 47,
+              "kind": "query",
+              "characters": 12,
+              "status": 200,
+              "headersMs": 320,
+              "vectorReadyMs": 361,
+              "elapsedMs": 361,
+              "ok": true,
+              "inputSha256": "d20524e9f4022622c46024b7f7180432d229f427dd2fce0e14520467739f2a02"
+            },
+            {
+              "id": 48,
+              "kind": "query",
+              "characters": 11,
+              "status": 200,
+              "headersMs": 322,
+              "vectorReadyMs": 362,
+              "elapsedMs": 362,
+              "ok": true,
+              "inputSha256": "81fb46e44286097f3a4b7c92ae56683f0e8483aaa9f4a2a5781b4f693c91b35a"
+            },
+            {
+              "id": 49,
+              "kind": "query",
+              "characters": 8,
+              "status": 200,
+              "headersMs": 312,
+              "vectorReadyMs": 456,
+              "elapsedMs": 456,
+              "ok": true,
+              "inputSha256": "d5857e0109d46e541d509835b3dc4ad83297d153322a2ac24867d47d7b52d1bf"
+            },
+            {
+              "id": 50,
+              "kind": "query",
+              "characters": 7,
+              "status": 200,
+              "headersMs": 562,
+              "vectorReadyMs": 612,
+              "elapsedMs": 612,
+              "ok": true,
+              "inputSha256": "d24c8ca43524a8614fa5f8998496c1f945c7f5488344d40be7e6087a03f21890"
+            },
+            {
+              "id": 51,
+              "kind": "query",
+              "characters": 10,
+              "status": 200,
+              "headersMs": 344,
+              "vectorReadyMs": 483,
+              "elapsedMs": 483,
+              "ok": true,
+              "inputSha256": "b26767c2a3d4d36937be01e253ea8e05b11ca3fd191a070ca0a90805cb82a428"
+            },
+            {
+              "id": 52,
+              "kind": "query",
+              "characters": 9,
+              "status": 200,
+              "headersMs": 320,
+              "vectorReadyMs": 367,
+              "elapsedMs": 367,
+              "ok": true,
+              "inputSha256": "ee1e7d2ba3be074a3f18a1f8e3d4a989613bcd9d9dfff8b56fde8bb4fdafaf5f"
+            },
+            {
+              "id": 53,
+              "kind": "query",
+              "characters": 8,
+              "status": 200,
+              "headersMs": 293,
+              "vectorReadyMs": 330,
+              "elapsedMs": 330,
+              "ok": true,
+              "inputSha256": "3a73ba375274152ed9db3383a53001e36c514ce8a2713c8535e15418716d0792"
+            },
+            {
+              "id": 54,
+              "kind": "query",
+              "characters": 7,
+              "status": 200,
+              "headersMs": 297,
+              "vectorReadyMs": 332,
+              "elapsedMs": 332,
+              "ok": true,
+              "inputSha256": "59d79a3335b8ccd6cdd1fb63923028f18224c2084f6e22e51dcfcc0bed266e8a"
+            },
+            {
+              "id": 55,
+              "kind": "query",
+              "characters": 10,
+              "status": 200,
+              "headersMs": 307,
+              "vectorReadyMs": 342,
+              "elapsedMs": 342,
+              "ok": true,
+              "inputSha256": "2b28cd168f605d755afdb4a7a3f70ca75d113e691f5a773bada7eb2ee7fdb253"
+            },
+            {
+              "id": 56,
+              "kind": "query",
+              "characters": 9,
+              "status": 200,
+              "headersMs": 301,
+              "vectorReadyMs": 333,
+              "elapsedMs": 333,
+              "ok": true,
+              "inputSha256": "261c56ee8ca870729b0fe983dd6d239d161f27b5fad69340863aecce7bbb8241"
+            },
+            {
+              "id": 57,
+              "kind": "query",
+              "characters": 11,
+              "status": 200,
+              "headersMs": 312,
+              "vectorReadyMs": 347,
+              "elapsedMs": 347,
+              "ok": true,
+              "inputSha256": "88a7cb8fc003632ede157ce4f1e25601258a288c886b59c78382b5cd18bad80b"
+            },
+            {
+              "id": 58,
+              "kind": "query",
+              "characters": 10,
+              "status": 200,
+              "headersMs": 316,
+              "vectorReadyMs": 356,
+              "elapsedMs": 356,
+              "ok": true,
+              "inputSha256": "5b8a8f58e4e8c0ded55ca1e252857a45ef17eb8d41eeec7e7314cd5d2a15d394"
+            },
+            {
+              "id": 59,
+              "kind": "query",
+              "characters": 9,
+              "status": 200,
+              "headersMs": 390,
+              "vectorReadyMs": 412,
+              "elapsedMs": 412,
+              "ok": true,
+              "inputSha256": "846c7b490028024ed35941776fe39b720ee4df54c04facac5f843337f85342f9"
+            },
+            {
+              "id": 60,
+              "kind": "query",
+              "characters": 8,
+              "status": 200,
+              "headersMs": 304,
+              "vectorReadyMs": 339,
+              "elapsedMs": 339,
+              "ok": true,
+              "inputSha256": "f5cb0acaaae778653e7f35e57026ed4b456b13762c2c9c48f468ba3ed991a0ad"
+            },
+            {
+              "id": 61,
+              "kind": "query",
+              "characters": 37,
+              "status": 200,
+              "headersMs": 340,
+              "vectorReadyMs": 374,
+              "elapsedMs": 374,
+              "ok": true,
+              "inputSha256": "ad83ce523c7ecdfa9099e7ac0c8e8cb2cc6e61f183ac26516a66f474d031799b"
+            },
+            {
+              "id": 62,
+              "kind": "query",
+              "characters": 12,
+              "status": 200,
+              "headersMs": 313,
+              "vectorReadyMs": 362,
+              "elapsedMs": 362,
+              "ok": true,
+              "inputSha256": "61a8b16c2bbf7a2f24ec7b3fe88ca720b05452d7e3582c44292d39f874e394aa"
+            },
+            {
+              "id": 63,
+              "kind": "query",
+              "characters": 36,
+              "status": 200,
+              "headersMs": 358,
+              "vectorReadyMs": 388,
+              "elapsedMs": 388,
+              "ok": true,
+              "inputSha256": "c200e7cde144b38091b0440add103ee7f70032bf7442122e8a8cb4c66eb56744"
+            },
+            {
+              "id": 64,
+              "kind": "query",
+              "characters": 33,
+              "status": 200,
+              "headersMs": 317,
+              "vectorReadyMs": 354,
+              "elapsedMs": 354,
+              "ok": true,
+              "inputSha256": "4a0d256f5fd9b42fc9510e3eab9e343c9df270ff2331c2485952a657353ba2a9"
+            },
+            {
+              "id": 65,
+              "kind": "query",
+              "characters": 29,
+              "status": 200,
+              "headersMs": 371,
+              "vectorReadyMs": 412,
+              "elapsedMs": 412,
+              "ok": true,
+              "inputSha256": "ac76710179fa2c8f83bf40d98561e75d2c4693d717c589dbec2dd8b51c9462b9"
+            },
+            {
+              "id": 66,
+              "kind": "query",
+              "characters": 28,
+              "status": 200,
+              "headersMs": 352,
+              "vectorReadyMs": 389,
+              "elapsedMs": 389,
+              "ok": true,
+              "inputSha256": "11bbd871e513602d549fb50475669716e8ab4b2f6268a85c8803b00873ab57f4"
+            },
+            {
+              "id": 67,
+              "kind": "query",
+              "characters": 28,
+              "status": 200,
+              "headersMs": 339,
+              "vectorReadyMs": 374,
+              "elapsedMs": 374,
+              "ok": true,
+              "inputSha256": "d5cff6b89480895901890e21cbc303344684a84af15043078c58ca1098e15de8"
+            },
+            {
+              "id": 68,
+              "kind": "query",
+              "characters": 27,
+              "status": 200,
+              "headersMs": 285,
+              "vectorReadyMs": 324,
+              "elapsedMs": 324,
+              "ok": true,
+              "inputSha256": "323175877dd116050d2dea463b15141bb75382be11c5400ed411f505a2093af7"
+            },
+            {
+              "id": 69,
+              "kind": "query",
+              "characters": 30,
+              "status": 200,
+              "headersMs": 1075,
+              "vectorReadyMs": 1112,
+              "elapsedMs": 1112,
+              "ok": true,
+              "inputSha256": "480ca33e8f03e86fdb174a0a2e716383ad6e373ad0b8b6257f3aeccb7681d20f"
+            },
+            {
+              "id": 70,
+              "kind": "query",
+              "characters": 14,
+              "status": 200,
+              "headersMs": 2069,
+              "vectorReadyMs": 2101,
+              "elapsedMs": 2101,
+              "ok": true,
+              "inputSha256": "9f59fd1e44924bdba02fcd3db44709174c5addaa24bacd0a4993fe9eda5349aa"
+            },
+            {
+              "id": 71,
+              "kind": "query",
+              "characters": 29,
+              "status": 200,
+              "headersMs": 319,
+              "vectorReadyMs": 345,
+              "elapsedMs": 345,
+              "ok": true,
+              "inputSha256": "edafff28fe2cdbf1d36147e1462c78d6e3a099c42a0d20ce86935b6f56ddb351"
+            },
+            {
+              "id": 72,
+              "kind": "query",
+              "characters": 28,
+              "status": 200,
+              "headersMs": 438,
+              "vectorReadyMs": 474,
+              "elapsedMs": 474,
+              "ok": true,
+              "inputSha256": "09ea6468e0eff3e8dc0a4d6a7b3f72c27e8a76940e36070a83f5f8a0aa8c5e8d"
+            },
+            {
+              "id": 73,
+              "kind": "query",
+              "characters": 28,
+              "status": 200,
+              "headersMs": 686,
+              "vectorReadyMs": 725,
+              "elapsedMs": 725,
+              "ok": true,
+              "inputSha256": "0f15e1899c432d7c574a8790a34819987864a0fdabd79e9c0862cc0636731992"
+            },
+            {
+              "id": 74,
+              "kind": "query",
+              "characters": 27,
+              "status": 200,
+              "headersMs": 326,
+              "vectorReadyMs": 352,
+              "elapsedMs": 352,
+              "ok": true,
+              "inputSha256": "63655553da196dfa67921dd6c92fc468924358fb280e6015161946c4479f41bd"
+            },
+            {
+              "id": 75,
+              "kind": "query",
+              "characters": 27,
+              "status": 200,
+              "headersMs": 319,
+              "vectorReadyMs": 347,
+              "elapsedMs": 347,
+              "ok": true,
+              "inputSha256": "7c9231fc69500f5c40463964546cb1b0cdc79d25ed9f5c7db0a7493e2ed858fc"
+            },
+            {
+              "id": 76,
+              "kind": "query",
+              "characters": 25,
+              "status": 200,
+              "headersMs": 292,
+              "vectorReadyMs": 328,
+              "elapsedMs": 328,
+              "ok": true,
+              "inputSha256": "6fa2343153094fedbba0b5a979bbffabdff41f8f3f2aabc8443faf8b201d3e37"
+            },
+            {
+              "id": 77,
+              "kind": "query",
+              "characters": 24,
+              "status": 200,
+              "headersMs": 307,
+              "vectorReadyMs": 505,
+              "elapsedMs": 505,
+              "ok": true,
+              "inputSha256": "2088ff0cc0a26c92413c3b3e7ff0f158e702e49f013b46d043c2b20f5bc2c710"
+            },
+            {
+              "id": 78,
+              "kind": "query",
+              "characters": 21,
+              "status": 200,
+              "headersMs": 402,
+              "vectorReadyMs": 436,
+              "elapsedMs": 436,
+              "ok": true,
+              "inputSha256": "177a7d3966d9108d6d0574afba0d2ba90fa4d7e838791319b0905fd5cb52a63c"
+            },
+            {
+              "id": 79,
+              "kind": "query",
+              "characters": 23,
+              "status": 200,
+              "headersMs": 313,
+              "vectorReadyMs": 348,
+              "elapsedMs": 348,
+              "ok": true,
+              "inputSha256": "633f5ae8ebc73f9690577eabe93b45b21aa18024c18a2d43a42911a321179d66"
+            },
+            {
+              "id": 80,
+              "kind": "query",
+              "characters": 22,
+              "status": 200,
+              "headersMs": 328,
+              "vectorReadyMs": null,
+              "elapsedMs": null,
+              "ok": false,
+              "inputSha256": "3ce4018c8c5f1871174ed00caed7d4aaa7f1af1ee28817dc0d612eac7f4dccab"
+            }
+          ],
+          "casesCompleted": 19,
+          "corpusCounts": {
+            "zh": 20,
+            "en": 20
+          },
+          "counts": {
+            "modelRequests": 0,
+            "embeddingRequests": 80,
+            "embeddingCharacters": 3235,
+            "reservedUnits": 169593,
+            "autonomousUnits": 169593
+          },
+          "error": "EMBEDDING_INTERACTION_DEADLINE_EXCEEDED",
+          "stage": "query:long-zh-10",
+          "diagnostic": null,
+          "runtimeFailure": {
+            "code": "EMBEDDING_INTERACTION_DEADLINE_EXCEEDED",
+            "databaseReady": true,
+            "embeddingFailure": "EMBEDDING_INTERACTION_DEADLINE_EXCEEDED",
+            "elapsedMs": 3410
+          },
+          "storageHost": "packaged-production-utility",
+          "storageDiagnostics": null,
+          "result": null
+        }
+      },
+      "closed": {
+        "path": "C:/.lca-cache/continuity11-tests/retrieval-live-20261104-1/closed.json",
+        "sha256": "5f3b7b4edeffd231a821f43ecb798b3c9e565c5e408597ff8ad8931a82ff9741",
+        "report": {
+          "ok": false,
+          "reuseAllowed": false,
+          "cleanupUncertain": false
+        }
+      }
+    },
+    "stories": {
+      "started": false,
+      "realModelRequests": 0,
+      "passed": [],
+      "unrun": [
+        "S16",
+        "S20",
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S12",
+        "S13",
+        "S14",
+        "S15",
+        "S17",
+        "S18",
+        "S19",
+        "S21",
+        "S22",
+        "S23",
+        "S24"
+      ],
+      "voided": {
+        "path": "test-results/continuity/candidate11-stories-live-authorization-20261104-1.json.used",
+        "sha256": "9d04b0830e81d6bee92751c689a021a28b050f8b353025c25a6ea913e73b6d0e",
+        "report": {
+          "void": true,
+          "reason": "EARLIER_BATCH_FAILED",
+          "upstreamRequests": 0,
+          "parentWindowId": "candidate11-quality-20261104-5dcd3df0-9559-4a16-8ec0-63b24589c9db",
+          "authorizationId": "candidate11-quality-20261104-5dcd3df0-9559-4a16-8ec0-63b24589c9db:stories"
+        }
+      }
+    },
+    "preRunResources": {
+      "freePhysicalKiB": 6592556,
+      "freeVirtualKiB": 6542012,
+      "cFreeBytes": 1865625600,
+      "dFreeBytes": 381714432
+    }
+  },
+  "diagnosis": {
+    "code": "EMBEDDING_INTERACTION_DEADLINE_EXCEEDED",
+    "databaseReady": true,
+    "case": "query:long-zh-10",
+    "elapsedMs": 3410,
+    "lastRequest": {
+      "id": 80,
+      "kind": "query",
+      "characters": 22,
+      "status": 200,
+      "headersMs": 328,
+      "vectorReadyMs": null,
+      "elapsedMs": null,
+      "ok": false,
+      "inputSha256": "3ce4018c8c5f1871174ed00caed7d4aaa7f1af1ee28817dc0d612eac7f4dccab"
+    },
+    "firstQueryVectorReadyMs": 348,
+    "conclusion": "The production 3-second optional-vector interaction deadline fired while the second query request had received HTTP 200 headers but no complete validated vector. The database remained ready. No chat request occurred, and S16/S20 real answers were not reached.",
+    "limit": "This confirms the cutoff for this window. It does not establish provider-side slowness versus local/network response-body delay, and does not recover the missing error from the older window."
+  },
+  "outstanding": [
+    "Real S16/S20 and remaining story answers",
+    "Complete real retrieval on this candidate after addressing the deadline separately",
+    "Actual installation and nonempty upgrade for candidate 11; candidate 10 results are historical only",
+    "Second Windows and long-term use"
+  ],
+  "release": {
+    "packagePublished": false,
+    "tagCreated": false,
+    "mainMerged": false
+  }
+}
