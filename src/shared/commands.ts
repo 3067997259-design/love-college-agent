@@ -137,7 +137,7 @@ export type AppCommand = CommandEnvelope & (
   /** Tier is an experimental decoder setting, never an automatic age/quality guarantee. */
   | { type: 'optical.decode'; frameId: string; tier: OpticalTier }
   | { type: 'life.schedule'; schedule: 'auto' | 'work' | 'rest' }
-  | { type: 'life.propose'; place?: 'coast' | 'swing' }
+  | { type: 'life.propose'; place?: import('./state').OutingPlace }
   | { type: 'life.depart'; outingId: string }
   | { type: 'life.return' }
   /** One work of each kind per calendar day; only registered desk materials, online execution only. */

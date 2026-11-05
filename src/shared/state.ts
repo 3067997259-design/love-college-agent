@@ -555,8 +555,10 @@ export interface NotificationsView { rules: readonly NotificationRule[]; proposa
 export interface DiaryView { status: 'idle' | 'writing' | 'failed' | 'unconfigured'; source: 'real' | 'fake' | 'none'; entries: readonly { id: string; dayKey: string; createdAtMs: number; unlocked: boolean; clue: 'next-bookmark'; source: 'real' | 'fake' }[] }
 /** Explicit user-only read, absent from snapshots, debug MCP, model contexts and memory. */
 export interface DiaryRead { id: string; dayKey: string; text: string; key: string; subjective: true }
-export type OutingPlace = 'coast' | 'swing'
-export interface OutingView { id: string; place: OutingPlace; startsAtMs: number; returnsAtMs: number; acquiredAtMs: number; item: 'shell' | 'leaf'; status: 'proposed' | 'away' | 'returned' | 'cut_short' | 'cancelled'; settledAtMs: number | null; offline: boolean }
+/** Where she may go. Coast and swing have their own art; other places use the empty room plus her handwritten note. */
+export type OutingPlace = 'coast' | 'swing' | 'bookstore' | 'cafe' | 'rooftop' | 'store'
+export const OUTING_PLACES: readonly OutingPlace[] = ['coast', 'swing', 'bookstore', 'cafe', 'rooftop', 'store']
+export interface OutingView { id: string; place: OutingPlace; startsAtMs: number; returnsAtMs: number; acquiredAtMs: number; /** The souvenir this trip may bring; null for a place she visits only to breathe. */ item: 'shell' | 'leaf' | null; status: 'proposed' | 'away' | 'returned' | 'cut_short' | 'cancelled'; settledAtMs: number | null; offline: boolean }
 export interface LifeView {
   dayKey: string
   userSchedule: 'auto' | 'work' | 'rest'
