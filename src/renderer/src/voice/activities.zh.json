@@ -8,8 +8,8 @@
   },
   "mail.read": {
     "running": "查看校园事项",
-    "completed": "查看了当前校园事项。",
-    "completed:zero": "查看了当前校园事项。",
+    "completed": "看过了校园事项。",
+    "completed:zero": "看过了校园事项。",
     "failed": "校园事项暂时没查到。"
   },
   "privacy.extract": {
@@ -32,7 +32,7 @@
   "document.read": {
     "running": "请求读取这份资料",
     "completed": "已请求读取这份资料。",
-    "failed": "这份资料当前不能读取。"
+    "failed": "这份资料现在读不了。"
   },
   "student-hub.assistant": {
     "running": "处理校园信息",
@@ -125,7 +125,7 @@
   },
   "desk.delegate.result": {
     "running": "等分身回来",
-    "completed": "分身交回了结果，我再核对。",
+    "completed": "分身交回了结果，我再看一遍。",
     "failed": "分身的结果没收到。"
   },
   "desk.goals": {
@@ -153,7 +153,7 @@
   },
   "mcp.call": {
     "running": "调用插件工具",
-    "completed": "插件返回了结果，我再核对一下。",
+    "completed": "插件给了结果，我再看一下。",
     "failed": "插件工具没用成。"
   },
   "tool.unavailable": {

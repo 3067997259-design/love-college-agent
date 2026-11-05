@@ -23,14 +23,14 @@ export function SkillsPanel({ snapshot, bridge }: { snapshot: AppSnapshot; bridg
   const operation = view?.operation
   const items = view?.items.filter((item) => `${item.name} ${item.description} ${item.sourceLabel}`.toLowerCase().includes(search.toLowerCase().trim())) ?? []
   return <div className="plugin-scroll skills-panel">
-    <p className="plugin-meta">当前项目：{snapshot.work?.current.name ?? '书桌'}。同名时依次采用项目 .dsh、项目 .agents、此存档的技能；扩展也可提供技能。</p>
+    <p className="plugin-meta">当前项目：{snapshot.work?.current.name ?? '书桌'}。重名时先用项目 .dsh 里的，其次是项目 .agents，最后是这份存档的。扩展也能带技能。</p>
     <div className="card-actions">
       <button type="button" className="btn btn-small btn-ghost" disabled={busy} onClick={() => void send({ type: 'skills.refresh' })}>刷新技能</button>
       <button type="button" className="btn btn-small btn-primary" disabled={busy} onClick={() => void send({ type: 'skills.import', scope: 'project' })}>导入到当前项目</button>
       <button type="button" className="btn btn-small btn-ghost" disabled={busy} onClick={() => void send({ type: 'skills.import', scope: 'profile' })}>导入到此存档</button>
     </div>
     <input className="plugin-search" type="search" aria-label="搜索技能" placeholder="搜索技能" value={search} onChange={(event) => setSearch(event.target.value)} />
-    {view?.status !== 'ready' && <p className="plugin-notice" role="status">{view?.status === 'loading' ? '正在读取技能……' : view?.status === 'failed' ? '部分目录无法读取，请检查后刷新。' : '刷新后查看当前项目可用的技能。'}</p>}
+    {view?.status !== 'ready' && <p className="plugin-notice" role="status">{view?.status === 'loading' ? '正在读取技能……' : view?.status === 'failed' ? '有的目录读不了，检查一下再刷新。' : '刷新一下，看看当前项目能用哪些技能。'}</p>}
     {operation && <div className="plugin-notice" role="status">{operation.action === 'import' ? '导入' : '移除'}：{operation.outcome === 'pending' ? operation.phase === 'awaiting-approval' ? '等待你批准' : '准备中' : { succeeded: '已完成', cancelled: '已取消', failed: '未完成；检查目录或同名技能后重试' }[operation.outcome]}
       {operation.outcome === 'pending' && <button type="button" className="btn btn-small btn-ghost" disabled={pending} onClick={() => void send({ type: 'skills.cancel', operationId: operation.id })}>取消操作</button>}
     </div>}

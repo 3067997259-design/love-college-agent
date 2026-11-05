@@ -47,9 +47,9 @@ export function CandidateCard({ view, bridge, onCommand, entering, onReveal }: {
         <dt>{view.kind === 'event' ? '报名截止' : '原始截止'}</dt><dd className="time-deadline">{formatIso(view.deadlineIso)}</dd>
         {view.plannedCompletionIso && <><dt>打算完成</dt><dd className="time-planned">{formatIso(view.plannedCompletionIso)}</dd></>}
       </dl>
-      {view.status === 'changed' && <div className="card-note"><p>这封邮件改了时间，还没确认。原来的截止仍然是 {formatIso(view.change?.previousDeadlineIso ?? null)}。</p>
+      {view.status === 'changed' && <div className="card-note"><p>这封邮件改了时间，还没确认。原来的截止还是 {formatIso(view.change?.previousDeadlineIso ?? null)}。</p>
         {view.change?.previousEventStartIso && <p>原活动时间：{formatIso(view.change.previousEventStartIso)}</p>}
-        <p>确认后会导出更新后的日程文件；如果日历里多出一条旧的，删掉旧的那条就好。</p>
+        <p>确认后会导出新的日程文件。日历里要是多出一条旧的，删掉旧的就好。</p>
         {view.change && <button type="button" className="link-button" onClick={() => {
           const id = ++previousRequest.current
           if (previousEvidence) { setPreviousEvidence(null); return }
@@ -126,7 +126,7 @@ function PlannedPicker({ view, planned, setPlanned }: { view: CandidateView; pla
 
 function Evidence({ state }: { state: EvidenceView | 'loading' | 'failed' | null }) {
   if (state === 'loading' || state === null) return <div className="evidence evidence-loading">取原文……</div>
-  if (state === 'failed') return <div className="evidence"><span className="notice-mark">！</span>没能读到原邮件，上面的时间请先核对。</div>
+  if (state === 'failed') return <div className="evidence"><span className="notice-mark">！</span>没读到原邮件，上面的时间你再对一下。</div>
   // 高亮是 excerpt 的 UTF-16 半开区间；按起点排序后切片
   const parts: { text: string; mark: boolean }[] = []
   let cursor = 0
@@ -193,7 +193,7 @@ export function PlanCard({ plan, pomodoro, entering, onConfirm, onDismiss }: {
           </div>
         )}
       <p className="plan-rhythm">{rhythmText(plan)}<span className="plan-span">，一共约 {formatSpan(planSpanMs(plan))}</span></p>
-      {replacing && <p className="plan-replace">确认后换掉今天的计划；已经做完的 {done} 个照算。</p>}
+      {replacing && <p className="plan-replace">确认后换掉今天的计划，已经做完的 {done} 个照算。</p>}
       {plan.status === 'proposed'
         ? (
           <footer className="card-actions">

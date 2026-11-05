@@ -194,11 +194,11 @@ try {
   await instance.evaluate(() => { globalThis.p4DropReceipt = true })
   await center.getByRole('button', { name: '申请安装', exact: true }).click(); await allow()
   await until((s) => last(s)?.outcome === 'unknown', 'UNKNOWN_RECEIPT_MISSING')
-  await center.getByText('结果未知，请核对后再操作', { exact: true }).waitFor()
+  await center.getByText('结果不明，先刷新看看再操作', { exact: true }).waitFor()
   assert.equal(await center.getByRole('button', { name: '添加 DSH 扩展', exact: true }).isEnabled(), false)
   const opId = last(await snapshot()).id, opCount = (await snapshot()).extensions.operations.length
   await center.screenshot({ path: join(pictures, 'unknown.png') })
-  await center.getByRole('button', { name: '核对这次操作', exact: true }).click(); await settle()
+  await center.getByRole('button', { name: '重新检查这次操作', exact: true }).click(); await settle()
   assert.equal(last(await snapshot()).id, opId); assert.equal(last(await snapshot()).outcome, 'succeeded'); assert.equal((await snapshot()).extensions.operations.length, opCount)
   if (!await row().locator('details').first().evaluate((element) => element.open)) await row().locator('summary').first().click()
   await row().getByRole('button', { name: '移除', exact: true }).click(); await allow(); await settle()

@@ -144,8 +144,8 @@ function MemberCard({ member, anchor, snapshot, bridge, onClose, onMore }: {
       {ended && ended !== status && <p>{ended}</p>}
       {member.resultText && <p className="team-card-result">{member.resultText}</p>}
       {(member.sources.status !== 'clean' || details.value?.withheld) && <p className="team-card-note">涉及外部来源，只显示步骤种类。</p>}
-      {sent === 'accepted' && <p className="team-card-note" role="status">已请求停止；是否停下，以她的状态为准。</p>}
-      {sent === 'failed' && <p className="team-card-note" role="alert">停止请求没有发出，请在协作面板里刷新核对。</p>}
+      {sent === 'accepted' && <p className="team-card-note" role="status">已经请她停下，停没停看她的状态。</p>}
+      {sent === 'failed' && <p className="team-card-note" role="alert">停止请求没发出去，去协作面板刷新看看。</p>}
       <div className="team-card-actions">
         {member.controls.interrupt && <button type="button" disabled={disabled} onClick={() => { void interrupt() }}>停止当前工作</button>}
         <button type="button" onClick={onMore}>更多</button>

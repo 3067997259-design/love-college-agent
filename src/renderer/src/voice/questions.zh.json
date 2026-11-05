@@ -13,15 +13,15 @@
   "progress": "{index} / {count}",
   "answer": "你的回答",
   "placeholder": "写下你的回答",
-  "placeholderOther": "点上面的选项就行；想说别的写在这里",
+  "placeholderOther": "点上面的选项，或者在这里写别的",
   "previous": "上一件",
   "next": "下一件",
   "skipOne": "这件先不答",
   "send": "回答",
   "dismiss": "这次先跳过",
   "sending": "正在交给她……",
-  "hint": "先告诉她你的想法就好；真要改动文件或定下日程，她还会再问你。",
+  "hint": "先说说你的想法。真要改文件或定日程，她会再问你。",
   "length": "{count} / 1000 字",
   "tooLong": "请缩短至 1000 字以内。",
-  "error": "回答没有送达，请检查问题是否仍在等待。"
+  "error": "回答没送到，这个问题可能已经结束了。"
 }

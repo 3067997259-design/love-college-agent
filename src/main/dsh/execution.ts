@@ -329,7 +329,7 @@ export function createDshExecution(options: {
       if (request.degraded?.length) return 'rejected'
       if (rules.some((rule) => rule.project === project && rule.prefix === null)) return 'allowed-once'
       const shown = request.subject ?? command
-      const question = `她想在「${basename(project)}」里运行命令${shown ? `：${clip(shown.replace(/\s+/g, ' '), 80)}` : ''}，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。`
+      const question = `她想在「${basename(project)}」里运行命令${shown ? `：${clip(shown.replace(/\s+/g, ' '), 80)}` : ''}，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作还是会先问你，LCA 的私有数据她不碰。`
       const choices = ['信任这个项目', '先不要']
       const answer = await ask(owner + question, choices, context).catch(() => null)
       if (!valid()) return 'rejected'

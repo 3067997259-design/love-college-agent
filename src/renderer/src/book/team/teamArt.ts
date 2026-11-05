@@ -59,7 +59,7 @@ export const OVER_DEPTH = TABLE_DEPTH + .0004
 
 export function badgeOf(member: AgentView): string | undefined {
   if (member.error) return '出错了'
-  if (member.outcome === 'unknown') return '待核对'
+  if (member.outcome === 'unknown') return '结果不明'
   if (member.outcome === 'refused') return '未批准'
   if (member.outcome === 'failed') return '未完成'
   if (member.activity === 'inactive') return member.outcome === 'completed' ? '已完成' : member.outcome === 'aborted' ? '已停下' : undefined

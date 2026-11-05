@@ -6,7 +6,7 @@ import { activityKind } from '../voice/activity-text'
 import './collaboration.css'
 
 const activity = { starting: '正在加入', running: '工作中', waiting: '等待中', inactive: '空闲', stopping: '正在停止', unavailable: '不可用' }
-const outcome = { none: '', completed: '本次运行已结束', aborted: '已中止', failed: '执行失败', refused: '未获批准', unknown: '结果待核对' }
+const outcome = { none: '', completed: '本次运行已结束', aborted: '已中止', failed: '执行失败', refused: '未获批准', unknown: '结果不明' }
 const waiting = { approval: '等你批准', member: '等同伴', budget: '额度不足', user: '需要新的明确指令', recovery: '等待恢复' }
 const target = (member: AgentView) => ({ address: member.address, expectedRevision: member.revision })
 const modeText = (member: AgentView) => member.mode === 'teammate' ? '团队成员' : member.mode === 'fork' ? '上下文委派' : '临时助手'
@@ -47,13 +47,13 @@ export function CollaborationPanel({ snapshot, bridge, openRequest = 0, shot }: 
       onClick={() => { setOpen(!open); if (!open) refresh() }}>{quiet ? null : <>协作{members.length ? ` · ${members.length}` : ''}</>}</button>
     {open && <section id="collaboration-panel" className="collaboration-sheet" aria-label="成员与共同任务">
       <header><h2>一起做的事</h2><button type="button" aria-label="收起协作" onClick={() => setOpen(false)}>收起</button></header>
-      <p className="collaboration-note">独立的小任务交给临时助手；需要分工与交接时组成团队。</p>
+      <p className="collaboration-note">小而独立的事交给临时助手，要分工、交接的事就组个团队。</p>
       {view?.workSelection && <label>查看哪件事<select aria-label="协作工作" value={view.workSelection.workId ?? ''} onChange={event => { void command({ type: 'agent.refresh', workId: event.target.value || null }) }}>
         <option value="">当前对话</option>{view.workSelection.choices.map(work => <option key={work.workId} value={work.workId}>{work.label}{work.available ? '' : ' · 未运行'}</option>)}
       </select></label>}
-      <div className="collaboration-actions"><button type="button" disabled={busy} onClick={refresh}>刷新核对</button>{root && <button type="button" disabled={busy} onClick={() => { void command({ type: 'agent.stop-family', target: target(root) }) }}>停止整组</button>}</div>
-      {view?.capacity && <p className="collaboration-note">团队名册 {view.capacity.teamUsed} / {view.capacity.teamLimit} · 共用运行上限 {view.capacity.activeLimit}<br />停止不会释放名册；空闲也可能占用运行容量。</p>}
-      {(!view || view.status !== 'ready') && <p role="status">{view?.status === 'failed' ? '连接已断开，刷新会重新连接并核对记录。' : '开始工作后，可以在这里查看成员。'}</p>}
+      <div className="collaboration-actions"><button type="button" disabled={busy} onClick={refresh}>刷新</button>{root && <button type="button" disabled={busy} onClick={() => { void command({ type: 'agent.stop-family', target: target(root) }) }}>停止整组</button>}</div>
+      {view?.capacity && <p className="collaboration-note">团队名册 {view.capacity.teamUsed} / {view.capacity.teamLimit} · 同时运行最多 {view.capacity.activeLimit} 个<br />停下的成员还占着名册位置，空闲的也可能占着运行名额。</p>}
+      {(!view || view.status !== 'ready') && <p role="status">{view?.status === 'failed' ? '连接断了，刷新会重新连上。' : '开始工作后，可以在这里查看成员。'}</p>}
       {view?.status === 'ready' && !members.length && <p>目前由她独自处理。需要帮手时，成员会出现在这里。</p>}
       {members.map((member) => <Member key={`${member.address.runtimeId}:${member.address.sessionId}`} member={member} disabled={!!busy || !!snapshot.companion.lightsOut || snapshot.companion.sleeping || view?.operation?.outcome === 'unknown'} command={command} />)}
       {!!view?.tasks.length && <section aria-label="共同任务"><h3>共同任务</h3>{view.tasks.map((task) => <article className="collaboration-task" key={task.id}>
@@ -64,9 +64,9 @@ export function CollaborationPanel({ snapshot, bridge, openRequest = 0, shot }: 
         {task.sourceStatus === 'retired' && <span>旧来源内容已收起，继续前需要新证据。</span>}
         {root && task.status !== 'deleted' && <div className="collaboration-actions">{(task.status === 'open' ? ['claim'] as const : task.status === 'claimed' ? ['release', 'complete'] as const : ['reopen'] as const).map((action) => <button type="button" disabled={busy || view.operation?.outcome === 'unknown' || snapshot.companion.lightsOut || snapshot.companion.sleeping} key={action} onClick={() => { void command({ type: 'team.task.update', target: target(root), taskId: task.id, expectedTaskRevision: task.revision, action }) }}>{{ claim: '主角色领取', release: '释放任务', complete: '确认任务完成', reopen: '重新打开' }[action]}</button>)}</div>}
       </article>)}</section>}
-      {(failed || view?.operation?.outcome === 'failed') && <p role="alert">这次操作未完成，状态可能已变化，请刷新核对。</p>}
-      {view?.operation?.outcome === 'unknown' && <p role="alert">结果尚未确认。先刷新核对，避免重复发送。</p>}
-      {view?.operation?.outcome === 'accepted' && <p className="collaboration-note" role="status">请求已接收；处理或停止结果以成员状态为准。</p>}
+      {(failed || view?.operation?.outcome === 'failed') && <p role="alert">这次没办成，状态可能变了，刷新看看。</p>}
+      {view?.operation?.outcome === 'unknown' && <p role="alert">还不知道结果。先刷新看看，别重复发。</p>}
+      {view?.operation?.outcome === 'accepted' && <p className="collaboration-note" role="status">请求收到了，结果看成员的状态。</p>}
     </section>}
   </div>
 }

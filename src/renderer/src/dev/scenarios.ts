@@ -497,7 +497,7 @@ export const SCENARIOS = {
       msg('d3', 'assistant', '写好了，存在 `count_palindromes.js` 里，跑出来一共 **148** 个：\n\n- 一位数 9 个\n- 两位数 9 个\n- 三位数 90 个\n- 四位数里 1000 到 4999 有 40 个\n\n核心就一行：\n\n```js\nconst isPal = (n) => String(n) === [...String(n)].reverse().join(\'\')\n```', T.sat1420 - 3 * MIN),
       msg('d4', 'user', '再加个测试，跑一下', T.sat1420 + 4 * MIN),
       msg('d5', 'assistant', '好，我写个 test.js 对一下。', T.sat1420 + 4 * MIN + 5_000),
-      msg('q1', 'assistant', '她想在「palindromes」里运行命令：node test.js，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。', T.sat1420 + 5 * MIN),
+      msg('q1', 'assistant', '她想在「palindromes」里运行命令：node test.js，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作还是会先问你，LCA 的私有数据她不碰。', T.sat1420 + 5 * MIN),
     ],
     activities: [
       act('p1', 'dsh.write', 'completed', {}, { taskId: 'turn-1', startedAtMs: T.sat1420 - 4 * MIN + 8_000 }),
@@ -510,7 +510,7 @@ export const SCENARIOS = {
       act('c5', 'dsh.shell', 'running', {}, { taskId: 'turn-2', startedAtMs: T.sat1420 + 4 * MIN + 30_000 }),
     ],
     question: { id: 'q1', taskId: 'turn-2', createdAtMs: T.sat1420 + 5 * MIN, status: 'waiting', kind: 'approval',
-      question: '她想在「palindromes」里运行命令：node test.js，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。',
+      question: '她想在「palindromes」里运行命令：node test.js，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作还是会先问你，LCA 的私有数据她不碰。',
       choices: ['信任这个项目', '先不要'], expiresAtMs: T.sat1420 + 15 * MIN },
     work: {
       current: { path: String.raw`D:\code\palindromes`, name: 'palindromes', desk: false, trusted: false },
@@ -527,7 +527,7 @@ export const SCENARIOS = {
     messages: [
       msg('a1', 'user', '帮我写个 PowerShell 脚本，数一下 1 到 1000 之间有多少个质数，存成文件以后在书桌上跑一遍，把结果告诉我，顺便说说你是怎么判断质数的', T.sat1420),
       msg('a2', 'assistant', '好，我先写个脚本。', T.sat1420 + 6_000),
-      msg('q1', 'assistant', '她想在「书桌」里运行命令：pwsh -File .\\count_primes.ps1，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作仍会先问你，LCA 的私有数据她不碰。', T.sat1420 + MIN, { kind: 'approval' }),
+      msg('q1', 'assistant', '她想在「书桌」里运行命令：pwsh -File .\\count_primes.ps1，可这台电脑的系统沙箱在这个文件夹里用不了。要信任这个项目，让她像你一样在里面读写、运行命令吗？危险操作还是会先问你，LCA 的私有数据她不碰。', T.sat1420 + MIN, { kind: 'approval' }),
       msg('q1a', 'user', '信任这个项目', T.sat1420 + MIN + 20_000, { kind: 'approval-answer' }),
       msg('a3', 'assistant', '在书桌里写了个脚本 `count_primes.ps1` 跑了一遍。\n\n1 到 1000 之间的质数一共是 **168** 个。\n\n判断的办法是试除到平方根：只要没有哪个数能整除它，它就是质数。', T.sat1420 + 2 * MIN),
       msg('a4', 'user', '好', T.sat1420 + 3 * MIN),

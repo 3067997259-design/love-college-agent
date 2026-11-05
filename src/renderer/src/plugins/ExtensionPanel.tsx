@@ -3,13 +3,13 @@ import type { AppBridge, AppSnapshot, ExtensionOperation } from '../../../shared
 import { sendCommand, type CommandBody } from '../book/command'
 import { SettingsIssue } from '../tools/SettingsIssue'
 
-const actionLabel = { install: '安装', enable: '启用', disable: '停用', remove: '移除', restart: '重启', reconcile: '核对' }
+const actionLabel = { install: '安装', enable: '启用', disable: '停用', remove: '移除', restart: '重启', reconcile: '重新检查' }
 export function operationLabel(operation: ExtensionOperation): string {
-  if (operation.outcome === 'unknown') return '结果未知，请核对后再操作'
+  if (operation.outcome === 'unknown') return '结果不明，先刷新看看再操作'
   if (operation.outcome === 'failed') return operation.pendingBuilds?.length ? '构建脚本需要单独批准' : '未完成'
   if (operation.outcome === 'cancelled') return '已取消'
   if (operation.outcome === 'succeeded') return '已完成'
-  return { preparing: '准备中', 'awaiting-approval': '等待你批准', running: '进行中', cancelling: '正在取消并核对', reconciling: '正在核对', settled: '等待回执' }[operation.phase]
+  return { preparing: '准备中', 'awaiting-approval': '等待你批准', running: '进行中', cancelling: '正在取消', reconciling: '正在检查', settled: '等待回执' }[operation.phase]
 }
 
 export function ExtensionPanel({ snapshot, bridge, search }: { snapshot: AppSnapshot; bridge: AppBridge; search: string }) {
@@ -41,7 +41,7 @@ export function ExtensionPanel({ snapshot, bridge, search }: { snapshot: AppSnap
       <button type="button" className="btn btn-small btn-ghost" disabled={busy || uncertain} onClick={() => void send({ type: 'extension.pick' })}>添加 DSH 扩展</button>
     </div>
     <p className="plugin-meta">本地 bundle · 此存档共用 · 安装后默认停用</p>
-    {view.status !== 'ready' && <p className="plugin-notice" role="status">{view.status === 'reconciling' ? '正在核对扩展状态……' : view.status === 'failed' ? '读取或操作失败，可以刷新核对。' : '尚未连接扩展运行时，刷新后核对实际状态。'}</p>}
+    {view.status !== 'ready' && <p className="plugin-notice" role="status">{view.status === 'reconciling' ? '正在检查扩展状态……' : view.status === 'failed' ? '读取或操作失败，刷新看看。' : '还没连上扩展运行时，刷新看看现在的状态。'}</p>}
     {view.items.some((item) => item.restartReason) && <p className="plugin-notice" role="status">设置已保存，重启扩展后生效。</p>}
     <button type="button" className="btn btn-small btn-ghost" disabled={busy || uncertain} onClick={() => void send({ type: 'extension.restart' })}>重启扩展运行时</button>
     {proposal && !view.items.some((item) => item.name === proposal.name && item.installation === 'installed') && <div className="plugin-approval" aria-label="待安装扩展">
@@ -52,10 +52,10 @@ export function ExtensionPanel({ snapshot, bridge, search }: { snapshot: AppSnap
     {[false, true].map((protectedGroup) => {
       const rows = items.filter((item) => item.protected === protectedGroup).map((item) => <li className="plugin-row extension-row" key={item.id} data-extension-id={item.id}>
         <details>
-          <summary><strong>{item.name}</strong><span className="plugin-meta">{item.protected ? '受保护 · ' : ''}{item.restartReason ? '待重启' : { ready: '已生效', disabled: '已停用', failed: '加载失败', unknown: '状态待核对' }[item.applied]}</span></summary>
+          <summary><strong>{item.name}</strong><span className="plugin-meta">{item.protected ? '受保护 · ' : ''}{item.restartReason ? '待重启' : { ready: '已生效', disabled: '已停用', failed: '加载失败', unknown: '状态不明' }[item.applied]}</span></summary>
           <div className="plugin-config">
             <p className="plugin-meta">{item.version ?? '未提供版本'} · {item.source.label} · 此存档</p>
-            <p className="plugin-meta">已保存：{item.enabledIntent ? '启用' : '停用'}；当前运行：{{ ready: '已加载', disabled: '未加载', failed: '加载失败', unknown: '未知' }[item.applied]}</p>
+            <p className="plugin-meta">已保存为{item.enabledIntent ? '启用' : '停用'}，现在{{ ready: '已加载', disabled: '未加载', failed: '加载失败', unknown: '状态不明' }[item.applied]}</p>
             <details className="plugin-details"><summary>来源指纹</summary><code>{item.source.fingerprint}</code></details>
             {item.protected ? <p className="plugin-meta">随应用维护，不能在这里停用或移除。</p> : <div className="card-actions">
               <button type="button" className="btn btn-small btn-ghost" disabled={busy || uncertain || view.status !== 'ready'} onClick={() => void send({ type: item.enabledIntent ? 'extension.disable' : 'extension.enable', extensionId: item.id, expectedRevision: item.revision, fingerprint: item.source.fingerprint })}>{item.enabledIntent ? '停用' : '启用'}</button>
@@ -76,10 +76,10 @@ export function ExtensionPanel({ snapshot, bridge, search }: { snapshot: AppSnap
         <p className="plugin-meta" role="status">{operationLabel(op)}</p>
         {!!op.pendingBuilds?.length && <p className="plugin-meta">构建脚本：{op.pendingBuilds.join('、')}</p>}
         {op.cancellable && op.outcome === 'pending' && <button type="button" className="btn btn-small btn-ghost" disabled={pending || op.phase === 'cancelling'} onClick={() => void send({ type: 'extension.cancel', operationId: op.id, expectedRevision: op.revision })}>取消操作</button>}
-        {op.outcome === 'unknown' && <button type="button" className="btn btn-small btn-primary" disabled={busy} onClick={() => void send({ type: 'extension.reconcile', operationId: op.id, expectedRevision: op.revision })}>核对这次操作</button>}
+        {op.outcome === 'unknown' && <button type="button" className="btn btn-small btn-primary" disabled={busy} onClick={() => void send({ type: 'extension.reconcile', operationId: op.id, expectedRevision: op.revision })}>重新检查这次操作</button>}
         {op.outcome === 'failed' && !op.pendingBuilds?.length && <SettingsIssue code={op.error?.code} />}
       </li>)}</ul>
-      <p className="plugin-meta">取消会等待状态核对；已发生的操作不一定能撤回。</p>
+      <p className="plugin-meta">取消要等状态确定下来。已经做了的操作不一定能撤回。</p>
     </details>}
     <SettingsIssue code={error} />
   </section>

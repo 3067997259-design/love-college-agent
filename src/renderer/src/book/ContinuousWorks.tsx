@@ -3,7 +3,7 @@ import type { AppBridge, AppSnapshot } from '../../../shared'
 import type { WorkStatus } from '../../../shared/continuity'
 import { sendCommand, type CommandBody } from './command'
 
-const status: Record<WorkStatus, string> = { queued: '排队中', running: '正在做', waiting: '等你回应', paused: '已暂停', stopping: '正在停止', stopped: '已停止', review_required: '需要核对后继续', completed: '已完成', failed: '这次没做完' }
+const status: Record<WorkStatus, string> = { queued: '排队中', running: '正在做', waiting: '等你回应', paused: '已暂停', stopping: '正在停止', stopped: '已停止', review_required: '等你看过再继续', completed: '已完成', failed: '这次没做完' }
 
 /**
  * 右页输入框上方的「手上的工作」：后台持久工作车道的安全投影。
@@ -21,7 +21,7 @@ export function ContinuousWorks({ snapshot, bridge }: { snapshot: AppSnapshot; b
       {view.active > 0 && <span className="cw-badge" data-tone="active">{view.active} 项进行中</span>}
       {view.active === 0 && <span className="cw-count">{view.items.length} 件</span>}
     </summary>
-    {view.failure && <p className="cw-note" role="status">工作记录暂时无法读取，请保留数据后重新打开。</p>}
+    {view.failure && <p className="cw-note" role="status">工作记录暂时读不出来。先别删数据，重开应用再看。</p>}
     <ul className="cw-list">{view.items.map(work => {
       const target = { identity: work.identity, expectedRevision: work.revision }
       return <li key={work.identity.workId} className="cw-item" data-status={work.status}>
@@ -31,9 +31,9 @@ export function ContinuousWorks({ snapshot, bridge }: { snapshot: AppSnapshot; b
             {status[work.status]}{work.waitingFor === 'approval' ? ' · 等你批准' : ''}
           </span>
         </div>
-        {work.result?.interruption && work.result.completion === 'unverified' && <p className="cw-note">执行曾被中断，结果待核对。停止不代表外部动作已撤回。</p>}
+        {work.result?.interruption && work.result.completion === 'unverified' && <p className="cw-note">中途被打断过，结果要你看一眼。停下不会撤回已经做出去的操作。</p>}
         {!!work.progress?.observedActions && <p className="cw-note cw-progress">已改动 {work.progress.changedFiles} 个文件 · 命令通过 {work.progress.completedCommands} 项{work.progress.failedActions ? ` · ${work.progress.failedActions} 次失败` : ''}</p>}
-        <div className="cw-actions">{work.controls.resume && <button type="button" onClick={() => { void send({ type: 'work.resume', target }) }}>核对并继续</button>}
+        <div className="cw-actions">{work.controls.resume && <button type="button" onClick={() => { void send({ type: 'work.resume', target }) }}>看过了，继续</button>}
           {work.controls.pause && <button type="button" onClick={() => { void send({ type: 'work.pause', target }) }}>暂停</button>}
           {work.controls.stop && <button type="button" onClick={() => { void send({ type: 'work.stop', target }) }}>停止</button>}</div>
       </li>

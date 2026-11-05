@@ -24,7 +24,7 @@ export function exportCampusItem(item: CampusItem, clock: Clock): { ics: string;
   if (!start) throw new Error('EXPORT_DATE_MISSING')
   const description = [candidate.source === 'fake' ? '合成邮件开发数据' : '已确认校园事项', candidate.sourceLabel,
     ...(candidate.deadlineIso ? ['原始截止：' + candidate.deadlineIso] : []),
-    ...(candidate.plannedCompletionIso ? ['计划完成：' + candidate.plannedCompletionIso] : []), '仅生成本地文件，尚未写入外部日历。'].join('\n')
+    ...(candidate.plannedCompletionIso ? ['计划完成：' + candidate.plannedCompletionIso] : []), '这只是本地文件，还没写进外部日历。'].join('\n')
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Love College Agent//Campus Export 1.0//ZH', 'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT', 'UID:' + item.calendarUid + '@love-college-agent.local', 'SEQUENCE:' + item.sequence,
     'DTSTAMP:' + utc(item.acceptedAtMs), 'CREATED:' + utc(item.originalCreatedAtMs), 'LAST-MODIFIED:' + utc(item.acceptedAtMs),

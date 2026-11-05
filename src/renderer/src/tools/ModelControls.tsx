@@ -156,7 +156,7 @@ function ProviderCard({ slot, bridge, epoch, configured, mainConfigured, mode, p
           : <span className="provider-effort-none">{manualReasoning === false ? '已手动声明不提供思考档位。' : levelsKnown ? copy.effortUnknown : copy.effortWaiting}</span>}
       </label>
       {levels?.length ? <p className="provider-hint">{copy.effortHint[role]}</p> : null}
-      {mappedDefault && <p className="provider-hint">DSH 的默认请求也会使用你填写的关闭档位 API 值；其他档位使用各自的映射。</p>}
+      {mappedDefault && <p className="provider-hint">DSH 的默认请求也用你给“不思考”填的 API 值，其他档位各用各的。</p>}
     </div>}
     {role && effective?.modelRef && effective.capabilities && !showForm && <ModelCapabilities key={effective.modelRef} bridge={bridge} epoch={epoch} slot={followsMain ? 'chat' : slot} detail={effective} status={settingsStatus} />}
     {showForm && <>
