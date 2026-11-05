@@ -89,7 +89,9 @@ export function openResourceLedger(options: { root: string; clock: Clock; atomic
       if (today.reduce((sum, row) => sum + row.units, 0) + units > cap.dailyTotalUnits) throw new ResourceFailure('budget-exceeded')
       if (bucket === 'autonomous') {
         if (autonomous.reduce((sum, row) => sum + row.units, 0) + units > cap.dailyAutonomousUnits) throw new ResourceFailure('budget-exceeded')
-        const used = autonomous.filter((row) => (row.purpose ?? 'other') === purpose).reduce((sum, row) => sum + row.units, 0)
+        // Rows written before this split carry no purpose; they still count toward the
+        // autonomous total, but only tagged rows bind a per-purpose share.
+        const used = autonomous.filter((row) => row.purpose === purpose).reduce((sum, row) => sum + row.units, 0)
         if (used + units > purposeCeilings(cap.dailyAutonomousUnits)[purpose!]) throw new ResourceFailure('budget-exceeded')
       }
       const id = randomUUID(); append([{ kind: 'model', id, units, bucket, ...(purpose ? { purpose } : {}), atMs: clock.nowMs() }]); return id
