@@ -192,3 +192,14 @@
 - 冒烟期间 C 盘被测试数据写满（只剩 20 MB）。每个冒烟会在 `C:\.lca-cache\data` 留几十 MB，单元测试会在 `test-results` 留临时目录，连续跑一批后要清理。
 - 真机截图（全新合成档案，1440×920）：日程页空状态，设置页从“模型与声音”到“开发与调试”逐段看过；运行资源表显示书桌作品 60,000，没有“看邮件 0 / 0”。
 - 没做：真实模型、真实邮箱和安装包验收。
+
+## 10. experience.6 打包与安装（2026-11-05）
+
+- 命令：`LCA_PACKAGE_VERSION=1.2.0-experience.6 LCA_RELEASE_DIR='C:\.lca-cache\experience6-release' pnpm package:win --reuse-prepared-runtime`。经 pnpm 运行，electron-builder 用 pnpm 收集依赖；日志里跳过的 DuckDB 绑定都是其他平台的，win32-x64 在包里。
+- 产物：`Love-College-Agent-1.2.0-experience.6-Setup.exe`，315,495,268 字节，SHA-256 `c605376e0f11b76f148d3d529c02aabc70c2ebe805e4a42083d6a0380ded5f8b`；asar `25b94c84b79acfb8bcd894ce594030892ccf4ca756ebc48b9b86db6f9ad6f3e4`；源码 `9c0d54e`，干净工作区（`trackedDirty: false`）。
+- 包内验收：
+  - `pnpm test:continuity:package` 通过：DuckDB 与 SQLite 原生文件在包里，sqlite、continuity 探针和 memory、v12-recovery 场景都过了。
+  - `node scripts/smoke-package.mjs --unpacked-only`：9 个离线探针、重启、history 和前 23 个场景通过；第 24 个 `failure-narrator` 的断言还在找旧文案“已尝试调用工具”，因此失败。断言改成新文案后，它和后面 10 个场景对同一个包逐个重跑，11 个全部通过。
+- 安装：先把真实档案（19 MB、167 个文件）复制到 `D:\lca-workspace\backups\love-college-agent-profile-20261105-before-experience6`，再用 `/S /currentuser` 静默覆盖安装，退出码 0，约 128 秒。注册表版本是 `1.2.0-experience.6`，安装目录里的 asar 与回执一致，真实档案的文件数没变。
+- 安装版检查（全新合成档案，不碰真实档案）：窗口约 1.0–1.1 秒出现；`smoke-resources`、`smoke-settings` 通过。
+- 还没做：维护者用自己的档案打开新版本，这一步才算升级验收；真实模型与邮箱没有测。未发布。
