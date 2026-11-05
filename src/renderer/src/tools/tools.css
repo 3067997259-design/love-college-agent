@@ -168,3 +168,22 @@
 .page-right.settings-page { display: block; padding: 0 46px 26px 66px; overflow: auto; font: 14px/1.6 var(--font-body); color: var(--graphite); scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--pencil) 60%, transparent) transparent; }
 .settings-page .settings-head { margin: 0 -46px 4px -66px; padding: 34px 46px 10px 66px; background: linear-gradient(to right, var(--shadow-gutter) 0, transparent 70px) var(--paper); }
 .settings-page .settings-title { font-size: 28px; }
+
+/* 称呼与关于你：两个名字是短下划线，“想让她知道的事”是一小块浅纸，写几行也不挤 */
+.profile-controls label { margin: 6px 0 10px; }
+.profile-controls input { display: block; width: min(16em, 100%); }
+.profile-controls textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 7.5em;
+  margin-top: 4px;
+  padding: 8px 10px;
+  line-height: 1.6;
+  resize: vertical;
+  background: color-mix(in oklab, var(--paper) 80%, white);
+  border: 1.5px solid color-mix(in oklab, var(--pencil) 70%, transparent);
+  border-radius: 10px;
+}
+.profile-controls textarea:focus { border-color: var(--peach-mid); }
+.profile-controls > p { font-size: 13px; color: var(--graphite); }

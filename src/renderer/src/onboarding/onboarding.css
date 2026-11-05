@@ -29,6 +29,28 @@
 }
 .onboarding-input:focus { border-bottom-color: var(--peach-mid); }
 .onboarding-input::placeholder { color: var(--pencil); }
+/* 关于你：可以跳过的一小段，默认收起；展开后是一张浅纸片，不抢名字那条下划线的戏 */
+.onboarding-more { margin: -8px 0 22px; }
+.onboarding-more > summary { cursor: pointer; width: fit-content; font-size: 15px; color: var(--graphite); }
+.onboarding-more > summary:focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 2px; }
+.onboarding-more[open] > summary { margin-bottom: 10px; }
+.onboarding-about {
+  display: block;
+  width: 100%;
+  min-height: 6.5em;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 10px 12px;
+  font: 15px/1.6 var(--font-body);
+  color: var(--graphite);
+  background: color-mix(in oklab, var(--paper) 80%, white);
+  border: 1.5px solid color-mix(in oklab, var(--pencil) 70%, transparent);
+  border-radius: 10px;
+  outline: none;
+}
+.onboarding-about:focus { border-color: var(--peach-mid); }
+.onboarding-about::placeholder { color: var(--pencil); }
+.onboarding-more .onboarding-hint { margin-top: 8px; }
 .onboarding-persona { margin: 0 0 26px; padding: 0 0 0 1.1em; display: grid; gap: 10px; font-size: var(--fs-md); line-height: 1.6; color: var(--ink-her); }
 .onboarding-her { margin: 0 0 26px; font-size: var(--fs-lg); line-height: 1.7; color: var(--ink-her); }
 @media (prefers-reduced-motion: reduce) { .onboarding-body { animation: none; } }

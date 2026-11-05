@@ -12,7 +12,7 @@ import './onboarding.css'
  * 写名字时铅笔画出空房间再勾出她，接上模型时彩铅上简单的颜色，叫出她的名字时晕成真实颜色，
  * 最后她拿起羽毛笔给整个房间上色，转过来注意到你。
  * “我已经有一本书了”走存档恢复：主进程校验、确认、重启，重启后颜色从笔尖晕开。
- * 名字、称呼和完成标记由主进程保存；浏览器 ?onboarding 仅保留为画面预览。
+ * 名字、称呼、可以跳过的“关于你”和完成标记由主进程保存；浏览器 ?onboarding 仅保留为画面预览。
  */
 export type OnboardingStep = 'cover' | 'name' | 'model' | 'call' | 'persona' | 'alive' | 'coloring' | 'greet'
 
@@ -35,6 +35,9 @@ export function OnboardingPage({ snapshot, bridge, step, painted, tapped = false
 }) {
   const [userName, setUserName] = useState(snapshot.onboarding?.userName ?? '')
   const [characterName, setCharacterName] = useState(snapshot.onboarding?.characterName ?? '')
+  // 关于你：可以跳过，默认收起，写过才展开；清空后提交就是删掉（主进程判定）
+  const [aboutUser, setAboutUser] = useState(snapshot.onboarding?.aboutUser ?? '')
+  const [more, setMore] = useState(!!snapshot.onboarding?.aboutUser)
   const [error, setError] = useState('')
   // 接模型这一步就在这页上填（聊天模型和工作模型）；预览没有真实接口时不显示
   const [filling, setFilling] = useState(false)
@@ -68,11 +71,17 @@ export function OnboardingPage({ snapshot, bridge, step, painted, tapped = false
         )}
 
         {step === 'name' && (
-          <form onSubmit={(event) => { event.preventDefault(); if (userName.trim()) void send({ type: 'onboarding.profile', userName }).then((ok) => { if (ok) onStep('model') }) }}>
+          <form onSubmit={(event) => { event.preventDefault(); if (userName.trim()) void send({ type: 'onboarding.profile', userName, aboutUser }).then((ok) => { if (ok) onStep('model') }) }}>
             <h2 className="onboarding-title">{copy.name.title}</h2>
             <p className="onboarding-lead">{copy.name.lead}</p>
             <input className="onboarding-input" autoFocus maxLength={20} value={userName} placeholder={copy.name.placeholder}
               aria-label={copy.name.placeholder} onChange={(event) => setUserName(event.target.value)} />
+            <details className="onboarding-more" open={more} onToggle={(event) => setMore(event.currentTarget.open)}>
+              <summary>{copy.name.more}</summary>
+              <textarea className="onboarding-about" rows={4} maxLength={500} value={aboutUser} placeholder={copy.name.aboutPlaceholder}
+                aria-label={copy.name.aboutLabel} onChange={(event) => setAboutUser(event.target.value)} />
+              <p className="onboarding-hint">{copy.name.aboutNote}</p>
+            </details>
             <div className="onboarding-actions"><button type="submit" className="btn btn-primary" disabled={!userName.trim()}>{copy.name.next}</button></div>
           </form>
         )}

@@ -28,7 +28,7 @@ import type { ContinuousWorkService } from '../work/service'
 import type { ContinuousWorkCommand } from '../../shared/continuity'
 import { workCommandSchemas } from '../work/commands'
 import type { CompanionWindows, WindowSurface } from '../windows/companion'
-import { characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
+import { aboutUserInput, applyProfile, characterNameInput, initialOnboarding, onboardingView, userNameInput } from '../onboarding/schema'
 import { giftSpecSchema } from '../gifts/schema'
 import type { GiftService } from '../gifts/service'
 import type { LegacyFlowRecords } from '../legacy-flow/records'
@@ -104,7 +104,8 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('turn.stop'), taskId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('mode.set'), mode: z.enum(['work', 'quiet', 'rest']) }),
   z.strictObject({ ...envelope, type: z.literal('lights.set'), lightsOut: z.boolean() }),
-  z.strictObject({ ...envelope, type: z.literal('onboarding.profile'), userName: userNameInput.optional(), characterName: characterNameInput.optional() }).refine((value) => value.userName !== undefined || value.characterName !== undefined),
+  z.strictObject({ ...envelope, type: z.literal('onboarding.profile'), userName: userNameInput.optional(), characterName: characterNameInput.optional(), aboutUser: aboutUserInput.optional() })
+    .refine((value) => value.userName !== undefined || value.characterName !== undefined || value.aboutUser !== undefined),
   z.strictObject({ ...envelope, type: z.literal('onboarding.complete') }),
   z.strictObject({ ...envelope, type: z.literal('onboarding.reset') }),
   z.strictObject({ ...envelope, type: z.literal('gift.propose'), ...giftSpecSchema.shape }),
@@ -396,8 +397,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
     } else if (command.type === 'onboarding.profile' || command.type === 'onboarding.complete' || command.type === 'onboarding.reset') {
       const current = snapshot.onboarding ?? initialOnboarding()
-      const view = command.type === 'onboarding.profile' ? { ...current,
-        ...(command.userName !== undefined ? { userName: command.userName || null } : {}), ...(command.characterName !== undefined ? { characterName: command.characterName || '桃子' } : {}) }
+      const view = command.type === 'onboarding.profile' ? applyProfile(current, command)
         : command.type === 'onboarding.complete' ? { ...current, status: 'completed' as const, completedAtMs: current.status === 'completed' ? current.completedAtMs : clock.nowMs() }
           : { ...current, status: 'needed' as const, completedAtMs: null }
       try { store?.append({ type: 'onboarding/state', view, cause: command.type === 'onboarding.profile' ? 'profile' : command.type === 'onboarding.complete' ? 'completed' : 'reset', requestId: command.requestId, commandHash: signature }) }

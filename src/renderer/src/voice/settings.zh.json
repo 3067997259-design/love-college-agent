@@ -1,11 +1,22 @@
 {
   "title": "设置",
-  "groups": { "campus": "邮箱与资料", "book": "书本与角色", "connections": "外部工具连接", "voice": "语音与运行资源", "life": "她的生活与书桌", "memory": "记忆与历史", "experimental": "光学记忆实验", "extensions": "本地扩展", "advanced": "高级与开发", "pomodoro": "专注节奏" },
+  "profile": {
+    "title": "称呼与关于你",
+    "userName": "你的名字",
+    "characterName": "她的称呼",
+    "about": "想让她知道的事",
+    "aboutPlaceholder": "比如最近在忙什么、喜欢怎样聊天、提到你时用“他”还是“她”、哪些事不想被提起……",
+    "note": "这些只存在这台电脑上。她回应你时，会和你的名字一起交给当时用的模型；不写进角色卡，也不会被当成你们的共同经历记进记忆。私人存档会一起带走，角色包不会。",
+    "save": "保存",
+    "saved": "已保存",
+    "failed": "没保存上：名字不能为空，内容最多 500 字。"
+  },
+  "groups": { "profile": "称呼与关于你", "campus": "邮箱与资料", "book": "书本与角色", "connections": "外部工具连接", "voice": "语音与运行资源", "life": "她的生活与书桌", "memory": "记忆与历史", "experimental": "光学记忆实验", "extensions": "本地扩展", "advanced": "高级与开发", "pomodoro": "专注节奏" },
   "sections": {
     "model": { "title": "模型与声音", "note": "聊天和工作模型、记忆、隐私滤芯和朗读声音。" },
     "connections": { "title": "连接与插件", "note": "邮箱、资料、外部工具、提醒和本地扩展。" },
     "rhythm": { "title": "专注与作息", "note": "番茄钟、休息，以及她自己的生活和书桌。" },
-    "book": { "title": "角色与书本", "note": "角色、存档、记忆和历史会话。" },
+    "book": { "title": "角色与书本", "note": "你们怎么称呼彼此、你想让她知道的事，她记得的事、书本的存档、角色包和旧页。" },
     "usage": { "title": "用量与实验", "note": "运行资源，以及默认关闭的光学记忆实验。" },
     "developer": { "title": "开发与调试", "note": "独立假数据、测试场景和诊断入口；正式使用时保持关闭。" }
   },

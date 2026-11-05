@@ -70,8 +70,31 @@ describe('main-owned onboarding profile and experience boundary', () => {
     // Her DSH persona is the policy, these two layers and the character card (index.ts persona).
     const layers = profileContext(f.store.projection().onboarding)
     expect(layers).toHaveLength(2); expect(layers.every((layer) => layer.role === 'system')).toBe(true)
-    expect(layers[0].content).not.toContain('PROFILE_USER_ONLY'); expect(layers[1]).toMatchObject({ content: expect.stringContaining('关于你') })
+    expect(layers[0].content).not.toContain('PROFILE_USER_ONLY'); expect(layers[1]).toMatchObject({ content: expect.stringContaining('关于对方') })
     expect(seenFragments(f.store.records())).toEqual([])
     f.send({ type: 'onboarding.profile', characterName: '新称呼' }); expect(profileContext(f.store.projection().onboarding)[0].content).toContain('新称呼')
+  })
+  it('keeps the optional about-you text: multi-line, bounded, tidied, kept as typed, removable, only in the about-you layer', () => {
+    const { open } = fixture(); const f = open(); const count = () => f.store.records().length
+    expect(onboardingProfileInput.parse({ aboutUser: '  第一行 \r\n\r\n\r\n\r\n\t第二行\t\n  ' })).toEqual({ aboutUser: '第一行\n\n\t第二行' })
+    for (const aboutUser of ['字'.repeat(501), '甲\u0007乙', '甲\u202e乙', '甲\u2028乙', '甲\u200b乙']) {
+      const before = count(); expect(f.send({ type: 'onboarding.profile', aboutUser }).status).toBe('rejected'); expect(count()).toBe(before)
+    }
+    expect(f.send({ type: 'onboarding.profile', userName: '小林', aboutUser: '🙂'.repeat(500) }).status).toBe('accepted')
+    // `$&` and `$$` would be replacement patterns in String.replace; the user's words must reach her unchanged.
+    const about = '最近在赶毕业设计。\n提到我时用“她”。价格写作 $& 和 $$，原样保留。'
+    expect(f.send({ type: 'onboarding.profile', aboutUser: about }).status).toBe('accepted'); f.close()
+    const again = open(); expect(again.controller.getSnapshot().onboarding).toMatchObject({ userName: '小林', aboutUser: about })
+    const layers = profileContext(again.store.projection().onboarding)
+    expect(layers[0].content).not.toContain('毕业设计'); expect(layers[1].content).toContain(JSON.stringify({ userName: '小林', aboutUser: about }))
+    expect(again.store.projection().context).toEqual([]); expect(seenFragments(again.store.records())).toEqual([])
+    // A name edit leaves it alone; an empty text removes it and the stored profile returns to its old shape.
+    again.send({ type: 'onboarding.profile', userName: '林' }); expect(again.controller.getSnapshot().onboarding?.aboutUser).toBe(about)
+    expect(again.send({ type: 'onboarding.profile', aboutUser: '  \n ' }).status).toBe('accepted')
+    expect(again.controller.getSnapshot().onboarding).not.toHaveProperty('aboutUser')
+    expect(profileContext(again.store.projection().onboarding)[1].content).toContain(JSON.stringify({ userName: '林' }))
+    // Only the text, without a name, still reaches her as the about-you layer.
+    again.send({ type: 'onboarding.profile', userName: '', aboutUser: '只写了介绍' })
+    expect(profileContext(again.store.projection().onboarding)).toHaveLength(2)
   })
 })
