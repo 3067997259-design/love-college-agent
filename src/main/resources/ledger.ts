@@ -8,7 +8,11 @@ import type { PublicErrorCode, ResourceBudgetView } from '../../shared'
 
 export class ResourceFailure extends Error { constructor(readonly code: PublicErrorCode) { super('RESOURCE_UNAVAILABLE') } }
 export const resourceLimits = z.strictObject({ dailyTotalUnits: z.number().int().min(10000).max(5_000_000), dailyAutonomousUnits: z.number().int().nonnegative().max(5_000_000) }).refine((value) => value.dailyAutonomousUnits <= value.dailyTotalUnits)
-const defaults = { dailyTotalUnits: 500_000, dailyAutonomousUnits: 100_000 }
+/** A normal day's background work (memory upkeep at the 04:00 rollover, diary, her desk)
+ * cost about 95k reserved units in the maintainer's own profile; the old 100k ceiling
+ * therefore blocked the diary for the rest of the day. Keep room for a full day; both
+ * caps are editable in settings, and every admission is still recorded. */
+const defaults = { dailyTotalUnits: 800_000, dailyAutonomousUnits: 300_000 }
 const envelope = { version: z.literal(1), seq: z.number().int().positive(), atMs: z.number().int().nonnegative() }
 const recordId = z.string().regex(/^(?:[a-f0-9-]{36}|legacy:[a-f0-9]{64})$/)
 const event = z.discriminatedUnion('kind', [

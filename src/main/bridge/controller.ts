@@ -469,7 +469,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (notifications && command.type.startsWith('notification.')) {
       const error = notifications.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId)
     } else if (diary && command.type === 'diary.write') {
-      const error = diary.canWrite(); if (!error) void diary.write(true); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
+      const error = diary.canWrite(true); if (!error) void diary.write(true); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId)
     } else if (room && (command.type === 'room.open' || command.type === 'room.rebuild')) {
       try { if (command.type === 'room.open') room.open(); else room.rebuild(); ack = { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' } } catch { ack = reject(command.requestId, 'internal') }
     } else if (lifeWork && (command.type.startsWith('life.work.') || command.type === 'developer.life.seed')) {

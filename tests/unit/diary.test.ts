@@ -63,6 +63,9 @@ it('shows an interrupted diary, retries it on its own after a gap and still enfo
     clock.advanceBy(10 * 60000); expect(reopened.canWrite()).toBeUndefined(); await reopened.write(); expect(calls).toBe(1)
     expect(reopened.view().status).toBe('idle'); expect(reopened.view().entries).toHaveLength(1)
     store.append({ type: 'diary/attempt', dayKey: '2026-10-16' }); expect(reopened.canWrite()).toBe('budget-exceeded')
+    // A person explicitly asking again is not the automatic retry loop; the attempt budget
+    // still protects her own retries, but the book's "请她补写" may try once more.
+    expect(reopened.canWrite(true)).toBeUndefined()
   } finally { await reopened.close(); scheduler.dispose(); store.close() }
 })
 

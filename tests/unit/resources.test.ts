@@ -17,8 +17,8 @@ function fixture(configurable = true) {
   return { root, clock, ledger, options, reopen: () => openResourceLedger(options) }
 }
 it('reserves before dispatch, never refunds failed requests, and survives reopen independently of a book', () => {
-  const f = fixture(); f.ledger.reserveModel(5000, 'work'); f.ledger.reserveModel(100000, 'autonomous')
-  expect(() => f.ledger.reserveModel(1, 'autonomous')).toThrow(); expect(f.reopen().view().model).toMatchObject({ totalReservedUnits: 105000, autonomousReservedUnits: 100000, attemptCount: 2 })
+  const f = fixture(); f.ledger.reserveModel(5000, 'work'); f.ledger.reserveModel(300000, 'autonomous')
+  expect(() => f.ledger.reserveModel(1, 'autonomous')).toThrow(); expect(f.reopen().view().model).toMatchObject({ totalReservedUnits: 305000, autonomousReservedUnits: 300000, attemptCount: 2 })
   for (let i = 0; i < 10; i++) f.ledger.reserveSpeech(1200)
   expect(() => f.ledger.reserveSpeech(1)).toThrow(); expect(f.reopen().view().speech).toMatchObject({ reservedChars: 12000, attemptCount: 10 })
   const short = fixture(); for (let i = 0; i < 30; i++) short.ledger.reserveSpeech(1)

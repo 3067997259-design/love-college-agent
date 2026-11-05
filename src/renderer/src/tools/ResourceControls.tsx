@@ -17,7 +17,8 @@ export function ResourceControls({ bridge, snapshot }: { bridge: AppBridge; snap
     <p>语音日 {view.speech.dayKey} · 字符 {count(view.speech.reservedChars)}/{view.speech.charLimit} · 尝试 {count(view.speech.attemptCount)}/{view.speech.attemptLimit}</p>
     {view.configurable && <><label>总日预留上限<input aria-label="总日预留上限" type="number" min={10000} max={5000000} step={10000} value={total ?? view.model.totalLimitUnits} onChange={(event) => setTotal(Number(event.target.value))} /></label>
       <label>自主日预留上限<input aria-label="自主日预留上限" type="number" min={0} max={total ?? view.model.totalLimitUnits} step={10000} value={autonomous ?? view.model.autonomousLimitUnits} onChange={(event) => setAutonomous(Number(event.target.value))} /></label>
-      <button disabled={view.status !== 'ready'} onClick={() => void save()}>保存展位预算</button></>}
+      <button disabled={view.status !== 'ready'} onClick={() => void save()}>保存每日预算</button>
+      <p>自主额度用于她自己的后台活动（整理记忆、写日记、书桌作品等）；模型日每天 04:00 重置。调低只影响之后的请求，不退还已经预留的部分。</p></>}
     {(error || view.status !== 'ready') && <p role="alert">{error || '资源账本不可用，请求已关闭；原书本仍保留。'}</p>}
   </section>
 }

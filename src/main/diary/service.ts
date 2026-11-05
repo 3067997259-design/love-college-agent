@@ -23,10 +23,12 @@ export function createDiary(options: { clock: Clock; scheduler: Scheduler; store
   const { store, clock } = options; const rows = () => store.history?.() ?? store.records(); const entries = () => rows().flatMap((row) => row.type === 'diary/written' ? [row.diary] : [])
   let active: AbortController | undefined; let worker: Promise<void> | undefined; let failed = false
   const unfinishedAttempt = () => rows().some((row) => row.type === 'diary/attempt' && !entries().some((entry) => entry.dayKey === row.dayKey) && row.dayKey >= sessionDayKey(clock, clock.nowMs() - 3 * 86400000))
-  const canWrite = (): PublicErrorCode | undefined => {
+  const canWrite = (manual = false): PublicErrorCode | undefined => {
     if (!options.model) return 'not-configured'
     if (worker || options.busy() || store.projection().lightsOut) return 'unavailable'
-    if (rows().filter((row) => row.type === 'diary/attempt' && sessionDayKey(clock, row.atMs) === sessionDayKey(clock)).length >= DIARY_DAILY_ATTEMPTS) return 'budget-exceeded'
+    // The automatic retry budget protects the model; a person explicitly asking her to
+    // write now is not the retry loop and may try once more.
+    if (!manual && rows().filter((row) => row.type === 'diary/attempt' && sessionDayKey(clock, row.atMs) === sessionDayKey(clock)).length >= DIARY_DAILY_ATTEMPTS) return 'budget-exceeded'
   }
   const write = (manual = false) => {
     if (worker || !options.model || options.busy() || store.projection().lightsOut) return worker ?? Promise.resolve()
@@ -42,7 +44,7 @@ export function createDiary(options: { clock: Clock; scheduler: Scheduler; store
     const lastAttempt = history.findLast((row) => row.type === 'diary/attempt' && row.dayKey === day)?.atMs
     if (!manual && lastAttempt !== undefined && now - lastAttempt < DIARY_RETRY_GAP_MS) return Promise.resolve()
     const attempts = history.filter((row) => row.type === 'diary/attempt' && sessionDayKey(clock, row.atMs) === sessionDayKey(clock)).length
-    if (attempts >= DIARY_DAILY_ATTEMPTS) { failed = true; options.changed(); return Promise.resolve() }
+    if (!manual && attempts >= DIARY_DAILY_ATTEMPTS) { failed = true; options.changed(); return Promise.resolve() }
     const input = fragments.filter((fragment) => sourceDay(fragment) === day).slice(-12).map(({ id, text }) => ({ id, text }))
     const abort = new AbortController(); active = abort; failed = false; store.append({ type: 'diary/attempt', dayKey: day }); options.changed()
     worker = (async () => {

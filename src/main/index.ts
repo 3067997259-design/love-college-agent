@@ -422,7 +422,7 @@ void app.whenReady().then(async () => {
     questions = createQuestions({ store, clock, changed: () => controller?.refresh('task'),
       safeText: (text) => privateCredentials.reduce((clean, key) => key ? clean.replaceAll(key, '[redacted]') : clean, text) })
     controller.attachQuestions(questions)
-    resourceBudget = createResourceBudget({ root: join(prepared.developer ? dataDir : dataRoot, 'runtime-resources'), clock, configurable: prepared.booth })
+    resourceBudget = createResourceBudget({ root: join(prepared.developer ? dataDir : dataRoot, 'runtime-resources'), clock, configurable: true })
     resourceBudget.bootstrap(JSON.stringify([dataDir, owner.userId, owner.characterId]), store.history?.() ?? store.records())
     controller.attachResources(resourceBudget)
     let taskModels = createTaskModelPorts(providers, clock, store, undefined, resourceBudget, !privacyEnabled())
