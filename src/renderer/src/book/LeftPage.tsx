@@ -23,6 +23,7 @@ import { HistoryPhoto, type PhotoOverlay } from './history/HistoryPhoto'
 import { VoiceMark } from './VoiceMark'
 import { voiceLevel } from '../voice/level'
 import { CollaborationPanel } from './CollaborationPanel'
+import { SubagentStrip } from './team/SubagentStrip'
 import { TeamRoom, teamArtReady } from './team/TeamRoom'
 import { teamActive, teamMembers } from './team/teamScene'
 
@@ -85,7 +86,9 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
   const [manualShot, setManualShot] = useState<'close' | 'team' | null>(null)
   const wasActive = useRef(helpersActive)
   useEffect(() => { if (helpersActive && !wasActive.current) setManualShot(null); wasActive.current = helpersActive }, [helpersActive])
-  const team = teamPossible && (manualShot ? manualShot === 'team' : helpersActive)
+  // 帮手在忙时默认仍留在大桃子的近景（她的侧脸与表情差分才是这本书的脸）；
+  // 想看整个房间的人自己点“看看房间”，不再被自动拉走。
+  const team = teamPossible && manualShot === 'team'
   const [panelRequest, setPanelRequest] = useState(0)
   // 恢复完成后应用会重启；新页面第一次看到这次恢复，就让颜色重新长回来
   const backup = snapshot.backup
@@ -191,6 +194,10 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
       </div>
       {/* 房间之外的兄弟节点：盖在上面，但不进实时拍照的根 */}
       {!intro && historyPhoto && <HistoryPhoto view={historyPhoto} />}
+      {/* 帮手在做什么：近景不动，左页底部浮出最多三格手账特写；“更多”打开协作面板。切到整房远景时藏起来，免得同一件事画两遍 */}
+      {!intro && !historyPhoto && !team && helpers.length > 0 && (
+        <SubagentStrip snapshot={snapshot} bridge={bridge} members={helpers} onMore={() => setPanelRequest((n) => n + 1)} />
+      )}
       {!intro && !historyPhoto && <CollaborationPanel snapshot={snapshot} bridge={bridge} openRequest={panelRequest}
         shot={teamPossible ? { team, onToggle: () => setManualShot(team ? 'close' : 'team') } : undefined} />}
 

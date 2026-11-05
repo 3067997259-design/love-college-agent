@@ -23,6 +23,9 @@ try {
   page.on('pageerror', (error) => errors.push(String(error)))
   page.on('response', (response) => { if (response.status() >= 400 && !response.url().endsWith('/favicon.ico')) errors.push(`${response.status()} ${response.url()}`) })
   await page.goto(`http://127.0.0.1:${server.config.server.port}/?scenario=team-working`)
+  // The close view stays on by default now; the whole-room view is opened on purpose. The dev
+  // scenario toolbar sits over the page footer, so click the toggle through the DOM instead of the mouse.
+  await page.getByRole('button', { name: '看看房间', exact: true }).evaluate((node) => node.click())
   await page.locator('.team-mini[data-station="table"]').first().waitFor()
   await page.evaluate(() => document.fonts.ready)
   await page.waitForTimeout(1400)
@@ -80,6 +83,7 @@ try {
   await page.setViewportSize({ width: 1600, height: 1000 })
   for (const scene of ['team-workstations', 'team-statuses', 'team-blocked']) {
     await page.goto(`http://127.0.0.1:${server.config.server.port}/?scenario=${scene}`)
+    await page.getByRole('button', { name: '看看房间', exact: true }).evaluate((node) => node.click())
     await page.locator('.team-mini').first().waitFor()
     await page.waitForTimeout(1400)
     const expected = scene === 'team-workstations' ? 9 : 6

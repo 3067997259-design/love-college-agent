@@ -1,0 +1,160 @@
+/*
+ * 左页底部的手账特写分镜条（体验设计 §2“工作要看得见”；执行文档 03）。
+ * 每个帮手一格：左边是从 room-day.webp 裁下来的一小块房间作背景，右边几行小字。
+ * 不占房间远景、不做地面透视，也不裁到站着的高脚凳——画框下沿刚好卡在桌面高度。
+ * 颜色、字体和阴影都沿用书本的 token，不另起一套。
+ */
+
+.subagent-strip {
+  position: absolute;
+  left: 52px;
+  bottom: 14px;
+  z-index: 17;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  /* 右边给协作页签留出位置：三格加纸签再长也不会压到它 */
+  max-width: calc(100% - 168px);
+  font: var(--fs-xs) / 1.4 var(--font-body);
+  color: var(--graphite);
+  pointer-events: none;
+}
+.subagent-strip > * { pointer-events: auto; }
+
+/* —— 一格分镜：纸片，右上角可以叠一沓 —— */
+.subagent-panel {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  box-sizing: border-box;
+  width: 138px;
+  height: 74px;
+  margin: 0;
+  padding: 4px;
+  text-align: left;
+  color: inherit;
+  background: color-mix(in oklab, var(--paper) 88%, white);
+  border: 1.5px solid color-mix(in oklab, var(--pencil) 58%, transparent);
+  border-radius: 9px 7px 10px 8px;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.subagent-panel:hover { border-color: color-mix(in oklab, var(--peach-mid) 60%, transparent); }
+.subagent-panel:focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 2px; }
+/* 等你在办的事：边框先亮起来，一眼能看到谁卡住了 */
+.subagent-panel[data-tone='wait'] { border-color: color-mix(in oklab, var(--peach-mid) 72%, transparent); }
+/* 同一格里有好几位：底下露出两层错开的纸边，右上角标 ×N */
+.subagent-panel[data-stacked]::before,
+.subagent-panel[data-stacked]::after {
+  content: '';
+  position: absolute;
+  border-radius: inherit;
+  background: color-mix(in oklab, var(--paper) 84%, white);
+  border: 1.5px solid color-mix(in oklab, var(--pencil) 34%, transparent);
+}
+.subagent-panel[data-stacked]::before { inset: 3px -2px -3px 3px; z-index: -1; }
+.subagent-panel[data-stacked]::after { inset: 6px -4px -6px 6px; z-index: -2; }
+
+/* —— 画窗：房间的一小块，加她的半身 —— */
+.subagent-shot {
+  position: relative;
+  flex: none;
+  width: 52px;
+  box-sizing: border-box;
+  align-self: stretch;
+  border-radius: 6px 5px 6px 5px;
+  overflow: hidden;
+  background-color: color-mix(in oklab, var(--paper-edge) 55%, var(--paper));
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--pencil) 26%, transparent);
+}
+/*
+ * 局部取景：background-size 里的百分比是画窗宽度的倍数（图是正方形，高度随宽度走）。
+ * 六个取景框对着 2048 的 room-day 量过，落在下面这几块地方；哪一格看着不顺手就改这两行。
+ */
+.subagent-shot[data-scene='desk'] { background-size: 380%; background-position: 19% 88%; }        /* 茶几／书桌的木质台面 */
+.subagent-shot[data-scene='shelf'] { background-size: 330%; background-position: 4% 26%; }         /* 书架中层与垂吊绿植 */
+.subagent-shot[data-scene='rug'] { background-size: 350%; background-position: 85% 100%; }        /* 洒着阳光的地板 */
+.subagent-shot[data-scene='rug-dim'] { background-size: 350%; background-position: 8% 100%; }      /* 地毯靠里、暗一点的那头 */
+.subagent-shot[data-scene='window'] { background-size: 360%; background-position: 78% 4%; }        /* 窗外柔光 */
+.subagent-shot[data-scene='window-edge'] { background-size: 360%; background-position: 71% 39%; }  /* 窗台与小盆栽 */
+
+/*
+ * 她：探进画窗的半个身子。图片高 110、往下压 44：画窗里只留她上半身的 60%，
+ * 站着的那只高脚凳（凳子面在 62% 往下）整根落在画框外面，看上去就像坐在桌后。
+ */
+.subagent-pose {
+  position: absolute;
+  left: 50%;
+  bottom: -44px;
+  height: 110px;
+  width: auto;
+  translate: -50% 0;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 时段光：和房间一样，夜里这格也跟着暗下去、染上台灯的暖 */
+.subagent-shot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--room-tint);
+  mix-blend-mode: var(--room-tint-blend);
+  pointer-events: none;
+}
+
+.subagent-stack-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  z-index: 1;
+  padding: 0 4px;
+  font: 10.5px / 1.5 var(--font-num);
+  color: var(--ink-her);
+  background: color-mix(in oklab, var(--paper) 72%, white);
+  border: 1px solid color-mix(in oklab, var(--peach-mid) 52%, transparent);
+  border-radius: 999px;
+}
+
+/* —— 右边几行字 —— */
+.subagent-lines {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+.subagent-lines > span,
+.subagent-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subagent-name { font: 600 12.5px / 1.25 var(--font-body); color: var(--ink-her); }
+.subagent-status { font-size: 11px; line-height: 1.25; color: var(--graphite); }
+.subagent-step { font-size: 10.5px; line-height: 1.25; color: var(--ink-her-faded); }
+.subagent-time { font: 10px / 1.25 var(--font-num); color: var(--pencil); font-variant-numeric: tabular-nums; }
+.subagent-panel[data-tone='wait'] .subagent-status { color: var(--ink-her); }
+.subagent-panel[data-tone='fail'] .subagent-status,
+.subagent-panel[data-tone='blocked'] .subagent-status { color: var(--notice-ink); }
+
+/* —— 装不下的人：一张小纸签，点开协作面板 —— */
+.subagent-pile {
+  align-self: flex-end;
+  margin: 0 0 1px;
+  padding: 3px 9px;
+  font: 11px / 1.45 var(--font-body);
+  color: var(--graphite);
+  white-space: nowrap;
+  background: color-mix(in oklab, var(--paper) 76%, white);
+  border: 1.5px dashed color-mix(in oklab, var(--pencil) 58%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.subagent-pile:hover { color: var(--ink-her); border-style: solid; border-color: color-mix(in oklab, var(--peach-mid) 55%, transparent); }
+.subagent-pile:focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .subagent-panel { transition: none; }
+}
