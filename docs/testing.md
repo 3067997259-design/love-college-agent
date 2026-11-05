@@ -59,7 +59,7 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 | `test:dsh-extensions` | P3：隔离 HOME / profile / 本地合成 bundle，生产 main 服务和 bridge、Electron Node 模式与随附 pnpm；PATH 排除系统 Node / pnpm。完整生命周期、独立脚本批准、运行中取消、丢失 IPC 回执冷恢复、核心保护与加载失败状态。不是页面或安装升级验收，见 [P3 回执](research/v1.2-p3-20261023.md) |
 | `test:extensions` | P4：隔离 Electron 书页、原生选择的合成目录与逐次审批；本地 bundle 安装 / 启停 / 重启 / 移除、独立构建批准、丢失回执后同 ID 核对，Markdown 技能导入 / 优先级 / 修改删除 / 跨项目 / 冷启，以及实际 DSH 技能与 MCP 调用。仅本机合成模型与服务，截图和回执写到 `test-results/p4-*`，见 [P4 回执](research/v1.2-p4-20261023.md) |
 | `test:dsh-collaboration` | P5：固定 DSH 的普通委派 / Team 共存、单一控制路由、成员关系、任务 revision / 依赖 / 范围提示、持久来源退役、两类容量、失败占位、断连回执、冷恢复及整组自主额度；Electron Node 模式，隔离 HOME / profile，PATH 排除系统 Node / pnpm |
-| `test:collaboration` | P5：实际书页中的成员和任务、消息、单成员停止、整组停止、断连后刷新核对同一操作、冷恢复及窄窗口；V1：有成员干活时左页拉远、人数与忙碌者对应，全部停下回近景，冷恢复后手动看房间、点帮手的卡片与“更多”；只用本机脚本模型。复用已构建产物可运行 `node scripts/smoke-collaboration.mjs`；设置 `LCA_TEST_EXECUTABLE` 可指定包内 EXE。证据在 `test-results/p5-*`，见 [P5 回执](research/v1.2-p5-20261024.md) |
+| `test:collaboration` | P5：实际书页中的成员和任务、消息、单成员停止、整组停止、断连后刷新核对同一操作、冷恢复及窄窗口；V1：左页底部手账分镜（最多三格、同工位 `×N`、已结束汇总纸签）、整房远景改为手动打开，冷恢复后仍可手动看房间、点帮手的卡片与“更多”；只用本机脚本模型。复用已构建产物可运行 `node scripts/smoke-collaboration.mjs`；设置 `LCA_TEST_EXECUTABLE` 可指定包内 EXE。证据在 `test-results/p5-*`，见 [P5 回执](research/v1.2-p5-20261024.md) |
 | `test:v12-recovery` | P6：跨项目、冷启动、审批中取消、成员忙碌边界、DSH 退出、来源退役的实际请求、可控时钟日切、私人存档恢复及再次冷启。隔离 profile / HOME / 项目、本机脚本模型；可用 `LCA_TEST_EXECUTABLE` 复跑包内 EXE。不是实际跨日长期使用，见 [P6 回执](research/v1.2-p6-20261024.md) |
 | `test:sleep` | 隔离 Electron 与合成时钟 / 模型：手动睡眠、夜灯 / 熄灯、夜间安全日切、06:00 自动醒来、08:22 恢复时校正、手动存档保留、最终素材与动画完成截图 |
 | `test:life-port`、`test:life-work`、`test:room` | 生活状态、实际产物、日记与重启 |
@@ -72,7 +72,7 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 团队远景 V2 补充检查：`tests/unit/dsh-member-focus.test.ts` 用假时钟核对窗口、换位与长思考；`dsh-member-steps.test.ts` 验证有界回放、路径 / URL 摘要、来源退役后仍隐藏旧目标和字段剥离；`team-scene.test.ts` 验证按种类摆位、稳定座位、溢出与家具深度。`test:dsh-collaboration` 新增工具 / 思考 / 同伴消息阶段、最近 12 步、成败、已卸载成员的只读回放、跨根拒绝和受限来源隐藏目标。`test:collaboration` 新增实际子代理读文件后的 `data-station`、中文步骤卡片与快照无目标检查。
 
-`node scripts/team-room-preview.mjs` 用本机已装 Chrome 检查 `team-working`、`team-workstations`、`team-statuses`、`team-blocked` 假场景，保存工位 / 状态、白天、夜间、减少动画、干净 / 受限卡片和窄窗口截图到 `test-results/team-v2-preview/`。验证全部 15 张小桃子与 2 台电脑、每个茶桌座位一台电脑、可见头部点击、键盘与焦点返回，并检查隐藏房间不截获点击。开发场景切换条在检查书页切镜前移到顶部；实际安装包不带此工具条。`--serve` 只启动预览服务，端口由 `LCA_SHOT_PORT` 指定。不下载浏览器，不调用真实模型；这些截图不代表真实模型日用验收。
+`node scripts/team-room-preview.mjs` 用本机已装 Chrome 检查 `team-working`、`team-workstations`、`team-statuses`、`team-blocked` 假场景，保存工位 / 状态、白天、夜间、减少动画、干净 / 受限卡片和窄窗口截图到 `test-results/team-v2-preview/`。左页默认保留近景，脚本先手动打开“看看房间”再检查整房远景；验证全部 15 张小桃子与 2 台电脑、每个茶桌座位一台电脑、可见头部点击、键盘与焦点返回，并检查隐藏房间不截获点击。开发场景切换条会盖住页角，脚本用 DOM 点击打开远景；实际安装包不带此工具条。`--serve` 只启动预览服务，端口由 `LCA_SHOT_PORT` 指定。不下载浏览器，不调用真实模型；这些截图不代表真实模型日用验收。
 
 若需要单独复核团队房间，可在 build 后运行 `node scripts/smoke-collaboration.mjs --team-room-only`：仍检查消息、停止、任务操作、冷恢复和新书页路径，只把“丢失回执”故障注入换成正常重开任务。回执写明 `teamOnly: true`，不能称为完整验收。2026-10-28 已修复回执先通知后落盘的竞态并通过完整脚本，旧失败证据保留。
 
@@ -89,6 +89,7 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 真实请求必须属于当前获授权任务，配置可用不等于授权调用。普通文档、单测或合成回归不会自动升级成以下探针：
 
 - `test:real-model` 要求显式 `LCA_REAL_MODEL=1` 与授权 providers 文件；检查流式、工具往返、普通 UI 与 `probe:cache-live` 缓存 usage 对账，结果不打印正文或密钥。
+- `node scripts/smoke-real-spend.mjs`（体验打磨新增）同样要求 `LCA_REAL_MODEL=1` 与授权 providers 文件：在隔离临时档案里通过普通产品书页发送 1 轮聊天，然后读本机 journal 与快照账本，核对 `model/attempt` 预留、报告 token 和 `resources.model.totalReservedUnits`；输出只有布尔和计数，不打印正文或密钥。一次运行约一次 chat 请求，不含后台、隐私或工作槽位；运行后删除临时档案。
 - `probe:cache-live`（M1 缓存观测）使用合成提示词与独立临时 profile，最多 6 次调用 / 20,000 输入 token / 90 秒单次超时；报告只含数字、布尔与槽位别名，验证供应商原始 usage 与 `model/attempt`、重启后 journal 三方一致。`LCA_CACHE_PROBE_PAIR_SLOTS` 可指定做相同前缀两次的槽位，`LCA_CACHE_PROBE_REPORT` 写本地证据。两种供应商形状已于 2026-10-19 用授权端点完成真实 payload 验证；换端点后重跑即可复验。
 - `probe:privacy` / `probe:model` / `probe:harness` 可能调用已配置模型。`probe:harness` 用真实模型跑一个 DSH 回合并调用一次 LCA 时钟工具。失败不回退 fake，真实质量与连通分别评价。
 

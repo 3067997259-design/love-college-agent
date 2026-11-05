@@ -2,6 +2,8 @@
 
 保留可复现的实验装置与反例，生产能力以实际集成和对应测试为准。以下历史结果没有在文档整理时重新运行。
 
+[体验与灵魂升级：四份执行文档与实施记录](experience-polish-implementation-20261105.md)（2026-11-05）：分支 `codex/experience-polish`。人设卡按原卡内核重写并改掉 JSON 包装；世界泡开放自定义去向、把生活控制交还给她；日记去掉“主观日记”印章与密码外露并支持折页一晚；子代理改为左页底部手账分镜、不再自动拉远；门牌收成单开关、设置页收拢运维项。维护者审阅后又加了“关于你”、门牌确认与人设裁定（正文第 6 节）。类型、lint、单测、构建与相关 Electron 合成场景结果见正文；真实模型按本机 profile 配置做了有界花费与账本验收，范围与数字如实记录。四份执行文档见[总纲](experience-polish-master-plan-20261105.md)、[01](experience-polish-01-persona-and-prompt-20261105.md)、[02](experience-polish-02-world-and-diary-20261105.md)、[03](experience-polish-03-subagent-strip-20261105.md)、[04](experience-polish-04-ui-and-settings-20261105.md)。
+
 [候选 11：实际安装、升级通过并发布](../releases/1.2.0-continuity.11.md)（2026-11-04）：同一已验收安装器完成全新安装 34/34 项场景、包内与安装后原生探针、界面重启和历史检查，以及 1.1.0 非空升级／冷启动／旧存档恢复 5/5。隔离测试安装已卸载，未使用日用数据，未新增真实服务调用。GitHub 三项上传资产的大小与 SHA-256 核对一致后发布为实验预发布，正式最新版保留 v1.1.0；[安装证据](evidence/continuity-candidate11-installation-20261104.json)、[发布回执](evidence/continuity-candidate11-release-20261104.json)。第二台 Windows 与长期日用尚未验收。
 
 [候选 11：90 条检索与 24 条故事验收完成](continuity-quality-goal-20261104.md)（2026-11-04）：真实 Voyage 检索 Recall@3 94.44%、MRR@3 91.67%，九层均达标；同候选四个授权窗口合并覆盖 24/24 条故事，逐例核对真实回答、工具、检查点与来源，最终离线汇总无缺项、无证据错误。最后 S13–S15 使用 6 次模型、12 次向量、61,278 预留单位，全部成功并关闭；历史失败保持失败。本次质量窗口未发包，后续实际安装与发布见上条。

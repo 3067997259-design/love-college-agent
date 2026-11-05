@@ -19,6 +19,7 @@
 | 最新实验预发布与实际安装升级 | [1.2.0-continuity.11：下载、迁移回退与验证范围](releases/1.2.0-continuity.11.md)、[发布回执](research/evidence/continuity-candidate11-release-20261104.json) |
 | 1.2 开发候选与未完成门槛 | [1.2.0-rc.3 验收](releases/1.2.0-rc.3.md)、[rc.2 历史](releases/1.2.0-rc.2.md)、[P6 组合恢复](research/v1.2-p6-20261024.md) |
 | 连续协作者与完整记忆实验候选 | [阶段 0–6、候选清单与回退](research/continuous-implementation-20261101.md)、[统一计划](research/lca-continuity-memory-context-plan-20261101.md) |
+| 人设、世界泡、日记与界面的体验打磨 | [总纲与四份执行文档](research/experience-polish-master-plan-20261105.md)、[实施记录与验证](research/experience-polish-implementation-20261105.md) |
 | 工作与记忆实测准备 | [普通产品预跑、压缩恢复修复与额度](research/continuity-probes-preflight-20261102.md)、[取消计划真实单例](research/continuity-world-cancelled-20261102.md) |
 | 含糊工作修复与最新真实复测 | [候选 8 真实工作通过](research/continuity-candidate8-work-live-20261103.md)、[修复、原文边界和离线证据](research/continuity-work-request-20261103.md) |
 | 候选 8 统一回归与记忆复测 | [22 步骤、T1–T16 和本机 PostgreSQL](research/continuity-candidate8-regression-20261103.md)、[真实记忆末步触及请求上限](research/continuity-candidate8-memory-live-20261103.md)、[恢复尾段真实通过与失败定位](research/continuity-candidate8-memory-restore-retest-20261103.md)、[第一次尾段与流诊断修复](research/continuity-candidate8-memory-restore-20261103.md)、[范围与预算](research/continuity-candidate8-memory-plan-20261103.md) |
