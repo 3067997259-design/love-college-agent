@@ -16,8 +16,10 @@ async function waitFor(test, message) { for (let i = 0; i < 100; i++) { if (test
 async function launch() { instance = await _electron.launch({ executablePath: electronPath, args: [root], env }); page = await instance.firstWindow(); await initializeTestBook(page); const config = JSON.parse(await readFile(join(data, 'developer', sceneId, 'debug-connection.json'), 'utf8')); client = new Client({ name: 'notify-smoke', version: '1.0.0' }); await client.connect(new StreamableHTTPClientTransport(new URL(config.url), { requestInit: { headers: { Authorization: 'Bearer ' + config.token } } })) }
 async function clock(nowMs) { const result = await client.callTool({ name: 'set_clock', arguments: { nowMs, frozen: true } }); assert.ok(!result.isError) }
 try {
-  await mkdir(data, { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId })); await launch()
-  let now = Date.parse('2026-10-24T12:00:00+08:00'); await clock(now); await send({ type: 'mail.scan' }); await waitFor((s) => s.mailbox.status === 'ready', 'NOTIFY_MAIL_FAILED')
+  // Start the app at the fixture date: the merge timer is armed at launch, and on a clock moved back afterwards it would never come due.
+  let now = Date.parse('2026-10-24T12:00:00+08:00')
+  await mkdir(join(data, 'developer', sceneId), { recursive: true }); await writeFile(join(data, 'settings.json'), JSON.stringify({ version: 1, developer: true, booth: false, plugins: {}, sceneId })); await writeFile(join(data, 'developer', sceneId, 'clock.json'), JSON.stringify({ nowMs: now, rate: 1, frozen: true })); await launch()
+  await clock(now); await send({ type: 'mail.scan' }); await waitFor((s) => s.mailbox.status === 'ready', 'NOTIFY_MAIL_FAILED')
   await clock(now += 5000); assert.ok((await snapshot()).notifications.pendingCount >= 1); await clock(now += 16000); assert.equal((await snapshot()).notifications.sentLastHour, 1)
   await openSettings(page); await page.getByRole('textbox', { name: '提醒关键词' }).fill('第三次作业'); await page.getByRole('button', { name: '添加这个提醒标准' }).click(); assert.equal((await snapshot()).notifications.rules.length, 1)
   await client.close(); client = undefined; await instance.close(); await launch(); assert.equal((await snapshot()).notifications.rules.length, 1); await clock(now += 21000); assert.equal((await snapshot()).notifications.sentLastHour, 1)
