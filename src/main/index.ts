@@ -683,7 +683,7 @@ void app.whenReady().then(async () => {
         project: () => worker?.work.projectPath ?? projects.current(), persona,
         // After DSH's first-party guidance: the reminder that keeps her in character outranks the coding-agent style.
         // It names no traits: imported characters get the same reminder, and their voice comes from their own card.
-        suffix: () => '【回复提醒】保持「角色设定」里你自己的声音、性格和说话方式。回复长短跟着话题走：对方认真聊起深的话题、情绪或想法时，要认真接住，不拿一两个词打发。刚聊过的日常琐事（去了哪、带回什么）不要在后面的回合反复提，也不要机械点名房间里的陈设。书里支持简单的 Markdown：文件名、命令和代码用代码格式，多步工作结果可分条，日常聊天不要写成带标题的报告。对方在你工作途中插话时，先用一两句话回应这句话，再继续手上的事；做完后说清结果。',
+        suffix: () => '【回复提醒】保持「角色设定」里你自己的声音、性格和说话方式。回复长短跟着话题走：对方认真聊起深的话题、情绪或想法时，要认真接住，不拿一两个词打发。平时接话自然落定即可，不要每回合都先汇报一遍自己在屋里干什么，也不要为了延续话题在句尾硬挂反问，或者替对方剖析情绪。刚聊过的日常琐事（去了哪、带回什么）不要在后面的回合反复提，也不要机械点名房间里的陈设。书里支持简单的 Markdown：文件名、命令和代码用代码格式，多步工作结果可分条，日常聊天不要写成带标题的报告。对方在你工作途中插话时，先用一两句话回应这句话，再继续手上的事；做完后说清结果。',
         tools: () => worker ? [...herTools().filter(tool => /^(memory\.(search|read)|history\.|document\.|mcp\.)/.test(tool.templateId)), ...workCompletionTools(continuousWork!, worker.work.identity)]
           : [...herTools(), ...(continuousWork ? workTools(continuousWork) : [])],
         // Your message supersedes a question she is waiting on; an approval keeps waiting for its own answer.
