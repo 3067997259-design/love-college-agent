@@ -40,6 +40,9 @@ export function openJournal(dataDir: string, owner: Pick<Scope, 'userId' | 'char
   let poisoned = false
   let bytes = fstatSync(fd).size
   let records: JournalRecord[]
+  // Readers treat the fact source as read-only; hand them the same frozen array
+  // until the next durable append instead of cloning the whole day on every view.
+  let snapshot: readonly JournalRecord[] | undefined
   try {
     records = parseJournalContent(readFileSync(fd, 'utf8'), owner)
   } catch { closeSync(fd); throw new Error('JOURNAL_READ_FAILED') }
@@ -62,6 +65,7 @@ export function openJournal(dataDir: string, owner: Pick<Scope, 'userId' | 'char
       fsyncSync(fd)
       bytes += line.length
       records.push(record)
+      snapshot = undefined
       return structuredClone(record)
     } catch { poisoned = true; throw new Error('JOURNAL_WRITE_FAILED') }
   }
@@ -72,7 +76,7 @@ export function openJournal(dataDir: string, owner: Pick<Scope, 'userId' | 'char
   const header = records[0] as Extract<JournalRecord, { type: 'session/header' }>
   return {
     scope: Object.freeze({ ...owner, sessionId: header.sessionId }),
-    records: () => structuredClone(records), append,
+    records: () => snapshot ??= Object.freeze([...records]) as readonly JournalRecord[], append,
     close: () => { if (!closed) { closed = true; closeSync(fd) } },
   }
 }

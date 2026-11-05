@@ -44,6 +44,10 @@ export function openSessionStore(dataDir: string, owner: Pick<Scope, 'userId' | 
       PRIMARY KEY (user_id, character_id, session_id))`)
     const db = database
     let state = projectJournal(journal.records())
+    // Readers treat the fact source as read-only: keep one frozen combined view and
+    // rebuild it only after a durable append or a day rotation.
+    let historyView: ReturnType<Journal['records']> | undefined
+    const historyRecords = (): ReturnType<Journal['records']> => historyView ??= Object.freeze([...history.flatMap((page) => page.records), ...journal.records()]) as ReturnType<Journal['records']>
     const save = db.prepare(`INSERT INTO session_projections VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(user_id, character_id, session_id) DO UPDATE SET journal_seq=excluded.journal_seq, state_json=excluded.state_json`)
     const cache = () => save.run(journal.scope.userId, journal.scope.characterId, journal.scope.sessionId, state.lastSeq, JSON.stringify(state))
@@ -51,20 +55,21 @@ export function openSessionStore(dataDir: string, owner: Pick<Scope, 'userId' | 
     db.transaction(cache)()
     return {
       get scope() { return journal.scope }, projection: () => structuredClone(state), records: () => journal.records(),
-      history: () => structuredClone([...history.flatMap((page) => page.records), ...journal.records()]),
+      history: () => historyRecords(),
       dayKey: () => dayKey,
       pages: () => [...history, { dayKey, records: journal.records() }].map((page) => ({ ...page, sessionId: (page.records[0] as Extract<ReturnType<Journal['records']>[number], { type: 'session/header' }>).sessionId })),
       rotate: () => {
         const target = sessionDayKey(clock); if (target <= dayKey) return false
         const next = openJournal(dataDir, owner, clock)
         try { carryPreviousState(next, dataDir, owner, clock) } catch { next.close(); throw new Error('SESSION_HANDOFF_FAILED') }
-        journal.close(); journal = next; dayKey = target; history = loadHistory(); state = projectJournal(journal.records())
+        journal.close(); journal = next; dayKey = target; history = loadHistory(); historyView = undefined; state = projectJournal(journal.records())
         if (existsSync(resumePath)) unlinkSync(resumePath)
         try { db.transaction(cache)() } catch { /* Derived cache can be rebuilt. */ }
         return true
       },
       append: (input) => {
         journal.append(input)
+        historyView = undefined
         state = projectJournal(journal.records())
         try { db.transaction(cache)() }
         catch { /* Cache failure cannot roll back the already durable fact. Replay repairs it on open. */ }
