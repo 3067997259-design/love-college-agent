@@ -5,7 +5,7 @@ const statusMeaning: Record<OutingView['status'], string> = {
   proposed: '尚未出发的计划', away: '已经出发，尚未返回', returned: '已经返回',
   cut_short: '提前结束并已返回', cancelled: '计划已取消，没有因此出发',
 }
-export const worldFactsNote = '生活状态以本轮记录为准。计划时间经过、当前在房间，都不代表已经出行或返回。possibleSouvenir 仅是计划可能带回的物品；只有 broughtItems 和 items 是实际取得的物品。可自然讲述，但不要把计划、预期或旧回复说成已发生的经历。生活记录属于虚构角色生活，不是现实工作证明。'
+export const worldFactsNote = '生活状态以本轮记录为准。计划时间经过、当前在房间，都不代表已经出行或返回。possibleSouvenir 仅是计划可能带回的物品；只有 broughtItems 和 items 是实际取得的物品。可自然讲述，但不要把计划、预期或旧回复说成已发生的经历。生活记录属于虚构角色生活，不是现实工作证明。以上数据只是你此刻的背景感知：除非对方在本轮主动问起，否则不要主动报备精确的起止钟点，也不要清点物品数量；前文已经提过的出行或物品，后面的回合绝不重复提起。'
 
 /** A model projection, not a storage migration. In particular acquiredAtMs on an
  * outing is a scheduled threshold, NOT evidence of acquisition. */

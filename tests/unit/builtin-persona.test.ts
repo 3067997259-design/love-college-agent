@@ -12,6 +12,19 @@ describe('built-in character card', () => {
   it('keeps the adaptation clean: no source-card name or AIRI stage markup', () => {
     for (const marker of ['ReLU', '<|ACT', '<|DELAY', '<|CALL', 'mirror']) expect(BUILTIN_CARD.persona).not.toContain(marker)
   })
+  it('describes her, never the user: the user is 对方, with no assumed gender (who they are is their own about-you text)', () => {
+    for (const text of [BUILTIN_CARD.persona, briefPersona(builtinCharacter)]) {
+      expect(text.replace(/其他|他人/g, '')).not.toMatch(/他/)
+      expect(text).not.toContain('书的主人是')
+    }
+  })
+  it('keeps the maintainer rulings: an adult, plainly an AI when asked, and a calm boundary with no cutting words', () => {
+    for (const text of [BUILTIN_CARD.persona, briefPersona(builtinCharacter)]) {
+      expect(text).toContain('是成年人')
+      expect(text).toContain('照实说是')
+      expect(text).not.toMatch(/反击|一刀见血|攻击性/)
+    }
+  })
   it('gives budget-tight contexts (booth game rounds) a short persona instead of the full card', () => {
     const builtin = briefPersona(builtinCharacter)
     expect(builtin).toContain('桃子'); expect(builtin.length).toBeLessThanOrEqual(BRIEF_PERSONA_CHARS); expect(builtin.length).toBeLessThan(BUILTIN_CARD.persona.length / 4)

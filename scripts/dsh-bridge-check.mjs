@@ -185,7 +185,7 @@ const SCENARIOS = {
     script({ model, lastTool, messages, notes }) {
       notes.models.push(model)
       if (model === 'mock-chat') {
-        notes.prompt = messages.some((message) => textOf(message.content).includes('本次状态凭据=state-text-token'))
+        notes.prompt = messages.some((message) => /(?:本次|本轮)状态凭据=state-text-token/.test(textOf(message.content)))
         return { text: JSON.stringify({ lca_state: { mode: 'work', token: 'state-text-token' }, reply: '我来处理。' }) }
       }
       notes.continuation = messages.some((message) => textOf(message.content).includes('LCA 已确认切换到工作中'))

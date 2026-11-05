@@ -22,7 +22,7 @@ const server = createServer(async (req, res) => {
   const body = JSON.parse(input), messages = body.messages
   const marker = messages.findLastIndex((message) => message.role === 'user' && /state-probe:\w+/.test(textOf(message.content)))
   const task = textOf(messages[marker]?.content).match(/state-probe:\w+/)?.[0] ?? ''
-  const token = messages.map((message) => textOf(message.content)).join('\n').match(/本次状态凭据=([\w-]+)/)?.[1]
+  const token = messages.map((message) => textOf(message.content)).join('\n').match(/(?:本次|本轮)状态凭据=([\w-]+)/)?.[1]
   const tool = messages.slice(marker + 1).some((message) => message.role === 'tool')
   requests.push({ task, model: body.model })
   if (task === 'state-probe:stale') { sawStale(); await staleReleased }
