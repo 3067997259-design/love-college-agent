@@ -22,6 +22,8 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
   const { clock, store, scheduler, repository } = options
   const records = () => store.history?.() ?? store.records()
   let worker: Promise<void> | undefined; let active: AbortController | undefined; let disposed = false; let enabled = true
+  /** Count of user-requested memory operations currently running (see run(manual)). */
+  let manualDepth = 0
   let status: MemoryView['status'] = options.model ? 'idle' : 'unconfigured'
   let error: { code: PublicErrorCode; retryable: boolean } | undefined
   let compaction: MemoryView['compaction']
@@ -99,12 +101,15 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     options.closingDay?.()
     if (store.rotate?.()) { repository.refresh(); options.changed(); options.rolled() }
   }
-  const run = (kind: OperationKind, work: (signal: AbortSignal) => Promise<void>) => {
+  const run = (kind: OperationKind, work: (signal: AbortSignal) => Promise<void>, manual = false) => {
     if (worker || !allowed() || !options.model && kind !== 'day' && kind !== 'review' && !(kind === 'compact' && options.compactRoot)) return worker ?? Promise.resolve()
     const abort = new AbortController(); active = abort; status = kind === 'compact' ? 'compacting' : 'extracting'; error = undefined; options.changed()
+    // A command from the user is a user-started turn: its model calls must not be refused
+    // by the autonomous budget. Scheduled maintenance keeps counting as autonomous.
+    if (manual) manualDepth++
     worker = work(abort.signal).catch((cause: unknown) => {
       if (!abort.signal.aborted) { status = 'failed'; error = { code: cause instanceof MemoryFailure ? cause.code : 'internal', retryable: true } }
-    }).finally(() => { active = undefined; worker = undefined; if (status !== 'failed') status = options.model ? 'idle' : 'unconfigured'; options.changed() })
+    }).finally(() => { if (manual) manualDepth--; active = undefined; worker = undefined; if (status !== 'failed') status = options.model ? 'idle' : 'unconfigured'; options.changed() })
     return worker
   }
   const maintenance = async () => {
@@ -122,7 +127,7 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
     const entries = [reference.memoryDirectory, reference.memoryReference].flatMap(value => Array.isArray(value) ? value : [])
     options.facts.disclose(requestId, entries.filter((entry): entry is { id: string; revision: number } => typeof entry?.id === 'string' && Number.isSafeInteger(entry?.revision)))
   }
-  return { maintenance,
+  return { maintenance, manualActive: () => manualDepth > 0,
     giftSources: (): GiftSourceView[] => {
       repository.refresh()
       const historical = repository.view().items.filter(item => item.kind === 'experience' && !item.supersededBy && item.sources.length)
@@ -191,8 +196,8 @@ export function createMemoryService(options: { clock: Clock; scheduler: Schedule
       if (command.type === 'memory.fact.review') { void run('review', async () => { await options.facts.reviewFact(command.id, command.expectedRevision, command.approve) }); return }
       if (command.type === 'memory.presentation') { void run('review', async () => { const { id, expectedRevision, title, summary, pinned, pinOrder } = command; await options.facts.presentation({ id, expectedRevision, title, summary, pinned, pinOrder }) }); return }
       if (!options.model) return 'not-configured'
-      if (command.type === 'memory.extract') { void run('extract', extractCore); return }
-      if (command.type === 'memory.consolidate') { void run('week', (signal) => experiences.consolidate(signal)); return }
+      if (command.type === 'memory.extract') { void run('extract', extractCore, true); return }
+      if (command.type === 'memory.consolidate') { void run('week', (signal) => experiences.consolidate(signal), true); return }
       return 'unavailable'
     },
     idle: async () => { await worker; await options.facts.runtime.idle() },

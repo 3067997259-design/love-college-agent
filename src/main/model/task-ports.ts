@@ -30,10 +30,13 @@ import { MEMORY_CAPTURE_PROMPT } from '../memory/airi/prompt'
 // cancellation remain.
 const STREAMING_JSON_TIMEOUT_MS = 120_000
 
-/** Machine JSON tasks only. Persona, diary and dream wording remain on the voice line. */
-export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, clock: Clock, store: SessionStore, fetcher?: Parameters<typeof createModelClient>[3], budget?: ResourceAdmissions, followMain = false) {
+/** Machine JSON tasks only. Persona, diary and dream wording remain on the voice line.
+ * `memoryBucket` lets an explicit user command count as a user-started call while the
+ * scheduled maintenance keeps using the autonomous budget. */
+export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, ProviderConfig>, clock: Clock, store: SessionStore, fetcher?: Parameters<typeof createModelClient>[3], budget?: ResourceAdmissions, followMain = false, memoryBucket?: () => 'work' | 'autonomous') {
   const clients = { background: createModelClient(providers, ['background'], clock, fetcher), privacy: createModelClient(providers, ['privacy'], clock, fetcher), chat: createModelClient(providers, ['chat'], clock, fetcher) }
-  const json = async (slot: keyof typeof clients, prompt: string, input: unknown, parent: AbortSignal, maxOutputTokens: number, preserveSourceIds = false, trustedMain = false, bucket: 'work' | 'autonomous' = slot === 'privacy' ? 'work' : 'autonomous', timeoutMs = 30_000): Promise<unknown> => {
+  type Purpose = 'memory' | 'diary' | 'mail' | 'desk' | 'other'
+  const json = async (slot: keyof typeof clients, prompt: string, input: unknown, parent: AbortSignal, maxOutputTokens: number, preserveSourceIds = false, trustedMain = false, bucket: 'work' | 'autonomous' = slot === 'privacy' ? 'work' : 'autonomous', timeoutMs = 30_000, purpose?: Purpose): Promise<unknown> => {
     const abort = new AbortController(); const signal = AbortSignal.any([parent, abort.signal]); signal.throwIfAborted()
     const stop = clock.after(timeoutMs, () => abort.abort()); const turnId = randomUUID()
     // SeenFragment.text was already scrubbed; its generated provenance IDs must remain exact for validation.
@@ -46,8 +49,10 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
           const rows = (store.history?.() ?? store.records()).filter((row) => row.type === 'model/attempt' && row.status === 'started' && sessionDayKey(clock, row.atMs) === sessionDayKey(clock))
           const used = rows.reduce((sum, row) => sum + (row.type === 'model/attempt' ? row.reservedTokens ?? 0 : 0), 0)
           const autonomous = rows.reduce((sum, row) => sum + (row.type === 'model/attempt' && row.bucket === 'autonomous' ? row.reservedTokens ?? 0 : 0), 0)
-          if (!budget && (used + reservation > 500_000 || bucket === 'autonomous' && autonomous + reservation > 100_000)) throw new MemoryFailure('budget-exceeded')
-          resourceReservationId = budget?.reserveModel(reservation, bucket)
+          if (!budget && (used + reservation > 800_000 || bucket === 'autonomous' && autonomous + reservation > 300_000)) throw new MemoryFailure('budget-exceeded')
+          // User-started work is recorded, never refused by the autonomous bucket; only
+          // spontaneous background work goes through admission control.
+          resourceReservationId = bucket === 'autonomous' ? budget?.reserveModel(reservation, bucket, purpose ?? 'other') : budget?.recordModel?.(reservation, bucket, purpose)
         }
         // Private task inputs and output prose are never stored, even in model/seen or raw tool fields.
         store.append({ type: 'model/attempt', turnId, ...attempt, bucket, ...(attempt.status === 'started' ? { reservedTokens: reservation, ...(resourceReservationId ? { resourceReservationId } : {}) } : {}) })
@@ -61,26 +66,26 @@ export function createTaskModelPorts(providers: ReadonlyMap<ProviderSlot, Provid
   const memory: MemoryModel | null = providers.has('background') ? { source: 'real',
     airi: {
       extract: async (input, signal) => {
-        const output = await json('background', MEMORY_CAPTURE_PROMPT, { userText: input.userText, assistantText: input.assistantText, mood: input.mood }, signal ?? new AbortController().signal, 4096, true, false, 'autonomous', STREAMING_JSON_TIMEOUT_MS)
+        const output = await json('background', MEMORY_CAPTURE_PROMPT, { userText: input.userText, assistantText: input.assistantText, mood: input.mood }, signal ?? new AbortController().signal, 4096, true, false, memoryBucket?.() ?? 'autonomous', STREAMING_JSON_TIMEOUT_MS, 'memory')
         if (!Array.isArray(output) || output.length > 20) throw new MemoryFailure('memory-invalid-output')
         const extracted = parseMemoryTurnExtractions(output, { sessionId: input.sessionId })
         if (extracted.length !== output.length) throw new MemoryFailure('memory-invalid-output')
         return extracted
       },
       reconcile: (input, signal) => generateMemoryReconciliation(input, async (messages, settings) => {
-        const output = await json('background', messages[0].content, JSON.parse(messages[1].content), settings.abortSignal, 4096, true, false, 'autonomous', STREAMING_JSON_TIMEOUT_MS)
+        const output = await json('background', messages[0].content, JSON.parse(messages[1].content), settings.abortSignal, 4096, true, false, memoryBucket?.() ?? 'autonomous', STREAMING_JSON_TIMEOUT_MS, 'memory')
         settings.onStreamEvent({ type: 'text-delta', text: JSON.stringify(output) })
       }, signal),
     },
-    extract: (input, signal) => json('background', prompts.memoryExtract, memoryModelInput(input), signal, 4096, true),
-    summarize: (input, signal) => json('background', prompts.memorySummary, memoryModelInput(input), signal, 4096, true),
+    extract: (input, signal) => json('background', prompts.memoryExtract, memoryModelInput(input), signal, 4096, true, false, memoryBucket?.() ?? 'autonomous', 30_000, 'memory'),
+    summarize: (input, signal) => json('background', prompts.memorySummary, memoryModelInput(input), signal, 4096, true, false, memoryBucket?.() ?? 'autonomous', 30_000, 'memory'),
   } : null
   const mailSlot = followMain ? 'chat' : 'privacy'
-  const mail: EmailPrivacyModel | null = providers.has(mailSlot) ? { source: 'real', isolated: !followMain, extract: (input, signal) => json(mailSlot, prompts.mail + '\n' + notificationPrompts.mailAddition, input, signal, 2048, false, followMain, 'work') } : null
-  const document: DocumentPrivacyModel | null = providers.has('privacy') ? { source: 'real', ready: true, organize: (input, signal) => json('privacy', prompts.document, input, signal, 8192, false, false, 'work', 90_000) } : null
-  const mainDocument: DocumentPrivacyModel | null = providers.has('chat') ? { source: 'real', ready: true, isolated: false, organize: (input, signal) => json('chat', prompts.document, input, signal, 8192, false, true, 'work', 90_000) } : null
+  const mail: EmailPrivacyModel | null = providers.has(mailSlot) ? { source: 'real', isolated: !followMain, extract: (input, signal) => json(mailSlot, prompts.mail + '\n' + notificationPrompts.mailAddition, input, signal, 2048, false, followMain, 'work', 30_000, 'mail') } : null
+  const document: DocumentPrivacyModel | null = providers.has('privacy') ? { source: 'real', ready: true, organize: (input, signal) => json('privacy', prompts.document, input, signal, 8192, false, false, 'work', 90_000, 'other') } : null
+  const mainDocument: DocumentPrivacyModel | null = providers.has('chat') ? { source: 'real', ready: true, isolated: false, organize: (input, signal) => json('chat', prompts.document, input, signal, 8192, false, true, 'work', 90_000, 'other') } : null
   const narrow: PrivacyModel | null = providers.has('privacy') ? { source: 'real', extract: (text, signal) => json('privacy', prompts.narrowPrivacy, { text }, signal ?? new AbortController().signal, 512) } : null
-  const diary: DiaryModel | null = providers.has('background') ? { source: 'real', write: (input, signal) => { const card = (store.history?.() ?? store.records()).findLast((row) => row.type === 'character/definition'); return json('background', diaryPrompts.system, { character: { name: store.projection().onboarding.characterName, persona: card?.type === 'character/definition' ? card.definition.persona : BUILTIN_CARD.persona }, fragments: input }, signal, 1600, true, false, 'autonomous', STREAMING_JSON_TIMEOUT_MS) } } : null
-  const lifeWork: LifeWorkModel | null = providers.has('background') ? { source: 'real', produce: async (input, signal) => workOutput.parse(await json('background', workProtocol.system, workModelInput.parse(input), signal, 4096)) } : null
+  const diary: DiaryModel | null = providers.has('background') ? { source: 'real', write: (input, signal, options) => { const card = (store.history?.() ?? store.records()).findLast((row) => row.type === 'character/definition'); return json('background', diaryPrompts.system, { character: { name: store.projection().onboarding.characterName, persona: card?.type === 'character/definition' ? card.definition.persona : BUILTIN_CARD.persona }, fragments: input }, signal, 1600, true, false, options?.manual ? 'work' : 'autonomous', STREAMING_JSON_TIMEOUT_MS, 'diary') } } : null
+  const lifeWork: LifeWorkModel | null = providers.has('background') ? { source: 'real', produce: async (input, signal) => workOutput.parse(await json('background', workProtocol.system, workModelInput.parse(input), signal, 4096, false, false, 'autonomous', 30_000, 'desk')) } : null
   return { memory, mail, document, mainDocument, narrow, diary, lifeWork }
 }

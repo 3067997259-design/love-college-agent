@@ -425,7 +425,7 @@ void app.whenReady().then(async () => {
     resourceBudget = createResourceBudget({ root: join(prepared.developer ? dataDir : dataRoot, 'runtime-resources'), clock, configurable: true })
     resourceBudget.bootstrap(JSON.stringify([dataDir, owner.userId, owner.characterId]), store.history?.() ?? store.records())
     controller.attachResources(resourceBudget)
-    let taskModels = createTaskModelPorts(providers, clock, store, undefined, resourceBudget, !privacyEnabled())
+    let taskModels = createTaskModelPorts(providers, clock, store, undefined, resourceBudget, !privacyEnabled(), () => memory?.manualActive() ? 'work' : 'autonomous')
     scheduler = createScheduler(clock, () => { console.error('Scheduler stopped: local operation failed.'); app.quit() })
     photos = createHistoryPhotos({ store, clock, assets: binaryAssets, changed: () => controller?.refresh('task'),
       canCapture: () => !!bookWindow && !bookWindow.isDestroyed() && !backup?.isBusy() && controller?.getSnapshot().onboarding?.status === 'completed',
@@ -456,7 +456,7 @@ void app.whenReady().then(async () => {
       embedding: () => memorySettings?.source(), mirror: memoryMirror.port, held: memoryHeld, waitForRestore: async () => {}, changed: () => controller?.refresh('connection') })
     memorySettings = createMemorySettings({ root: dataRoot, clock, runtime: () => memoryFacts.runtime, held: memoryHeld,
       canConfigure: () => !herBusy() && !modelSettings?.isBusy() && !memoryHeld() && !minecraft?.active(),
-      prepare: async () => { memory?.foreground(); await memory?.idle() }, reserve: units => resourceBudget?.reserveModel(units, 'autonomous'),
+      prepare: async () => { memory?.foreground(); await memory?.idle() }, reserve: units => resourceBudget?.recordModel(units, 'work', 'memory'),
       changed: () => { for (const key of memorySettings?.credentials() ?? []) if (!privateCredentials.includes(key)) privateCredentials.push(key); continuousWork?.stateChanged(); controller?.refresh('connection') } })
     memory = createMemoryService({ clock, store, scheduler, repository: memoryRepository, facts: memoryFacts, get model() { return fakeMemory?.model ?? taskModels.memory }, development: fakeMemory,
       compactRoot: async operationId => dshExecution ? dshExecution.compact(operationId) : { rootSessionId: '', outcome: 'no_range' },
@@ -716,16 +716,14 @@ void app.whenReady().then(async () => {
           const snapshot = controller!.getSnapshot()
           return controller!.dispatch({ protocolVersion: 1, epoch: snapshot.epoch, requestId, type: 'mode.set', mode }).status === 'accepted'
         },
-        // Spending safety: turns that run without you are held to the autonomous allowance. Your own turns are held to
-        // the daily caps only when someone set them on purpose (a booth operator; a cap set at a booth binds personal
-        // mode too); with the defaults they are recorded, as DSH work has been since 1.0. Scripted replies cost nothing:
-        // developer scenes are recorded only, however long their synthetic timelines run.
+        // Spending safety: only spontaneous background work is refused past the autonomous budget. Turns you started
+        // yourself, and explicit retries in the book, are recorded but never blocked (a booth operator's caps still
+        // bind every turn). Scripted replies cost nothing: developer scenes are recorded only.
         admit: ({ bucket, units }) => {
           if (!resourceBudget) return null
-          let configured = true; try { configured = resourceBudget.limitsConfigured() } catch { /* unreadable ledger: fail closed */ }
-          const enforced = !scriptedEndpoint && (bucket === 'autonomous' || prepared.booth || configured)
-          try { if (enforced) resourceBudget.reserveModel(units, bucket); else resourceBudget.recordModel(units, bucket); return null }
-          catch (error) { return enforced ? error instanceof ResourceFailure ? error.code : 'unavailable' : null }
+          const enforced = !scriptedEndpoint && (bucket === 'autonomous' || prepared.booth)
+          try { if (enforced) resourceBudget.reserveModel(units, bucket, bucket === 'autonomous' ? 'other' : undefined); else resourceBudget.recordModel(units, bucket); return null }
+          catch (error) { return error instanceof ResourceFailure ? error.code : 'unavailable' }
         },
         reference: async ({ requestId, firstOfSession }) => {
           // Your last three lines (the new one is already in the journal).
@@ -823,7 +821,7 @@ void app.whenReady().then(async () => {
         const loaded = resolveModelProviders(await readModelProviders(file), routing)
         providers.clear(); for (const [slot, config] of loaded) providers.set(slot, config)
         for (const key of await readPrivateCredentialValues(file)) if (!privateCredentials.includes(key)) privateCredentials.push(key)
-        taskModels = createTaskModelPorts(providers, clock, store!, undefined, resourceBudget, !privacyEnabled())
+        taskModels = createTaskModelPorts(providers, clock, store!, undefined, resourceBudget, !privacyEnabled(), () => memory?.manualActive() ? 'work' : 'autonomous')
         if (!privacyEnabled()) prepared.pluginSettings.update((draft) => { draft.fileFilteringEnabled = false })
         modelReady = prepared.developer || providers.has('chat')
         await continuousWork?.disconnect(); await dshExecution?.close(); await rootHost?.close(); rootHost = createRootHost({ dataDir }); await extensionHost?.close(); extensionHost = undefined; dshExecution = createDsh()

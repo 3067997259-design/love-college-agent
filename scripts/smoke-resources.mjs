@@ -60,12 +60,13 @@ try {
   assert.equal(calls, 1, 'BUDGET_REJECTION_DISPATCHED_HTTP')
   await stop(); delete env.LCA_BOOTH; await launch(); assert.equal((await snapshot()).resources.configurable, true)
   assert.equal((await snapshot()).resources.model.totalLimitUnits, 10000); assert.equal((await snapshot()).resources.model.totalReservedUnits, charged.totalReservedUnits)
-  await accepted({ type: 'message.send', text: '个人模式也不能绕过共享预算。' }); await waitFor((s) => s.task?.status === 'failed' && s.task.error?.code === 'budget-exceeded', 'PERSONAL_CAP_BYPASS'); assert.equal(calls, 1)
+  await accepted({ type: 'message.send', text: '用户主动发的消息不该被自主预算挡住。' }); await waitFor((s) => s.task?.status === 'completed', 'PERSONAL_TURN_BLOCKED'); assert.equal(calls, 2)
+  assert.ok((await snapshot()).resources.model.totalReservedUnits > charged.totalReservedUnits, 'PERSONAL_TURN_NOT_RECORDED')
   await stop(); const authority = join(data, 'runtime-resources', 'usage.jsonl'); const authorityBeforeCorruption = await readFile(authority, 'utf8')
   for (const marker of ['PRIVATE_', 'synthetic-resource', 'http', '桃子']) assert.ok(!authorityBeforeCorruption.includes(marker))
   await appendFile(authority, '{'); await launch(); assert.equal((await snapshot()).resources.status, 'unavailable'); assert.equal((await snapshot()).resources.model.totalReservedUnits, null)
   assert.equal((await snapshot()).onboarding.userName, 'PRIVATE_OWNER_CANARY')
-  await accepted({ type: 'message.send', text: '坏账本不应该清零或继续请求。' }); await waitFor((s) => s.task?.status === 'failed' && s.task.error?.code === 'unavailable', 'CORRUPT_LEDGER_NOT_CLOSED'); assert.equal(calls, 1)
+  await accepted({ type: 'message.send', text: '坏账本不应该清零或继续请求。' }); await waitFor((s) => s.task?.status === 'failed' && s.task.error?.code === 'unavailable', 'CORRUPT_LEDGER_NOT_CLOSED'); assert.equal(calls, 2)
   assert.equal(await readFile(authority, 'utf8'), authorityBeforeCorruption + '{'); await stop()
 
   // Speech has a separate natural-day character budget, also outside the developer book.

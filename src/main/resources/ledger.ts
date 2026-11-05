@@ -13,18 +13,27 @@ export const resourceLimits = z.strictObject({ dailyTotalUnits: z.number().int()
  * therefore blocked the diary for the rest of the day. Keep room for a full day; both
  * caps are editable in settings, and every admission is still recorded. */
 const defaults = { dailyTotalUnits: 800_000, dailyAutonomousUnits: 300_000 }
+/** Shares of the autonomous cap. Memory upkeep can no longer eat the diary's share. */
+export const PURPOSE_SHARES = { memory: 0.5, diary: 0.2, mail: 0.1, desk: 0.1, other: 0.1 } as const
+export type ResourcePurpose = keyof typeof PURPOSE_SHARES
+const purposeSchema = z.enum(['memory', 'diary', 'mail', 'desk', 'other'])
+export const purposeCeilings = (autonomousLimit: number): Record<ResourcePurpose, number> => ({
+  memory: Math.floor(autonomousLimit * PURPOSE_SHARES.memory), diary: Math.floor(autonomousLimit * PURPOSE_SHARES.diary),
+  mail: Math.floor(autonomousLimit * PURPOSE_SHARES.mail), desk: Math.floor(autonomousLimit * PURPOSE_SHARES.desk),
+  other: autonomousLimit - Math.floor(autonomousLimit * PURPOSE_SHARES.memory) - Math.floor(autonomousLimit * PURPOSE_SHARES.diary) - Math.floor(autonomousLimit * PURPOSE_SHARES.mail) - Math.floor(autonomousLimit * PURPOSE_SHARES.desk),
+})
 const envelope = { version: z.literal(1), seq: z.number().int().positive(), atMs: z.number().int().nonnegative() }
 const recordId = z.string().regex(/^(?:[a-f0-9-]{36}|legacy:[a-f0-9]{64})$/)
 const event = z.discriminatedUnion('kind', [
   z.strictObject({ ...envelope, kind: z.literal('header'), id: z.string().uuid() }),
-  z.strictObject({ ...envelope, kind: z.literal('model'), id: recordId, units: z.number().int().positive().max(20_000_000), bucket: z.enum(['work', 'autonomous']), legacy: z.boolean().optional() }),
+  z.strictObject({ ...envelope, kind: z.literal('model'), id: recordId, units: z.number().int().positive().max(20_000_000), bucket: z.enum(['work', 'autonomous']), purpose: purposeSchema.optional(), legacy: z.boolean().optional() }),
   z.strictObject({ ...envelope, kind: z.literal('speech'), id: recordId, chars: z.number().int().min(1).max(1200), legacy: z.boolean().optional() }),
   z.strictObject({ ...envelope, kind: z.literal('bootstrap'), profile: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ ...envelope, kind: z.literal('limits'), dailyTotalUnits: z.number().int().min(10000).max(5_000_000), dailyAutonomousUnits: z.number().int().nonnegative().max(5_000_000) }),
 ])
 type Row = z.infer<typeof event>
 type Input = Row extends infer R ? R extends Row ? Omit<R, 'version' | 'seq'> : never : never
-export type ResourceAdmissions = { reserveModel(units: number, bucket: 'work' | 'autonomous'): string; reserveSpeech(chars: number): string }
+export type ResourceAdmissions = { reserveModel(units: number, bucket: 'work' | 'autonomous', purpose?: ResourcePurpose): string; recordModel?(units: number, bucket: 'work' | 'autonomous', purpose?: ResourcePurpose): string; reserveSpeech(chars: number): string }
 type Atomic = <T>(body: () => T) => T
 const maxBytes = 64 * 1024 * 1024
 
@@ -70,18 +79,27 @@ export function openResourceLedger(options: { root: string; clock: Clock; atomic
     read() // A partial/corrupt/deleted ledger fails closed, never recreates a zero balance.
   })
   return {
-    reserveModel: (units: number, bucket: 'work' | 'autonomous') => protectedCall(() => {
+    /** Spontaneous background work is refused past its own share; a user's own turn is
+     * recorded with recordModel instead and is never blocked by the autonomous bucket. */
+    reserveModel: (units: number, bucket: 'work' | 'autonomous', purpose?: ResourcePurpose) => protectedCall(() => {
       if (!Number.isSafeInteger(units) || units <= 0 || units > 20_000_000 || !['work', 'autonomous'].includes(bucket)) throw new ResourceFailure('invalid-command')
+      if (bucket === 'autonomous' && !purpose) throw new ResourceFailure('invalid-command')
       const rows = read(); const cap = limits(rows); const today = modelRows(rows)
-      if (today.reduce((sum, row) => sum + row.units, 0) + units > cap.dailyTotalUnits || bucket === 'autonomous' && today.filter((row) => row.bucket === 'autonomous').reduce((sum, row) => sum + row.units, 0) + units > cap.dailyAutonomousUnits) throw new ResourceFailure('budget-exceeded')
-      const id = randomUUID(); append([{ kind: 'model', id, units, bucket, atMs: clock.nowMs() }]); return id
+      const autonomous = today.filter((row) => row.bucket === 'autonomous')
+      if (today.reduce((sum, row) => sum + row.units, 0) + units > cap.dailyTotalUnits) throw new ResourceFailure('budget-exceeded')
+      if (bucket === 'autonomous') {
+        if (autonomous.reduce((sum, row) => sum + row.units, 0) + units > cap.dailyAutonomousUnits) throw new ResourceFailure('budget-exceeded')
+        const used = autonomous.filter((row) => (row.purpose ?? 'other') === purpose).reduce((sum, row) => sum + row.units, 0)
+        if (used + units > purposeCeilings(cap.dailyAutonomousUnits)[purpose!]) throw new ResourceFailure('budget-exceeded')
+      }
+      const id = randomUUID(); append([{ kind: 'model', id, units, bucket, ...(purpose ? { purpose } : {}), atMs: clock.nowMs() }]); return id
     }),
     /** Someone set the caps on purpose (a booth operator): they then bind every turn, in any mode. */
     limitsConfigured: () => protectedCall(() => read().some((row) => row.kind === 'limits')),
-    /** Spending you started yourself is recorded, not refused, while no caps were set on purpose (DSH turns you sent). */
-    recordModel: (units: number, bucket: 'work' | 'autonomous') => protectedCall(() => {
+    /** Spending the user started (a sent message, an explicit retry) is recorded, not refused. */
+    recordModel: (units: number, bucket: 'work' | 'autonomous', purpose?: ResourcePurpose) => protectedCall(() => {
       if (!Number.isSafeInteger(units) || units <= 0 || units > 20_000_000 || !['work', 'autonomous'].includes(bucket)) throw new ResourceFailure('invalid-command')
-      const id = randomUUID(); append([{ kind: 'model', id, units, bucket, atMs: clock.nowMs() }]); return id
+      const id = randomUUID(); append([{ kind: 'model', id, units, bucket, ...(purpose ? { purpose } : {}), atMs: clock.nowMs() }]); return id
     }),
     reserveSpeech: (chars: number) => protectedCall(() => {
       if (!Number.isSafeInteger(chars) || chars < 1 || chars > 1200) throw new ResourceFailure('invalid-command')
@@ -108,11 +126,15 @@ export function openResourceLedger(options: { root: string; clock: Clock; atomic
       append([...additions, { kind: 'bootstrap', profile: profileHash, atMs: clock.nowMs() }])
     }),
     view: (): ResourceBudgetView => {
+      const ceilings = purposeCeilings(defaults.dailyAutonomousUnits)
+      const emptyBreakdown = { memory: 0, diary: 0, mail: 0, desk: 0, other: 0 }
       const base = { status: 'unavailable' as 'ready' | 'unavailable', accounting: 'reserved-units' as const, configurable: options.configurable,
-        model: { dayKey: modelDay(), totalReservedUnits: null as number | null, autonomousReservedUnits: null as number | null, totalLimitUnits: defaults.dailyTotalUnits, autonomousLimitUnits: defaults.dailyAutonomousUnits, attemptCount: null as number | null, legacyReservedUnits: null as number | null },
+        model: { dayKey: modelDay(), totalReservedUnits: null as number | null, autonomousReservedUnits: null as number | null, totalLimitUnits: defaults.dailyTotalUnits, autonomousLimitUnits: defaults.dailyAutonomousUnits, attemptCount: null as number | null, legacyReservedUnits: null as number | null, autonomousBreakdown: emptyBreakdown, autonomousPurposeLimits: ceilings },
         speech: { dayKey: speechDay(), reservedChars: null as number | null, charLimit: 12000, attemptCount: null as number | null, attemptLimit: 30 } }
       try { return protectedCall(() => { const rows = read(); const cap = limits(rows); const model = modelRows(rows); const speech = speechRows(rows)
-        return { ...base, status: 'ready', model: { dayKey: modelDay(), totalReservedUnits: model.reduce((sum, row) => sum + row.units, 0), autonomousReservedUnits: model.filter((row) => row.bucket === 'autonomous').reduce((sum, row) => sum + row.units, 0), totalLimitUnits: cap.dailyTotalUnits, autonomousLimitUnits: cap.dailyAutonomousUnits, attemptCount: model.length, legacyReservedUnits: model.filter((row) => row.legacy).reduce((sum, row) => sum + row.units, 0) }, speech: { ...base.speech, reservedChars: speech.reduce((sum, row) => sum + row.chars, 0), attemptCount: speech.length } }
+        const breakdown = { ...emptyBreakdown }
+        for (const row of model) if (row.bucket === 'autonomous') breakdown[row.purpose ?? 'other'] += row.units
+        return { ...base, status: 'ready', model: { dayKey: modelDay(), totalReservedUnits: model.reduce((sum, row) => sum + row.units, 0), autonomousReservedUnits: model.filter((row) => row.bucket === 'autonomous').reduce((sum, row) => sum + row.units, 0), totalLimitUnits: cap.dailyTotalUnits, autonomousLimitUnits: cap.dailyAutonomousUnits, attemptCount: model.length, legacyReservedUnits: model.filter((row) => row.legacy).reduce((sum, row) => sum + row.units, 0), autonomousBreakdown: breakdown, autonomousPurposeLimits: purposeCeilings(cap.dailyAutonomousUnits) }, speech: { ...base.speech, reservedChars: speech.reduce((sum, row) => sum + row.chars, 0), attemptCount: speech.length } }
       }) } catch { return base }
     },
   }

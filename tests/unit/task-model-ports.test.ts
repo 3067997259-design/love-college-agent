@@ -28,14 +28,17 @@ function response(value: unknown) {
   return new Response('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: JSON.stringify(value) }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 3 } }) + '\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
 }
 describe('production task model ports without runtime model calls', () => {
-  it('gates background and privacy attempts on durable admission before any HTTP or fallback', async () => {
+  it('gates spontaneous background work before HTTP while recording user-started privacy work', async () => {
     const f = fixture(); let calls = 0; const buckets: string[] = []
     const ports = createTaskModelPorts(configs, f.clock, f.store, async () => { calls++; return response({}) }, {
-      reserveModel: (_units, bucket) => { buckets.push(bucket); throw new ResourceFailure('budget-exceeded') }, reserveSpeech: () => crypto.randomUUID(),
+      reserveModel: (_units, bucket) => { buckets.push(bucket); throw new ResourceFailure('budget-exceeded') },
+      recordModel: (_units, bucket) => { buckets.push(bucket); return crypto.randomUUID() }, reserveSpeech: () => crypto.randomUUID(),
     })
     await expect(ports.lifeWork!.produce({ kind: 'read', step: 1, totalSteps: 3, material: 'synthetic', previous: '' }, new AbortController().signal)).rejects.toMatchObject({ code: 'budget-exceeded' })
-    await expect(ports.mail!.extract({ sourceId: 'synthetic', subject: 'synthetic', body: 'synthetic', sentAtIso: '2026-10-17T08:00:00+08:00' }, new AbortController().signal)).rejects.toMatchObject({ code: 'budget-exceeded' })
-    expect(buckets).toEqual(['autonomous', 'work']); expect(calls).toBe(0); expect(f.rows.some((row) => row.type === 'model/attempt')).toBe(false)
+    // The mail scan is a user-started action: it is recorded, not refused by the autonomous bucket.
+    await expect(ports.mail!.extract({ sourceId: 'synthetic', subject: 'synthetic', body: 'synthetic', sentAtIso: '2026-10-17T08:00:00+08:00' }, new AbortController().signal)).resolves.toBeDefined()
+    expect(buckets).toEqual(['autonomous', 'work']); expect(calls).toBe(1)
+    expect(f.rows.filter((row) => row.type === 'model/attempt' && row.status === 'started')).toMatchObject([{ bucket: 'work', slot: 'privacy' }])
   })
   it('runs private synthetic desk production only on background with strict JSON and metadata-only attempts', async () => {
     const f = fixture(); let calls = 0; let body: Record<string, unknown> = {}
@@ -57,7 +60,7 @@ describe('production task model ports without runtime model calls', () => {
     const input = { kind: 'write' as const, step: 1, totalSteps: 3, material: 'synthetic', previous: '' }
     await expect(ports.lifeWork!.produce({ ...input, material: '文'.repeat(5000) }, new AbortController().signal)).rejects.toBeDefined(); expect(calls).toBe(0)
     await expect(ports.lifeWork!.produce(input, new AbortController().signal)).rejects.toBeDefined(); expect(calls).toBe(1)
-    f.store.append({ type: 'model/attempt', turnId: 'used', slot: 'background', attempt: 1, status: 'started', waitMs: 0, bucket: 'autonomous', reservedTokens: 100000 })
+    f.store.append({ type: 'model/attempt', turnId: 'used', slot: 'background', attempt: 1, status: 'started', waitMs: 0, bucket: 'autonomous', reservedTokens: 300000 })
     await expect(ports.lifeWork!.produce(input, new AbortController().signal)).rejects.toMatchObject({ code: 'budget-exceeded' }); expect(calls).toBe(1)
   })
   it('cancels private production, ignores a late transport, and never records its body as model-seen', async () => {
@@ -142,8 +145,11 @@ describe('production task model ports without runtime model calls', () => {
     const f = fixture(); const models: string[] = []
     const ports = createTaskModelPorts(configs, f.clock, f.store, async (_url, init) => { models.push(JSON.parse(String(init.body)).model); return response({ entry: 'SYNTHETIC_SUBJECTIVE_DIARY' }) })
     expect(await ports.diary!.write([{ id: 'seen', text: 'VISIBLE_ONLY' }], new AbortController().signal)).toEqual({ entry: 'SYNTHETIC_SUBJECTIVE_DIARY' })
-    expect(models).toEqual([configs.get('background')!.model]); expect(JSON.stringify(f.rows)).not.toContain('SYNTHETIC_SUBJECTIVE_DIARY')
-    expect(f.rows.filter((row) => row.type === 'model/attempt' && row.status === 'started')).toMatchObject([{ bucket: 'autonomous', slot: 'background' }])
+    // 「请她补写」is the user's request: it is recorded as a work call and never charged
+    // to the autonomous diary share.
+    expect(await ports.diary!.write([{ id: 'seen', text: 'VISIBLE_ONLY' }], new AbortController().signal, { manual: true })).toEqual({ entry: 'SYNTHETIC_SUBJECTIVE_DIARY' })
+    expect(models).toEqual([configs.get('background')!.model, configs.get('background')!.model]); expect(JSON.stringify(f.rows)).not.toContain('SYNTHETIC_SUBJECTIVE_DIARY')
+    expect(f.rows.filter((row) => row.type === 'model/attempt' && row.status === 'started')).toMatchObject([{ bucket: 'autonomous', slot: 'background' }, { bucket: 'work', slot: 'background' }])
   })
   it('routes memory to background without tools and preserves scrubbed provenance IDs', async () => {
     const f = fixture(); let model = ''; let auth = ''; let sourceId = ''; let tools: unknown

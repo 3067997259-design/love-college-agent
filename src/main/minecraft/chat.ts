@@ -79,10 +79,11 @@ export function createMinecraftChat(options: { root: string; clock: Clock; mainS
             const rows = (options.mainStore.history?.() ?? options.mainStore.records()).filter((row) => row.type === 'model/attempt' && row.status === 'started' && sessionDayKey(options.clock, row.atMs) === sessionDayKey(options.clock))
             const used = rows.reduce((sum, row) => sum + (row.type === 'model/attempt' ? row.reservedTokens ?? 0 : 0), 0)
             const autonomous = rows.reduce((sum, row) => sum + (row.type === 'model/attempt' && row.bucket === 'autonomous' ? row.reservedTokens ?? 0 : 0), 0)
-            if (!options.budget && (used + reservation > 500_000 || autonomous + reservation > 100_000)) throw new MemoryFailure('budget-exceeded')
-            resourceReservationId = options.budget?.reserveModel(reservation, 'autonomous')
+            if (!options.budget && (used + reservation > 800_000 || autonomous + reservation > 300_000)) throw new MemoryFailure('budget-exceeded')
+            // A game round you started is your turn: record it, never refuse it from the autonomous bucket.
+            resourceReservationId = options.budget?.recordModel?.(reservation, 'work', 'other')
           }
-          options.mainStore.append({ type: 'model/attempt', turnId: 'minecraft:' + id, ...attempt, bucket: 'autonomous', ...(attempt.status === 'started' ? { reservedTokens: reservation, ...(resourceReservationId ? { resourceReservationId } : {}) } : {}) }); onAttempt(attempt)
+          options.mainStore.append({ type: 'model/attempt', turnId: 'minecraft:' + id, ...attempt, bucket: 'work', ...(attempt.status === 'started' ? { reservedTokens: reservation, ...(resourceReservationId ? { resourceReservationId } : {}) } : {}) }); onAttempt(attempt)
         })
         return { ...reply, text: scrub(reply.text), toolCalls: reply.toolCalls.map((call) => ({ ...call, arguments: scrub(call.arguments) })) }
       } }

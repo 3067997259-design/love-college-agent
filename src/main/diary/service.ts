@@ -50,7 +50,7 @@ export function createDiary(options: { clock: Clock; scheduler: Scheduler; store
     worker = (async () => {
       const stop = clock.after(DIARY_WRITE_TIMEOUT_MS, () => abort.abort()); let remove = () => {}
       try {
-        const output = await Promise.race([options.model!.write(input, abort.signal), new Promise<never>((_resolve, reject) => { const listener = () => reject(new Error('DIARY_STOPPED')); abort.signal.addEventListener('abort', listener, { once: true }); remove = () => abort.signal.removeEventListener('abort', listener); if (abort.signal.aborted) listener() })])
+        const output = await Promise.race([options.model!.write(input, abort.signal, { manual }), new Promise<never>((_resolve, reject) => { const listener = () => reject(new Error('DIARY_STOPPED')); abort.signal.addEventListener('abort', listener, { once: true }); remove = () => abort.signal.removeEventListener('abort', listener); if (abort.signal.aborted) listener() })])
         abort.signal.throwIfAborted(); const parsed = diaryOutput.parse(output); const text = redactFixed(parsed.entry); const key = randomBytes(8).toString('hex').toUpperCase()
         const asset = options.assets.write(encryptDiaryZip(text, key, day), 'zip'); store.append({ type: 'asset/stored', asset })
         const id = 'diary:' + createHash('sha256').update(JSON.stringify([store.scope.userId, store.scope.characterId, day])).digest('hex')

@@ -57,7 +57,7 @@ const detailsOf = (value: Config): Partial<Record<ModelProviderSlot, ModelSlotDe
     capabilities: { editable: canDeclareCapabilities(config), ...(declared ? { declared } : {}) } }]]
 }))
 
-export function createModelSettings(options: { root: string; fallback?: string; apply?(): Promise<void>; developer: boolean; slots: readonly ProviderSlot[]; clock: Clock; canConfigure(): boolean; budget?: { reserveModel(units: number, bucket: 'work' | 'autonomous'): void }; choose(): Promise<string | null>; changed(): void
+export function createModelSettings(options: { root: string; fallback?: string; apply?(): Promise<void>; developer: boolean; slots: readonly ProviderSlot[]; clock: Clock; canConfigure(): boolean; budget?: { reserveModel(units: number, bucket: 'work' | 'autonomous'): void; recordModel?(units: number, bucket: 'work' | 'autonomous', purpose?: 'memory' | 'diary' | 'mail' | 'desk' | 'other'): void }; choose(): Promise<string | null>; changed(): void
   /** A thinking level changed: DSH applies it from the next step, no restart. */
   effortsChanged?(efforts: ModelEfforts): void
   /** Test chat or work through DSH, the path her turns use. Rejects when DSH is not running. */
@@ -236,8 +236,8 @@ export function createModelSettings(options: { root: string; fallback?: string; 
             const value = readCurrent(); const routing = inferModelRouting(value); const effective = (command.slot === 'privacy' || command.slot === 'background' || command.slot === 'work') && routing[command.slot] === 'follow-main' ? 'chat' : command.slot; const config = value.providers[effective]
             if (!config || !('base_url' in config) || !config.base_url || !config.api_key || !config.model) throw new ModelFailure('configuration')
             const keys = Object.values(value.providers).flatMap((entry) => entry.api_key ? [entry.api_key] : [])
-            // 固定小请求也走资源账本：按保守的 2000 单位预留，失败同样计入尝试。
-            options.budget?.reserveModel(2_000, 'work')
+            // 固定小请求也走资源账本：按保守的 2000 单位记录；这是用户点的连接测试，不因额度被拒
+            if (options.budget?.recordModel) options.budget.recordModel(2_000, 'work'); else options.budget?.reserveModel(2_000, 'work')
             const role = roleOf(command.slot)
             if (role && options.probeDsh) {
               // Her chat and work run in DSH: test that path, not a client her turns never use. A native vendor's

@@ -16,9 +16,17 @@ function fixture(configurable = true) {
   const ledger = openResourceLedger(options)
   return { root, clock, ledger, options, reopen: () => openResourceLedger(options) }
 }
-it('reserves before dispatch, never refunds failed requests, and survives reopen independently of a book', () => {
-  const f = fixture(); f.ledger.reserveModel(5000, 'work'); f.ledger.reserveModel(300000, 'autonomous')
-  expect(() => f.ledger.reserveModel(1, 'autonomous')).toThrow(); expect(f.reopen().view().model).toMatchObject({ totalReservedUnits: 305000, autonomousReservedUnits: 300000, attemptCount: 2 })
+it('reserves before dispatch, never refunds failed requests, and splits the autonomous budget by purpose', () => {
+  const f = fixture(); f.ledger.reserveModel(5000, 'work'); f.ledger.reserveModel(149999, 'autonomous', 'memory')
+  // Memory upkeep can use its half of the 300k autonomous share but not the diary's.
+  expect(() => f.ledger.reserveModel(1, 'autonomous', 'memory')).not.toThrow()
+  expect(() => f.ledger.reserveModel(1, 'autonomous', 'memory')).toThrow()
+  f.ledger.reserveModel(60000, 'autonomous', 'diary')
+  expect(() => f.ledger.reserveModel(1, 'autonomous', 'diary')).toThrow()
+  expect(f.reopen().view().model).toMatchObject({ totalReservedUnits: 215000, autonomousReservedUnits: 210000, attemptCount: 4,
+    autonomousBreakdown: { memory: 150000, diary: 60000, mail: 0, desk: 0, other: 0 }, autonomousPurposeLimits: { memory: 150000, diary: 60000, mail: 30000, desk: 30000, other: 30000 } })
+  // A user-started call is recorded even when the autonomous bucket is full.
+  f.ledger.recordModel(8000, 'work'); expect(f.reopen().view().model.totalReservedUnits).toBe(223000)
   for (let i = 0; i < 10; i++) f.ledger.reserveSpeech(1200)
   expect(() => f.ledger.reserveSpeech(1)).toThrow(); expect(f.reopen().view().speech).toMatchObject({ reservedChars: 12000, attemptCount: 10 })
   const short = fixture(); for (let i = 0; i < 30; i++) short.ledger.reserveSpeech(1)
@@ -27,7 +35,7 @@ it('reserves before dispatch, never refunds failed requests, and survives reopen
 it('allows only an operator to change valid limits and applies reductions to subsequent admissions', () => {
   const f = fixture(); f.ledger.reserveModel(12000, 'work'); f.ledger.configure({ dailyTotalUnits: 10000, dailyAutonomousUnits: 0 })
   expect(() => f.ledger.reserveModel(1, 'work')).toThrow(); expect(f.ledger.view().model.totalReservedUnits).toBe(12000)
-  f.ledger.configure({ dailyTotalUnits: 1000000, dailyAutonomousUnits: 500000 }); f.ledger.reserveModel(200000, 'autonomous')
+  f.ledger.configure({ dailyTotalUnits: 1000000, dailyAutonomousUnits: 500000 }); f.ledger.reserveModel(200000, 'autonomous', 'memory')
   const normal = openResourceLedger({ ...f.options, configurable: false }); expect(normal.view().model.autonomousReservedUnits).toBe(200000)
   expect(() => normal.configure({ dailyTotalUnits: 10000, dailyAutonomousUnits: 0 })).toThrow()
   for (const value of [{ dailyTotalUnits: 10000, dailyAutonomousUnits: 10001 }, { dailyTotalUnits: 5000001, dailyAutonomousUnits: 0 }, { dailyTotalUnits: 9999, dailyAutonomousUnits: 0 }, { dailyTotalUnits: 10000.1, dailyAutonomousUnits: 0 }]) expect(() => f.ledger.configure(value)).toThrow()
@@ -36,7 +44,7 @@ it('keeps model 04:00 days distinct from speech calendar days', () => {
   const f = fixture(); f.ledger.reserveModel(1000, 'work'); f.ledger.reserveSpeech(10)
   expect(f.ledger.view().model.dayKey).toBe('2026-10-16'); expect(f.ledger.view().speech.dayKey).toBe('2026-10-17')
   f.clock.advanceBy(120000); expect(f.ledger.view().model.totalReservedUnits).toBe(0); expect(f.ledger.view().speech.reservedChars).toBe(10)
-  f.ledger.reserveModel(2000, 'autonomous'); f.clock.advanceBy(20 * 3600000)
+  f.ledger.reserveModel(2000, 'autonomous', 'memory'); f.clock.advanceBy(20 * 3600000)
   expect(f.ledger.view().model.totalReservedUnits).toBe(2000); expect(f.ledger.view().speech.reservedChars).toBe(0)
 })
 it('migrates legacy current-day reservations once without storing source identifiers or charging imported modern books', () => {
