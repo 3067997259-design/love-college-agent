@@ -198,7 +198,7 @@ export function PluginCenter({ snapshot, bridge }: { snapshot: AppSnapshot; brid
           {notice && <p className="plugin-notice" role="status">{notice}</p>}
           <div className="plugin-scroll">
             <ExtensionPanel snapshot={snapshot} bridge={bridge} search={search} />
-            <h3 className="plugin-section">{copy.builtin}</h3>
+            <h3 className="plugin-section">书房伴随能力</h3>
             <ul className="plugin-list">{visible(builtinRows).map(renderRow)}</ul>
             <h3 className="plugin-section">{copy.installedPlugins}</h3>
             {externalRows.length === 0

@@ -14,3 +14,31 @@
 .collaboration-task > span { display: block; font-size: .8rem; }.collaboration-result { white-space: pre-wrap; line-height: 1.6; }
 @media (max-width: 700px) { .collaboration { right: .75rem; bottom: .75rem; }.collaboration-sheet { max-height: 55vh; width: min(20rem, calc(100vw - 3rem)); } }
 .collaboration-shot { margin-right: .5rem; }
+
+.collaboration-tab.collaboration-quiet {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: none;
+}
+.collaboration-tab.collaboration-quiet::before {
+  content: '';
+  display: block;
+  width: 7px;
+  height: 7px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--pencil) 70%, transparent);
+  opacity: 0.45;
+  transition: opacity var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.collaboration-tab.collaboration-quiet:hover::before,
+.collaboration-tab.collaboration-quiet:focus-visible::before { opacity: 1; background: var(--peach-mid); }
+@media (prefers-reduced-motion: reduce) {
+  .collaboration-tab.collaboration-quiet::before { transition: none; }
+}
+

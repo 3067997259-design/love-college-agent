@@ -116,6 +116,14 @@ try {
   assert.equal((await send({ type: 'pomodoro.confirm', planId: proposal.id })).status, 'accepted')
   state = await snapshot(); assert.equal(state.pomodoro.endsAtMs, running.endsAtMs); assert.equal(state.pomodoro.remainingMs, running.remainingMs); assert.equal(state.pomodoro.focusIndex, 2); assert.equal(state.pomodoro.completedCount, 1)
   assert.equal(state.windows.mode, 'book'); assert.equal((await windows()).length, 1, 'CONFIRMATION_RECOLLAPSED_CURRENT_FOCUS')
+  // During a focus the door sign reads 安静陪着. A click only asks; it must not end the focus by itself (fixed 2026-11-05).
+  const doorAsk = page.getByRole('dialog', { name: '提前结束专注？', exact: true })
+  assert.equal(await page.locator('.door-sign').innerText(), '安静陪着')
+  await page.locator('.door-sign').click(); await doorAsk.waitFor()
+  state = await snapshot(); assert.equal(state.pomodoro.phase, 'focus'); assert.equal(state.pomodoro.status, 'running'); assert.equal(state.companion.mode, 'quiet')
+  await doorAsk.getByRole('button', { name: '继续专注', exact: true }).click(); await doorAsk.waitFor({ state: 'hidden' })
+  await page.locator('.door-sign').click(); await doorAsk.waitFor(); await page.keyboard.press('Escape'); await doorAsk.waitFor({ state: 'hidden' })
+  state = await snapshot(); assert.equal(state.pomodoro.phase, 'focus'); assert.equal(state.pomodoro.endsAtMs, running.endsAtMs); assert.equal(state.companion.mode, 'quiet')
   const again = instance.waitForEvent('window'); await send({ type: 'window.mini' }); mini = await again; await verifyMini(mini)
   await send({ type: 'lights.set', lightsOut: true }); const paused = await snapshot(); assert.equal(paused.pomodoro.status, 'paused')
   assert.equal(paused.windows.mode, 'mini'); assert.equal((await windows()).find((w) => !w.mini).visible, false)
@@ -129,6 +137,18 @@ try {
   await send({ type: 'pomodoro.stop' }); assert.equal((await snapshot()).pomodoro.plan.status, 'finished')
   assert.equal((await snapshot()).windows.mode, 'mini'); await expandMini(mini)
   await page.screenshot({ path: join(root, 'test-results/pomodoro.png') })
+  // Only the confirmation ends the focus early: the segment does not count and a short break starts.
+  const done = (await snapshot()).pomodoro.focusIndex
+  await send({ type: 'pomodoro.plan', plan: { ...revisedInput, plannedCount: done + 1 } })
+  assert.equal((await send({ type: 'pomodoro.confirm', planId: (await snapshot()).pomodoro.proposal.id })).status, 'accepted')
+  const last = instance.waitForEvent('window'); await send({ type: 'pomodoro.start', planId: (await snapshot()).pomodoro.plan.id }); mini = await last; await verifyMini(mini); await expandMini(mini)
+  await page.locator('.door-sign').click(); await doorAsk.waitFor()
+  await page.screenshot({ path: join(root, 'test-results/pomodoro-door-confirm.png') })
+  await doorAsk.getByRole('button', { name: /^提前结束这一段/ }).click()
+  await waitFor((s) => s.pomodoro.phase === 'short-break', 'DOOR_CONFIRM_DID_NOT_END_FOCUS')
+  state = await snapshot(); assert.equal(state.pomodoro.focusIndex, done); assert.equal(state.companion.mode, 'rest')
+  await page.locator('.door-sign', { hasText: '常伴' }).waitFor()
+  await send({ type: 'pomodoro.stop' })
   await instance.close()
   // Booth/normal mode uses the same window whitelist; forcing opaque mode must not require developer tools.
   env.LCA_DATA_DIR = join(data, 'opaque-booth'); env.LCA_PROVIDERS_FILE = join(data, 'absent-test-providers.json'); env.LCA_MINI_OPAQUE = '1'; env.LCA_BOOTH = '1'
@@ -155,6 +175,6 @@ try {
   const blackState = await snapshot(); assert.equal(blackState.windows.miniPresentation, 'opaque')
   assert.equal((await windows()).filter((w) => w.mini).length, 1); assert.equal(blackMini.isClosed(), true)
   const opaqueMini = instance.windows().find((w) => w !== page && !w.isClosed()); await opaqueMini.locator('.mini').waitFor(); await expandMini(opaqueMini)
-  console.log('Pomodoro smoke: confirmed plans, items, SQLite deadlines/restart, timing/lights/interruption, real dual-window switching and native click-through calls, mini retention through rest/stop/lights, expand destroys, booth opaque rounded fallback, simulated black-compositor replacement and no mini after restart verified; real desktop pointer/driver acceptance still manual.')
+  console.log('Pomodoro smoke: confirmed plans, items, SQLite deadlines/restart, timing/lights/interruption, door-sign confirmation before an early end, real dual-window switching and native click-through calls, mini retention through rest/stop/lights, expand destroys, booth opaque rounded fallback, simulated black-compositor replacement and no mini after restart verified; real desktop pointer/driver acceptance still manual.')
   }
 } finally { await instance?.close() }

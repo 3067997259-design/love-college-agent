@@ -39,8 +39,9 @@ export function OnboardingPage({ snapshot, bridge, step, painted, tapped = false
   const [aboutUser, setAboutUser] = useState(snapshot.onboarding?.aboutUser ?? '')
   const [more, setMore] = useState(!!snapshot.onboarding?.aboutUser)
   const [error, setError] = useState('')
-  // 接模型这一步就在这页上填（聊天模型和工作模型）；预览没有真实接口时不显示
-  const [filling, setFilling] = useState(false)
+  // 接模型这一步就在这页上填（聊天模型和工作模型）；预览没有真实接口时不显示。
+  // 桌面版默认直接展开填写卡片：新手不该先面对一个空页面再去找“填写模型连接”的按钮。
+  const [filling, setFilling] = useState(!!snapshot.runtime)
   const send = async (body: CommandBody) => {
     const result = await sendCommand(bridge, snapshot.epoch, body)
     setError(result.ok ? '' : copy.error)

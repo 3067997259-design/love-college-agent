@@ -209,10 +209,85 @@
   .dock-card { animation: none; }
   .work-pulse, .work-sending::after { animation: none; }
 }
-.continuous-works { font-size: 12px; padding: 6px 10px; max-height: 180px; overflow-y: auto; }
-.continuous-works summary { cursor: pointer; }
-.continuous-works ul { list-style: none; margin: 6px 0; padding: 0; }
-.continuous-works li { border-top: 1px solid currentColor; padding: 6px 0; }
-.continuous-works p { margin: 3px 0; overflow-wrap: anywhere; }
-.continuous-works small { opacity: .75; }
-.continuous-works button { margin: 4px 6px 0 0; font: inherit; }
+/* —— 输入框上方的「手上的工作」：书里的一张活动纸片，不是裸列表 —— */
+.continuous-works {
+  padding: 8px 12px 10px;
+  font-size: var(--fs-xs);
+  color: var(--graphite);
+  background: color-mix(in oklab, var(--paper) 88%, white);
+  border: 1px solid color-mix(in oklab, var(--pencil) 45%, transparent);
+  border-radius: 10px 7px 11px 8px;
+  box-shadow: var(--shadow-card);
+  max-height: 190px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.continuous-works > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.continuous-works > summary::-webkit-details-marker { display: none; }
+.continuous-works > summary:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 2px; border-radius: 4px; }
+/* 手写体的标题，和书页上别的小标题一致；前面一个小折角表示可展开 */
+.cw-title { font: 17px var(--font-hand); color: var(--ink-her); }
+.continuous-works > summary::before {
+  content: '';
+  flex: none;
+  align-self: center;
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--graphite);
+  border-bottom: 1.5px solid var(--graphite);
+  transform: rotate(-45deg);
+  transition: transform var(--dur) var(--ease-out);
+}
+.continuous-works[open] > summary::before { transform: rotate(45deg); }
+.cw-count { margin-left: auto; font-size: var(--fs-xs); color: var(--graphite); font-variant-numeric: tabular-nums; }
+/* 状态小徽章：中性纸签，不靠红绿区分，只靠文字 */
+.cw-badge {
+  flex: none;
+  padding: 0 8px;
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  color: var(--graphite);
+  border: 1px solid color-mix(in oklab, var(--pencil) 70%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--paper) 70%, white);
+  font-variant-numeric: tabular-nums;
+}
+.cw-badge[data-tone='active'] { color: var(--ink-her); border-color: color-mix(in oklab, var(--peach-mid) 60%, transparent); background: color-mix(in oklab, var(--peach) 30%, var(--paper)); }
+.cw-badge[data-tone='done'] { color: var(--ink-her); }
+.cw-badge[data-tone='failed'] { color: var(--notice-ink); border-color: color-mix(in oklab, var(--notice-bg) 80%, #8a6a2a); }
+.cw-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.cw-list:empty { display: none; }
+.cw-item {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed color-mix(in oklab, var(--pencil) 55%, transparent);
+}
+.cw-item:first-child { padding-top: 0; border-top: none; }
+.cw-item-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.cw-label { font: 15px var(--font-body); color: var(--ink-her); overflow-wrap: anywhere; }
+.cw-note { margin: 0; font-size: var(--fs-xs); line-height: 1.55; color: var(--graphite); overflow-wrap: anywhere; }
+.cw-progress { font-variant-numeric: tabular-nums; }
+.cw-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.cw-actions button {
+  margin: 0;
+  padding: 1px 10px;
+  font: var(--fs-xs) var(--font-body);
+  color: var(--ink-her);
+  background: color-mix(in oklab, var(--paper) 70%, white);
+  border: 1px solid color-mix(in oklab, var(--pencil) 70%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--dur-fast), border-color var(--dur-fast);
+}
+.cw-actions button:hover { background: var(--paper); border-color: var(--peach-mid); }
+.cw-actions button:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .continuous-works > summary::before { transition: none; }
+}

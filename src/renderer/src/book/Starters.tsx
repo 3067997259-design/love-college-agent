@@ -12,6 +12,17 @@ const familiar = (): string[] => { try { const value: unknown = JSON.parse(read(
 type Starter = { label: string; text?: string; action?: 'project' }
 
 /**
+ * 第一次和她开口的几件事：都是日常里真的会说的话，不是演示脚本。
+ * 选项文案留在代码里（不再从 voice/book.zh.json 读 items），改措辞不用动语言文件；
+ * 分组标题、项目提示和收起词仍读 copy.starters。
+ */
+const STARTERS: readonly Starter[] = [
+  { label: '帮我理一下今天的事', text: '帮我把今天要做的事理一下。' },
+  { label: '选一个我的项目文件夹', action: 'project' },
+  { label: '随便聊聊', text: '不知道该做什么，先陪我待一会儿吧。' },
+]
+
+/**
  * 第一次和她干活的几个开头（2026-10-20 用户：受众可能没用过 Agent，像第一次用 Claude Code 时先定工作目录、跑一次 /init）。
  * 不讲课：每个开头点一下就是一句真的请求；第一次换到自己的项目时，给一句“先熟悉一下这个项目”，只读不改。
  * 用过一次（你发了第一句话、点了开头或“不用了”）就收起；重新走一遍新手指引后再出现。只记在这台电脑上。需要 DSH 的工作环境（snapshot.work）。
@@ -54,7 +65,7 @@ export function Starters({ snapshot, say, pickProject }: { snapshot: AppSnapshot
   return (
     <div className="starters" role="group" aria-label={words.label}>
       <span className="starters-label">{words.label}</span>
-      {(words.items as Starter[]).map((item) => (
+      {STARTERS.map((item) => (
         <button key={item.label} type="button" className="choice-chip" title={item.text ?? words.projectHint}
           onClick={() => { if (item.action === 'project') pickProject(); else if (item.text) { doneStarters(); say(item.text) } }}>{item.label}</button>
       ))}

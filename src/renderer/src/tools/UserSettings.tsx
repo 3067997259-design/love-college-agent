@@ -70,7 +70,10 @@ export function UserSettings({ bridge, snapshot, onClose, onOpenPlugins }: { bri
       {booth && <Group name="Minecraft"><MinecraftControls {...props} /></Group>}
     </Section>
     <Section id="rhythm">
-      <Group name={words.groups.life}><LifeControls {...props} /><DiaryControls {...props} /><LegacyFlowRecords bridge={bridge} snapshot={snapshot} /></Group>
+      <Group name={words.groups.life}><LifeControls {...props} /><DiaryControls {...props} />
+        {/* 旧心流是 1.1 已退役的只读记录，留着能查，但不该和现在的东西挤在同一层 */}
+        <details className="settings-advanced" open><summary>旧心流记录（只读）</summary><LegacyFlowRecords bridge={bridge} snapshot={snapshot} /></details>
+      </Group>
     </Section>
     <Section id="book">
       {/* 展位是公共的机器，不收来访者的个人介绍 */}

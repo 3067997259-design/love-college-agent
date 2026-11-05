@@ -63,7 +63,7 @@ export function CandidateCard({ view, bridge, onCommand, entering, onReveal }: {
       </button>
       {onReveal && view.status !== 'ignored' && (
         <button className="link-button" onClick={onReveal}>
-          把原文放进这一轮
+          发给她看原文
         </button>
       )}
       {open && <Evidence state={evidence} />}

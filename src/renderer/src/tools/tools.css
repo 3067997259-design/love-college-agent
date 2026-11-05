@@ -169,6 +169,96 @@
 .settings-page .settings-head { margin: 0 -46px 4px -66px; padding: 34px 46px 10px 66px; background: linear-gradient(to right, var(--shadow-gutter) 0, transparent 70px) var(--paper); }
 .settings-page .settings-title { font-size: 28px; }
 
+/* —— 设置页的纸卡片（2026-11-05）：以前每个 Controls 都是裸排的 h2/p/input，
+     一页看下来分不清哪几行属于同一件事。现在每一组折叠起来就是一张纸，
+     标题仍在 summary 上，展开后内容落在一张浅色卡片里。 —— */
+.settings-group[open] {
+  margin: 6px 0 10px;
+  padding: 0 14px 12px;
+  background: color-mix(in oklab, var(--paper) 88%, white);
+  border: 1px solid color-mix(in oklab, var(--pencil) 45%, transparent);
+  border-radius: 10px;
+}
+.settings-group[open] > summary { margin: 0 -4px 2px; }
+.settings-group:not([open]) { margin: 2px 0; }
+/* 分区里直接露出来的块（没有折叠包裹的 Controls）也给一张纸 */
+.settings-section > .settings-surface,
+.settings-section > section:not(.settings-group),
+.settings-callout { border-radius: 10px; }
+.settings-section > section:not(.settings-group) {
+  margin: 6px 0 10px;
+  padding: 8px 14px 12px;
+  background: color-mix(in oklab, var(--paper) 88%, white);
+  border: 1px solid color-mix(in oklab, var(--pencil) 45%, transparent);
+  border-radius: 10px;
+}
+/* 展开的组里再套的第二层小标题不要顶得太紧 */
+.settings-group[open] > section > h2:first-child,
+.settings-group[open] > div > h2:first-child { margin-top: 8px; }
+
+/* —— 高级／维护项：默认展开（自动化脚本要直接点到），但明显淡一档，
+     让人一眼看出“这些平时不用管”。 —— */
+.settings-advanced {
+  margin: 10px 0 4px;
+  padding: 0 12px 10px;
+  background: color-mix(in oklab, var(--paper-edge) 26%, var(--paper));
+  border: 1px dashed color-mix(in oklab, var(--pencil) 55%, transparent);
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--graphite);
+}
+.settings-advanced > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -12px;
+  padding: 7px 12px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  color: var(--graphite);
+  border-radius: 9px;
+}
+.settings-advanced > summary::-webkit-details-marker { display: none; }
+.settings-advanced > summary::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--dur) var(--ease-out);
+}
+.settings-advanced[open] > summary::before { transform: rotate(45deg); }
+.settings-advanced > summary:hover { background: color-mix(in oklab, var(--peach) 18%, transparent); }
+.settings-advanced > summary:focus-visible { outline: 2px solid var(--peach-mid); outline-offset: 2px; }
+.settings-advanced-note { margin: 0 0 6px; font-size: 12px; line-height: 1.55; color: color-mix(in oklab, var(--graphite) 82%, transparent); }
+.settings-advanced h3 { margin: 10px 0 2px; font: 600 13px var(--font-body); color: var(--ink-her); }
+.settings-advanced button { font-size: 13px; padding: 1px 10px; }
+
+/* —— 输入框：从悬空的下划线改成轻圆角底框，和纸卡片配套 —— */
+.settings-surface .settings-group input:not([type='checkbox']),
+.settings-surface .settings-advanced input:not([type='checkbox']) {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 2px 7px;
+  background: color-mix(in oklab, var(--paper) 60%, white);
+  border: 1px solid color-mix(in oklab, var(--pencil) 50%, transparent);
+  border-radius: 6px;
+}
+.settings-surface .settings-group input:not([type='checkbox']):focus,
+.settings-surface .settings-advanced input:not([type='checkbox']):focus {
+  border-color: var(--peach-mid);
+  outline: none;
+  background: white;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-advanced > summary::before { transition: none; }
+}
+
 /* 称呼与关于你：两个名字是短下划线，“想让她知道的事”是一小块浅纸，写几行也不挤 */
 .profile-controls label { margin: 6px 0 10px; }
 .profile-controls input { display: block; width: min(16em, 100%); }

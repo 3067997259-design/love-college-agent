@@ -37,9 +37,14 @@ export function CollaborationPanel({ snapshot, bridge, openRequest = 0, shot }: 
   const refresh = () => { void command({ type: 'agent.refresh' }) }
   // Only a new request opens the sheet.
   useEffect(() => { if (openRequest) { setOpen(true); refresh() } }, [openRequest])
+  // 没有帮手、也没有共同任务时，这颗按钮收成页角一个几乎看不见的小点：书房里不该常驻一块写着“协作”的牌子。
+  // 有成员、有任务或面板已打开时，恢复原来的按钮与面板结构（aria-expanded / aria-controls 不变）。
+  const quiet = !open && !members.length && !view?.tasks.length && !shot
   return <div className="collaboration room-ui" data-photo-omit>
     {shot && <button type="button" className="collaboration-tab collaboration-shot" aria-pressed={shot.team} onClick={shot.onToggle}>{shot.team ? '回到桌前' : '看看房间'}</button>}
-    <button type="button" className="collaboration-tab" aria-expanded={open} aria-controls="collaboration-panel" onClick={() => { setOpen(!open); if (!open) refresh() }}>协作{members.length ? ` · ${members.length}` : ''}</button>
+    <button type="button" className={quiet ? 'collaboration-tab collaboration-quiet' : 'collaboration-tab'} data-quiet={quiet || undefined}
+      aria-expanded={open} aria-controls="collaboration-panel" aria-label={quiet ? '协作' : undefined} title={quiet ? '协作' : undefined}
+      onClick={() => { setOpen(!open); if (!open) refresh() }}>{quiet ? null : <>协作{members.length ? ` · ${members.length}` : ''}</>}</button>
     {open && <section id="collaboration-panel" className="collaboration-sheet" aria-label="成员与共同任务">
       <header><h2>一起做的事</h2><button type="button" aria-label="收起协作" onClick={() => setOpen(false)}>收起</button></header>
       <p className="collaboration-note">独立的小任务交给临时助手；需要分工与交接时组成团队。</p>

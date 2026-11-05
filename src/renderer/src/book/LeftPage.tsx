@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppBridge, AppSnapshot, InteractionMode } from '../../../shared'
+import type { AppBridge, AppSnapshot } from '../../../shared'
 import { resolveCharacterArt, type CharacterArt } from './characterArt'
 import { resolveAwayArt } from './life/awayArt'
 import { AwayScene } from './life/AwayScene'
@@ -8,7 +8,7 @@ import { CharacterPatches } from './deltas/CharacterPatches'
 import { uiSrc } from './Character'
 import { sendCommand, type CommandBody } from './command'
 import { formatClock, formatRemaining } from './format'
-import { locationLabel, MODE_LABEL } from './labels'
+import { locationLabel } from './labels'
 import { useLightSwitch } from './ambience'
 import { useLiveFlip } from './live'
 import copy from '../voice/book.zh.json'
@@ -26,8 +26,6 @@ import { CollaborationPanel } from './CollaborationPanel'
 import { SubagentStrip } from './team/SubagentStrip'
 import { TeamRoom, teamArtReady } from './team/TeamRoom'
 import { teamActive, teamMembers } from './team/teamScene'
-
-const MODES: readonly InteractionMode[] = ['work', 'quiet', 'rest']
 
 /**
  * 左页：她在的地方（体验设计 §2）。画面是她的状态的投影，不是随机动画。
@@ -233,47 +231,50 @@ function AwayNote({ snapshot, writing }: { snapshot: AppSnapshot; writing: boole
 }
 
 /**
- * 门牌是你的情境开关（体验设计 §2）：工作中／安静／休息，番茄钟的阶段会自动翻它。
- * 专注时翻到“休息”就是提前结束这一段，记为中断，由主进程判定（技术方案 §3.5）。熄灯是另一个开关，也收在这里。
+ * 门上的小牌子只剩一件事：现在要不要安静陪着（暂停主动搭话与语音）。
+ * 工作中／安静／休息的三态门牌已经退役——工作走独立 Worker，不靠翻牌子交接；作息和睡觉各有入口。
+ * 专注开始时牌子自动翻到安静陪着。这时翻回常伴，主进程会把这一段记为中断、提前结束并转入短休息（技术方案 §3.5），
+ * 所以先在牌子上方问一句，确认了才翻；点别处、按 Esc 或“继续专注”都什么也不改。
  */
 function DoorSign({ snapshot, onCommand, failed }: { snapshot: AppSnapshot; onCommand: (body: CommandBody) => Promise<void>; failed: boolean }) {
   const { companion, pomodoro } = snapshot
-  const [open, setOpen] = useState(false)
+  const quiet = companion.mode === 'quiet'
+  // 与主进程判定中断的条件一致：开着灯，专注在走或暂停着
+  const endsFocus = quiet && pomodoro.phase === 'focus' && pomodoro.status !== 'idle' && !companion.lightsOut
+  const [asking, setAsking] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const sign = useRef<HTMLButtonElement>(null)
+  const stay = useRef<HTMLButtonElement>(null)
+  // 这一段自己走完了、熄了灯或牌子被翻走了，这个问题也就不用回答了
+  useEffect(() => { if (!endsFocus) setAsking(false) }, [endsFocus])
   useEffect(() => {
-    if (!open) return
-    const onDown = (event: PointerEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false) }
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
+    if (!asking) return
+    stay.current?.focus()
+    const onDown = (event: PointerEvent) => { if (!ref.current?.contains(event.target as Node)) setAsking(false) }
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { setAsking(false); sign.current?.focus() } }
     document.addEventListener('pointerdown', onDown)
     document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey) }
-  }, [open])
-  const pick = (body: CommandBody) => { setOpen(false); void onCommand(body) }
-  const interrupts = pomodoro.phase === 'focus' && pomodoro.status !== 'idle'
-
+  }, [asking])
+  const flip = () => {
+    if (endsFocus) { setAsking((open) => !open); return }
+    void onCommand({ type: 'mode.set', mode: quiet ? 'rest' : 'quiet' })
+  }
+  const title = endsFocus ? '专注中她安静陪着，点开可以提前结束这一段' : quiet ? '安静陪着：暂停主动搭话与语音，点一下恢复' : '常伴：点一下切换为安静陪着'
   return (
     <div className="door room-ui" data-photo-omit ref={ref}>
-      <button type="button" className="door-sign" data-mode={companion.mode} aria-haspopup="menu" aria-expanded={open}
-        title="门牌：切换工作与相处节奏" onClick={() => setOpen((value) => !value)}>
-        {MODE_LABEL[companion.mode]}
+      <button ref={sign} type="button" className="door-sign" data-mode={companion.mode} data-quiet={quiet}
+        aria-haspopup={endsFocus ? 'dialog' : undefined} aria-expanded={endsFocus ? asking : undefined} title={title} onClick={flip}>
+        {quiet ? '安静陪着' : '常伴'}
       </button>
-      {failed && <span className="notice-mark door-notice" title="没翻过去，稍后再试">！</span>}
-      {open && (
-        <div className="door-menu" role="menu" aria-label="门牌">
-          {MODES.map((mode) => (
-            <button key={mode} type="button" role="menuitemradio" aria-checked={companion.mode === mode}
-              onClick={() => pick({ type: 'mode.set', mode })}>
-              {MODE_LABEL[mode]}
-              <small>{{ work: '交给她做事，下一轮直接开始工作', quiet: '安静陪伴，暂存后台消息', rest: '聊聊天，看看她的交付' }[mode]}</small>
-              {mode === 'rest' && interrupts && companion.mode !== 'rest' && <small>提前结束这一段</small>}
-            </button>
-          ))}
-          <hr />
-          <button type="button" role="menuitemcheckbox" aria-checked={companion.lightsOut}
-            onClick={() => pick({ type: 'lights.set', lightsOut: !companion.lightsOut })}>
-            {companion.lightsOut ? '开灯' : '熄灯'}
-            <small>{companion.lightsOut ? '计时和后台活动接着走' : '暂停计时和所有后台活动'}</small>
+      {failed && <span className="notice-mark door-notice" title="没切换过去，稍后再试">！</span>}
+      {asking && (
+        <div className="door-menu door-confirm" role="dialog" aria-label="提前结束专注？">
+          <p>这一段专注还没走完</p>
+          <button type="button" onClick={() => { setAsking(false); void onCommand({ type: 'mode.set', mode: 'rest' }) }}>
+            提前结束这一段<small>不算完成，接着短休息</small>
           </button>
+          <button ref={stay} type="button" onClick={() => { setAsking(false); sign.current?.focus() }}>继续专注</button>
         </div>
       )}
     </div>

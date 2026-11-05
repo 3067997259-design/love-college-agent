@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ActivityView, AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanView, QuillView, TaskView } from '../../../shared'
+import type { ActivityView, AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanInput, PomodoroPlanView, QuillView, TaskView } from '../../../shared'
 import { ActivityFold, CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
 import { sourceText } from './life/text'
 import book from '../voice/book.zh.json'
@@ -66,6 +66,8 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
   onRestoreQuote?: (quote: Quote) => void
 }) {
   const { messages, candidates, deliveries, task, activities, pomodoro, privacy, quill, backup } = snapshot
+  // 插件中心已统一到右侧书签，输入框不再放重复的入口；prop 留给调用方，这里不渲染。
+  void onOpenPlugins
   const recall = snapshot.history?.recall
   const herName = snapshot.onboarding?.characterName ?? '桃子'
   // 恢复完成（或恢复失败）的回执一直留着，直到你点“好”收起（backup.cancel 清掉回执）
@@ -181,7 +183,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
       </header>
 
       <div className="stream" ref={streamRef} {...streamEvents}>
-        {snapshot.degraded?.active && <p className="msg msg-narrator degraded-note" role="status">本轮含第三方原文：写文件、执行命令、外发和付费都会逐次批准，且不能新建或扩大授权。</p>}
+        {snapshot.degraded?.active && <p className="msg msg-narrator degraded-note" role="status">她刚读了外部原文：为安全起见，这一轮改文件或运行命令前都会先问过你。</p>}
         {items.map((item) => {
           switch (item.kind) {
             case 'message': {
@@ -239,10 +241,8 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
         </div>}
         {quote && <QuoteChip quote={quote} onClear={() => onClearQuote?.()} />}
         {commandError && <span className="notice-mark" title={commandError} aria-hidden>！</span>}
-        {onOpenPlugins && <button type="button" className="composer-plugin" aria-label="插件" title="插件" onClick={onOpenPlugins}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h4v2.2a2 2 0 1 0 0 4V12h3.8a2 2 0 1 1 0 4H13v4H9v-4H6.2a2 2 0 1 1 0-4H9V8.2A2 2 0 1 0 9 4Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
-        </button>}
-        {privacy.fileFilteringEnabled && <span className="filter-mark" title="/privacy 开着：附件和拖进来的文件只交给隐私模型">滤芯</span>}
+        {/* 插件入口就在右侧书签里；输入框这排只留和这句话直接相关的东西 */}
+        {privacy.fileFilteringEnabled && <span className="filter-mark" title="隐私保护中：附件和拖进来的文件先经隐私模型处理">隐私保护中</span>}
         <textarea
           ref={inputRef}
           className="composer-input" rows={1} value={draft} placeholder={quote ? book.history.placeholder : '写点什么……'}
@@ -299,18 +299,47 @@ function Message({ view }: { view: MessageView }) {
 
 const BREAK_TEXT = { 'short-break': '短休息', 'long-break': '长休息' } as const
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
+/** 顶栏「开启专注」的三个常用档：几段 25 分钟的专注。休息节奏用标准值，主进程按 standard 校验。 */
+const QUICK_FOCUS = [1, 2, 4] as const
+const quickPlan = (plannedCount: number): PomodoroPlanInput => ({
+  label: '专注', plannedCount,
+  focusDurationMs: 25 * 60_000, shortBreakDurationMs: 5 * 60_000, longBreakDurationMs: 15 * 60_000, longBreakEvery: 4, timing: 'standard',
+})
 
 /**
  * 顶部：今天的计划和番茄格，你确认以后才出现（技术方案 §3.5）。
  * 做完的涂上她的颜色并打勾，正在做的按进度填，没开始的只有铅笔框。
  * 下一个专注不自动开始：休息结束后这里出现“开始第 N 个”，等你点。
+ * 还没排的时候不再是干看着的一行字：点「开启专注」选几段，草案进书页等你确认。
  */
 function PlanHead({ snapshot, onCommand }: { snapshot: AppSnapshot; onCommand: (body: CommandBody) => void }) {
   const { pomodoro, companion } = snapshot
   const plan = pomodoro.plan
   const remaining = useCountdown(snapshot)
+  const [quickOpen, setQuickOpen] = useState(false)
   if (!plan || plan.status === 'proposed' || pomodoro.plannedCount <= 0) {
-    return <div className="plan-head plan-head-empty">{pomodoro.proposal || plan?.status === 'proposed' ? '计划等你确认' : '今天还没排番茄'}</div>
+    // 已经有待确认的草案：只提醒一句，不在这里重复生成第二份
+    if (pomodoro.proposal || plan?.status === 'proposed') return <div className="plan-head plan-head-empty"><span>计划等你确认</span></div>
+    return (
+      <div className="plan-head plan-head-empty">
+        <button type="button" className="btn btn-ghost btn-small" aria-expanded={quickOpen} title="直接排今天的专注：25 分钟一段，段间自动休息"
+          onClick={() => setQuickOpen((open) => !open)}>
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style={{ marginRight: 4, verticalAlign: -2 }}>
+            <circle cx="12" cy="13" r="7.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M12 9.2V13l2.6 1.9M9.4 3.2h5.2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+          开启专注
+        </button>
+        {quickOpen && <span role="group" aria-label="专注时长">
+          {QUICK_FOCUS.map((count) => (
+            <button key={count} type="button" className="choice-chip" aria-label={`${count} 段专注，每段 25 分钟`}
+              onClick={() => { setQuickOpen(false); onCommand({ type: 'pomodoro.plan', plan: quickPlan(count) }) }}>
+              {count === 1 ? '25 分钟' : `25 分钟 × ${count}`}
+            </button>
+          ))}
+        </span>}
+      </div>
+    )
   }
   const progress = pomodoro.phaseDurationMs > 0 ? 1 - remaining / pomodoro.phaseDurationMs : 0
   const canStart = plan?.status === 'confirmed' && pomodoro.status === 'idle' && pomodoro.focusIndex < pomodoro.plannedCount

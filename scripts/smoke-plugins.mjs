@@ -85,10 +85,12 @@ try {
   assert.equal(await page.getByRole('region', { name: '工具与设置', exact: true }).count(), 0)
 
   await page.locator('.bookmarks').getByRole('button', { name: '对话', exact: true }).click()
-  await page.locator('.composer-plugin').click()
+  // 入口只剩书签一处：输入框不再重复放拼图按钮。
+  assert.equal(await page.locator('.composer-plugin').count(), 0)
+  await page.locator('.bookmarks').getByRole('button', { name: '插件', exact: true }).click()
   await center.waitFor()
 
-  console.log(JSON.stringify({ ok: true, probe: 'plugins', localInstall: true, codeApproval: true, skillsSeparate: true, mcpPathImport: true, mcpApproval: true, settingsShortcut: true, composerEntry: true, syntheticOnly: true }))
+  console.log(JSON.stringify({ ok: true, probe: 'plugins', localInstall: true, codeApproval: true, skillsSeparate: true, mcpPathImport: true, mcpApproval: true, settingsShortcut: true, singleBookmarkEntry: true, syntheticOnly: true }))
 } finally {
   await instance?.close().catch(() => {})
   if (resolve(data).startsWith(join(testDataRoot(root), 'plugins-smoke-'))) await rm(data, { recursive: true, force: true })

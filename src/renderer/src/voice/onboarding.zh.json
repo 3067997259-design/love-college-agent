@@ -75,7 +75,7 @@
   },
   "greet": {
     "title": "初次见面",
-    "line": "{userName}，你好。我是{characterName}，书桌已经收拾好了，以后请多指教。",
+    "line": "……嗯，{userName}。我是{characterName}。这间屋子既然画好了，以后你想做事、或者只是想待一会儿，我都在。",
     "next": "开始吧"
   }
 }

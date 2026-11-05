@@ -360,6 +360,9 @@
 .door-menu small { font: 13px var(--font-body); color: var(--graphite); }
 .door-menu hr { margin: 4px 8px; border: none; border-top: 1.5px dashed color-mix(in oklab, var(--pencil) 70%, transparent); }
 .door-notice { position: absolute; left: 17%; top: 84%; }
+/* 专注中把牌子翻回常伴之前的确认：同一张小纸片。第一行只是说明，不是选项；按钮不需要给勾留位置 */
+.door-confirm p { margin: 2px 10px 4px; font: 14px var(--font-body); color: var(--graphite); }
+.door-confirm button { padding-left: 10px; }
 
 /* 熄灯的拉线：从页顶垂下一根铅笔线，末端一颗她颜色的珠子；熄灯时珠子换成深色，明度也拉开。
    按钮本身不动，只让里面的线轻轻晃，点击区域始终稳定 */

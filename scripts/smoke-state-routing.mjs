@@ -42,7 +42,13 @@ writeFileSync(settings, JSON.stringify({ providers: { chat: provider('mock-chat'
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: settings, LCA_TEST_SILENT: '1', LCA_MCP_PORT: '0', LCA_CDP_PORT: '0' }
 let instance, page
 const start = async () => { instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env, timeout: 30000 }); page = await instance.firstWindow(); page.setDefaultTimeout(45000); await initializeTestBook(page) }
-const mode = async (label) => { await page.locator('.door-sign').click(); await page.getByRole('menuitemradio', { name: new RegExp('^' + label) }).click() }
+const setMode = async (mode) => {
+  await page.evaluate(async (mode) => {
+    const s = await window.lca.getSnapshot()
+    await window.lca.dispatch({ protocolVersion: 1, epoch: s.epoch, requestId: crypto.randomUUID(), type: 'mode.set', mode })
+  }, mode)
+  await page.waitForFunction(async (mode) => (await window.lca.getSnapshot()).companion.mode === mode, mode)
+}
 const send = async (task) => { await page.getByRole('textbox').fill(task); await page.getByRole('button', { name: '发送', exact: true }).click() }
 const idle = () => page.waitForFunction(async () => (await window.lca.getSnapshot()).task?.status === 'completed')
 const completed = async (task) => { await page.getByText(`${task} completed`, { exact: true }).waitFor(); await idle() }
@@ -53,21 +59,19 @@ try {
   assert.deepEqual(requests.map((r) => r.model), ['mock-chat'])
   assert.equal((await page.evaluate(() => window.lca.getSnapshot())).companion.mode, 'work')
   assert.ok(!(await page.locator('body').innerText()).includes('lca_state'))
-  await mode('休息'); await mode('工作中')
+  await setMode('rest'); await setMode('work')
   await send('state-probe:direct'); await completed('state-probe:direct')
   assert.deepEqual(requests.filter((r) => r.task === 'state-probe:direct').map((r) => r.model), ['mock-chat', 'mock-chat'])
-  await mode('休息'); await send('state-probe:stale')
+  await setMode('rest'); await send('state-probe:stale')
   await Promise.race([staleSeen, new Promise((_resolve, reject) => { const t = setTimeout(() => reject(new Error('STALE_REQUEST_TIMEOUT')), 45000); t.unref() })])
-  await mode('安静'); releaseStale()
+  await setMode('quiet'); releaseStale()
   await page.getByText('这次状态指令格式不完整或已失效，门牌没有改变。可以手动切换后再发送任务。', { exact: true }).waitFor()
   await idle()
   assert.equal((await page.evaluate(() => window.lca.getSnapshot())).companion.mode, 'quiet')
   assert.equal((await page.evaluate(() => window.lca.getSnapshot())).messages.filter((message) => message.text === '我来处理。').length, 1)
   assert.equal(requests.filter((r) => r.task === 'state-probe:stale').length, 1)
-  await mode('工作中')
-  await page.locator('.door-sign').click()
-  await page.screenshot({ path: join(data, 'menu.png') })
-  await page.keyboard.press('Escape')
+  await setMode('work')
+  await page.screenshot({ path: join(data, 'door.png') })
   const count = requests.length
   await instance.close(); await start()
   assert.equal((await page.evaluate(() => window.lca.getSnapshot())).companion.mode, 'work')
