@@ -641,11 +641,14 @@ export interface VoiceView {
     playback: 'idle' | 'playing' | 'ended' | 'failed'; chunkCount: number; byteLength: number; createdAtMs: number }
   error?: PublicError
 }
+/** Why a paid model call happened. Only spontaneous background work is charged to the
+ * autonomous budget; a user's own message or an explicit retry is not. */
+export type ResourcePurpose = 'memory' | 'diary' | 'mail' | 'desk' | 'other'
 export interface ResourceBudgetView {
   status: 'ready' | 'unavailable'
   /** Conservative reservations before dispatch; never actual billing or fabricated currency cost. */
   accounting: 'reserved-units'
-  /** Only the book's booth operator can change daily model limits. */
+  /** The user (or a booth operator) can change the daily caps in settings. */
   configurable: boolean
   model: {
     dayKey: string
@@ -655,6 +658,10 @@ export interface ResourceBudgetView {
     autonomousLimitUnits: number
     attemptCount: number | null
     legacyReservedUnits: number | null
+    /** Autonomous spend split by the kind of background work. */
+    autonomousBreakdown: Record<ResourcePurpose, number>
+    /** Effective per-purpose ceilings derived from the autonomous cap. */
+    autonomousPurposeLimits: Record<ResourcePurpose, number>
   }
   speech: {
     dayKey: string
