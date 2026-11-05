@@ -30,9 +30,11 @@ export function ProfileControls({ bridge, snapshot }: { bridge: AppBridge; snaps
     <label>{copy.userName}<input maxLength={20} value={userName} onChange={change(setUserName)} /></label>
     <label>{copy.characterName}<input maxLength={12} value={characterName} placeholder="桃子" onChange={change(setCharacterName)} /></label>
     <label>{copy.about}<textarea rows={5} maxLength={500} value={aboutUser} placeholder={copy.aboutPlaceholder} onChange={change(setAboutUser)} /></label>
-    <p>{copy.note}</p>
-    <button type="button" disabled={!dirty || !userName.trim()} onClick={() => void save()}>{copy.save}</button>
-    {result === 'saved' && !dirty && <span role="status"> {copy.saved}</span>}
+    <p className="settings-note">{copy.note}</p>
+    <div className="settings-actions">
+      <button type="button" disabled={!dirty || !userName.trim()} onClick={() => void save()}>{copy.save}</button>
+      {result === 'saved' && !dirty && <span role="status">{copy.saved}</span>}
+    </div>
     {result === 'failed' && <p role="alert">{copy.failed}</p>}
   </section>
 }

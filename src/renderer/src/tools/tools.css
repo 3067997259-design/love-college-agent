@@ -4,7 +4,7 @@
  * 标题栏固定在顶上；每组一个可展开的标题；错误用“！”＋说明，闭集代码收在“查看原因”里。
  */
 .tools-panel { position: fixed; right: 14px; bottom: 14px; z-index: 90; font: 14px/1.6 var(--font-body); color: var(--graphite); }
-.settings-surface button, .settings-surface select {
+.settings-surface button {
   font: inherit;
   font-size: 14px;
   margin: 3px 6px 3px 0;
@@ -18,18 +18,62 @@
 }
 .settings-surface button:hover:not(:disabled) { border-color: var(--peach-mid); background: color-mix(in oklab, var(--peach) 35%, transparent); }
 .settings-surface button:disabled, .settings-surface select:disabled { opacity: 0.45; cursor: default; }
-.settings-surface select { padding: 2px 8px; border-radius: 8px; background: var(--paper); }
 .settings-surface :is(button, select, input, textarea, summary):focus-visible { outline: 2.5px solid var(--peach-mid); outline-offset: 2px; }
-.settings-surface input:not([type]), .settings-surface input[type='text'], .settings-surface input[type='number'], .settings-surface textarea {
-  font: inherit;
-  padding: 2px 4px;
+
+/* —— 填写项（2026-11-05 统一）：整页只有一种样子，和模型卡片相同——小字标签在上，
+     下面一条铅笔下划线占满整行；多行文字是一小块浅纸。以前这里是标签和圆角框挤在同一行，
+     宽窄不一，和模型卡片的下划线也对不上。 —— */
+.settings-surface select,
+.settings-surface input:is(:not([type]), [type='text'], [type='url'], [type='password'], [type='number'], [type='search']) {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 3px 2px;
+  font: 14px var(--font-body);
   color: var(--graphite);
   background: transparent;
   border: none;
-  border-bottom: 1.5px solid var(--pencil);
+  border-bottom: 1.5px solid color-mix(in oklab, var(--pencil) 80%, transparent);
+  border-radius: 0;
   outline: none;
 }
-.settings-surface input[type='checkbox'] { accent-color: var(--peach-mid); margin-right: 6px; vertical-align: -0.1em; }
+.settings-surface select { cursor: pointer; }
+.settings-surface :is(input, select):focus { border-bottom-color: var(--peach-mid); }
+.settings-surface :is(input, textarea)::placeholder { color: var(--pencil); }
+.settings-surface textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 5.5em;
+  padding: 8px 10px;
+  font: 14px/1.6 var(--font-body);
+  color: var(--graphite);
+  resize: vertical;
+  background: color-mix(in oklab, var(--paper) 80%, white);
+  border: 1.5px solid color-mix(in oklab, var(--pencil) 70%, transparent);
+  border-radius: 10px;
+  outline: none;
+}
+.settings-surface textarea:focus { border-color: var(--peach-mid); }
+/* 包着填写项的 label：标签一行，控件一行 */
+.settings-surface label:not(.provider-field):has(> :is(select, textarea, input:not([type='checkbox'], [type='radio']))) {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--graphite);
+}
+.settings-surface label:not(.provider-field) > :is(select, textarea, input:not([type='checkbox'], [type='radio'])) { width: 100%; margin: 0; }
+.settings-surface label > input[type='number'] { max-width: 12em; }
+/* 勾选项：框和文字对齐，一行一个 */
+.settings-surface label:has(> input[type='checkbox']) { display: flex; align-items: center; gap: 7px; margin: 6px 0; font-size: 13.5px; }
+.settings-surface input[type='checkbox'] { flex: none; margin: 0; accent-color: var(--peach-mid); }
+/* 一排按钮、补充说明、普通列表 */
+.settings-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 4px; }
+.settings-actions button { margin: 0; }
+.settings-note { margin: 4px 0 8px; font-size: 12.5px; line-height: 1.6; color: color-mix(in oklab, var(--graphite) 85%, transparent); }
+.settings-surface ul:not([class]), .settings-surface ol:not([class]) { margin: 6px 0; padding-left: 18px; }
+.settings-surface ul:not([class]) > li, .settings-surface ol:not([class]) > li { margin: 4px 0; }
 /* 书外的开关：小小一张书页色的签 */
 .tools-panel > button {
   margin: 0;
@@ -85,9 +129,11 @@
 .settings-section-head { padding: 7px 0 1px; }
 .settings-section-head h2 { margin: 0; font: normal 24px var(--font-hand); color: var(--navy); }
 .settings-section-head p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--graphite); }
-.settings-callout { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 7px 0 4px; padding: 7px 10px; background: color-mix(in oklab, var(--peach) 22%, var(--paper)); border: 1px dashed color-mix(in oklab, var(--peach-mid) 55%, transparent); border-radius: 9px 6px 10px 6px; }
-.settings-callout p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--graphite); }
-.settings-callout button { flex: none; margin: 0; }
+/* 分区里不用展开的一行：和折叠组的标题同一个字号，右边一个按钮（插件中心、新手指引） */
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; }
+.settings-row strong { display: block; font: 600 15px var(--font-body); color: var(--ink-her); }
+.settings-row p { margin: 1px 0 0; font-size: 12px; line-height: 1.5; color: var(--graphite); }
+.settings-row button { flex: none; margin: 0; }
 .settings-section .settings-group { border-top: none; }
 .settings-section .settings-group > summary { padding-top: 7px; padding-bottom: 7px; }
 
@@ -183,8 +229,7 @@
 .settings-group:not([open]) { margin: 2px 0; }
 /* 分区里直接露出来的块（没有折叠包裹的 Controls）也给一张纸 */
 .settings-section > .settings-surface,
-.settings-section > section:not(.settings-group),
-.settings-callout { border-radius: 10px; }
+.settings-section > section:not(.settings-group) { border-radius: 10px; }
 .settings-section > section:not(.settings-group) {
   margin: 6px 0 10px;
   padding: 8px 14px 12px;
@@ -192,12 +237,12 @@
   border: 1px solid color-mix(in oklab, var(--pencil) 45%, transparent);
   border-radius: 10px;
 }
-/* 展开的组里再套的第二层小标题不要顶得太紧 */
-.settings-group[open] > section > h2:first-child,
-.settings-group[open] > div > h2:first-child { margin-top: 8px; }
+/* 组里的小标题：不管组件里写的是 h2 还是 h3，展开后都是同一档 */
+.settings-group :is(h2, h3) { margin: 14px 0 4px; font: 600 14px var(--font-body); color: var(--ink-her); }
+.settings-group[open] > :is(section, div) > :is(h2, h3):first-child { margin-top: 6px; }
 
-/* —— 高级／维护项：默认展开（自动化脚本要直接点到），但明显淡一档，
-     让人一眼看出“这些平时不用管”。 —— */
+/* —— 高级／维护项：默认收起，淡一档，让人一眼看出“这些平时不用管”。
+     自动化脚本打开设置时会把它们展开（scripts/runtime-env.mjs openSettings）。 —— */
 .settings-advanced {
   margin: 10px 0 4px;
   padding: 0 12px 10px;
@@ -238,42 +283,21 @@
 .settings-advanced h3 { margin: 10px 0 2px; font: 600 13px var(--font-body); color: var(--ink-her); }
 .settings-advanced button { font-size: 13px; padding: 1px 10px; }
 
-/* —— 输入框：从悬空的下划线改成轻圆角底框，和纸卡片配套 —— */
-.settings-surface .settings-group input:not([type='checkbox']),
-.settings-surface .settings-advanced input:not([type='checkbox']) {
-  box-sizing: border-box;
-  max-width: 100%;
-  padding: 2px 7px;
-  background: color-mix(in oklab, var(--paper) 60%, white);
-  border: 1px solid color-mix(in oklab, var(--pencil) 50%, transparent);
-  border-radius: 6px;
-}
-.settings-surface .settings-group input:not([type='checkbox']):focus,
-.settings-surface .settings-advanced input:not([type='checkbox']):focus {
-  border-color: var(--peach-mid);
-  outline: none;
-  background: white;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .settings-advanced > summary::before { transition: none; }
 }
 
-/* 称呼与关于你：两个名字是短下划线，“想让她知道的事”是一小块浅纸，写几行也不挤 */
-.profile-controls label { margin: 6px 0 10px; }
-.profile-controls input { display: block; width: min(16em, 100%); }
-.profile-controls textarea {
-  display: block;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 7.5em;
-  margin-top: 4px;
-  padding: 8px 10px;
-  line-height: 1.6;
-  resize: vertical;
-  background: color-mix(in oklab, var(--paper) 80%, white);
-  border: 1.5px solid color-mix(in oklab, var(--pencil) 70%, transparent);
-  border-radius: 10px;
-}
-.profile-controls textarea:focus { border-color: var(--peach-mid); }
-.profile-controls > p { font-size: 13px; color: var(--graphite); }
+/* 称呼与关于你：“想让她知道的事”写几行也不挤 */
+.profile-controls textarea { min-height: 7.5em; }
+
+/* 她记得的事：状态一行、按钮一行，不和按钮挤在一起 */
+.memory-item > small { display: block; margin: 2px 0; font-size: 12px; color: var(--graphite); }
+.memory-item p { margin: 2px 0; }
+
+/* 运行资源：一张小表，数字右对齐 */
+.settings-usage { width: 100%; margin: 4px 0 6px; border-collapse: collapse; font-size: 13px; }
+.settings-usage th { padding: 3px 0; font-weight: normal; text-align: left; color: var(--graphite); }
+.settings-usage td { padding: 3px 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-her); white-space: nowrap; }
+.settings-usage tr[data-sub] th { padding-left: 1.2em; font-size: 12.5px; }
+.settings-usage tr[data-sub] td { font-size: 12.5px; color: var(--graphite); }
+.settings-usage tr + tr:not([data-sub]) :is(th, td) { border-top: 1px dashed color-mix(in oklab, var(--pencil) 40%, transparent); }

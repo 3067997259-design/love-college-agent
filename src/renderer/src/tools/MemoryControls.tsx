@@ -3,11 +3,12 @@ import type { AppBridge, AppCommand, AppSnapshot, SessionPage, RecallAnchor } fr
 import failureWords from '../voice/failure.zh.json'
 import { MemoryFactsControls } from './MemoryFactsControls'
 import { MemorySettingsControls } from './MemorySettingsControls'
+import { SettingsIssue } from './SettingsIssue'
 
 /**
  * 记忆与日会话。日常只做一件事：看她记住了什么，要不要纠正或忘记。
  * 抽取、归并、压缩、翻页条件、旧版记忆列表和历史日页阅读器都是维护入口，
- * 收在下面两个折叠里；两个折叠默认展开，自动化脚本仍能直接点到里面的控件。
+ * 收在下面两个折叠里；两个折叠默认收起，自动化脚本打开设置时会把它们展开。
  */
 export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
   const [error, setError] = useState('')
@@ -25,29 +26,31 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
     catch { setError('connection-failed'); return false }
   }
   return <div aria-label="记忆与日会话控制">
-    <h2>记忆与日会话</h2>
-    <p>{memory.source === 'fake' ? '合成经历 · 开发场景' : memory.source === 'none' ? '后台模型未配置' : '后台记忆模型'} · {{ unconfigured: '等待配置', idle: '空闲', extracting: '正在整理', compacting: '正在压缩对话', failed: '上次整理未完成' }[memory.status]} · 当前页 {session.dayKey}</p>
-    {(error || memory.error) && <p role="alert">整理未完成：{error || memory.error?.code}</p>}
+    <p className="settings-note">{memory.source === 'none' ? '还没配置整理记忆的模型' : `${memory.source === 'fake' ? '合成经历（开发场景）' : '由后台模型整理'} · ${{ unconfigured: '等配置', idle: '空闲', extracting: '正在整理', compacting: '正在收起旧对话', failed: '上次整理没做完' }[memory.status]}`}</p>
+    <SettingsIssue code={error || memory.error?.code} />
 
     {/* 日常唯一要动的地方：她记得的事 */}
     <MemoryFactsControls memory={memory} busy={busy} send={send} />
 
-    <details className="settings-advanced" open>
+    <details className="settings-advanced">
       <summary>维护操作与历史日页</summary>
-      <p className="settings-advanced-note">平时不用管这里。抽取、归并和压缩会在她空闲时自己跑；这里的按钮是手动催一次，或者翻查过去的日页与旧版记忆。</p>
-      {snapshot.history && <p><button type="button" disabled={snapshot.history.captureStatus === 'capturing'} onClick={() => void send({ type: 'history.photo.capture' })}>保存当前场景照片</button> · {snapshot.history.captureStatus}{snapshot.history.captureError && ' · 照片未保存，可重试'}</p>}
-      <p>短期 {memory.shortTermCount} · 长期 {memory.longTermCount} · 上下文 {memory.contextChars} 字符</p>
-      <p>只整理她在成功对话中看见的允许内容；引用和自动交班不会重复记忆。整理在空闲时进行。</p>
-      <button type="button" disabled={busy || memory.status === 'unconfigured'} onClick={() => void send({ type: 'memory.extract' })}>抽取可见经历</button>
-      <button type="button" disabled={busy || memory.status === 'unconfigured'} onClick={() => void send({ type: 'memory.consolidate' })}>归并已结束周期</button>
-      {memory.summaryCounts && <p>日摘要 {memory.summaryCounts.day} · 周摘要 {memory.summaryCounts.week} · 月摘要 {memory.summaryCounts.month}</p>}
-      <button type="button" disabled={busy || memory.status === 'unconfigured'} onClick={() => void send({ type: 'context.compact' })}>压缩旧回合</button>
-      {session.rolloverPending && <p>新的一天已到；等待回合结束、空闲两分钟且未熄灯后翻页。</p>}
-      <button type="button" disabled={busy || !session.rolloverPending} onClick={() => void send({ type: 'session.rollover' })}>检查翻页条件</button>
+      <p className="settings-advanced-note">平时不用管。整理记忆会在她空闲时自己做，这里的按钮只是手动催一次，或者翻翻以前的日页和旧版记忆。</p>
+      <p>短期记忆 {memory.shortTermCount} 条 · 长期记忆 {memory.longTermCount} 条 · 上下文 {memory.contextChars.toLocaleString('en-US')} 字{memory.summaryCounts && ` · 日摘要 ${memory.summaryCounts.day} · 周摘要 ${memory.summaryCounts.week} · 月摘要 ${memory.summaryCounts.month}`}</p>
+      <p className="settings-note">只整理她在对话里看到、并且允许记下的内容，引用和交班带过来的不会再记一遍。</p>
+      <div className="settings-actions">
+        <button type="button" disabled={busy || memory.status === 'unconfigured'} onClick={() => void send({ type: 'memory.extract' })}>抽取可见经历</button>
+        <button type="button" disabled={busy || memory.status === 'unconfigured'} onClick={() => void send({ type: 'memory.consolidate' })}>整理成周、月摘要</button>
+        <button type="button" disabled={busy || memory.status === 'unconfigured'} onClick={() => void send({ type: 'context.compact' })}>收起旧对话</button>
+        <button type="button" disabled={busy || !session.rolloverPending} onClick={() => void send({ type: 'session.rollover' })}>检查翻页条件</button>
+        {snapshot.history && <button type="button" disabled={snapshot.history.captureStatus === 'capturing'} onClick={() => void send({ type: 'history.photo.capture' })}>保存当前场景照片</button>}
+      </div>
+      {session.rolloverPending && <p className="settings-note">已经是新的一天了。等这一轮说完、空闲两分钟、灯还亮着时翻页。</p>}
+      {snapshot.history?.captureStatus === 'capturing' && <p role="status">正在保存照片……</p>}
+      {snapshot.history?.captureError && <p role="alert">照片没保存上，可以再试一次。</p>}
       {snapshot.runtime?.developer.mode === 'developer' && <label>记忆模型场景 <select value={memory.scenarioId ?? 'ready'} disabled={busy} onChange={(event) => void send({ type: 'developer.memory', scenarioId: event.target.value })}>
         <option value="ready">可用</option><option value="failure">后台失败</option><option value="invalid">无依据输出</option>
       </select></label>}
-      <h3>旧版记忆条目</h3>
+      {memory.items.length > 0 && <h3>旧版记忆条目</h3>}
       <ul className="memory-list">{memory.items.map((item) => <li className="memory-item" key={item.id} data-superseded={!!item.supersededBy}>
         <span>{item.text}</span><small> · 未审核 · {item.tier} · {item.sourceSessionCount} 天来源 · {item.accessCount} 次召回{item.supersededBy ? ' · 已被新事实取代' : ''}</small>
       </li>)}</ul>
@@ -55,7 +58,7 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
         const id = event.target.value; const generation = ++request.current
         setPageId(id); setAnchor(null)
         if (!id) { setPage(null); return }
-        void bridge.readSession!(id).then((next) => { if (request.current === generation) setPage(next) }, () => { if (request.current === generation) setError('旧页读取失败') })
+        void bridge.readSession!(id).then((next) => { if (request.current === generation) setPage(next) }, () => { if (request.current === generation) setError('unavailable') })
       }}><option value="">选择一页</option>{session.pages.map((info) => <option key={info.sessionId} value={info.sessionId}>{info.dayKey} · {info.messageCount} 条 · {info.summarized ? '有摘要' : '未生成摘要'}</option>)}</select></label>}
       {page && <section aria-label="历史聊天" className="memory-archive">
         <h3>{page.dayKey}</h3><button type="button" onClick={() => { request.current++; setPage(null); setPageId('') }}>收起旧页</button>
@@ -76,7 +79,7 @@ export function MemoryControls({ bridge, snapshot }: { bridge: AppBridge; snapsh
           <button type="button" disabled={!question.trim() || snapshot.history?.recall.status === 'recalling'} onClick={() => void send({ type: 'history.recall', anchor, question })}>引用并回忆</button>
           <p role="status" data-recall-status={snapshot.history?.recall.status}>{snapshot.history?.recall.status === 'recalling' ? '正在回忆……' : snapshot.history?.recall.status === 'ready' ? '已回忆，可回到书本查看回复。' : snapshot.history?.recall.status === 'failed' ? '本次回忆未完成。' : '只引用她当时看见过的对话。'}</p>
         </div>}
-        {page.truncated && <p>当前仅显示这一页末尾的有限聊天；完整记录仍在本机日志中。</p>}
+        {page.truncated && <p>这里只显示这一页最后的一段聊天，完整记录在本机日志里。</p>}
       </section>}
     </details>
 

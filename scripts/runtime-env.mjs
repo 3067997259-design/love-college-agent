@@ -53,11 +53,20 @@ export async function initializeTestBook(page) {
   await page.getByRole('region', { name: '新手流程', exact: true }).waitFor({ state: 'hidden' })
 }
 
+/**
+ * Maintenance folds (details.settings-advanced) start closed for people. Scripts reach into them
+ * directly, so opening settings, or one of its groups, also opens every such fold.
+ */
+async function openFolds(page) {
+  await page.evaluate(() => { for (const fold of document.querySelectorAll('details.settings-advanced')) fold.open = true })
+}
+
 /** Open settings: the book's 设置 bookmark turns to the settings page; developer mode keeps its floating tools panel. */
 export async function openSettings(page) {
   const mode = await page.evaluate(async () => (await window.lca.getSnapshot()).runtime?.developer.mode)
   if (mode === 'developer') await page.getByRole('button', { name: '工具与设置', exact: true }).click()
   else await page.locator('nav.bookmarks').getByRole('button', { name: '设置', exact: true }).click()
+  await openFolds(page)
 }
 
 /** Leave settings: the settings page turns back to the conversation; developer mode closes its floating panel. */
@@ -74,6 +83,7 @@ export async function openSettingsGroup(page, name) {
   if (!await summary.count()) return
   const details = summary.locator('..')
   if (!await details.evaluate((element) => element.open)) await summary.click()
+  await openFolds(page)
 }
 
 /**

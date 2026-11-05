@@ -39,6 +39,11 @@ function Group({ name, open = false, children }: { name: string; open?: boolean;
   return <details className="settings-group" open={open}><summary>{name}</summary>{children}</details>
 }
 
+/** 不用展开的一行：标题、一句说明、右边一个按钮。和折叠组并排时看起来是同一种东西。 */
+function Row({ action, title, note, children }: { action: string; title: string; note: string; children: ReactNode }) {
+  return <div className="settings-row" data-action={action}><div><strong>{title}</strong><p>{note}</p></div>{children}</div>
+}
+
 function SettingsNav() {
   return <nav className="settings-nav" aria-label={words.sectionsNav}>
     {SECTIONS.map((id) => <button key={id} type="button" onClick={() => document.getElementById(`settings-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{words.sections[id].title}</button>)}
@@ -64,31 +69,29 @@ export function UserSettings({ bridge, snapshot, onClose, onOpenPlugins }: { bri
     <SettingsNav />
     <Section id="model"><ModelControls {...props} /><VoiceControls {...props} /></Section>
     <Section id="connections">
-      {onOpenPlugins && <div className="settings-callout" data-action="settings.plugins"><p>{words.pluginsHint}</p><button type="button" onClick={onOpenPlugins}>{words.openPlugins}</button></div>}
+      {onOpenPlugins && <Row action="settings.plugins" title={words.plugins.title} note={words.plugins.note}><button type="button" onClick={onOpenPlugins}>{words.openPlugins}</button></Row>}
       <Group name={words.groups.campus}><MailboxControls {...props} /><DocumentControls {...props} /></Group>
-      <NotificationControls {...props} />
+      {snapshot.notifications && <Group name={words.groups.notifications}><NotificationControls {...props} /></Group>}
       {booth && <Group name="Minecraft"><MinecraftControls {...props} /></Group>}
     </Section>
     <Section id="rhythm">
-      <Group name={words.groups.life}><LifeControls {...props} /><DiaryControls {...props} />
-        {/* 旧心流是 1.1 已退役的只读记录，留着能查，但不该和现在的东西挤在同一层 */}
-        <details className="settings-advanced" open><summary>旧心流记录（只读）</summary><LegacyFlowRecords bridge={bridge} snapshot={snapshot} /></details>
-      </Group>
+      {/* 旧心流是 1.1 已退役的只读记录：LegacyFlowRecords 自己是一个淡一档的折叠，没有记录时不出现 */}
+      <Group name={words.groups.life}><LifeControls {...props} /><DiaryControls {...props} /><LegacyFlowRecords bridge={bridge} snapshot={snapshot} /></Group>
     </Section>
     <Section id="book">
       {/* 展位是公共的机器，不收来访者的个人介绍 */}
       {!booth && <Group name={words.groups.profile}><ProfileControls {...props} /></Group>}
-      <Group name="记忆与经历"><MemoryControls {...props} /></Group>
-      {/* 重新走一遍新手指引只把“看过引导”改回没看过（onboarding.reset），不动任何资料；放在外面，不藏进折叠组 */}
-      {!booth && <div className="settings-callout" data-action="onboarding.reset"><p>{words.resetHint}</p><button type="button" onClick={() => void send({ type: 'onboarding.reset' })}>{words.reset}</button></div>}
+      <Group name={words.groups.memory}><MemoryControls {...props} /></Group>
       <Group name={words.groups.book}><BackupControls {...props} /><CharacterControls {...props} /></Group>
+      {/* 重新走一遍新手指引只把“看过引导”改回没看过（onboarding.reset），不动任何资料；是一行，不藏进折叠组 */}
+      {!booth && <Row action="onboarding.reset" title={words.onboarding.title} note={words.resetHint}><button type="button" onClick={() => void send({ type: 'onboarding.reset' })}>{words.reset}</button></Row>}
     </Section>
     <Section id="usage">
-      <Group name="运行资源" open={booth}><ResourceControls {...props} /></Group>
+      <Group name={words.groups.resources} open={booth}><ResourceControls {...props} /></Group>
       <Group name={words.groups.experimental}><OpticalControls {...props} /></Group>
     </Section>
     <Section id="developer">
-      <Group name={words.groups.advanced} open={booth}><p>{words.developerHint}</p><label><input type="checkbox" checked={runtime.developer.requestedEnabled} disabled={booth} onChange={(event) => void send({ type: 'developer.set', enabled: event.target.checked })} />{words.developerSwitch}</label>{runtime.developer.restartRequired && <button onClick={() => void send({ type: 'app.restart' })}>{words.restart}</button>}</Group>
+      <Group name={words.groups.advanced} open={booth}><p className="settings-note">{words.developerHint}</p><label><input type="checkbox" checked={runtime.developer.requestedEnabled} disabled={booth} onChange={(event) => void send({ type: 'developer.set', enabled: event.target.checked })} />{words.developerSwitch}</label>{runtime.developer.restartRequired && <button onClick={() => void send({ type: 'app.restart' })}>{words.restart}</button>}</Group>
     </Section>
     <SettingsIssue code={error} />
   </>

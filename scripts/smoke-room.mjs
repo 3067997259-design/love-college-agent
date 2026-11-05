@@ -27,7 +27,7 @@ try {
   const entry = await page.evaluate((id) => window.lca.readDiary(id), id)
   await debug('set_clock', { nowMs: Date.parse('2026-10-18T12:00:00+08:00') }); assert.deepEqual(await page.evaluate((id) => window.lca.readDiary(id), id), entry)
   assert.ok(entry.subjective); assert.ok(entry.key); assert.ok(entry.text); assert.ok(!JSON.stringify(await snapshot()).includes(entry.key)); assert.ok(!JSON.stringify(await debug('get_context')).includes(entry.text))
-  await openSettings(page); await page.getByRole('button', { name: '用户查阅日记', exact: true }).first().click(); await page.getByRole('article', { name: '用户独占日记' }).waitFor()
+  await openSettings(page); await page.getByRole('button', { name: '读这篇日记', exact: true }).first().click(); await page.getByRole('article', { name: '用户独占日记' }).waitFor()
   await send({ type: 'room.rebuild' }); const rooms = join(data, 'developer', sceneId, 'rooms'); const room = join(rooms, (await readdir(rooms))[0]); const encrypted = await readFile(join(room, '日记', '2026-10-16.zip')); assert.ok(!encrypted.includes(Buffer.from(entry.text)))
   const archive = join(data, 'room.lca-save'); await instance.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }) }, archive); await send({ type: 'backup.export' }); await waitFor((s) => s.backup.status === 'exported', 'ROOM_EXPORT_FAILED')
   // Files the user saves into a projection folder are not ours to delete, even with the exact naming shape we generate.

@@ -1,9 +1,18 @@
 import { useState } from 'react'
 import type { AppBridge, AppSnapshot, ResourcePurpose } from '../../../shared'
+import { dayKeyLabel } from '../book/life/text'
+import { SettingsIssue } from './SettingsIssue'
 
-const PURPOSE_LABEL: Record<ResourcePurpose, string> = { memory: '整理记忆', diary: '日记', mail: '邮件', desk: '书桌', other: '其他' }
+const PURPOSE_LABEL: Record<ResourcePurpose, string> = { memory: '整理记忆', diary: '写日记', mail: '看邮件', desk: '书桌作品', other: '其他' }
 const PURPOSES: readonly ResourcePurpose[] = ['memory', 'diary', 'mail', 'desk', 'other']
+const number = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US')
 
+/**
+ * 运行资源：今天用了多少额度、她自己做事那一份怎么分，以及两个上限。
+ * 数字是按请求大小估的预留量（不是实际 token 或费用），模型日从 04:00 算起。
+ * 分项上限只约束带用途的新记录；更新前写下的旧记录没有用途，记在“其他”里，
+ * 所以那一天的“其他”可能超过它自己的上限，这时下面多一句说明。
+ */
 export function ResourceControls({ bridge, snapshot }: { bridge: AppBridge; snapshot: AppSnapshot }) {
   const view = snapshot.resources; const [total, setTotal] = useState<number | null>(null); const [autonomous, setAutonomous] = useState<number | null>(null); const [error, setError] = useState('')
   if (!view) return null
@@ -13,16 +22,27 @@ export function ResourceControls({ bridge, snapshot }: { bridge: AppBridge; snap
       setError(ack.status === 'rejected' ? ack.error.code : ''); if (ack.status === 'accepted') { setTotal(null); setAutonomous(null) }
     } catch { setError('unavailable') }
   }
-  const count = (value: number | null) => value === null ? '未知' : String(value)
-  return <section aria-label="运行资源"><h2>运行资源</h2>
-    <p>同一数据根共享；恢复书本不会退还已准入的资源。预留单位是请求体与输出上限的保守估计，实际 token 和费用仍未知。</p>
-    <p>模型日 {view.model.dayKey}（04:00 分日）· 总预留 {count(view.model.totalReservedUnits)}/{view.model.totalLimitUnits} · 自主 {count(view.model.autonomousReservedUnits)}/{view.model.autonomousLimitUnits} · 尝试 {count(view.model.attemptCount)} · 迁入旧预留 {count(view.model.legacyReservedUnits)}</p>
-    <p>自主分项：{PURPOSES.map((purpose) => `${PURPOSE_LABEL[purpose]} ${count(view.model.autonomousBreakdown[purpose])}/${view.model.autonomousPurposeLimits[purpose]}`).join(' · ')}</p>
-    <p>语音日 {view.speech.dayKey} · 字符 {count(view.speech.reservedChars)}/{view.speech.charLimit} · 尝试 {count(view.speech.attemptCount)}/{view.speech.attemptLimit}</p>
-    {view.configurable && <><label>总日预留上限<input aria-label="总日预留上限" type="number" min={10000} max={5000000} step={10000} value={total ?? view.model.totalLimitUnits} onChange={(event) => setTotal(Number(event.target.value))} /></label>
-      <label>自主日预留上限<input aria-label="自主日预留上限" type="number" min={0} max={total ?? view.model.totalLimitUnits} step={10000} value={autonomous ?? view.model.autonomousLimitUnits} onChange={(event) => setAutonomous(Number(event.target.value))} /></label>
-      <button disabled={view.status !== 'ready'} onClick={() => void save()}>保存每日预算</button>
-      <p>自主额度只算她自发做的后台事情（整理记忆、写日记、扫邮件、书桌作品），并已按这些类别分开、互不挤占；模型日每天 04:00 重置。你发的消息、点「请她补写」或主动要求整理记忆不占这个桶，也不会被它挡住，只记录用量。调低只影响之后的请求，不退还已经预留的部分。旧版账本没有用途标签，会暂时显示在「其他」；分项准入只统计带标签的新记录。</p></>}
-    {(error || view.status !== 'ready') && <p role="alert">{error || '资源账本不可用，请求已关闭；原书本仍保留。'}</p>}
+  const { model, speech } = view
+  const unlabeled = model.autonomousBreakdown.other > model.autonomousPurposeLimits.other
+  return <section aria-label="运行资源">
+    <p className="settings-note">{dayKeyLabel(model.dayKey)} · 每天 04:00 换日{model.attemptCount !== null && ` · 今天请求了 ${model.attemptCount} 次`}</p>
+    <table className="settings-usage">
+      <tbody>
+        <tr><th scope="row">全部</th><td>{number(model.totalReservedUnits)} / {number(model.totalLimitUnits)}</td></tr>
+        <tr><th scope="row">她自己做的事</th><td>{number(model.autonomousReservedUnits)} / {number(model.autonomousLimitUnits)}</td></tr>
+        {PURPOSES.map((purpose) => <tr key={purpose} data-sub><th scope="row">{PURPOSE_LABEL[purpose]}</th><td>{number(model.autonomousBreakdown[purpose])} / {number(model.autonomousPurposeLimits[purpose])}</td></tr>)}
+        <tr><th scope="row">语音</th><td>{number(speech.reservedChars)} / {number(speech.charLimit)} 字</td></tr>
+        <tr data-sub><th scope="row">次数</th><td>{number(speech.attemptCount)} / {number(speech.attemptLimit)}</td></tr>
+      </tbody>
+    </table>
+    <p className="settings-note">数字是按请求大小估的预留量，不是实际的 token 或费用。{unlabeled && '更新前的用量没有分类，先记在「其他」里，不占它的额度。'}</p>
+    {view.configurable && <>
+      <label>每天总额度<input aria-label="每天总额度" type="number" min={10000} max={5000000} step={10000} value={total ?? model.totalLimitUnits} onChange={(event) => setTotal(Number(event.target.value))} /></label>
+      <label>她自己做事的额度<input aria-label="她自己做事的额度" type="number" min={0} max={total ?? model.totalLimitUnits} step={10000} value={autonomous ?? model.autonomousLimitUnits} onChange={(event) => setAutonomous(Number(event.target.value))} /></label>
+      <div className="settings-actions"><button disabled={view.status !== 'ready'} onClick={() => void save()}>保存额度</button></div>
+      <p className="settings-note">她自己做的事（整理记忆、写日记、看邮件、书桌作品）各有一份，互不挤占。你发的消息和你让她做的事另算，不受这份额度限制。调低只影响之后的请求。</p>
+    </>}
+    {view.status !== 'ready' && <p role="alert">用量账本打不开，模型请求先停了。书本里的东西都在。</p>}
+    <SettingsIssue code={error} />
   </section>
 }

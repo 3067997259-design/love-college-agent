@@ -24,7 +24,7 @@ try {
   const invalid = join(data, 'invalid-providers.json'); await writeFile(invalid, JSON.stringify({ providers: { chat: { base_url: 'not-a-url', api_key: 'SYNTHETIC_SETTINGS_SECRET', model: 'synthetic' } } }))
   await instance.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }) }, invalid)
   await page.getByRole('button', { name: '导入模型配置', exact: true }).click(); await waitFor((s) => s.modelSettings.status === 'failed', 'CONFIG_FAILURE_MISSING')
-  const issue = page.locator('.settings-issue').filter({ hasText: '配置未能使用' }).first(); await issue.waitFor()
+  const issue = page.locator('.settings-issue').filter({ hasText: '配置用不了' }).first(); await issue.waitFor()
   assert.equal(await issue.locator('code').isVisible(), false); await issue.locator('summary').click(); assert.equal(await issue.locator('code').innerText(), 'configuration-failed')
   assert.ok(!JSON.stringify(await snapshot()).includes('SYNTHETIC_SETTINGS_SECRET')); assert.ok(!(await page.locator('[data-settings="user"]').innerText()).includes('SYNTHETIC_SETTINGS_SECRET'))
   await issue.locator('summary').click(); const campus = await group('邮箱与资料')

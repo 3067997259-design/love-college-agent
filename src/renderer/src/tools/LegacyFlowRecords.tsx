@@ -12,9 +12,9 @@ export function LegacyFlowRecords({ snapshot, bridge }: { snapshot: AppSnapshot;
   const inspect = async (section: 'status' | 'diff', flowId: string) => {
     try { await bridge.readHeartFlow?.({ section, flowId }) } catch { /* Native preview may be unavailable in tests. */ }
   }
-  return <details className="legacy-flow">
+  return <details className="settings-advanced legacy-flow">
     <summary>{words.legacyFlow.title}（{sessions.length}）</summary>
-    <p>{words.legacyFlow.note}</p>
+    <p className="settings-advanced-note">{words.legacyFlow.note}</p>
     <ol>
       {sessions.map((session) => <li key={session.id} data-flow-id={session.id}>
         <code>{session.id.slice(0, 8)}</code> · {session.endedAtMs === null ? words.legacyFlow.open : formatClock(session.startedAtMs)}
