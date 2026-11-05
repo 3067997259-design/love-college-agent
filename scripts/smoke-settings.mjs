@@ -28,7 +28,7 @@ try {
   assert.equal(await issue.locator('code').isVisible(), false); await issue.locator('summary').click(); assert.equal(await issue.locator('code').innerText(), 'configuration-failed')
   assert.ok(!JSON.stringify(await snapshot()).includes('SYNTHETIC_SETTINGS_SECRET')); assert.ok(!(await page.locator('[data-settings="user"]').innerText()).includes('SYNTHETIC_SETTINGS_SECRET'))
   await issue.locator('summary').click(); const campus = await group('邮箱与资料')
-  assert.equal(await campus.getByRole('checkbox', { name: '文件隐私过滤 /privacy', exact: true }).isDisabled(), true)
+  assert.equal(await campus.getByRole('checkbox', { name: '用独立隐私模型隔离整理文件', exact: true }).isDisabled(), true)
   const book = await group('书本与角色'); const archive = join(data, 'settings.lca-save')
   await instance.evaluate(({ dialog }, path) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: path }) }, archive)
   await book.getByRole('button', { name: '导出私人存档', exact: true }).click(); await waitFor((s) => s.backup.status === 'exported', 'USER_EXPORT_FAILED'); assert.ok((await stat(archive)).size > 1000)

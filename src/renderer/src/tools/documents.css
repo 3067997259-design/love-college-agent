@@ -35,6 +35,27 @@
 }
 .file-intake:hover .file-hint, .file-intake:focus-within .file-hint { opacity: 1; transform: translateY(0); }
 .file-notice { flex-basis: 100%; color: var(--graphite); }
-.document-list { padding-left: 18px; }
-.document-job, .document-attachment { margin-block: 7px; overflow-wrap: anywhere; }
+.document-list { padding-left: 0; margin: 6px 0; list-style: none; }
+.document-job, .document-attachment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0;
+  padding: 5px 9px;
+  overflow-wrap: anywhere;
+  background: color-mix(in oklab, var(--paper-edge) 24%, transparent);
+  border-radius: 7px;
+}
+.document-job-name, .document-attachment > span:first-child {
+  flex: 1 1 12em;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  color: var(--ink-her);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.document-job-state { flex: none; font-size: 12px; color: var(--graphite); }
+.document-job-actions { display: flex; flex: none; gap: 6px; margin-left: auto; }
 .document-job span[role="alert"] { display: block; }

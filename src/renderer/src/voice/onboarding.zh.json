@@ -2,7 +2,7 @@
   "_说明": "新手流程右页文案（体验设计 §7.1：铅笔是你，羽毛笔是她）。由代码引用，不调用模型。2026-10-18 按用户要求重写；动作名保持稳定，便于现有 Electron 场景。",
   "progress": "{n} / {total}",
   "error": "没有保存成功，请再试一次。",
-  "slots": { "chat": "聊天模型", "work": "工作模型", "background": "记忆与日记", "privacy": "隐私滤芯", "chat_google": "备用对话", "chat_claude": "备用对话" },
+  "slots": { "chat": "聊天模型", "work": "工作模型", "background": "记忆与日记", "privacy": "隐私模型", "chat_google": "备用对话", "chat_claude": "备用对话" },
   "cover": {
     "title": "一本空白的书",
     "lead": "纸页还是白的。翻开它，布置一间属于你们的书房。",

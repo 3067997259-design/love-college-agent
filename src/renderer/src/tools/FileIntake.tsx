@@ -35,7 +35,7 @@ export function FileIntake({ bridge, snapshot }: { bridge: AppBridge; snapshot: 
       const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ''
       if (files.length) void bridge.importFiles!(files, snapshot.epoch).then((ack) => { setAcceptedIds(ack.acceptedIds); setError(!!ack.error); setNotice(ack.error ? `文件未全部接收：${ack.error.code}` : '') }, () => { setAcceptedIds([]); setError(true); setNotice('文件接收失败') })
     }} />
-    <span className="file-hint">可拖入 PDF／文本 · {snapshot.privacy.fileFilteringEnabled ? '滤芯整理' : snapshot.runtime?.developer.mode === 'developer' ? '暂存，等待开启 /privacy' : snapshot.modelSettings?.configuredSlots.includes('chat') ? '主模型直接整理' : '暂存，等待模型连接'}</span>
+    <span className="file-hint">可拖入 PDF／文本 · {snapshot.privacy.fileFilteringEnabled ? '独立隐私隔离' : snapshot.runtime?.developer.mode === 'developer' ? '暂存，等待开启 /privacy' : snapshot.modelSettings?.configuredSlots.includes('chat') ? '主模型直接整理' : '暂存，等待模型连接'}</span>
     {(notice || progress) && <span role={error || failed ? 'alert' : 'status'} className="file-notice">{[notice, progress].filter(Boolean).join('；')}</span>}
   </div>
 }

@@ -13,9 +13,9 @@
     "failed": "校园事项暂时没查到。"
   },
   "privacy.extract": {
-    "running": "《{fileName}》已交给隐私滤芯整理，原文不经过我",
+    "running": "《{fileName}》已交给独立隐私模型整理，原文不经过我",
     "completed": "《{fileName}》整理好了。",
-    "failed": "隐私滤芯连不上，这份先放着，没有交给别处。"
+    "failed": "独立隐私模型连不上，这份先放着，没有交给别处。"
   },
   "calendar.write": {
     "running": "排进日程",

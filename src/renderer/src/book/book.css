@@ -539,7 +539,7 @@
 .plan-head-empty { font: 15px var(--font-hand); color: var(--graphite); }
 .plan-label { flex: 0 1 auto; min-width: 0; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 17px var(--font-hand); color: var(--ink-her); }
 .plan-state { font: 15px var(--font-hand); color: var(--graphite); white-space: nowrap; }
-/* 演示节奏要明说：和滤芯标记同一种小框 */
+/* 演示节奏要明说：和隐私隔离标记同一种小框 */
 .demo-tag { padding: 0 6px; font-size: var(--fs-xs); white-space: nowrap; color: var(--navy); border: 1.5px solid var(--navy); border-radius: 5px; }
 
 .tomatoes { display: flex; flex: none; gap: 8px; }

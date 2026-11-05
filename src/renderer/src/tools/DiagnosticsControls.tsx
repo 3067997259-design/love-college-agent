@@ -34,7 +34,7 @@ export function DiagnosticsControls({ bridge, snapshot, standalone = false }: { 
       <details><summary>回合记录 · {data.turns.length}</summary>{data.turns.map((turn) => <p key={turn.id}>{turn.id.slice(0, 8)} · {turn.status} · 输入 {turn.inputTokens ?? '未提供'} / 输出 {turn.outputTokens ?? '未提供'} token · 总耗时 {turn.durationMs ?? '未提供'} ms · 首字 {turn.firstTokenLatencyMs ?? '未提供'} · 缓存 {turn.cachedInputTokens ?? '未提供'} · 费用 {turn.cost ?? '未提供'}</p>)}</details>
       <details><summary>调度与 inbox · {data.queue.length} / {data.inbox.length}</summary><pre>{JSON.stringify({ queue: data.queue, inbox: data.inbox }, null, 2)}</pre></details>
       <details><summary>记忆检索打分 · {data.memoryScores.length}</summary><pre>{JSON.stringify(data.memoryScores, null, 2)}</pre></details>
-      <p>邮箱：{data.privacy.mailStatus} · 文件滤芯：{data.privacy.fileFilteringEnabled ? '开' : '关'} · 待处理资料：{data.privacy.pendingFiles}</p>
+      <p>邮箱：{data.privacy.mailStatus} · 文件隐私隔离：{data.privacy.fileFilteringEnabled ? '开' : '关'} · 待处理资料：{data.privacy.pendingFiles}</p>
     </div>}
   </div>
 }

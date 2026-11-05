@@ -94,7 +94,7 @@ try {
   assert.ok(JSON.stringify(context).includes('get_processed_files'), 'DOCUMENT_TOOL_NOT_EXECUTED')
   safe(await client.callTool({ name: 'get_state', arguments: {} }))
   for (const scenario of ['privacy-failure', 'malicious']) {
-    await openTools(); await page.getByLabel('资料滤芯场景').selectOption(scenario)
+    await openTools(); await page.getByLabel('隐私隔离测试场景').selectOption(scenario)
     await waitFor((s) => s.documents.scenarioId === scenario, 'FILTER_SCENARIO_NOT_SET'); await closeTools()
     const path = join(data, scenario + '.txt'); await writeFile(path, 'PRIVATE_FAULT_' + scenario)
     await page.getByLabel('选择资料文件', { exact: true }).setInputFiles(path)
@@ -102,7 +102,7 @@ try {
     const failed = await snapshot(); assert.equal(failed.documents.jobs.at(-1).error.code, scenario === 'malicious' ? 'privacy-invalid-output' : 'privacy-unavailable')
     assert.equal(failed.deliveries.length, 2); safe(failed)
   }
-  await openTools(); await page.getByLabel('资料滤芯场景').selectOption('ready')
+  await openTools(); await page.getByLabel('隐私隔离测试场景').selectOption('ready')
   const failedId = (await snapshot()).documents.jobs.find((job) => job.error?.code === 'privacy-unavailable').id
   await page.locator(`.document-job[data-id="${failedId}"]`).getByRole('button', { name: '重试', exact: true }).click()
   await waitFor((s) => s.deliveries.length === 3, 'EXPLICIT_RETRY_FAILED'); await closeTools()

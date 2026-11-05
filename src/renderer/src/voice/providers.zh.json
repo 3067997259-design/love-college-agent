@@ -7,7 +7,7 @@
     "chat": "聊天模型",
     "work": "工作模型",
     "background": "记忆与日记",
-    "privacy": "隐私滤芯"
+    "privacy": "隐私模型"
   },
   "baseUrl": "接口地址",
   "baseHint": "例如 https://api.deepseek.com/v1",
@@ -85,7 +85,7 @@
     "path": "测试通道",
     "paths": {
       "dsh": "DSH（她聊天和干活实际用的通道）",
-      "direct": "LCA 直连（记忆、日记和隐私滤芯用的通道）"
+      "direct": "LCA 直连（记忆、日记和隐私模型用的通道）"
     },
     "endpoint": "请求地址",
     "nativeEndpoint": "DSH 内置的服务商适配器直接连官方地址，不使用你填写的路径",
@@ -126,7 +126,7 @@
   "baseRequired": "先填接口地址。",
   "modelRequired": "先填模型名。",
   "keyRequired": "先填 API 密钥。",
-  "privacyHint": "测试时隐私滤芯只收到一句固定的测试句，看不到你的资料。",
+  "privacyHint": "测试时隐私模型只收到一句固定的测试句，看不到你的资料。",
   "services": {
     "title": "其他连接",
     "lead": "语音、礼物生成和邮箱也存在同一份本机配置里，保存后重启生效。",
@@ -156,7 +156,7 @@
   "independent": "使用独立模型",
   "mainMissing": "请先配置聊天模型",
   "followPrivacyHint": "隐私隔离关着：新邮件和导入的文件都由聊天模型直接处理，它能看到原文。以前隔离过的资料保持原样，已经发给模型的内容收不回来。",
-  "isolatedPrivacyHint": "邮件和标为私密的工具输出先交给独立模型过滤，她只看到摘出来的短字段，过滤失败就停下。文件要另外用 /privacy 打开过滤，没打开时由聊天模型直接整理。",
+  "isolatedPrivacyHint": "邮件和标为私密的工具输出先交给独立模型过滤，她只看到摘出来的短字段，过滤失败就停下。拖入的文件要单独打开隐私隔离，或在对话里发 /privacy；没打开时由聊天模型直接读取原文。",
   "followBackgroundHint": "记忆、日记和后台工作用聊天模型的连接，改了聊天模型这里也跟着变。",
   "vendor": "服务商",
   "customVendor": "自定义（{host}）",
