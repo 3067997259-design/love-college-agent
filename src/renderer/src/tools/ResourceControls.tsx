@@ -30,7 +30,7 @@ export function ResourceControls({ bridge, snapshot }: { bridge: AppBridge; snap
       <tbody>
         <tr><th scope="row">全部</th><td>{number(model.totalReservedUnits)} / {number(model.totalLimitUnits)}</td></tr>
         <tr><th scope="row">她自己做的事</th><td>{number(model.autonomousReservedUnits)} / {number(model.autonomousLimitUnits)}</td></tr>
-        {PURPOSES.map((purpose) => <tr key={purpose} data-sub><th scope="row">{PURPOSE_LABEL[purpose]}</th><td>{number(model.autonomousBreakdown[purpose])} / {number(model.autonomousPurposeLimits[purpose])}</td></tr>)}
+        {PURPOSES.filter((purpose) => model.autonomousPurposeLimits[purpose] > 0 || model.autonomousBreakdown[purpose] > 0).map((purpose) => <tr key={purpose} data-sub><th scope="row">{PURPOSE_LABEL[purpose]}</th><td>{number(model.autonomousBreakdown[purpose])} / {number(model.autonomousPurposeLimits[purpose])}</td></tr>)}
         <tr><th scope="row">语音</th><td>{number(speech.reservedChars)} / {number(speech.charLimit)} 字</td></tr>
         <tr data-sub><th scope="row">次数</th><td>{number(speech.attemptCount)} / {number(speech.attemptLimit)}</td></tr>
       </tbody>
@@ -40,7 +40,7 @@ export function ResourceControls({ bridge, snapshot }: { bridge: AppBridge; snap
       <label>每天总额度<input aria-label="每天总额度" type="number" min={10000} max={5000000} step={10000} value={total ?? model.totalLimitUnits} onChange={(event) => setTotal(Number(event.target.value))} /></label>
       <label>她自己做事的额度<input aria-label="她自己做事的额度" type="number" min={0} max={total ?? model.totalLimitUnits} step={10000} value={autonomous ?? model.autonomousLimitUnits} onChange={(event) => setAutonomous(Number(event.target.value))} /></label>
       <div className="settings-actions"><button disabled={view.status !== 'ready'} onClick={() => void save()}>保存额度</button></div>
-      <p className="settings-note">她自己做的事（整理记忆、写日记、看邮件、书桌作品）各有一份，互不挤占。你发的消息和你让她做的事另算，不受这份额度限制。调低只影响之后的请求。</p>
+      <p className="settings-note">她自己做的事（整理记忆、写日记、书桌作品）各有一份，互不挤占。你发的消息、你让她做的事和看邮件另算，不受这份额度限制。调低只影响之后的请求。</p>
     </>}
     {view.status !== 'ready' && <p role="alert">用量账本打不开，模型请求先停了。书本里的东西都在。</p>}
     <SettingsIssue code={error} />

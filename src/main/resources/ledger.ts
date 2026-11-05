@@ -13,8 +13,12 @@ export const resourceLimits = z.strictObject({ dailyTotalUnits: z.number().int()
  * therefore blocked the diary for the rest of the day. Keep room for a full day; both
  * caps are editable in settings, and every admission is still recorded. */
 const defaults = { dailyTotalUnits: 800_000, dailyAutonomousUnits: 300_000 }
-/** Shares of the autonomous cap. Memory upkeep can no longer eat the diary's share. */
-export const PURPOSE_SHARES = { memory: 0.5, diary: 0.2, mail: 0.1, desk: 0.1, other: 0.1 } as const
+/** Shares of the autonomous cap. Memory upkeep can no longer eat the diary's share.
+ * Her desk gets room for its own eight daily attempts (a fixture step reserves about 6.5k;
+ * at 10% a reading and a writing job could never both finish in one day). Reading mail is
+ * always recorded as work (task-ports), so it has no autonomous share; give it one if a
+ * spontaneous mail path ever appears. */
+export const PURPOSE_SHARES = { memory: 0.5, diary: 0.2, mail: 0, desk: 0.2, other: 0.1 } as const
 export type ResourcePurpose = keyof typeof PURPOSE_SHARES
 const purposeSchema = z.enum(['memory', 'diary', 'mail', 'desk', 'other'])
 export const purposeCeilings = (autonomousLimit: number): Record<ResourcePurpose, number> => ({

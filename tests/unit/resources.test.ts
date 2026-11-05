@@ -24,13 +24,22 @@ it('reserves before dispatch, never refunds failed requests, and splits the auto
   f.ledger.reserveModel(60000, 'autonomous', 'diary')
   expect(() => f.ledger.reserveModel(1, 'autonomous', 'diary')).toThrow()
   expect(f.reopen().view().model).toMatchObject({ totalReservedUnits: 215000, autonomousReservedUnits: 210000, attemptCount: 4,
-    autonomousBreakdown: { memory: 150000, diary: 60000, mail: 0, desk: 0, other: 0 }, autonomousPurposeLimits: { memory: 150000, diary: 60000, mail: 30000, desk: 30000, other: 30000 } })
+    autonomousBreakdown: { memory: 150000, diary: 60000, mail: 0, desk: 0, other: 0 }, autonomousPurposeLimits: { memory: 150000, diary: 60000, mail: 0, desk: 60000, other: 30000 } })
   // A user-started call is recorded even when the autonomous bucket is full.
   f.ledger.recordModel(8000, 'work'); expect(f.reopen().view().model.totalReservedUnits).toBe(223000)
   for (let i = 0; i < 10; i++) f.ledger.reserveSpeech(1200)
   expect(() => f.ledger.reserveSpeech(1)).toThrow(); expect(f.reopen().view().speech).toMatchObject({ reservedChars: 12000, attemptCount: 10 })
   const short = fixture(); for (let i = 0; i < 30; i++) short.ledger.reserveSpeech(1)
   expect(() => short.ledger.reserveSpeech(1)).toThrow(); expect(short.ledger.view().speech).toMatchObject({ reservedChars: 30, attemptCount: 30 })
+})
+it('leaves her desk room for its own eight daily attempts and gives mail no autonomous share', () => {
+  const f = fixture()
+  // Eight desk steps of about 6.5k each (read and write jobs, plus a cancelled and an invalid attempt).
+  for (let i = 0; i < 8; i++) f.ledger.reserveModel(7000, 'autonomous', 'desk')
+  expect(f.ledger.view().model.autonomousBreakdown.desk).toBe(56000)
+  // Reading mail is recorded as work; an autonomous mail reservation has nowhere to go.
+  expect(() => f.ledger.reserveModel(1, 'autonomous', 'mail')).toThrow()
+  expect(() => f.ledger.recordModel(5000, 'work', 'mail')).not.toThrow()
 })
 it('allows only an operator to change valid limits and applies reductions to subsequent admissions', () => {
   const f = fixture(); f.ledger.reserveModel(12000, 'work'); f.ledger.configure({ dailyTotalUnits: 10000, dailyAutonomousUnits: 0 })
