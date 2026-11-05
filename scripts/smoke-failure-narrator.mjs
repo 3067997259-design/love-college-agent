@@ -112,7 +112,7 @@ try {
   const interrupted = await fail('interrupted', 'partial stream'); assert.equal(interrupted.failure.category, 'interrupted'); assert.equal(phase, 6); assert.ok((await snapshot()).messages.some((message) => message.text === 'SAFE_PARTIAL_REPLY' && message.status === 'interrupted'))
   const tools = await fail('tool-fail', 'tool followed by known upstream failure'); assert.equal(tools.failure.category, 'upstream'); assert.equal(tools.failure.httpStatus, 503); assert.equal(tools.failure.toolsExecuted, true); assert.equal(phase, 7)
   assert.equal((await snapshot()).activities.filter((activity) => activity.taskId === tools.failure.turnId && activity.status === 'completed').length, 1)
-  assert.ok((await page.locator(`[data-failure-turn="${tools.failure.turnId}"]`).innerText()).includes('已尝试调用工具'))
+  assert.ok((await page.locator(`[data-failure-turn="${tools.failure.turnId}"]`).innerText()).includes('已经动过工具'))
   const count = (await records()).filter((row) => row.type === 'narrator/failure').length
   previousTask = (await snapshot()).task?.id
   mode = 'waiting'; phase = 0; await accept({ type: 'message.send', text: 'stop pending request' })
