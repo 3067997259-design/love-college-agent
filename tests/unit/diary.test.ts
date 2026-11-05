@@ -85,3 +85,30 @@ it('waits for a pause in the conversation before writing on its own, but writes 
     expect(diary.view().entries.every((entry) => entry.unlocked)).toBe(true)
   } finally { await diary.close(); scheduler.dispose(); store.close() }
 })
+it('folds a page for one evening when she asks to, while a manual write still opens at once', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'lca-diary-')); cleanups.push(() => { if (!resolve(root).startsWith(join(resolve(tmpdir()), 'lca-diary-'))) throw new Error('UNSAFE'); rmSync(root, { recursive: true, force: true }) })
+  const clock = createManualClock(0); clock.advanceBy(clock.parse('2026-10-15T12:00:00+08:00'))
+  const journal = openJournal(root, { userId: 'u', characterId: 'c' }, clock)
+  const store: SessionStore = { scope: journal.scope, records: journal.records, append: journal.append, projection: () => projectJournal(journal.records()), close: journal.close }
+  store.append({ type: 'model/seen', turnId: 'thu', source: 'fake', messages: [{ role: 'user', content: '周四下了一整天的雨。' }], eligibleIndexes: [0] })
+  clock.advanceBy(86400000)
+  store.append({ type: 'model/seen', turnId: 'fri', source: 'fake', messages: [{ role: 'user', content: '周五把窗擦干净了。' }], eligibleIndexes: [0] })
+  clock.advanceBy(86400000)
+  const scheduler = createScheduler(clock); const assets = createBinaryAssets(root, store)
+  const diary = createDiary({ store, clock, scheduler, assets, busy: () => false, changed: () => {}, projected: () => {},
+    model: { source: 'fake', write: async () => ({ entry: '雨下了一整天，窗上的水痕像在慢慢写字。', shy: true }) } }); scheduler.cancel('diary.daily')
+  try {
+    await diary.write()
+    expect(diary.view().entries).toHaveLength(1)
+    const folded = diary.view().entries[0]; expect(folded.unlocked).toBe(false)
+    expect(() => diary.read(folded.id)).toThrow('DIARY_LOCKED')
+    // The key arrives the next evening, not a whole book-day later.
+    clock.advanceBy(18 * 3600_000)
+    expect(diary.view().entries[0].unlocked).toBe(true)
+    expect(diary.read(folded.id).text).toContain('雨下了一整天')
+    // A manual "write it now" is the user asking to read it: shy is ignored.
+    await diary.write(true)
+    expect(diary.view().entries).toHaveLength(2)
+    expect(diary.view().entries.every((entry) => entry.unlocked)).toBe(true)
+  } finally { await diary.close(); scheduler.dispose(); store.close() }
+})

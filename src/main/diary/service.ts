@@ -16,8 +16,9 @@ const DIARY_IDLE_MS = 3 * 60_000
 /** An interrupted or failed day stays unwritten, not settled: try it again after this gap. */
 const DIARY_RETRY_GAP_MS = 10 * 60_000
 const DIARY_DAILY_ATTEMPTS = 3
-/** A written diary is readable at once. Older entries stored a next-day unlock time. */
-const readableAt = (entry: { createdAtMs: number; unlockAtMs: number }) => Math.min(entry.createdAtMs, entry.unlockAtMs)
+/** A written diary is readable at once. A page she folded waits for its own evening; older entries carry their own past unlock time. */
+const FOLDED_PAGE_HOLD_MS = 18 * 3600_000
+const readableAt = (entry: { createdAtMs: number; unlockAtMs: number }) => entry.unlockAtMs
 export function createDiary(options: { clock: Clock; scheduler: Scheduler; store: SessionStore; assets: BinaryAssets; model: DiaryModel | null; busy(): boolean; changed(): void; projected(): void }) {
   const { store, clock } = options; const rows = () => store.history?.() ?? store.records(); const entries = () => rows().flatMap((row) => row.type === 'diary/written' ? [row.diary] : [])
   let active: AbortController | undefined; let worker: Promise<void> | undefined; let failed = false
@@ -52,7 +53,10 @@ export function createDiary(options: { clock: Clock; scheduler: Scheduler; store
         const asset = options.assets.write(encryptDiaryZip(text, key, day), 'zip'); store.append({ type: 'asset/stored', asset })
         const id = 'diary:' + createHash('sha256').update(JSON.stringify([store.scope.userId, store.scope.characterId, day])).digest('hex')
         const writtenAt = clock.nowMs()
-        const diary = diarySchema.parse({ id, dayKey: day, createdAtMs: writtenAt, unlockAtMs: writtenAt, key, asset, sourceIds: input.map((source) => source.id), source: options.model!.source })
+        // She folded this page for a night: the key stays in the ribbon until the next evening. A
+        // manual "write it now" is the user asking to read it, so it opens at once.
+        const unlockAtMs = !manual && parsed.shy === true ? writtenAt + FOLDED_PAGE_HOLD_MS : writtenAt
+        const diary = diarySchema.parse({ id, dayKey: day, createdAtMs: writtenAt, unlockAtMs, key, asset, sourceIds: input.map((source) => source.id), source: options.model!.source })
         store.append({ type: 'diary/written', diary }); options.projected()
       } catch { if (!abort.signal.aborted) failed = true }
       finally { remove(); stop(); active = undefined; worker = undefined; options.changed() }

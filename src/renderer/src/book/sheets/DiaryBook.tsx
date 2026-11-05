@@ -6,8 +6,9 @@ import { SettingsIssue } from '../../tools/SettingsIssue'
 import { dayKeyLabel } from '../life/text'
 
 /**
- * 日记（技术方案 §3.16）：她每天写，加密放在自己的文件夹里；钥匙到了时候夹进下一页的书签。
- * 正文和钥匙只走用户独占的 readDiary，只留在这一页的状态里：不进快照、不存本地、不发给她。
+ * 日记（技术方案 §3.16）：她每天写，加密放在自己的文件夹里；写好的那一页会把钥匙夹进书签丝带。
+ * 她偶尔会把某一页先折起来，过一晚再给人看。正文和钥匙只走用户独占的 readDiary，
+ * 只留在这一页的状态里：不进快照、不存本地、不发给她。
  */
 export function DiaryBook({ snapshot, bridge, focusId, onOpened }: {
   snapshot: AppSnapshot
@@ -37,26 +38,21 @@ export function DiaryBook({ snapshot, bridge, focusId, onOpened }: {
 
   const status = diary?.status === 'writing' ? copy.diary.writing : diary?.status === 'unconfigured' ? copy.diary.unconfigured : diary?.status === 'failed' ? copy.diary.failed : null
   const entries = [...(diary?.entries ?? [])].reverse()
+  // 早期版本的日记按提示词在第一行写了「主观日记」；那一行不该出现在她的私人文里。
+  const lines = reading ? reading.text.split('\n') : []
+  const body = lines.length > 1 && lines[0].trim().startsWith(copy.diary.subjective) ? lines.slice(1) : lines
 
   return (
     <section className="page page-right sheet sheet-diary" aria-label={copy.diary.title}>
       <header className="page-head">
         <span className="page-date">{reading ? dayKeyLabel(reading.dayKey, true) : copy.diary.title}</span>
-        <span className="sheet-lead">{reading ? copy.diary.subjective : copy.diary.lead}</span>
+        <span className="sheet-lead">{reading ? copy.diary.readingTitle : copy.diary.lead}</span>
       </header>
       {reading ? (
         <div className="sheet-body diary-page">
-          <span className="card-stamp diary-stamp">{copy.diary.subjective}</span>
           <div className="diary-text">
-            {/* 第一行是模型按要求写的“主观日记”标注：留着，但小一号，不和盖章抢 */}
-            {reading.text.split('\n').map((line, index) => <p key={index} className={index === 0 && line.startsWith(copy.diary.subjective) ? 'diary-marker' : undefined}>{line}</p>)}
+            {body.map((line, index) => <p key={index}>{line}</p>)}
           </div>
-          <footer className="diary-key">
-            <span className="diary-key-label">{copy.diary.key}</span>
-            <code className="diary-key-code">{reading.key.match(/.{1,4}/g)?.join(' ')}</code>
-            <span className="diary-key-note">{copy.diary.keyNote}</span>
-            <button type="button" className="link-button" onClick={() => { void sendCommand(bridge, snapshot.epoch, { type: 'room.open' }) }}>{copy.diary.folder}</button>
-          </footer>
           <div className="card-actions"><button type="button" className="btn btn-ghost btn-small" onClick={() => setReading(null)}>{copy.diary.close}</button></div>
         </div>
       ) : (
@@ -70,7 +66,7 @@ export function DiaryBook({ snapshot, bridge, focusId, onOpened }: {
                   <span className="diary-date">{dayKeyLabel(entry.dayKey, true)}</span>
                   {entry.unlocked
                     ? <button type="button" className="btn btn-primary btn-small" onClick={() => { void open(entry.id) }}>{copy.diary.open}</button>
-                    : <span className="diary-lock"><LockMark />{copy.diary.locked}</span>}
+                    : <span className="diary-lock">{copy.diary.locked}</span>}
                 </li>
               ))}
             </ul>
@@ -79,15 +75,6 @@ export function DiaryBook({ snapshot, bridge, focusId, onOpened }: {
         </div>
       )}
     </section>
-  )
-}
-
-function LockMark() {
-  return (
-    <svg className="lock-mark" viewBox="0 0 16 18" aria-hidden>
-      <path d="M4.5 8 V5.6 a3.5 3.5 0 0 1 7 0 V8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      <rect x="2.5" y="8" width="11" height="8.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
   )
 }
 
