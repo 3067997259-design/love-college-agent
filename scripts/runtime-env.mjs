@@ -8,11 +8,19 @@ export function electronLaunchTarget(root, fallback) {
   return { executablePath: packaged ?? fallback, args: packaged ? [] : [root] }
 }
 
-/** Synthetic profiles may live on a separate volume; every caller still allocates a fresh ID. */
-export const testDataRoot = (root) => resolve(process.env.LCA_TEST_DATA_ROOT ?? join(root, '.local-data'))
+/** Windows keeps test caches at the drive root, away from the checkout's path length. */
+const testCacheRoot = (root) => process.env.LCA_TEST_CACHE_ROOT ?? (process.platform === 'win32' ? join(root.slice(0, 3), '.lca-cache') : join(root, '.cache'))
+
+/**
+ * Synthetic profiles may live on a separate volume; every caller still allocates a fresh ID.
+ * On Windows they default to the short cache root too: a deep worktree plus a developer scene's
+ * nesting pushes a private-save export's SQLite staging copy past 260 characters, and the export
+ * then fails as `internal` (seen 2026-11-05 in test:room, test:sleep, test:life-work, test:history).
+ */
+export const testDataRoot = (root) => resolve(process.env.LCA_TEST_DATA_ROOT ?? (process.platform === 'win32' ? join(testCacheRoot(root), 'data') : join(root, '.local-data')))
 
 export function runtimeEnv(root) {
-  const cacheRoot = process.env.LCA_TEST_CACHE_ROOT ?? (process.platform === 'win32' ? join(root.slice(0, 3), '.lca-cache') : join(root, '.cache'))
+  const cacheRoot = testCacheRoot(root)
   for (const part of ['tmp', 'electron', 'electron-builder', 'electron-gyp']) mkdirSync(join(cacheRoot, part), { recursive: true })
   const env = { ...process.env, TEMP: join(cacheRoot, 'tmp'), TMP: join(cacheRoot, 'tmp'),
     ELECTRON_CACHE: join(cacheRoot, 'electron'), ELECTRON_BUILDER_CACHE: join(cacheRoot, 'electron-builder'),

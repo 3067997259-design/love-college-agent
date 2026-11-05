@@ -126,7 +126,7 @@ GitHub `Engineering checks` 在 Windows runner 上执行锁文件安装、类型
 
 `test:package --unpacked-only` 不安装 / 卸载，不能称为安装器升级验收。默认 `test:package` 发现已有同名用户安装会拒绝，不覆盖用户实例。
 
-Windows 的安装矩阵应明确设置短的 `LCA_TEST_DATA_ROOT` 和 `LCA_TEST_CACHE_ROOT`（例如 `D:\.lca-cache\candidate-tests`）。场景在其下继续分配独立 UUID，调试端口由系统分配。深层 worktree 再叠加开发场景、房间 ID，可能让 DSH 子进程工作目录达到 260 字符；已复现该条件下 `spawn ENOENT` 与管道 `ENOTCONN`，不应把它误报成模型服务超时。使用短测试根不代表产品已通过任意长路径兼容验收。
+Windows 上 `LCA_TEST_DATA_ROOT` 未设置时，合成 profile 默认放在盘根 `<盘符>\.lca-cache\data`（与测试缓存同处），不放在 checkout 的 `.local-data`：深层 worktree 叠加开发场景后，私人存档导出的 SQLite 暂存副本会超过 260 字符，导出报 `internal`（2026-11-05 在 `test:room`、`test:sleep`、`test:life-work`、`test:history` 出现）。安装矩阵仍可明确设置短的 `LCA_TEST_DATA_ROOT` 和 `LCA_TEST_CACHE_ROOT`（例如 `D:\.lca-cache\candidate-tests`）。场景在其下继续分配独立 UUID，调试端口由系统分配。深层 worktree 再叠加开发场景、房间 ID，可能让 DSH 子进程工作目录达到 260 字符；已复现该条件下 `spawn ENOENT` 与管道 `ENOTCONN`，不应把它误报成模型服务超时。使用短测试根不代表产品已通过任意长路径兼容验收。
 
 所有支持 `LCA_TEST_EXECUTABLE` 的书页检查都必须启动指定的包内 EXE；共同初始化还会核对实际页面来自该 EXE 的 `resources/app.asar`。不能把源码 Electron 的结果记到候选包上。若完整检查中断，保留失败回执；只有固定同一个 app.asar 哈希、逐项记录脚本与辅助函数哈希，才能续跑未完成的矩阵。续跑集合通过不等于原来中断的整条命令退出码为 0。
 
