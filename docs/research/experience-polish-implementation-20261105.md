@@ -214,3 +214,12 @@
 - 验证：`pnpm typecheck`、`pnpm lint` 通过；`vitest` 145 个文件、1018 项通过、8 项跳过；构建后 `smoke-settings`、`smoke-documents`、`smoke-notifications` 在 `LCA_TEST_DATA_ROOT=D:\.lca-test-data` 下通过。
 - 打包与安装：`1.2.0-experience.7` 安装器 315,495,708 字节，SHA-256 `b9f1096cc8e52561da0b3d3df910add6d1ad6140e562e2754b03c1a9ab887fdf`，asar `ef2ec17b46691720a57fea1bc66e74a808126e0d1b4534667ca1bde3b8a1b14c`，源码 `5b3603c`，工作区干净（`trackedDirty: false`）。覆盖安装前正常关闭了 `1.2.0-experience.6`；`/S /currentuser` 退出码 0，注册表版本和安装目录 asar 与回执一致，应用已启动。真实档案只做保留，没有检查内容。
 - 还没做：完整包内矩阵、真实模型、真实邮箱与长期日用未测。未发布。
+
+## 12. 维护者追问：邮箱重连与 DSH 自带组件（2026-11-05）
+
+维护者看过 experience.7 的设置页后追问两件事：邮箱到底什么时候重连、为什么没有重连按钮；插件页里大量 DSH 原版插件标为“未启用”，为什么也没有开关。
+
+- 邮箱：`createImapSource` 每次 `readUnseen` 都新建 ImapFlow 客户端并 `connect()`，所以真正的连接尝试只发生在**她查邮件**时（`mail.check` 工具 → `scanNow`，或对话里让她看邮件）；启动时只读取上次保存的 mailbox 状态，没有后台重连定时器。`mail.outbox` 定时器只负责发件箱落盘，不连邮箱。此前日程页的扫描按钮被移除后，连不上就没有手动重试入口。现在设置页显示上次尝试/上次成功时间，并提供“重新连接并检查”（dispatch `mail.scan`），手动触发一次真实连接。
+- DSH 扩展：扩展面板列的是 DSH 运行包依赖树里的全部 bundle。本机实测 20 个：2 个正在运行（`@lca/dsh-bridge`、`@deepseek-ai/dsh-base`），18 个 `applied: disabled`，全是 `@deepseek-ai/dsh-experimental-*`、`dsh-sdk-*`、`dsh-headless`、`dsh-subagent-claude-code/codex` 这类运行包随附、本应用没有加载的可选组件。它们以 `@deepseek-ai/*` 命名，被 bridge 判为 protected；是否加载由 LCA 的 `profile.startedBundles` 决定，所以书里不提供开关——从书页启用任意 DSH 宿主 bundle 会改运行时策略，不属于可安装扩展。以前它们和核心组件混在一起，一屏“已停用”像坏了。现在面板拆成 2 个核心组件 + “运行包里未启用的可选组件 · 18”，后一组默认收起并写明原因。
+- 验证：`tsc`（web）、`eslint` 通过；构建后 `smoke-settings`、`smoke-extensions` 通过（扩展 12 项 checks）。
+- 打包与安装：`1.2.0-experience.8` 安装器 315,496,497 字节，SHA-256 `21bb61ae2d20d2d9d823c578034361ef8241d26dfcd56ce8712723141d3e5329`，asar `e4de15a777f9684bdb83768211c0155ee52723a6020ad6b0737fa26e50b28842`，源码 `08c41fb`，工作区干净（`trackedDirty: false`）。覆盖安装退出码 0，注册表版本与安装目录 asar 一致，应用已启动。真实档案未检查；完整包内矩阵、真实模型与邮箱未测。未发布。
