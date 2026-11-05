@@ -41,8 +41,11 @@ export type AppCommand = CommandEnvelope & (
   | { type: 'mode.set'; mode: 'work' | 'quiet' | 'rest' }
   | { type: 'companion.sleep'; sleeping: boolean }
   | { type: 'lights.set'; lightsOut: boolean }
-  /** Trimmed single-line text: userName <= 20 code points, characterName <= 12. Empty resets to null / 桃子. */
-  | { type: 'onboarding.profile'; userName?: string; characterName?: string }
+  /**
+   * Trimmed single-line text: userName <= 20 code points, characterName <= 12. Empty resets to null / 桃子.
+   * aboutUser: a few lines in the user's own words (<= 500 code points, line breaks allowed); empty removes it.
+   */
+  | { type: 'onboarding.profile'; userName?: string; characterName?: string; aboutUser?: string }
   | { type: 'onboarding.complete' }
   /** Reopen initialization; retain names and all private business/history data. Refused in booth mode. */
   | { type: 'onboarding.reset' }

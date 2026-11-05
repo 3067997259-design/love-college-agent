@@ -453,6 +453,11 @@ export interface OnboardingView {
   status: 'needed' | 'completed'
   userName: string | null
   characterName: string
+  /**
+   * What the user chose to tell her about themselves, in their own words. Absent when they wrote nothing,
+   * so older journals and saves stay valid. It belongs to the user's profile, never to the character card.
+   */
+  aboutUser?: string
   completedAtMs: number | null
 }
 
