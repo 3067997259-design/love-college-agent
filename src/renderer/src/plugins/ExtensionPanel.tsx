@@ -52,10 +52,10 @@ export function ExtensionPanel({ snapshot, bridge, search }: { snapshot: AppSnap
     {[false, true].map((protectedGroup) => {
       const rows = items.filter((item) => item.protected === protectedGroup).map((item) => <li className="plugin-row extension-row" key={item.id} data-extension-id={item.id}>
         <details>
-          <summary><strong>{item.name}</strong><span className="plugin-meta">{item.protected ? '受保护 · ' : ''}{item.restartReason ? '待重启' : { ready: '已生效', disabled: '已停用', failed: '加载失败', unknown: '状态不明' }[item.applied]}</span></summary>
+          <summary><strong>{item.name}</strong><span className="plugin-meta">{item.protected ? (item.applied === 'disabled' && !item.enabledIntent ? '未随本应用启用' : `受保护 · ${item.restartReason ? '待重启' : { ready: '已生效', disabled: '未启用', failed: '加载失败', unknown: '状态不明' }[item.applied]}`) : item.restartReason ? '待重启' : { ready: '已生效', disabled: '已停用', failed: '加载失败', unknown: '状态不明' }[item.applied]}</span></summary>
           <div className="plugin-config">
             <p className="plugin-meta">{item.version ?? '未提供版本'} · {item.source.label} · 此存档</p>
-            <p className="plugin-meta">已保存为{item.enabledIntent ? '启用' : '停用'}，现在{{ ready: '已加载', disabled: '未加载', failed: '加载失败', unknown: '状态不明' }[item.applied]}</p>
+            <p className="plugin-meta">{item.protected && !item.enabledIntent && item.applied === 'disabled' ? 'DSH 运行包自带的可选组件；本应用的启动配置没有加载它，不影响现有功能。' : `已保存为${item.enabledIntent ? '启用' : '停用'}，现在${{ ready: '已加载', disabled: '未加载', failed: '加载失败', unknown: '状态不明' }[item.applied]}`}</p>
             <details className="plugin-details"><summary>来源指纹</summary><code>{item.source.fingerprint}</code></details>
             {item.protected ? <p className="plugin-meta">随应用维护，不能在这里停用或移除。</p> : <div className="card-actions">
               <button type="button" className="btn btn-small btn-ghost" disabled={busy || uncertain || view.status !== 'ready'} onClick={() => void send({ type: item.enabledIntent ? 'extension.disable' : 'extension.enable', extensionId: item.id, expectedRevision: item.revision, fingerprint: item.source.fingerprint })}>{item.enabledIntent ? '停用' : '启用'}</button>
@@ -66,7 +66,35 @@ export function ExtensionPanel({ snapshot, bridge, search }: { snapshot: AppSnap
           </div>
         </details>
       </li>)
-      return protectedGroup ? <details className="extension-core" key="core"><summary>随应用维护的组件 · {rows.length}</summary><ul className="plugin-list">{rows}</ul></details> : <ul className="plugin-list" key="installed">{rows}</ul>
+      if (!protectedGroup) return <ul className="plugin-list" key="installed">{rows}</ul>
+      // 受保护的组件里，绝大多数「未启用」是 DSH 运行包随附、本应用没加载的可选 bundle。
+      // 它们不能在这里开关，也不该和正在运行的核心组件混成一大片“已停用”：分成两组，下面一组默认收起。
+      const core = items.filter((item) => item.protected && !(item.applied === 'disabled' && !item.enabledIntent)).map((item) => <li className="plugin-row extension-row" key={item.id} data-extension-id={item.id}>
+        <details>
+          <summary><strong>{item.name}</strong><span className="plugin-meta">{`受保护 · ${item.restartReason ? '待重启' : { ready: '已生效', disabled: '未启用', failed: '加载失败', unknown: '状态不明' }[item.applied]}`}</span></summary>
+          <div className="plugin-config">
+            <p className="plugin-meta">{item.version ?? '未提供版本'} · {item.source.label} · 此存档</p>
+            <p className="plugin-meta">随应用维护，不能在这里停用或移除。</p>
+            <details className="plugin-details"><summary>来源指纹</summary><code>{item.source.fingerprint}</code></details>
+            <SettingsIssue code={item.error?.code} />
+          </div>
+        </details>
+      </li>)
+      const dormant = items.filter((item) => item.protected && item.applied === 'disabled' && !item.enabledIntent).map((item) => <li className="plugin-row extension-row" key={item.id} data-extension-id={item.id}>
+        <details>
+          <summary><strong>{item.name}</strong><span className="plugin-meta">未随本应用启用</span></summary>
+          <div className="plugin-config">
+            <p className="plugin-meta">{item.version ?? '未提供版本'} · {item.source.label}</p>
+            <p className="plugin-meta">DSH 运行包自带的可选组件；本应用的启动配置没有加载它，不影响现有功能，也不能在书里开关。</p>
+            <details className="plugin-details"><summary>来源指纹</summary><code>{item.source.fingerprint}</code></details>
+          </div>
+        </details>
+      </li>)
+      return <details className="extension-core" key="core"><summary>随应用维护的组件 · {core.length + dormant.length}</summary>
+        <p className="plugin-meta">这些是 DSH 运行包和本应用自带的组件，启停由应用配置决定，书里不提供开关。</p>
+        <ul className="plugin-list">{core}</ul>
+        {dormant.length > 0 && <details className="extension-core-disabled"><summary>运行包里未启用的可选组件 · {dormant.length}</summary><ul className="plugin-list">{dormant}</ul></details>}
+      </details>
     })}
     {!items.length && view.status === 'ready' && <p className="plugin-empty">{search ? '没有匹配的 DSH 扩展。' : '暂无 DSH 扩展。'}</p>}
     {!!shownOperations.length && <details className="extension-history" open={active || uncertain || undefined}>

@@ -311,3 +311,7 @@
 @media (prefers-reduced-motion: reduce) {
   .plugin-switch, .plugin-switch > span { transition: none; }
 }
+
+/* 运行包里未启用的可选组件：默认收起，和正在运行的核心组件分开，避免一屏“已停用”。 */
+.extension-core-disabled { margin: 6px 0 0; font-size: var(--fs-sm); }
+.extension-core-disabled > summary { cursor: pointer; color: var(--graphite); }
