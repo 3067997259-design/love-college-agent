@@ -205,7 +205,7 @@ export function createFakeBridge(initial: ScenarioId = DEFAULT_SCENARIO): FakeBr
       } else if (kind === 'return') {
         const outing = life.outings.find((item) => item.status === 'away')
         if (!outing) return
-        const items = [...life.items, { id: `item:${outing.id}`, outingId: outing.id, dayKey: life.dayKey, place: outing.place, kind: outing.item, acquiredAtMs: outing.acquiredAtMs, display: 'desk' as const }]
+        const items = [...life.items, { id: `item:${outing.id}`, outingId: outing.id, dayKey: life.dayKey, place: outing.place, kind: outing.item ?? 'leaf', acquiredAtMs: outing.acquiredAtMs, display: 'desk' as const }]
         commit({
           life: { ...life, locationId: 'room', outings: life.outings.map((item) => item.id === outing.id ? { ...item, status: 'returned', settledAtMs: now } : item), items: items.map((item, i) => ({ ...item, display: i >= items.length - 3 ? 'desk' : 'drawer' })) },
           companion: { ...companion, locationId: 'room', mode: 'rest', pose: 'facing-user', expression: 'smile' },

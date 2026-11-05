@@ -183,7 +183,7 @@ export function LeftPage({ snapshot, bridge, intro = null, furniture, onOpenDiar
 
           {away && !awayArt && <AwayNote snapshot={snapshot} writing={moved} />}
           {/* 她出门带回来的东西摆在窗台上，跟着房间一起进照片、一起变暗；外景页不是房间，不摆 */}
-          {!awayArt && !team && <SillItems snapshot={snapshot} onOpenDiary={(dayKey) => onOpenDiary?.(dayKey)} />}
+          {!away && !awayArt && !team && <SillItems snapshot={snapshot} onOpenDiary={(dayKey) => onOpenDiary?.(dayKey)} />}
 
           {/* 光线层在最上面：钟、门牌、信都是房间里的东西，跟着房间一起暗。重光的夜图自带光线，调色层淡出（不叠两次夜色） */}
           <div className="room-tint" /><div className="room-lamp" />

@@ -13,6 +13,7 @@ import { syntheticGlb } from './gifts/fixture'
 import { randomUUID } from 'node:crypto'
 import { contentHash, createDesk } from './legacy-flow/desk'
 import { createLife, type LifeService } from './life/service'
+import { lifeTools } from './life/tools'
 import { lifeReference } from './life/reference'
 import { createSleep, type SleepService } from './life/sleep'
 import { createLifeWork, type LifeWorkService } from './life/work/service'
@@ -560,7 +561,7 @@ void app.whenReady().then(async () => {
       chooseExport: async () => { const result = await dialog.showSaveDialog({ title: '导出静态角色包（不含私人资料）', defaultPath: 'character.lca-character', filters: [{ name: '角色包', extensions: ['lca-character'] }] }); return result.canceled ? null : result.filePath ?? null } })
     controller.attachCharacter(character)
     plugins.registerBuiltin('notifications', '急件与提醒标准', notificationTools(notifications))
-    plugins.registerBuiltin('life-work', '自主阅读与写作', [])
+    plugins.registerBuiltin('life-work', '她的生活与书桌作品', [...lifeTools(life)])
     plugins.registerBuiltin('optical-memory', '可选光学记忆', [optical.tool()])
     plugins.registerBuiltin('mcp', '外部 MCP 工具连接', [])
     if (prepared.developer) plugins.registerBuiltin('developer', '开发调试 MCP', [])

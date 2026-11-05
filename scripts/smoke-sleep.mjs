@@ -57,7 +57,7 @@ try {
   await launch(); assert.equal((await snapshot()).companion.sleeping, false)
   await accepted({ type: 'developer.life.seed' }); await accepted({ type: 'life.work.start', kind: 'read' })
   await openSettings(page)
-  await page.getByRole('button', { name: '让她休息', exact: true }).click()
+  await page.getByRole('button', { name: '让她睡会儿', exact: true }).click()
   await waitFor((s) => s.companion.pose === 'sleeping', 'SLEEP_POSE_MISSING')
   await page.locator('[data-photo-scene][data-pose="sleeping"][data-lighting="baked-night"]').waitFor()
   await accepted({ type: 'lights.set', lightsOut: true })

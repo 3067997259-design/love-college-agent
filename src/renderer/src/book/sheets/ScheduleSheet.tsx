@@ -4,14 +4,15 @@ import copy from '../../voice/book.zh.json'
 import { sendCommand, type CommandBody } from '../command'
 import { formatClock, formatIso } from '../format'
 import { fill } from '../life/text'
+import { locationLabel } from '../labels'
 import { SettingsIssue } from '../../tools/SettingsIssue'
 import { PomodoroSettings } from '../../tools/PomodoroSettings'
 import { visibleWorks } from './schedule'
 
 /**
- * 日程：今天的番茄、她今天的安排和书桌作品、接下来你确认过的事。
- * 全部来自快照：番茄的完成数、她的作息和出返时刻、作品做到第几步都由主进程定（技术方案 §3.5、§3.14），
- * 候选只列已确认的。作品只有元数据，正文要看就点“看看”走原生预览，不在这里读。
+ * 日程：今天的番茄、她今天的去处和书桌作品、接下来你确认过的事。
+ * 她的生活只在这里留一句自然的近况——不列几点看书、几点没做成，也不放遥控她去哪儿的按钮；
+ * 想让她出门或早点回来，在对话里跟她说就够了。
  */
 export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: AppBridge }) {
   const { pomodoro, life, mailbox } = snapshot
@@ -26,17 +27,21 @@ export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bri
   const mailBlocked = !mailbox || snapshot.companion.lightsOut || ['blocked', 'disabled', 'scanning'].includes(mailbox.status)
   const plan = pomodoro.plan && pomodoro.plan.status !== 'proposed' ? pomodoro.plan : null
   const done = pomodoro.completedCount ?? Math.max(0, pomodoro.focusIndex - (pomodoro.phase === 'focus' ? 1 : 0))
-  // 她今天：作息里的安排，加上今天的外出和还没结束的（提议中、在外面），按时刻排
-  const her = [
-    ...(life?.agenda ?? []).map((entry, index) => ({ key: `a${index}`, at: entry.atMs, state: entry.state as string, text: copy.schedule.agenda[entry.kind], note: copy.schedule.agendaState[entry.state] })),
-    ...(life?.outings ?? []).filter((outing) => outing.startsAtMs >= dayStart(snapshot) || outing.status === 'proposed' || outing.status === 'away')
-      .map((outing) => ({ key: outing.id, at: outing.startsAtMs, state: outing.status as string, text: fill(copy.schedule.outing[outing.status], { place: copy.places[outing.place], time: formatClock(outing.returnsAtMs) }), note: '' })),
-  ].sort((a, b) => a.at - b.at)
+  const away = life?.outings.findLast((outing) => outing.status === 'away')
+  const proposed = life?.outings.findLast((outing) => outing.status === 'proposed')
+  const start = dayStart(snapshot)
+  const finishedToday = (life?.outings ?? []).filter((outing) => (outing.status === 'returned' || outing.status === 'cut_short') && (outing.settledAtMs ?? outing.returnsAtMs) >= start).slice(-2)
   const work = life?.work
-  const proposedOuting = life?.outings.findLast((outing) => outing.status === 'proposed')
   const jobs = visibleWorks(life)
   const next = snapshot.candidates.filter((candidate) => candidate.status === 'confirmed').map((candidate) => ({ candidate, iso: whenOf(candidate) }))
     .sort((a, b) => (a.iso ?? '9').localeCompare(b.iso ?? '9'))
+
+  const herNow = away
+    ? fill(copy.schedule.outing.away, { place: copy.places[away.place as keyof typeof copy.places] ?? locationLabel(away.place), time: formatClock(away.returnsAtMs) })
+    : proposed
+      ? fill(copy.schedule.outing.proposed, { place: copy.places[proposed.place as keyof typeof copy.places] ?? locationLabel(proposed.place) })
+      : copy.schedule.herInRoom
+  const herWas = finishedToday.map((outing) => fill(copy.schedule.outing.returned, { place: copy.places[outing.place as keyof typeof copy.places] ?? locationLabel(outing.place) }))
 
   return (
     <section className="page page-right sheet" aria-label={copy.schedule.title}>
@@ -57,24 +62,12 @@ export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bri
         ) : <p className="sheet-empty">{copy.schedule.noPlan}</p>}
 
         <h2 className="sheet-section">{copy.schedule.her}</h2>
-        {her.length === 0 && jobs.length === 0 ? <p className="sheet-empty">{copy.schedule.herEmpty}</p> : (
-          <ul className="schedule-her">
-            {her.map((entry) => (
-              <li key={entry.key} data-state={entry.state}>
-                <time>{formatClock(entry.at)}</time><span>{entry.text}</span><small>{entry.note}</small>
-              </li>
-            ))}
-          </ul>
-        )}
-        {life && <div className="card-actions schedule-life-actions">
-          <button type="button" className="btn btn-ghost btn-small" disabled={snapshot.companion.lightsOut}
-            onClick={() => void command({ type: 'life.propose', place: 'coast' })}>{copy.schedule.life.proposeCoast}</button>
-          <button type="button" className="btn btn-ghost btn-small" disabled={snapshot.companion.lightsOut}
-            onClick={() => void command({ type: 'life.propose', place: 'swing' })}>{copy.schedule.life.proposeSwing}</button>
-          {proposedOuting && <button type="button" className="btn btn-ghost btn-small" disabled={snapshot.companion.lightsOut}
-            onClick={() => void command({ type: 'life.depart', outingId: proposedOuting.id })}>{copy.schedule.life.depart}</button>}
-          {life.locationId !== 'room' && <button type="button" className="btn btn-ghost btn-small"
-            onClick={() => void command({ type: 'life.return' })}>{copy.schedule.life.return}</button>}
+        <ul className="schedule-her">
+          <li><span>{herNow}</span></li>
+          {herWas.map((text, index) => <li key={`was-${index}`} data-state="settled"><span>{text}</span></li>)}
+        </ul>
+        {away && <div className="card-actions schedule-life-actions">
+          <button type="button" className="btn btn-ghost btn-small" onClick={() => void command({ type: 'life.return' })}>{copy.schedule.callBack}</button>
         </div>}
         {work?.enabled && (
           <>

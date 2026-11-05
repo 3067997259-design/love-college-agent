@@ -20,10 +20,15 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
   const working = () => options.working() || store.projection().sleeping || store.projection().mode !== 'rest' || store.projection().pomodoro.phase === 'focus' || state.userSchedule === 'work'
   // Weekdays included. Only a day the user marked as a work day keeps her in.
   const walkDay = (day: string) => !(state.dayKey === day && state.userSchedule === 'work')
-  const makeOuting = (day: string, at: number, offline: boolean, place?: OutingPlace): OutingView => {
-    const digest = createHash('sha256').update(JSON.stringify([store.scope.userId, store.scope.characterId, day])).digest('hex')
+  const digestFor = (day: string) => createHash('sha256').update(JSON.stringify([store.scope.userId, store.scope.characterId, day])).digest('hex')
+  /** Her walk varies a little: she is not a 60-minute metronome. Explicit or offline trips keep the fixed hour. */
+  const walkDuration = (day: string) => 30 * 60000 + parseInt(digestFor(day).slice(2, 4), 16) % 25 * 60000
+  const makeOuting = (day: string, at: number, offline: boolean, place?: OutingPlace, durationMs = 60 * 60000): OutingView => {
+    const digest = digestFor(day)
     const destination = place ?? (parseInt(digest.slice(0, 2), 16) % 2 ? 'coast' : 'swing')
-    return { id: 'outing:' + digest, place: destination, startsAtMs: at, returnsAtMs: at + 60 * 60000, acquiredAtMs: at + 35 * 60000, item: destination === 'coast' ? 'shell' : 'leaf', status: 'proposed', settledAtMs: null, offline }
+    // Only the coast and the swing leave her a keepsake; a bookstore or a rooftop visit brings nothing back to the desk.
+    const item = destination === 'coast' ? 'shell' : destination === 'swing' ? 'leaf' : null
+    return { id: 'outing:' + digest, place: destination, startsAtMs: at, returnsAtMs: at + durationMs, acquiredAtMs: at + Math.round(durationMs * 0.6), item, status: 'proposed', settledAtMs: null, offline }
   }
   const expireProposals = (now: number) => {
     let changed = false
@@ -40,7 +45,7 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
   const settle = (outing: OutingView, at: number, cutShort: boolean) => {
     if (outing.status !== 'away' && !outing.offline) return
     outing.status = cutShort ? 'cut_short' : 'returned'; outing.settledAtMs = at; state.locationId = state.outings.findLast((other) => other.status === 'away')?.place ?? 'room'
-    if (at >= outing.acquiredAtMs && !state.items.some((item) => item.outingId === outing.id)) {
+    if (at >= outing.acquiredAtMs && outing.item && !state.items.some((item) => item.outingId === outing.id)) {
       state.items.push({ id: 'item:' + outing.id, outingId: outing.id, dayKey: calendarDay(clock, outing.startsAtMs), place: outing.place, kind: outing.item, acquiredAtMs: outing.acquiredAtMs, display: 'desk' })
       state.items.forEach((item, index) => { item.display = index >= state.items.length - 3 ? 'desk' : 'drawer' })
     }
@@ -58,7 +63,7 @@ export function createLife(options: { store: SessionStore; clock: Clock; schedul
     if (todays.length || working() || store.projection().pomodoro.status === 'running') return false
     const present = Math.max(startedAtMs, rows().findLast((row) => row.type === 'user/message')?.atMs ?? 0)
     if (now - present < WALK_IDLE_MS) return false
-    const outing = makeOuting(today, now, false)
+    const outing = makeOuting(today, now, false, undefined, walkDuration(today))
     if (state.outings.some((old) => old.id === outing.id) || !depart(outing, now)) return false
     state.outings.push(outing); item.state = 'settled'; return true
   }

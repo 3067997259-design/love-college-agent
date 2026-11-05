@@ -116,6 +116,8 @@
       "cancelled": "没去成{place}"
     },
     "herEmpty": "她今天还没有安排。",
+    "herInRoom": "在书房里，看书、写点自己的东西，或者只是安静待着。",
+    "callBack": "叫她回书房",
     "life": {
       "proposeCoast": "提议去海岸",
       "proposeSwing": "提议去秋千",
@@ -171,7 +173,7 @@
   },
   "note": {
     "_说明": "她出门前留在桌上的纸条，是她的笔迹。地点和回来的时间由主进程定，这里只是措辞。",
-    "went": { "coast": "去海边走走", "swing": "去秋千那儿坐坐" },
+    "went": { "coast": "去海边走走", "swing": "去秋千那儿坐坐", "bookstore": "去旧书店翻两本书", "cafe": "去咖啡馆坐一会儿", "rooftop": "去天台吹吹风", "store": "去便利店买点东西" },
     "wentOther": "去{place}了",
     "back": "{time} 回来",
     "title": "纸条：她去{place}了",

@@ -5,6 +5,7 @@ import { sendCommand, type CommandBody } from '../command'
 import { GiftModel } from '../life/GiftModel'
 import { ObjectSketch } from '../life/objects'
 import { dateLabel, dayKeyLabel, fill, giftName, sourceText } from '../life/text'
+import { locationLabel } from '../labels'
 
 type Entry =
   | { kind: 'quill'; id: string; at: number; quill: QuillView }
@@ -61,7 +62,7 @@ export function GiftShelf({ snapshot, bridge }: { snapshot: AppSnapshot; bridge:
               <li key={item.id} className="brought-item">
                 <ObjectSketch kind={item.kind} className="brought-sketch" />
                 <span className="brought-name">{copy.objects[item.kind]}</span>
-                <span className="brought-note">{fill(copy.shelf.broughtOn, { date: dayKeyLabel(item.dayKey), place: copy.places[item.place] })}</span>
+                <span className="brought-note">{fill(copy.shelf.broughtOn, { date: dayKeyLabel(item.dayKey), place: locationLabel(item.place) })}</span>
                 <span className="brought-where">{item.display === 'desk' ? copy.shelf.onSill : copy.shelf.inDrawer}</span>
               </li>
             ))}

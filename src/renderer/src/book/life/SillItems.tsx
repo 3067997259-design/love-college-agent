@@ -3,6 +3,7 @@ import type { AppSnapshot, LifeView } from '../../../../shared'
 import copy from '../../voice/book.zh.json'
 import { ObjectSketch } from './objects'
 import { dayKeyLabel, fill } from './text'
+import { locationLabel } from '../labels'
 
 /**
  * 她出门带回来的东西，摆在窗台上（技术方案 §3.14：桌面最多三件，其余收进抽屉）。
@@ -24,7 +25,7 @@ export function SillItems({ snapshot, onOpenDiary }: { snapshot: AppSnapshot; on
         return (
           <button key={item.id} type="button" className="sill-item" data-kind={item.kind} data-entering={entering.has(item.id)}
             style={{ left: `${spot.x}%`, top: `${spot.y}%`, rotate: `${spot.tilt}deg` }}
-            aria-label={fill(copy.shelf.broughtOn, { date: dayKeyLabel(item.dayKey), place: copy.places[item.place] }) + '的' + copy.objects[item.kind]}
+            aria-label={fill(copy.shelf.broughtOn, { date: dayKeyLabel(item.dayKey), place: locationLabel(item.place) }) + '的' + copy.objects[item.kind]}
             aria-expanded={openId === item.id} onClick={() => setOpenId(openId === item.id ? null : item.id)}>
             <ObjectSketch kind={item.kind} className="sill-sketch" drawing={entering.has(item.id)} />
           </button>
@@ -48,7 +49,7 @@ function SillNote({ item, snapshot, onClose, onOpenDiary }: { item: LifeView['it
   return (
     <div className="sill-note" data-photo-omit ref={ref} role="dialog" aria-label={copy.objects[item.kind]}>
       <strong>{copy.objects[item.kind]}</strong>
-      <span>{fill(copy.shelf.broughtOn, { date: dayKeyLabel(item.dayKey), place: copy.places[item.place] })}</span>
+      <span>{fill(copy.shelf.broughtOn, { date: dayKeyLabel(item.dayKey), place: locationLabel(item.place) })}</span>
       {entry && (entry.unlocked
         ? <button type="button" className="link-button" onClick={() => { onClose(); onOpenDiary(item.dayKey) }}>{copy.sill.diary}</button>
         : <small>{copy.sill.diaryLocked}</small>)}

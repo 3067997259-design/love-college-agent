@@ -96,7 +96,7 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('room.open') }),
   z.strictObject({ ...envelope, type: z.literal('room.rebuild') }),
   z.strictObject({ ...envelope, type: z.literal('life.schedule'), schedule: z.enum(['auto', 'work', 'rest']) }),
-  z.strictObject({ ...envelope, type: z.literal('life.propose'), place: z.enum(['coast', 'swing']).optional() }),
+  z.strictObject({ ...envelope, type: z.literal('life.propose'), place: z.enum(['coast', 'swing', 'bookstore', 'cafe', 'rooftop', 'store']).optional() }),
   z.strictObject({ ...envelope, type: z.literal('life.depart'), outingId: z.string().max(100) }),
   z.strictObject({ ...envelope, type: z.literal('life.return') }),
   z.strictObject({ ...envelope, type: z.literal('context.reveal'), source: z.literal('mail'), ref: z.string().min(1).max(128) }),
