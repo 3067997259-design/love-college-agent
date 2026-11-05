@@ -34,14 +34,13 @@ async function scan(scenario = 'initial') {
   await page.getByLabel('合成邮件场景').selectOption(scenario)
   await waitFor((s) => s.mailbox.scenarioId === scenario, 'SCENARIO_NOT_SELECTED')
   await closeTools()
-  await page.getByRole('button', { name: '日程', exact: true }).click()
-  await page.getByRole('button', { name: '扫描合成邮件', exact: true }).click()
+  await send({ type: 'mail.scan' }) // 书页上没有扫描按钮：平时是她用邮件工具去看
   await waitFor((s) => ['ready', 'failed'].includes(s.mailbox.status), 'SCAN_NOT_FINISHED')
   await openChat()
 }
 async function exportNew(count) {
   await page.getByRole('button', { name: '日程', exact: true }).click()
-  await page.getByRole('button', { name: '导出新确认事项', exact: true }).click()
+  await page.getByRole('button', { name: '导出成日历文件', exact: true }).click()
   await waitFor((s) => s.deliveries.length === count, 'EXPORT_NOT_FINISHED')
   await openChat()
 }

@@ -191,11 +191,10 @@
 .schedule-items, .schedule-her, .schedule-next { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
 .schedule-items li { display: flex; justify-content: space-between; gap: 12px; font-size: var(--fs-sm); color: var(--ink-her); padding-left: 14px; }
 .schedule-count { color: var(--graphite); font-variant-numeric: tabular-nums; }
-.schedule-her li, .schedule-next li { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: baseline; font-size: var(--fs-sm); color: var(--ink-her); }
-.schedule-her time, .schedule-next time { font-variant-numeric: tabular-nums; color: var(--graphite); }
-.schedule-her small { color: var(--graphite); }
-.schedule-her li[data-state='skipped'], .schedule-her li[data-state='cancelled'] { color: var(--graphite); }
-.schedule-next li { grid-template-columns: auto 1fr auto; }
+.schedule-her li { font-size: var(--fs-sm); color: var(--ink-her); }
+.schedule-her li[data-state='settled'] { color: var(--graphite); }
+.schedule-next li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: baseline; font-size: var(--fs-sm); color: var(--ink-her); }
+.schedule-next time { font-variant-numeric: tabular-nums; color: var(--graphite); }
 .schedule-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 书桌作品：一行一件，步数是几个铅笔小格，做完的涂她的颜色 */

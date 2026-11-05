@@ -103,10 +103,8 @@ try {
   await waitFor(s => s.memorySettings.status === 'idle' && s.memory.engine.embedding.state === 'ready', 'UI_VECTOR_MIGRATION_FAILED')
   assert.ok(vectorCalls > 0); assert.equal(await page.getByLabel('向量密钥', { exact: true }).inputValue(), '')
   await closeTools()
-  await page.getByRole('button', { name: '日程', exact: true }).click()
-  await page.getByRole('button', { name: '扫描合成邮件', exact: true }).click()
+  await send({ type: 'mail.scan' }) // 书页上没有扫描按钮：平时是她用邮件工具去看
   await waitFor((s) => s.mailbox.status === 'ready', 'SYNTHETIC_MAIL_NOT_READY')
-  await page.locator('.bookmarks').getByRole('button', { name: /^对话/ }).click()
   await send({ type: 'privacy.set', enabled: true }); await send({ type: 'developer.document.import', fixtureId: 'notes-text' })
   await waitFor((s) => s.documents.jobs.at(-1)?.status === 'ready', 'SYNTHETIC_DOCUMENT_NOT_READY')
   await mcp('set_fake_model', { script: [

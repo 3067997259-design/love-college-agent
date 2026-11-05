@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ActivityView, AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanInput, PomodoroPlanView, QuillView, TaskView } from '../../../shared'
+import type { ActivityView, AppBridge, AppSnapshot, CandidateView, DeliveryView, GeneratedGiftView, MessageView, ModelFailureView, PomodoroPlanView, QuillView, TaskView } from '../../../shared'
 import { ActivityFold, CandidateCard, DeliveryCard, GiftCard, MadeGiftCard, PlanCard, RestoreCard, TaskCard } from './cards'
 import { sourceText } from './life/text'
 import book from '../voice/book.zh.json'
@@ -148,7 +148,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
     const isMessage = body.type === 'message.send'
     setCommandError(result.ok ? '' : result.code === 'disconnected'
       ? (isMessage ? '连接暂时中断，文字已保留。' : '连接暂时中断，请稍后重试。')
-      : (isMessage && result.code === 'not-configured' ? '聊天模型尚未连接，文字已保留。' : '当前操作未完成，请稍后重试。'))
+      : (isMessage && result.code === 'not-configured' ? '聊天模型还没接上，你写的字还在。' : '没办成，稍后再试。'))
     return result.ok
   }
   async function send() {
@@ -299,47 +299,20 @@ function Message({ view }: { view: MessageView }) {
 
 const BREAK_TEXT = { 'short-break': '短休息', 'long-break': '长休息' } as const
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
-/** 顶栏「开启专注」的三个常用档：几段 25 分钟的专注。休息节奏用标准值，主进程按 standard 校验。 */
-const QUICK_FOCUS = [1, 2, 4] as const
-const quickPlan = (plannedCount: number): PomodoroPlanInput => ({
-  label: '专注', plannedCount,
-  focusDurationMs: 25 * 60_000, shortBreakDurationMs: 5 * 60_000, longBreakDurationMs: 15 * 60_000, longBreakEvery: 4, timing: 'standard',
-})
 
 /**
  * 顶部：今天的计划和番茄格，你确认以后才出现（技术方案 §3.5）。
  * 做完的涂上她的颜色并打勾，正在做的按进度填，没开始的只有铅笔框。
  * 下一个专注不自动开始：休息结束后这里出现“开始第 N 个”，等你点。
- * 还没排的时候不再是干看着的一行字：点「开启专注」选几段，草案进书页等你确认。
+ * 这里不排专注：想专注时跟她说，她用番茄钟工具排一份草案，你在对话里的计划卡上确认。
  */
 function PlanHead({ snapshot, onCommand }: { snapshot: AppSnapshot; onCommand: (body: CommandBody) => void }) {
   const { pomodoro, companion } = snapshot
   const plan = pomodoro.plan
   const remaining = useCountdown(snapshot)
-  const [quickOpen, setQuickOpen] = useState(false)
   if (!plan || plan.status === 'proposed' || pomodoro.plannedCount <= 0) {
-    // 已经有待确认的草案：只提醒一句，不在这里重复生成第二份
-    if (pomodoro.proposal || plan?.status === 'proposed') return <div className="plan-head plan-head-empty"><span>计划等你确认</span></div>
-    return (
-      <div className="plan-head plan-head-empty">
-        <button type="button" className="btn btn-ghost btn-small" aria-expanded={quickOpen} title="直接排今天的专注：25 分钟一段，段间自动休息"
-          onClick={() => setQuickOpen((open) => !open)}>
-          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style={{ marginRight: 4, verticalAlign: -2 }}>
-            <circle cx="12" cy="13" r="7.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M12 9.2V13l2.6 1.9M9.4 3.2h5.2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-          开启专注
-        </button>
-        {quickOpen && <span role="group" aria-label="专注时长">
-          {QUICK_FOCUS.map((count) => (
-            <button key={count} type="button" className="choice-chip" aria-label={`${count} 段专注，每段 25 分钟`}
-              onClick={() => { setQuickOpen(false); onCommand({ type: 'pomodoro.plan', plan: quickPlan(count) }) }}>
-              {count === 1 ? '25 分钟' : `25 分钟 × ${count}`}
-            </button>
-          ))}
-        </span>}
-      </div>
-    )
+    const waiting = Boolean(pomodoro.proposal) || plan?.status === 'proposed'
+    return <div className="plan-head plan-head-empty">{waiting && <span>计划等你确认</span>}</div>
   }
   const progress = pomodoro.phaseDurationMs > 0 ? 1 - remaining / pomodoro.phaseDurationMs : 0
   const canStart = plan?.status === 'confirmed' && pomodoro.status === 'idle' && pomodoro.focusIndex < pomodoro.plannedCount
@@ -365,7 +338,7 @@ function PlanHead({ snapshot, onCommand }: { snapshot: AppSnapshot; onCommand: (
         <button type="button" className="btn btn-ghost btn-small" onClick={() => onCommand({ type: 'pomodoro.pause' })}>暂停</button>
       )}
       {pomodoro.phase === 'focus' && snapshot.windows?.mode === 'book' && (
-        <button type="button" className="btn btn-ghost btn-small" title="书合上，缩成桌面角落的小窗；计时照走"
+        <button type="button" className="btn btn-ghost btn-small" title="书合上，缩成桌面角落的小窗，计时照走"
           onClick={() => onCommand({ type: 'window.mini' })}>合上</button>
       )}
       {pomodoro.status === 'paused' && (

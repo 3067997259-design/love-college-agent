@@ -1,57 +1,54 @@
 import { useState } from 'react'
-import type { AppBridge, AppSnapshot, CandidateView, LifeWorkItem, LifeWorkView } from '../../../../shared'
+import type { AppBridge, AppSnapshot, CandidateView, LifeWorkItem, LifeWorkView, OutingPlace } from '../../../../shared'
 import copy from '../../voice/book.zh.json'
 import { sendCommand, type CommandBody } from '../command'
-import { formatClock, formatIso } from '../format'
-import { fill } from '../life/text'
+import { civilFromDays, formatClock, formatIso } from '../format'
+import { dayKeyLabel, fill } from '../life/text'
 import { locationLabel } from '../labels'
 import { SettingsIssue } from '../../tools/SettingsIssue'
-import { PomodoroSettings } from '../../tools/PomodoroSettings'
 import { visibleWorks } from './schedule'
 
 /**
- * 日程：今天的番茄、她今天的去处和书桌作品、接下来你确认过的事。
- * 她的生活只在这里留一句自然的近况——不列几点看书、几点没做成，也不放遥控她去哪儿的按钮；
- * 想让她出门或早点回来，在对话里跟她说就够了。
+ * 日程用来看今天：专注排到哪了、她在哪、接下来有什么事。
+ * 排专注、让她出门或回来、看邮件，都是你在对话里跟她说，她用自己的工具去做；她排的专注要你点头才算数。
+ * 这页只留两类操作：她书桌作品的看看、暂停、接着做，以及把确认过的事导出成日历文件（校园插件约定导出由你在书页上做）。
  */
 export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bridge: AppBridge }) {
-  const { pomodoro, life, mailbox } = snapshot
+  const { pomodoro, life } = snapshot
   const [failed, setFailed] = useState(false)
-  const [mailError, setMailError] = useState('')
+  const [exportError, setExportError] = useState('')
   const command = async (body: CommandBody) => setFailed(!(await sendCommand(bridge, snapshot.epoch, body)).ok)
-  const mail = async (body: CommandBody) => {
-    const result = await sendCommand(bridge, snapshot.epoch, body)
-    setMailError(result.ok ? '' : result.code)
+  const exportCalendar = async () => {
+    const result = await sendCommand(bridge, snapshot.epoch, { type: 'campus.export' })
+    setExportError(result.ok ? '' : result.code)
   }
-  const mailStatus = mailbox ? (copy.schedule.mail as Record<string, string>)[mailbox.status] : ''
-  const mailBlocked = !mailbox || snapshot.companion.lightsOut || ['blocked', 'disabled', 'scanning'].includes(mailbox.status)
+  const start = dayStart(snapshot)
+  const today = dayKeyLabel(dayKeyOf(start), true)
+  const routine = life && life.userSchedule !== 'auto' ? copy.schedule.routine[life.userSchedule] : ''
   const plan = pomodoro.plan && pomodoro.plan.status !== 'proposed' ? pomodoro.plan : null
+  const waiting = !plan && (Boolean(pomodoro.proposal) || pomodoro.plan?.status === 'proposed')
   const done = pomodoro.completedCount ?? Math.max(0, pomodoro.focusIndex - (pomodoro.phase === 'focus' ? 1 : 0))
   const away = life?.outings.findLast((outing) => outing.status === 'away')
   const proposed = life?.outings.findLast((outing) => outing.status === 'proposed')
-  const start = dayStart(snapshot)
   const finishedToday = (life?.outings ?? []).filter((outing) => (outing.status === 'returned' || outing.status === 'cut_short') && (outing.settledAtMs ?? outing.returnsAtMs) >= start).slice(-2)
   const work = life?.work
   const jobs = visibleWorks(life)
   const next = snapshot.candidates.filter((candidate) => candidate.status === 'confirmed').map((candidate) => ({ candidate, iso: whenOf(candidate) }))
     .sort((a, b) => (a.iso ?? '9').localeCompare(b.iso ?? '9'))
 
-  const herNow = away
-    ? fill(copy.schedule.outing.away, { place: copy.places[away.place as keyof typeof copy.places] ?? locationLabel(away.place), time: formatClock(away.returnsAtMs) })
-    : proposed
-      ? fill(copy.schedule.outing.proposed, { place: copy.places[proposed.place as keyof typeof copy.places] ?? locationLabel(proposed.place) })
-      : copy.schedule.herInRoom
-  const herWas = finishedToday.map((outing) => fill(copy.schedule.outing.returned, { place: copy.places[outing.place as keyof typeof copy.places] ?? locationLabel(outing.place) }))
+  const herNow = away ? fill(copy.schedule.outing.away, { place: placeName(away.place), time: formatClock(away.returnsAtMs) })
+    : proposed ? fill(copy.schedule.outing.proposed, { place: placeName(proposed.place) })
+    : copy.schedule.herInRoom
+  const herWas = finishedToday.map((outing) => fill(outing.status === 'cut_short' ? copy.schedule.outing.cut_short : copy.schedule.outing.returned, { place: placeName(outing.place) }))
 
   return (
     <section className="page page-right sheet" aria-label={copy.schedule.title}>
       <header className="page-head">
         <span className="page-date">{copy.schedule.title}</span>
-        {life && <span className="sheet-lead">{copy.schedule.routine[life.userSchedule]}</span>}
+        <span className="sheet-lead">{routine ? `${today} · ${routine}` : today}</span>
       </header>
       <div className="sheet-body">
-        <div className="schedule-pomodoro"><PomodoroSettings bridge={bridge} snapshot={snapshot} /></div>
-        <h2 className="sheet-section">{copy.schedule.today}</h2>
+        <h2 className="sheet-section">{copy.schedule.focus}</h2>
         {plan ? (
           <div className="schedule-plan">
             <p className="schedule-line"><strong>{plan.label}</strong><span>{fill(copy.schedule.done, { done, total: pomodoro.plannedCount })}</span></p>
@@ -59,25 +56,20 @@ export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bri
               <ul className="schedule-items">{plan.items.map((item, index) => <li key={index}><span>{item.text}</span><span className="schedule-count">×{item.count}</span></li>)}</ul>
             )}
           </div>
-        ) : <p className="sheet-empty">{copy.schedule.noPlan}</p>}
+        ) : <p className="sheet-empty">{waiting ? copy.schedule.waiting : copy.schedule.noPlan}</p>}
 
         <h2 className="sheet-section">{copy.schedule.her}</h2>
         <ul className="schedule-her">
-          <li><span>{herNow}</span></li>
-          {herWas.map((text, index) => <li key={`was-${index}`} data-state="settled"><span>{text}</span></li>)}
+          <li>{herNow}</li>
+          {herWas.map((text, index) => <li key={index} data-state="settled">{text}</li>)}
         </ul>
-        {away && <div className="card-actions schedule-life-actions">
-          <button type="button" className="btn btn-ghost btn-small" onClick={() => void command({ type: 'life.return' })}>{copy.schedule.callBack}</button>
-        </div>}
-        {work?.enabled && (
-          <>
-            {jobs.length > 0 && <ul className="schedule-works">{jobs.map((job) => <WorkRow key={job.id} job={job} work={work} onCommand={(body) => { void command(body) }} />)}</ul>}
-            {failed && <span className="notice-mark" title="没办成，稍后再试">！</span>}
-          </>
-        )}
+        {work?.enabled && jobs.length > 0 && <>
+          <ul className="schedule-works">{jobs.map((job) => <WorkRow key={job.id} job={job} work={work} onCommand={(body) => { void command(body) }} />)}</ul>
+          {failed && <span className="notice-mark" title="没办成，稍后再试">！</span>}
+        </>}
 
         <h2 className="sheet-section">{copy.schedule.next}</h2>
-        {next.length === 0 ? <p className="sheet-empty">{copy.schedule.nextEmpty}</p> : (
+        {next.length === 0 ? <p className="sheet-empty">{copy.schedule.nextEmpty}</p> : <>
           <ul className="schedule-next">
             {next.map(({ candidate, iso }) => (
               <li key={candidate.id}>
@@ -87,24 +79,10 @@ export function ScheduleSheet({ snapshot, bridge }: { snapshot: AppSnapshot; bri
               </li>
             ))}
           </ul>
-        )}
-
-        {mailbox && <>
-          <h2 className="sheet-section">{copy.schedule.mail.title}</h2>
-          <div className="schedule-mail" data-source={mailbox.source} data-status={mailbox.status}>
-            <p className="schedule-line"><strong>{mailbox.folderLabel}</strong><span>{mailStatus}</span></p>
-            {mailbox.status === 'blocked' && <p className="flow-note">{copy.schedule.mail.blocked}</p>}
-            {mailbox.status === 'failed' && <p className="flow-note">{copy.schedule.mail.failed}</p>}
-            {mailbox.status === 'disabled' && <p className="flow-note">{copy.schedule.mail.disabled}</p>}
-            <div className="card-actions">
-              <button type="button" className="btn btn-ghost btn-small" disabled={mailBlocked}
-                onClick={() => void mail({ type: 'mail.scan' })}>{mailbox.source === 'fake' ? copy.schedule.mail.scanFake : copy.schedule.mail.scan}</button>
-              <button type="button" className="btn btn-ghost btn-small" disabled={!snapshot.candidates.some((item) => item.status === 'confirmed')}
-                onClick={() => void mail({ type: 'campus.export' })}>{copy.schedule.mail.export}</button>
-            </div>
-            <p className="flow-note">{copy.schedule.mail.hint}</p>
-            <SettingsIssue code={mailError} />
+          <div className="card-actions">
+            <button type="button" className="btn btn-ghost btn-small" disabled={snapshot.companion.lightsOut} onClick={() => void exportCalendar()}>{copy.schedule.export}</button>
           </div>
+          <SettingsIssue code={exportError} />
         </>}
       </div>
     </section>
@@ -134,11 +112,15 @@ function WorkRow({ job, work, onCommand }: { job: LifeWorkItem; work: LifeWorkVi
   )
 }
 
+const UTC8 = 8 * 3600_000
+const pad = (n: number) => String(n).padStart(2, '0')
+/** 某天 0 点（UTC+8）的时间戳 → 'YYYY-MM-DD'；渲染层不用 Date */
+const dayKeyOf = (ms: number) => { const { year, month, day } = civilFromDays(Math.floor((ms + UTC8) / 86_400_000)); return `${year}-${pad(month)}-${pad(day)}` }
+const placeName = (place: OutingPlace) => copy.places[place as keyof typeof copy.places] ?? locationLabel(place)
 const baseName = (path: string) => (path.split(/[\\/]/).at(-1) ?? path).replace(/\.[^.]+$/, '')
 const whenOf = (candidate: CandidateView) => candidate.kind === 'event' ? candidate.eventStartIso ?? candidate.deadlineIso : candidate.deadlineIso
 
 /** 今天 0 点（UTC+8）：只列今天的外出 */
 function dayStart(snapshot: AppSnapshot): number {
-  const offset = 8 * 3600_000
-  return Math.floor((snapshot.clock.nowMs + offset) / 86_400_000) * 86_400_000 - offset
+  return Math.floor((snapshot.clock.nowMs + UTC8) / 86_400_000) * 86_400_000 - UTC8
 }

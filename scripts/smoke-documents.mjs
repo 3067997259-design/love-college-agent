@@ -58,10 +58,8 @@ try {
   await drop(source)
   await waitFor((s) => s.documents.jobs.length === 1, 'NATIVE_DROP_NOT_ACCEPTED')
   assert.equal((await snapshot()).documents.jobs[0].status, 'staged')
-  await page.getByRole('button', { name: '日程', exact: true }).click()
-  await page.getByRole('button', { name: '扫描合成邮件', exact: true }).click()
+  await send({ type: 'mail.scan' }) // 书页上没有扫描按钮：平时是她用邮件工具去看
   await waitFor((s) => s.mailbox.status === 'ready' && s.documents.attachments.length === 1, 'ATTACHMENT_NOT_DISCOVERED')
-  await page.locator('.bookmarks').getByRole('button', { name: /^对话/ }).click()
   await openTools(); await page.locator('.document-attachment').getByRole('button', { name: '整理附件', exact: true }).click()
   await waitFor((s) => s.documents.jobs.length === 2, 'ATTACHMENT_NOT_STAGED')
   assert.equal((await snapshot()).documents.jobs.find((job) => job.origin === 'mail-attachment').status, 'staged')

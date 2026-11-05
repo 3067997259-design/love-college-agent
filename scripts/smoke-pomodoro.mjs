@@ -80,14 +80,14 @@ try {
       focusElapsedMs, breakElapsedMs, durableDeadlineAnchors: true, noAutomaticNext: true }))
   } else {
   await send({ type: 'developer.clock', frozen: true })
-  await page.getByRole('button', { name: '日程', exact: true }).click()
-  await page.getByRole('checkbox', { name: /演示节奏/ }).check()
-  await page.getByRole('button', { name: '生成待确认计划', exact: true }).click()
+  // 书页上没有排专注的表单：她用番茄钟工具排草案（同一条 pomodoro.plan），你在对话里的计划卡上确认，再从顶栏开始。
+  await send({ type: 'pomodoro.plan', plan: { label: '演示计划', plannedCount: 2, focusDurationMs: 60_000, shortBreakDurationMs: 20_000, longBreakDurationMs: 20_000, longBreakEvery: 4, timing: 'demo' } })
   let state = await snapshot(); let planId = state.pomodoro.proposal.id
   assert.equal(state.pomodoro.proposal.status, 'proposed'); assert.equal(state.pomodoro.plan, undefined)
   assert.equal((await send({ type: 'pomodoro.start', planId })).status, 'rejected')
-  await page.getByRole('button', { name: '确认计划', exact: true }).click()
-  const opened = instance.waitForEvent('window'); await page.getByRole('button', { name: '开始下一段专注', exact: true }).click(); let mini = await opened
+  await page.locator('.plan-head').getByText('计划等你确认', { exact: true }).waitFor()
+  await page.locator('.card-plan[data-status="proposed"]').getByRole('button', { name: '就这么排', exact: true }).click()
+  const opened = instance.waitForEvent('window'); await page.locator('.plan-head').getByRole('button', { name: '开始专注', exact: true }).click(); let mini = await opened
   await verifyMini(mini)
   state = await snapshot(); assert.equal(state.pomodoro.phaseDurationMs, 60_000); assert.equal(state.companion.mode, 'quiet')
   assert.equal((await cache()).endsAtMs, state.pomodoro.endsAtMs)
