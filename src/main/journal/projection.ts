@@ -87,6 +87,11 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
         if (withdrawn(record.seq)) break
         if (record.text) (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'assistant', text: record.text, createdAtMs: record.atMs, status: record.status, ...(record.displayOnly && approvals.has(record.id) ? { kind: 'approval' as const } : {}) })
         if (!record.displayOnly) context.push({ seq: record.seq, message: { role: 'assistant', content: record.text, ...(record.toolCalls?.length ? { toolCalls: record.toolCalls } : {}) } }); break
+      case 'reply/feedback': {
+        const target = result.messages.find(message => message.id === record.messageId) ?? heldMessages.find(message => message.id === record.messageId)
+        if (target && target.role === 'assistant' && !target.kind) target.feedback = record.verdict
+        break
+      }
       case 'narrator/failure':
         if (withdrawn(record.seq)) break
         (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'narrator', text: record.text, createdAtMs: record.atMs, status: 'complete', failure: projectFailure(records, record.failure, record.seq) }); break

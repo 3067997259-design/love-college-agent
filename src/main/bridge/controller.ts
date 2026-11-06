@@ -15,6 +15,7 @@ import { DOCUMENT_SCENARIO_IDS, type FileImportAck } from '../../shared'
 import type { DocumentService } from '../documents/service'
 import type { MemoryService } from '../memory/service'
 import type { RecontinueService } from '../recontinue/service'
+import type { ReplyFeedbackService } from '../feedback/service'
 import type { McpService } from '../mcp/service'
 import type { BackupService } from '../backup/service'
 import type { QuillService } from '../gifts/quill'
@@ -58,6 +59,7 @@ const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.st
 const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('recontinue.preview'), sessionId: z.string().min(1).max(128), messageId: z.string().min(1).max(128), revision: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('recontinue.commit'), previewId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('recontinue.undo'), operationId: z.string().uuid() }),
   z.strictObject({ ...envelope, type: z.literal('recontinue.cancel') }),
   // An approval's choice (`answer`) or her questions' answers (`answers`), never both; questions/service.ts checks them against the question.
   z.strictObject({ ...envelope, type: z.literal('question.answer'), questionId: z.string().uuid(), answer: answerInput.optional(), answers: answersInput.optional() })
@@ -105,6 +107,8 @@ const schema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('life.return') }),
   z.strictObject({ ...envelope, type: z.literal('context.reveal'), source: z.literal('mail'), ref: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('message.send'), text: z.string().trim().min(1).max(20_000) }),
+  z.strictObject({ ...envelope, type: z.literal('message.retry'), messageId: z.string().min(1).max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('reply.feedback'), messageId: z.string().min(1).max(128), verdict: z.enum(['good', 'bad']) }),
   z.strictObject({ ...envelope, type: z.literal('turn.stop'), taskId: z.string().min(1).max(128) }),
   z.strictObject({ ...envelope, type: z.literal('mode.set'), mode: z.enum(['work', 'quiet', 'rest']) }),
   z.strictObject({ ...envelope, type: z.literal('lights.set'), lightsOut: z.boolean() }),
@@ -192,6 +196,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   let documents: DocumentService | undefined
   let memory: MemoryService | undefined
   let recontinue: RecontinueService | undefined
+  let replyFeedback: ReplyFeedbackService | undefined
   let mcp: McpService | undefined
   let backup: BackupService | undefined
   let quill: QuillService | undefined
@@ -451,6 +456,14 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (memorySettings && command.type.startsWith('memory.settings.')) {
       try { const error = memorySettings.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
+    } else if (replyFeedback && command.type === 'reply.feedback') {
+      const error = replyFeedback.dispatch(command)
+      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+      publish('message', command.requestId)
+    } else if (recontinue && command.type === 'message.retry') {
+      const error = recontinue.retry(command.messageId)
+      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+      publish('task', command.requestId)
     } else if (recontinue && command.type.startsWith('recontinue.')) {
       const error = recontinue.dispatch(command)
       ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
@@ -569,6 +582,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachDocuments: (port: DocumentService) => { documents = port; publish('connection') },
     attachMemory: (port: MemoryService) => { memory = port; publish('connection') },
     attachRecontinue: (port: RecontinueService) => { recontinue = port; publish('connection') },
+    attachReplyFeedback: (port: ReplyFeedbackService) => { replyFeedback = port; publish('connection') },
     attachMcp: (port: McpService) => { mcp = port; publish('connection') },
     attachMinecraft: (port: MinecraftService, chat: MinecraftChat, scenario?: typeof gameScenario) => { minecraft = port; minecraftChat = chat; gameScenario = scenario; publish('connection') },
     attachBackup: (port: BackupService) => { backup = port; publish('connection') },

@@ -16,6 +16,9 @@ import { FailureDetails } from './FailureDetails'
 import failureWords from '../voice/failure.zh.json'
 import { quoteOnPage } from './history/quote'
 import { ApprovalMessage, MsgText, useMarkdown } from './MessageText'
+import { MessageRow } from './MessageMenu'
+import { ActionToast } from './ActionToast'
+import { RecontinueArchive } from './RecontinueArchive'
 import { Starters } from './Starters'
 import { ProjectChip } from './ProjectChip'
 import { ContinuousWorks } from './ContinuousWorks'
@@ -77,7 +80,8 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [draft, setDraft] = useState(snapshot.recontinue?.completed?.draft ?? '')
   const continued = useRef(snapshot.recontinue?.completed?.operationId)
-  const [archive, setArchive] = useState<MessageView[] | null>(null)
+  const [receipt, setReceipt] = useState<{ operationId: string; draft: string } | null>(null)
+  const [archiveOpen, setArchiveOpen] = useState(false)
   const continuing = snapshot.recontinue?.phase === 'committing' || snapshot.recontinue?.phase === 'previewing'
   useEffect(() => {
     const result = snapshot.recontinue?.completed
@@ -85,6 +89,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
     continued.current = result.operationId
     // Preserve any draft written while the IPC receipt was travelling.
     setDraft(current => current.trim() ? current + '\n\n' + result.draft : result.draft)
+    setReceipt({ operationId: result.operationId, draft: result.draft })
   }, [snapshot.recontinue?.completed])
   const [sending, setSending] = useState(false)
   const [commandError, setCommandError] = useState('')
@@ -153,8 +158,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
     if (el && pinned.current) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [items.length, messages.at(-1)?.text, restoreReceipt?.status, dockKey])
 
-  async function dispatch(body: CommandBody) {
-    const result = await sendCommand(bridge, snapshot.epoch, body)
+  async function dispatch(body: CommandBody) {    const result = await sendCommand(bridge, snapshot.epoch, body)
     const isMessage = body.type === 'message.send'
     setCommandError(result.ok ? '' : result.code === 'disconnected'
       ? (isMessage ? '连接暂时中断，文字已保留。' : '连接暂时中断，请稍后重试。')
@@ -198,18 +202,25 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
           switch (item.kind) {
             case 'message': {
               const failure = item.view.failure
-              if (!failure) return <div key={item.id}><Message view={item.view} />
-                {snapshot.recontinue && item.view.role === 'user' && !item.view.kind && <button type="button" className="link-button recontinue-action"
-                  disabled={continuing || !!draft.trim() || !!quote || snapshot.session?.rolloverPending}
-                  title={draft.trim() || quote ? '请先处理输入框中的草稿或引用' : undefined}
-                  onClick={() => { void dispatch({ type: 'recontinue.preview', sessionId: snapshot.scope.sessionId, messageId: item.id, revision: snapshot.recontinue!.revision }) }}>从这里重新继续</button>}
-              </div>
+              if (!failure) {
+                const candidate = snapshot.recontinue?.candidates?.[item.id]
+                const retryTarget = snapshot.recontinue?.retryTargets?.[item.id]
+                const blocked = continuing || !!draft.trim() || !!quote || snapshot.session?.rolloverPending ? '请先处理输入框中的草稿或引用' : undefined
+                return <MessageRow key={item.id} view={item.view} candidate={candidate} retryTarget={retryTarget} disabledHint={blocked}
+                  onRecontinue={snapshot.recontinue ? () => { void dispatch({ type: 'recontinue.preview', sessionId: snapshot.scope.sessionId, messageId: item.id, revision: snapshot.recontinue!.revision }) } : undefined}
+                  onRetry={retryTarget ? () => { void dispatch({ type: 'recontinue.preview', sessionId: snapshot.scope.sessionId, messageId: retryTarget, revision: snapshot.recontinue!.revision }) } : undefined}
+                  onFeedback={(verdict) => { void dispatch({ type: 'reply.feedback', messageId: item.id, verdict }) }}>
+                  <Message view={item.view} />
+                </MessageRow>
+              }
               // 失败旁白：书的旁白，不是她说的话；和原因、带回原请求放在一块
               const source = failure.sourceMessageId ? messages.find((message) => message.role === 'user' && message.id === failure.sourceMessageId) : undefined
+              const canRetry = !!source && ['connection-failed', 'upstream-busy'].includes(failure.code) && snapshot.recontinue?.candidates?.[source.id]?.available === true
               return (
                 <div key={item.id} className="narration">
                   <Message view={item.view} />
-                  <FailureDetails failure={failure} onDraft={source ? () => { void restoreRequest(source, failure) } : undefined} />
+                  <FailureDetails failure={failure} onDraft={source ? () => { void restoreRequest(source, failure) } : undefined}
+                    onRetry={canRetry && source ? () => { void dispatch({ type: 'message.retry', messageId: source.id }) } : undefined} />
                 </div>
               )
             }
@@ -245,11 +256,16 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
         {commandError && <Notice>{commandError}</Notice>}
       </div>
       <FileIntake snapshot={snapshot} bridge={bridge} />
-      {snapshot.recontinue?.revision !== undefined && snapshot.recontinue.revision !== 'initial' && <button type="button" className="link-button" onClick={() => {
-        if (archive) { setArchive(null); return }
-        void bridge.readSession?.(snapshot.scope.sessionId).then(page => setArchive(page.messages.filter(message => message.withdrawn)), () => setCommandError('历史版本暂时无法读取。'))
-      }}>{archive ? '收起历史版本' : '查看今天撤下的内容'}</button>}
-      {archive && <aside className="recontinue-archive" aria-label="历史版本"><p>以下内容仅作留档，不再进入上下文和记忆召回。</p>{archive.map(message => <Message key={message.id} view={message} />)}</aside>}
+      {receipt && <ActionToast onClose={() => setReceipt(null)}
+        actions={[
+          { label: '查看撤下的内容', onClick: () => setArchiveOpen(true) },
+          ...(snapshot.recontinue?.versions.find(version => version.operationId === receipt.operationId)?.undoable ? [{ label: '撤销', onClick: () => {
+            void dispatch({ type: 'recontinue.undo', operationId: receipt.operationId })
+            setArchiveOpen(false); setReceipt(null)
+            setDraft(current => current === receipt.draft ? '' : current)
+          } }] : []),
+        ]}>已从这里继续{snapshot.recontinue?.versions.find(version => version.operationId === receipt.operationId) ? `，撤下 ${snapshot.recontinue.versions.find(version => version.operationId === receipt.operationId)!.messages} 条` : ''}</ActionToast>}
+      {archiveOpen && <RecontinueArchive bridge={bridge} sessionId={snapshot.scope.sessionId} onClose={() => setArchiveOpen(false)} />}
       {snapshot.recontinue?.phase === 'ready' && snapshot.recontinue.preview && <section className="recontinue-preview" role="dialog" aria-label="从这里重新继续">
         <p>从这条消息之前重新继续，将撤下 {snapshot.recontinue.preview.messages} 条消息，并排除相关记忆及摘要。</p>
         <blockquote>{snapshot.recontinue.preview.text.slice(0, 500)}</blockquote>

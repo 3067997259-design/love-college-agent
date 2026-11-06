@@ -49,7 +49,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
     return { started: Promise.resolve(), open: async (...args: unknown[]) => { host.opened.push(args); host.onOpen?.(); if (host.opening) await host.opening; const id = typeof args[1] === 'string' ? args[1] : `dsh-${host.opened.length}`; host.current = id; return id }, trust: (id: string) => { host.trusted.push(id) },
       collaboration: async () => ({ view: { status: 'ready', runtimeId: 'test-runtime', projectId: 'test-project', members: [], tasks: [] } }),
       state: (id: string, state: DshConversationState) => { if (!id) throw new Error('DSH_ROOT_UNAVAILABLE'); host.states.push(state) },
-      send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: (id: string) => { if (!id) throw new Error('DSH_ROOT_UNAVAILABLE') }, untrust: () => {}, close: async () => null }
+      send: (_id: string, text: string, mode = 'followup', reference: string | null = null, origin = 'user', degrade: string[] = []) => { host.sent.push(text); host.references.push(reference); host.modes.push(mode); host.origins.push(origin); host.degrades.push(degrade) }, cancel: (id: string) => { if (!id) throw new Error('DSH_ROOT_UNAVAILABLE') }, release: async () => {}, untrust: () => {}, close: async () => null }
   }) as unknown as typeof startDshHost
   // Her questions go to the book's question card (questions/service.ts), as in index.ts.
   const questions = createQuestions({ store, clock, changed: () => {}, safeText: (text) => text })
@@ -116,6 +116,29 @@ it('recovers the committed root over stale caches and retires another project\'s
     expect(g.host.references.at(-1)).not.toMatch(/WITHDRAWN_POISON|PROJECT_B_SUFFIX/)
   } finally { g.journal.close() }
 })
+
+it('undoes a recontinue by reopening the old root and appending the undo receipt', async () => {
+  const f = setup()
+  for (const [index, text] of ['SAFE_PREFIX', 'WITHDRAWN_POISON'].entries()) {
+    f.execution.send(text, 'u-' + index, 'h'); await f.opened()
+    f.emit({ t: 'turn-start', turn: index + 1, preset: null }); f.emit({ t: 'message', text: 'reply-' + text }); f.emit({ t: 'turn-end', reason: { kind: 'completed' } })
+  }
+  const target = f.store.records().find(row => row.type === 'user/message' && row.text === 'WITHDRAWN_POISON')!
+  const sourceRoot = f.host.current
+  const fork = { sourceId: sourceRoot, target: { messageId: 'id' in target ? target.id : '', text: 'WITHDRAWN_POISON' }, plan: { messageSeq: 1, boundary: null, prefixDigest: 'a'.repeat(64), messageDigest: 'b'.repeat(64) } }
+  await f.execution.recontinue(fork, 'next-root', () => {
+    f.store.append({ type: 'conversation/recontinued', operationId: 'cut-undo', parentRevision: 'initial', targetMessageId: 'id' in target ? target.id : '', mode: 'manual',
+      fromSeq: target.seq, throughSeq: f.store.records().length, sourceRootId: sourceRoot, nextRootId: 'next-root', cwd: join(f.root, 'project') })
+  })
+  expect(f.store.projection().messages.some(row => row.text === 'WITHDRAWN_POISON')).toBe(false)
+  const commit = f.store.records().find(row => row.type === 'conversation/recontinued' && row.operationId === 'cut-undo')!
+  if (commit.type !== 'conversation/recontinued') throw new Error('missing recontinue commit')
+  await f.execution.undoRecontinue(commit, () => f.store.append({ type: 'conversation/recontinue-undone', operationId: 'cut-undo' }))
+  expect(f.host.opened.at(-1)?.[1]).toBe(f.host.current)
+  expect(f.store.projection().messages.some(row => row.text === 'WITHDRAWN_POISON')).toBe(true)
+  expect(f.store.records().some(row => row.type === 'conversation/recontinue-undone' && row.operationId === 'cut-undo')).toBe(true)
+})
+
 
 it('accepts a current root state request, persists it and retires its credential', async () => {
   const f = setup(); f.execution.send('请找帮手完成工作', 'state-start', 'hash'); await f.opened(); f.emit({ t: 'turn-start', turn: 1 })

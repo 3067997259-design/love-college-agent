@@ -8,11 +8,12 @@ import './work.css'
  * 调用过工具就先提醒核对已产生的结果；原因可展开（错误代码、服务状态、尝试次数，不含供应商原文或配置）；
  * 原请求只带回输入框，你检查后手动发送。
  */
-export function FailureDetails({ failure, onDraft }: { failure: ModelFailureView; onDraft?: () => void }) {
+export function FailureDetails({ failure, onDraft, onRetry }: { failure: ModelFailureView; onDraft?: () => void; onRetry?: () => void }) {
   return (
     <div className="failure-details" aria-label={words.title} data-failure-turn={failure.turnId}>
       {failure.toolsExecuted && <Notice live={false}>{words.tools}</Notice>}
       <div className="failure-row">
+        {onRetry && <button type="button" className="link-button" onClick={onRetry}>重试上一条</button>}
         {onDraft && <button type="button" className="link-button" onClick={onDraft}>{words.retry}</button>}
         <details className="failure-why">
           <summary>{words.details}</summary>

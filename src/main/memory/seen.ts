@@ -4,6 +4,7 @@ import { redactFixed } from '../privacy/redact'
 import type { MemorySource } from './schema'
 import { isSourceTool } from '../campus/context'
 import { continuationPolicy } from '../recontinue/policy'
+import { replyFeedbackPolicy } from './feedback'
 
 export const memoryDigest = (text: string) => createHash('sha256').update(text).digest('hex')
 /**
@@ -40,8 +41,8 @@ export const withoutCode = (text: string) => text.replace(/```[\s\S]*?(```|$)/g,
  * The sole memory input surface: successful model input snapshots, never tool/raw or any private store.
  * Origin comes from the journal record that produced the context entry, not from the message body.
  */
-export function seenFragments(records: readonly JournalRecord[], memoryOnly = false, canonicalIdentity = false, includeWithdrawn = false): SeenFragment[] {
-  const policy = continuationPolicy(records)
+export function seenFragments(records: readonly JournalRecord[], memoryOnly = false, canonicalIdentity = false, includeWithdrawn = false, includeBad = false): SeenFragment[] {
+  const policy = continuationPolicy(records), feedback = replyFeedbackPolicy(records)
   let sessionId = ''; const seen = new Set<string>(); const result: SeenFragment[] = []
   const externalCalls = records.flatMap((row) => row.type === 'tool/call' && isSourceTool(row.templateId) ? [row] : [])
   const externalIds = new Set(externalCalls.map((row) => row.callId))
@@ -93,7 +94,8 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
     for (const index of row.eligibleIndexes) {
       const message = row.messages[index]
       if (!message || message.role === 'system' || !message.content.trim()) continue
-      if (!includeWithdrawn && (policy.ids.has(row.originalEvents?.find(event => event.index === index)?.eventId ?? '') || policy.texts.get(sessionId)?.has(message.content))) continue
+      if (!includeBad && message.role === 'assistant' && feedback.badTurns.has(row.turnId)) continue
+      if (!includeWithdrawn && policy.ids.has(row.originalEvents?.find(event => event.index === index)?.eventId ?? '')) continue
       if (memoryOnly && row.memoryExcludedIndexes?.includes(index)) continue
       if (memoryOnly && message.role === 'assistant' && externalTurns.has(row.turnId)) continue
       if (memoryOnly && (message.role === 'tool' && externalIds.has(message.toolCallId ?? '') || message.role === 'assistant' && (externalReplies.has(message.content) || ignoredTitles.some((title) => message.content.includes(title))))) continue

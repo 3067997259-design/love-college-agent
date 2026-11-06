@@ -15,6 +15,7 @@ import { seenFragments, memoryDigest, type SeenFragment } from './seen'
 import { MemoryFailure } from './model'
 import { legacyMemorySources } from './migration'
 import { continuationPolicy } from '../recontinue/policy'
+import { replyFeedbackPolicy } from './feedback'
 
 export interface MemoryCaptureModel { extract: MemoryTurnExtractor; reconcile?: MemoryReconciler }
 
@@ -50,7 +51,7 @@ export function createMemoryFacts(options: {
     const rows = history(); const last = rows.at(-1); const key = JSON.stringify([options.store.scope.sessionId, rows.length, last?.seq, last?.atMs])
     if (sourceCache?.key !== key) {
       const allowed = new Set(seenFragments(rows, true, true).map(sourceId))
-      sourceCache = { key, retired: new Set([...seenFragments(rows, false, true, true).filter(item => !allowed.has(sourceId(item))).map(sourceId),
+      sourceCache = { key, retired: new Set([...seenFragments(rows, false, true, true, true).filter(item => !allowed.has(sourceId(item))).map(sourceId),
         ...[...continuationPolicy(rows).ids].flatMap(id => [id, `event:${id}`])]), legacy: legacyMemorySources(rows) }
     }
     return sourceCache
@@ -87,7 +88,8 @@ export function createMemoryFacts(options: {
     // summaries remain archives, but cannot silently present old claims as current.
     const knownSources = new Set(seenFragments(history(), true, true).map(sourceId))
     const legacyCutoff = changes.reduce((at, item) => item.previousSourceContext?.messageId && knownSources.has(item.previousSourceContext.messageId) ? at : Math.max(at, item.updatedAt), 0)
-    experiencePolicy = { revision: changes.length || retiredFacts.length ? memoryDigest(JSON.stringify([changes.map(item => item.operationId).sort(), excludedSourceIds, legacyCutoff])) : 'initial', excludedSourceIds, historicalSourceIds, legacyCutoff }
+    experiencePolicy = { revision: changes.length || retiredFacts.length || replyFeedbackPolicy(history()).revision !== 'initial'
+      ? memoryDigest(JSON.stringify([changes.map(item => item.operationId).sort(), excludedSourceIds, legacyCutoff, replyFeedbackPolicy(history()).revision])) : 'initial', excludedSourceIds, historicalSourceIds, legacyCutoff }
     proposalFacts = new Set(reviews.filter(item => item.status === 'pending_review' && item.fragmentId).map(item => item.fragmentId!))
     operations = reviews.filter(item => !retired().has(item.sourceContext.messageId ?? '')).toSorted((a, b) => Number(b.status === 'pending_review' || b.status === 'conflict') - Number(a.status === 'pending_review' || a.status === 'conflict') || b.updatedAt - a.updatedAt).slice(0, 40).map(item => ({ operationId: item.operationId, kind: item.proposal.kind,
       title: item.proposal.title ?? '', content: item.proposal.content ?? '', previousContent: item.previousContent ?? null, status: item.status, updatedAtMs: item.updatedAt }))

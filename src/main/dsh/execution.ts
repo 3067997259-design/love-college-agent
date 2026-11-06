@@ -22,7 +22,7 @@ import type { RootCompactionOutcome, WorkEvidence } from '../../shared/continuit
 import { workEvidenceSchema, workDigest } from '../work/journal'
 import { composeContext, ContextBudgetFailure } from '../context/composer'
 import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
-import type { RecontinueFork } from '../../shared/recontinue'
+import type { RecontinueCandidateView, RecontinueFork } from '../../shared/recontinue'
 import { continuationPolicy } from '../recontinue/policy'
 
 /**
@@ -214,6 +214,50 @@ export function createDshExecution(options: {
   const residentRoots = new Set<string>()
   let session: Live | undefined
   const currentScope = () => !!session && session.day === store.scope.sessionId && session.cwd === resolve(options.project())
+  /** A sync root identity for menu eligibility before a session is opened. It never calls DSH. */
+  const candidateRoot = () => {
+    const day = store.scope.sessionId, cwd = resolve(options.project())
+    if (session?.day === day && session.cwd === cwd) return session.id
+    if (store.restored?.()) return undefined
+    const policy = continuationPolicy(store.records()), commit = policy.commits.at(-1)
+    return daySessions(read<Saved>(sessionsFile, {}), day).find(item => item.cwd === cwd && (item.revision ?? 'initial') === policy.revision)?.id
+      ?? (commit?.cwd === cwd ? commit.nextRootId : undefined)
+  }
+  const candidateAncestors = (currentId: string) => {
+    const ancestors = new Set([currentId])
+    for (const commit of continuationPolicy(store.records()).commits.toReversed()) if (ancestors.has(commit.nextRootId)) ancestors.add(commit.sourceRootId)
+    return ancestors
+  }
+  const turnBinding = (rows: ReturnType<SessionStore['records']>, messageId: string) => {
+    const drain = rows.find(row => row.type === 'inbox/drain' && row.ids.includes(messageId))
+    const start = drain ? rows.findLast(row => row.type === 'turn/start' && row.seq < drain.seq) : undefined
+    const binding = start?.type === 'turn/start' ? rows.find(row => row.type === 'work/turn' && row.turnId === start.turnId) : undefined
+    return { drain, start, binding }
+  }
+  const candidate = (messageId: string, ancestors: ReadonlySet<string>): RecontinueCandidateView => {
+    const rows = store.records(), policy = continuationPolicy(rows)
+    const target = rows.find(row => row.type === 'user/message' && row.id === messageId)
+    if (!target || policy.ids.has(messageId)) return { available: false, reason: 'withdrawn' }
+    if (rows.some(row => row.type === 'question/answered' && row.answerMessageId === messageId)) return { available: false, reason: 'question-answer' }
+    const { drain, binding } = turnBinding(rows, messageId)
+    if (!drain) return { available: false, reason: 'not-delivered' }
+    if (binding?.type !== 'work/turn' || !ancestors.has(binding.sessionId)) return { available: false, reason: 'other-project' }
+    return { available: true }
+  }
+  const retryTargetForTurn = (rows: ReturnType<SessionStore['records']>, turnId: string, ancestors: ReadonlySet<string>) => {
+    const startIndex = rows.findLastIndex(row => row.type === 'turn/start' && row.turnId === turnId)
+    if (startIndex < 0) return undefined
+    const start = rows[startIndex]
+    if (start.type !== 'turn/start') return undefined
+    const end = rows.slice(startIndex + 1).findIndex(row => row.type === 'turn/start')
+    const window = end < 0 ? rows.slice(startIndex + 1) : rows.slice(startIndex + 1, startIndex + 1 + end)
+    const drain = window.find(row => row.type === 'inbox/drain')
+    if (drain?.type !== 'inbox/drain') return undefined
+    const userIds = drain.ids.filter(id => rows.some(item => item.type === 'user/message' && item.id === id))
+    if (userIds.length !== 1) return undefined
+    const target = userIds[0]
+    return candidate(target, ancestors).available ? target : undefined
+  }
   let turn: Turn | undefined
   let modeState: DshConversationState | undefined
   let modeSignature = ''
@@ -654,6 +698,32 @@ export function createDshExecution(options: {
   return {
     collaboration,
     prepared: async () => { await sendQueue },
+    recontinueKey: () => {
+      const root = candidateRoot() ?? 'no-root'
+      const rows = store.records()
+      return `${root}:${resolve(options.project())}:${rows.at(-1)?.seq ?? 0}:${continuationPolicy(rows).revision}`
+    },
+    recontinueCandidates: (ids: readonly string[]) => {
+      const state: Record<string, RecontinueCandidateView> = {}
+      const root = candidateRoot()
+      if (!root) return Object.fromEntries(ids.map(id => [id, { available: false, reason: 'no-native-root' } as RecontinueCandidateView]))
+      const ancestors = candidateAncestors(root)
+      for (const id of ids) state[id] = candidate(id, ancestors)
+      return state
+    },
+    recontinueTargets: (assistantIds: readonly string[]) => {
+      const state: Record<string, string> = {}
+      const root = candidateRoot()
+      if (!root) return state
+      const rows = store.records(), ancestors = candidateAncestors(root)
+      for (const id of assistantIds) {
+        const row = rows.find(item => item.type === 'assistant/message' && item.id === id)
+        if (row?.type !== 'assistant/message' || row.displayOnly) continue
+        const target = retryTargetForTurn(rows, row.turnId, ancestors)
+        if (target) state[id] = target
+      }
+      return state
+    },
     inspectRecontinue: async (target: RecontinueFork['target']) => {
       if (closed || maintaining) throw new Error('RECONTINUE_BUSY')
       await sendQueue
@@ -668,7 +738,7 @@ export function createDshExecution(options: {
       return { sourceId: current.id, target, plan: await host!.recontinuePlan(current.id, target), cwd: current.cwd }
     },
     recontinue: async (fork: RecontinueFork, nextRootId: string, commit: () => void) => {
-      if (closed || maintaining || !session || !host || session.id !== fork.sourceId) throw new Error('RECONTINUE_STALE')
+      if (closed || maintaining || !session || !host || session.id !== fork.sourceId || !currentScope()) throw new Error('RECONTINUE_STALE')
       maintaining = true
       const previous = session, running = host
       try {
@@ -690,6 +760,32 @@ export function createDshExecution(options: {
       } catch (error) {
         session = undefined
         try { await running.release(nextRootId) } catch { /* an unacknowledged fork remains an unused archive */ }
+        throw error
+      } finally { maintaining = false; options.changed('message') }
+    },
+    undoRecontinue: async (commit: Extract<ReturnType<SessionStore['records']>[number], { type: 'conversation/recontinued' }>, commitUndo: () => void) => {
+      if (closed || maintaining) throw new Error('RECONTINUE_STALE')
+      maintaining = true
+      let previous: Live | undefined
+      try {
+        previous = await ensureSession()
+        if (!host || previous.id !== commit.nextRootId || !currentScope() || previous.cwd !== commit.cwd) throw new Error('RECONTINUE_STALE')
+        const running = host
+        options.foreground?.()
+        turn?.asks.abort(); running.cancel(previous.id)
+        await sendQueue
+        const trusted = read<Rule[]>(rulesFile, []).some(rule => rule.project === commit.cwd && rule.prefix === null)
+        const opened = await running.open(commit.cwd, commit.sourceRootId, trusted, [], { persona: options.persona(), suffix: options.suffix(), policy: options.rootPolicy, required: true })
+        commitUndo()
+        await running.release(previous.id)
+        residentRoots.delete(previous.id)
+        residentRoots.add(opened)
+        session = { ...previous, id: opened, cwd: commit.cwd, fresh: true, seenSeq: store.records().at(-1)!.seq }
+        starts.length = 0; pending.length = 0; pendingText.clear(); eventIds.clear(); held.length = 0; turn = undefined
+        resetCollaboration()
+        try { writeDay(previous.day, [{ id: opened, cwd: commit.cwd, seenSeq: session.seenSeq, revision: continuationPolicy(store.records()).revision }]) } catch { /* replay on next open */ }
+      } catch (error) {
+        session = previous ?? session
         throw error
       } finally { maintaining = false; options.changed('message') }
     },

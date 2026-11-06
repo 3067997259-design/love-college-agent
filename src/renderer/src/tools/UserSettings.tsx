@@ -8,6 +8,7 @@ import { BackupControls } from './BackupControls'
 import { CharacterControls } from './CharacterControls'
 import { MemoryControls } from './MemoryControls'
 import { ProfileControls } from './ProfileControls'
+import { ConversationVersionControls } from './ConversationVersionControls'
 
 import { NotificationControls } from './NotificationControls'
 import { VoiceControls } from './VoiceControls'
@@ -82,6 +83,7 @@ export function UserSettings({ bridge, snapshot, onClose, onOpenPlugins }: { bri
       {/* 展位是公共的机器，不收来访者的个人介绍 */}
       {!booth && <Group name={words.groups.profile}><ProfileControls {...props} /></Group>}
       <Group name={words.groups.memory}><MemoryControls {...props} /></Group>
+      <Group name="对话版本"><ConversationVersionControls {...props} /></Group>
       <Group name={words.groups.book}><BackupControls {...props} /><CharacterControls {...props} /></Group>
       {/* 重新走一遍新手指引只把“看过引导”改回没看过（onboarding.reset），不动任何资料；是一行，不藏进折叠组 */}
       {!booth && <Row action="onboarding.reset" title={words.onboarding.title} note={words.resetHint}><button type="button" onClick={() => void send({ type: 'onboarding.reset' })}>{words.reset}</button></Row>}

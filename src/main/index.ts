@@ -788,6 +788,9 @@ void app.whenReady().then(async () => {
         await Promise.all([memory?.idle(), diary?.idle(), lifeWork?.idle(), optical?.idle(), continuousWork?.quiesceForRecontinue(ids)])
       }, changed: () => controller?.refresh('message') })
     controller.attachRecontinue(recontinue)
+    const replyFeedback = (await import('./feedback/service')).createReplyFeedback({ store, changed: () => controller?.refresh('message'),
+      onGood: () => { void memory?.maintenance() } })
+    controller.attachReplyFeedback(replyFeedback)
     const withExtensionRuntime = async <T>(job: (runtime: ExtensionRuntime) => Promise<T>): Promise<T> => {
       if (continuousWork?.busy()) throw new Error('DSH_BUSY')
       if (!dshPresent) throw new Error('DSH_UNAVAILABLE')

@@ -35,7 +35,10 @@ function fixture() {
   let broken = false
   const options: Parameters<typeof createRecontinue>[0] = { store, clock, unavailable: () => false, changed: () => {},
     execution: () => ({ inspectRecontinue: async target => ({ sourceId: 'old', target, cwd: root, plan: { messageSeq: 3, boundary: 2, prefixDigest: 'a'.repeat(64), messageDigest: 'b'.repeat(64) } }),
-      recontinue: async (_fork, _id, commit) => { if (broken) throw new Error('fixture-before-commit'); commit() } }),
+      recontinue: async (_fork, _id, commit) => { if (broken) throw new Error('fixture-before-commit'); commit() },
+      undoRecontinue: async (_commit, undo) => { undo() }, send: () => {},
+      recontinueCandidates: ids => Object.fromEntries(ids.map(id => [id, { available: true }])),
+      recontinueTargets: () => ({}) }),
     impact: () => ({ memories: 1, works: 0, effects: 0, version: '0' }), quiesce: async () => {} }
   const service = createRecontinue(options)
   const send = (body: Omit<Extract<AppCommand, { type: 'recontinue.preview' }>, 'protocolVersion' | 'epoch' | 'requestId'> | { type: 'recontinue.commit'; previewId: string }) => service.dispatch({ ...body, protocolVersion: 1, epoch: 'epoch', requestId: 'request' })
@@ -91,9 +94,50 @@ it('replays the commit and draft after restart, rejects old versions and accepts
   expect(f.store.projection().messages).toEqual([])
   expect(continuationPolicy(f.store.records()).commits).toHaveLength(2)
 })
+it('reports candidate availability for the current projection', async () => {
+  const f = fixture()
+  const view = f.service.view()
+  expect(view.candidates.safe?.available).toBe(true)
+  expect(view.candidates.poison?.available).toBe(true)
+  expect(f.store.projection().messages.filter(row => row.role === 'user').every(row => view.candidates[row.id]?.available)).toBe(true)
+})
+
+it('retries a failed message with a retry version, not a draft', async () => {
+  const f = fixture()
+  f.store.append({ type: 'user/message', id: 'failed', text: 'FAILED', requestId: 'failed', commandHash: 'failed' })
+  f.store.append({ type: 'turn/start', turnId: 'failed-turn', trigger: 'user' })
+  f.store.append({ type: 'inbox/drain', ids: ['failed'] })
+  f.store.append({ type: 'turn/end', turnId: 'failed-turn', reason: 'error', error: { code: 'connection-failed', retryable: true } })
+  f.store.append({ type: 'narrator/failure', id: 'failure', turnId: 'failed-turn', text: '网络没有完成。',
+    failure: { turnId: 'failed-turn', code: 'connection-failed', category: 'network', attemptCount: 1, toolsExecuted: false, sourceMessageId: 'failed' } })
+  expect(f.service.retry('failed')).toBeUndefined()
+  await settle()
+  const version = f.service.view().versions.at(-1)!
+  expect(version.mode).toBe('retry')
+  expect(version.undoable).toBe(false)
+  expect(f.service.view().completed).toBeUndefined()
+})
+
 it('does not reintroduce a withdrawn original through a late worker observation', async () => {
   const f = fixture(), preview = await f.preview()
   f.send({ type: 'recontinue.commit', previewId: preview!.id }); await settle()
   f.store.append({ type: 'model/seen', turnId: 'late', source: 'fake', eligibleIndexes: [0], messages: [{ role: 'user', content: 'POISON' }], originalEvents: [{ index: 0, eventId: 'poison' }] })
   expect(seenFragments(f.store.records(), true, true).map(row => row.text).join()).not.toContain('POISON')
+})
+
+it('offers a limited undo and restores the old branch before new speech', async () => {
+  const f = fixture(), preview = await f.preview()
+  f.send({ type: 'recontinue.commit', previewId: preview!.id }); await settle()
+  expect(f.store.projection().messages.map(row => row.id)).toEqual(['safe', 'a-safe'])
+  const version = f.service.view().versions.at(-1)!
+  expect(version.undoable).toBe(true)
+  expect(f.service.dispatch({ type: 'recontinue.undo', operationId: version.operationId, protocolVersion: 1, epoch: 'epoch', requestId: 'undo' })).toBeUndefined()
+  await settle()
+  expect(f.store.projection().messages).toHaveLength(6)
+  expect(f.service.view().versions.at(-1)?.undone).toBe(true)
+  f.say('new', 'NEW'); await settle()
+  expect(f.service.view().versions.at(-1)?.undoable).toBe(false)
+  expect(f.service.dispatch({ type: 'recontinue.undo', operationId: version.operationId, protocolVersion: 1, epoch: 'epoch', requestId: 'undo-2' })).toBeUndefined()
+  await settle()
+  expect(f.service.view().error).toContain('不能撤销')
 })

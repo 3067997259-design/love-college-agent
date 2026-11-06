@@ -38,7 +38,7 @@ export function createExperienceIndex(options: {
     for (const fragment of canonicalAllowed) { const group = allowedBySession.get(fragment.sessionId) ?? []; group.push(fragment); allowedBySession.set(fragment.sessionId, group) }
     for (const canonical of [false, true]) {
       const allowed = new Set((canonical ? canonicalAllowed : seenFragments(rows, true)).map(fragment => fragment.id))
-      for (const fragment of seenFragments(rows, false, canonical, true)) if (!allowed.has(fragment.id)) retired.add(fragment.id)
+      for (const fragment of seenFragments(rows, false, canonical, true, true)) if (!allowed.has(fragment.id)) retired.add(fragment.id)
     }
     return seenCache = { key, retired, allowed: allowedBySession }
   }
