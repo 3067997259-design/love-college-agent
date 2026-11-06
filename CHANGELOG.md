@@ -4,7 +4,8 @@
 
 - 角色卡去掉照抄真实对话的整段正反示例，改成只描述句式的微距对照：随口应声、吐槽累又客套收住、只回“还好/没事”三种情形。明确“示例只体会结构，严禁照搬词句；如果当前对话和示例相似，不要回头重答，也不要补交标准答案”，这样既收住客服腔，也不会再把旧回复当错题重抄一遍。
 - DSH 会话增加人设指纹：`dsh-sessions.json` 记录角色卡、档案层与尾置提醒的 SHA-256；启动或下一次发送时发现指纹和缓存不符，旧 root 不再恢复，直接新开根，避免旧 system prompt 留在会话头部；今天已发生的对话以 `earlierToday` 引用带进新根。旧版本没有指纹的会话会一次性新开。
-- 验证：类型检查、lint、构建通过；单元 1035 通过、8 跳过；`smoke-recontinue`、`smoke-state-routing`、`smoke-onboarding` 通过。未打新安装包，安装版仍是 `1.2.0-recontinue.4`。
+- 验证：类型检查、lint、构建通过；单元 1035 通过、8 跳过；`smoke-recontinue`、`smoke-state-routing`、`smoke-onboarding` 通过。
+- 安装包 `1.2.0-recontinue.5`：安装器 315,515,424 字节，SHA-256 `3ad799a8b6bfdd6643218df6cf57ea0c02cffa15f9d89870d1bffa926d172684`，asar `04e1de336684c9863bd665304ddb627278ec28b496ff8afb5a6a6465fb9992ce`，源码 `5381b12`，工作区干净。已覆盖安装并启动，注册表版本和安装目录 asar 与回执一致。打包脚本改为先在盘符根目录的 `.lca-package` 生成，再复制回 `release`，避开 checkout 路径下 NSIS 报“Error writing temporary file”；本 checkout 的 `release` 内安装器仍受目录 ACL 影响，需要复制到短路径再运行。
 
 ## 当天从这里重新继续 — 未发布
 

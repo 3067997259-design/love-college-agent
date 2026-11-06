@@ -232,5 +232,6 @@
 - 角色卡：去掉两段真实对话的正反示例，改成三条只描述句式的微距对照（随口应声、吐槽累又客套收住、只回“还好/没事”），并写明“示例只体会结构，严禁照搬词句；如果当前对话和示例相似，不要回头重答，也不要补交标准答案”。
 - 会话层：`dsh-sessions.json` 的每条记录增加 `persona`（`options.persona()` 与 `suffix` 的 SHA-256）。`ensureSession` 在发送前比对；指纹变化时不再恢复旧 root，而是新开根，今天已有的对话通过 `earlierToday` 引用进入新根。`openSession`、重继续、撤销重继续写入缓存时都保留指纹；旧版本没有指纹的会话会一次性新开。这样即使未来换到声明 `in-history` 的模型，也不会把旧 prompt 留在最前。
 - 验证：`pnpm typecheck`、`pnpm lint`、`pnpm build` 通过；`vitest` 147 个文件、1035 项通过、8 项跳过；`smoke-recontinue`、`smoke-state-routing`、`smoke-onboarding` 通过。新增单元用例覆盖“改人设后新开根并带上今天早些时候的对话”和“旧版无指纹会话不恢复”。
-- 未做：未打新安装包，安装版仍是 `1.2.0-recontinue.4`；真实模型对照与 Text Arena 还未跑。
+- 打包：默认 `release` 路径下 NSIS 中间安装器报 “Error writing temporary file. Make sure your temp folder is valid.”；改为在盘符根目录的 `.lca-package` 生成、完成后把安装器、blockmap、win-unpacked 和回执复制回 `release`。候选 `1.2.0-recontinue.5`：安装器 315,515,424 字节，SHA-256 `3ad799a8b6bfdd6643218df6cf57ea0c02cffa15f9d89870d1bffa926d172684`，asar `04e1de336684c9863bd665304ddb627278ec28b496ff8afb5a6a6465fb9992ce`，源码 `5381b12`，`trackedDirty: false`。该 checkout 的 `release` 目录带 sandbox ACL，直接运行里面的安装器仍会报同一临时文件错误；复制到 `%TEMP%` 后 `/S /currentuser` 安装成功，注册表为 `.5`，安装目录 asar 与回执一致，应用已启动。
+- 未做：真实模型对照与 Text Arena 还未跑；完整包内矩阵未重跑。
 
