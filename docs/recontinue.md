@@ -1,6 +1,6 @@
 # 从这里重新继续
 
-状态：已在 `codex/same-day-recontinue` 实现并完成本机合成验证，基线 `bb259b0`。2026-11-06 已构建 `1.2.0-recontinue.1`，按用户要求覆盖本机安装并启动；尚未发布，真实日用体验由用户继续测试。
+状态：已在 `codex/same-day-recontinue` 实现并完成本机合成验证，基线 `bb259b0`。2026-11-06 试装发现并修复 Windows 启动路径大小写问题，已覆盖安装并启动 `1.2.0-recontinue.2`；尚未发布，真实日用体验由用户继续测试。
 
 今天右页的用户消息下可选择“从这里重新继续”。预览影响范围并确认后，目标消息及后续内容退出当前对话，目标原文回到输入框，等待修改和发送。输入框已有草稿或引用时先处理它们。原文仍在原来的日页：今天可通过“查看今天撤下的内容”查看，换日后标记为历史版本。这些内容不参与模型召回，不提供恢复分支或再次切点的入口。
 
@@ -72,6 +72,10 @@ node scripts/dsh-bridge-check.mjs recontinue recontinue-first recontinue-compact
 
 用户首次普通对话失败：`internal`，模型尝试次数为 0。隔离复现确认同一安装版按原始大小写启动可通过重新继续全流程，路径转为小写后则无法开始首轮；启动工具采用了后一种路径。DSH 原生诊断表明桥接模块导入 `@deepseek-ai/dsh-agent` 时出现 `ERR_MODULE_NOT_FOUND`，尚未进入模型调用。此前包内 34 项和主窗口打开的结果不能证明这个启动路径下可聊天。
 
-修复在 LCA 的 profile 准备层统一 CLI、profile 和外置桥的真实路径，迁正已有 profile 的桥接引用，保留用户配置与原始历史；不修改第三方 DSH。新增 Windows 大小写迁移回归，并让 `test:recontinue` 使用统一的包内执行目标，便于用小写 EXE 路径复测实际聊天、重新继续、重启和存档恢复。已通过 25 项 host/profile 相关单测；小写启动和旧小写 profile 的原生隔离启动检查已从无握手失败恢复为 `hello` / `init-ok`，无 stderr。新候选打包与覆盖结果另行记录。
+修复在 LCA 的 profile 准备层统一 CLI、profile 和外置桥的真实路径，迁正已有 profile 的桥接引用，保留用户配置与原始历史；不修改第三方 DSH。新增 Windows 大小写迁移回归，并让 `test:recontinue` 使用统一的包内执行目标，便于用小写 EXE 路径复测实际聊天、重新继续、重启和存档恢复。已通过 25 项 host/profile 相关单测；小写启动和旧小写 profile 的原生隔离启动检查已从无握手失败恢复为 `hello` / `init-ok`，无 stderr。
+
+修复提交 `db57f702b480a7d129551d31a7dc494ce12f5c26` 的完整单测为 1028 通过、8 跳过，类型检查与 lint 通过。构建 `1.2.0-recontinue.2`，安装器 SHA-256 为 `ba33bbeafa46db9c270d4260dc7fb3abb9447b4b82f424d1b368510d6a131eb3`。同候选分别从包内和最终安装目录的小写 EXE 路径通过合成对话、重新继续、重启、私人存档恢复和跨日拒绝；不复用上一候选的 34 项包内结果作为新包结论。
+
+本机覆盖退出码为 0，安装前再次备份程序和最新个人数据；安装器仍未释放上述两个可选 ARM64 组件，从同批构建补齐后 11,671 个文件全部匹配，启动前 171 个个人数据文件无增删改。原有会话已由同一启动工具重新打开，观察到 DSH 子进程正常存活，个人 profile 的桥接引用已恢复真实路径；原失败记录保留，没有自动发送真实对话。回执和正反复现证据在 `D:\.lca-cache\releases\recontinue2-20261106-db57f70`，本次备份在 `D:\.lca-cache\user-backups\before-recontinue-casefix-20261106-db57f70`。
 
 机制调研参考 [dsh-turn-rewind](https://github.com/Anionex/dsh-turn-rewind)（BSD-3-Clause，调研提交 `737d716c5f693f96eb2adc3e9a79f4e55cda8735`）的原生前缀路线，以及 [dsh-rewind](https://github.com/SiriLee/dsh-rewind)（MIT）的表面替换路线。本实现自行编写 LCA 桥和来源策略，没有安装或复制社区插件代码。DSH 与 AIRI 的既有许可记录沿用仓库第三方说明。
