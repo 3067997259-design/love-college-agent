@@ -12,6 +12,12 @@ describe('built-in character card', () => {
   it('keeps the adaptation clean: no source-card name or AIRI stage markup', () => {
     for (const marker of ['ReLU', '<|ACT', '<|DELAY', '<|CALL', 'mirror']) expect(BUILTIN_CARD.persona).not.toContain(marker)
   })
+  it('keeps the few-shot structural, never copied from a live conversation', () => {
+    const text = BUILTIN_CARD.persona
+    for (const marker of ['洗试管', '马马虎虎', '别光听我抱怨', '透着点疲惫', '今天晚饭想好去吃什么']) expect(text).not.toContain(marker)
+    expect(text).toContain('严禁照搬')
+    expect(text).toContain('不要回头重答')
+  })
   it('describes her, never the user: the user is 对方, with no assumed gender (who they are is their own about-you text)', () => {
     for (const text of [BUILTIN_CARD.persona, briefPersona(builtinCharacter)]) {
       expect(text.replace(/其他|他人/g, '')).not.toMatch(/他/)
