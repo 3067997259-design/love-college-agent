@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import type { AppEvent, PublicErrorCode } from '../../shared'
@@ -41,9 +41,9 @@ type Rule = { project: string; tool: string; prefix: string | null }
  * switching never widens permissions. `seenSeq`: journal position up to which that session has the conversation.
  * Older files hold a single session per day.
  */
-type SavedSession = { id: string; cwd: string; degraded?: DshSource[]; seenSeq?: number; revision?: string }
+type SavedSession = { id: string; cwd: string; degraded?: DshSource[]; seenSeq?: number; revision?: string; persona?: string }
 type Saved = Record<string, SavedSession | SavedSession[]>
-type Live = { id: string; cwd: string; day: string; fresh?: boolean; seenSeq: number }
+type Live = { id: string; cwd: string; day: string; fresh?: boolean; seenSeq: number; persona: string }
 const daySessions = (saved: Saved, day: string): SavedSession[] => { const value = saved[day]; return Array.isArray(value) ? value : value ? [value] : [] }
 /** Conversation she missed in this session, newest kept: at most 40 lines and about 12k characters. */
 const EARLIER_LINES = 40
@@ -170,6 +170,8 @@ export function createDshExecution(options: {
   let workRevision = options.rootPolicy?.work?.objectiveRevision ?? 0
   const observations = new Map<string, WorkEvidence>()
   const read = <T>(file: string, fallback: T): T => { try { return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as T : fallback } catch { return fallback } }
+  /** A changed card, profile layer or suffix opens a new DSH root instead of carrying the old system prompt into this one. */
+  const personaKey = () => createHash('sha256').update(JSON.stringify([options.persona(), options.suffix()])).digest('hex')
   // Once closed (the app quitting, a model change) nothing more is recorded: the journal may already be closed, and
   // a turn DSH ends after this point is closed at the next start.
   let maintaining = false
@@ -220,8 +222,9 @@ export function createDshExecution(options: {
     if (session?.day === day && session.cwd === cwd) return session.id
     if (store.restored?.()) return undefined
     const policy = continuationPolicy(store.records()), commit = policy.commits.at(-1)
-    return daySessions(read<Saved>(sessionsFile, {}), day).find(item => item.cwd === cwd && (item.revision ?? 'initial') === policy.revision)?.id
-      ?? (commit?.cwd === cwd ? commit.nextRootId : undefined)
+    const saved = daySessions(read<Saved>(sessionsFile, {}), day).find(item => item.cwd === cwd && (item.revision ?? 'initial') === policy.revision)
+    if (saved) return saved.persona === personaKey() ? saved.id : undefined
+    return commit?.cwd === cwd ? commit.nextRootId : undefined
   }
   const candidateAncestors = (currentId: string) => {
     const ancestors = new Set([currentId])
@@ -624,7 +627,10 @@ export function createDshExecution(options: {
   }
   const ensureSession = () => {
     const day = store.scope.sessionId; const cwd = resolve(options.project())
-    if (session?.id && session.day === day && session.cwd === cwd) return Promise.resolve(session)
+    if (session?.id && session.day === day && session.cwd === cwd) {
+      // Never swap roots under a live turn or maintenance job; the next follow-up will reopen.
+      if (turn || maintaining || session.persona === personaKey()) return Promise.resolve(session)
+    }
     return opening ??= openSession(day, cwd).finally(() => { opening = undefined })
   }
   const writeDay = (day: string, sessions: SavedSession[]) => { const saved = read<Saved>(sessionsFile, {}); writeFileSync(sessionsFile, JSON.stringify({ ...saved, [day]: sessions.slice(-8) }, null, 2)) }
@@ -646,9 +652,10 @@ export function createDshExecution(options: {
     if (session?.id) running.cancel(session.id)
     const sessions = daySessions(read<Saved>(sessionsFile, {}), day)
     const policy = continuationPolicy(store.records()), commit = policy.commits.at(-1)
-    const known = sessions.find((item) => item.cwd === cwd && (item.revision ?? 'initial') === policy.revision)
-      ?? (!store.restored?.() && commit?.cwd === cwd ? { id: commit.nextRootId, cwd, seenSeq: commit.seq, revision: policy.revision } : undefined)
-    const current: Live = { id: '', cwd, day, seenSeq: 0 }
+    const key = personaKey()
+    const known = sessions.find((item) => item.cwd === cwd && (item.revision ?? 'initial') === policy.revision && item.persona === key)
+      ?? (!store.restored?.() && commit?.cwd === cwd ? { id: commit.nextRootId, cwd, seenSeq: commit.seq, revision: policy.revision, persona: key } : undefined)
+    const current: Live = { id: '', cwd, day, seenSeq: 0, persona: key }
     session = current
     const trusted = read<Rule[]>(rulesFile, []).some((rule) => rule.project === cwd && rule.prefix === null)
     current.id = await running.open(cwd, known?.id, trusted, dshSources(known?.degraded), { persona: options.persona(), suffix: options.suffix(), policy: options.rootPolicy, required: !!known && policy.revision !== 'initial' })
@@ -660,7 +667,7 @@ export function createDshExecution(options: {
     if (!resumed) current.fresh = true
     current.seenSeq = resumed ? known.seenSeq ?? 0 : 0
     const degraded = resumed ? dshSources(known.degraded) : []
-    writeDay(day, [...sessions.filter((item) => item.cwd !== cwd), { id: current.id, cwd, ...(degraded.length ? { degraded } : {}), seenSeq: current.seenSeq, revision: policy.revision }])
+    writeDay(day, [...sessions.filter((item) => item.cwd !== cwd), { id: current.id, cwd, ...(degraded.length ? { degraded } : {}), seenSeq: current.seenSeq, revision: policy.revision, persona: key }])
     return current
   }
   /**
@@ -756,7 +763,7 @@ export function createDshExecution(options: {
         starts.length = 0; pending.length = 0; pendingText.clear(); eventIds.clear(); held.length = 0; turn = undefined
         resetCollaboration()
         // This is a cache. The committed journal mapping repairs a failed write.
-        try { writeDay(previous.day, [{ id: nextRootId, cwd: previous.cwd, seenSeq: session.seenSeq, revision: continuationPolicy(store.records()).revision }]) } catch { /* replay on next open */ }
+        try { writeDay(previous.day, [{ id: nextRootId, cwd: previous.cwd, seenSeq: session.seenSeq, revision: continuationPolicy(store.records()).revision, persona: session.persona }]) } catch { /* replay on next open */ }
       } catch (error) {
         session = undefined
         try { await running.release(nextRootId) } catch { /* an unacknowledged fork remains an unused archive */ }
@@ -783,7 +790,7 @@ export function createDshExecution(options: {
         session = { ...previous, id: opened, cwd: commit.cwd, fresh: true, seenSeq: store.records().at(-1)!.seq }
         starts.length = 0; pending.length = 0; pendingText.clear(); eventIds.clear(); held.length = 0; turn = undefined
         resetCollaboration()
-        try { writeDay(previous.day, [{ id: opened, cwd: commit.cwd, seenSeq: session.seenSeq, revision: continuationPolicy(store.records()).revision }]) } catch { /* replay on next open */ }
+        try { writeDay(previous.day, [{ id: opened, cwd: commit.cwd, seenSeq: session.seenSeq, revision: continuationPolicy(store.records()).revision, persona: session.persona }]) } catch { /* replay on next open */ }
       } catch (error) {
         session = previous ?? session
         throw error

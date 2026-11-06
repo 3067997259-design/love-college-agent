@@ -37,6 +37,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const store: SessionStore = { get scope() { return currentScope }, records: journal.records, projection: () => projectJournal(journal.records()), append: journal.append, close: journal.close }
   const asked: { question: string; choices: string[] }[] = []
   let project = join(root, 'project')
+  let personaText = '', suffixText = ''
   let answer: (choices: string[]) => string | null | Promise<string | null> = (choices) => choices[0]
   const host = { states: [] as DshConversationState[], options: undefined as DshHostOptions | undefined, opening: undefined as Promise<void> | undefined, onOpen: undefined as (() => void) | undefined, opened: [] as unknown[][], sent: [] as string[], references: [] as (string | null)[], modes: [] as string[], origins: [] as string[], degrades: [] as string[][], trusted: [] as string[], current: 'dsh-1' }
   let runtimeRestarts = 0
@@ -54,7 +55,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   // Her questions go to the book's question card (questions/service.ts), as in index.ts.
   const questions = createQuestions({ store, clock, changed: () => {}, safeText: (text) => text })
   const execution = createDshExecution({ store, clock, dataDir: root, dshRoot: 'unused', bridge: 'unused', routes: { env: {}, chat: { provider: 'deepseek-official', model: 'deepseek-flash' }, work: { provider: 'deepseek-official', model: 'deepseek-flash' } }, guardedRoots: [],
-    project: () => project, persona: () => '', suffix: () => '', tools: () => [mailTool, fileTool, opticalTool], restartHost: async () => { runtimeRestarts++ },
+    project: () => project, persona: () => personaText, suffix: () => suffixText, tools: () => [mailTool, fileTool, opticalTool], restartHost: async () => { runtimeRestarts++ },
     ask: async (question, choices) => { asked.push({ question, choices }); return answer(choices) }, changed: () => {}, launch, admit, revealed, started: (input) => { startedTurns.push(input) }, answered: (input) => { answeredCalls.push(input); questions.commit(input.turnId, [input.callId]) },
     question: (items, context) => questions.ask(items, { clock, store, ...context }).then((result) => result.raw as { status?: unknown; answers?: unknown; answerMessageId?: unknown }),
     foreground: () => { hooks.push('foreground') }, userWork: () => { hooks.push('userWork') }, settled: () => { hooks.push('settled') },
@@ -65,7 +66,7 @@ function setup(dataDir?: string, admit?: (input: { bucket: 'work' | 'autonomous'
   const opened = () => execution.prepared()
   const question = (questions: unknown, callId = 'call-ask') => host.options!.onQuestion!({ sessionId: host.current, callId, questions, signal: new AbortController().signal })
   const command = (body: Record<string, unknown>) => ({ protocolVersion: 1, epoch: 'test', requestId: 'answer-' + body.type, ...body }) as AppCommand
-  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, questions, question, command, referenceAsks, startedTurns, answeredCalls, hooks, get runtimeRestarts() { return runtimeRestarts }, setProject: (next: string) => { project = next }, nextDay: () => { currentScope = { ...currentScope, sessionId: 'next-day' } }, setAnswer: (next: typeof answer) => { answer = next } }
+  return { root, clock, journal, store, execution, host, emit, approval, asked, opened, questions, question, command, referenceAsks, startedTurns, answeredCalls, hooks, get runtimeRestarts() { return runtimeRestarts }, setProject: (next: string) => { project = next }, setPersona: (next: string, suffix = '') => { personaText = next; suffixText = suffix }, nextDay: () => { currentScope = { ...currentScope, sessionId: 'next-day' } }, setAnswer: (next: typeof answer) => { answer = next } }
 }
 
 it('keeps state changes local until opening registers a root, then sends the latest state', async () => {
@@ -797,6 +798,24 @@ describe('DSH work in the LCA journal', () => {
     again.journal.close()
   })
 
+  it('opens a new root after the persona changes and brings today\'s earlier lines along', async () => {
+    const f = setup()
+    f.execution.send('第一句', 'r-1', 'h-1')
+    await f.opened()
+    f.emit({ t: 'turn-start', turn: 1, preset: 'workspace-write' })
+    f.emit({ t: 'message', text: '第一句的回复', toolCalls: [] })
+    f.emit({ t: 'turn-end', turn: 1, reason: { kind: 'completed' } })
+    f.setPersona('新的角色卡', '新的尾置提醒')
+    f.execution.send('第二句', 'r-2', 'h-2')
+    await f.opened()
+    expect(f.host.opened).toHaveLength(2)
+    expect(f.host.opened[1]?.[1]).toBeUndefined()
+    const reference = JSON.parse(f.host.references.at(-1)!)
+    expect(reference.earlierToday).toEqual([{ who: 'user', text: '第一句' }, { who: 'her', text: '第一句的回复' }])
+    expect(JSON.parse(readFileSync(join(f.root, 'dsh-sessions.json'), 'utf8'))[f.store.scope.sessionId][0].persona).toMatch(/^[a-f0-9]{64}$/)
+    f.journal.close()
+  })
+
   it('reads the single-session-per-day file written by 1.0.x', async () => {
     const f = setup()
     f.journal.close()
@@ -805,7 +824,8 @@ describe('DSH work in the LCA journal', () => {
     const again = setup(f.root)
     again.execution.send('继续', 'r-2', 'h-2')
     await again.opened()
-    expect(again.host.opened[0]?.slice(1, 4)).toEqual(['dsh-old', false, ['web']])
+    // No persona key in the old file: read it, but open a fresh root instead of carrying the old prompt.
+    expect(again.host.opened[0]?.slice(1, 4)).toEqual([undefined, false, []])
     again.journal.close()
   })
 })
