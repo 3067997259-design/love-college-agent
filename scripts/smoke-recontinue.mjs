@@ -7,7 +7,7 @@ import { _electron } from 'playwright'
 import electronPath from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { runtimeEnv, initializeTestBook, testDataRoot, whenIdle } from './runtime-env.mjs'
+import { runtimeEnv, initializeTestBook, testDataRoot, whenIdle, electronLaunchTarget } from './runtime-env.mjs'
 const root = resolve(import.meta.dirname, '..'), runId = randomUUID(), sceneId = randomUUID()
 const data = join(testDataRoot(root), 'recontinue-' + runId)
 const env = { ...runtimeEnv(root), LCA_DATA_DIR: data, LCA_PROVIDERS_FILE: join(data, 'absent.json'), LCA_CDP_PORT: '0', LCA_MCP_PORT: '0' }
@@ -20,7 +20,7 @@ async function until(predicate, label) {
 }
 async function debug(name, args) { const result = await client.callTool({ name, arguments: args }); assert.ok(!result.isError); return JSON.parse(result.content[0].text) }
 async function launch() {
-  instance = await _electron.launch({ executablePath: electronPath, args: [root], env }); page = await instance.firstWindow()
+  instance = await _electron.launch({ ...electronLaunchTarget(root, electronPath), env }); page = await instance.firstWindow()
   await page.emulateMedia({ reducedMotion: 'reduce' }); await initializeTestBook(page)
   const connection = JSON.parse(await readFile(join(data, 'developer', sceneId, 'debug-connection.json'), 'utf8'))
   client = new Client({ name: 'recontinue-smoke', version: '1.0.0' })

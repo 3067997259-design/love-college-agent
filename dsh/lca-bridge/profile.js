@@ -1,9 +1,13 @@
 // Shared by the packaged main process and isolated command-line probes.
-import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
-export const dshCli = (root) => { const npm = join(root, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'); return existsSync(npm) ? npm : join(root, 'apps', 'cli', 'lib', 'bin.js') }
+export const dshCli = (root) => {
+  const npm = join(root, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+  const cli = existsSync(npm) ? npm : join(root, 'apps', 'cli', 'lib', 'bin.js')
+  return existsSync(cli) ? realpathSync.native(cli) : cli
+}
 export function atomicJson(file, value) {
   const temp = `${file}.${randomUUID()}.tmp`
   mkdirSync(dirname(file), { recursive: true })
@@ -12,8 +16,13 @@ export function atomicJson(file, value) {
 }
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 export function prepareDshProfile({ dshRoot, dataDir, bridge }) {
-  const home = join(dataDir, 'dsh-home'), profile = join(home, 'profiles', 'lca')
-  mkdirSync(profile, { recursive: true })
+  const requestedHome = join(dataDir, 'dsh-home')
+  mkdirSync(join(requestedHome, 'profiles', 'lca'), { recursive: true })
+  // Windows accepts differently cased launch paths, but DSH's ESM routing table
+  // matches importer paths. Use the same on-disk spelling for the CLI, profile
+  // and external bridge so the bridge resolves through DSH's package table.
+  const home = realpathSync.native(requestedHome), profile = realpathSync.native(join(home, 'profiles', 'lca'))
+  bridge = realpathSync.native(bridge)
   const file = join(profile, 'package.json')
   const operationFile = join(profile, 'lca-extension-operations.json')
   if (existsSync(operationFile)) {

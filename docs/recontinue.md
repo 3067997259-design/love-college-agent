@@ -68,4 +68,10 @@ node scripts/dsh-bridge-check.mjs recontinue recontinue-first recontinue-compact
 
 本机包、构建回执和安装报告位于 `D:\.lca-cache\releases\recontinue-20261106-07a7c63`；备份位于 `D:\.lca-cache\user-backups\before-recontinue-20261106-07a7c63`。本次完成本机覆盖及启动核对，不将包内合成流程等同于原有真实数据的完整升级验收。
 
+### 试装发现：启动路径大小写（2026-11-06）
+
+用户首次普通对话失败：`internal`，模型尝试次数为 0。隔离复现确认同一安装版按原始大小写启动可通过重新继续全流程，路径转为小写后则无法开始首轮；启动工具采用了后一种路径。DSH 原生诊断表明桥接模块导入 `@deepseek-ai/dsh-agent` 时出现 `ERR_MODULE_NOT_FOUND`，尚未进入模型调用。此前包内 34 项和主窗口打开的结果不能证明这个启动路径下可聊天。
+
+修复在 LCA 的 profile 准备层统一 CLI、profile 和外置桥的真实路径，迁正已有 profile 的桥接引用，保留用户配置与原始历史；不修改第三方 DSH。新增 Windows 大小写迁移回归，并让 `test:recontinue` 使用统一的包内执行目标，便于用小写 EXE 路径复测实际聊天、重新继续、重启和存档恢复。已通过 25 项 host/profile 相关单测；小写启动和旧小写 profile 的原生隔离启动检查已从无握手失败恢复为 `hello` / `init-ok`，无 stderr。新候选打包与覆盖结果另行记录。
+
 机制调研参考 [dsh-turn-rewind](https://github.com/Anionex/dsh-turn-rewind)（BSD-3-Clause，调研提交 `737d716c5f693f96eb2adc3e9a79f4e55cda8735`）的原生前缀路线，以及 [dsh-rewind](https://github.com/SiriLee/dsh-rewind)（MIT）的表面替换路线。本实现自行编写 LCA 桥和来源策略，没有安装或复制社区插件代码。DSH 与 AIRI 的既有许可记录沿用仓库第三方说明。
