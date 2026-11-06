@@ -70,7 +70,7 @@ export function createRecontinue(options: {
     const ids = new Set(messages.flatMap(row => 'id' in row ? [row.id] : []))
     const impact = options.impact(ids)
     const digest = createHash('sha256').update(JSON.stringify([messages, impact])).digest('hex')
-    return { target, ids, impact, digest, messages: messages.length }
+    return { target, ids, impact, digest, messages: messages.length, users: messages.filter(row => row.type === 'user/message').length }
   }
   const fail = (error: unknown) => {
     if (preview && continuationPolicy(store.records()).commits.some(row => row.operationId === preview!.id)) {
@@ -164,8 +164,9 @@ export function createRecontinue(options: {
           await options.quiesce(before.ids)
           await options.execution()!.recontinue(chosen.fork, `recontinue-${chosen.id}`, () => {
             const current = check(chosen.sessionId, chosen.messageId, chosen.revision, false)
-            // Cancellation changes work status, but cannot introduce new speech.
-            if (current.messages !== before.messages || current.target.text !== before.target.text) throw new Error('RECONTINUE_STALE')
+            // Cancellation may append a partial assistant line inside the suffix
+            // being withdrawn; only newly added user speech invalidates the cut.
+            if (current.users !== before.users || current.target.text !== before.target.text) throw new Error('RECONTINUE_STALE')
             store.append({ type: 'conversation/recontinued', operationId: chosen.id, parentRevision: continuationPolicy(store.records()).revision, targetMessageId: chosen.messageId, mode: 'manual',
               fromSeq: current.target.seq, throughSeq: store.records().at(-1)!.seq, sourceRootId: chosen.fork.sourceId,
               nextRootId: `recontinue-${chosen.id}`, cwd: chosen.fork.cwd })
