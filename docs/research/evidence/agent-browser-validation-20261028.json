@@ -1,0 +1,279 @@
+{
+  "schema": 1,
+  "date": "2026-10-28",
+  "baseline": "7916fb2c66d631e5f5d743269abc72173f51b3df",
+  "decision": "selected-first-migration; runtime-startup-gate-failed; not-enabled",
+  "scope": "isolated local development webpage observation; no real model or user browser session",
+  "artifacts": [
+    {
+      "version": "0.39.3",
+      "commit": "bac577a80442fd00f6f1756e5852a5194d53ff21",
+      "sha256": "b02d9566716f5936fcd6e69e84d3e8137711e99e384131e244f1bfe187d30af7"
+    },
+    {
+      "version": "0.40.0",
+      "commit": "c3880a7de9be3b075c8779e8aaca4b530b7f0e10",
+      "sha256": "b142ca8946efda2d506e0947b232596e7949f08296e6b953b57f63eb50fee751"
+    }
+  ],
+  "finalCleanup": {
+    "method": "read-only Win32_Process scan matching exact downloaded-executable path and unique fixture profile paths",
+    "matchingProcesses": 0,
+    "scope": "observed matching processes; not a proof of all possible descendants"
+  },
+  "checks": {
+    "scopedEslint": "passed",
+    "fixtureTypecheck": "passed",
+    "productRuntimeModified": false,
+    "imageToDsh": "not-run",
+    "webObservation": "not-reached",
+    "userFlow": "not-modified",
+    "localDocumentLinks": "passed",
+    "preservedReceiptHashes": "passed"
+  },
+  "runs": [
+    {
+      "receipt": "test-results/agent-browser-15e98daf-881f-4d3f-a3e5-840c5ce3e308/receipt.json",
+      "sha256": "0362fc6ce3dc94b5da293bd10f5bef14c2c7ee9e01a19ba926ef5153e1188e29",
+      "type": "native-daemon",
+      "version": "0.39.3",
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "Auto-launch failed: Chrome exited early (exit code: -2147483645) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL (no stderr output from Chrome)\nHint: try passing --args \"--no-sandbox\" if Chrome crashes silently in your environment",
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null
+    },
+    {
+      "receipt": "test-results/agent-browser-19ac7f7b-ec3f-428b-baaf-bff7e2aa8e59/receipt.json",
+      "sha256": "d7bf0d029f368a0dcb530552f1b338b678f8b12d54dbbd8688647df4d86b63f9",
+      "type": "native-daemon",
+      "version": "0.40.0",
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "Auto-launch failed: Chrome exited early (exit code: -2147483645) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL (no stderr output from Chrome)\nHint: try passing --args \"--no-sandbox\" if Chrome crashes silently in your environment",
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null
+    },
+    {
+      "receipt": "test-results/agent-browser-39a3714a-61db-47f7-b303-80f0b2ecea8c/receipt.json",
+      "sha256": "c60ca7ef7939207f49d1abdd1e09411dc9a93e2810b01180f6ebc131c7c226d5",
+      "type": "native-daemon",
+      "version": "0.39.3",
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "Auto-launch failed: Chrome exited early (exit code: -2147483645) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL (no stderr output from Chrome)\nHint: try passing --args \"--no-sandbox\" if Chrome crashes silently in your environment",
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null
+    },
+    {
+      "receipt": "test-results/agent-browser-401fbf14-1510-426b-a951-4abf04d7d404/receipt.json",
+      "sha256": "c8875f73cb2f9f604377b151c2965f433d7e479241b4fb541f499eade9c24ab8",
+      "type": "native-daemon",
+      "version": "0.40.0",
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "Auto-launch failed: Chrome exited early (exit code: -2147483645) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL (no stderr output from Chrome)\nHint: try passing --args \"--no-sandbox\" if Chrome crashes silently in your environment",
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null
+    },
+    {
+      "receipt": "test-results/agent-browser-57d94253-a946-4100-a5f2-e6dd067989fb/receipt.json",
+      "sha256": "b56be08637cbad1018688cfbab6e91804b3d7105e24e98e06d7d9f1d9a70a415",
+      "type": "native-daemon",
+      "version": "0.39.3",
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "Error: BROWSER_TIMEOUT",
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null
+    },
+    {
+      "receipt": "test-results/agent-browser-9e8edf96-8d38-4de6-bf96-5412bcbee34e/receipt.json",
+      "sha256": "ea0fa046757eeca27859862287280d6c658b597d98bad7933a59dfc8b158eb1e",
+      "type": "native-daemon",
+      "version": "0.40.0",
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "Auto-launch failed: Chrome exited early (exit code: -2147483645) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL (no stderr output from Chrome)\nHint: try passing --args \"--no-sandbox\" if Chrome crashes silently in your environment",
+      "daemonExited": true,
+      "daemonAliveAtImmediateClose": null
+    },
+    {
+      "receipt": "test-results/agent-browser-a8e307ff-1f2c-40a1-896d-0b21dd8bc743/receipt.json",
+      "sha256": "71e6baf37e8bfda5c7c221a4171183bf7815793ccfbd37a9be36c58e671b2bbe",
+      "type": "native-daemon",
+      "version": "0.39.3",
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "Auto-launch failed: Chrome exited early (exit code: -2147483645) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL (no stderr output from Chrome)\nHint: try passing --args \"--no-sandbox\" if Chrome crashes silently in your environment",
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null
+    },
+    {
+      "receipt": "test-results/agent-browser-d6cc0326-376b-4dd1-b888-8cb85d789b62/receipt.json",
+      "sha256": "173bb93114c40d48202b35b42935a0611c25791b18fd982b3c81fa71071ae5d2",
+      "type": "native-daemon",
+      "version": "0.39.3",
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "Auto-launch failed: Chrome exited early (exit code: -2147483645) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL (no stderr output from Chrome)\nHint: try passing --args \"--no-sandbox\" if Chrome crashes silently in your environment",
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null
+    },
+    {
+      "receipt": "test-results/agent-browser-da583624-0382-4bbc-9120-e9de5321e8c8/receipt.json",
+      "sha256": "3ec7700a9024b46f232f3b56052d099cd7cb6eab72cceae88e0e19c881de6e16",
+      "type": "native-daemon",
+      "version": "0.40.0",
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "Error: BROWSER_START_TIMEOUT",
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null
+    },
+    {
+      "receipt": "test-results/agent-browser-dbac4eb6-3a2a-4c97-a1f1-9edf2e5e7726/receipt.json",
+      "sha256": "8d168c9a03c06a6958fa1ed95aae6774bcdf3884fb362c01511de063d91c4193",
+      "type": "native-daemon",
+      "version": "0.39.3",
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "Auto-launch failed: Chrome exited early (exit code: -2147483645) without writing DevToolsActivePort\n(also tried parsing stderr) Chrome exited before providing DevTools URL (no stderr output from Chrome)\nHint: try passing --args \"--no-sandbox\" if Chrome crashes silently in your environment",
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null
+    },
+    {
+      "receipt": "test-results/agent-browser-ee9d6fd6-d680-4d03-820d-0a8a06a2c6bf/receipt.json",
+      "sha256": "d9cff29d2e83fc7c7288f5afc29ae514abcc1a6e4d5719249c02340a61adeccd",
+      "type": "native-daemon",
+      "version": "0.39.3",
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "Error: BROWSER_COMMAND_FAILED",
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null
+    },
+    {
+      "receipt": "test-results/browser-cli-control-e9f92579-7edb-431b-b978-e1a5e3580a4a/receipt.json",
+      "sha256": "460591bcc9b9845993b2c044cea0c4c537aef4a398b0db45688cc4620f93a26f",
+      "type": "public-cli",
+      "version": null,
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": "{\"error\":\"Failed to create temp profile dir: 拒绝访问。 (os error 5)\",\"success\":false}",
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": true
+    },
+    {
+      "receipt": "test-results/browser-launch-control-0a6d9511-bff2-45bc-96a7-2b2353c3c896/receipt.json",
+      "sha256": "191d2f149b28aef6a6d338b24bcffc5c5dec95d34e68218c0d25245f110bcf2e",
+      "type": "launch-control",
+      "version": null,
+      "variant": null,
+      "status": "passed",
+      "checks": [],
+      "error": null,
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null,
+      "controls": [
+        {
+          "browser": "Chrome",
+          "ok": true
+        },
+        {
+          "browser": "Edge",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "receipt": "test-results/browser-launch-control-689a29d1-1d58-4d61-a72e-33fa5a88cb49/receipt.json",
+      "sha256": "1e337a5ca2fdb4702113e965b1aac9e4f644d3e248cdc5d05a35f5402b92a317",
+      "type": "launch-control",
+      "version": null,
+      "variant": null,
+      "status": "failed",
+      "checks": [],
+      "error": null,
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null,
+      "controls": [
+        {
+          "browser": "Chrome",
+          "ok": false,
+          "error": "TimeoutError: browserType.launchPersistentContext: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - <launching> C:/Program Files/Google/Chrome/Application/chrome.exe --disable-field-tri"
+        }
+      ]
+    },
+    {
+      "receipt": "test-results/browser-launch-control-b2f9929c-ace2-43a2-b230-e97d01e8f475/receipt.json",
+      "sha256": "1748d387f0ae5b843039cef54163481dd45b5e019ba6d71b7ac722edfe997026",
+      "type": "launch-control",
+      "version": null,
+      "variant": null,
+      "status": "passed",
+      "checks": [],
+      "error": null,
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null,
+      "controls": [
+        {
+          "browser": "Chrome",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "receipt": "test-results/browser-launch-control-eff216cb-0177-43b7-8a49-decc6d5a38b5/receipt.json",
+      "sha256": "5f4a3dc0031743f45f836ea68ee79446225171bf4396676b30cbe30fcd584846",
+      "type": "launch-control",
+      "version": null,
+      "variant": "extended-path",
+      "status": "passed",
+      "checks": [],
+      "error": null,
+      "daemonExited": null,
+      "daemonAliveAtImmediateClose": null,
+      "controls": [
+        {
+          "browser": "Chrome",
+          "ok": true
+        },
+        {
+          "browser": "Edge",
+          "ok": true
+        }
+      ]
+    }
+  ],
+  "validationFiles": [
+    {
+      "file": "scripts/agent-browser-probe.mjs",
+      "sha256": "f28cff027661d91147738d499c8d8bea4764d312e4da761f102c387d64149824"
+    },
+    {
+      "file": "scripts/agent-browser-cli-control.mjs",
+      "sha256": "7720850cf0a6a8d24e9bd416e43b80530da302f5d92a37d6ba8519eeaa6cd531"
+    },
+    {
+      "file": "scripts/agent-browser-launch-control.mjs",
+      "sha256": "6c2ba27cf20b1a17cd51bc9aae5574d88b766eef9142fec89be8973b2e90c5b7"
+    },
+    {
+      "file": "scripts/fixtures/agent-browser-native.ts",
+      "sha256": "809fb8f76945ecaed5e05325faacb9bf157c28a6a376937fed228acc64eb5400"
+    }
+  ]
+}
