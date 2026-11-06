@@ -126,6 +126,8 @@ export interface TaskView {
 /** D2 safety state for the currently running turn: third-party originals were part of its request. */
 export interface DegradedView { active: boolean; turnId: string; sources: readonly ('mail' | 'document' | 'web' | 'mcp' | 'plugin' | 'member')[] }
 export interface MessageView {
+  /** Read-only historical version, excluded from all model context. */
+  withdrawn?: boolean
   id: string
   role: 'user' | 'assistant' | 'narrator'
   text: string
@@ -486,6 +488,7 @@ export interface GiftSourceView { id: string; text: string }
 export interface GiftsView { configured: boolean; dailyLimit: number; items: readonly GeneratedGiftView[]; sources?: readonly GiftSourceView[] }
 
 export interface AppSnapshot {
+  recontinue?: import('./recontinue').RecontinueView
   /** Absent until the 1.2 adapters are available; absence never means an empty ready catalog. */
   extensions?: ExtensionsView
   skills?: SkillsView

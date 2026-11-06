@@ -16,6 +16,7 @@ export type AppCommand = CommandEnvelope & (
   | SkillCommand
   | ContinuousWorkCommand
   | MemorySettingsCommand
+  | import('./recontinue').RecontinueCommand
   | { type: 'message.send'; text: string }
   | { type: 'turn.stop'; taskId: string }
   | { type: 'voice.set'; enabled: boolean }
