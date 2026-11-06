@@ -95,3 +95,7 @@ node scripts/dsh-bridge-check.mjs recontinue recontinue-first recontinue-compact
 本机覆盖退出码为 0，安装前再次备份程序和最新个人数据；安装器仍未释放上述两个可选 ARM64 组件，从同批构建补齐后 11,671 个文件全部匹配，启动前 171 个个人数据文件无增删改。原有会话已由同一启动工具重新打开，观察到 DSH 子进程正常存活，个人 profile 的桥接引用已恢复真实路径；原失败记录保留，没有自动发送真实对话。回执和正反复现证据在 `D:\.lca-cache\releases\recontinue2-20261106-db57f70`，本次备份在 `D:\.lca-cache\user-backups\before-recontinue-casefix-20261106-db57f70`。
 
 机制调研参考 [dsh-turn-rewind](https://github.com/Anionex/dsh-turn-rewind)（BSD-3-Clause，调研提交 `737d716c5f693f96eb2adc3e9a79f4e55cda8735`）的原生前缀路线，以及 [dsh-rewind](https://github.com/SiriLee/dsh-rewind)（MIT）的表面替换路线。本实现自行编写 LCA 桥和来源策略，没有安装或复制社区插件代码。DSH 与 AIRI 的既有许可记录沿用仓库第三方说明。
+
+### 已知待优化（记录，未排期）
+
+- 消息菜单目前用 fixed 坐标贴着触发点显示，靠近右页边缘时会悬在书页与书签之间，位置不够自然。功能不受影响；后续 UI 优化应改为按消息锚点定位、在视口内翻转并限制在书页范围内，而不是贴屏幕边缘。
