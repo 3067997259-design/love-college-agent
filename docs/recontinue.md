@@ -1,6 +1,6 @@
 # 从这里重新继续
 
-状态：已在 `codex/same-day-recontinue` 实现并完成本机合成验证，基线 `bb259b0`。尚未打包安装或发布。
+状态：已在 `codex/same-day-recontinue` 实现并完成本机合成验证，基线 `bb259b0`。2026-11-06 已构建 `1.2.0-recontinue.1`，按用户要求覆盖本机安装并启动；尚未发布，真实日用体验由用户继续测试。
 
 今天右页的用户消息下可选择“从这里重新继续”。预览影响范围并确认后，目标消息及后续内容退出当前对话，目标原文回到输入框，等待修改和发送。输入框已有草稿或引用时先处理它们。原文仍在原来的日页：今天可通过“查看今天撤下的内容”查看，换日后标记为历史版本。这些内容不参与模型召回，不提供恢复分支或再次切点的入口。
 
@@ -58,6 +58,14 @@ node scripts/dsh-bridge-check.mjs recontinue recontinue-first recontinue-compact
 
 2026-11-06：最终单元全套 1026 通过、8 跳过；其后新增多项目旧缓存恢复用例，DSH journal 定向 52 通过。类型检查、lint、构建通过。原生五场景及 reference-restart / degrade-restart / compact-memory 回归通过。Electron 最终报告与截图保存在本机 `C:\.lca-cache\data\recontinue-acfc32f2-3892-48ba-a3aa-112f99913ad5\`。首次 Electron 探针误把上一条真实请求缓存当作待组装上下文而失败；已改为检查重新发送后的实际请求，没有清空缓存伪造通过。
 
-以上为本地脚本模型、合成向量、固定时钟和隔离数据证据。未调用真实模型或远端服务，未进行安装升级、第二台 Windows、真实跨日或长期体验验收。
+以上为本地脚本模型、合成向量、固定时钟和隔离数据证据。未调用真实模型或远端服务，不代表第二台 Windows、真实跨日或长期体验验收。
+
+### 本机试装（2026-11-06）
+
+从干净提交 `07a7c637d00449bdd561d775f3879fec5ff73757` 构建 `1.2.0-recontinue.1`，安装器 SHA-256 为 `35238d260a52340f296ac56496bc42a3357d25b5c38b61fc5d830eb22d2c6404`。原生 SQLite 探针、包内 34 项场景及打包版重新继续专项均通过；专项包含重启、私人存档恢复及 04:00 拒绝，使用隔离数据和本地脚本模型。
+
+用户授权覆盖 `1.2.0-experience.8`。安装前备份旧程序和个人数据，安装器退出码为 0；启动前个人数据文件无新增、删除或修改。首次程序校验发现两个可选 ARM64 node-pty 终端组件未被释放，本机从同批 `win-unpacked` 补齐后，11,671 个程序文件全部哈希匹配。缺失原因尚未定位，补齐结果不作为 NSIS 原样释放全部文件的证据。已观察到正常主窗口，未代替用户发送测试对话。
+
+本机包、构建回执和安装报告位于 `D:\.lca-cache\releases\recontinue-20261106-07a7c63`；备份位于 `D:\.lca-cache\user-backups\before-recontinue-20261106-07a7c63`。本次完成本机覆盖及启动核对，不将包内合成流程等同于原有真实数据的完整升级验收。
 
 机制调研参考 [dsh-turn-rewind](https://github.com/Anionex/dsh-turn-rewind)（BSD-3-Clause，调研提交 `737d716c5f693f96eb2adc3e9a79f4e55cda8735`）的原生前缀路线，以及 [dsh-rewind](https://github.com/SiriLee/dsh-rewind)（MIT）的表面替换路线。本实现自行编写 LCA 桥和来源策略，没有安装或复制社区插件代码。DSH 与 AIRI 的既有许可记录沿用仓库第三方说明。
