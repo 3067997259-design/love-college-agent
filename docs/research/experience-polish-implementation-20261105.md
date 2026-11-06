@@ -223,3 +223,13 @@
 - DSH 扩展：扩展面板列的是 DSH 运行包依赖树里的全部 bundle。本机实测 20 个：2 个正在运行（`@lca/dsh-bridge`、`@deepseek-ai/dsh-base`），18 个 `applied: disabled`，全是 `@deepseek-ai/dsh-experimental-*`、`dsh-sdk-*`、`dsh-headless`、`dsh-subagent-claude-code/codex` 这类运行包随附、本应用没有加载的可选组件。它们以 `@deepseek-ai/*` 命名，被 bridge 判为 protected；是否加载由 LCA 的 `profile.startedBundles` 决定，所以书里不提供开关——从书页启用任意 DSH 宿主 bundle 会改运行时策略，不属于可安装扩展。以前它们和核心组件混在一起，一屏“已停用”像坏了。现在面板拆成 2 个核心组件 + “运行包里未启用的可选组件 · 18”，后一组默认收起并写明原因。
 - 验证：`tsc`（web）、`eslint` 通过；构建后 `smoke-settings`、`smoke-extensions` 通过（扩展 12 项 checks）。
 - 打包与安装：`1.2.0-experience.8` 安装器 315,496,497 字节，SHA-256 `21bb61ae2d20d2d9d823c578034361ef8241d26dfcd56ce8712723141d3e5329`，asar `e4de15a777f9684bdb83768211c0155ee52723a6020ad6b0737fa26e50b28842`，源码 `08c41fb`，工作区干净（`trackedDirty: false`）。覆盖安装退出码 0，注册表版本与安装目录 asar 一致，应用已启动。真实档案未检查；完整包内矩阵、真实模型与邮箱未测。未发布。
+
+## 13. 人设微距示例与 persona 指纹（2026-11-06）
+
+维护者 fork 出专门处理提示词的会话后指出：few-shot 把当前对话里的真实原话写进了 system prompt，模型会把旧回复当成“错题”，在后续回合补交“正确答案”；同时旧卡里的整段示例仍可能被模仿。要求先查清 system prompt 未更新的机制，再进入精修。
+
+- 查 DSH 运行时：LCA 的自定义 `lca-chat` 路由是 `openai-completions`，没有声明 `systemPromptUpdate: 'in-history'`；恢复会话时 `SystemPromptProjection.project()` 会替换第 0 条 system。用合成 OpenAI 兼容服务实测：第一次请求 system 里是旧档案名，重启并改名后的第二个请求只含新名字，system 消息仍只有一条。所以“恢复会话把 prompt 冻住”并不适用于当前路由；真正的问题是卡里仍是带真实原话的 few-shot，且 `persona` 只在 `open` 时取一次。
+- 角色卡：去掉两段真实对话的正反示例，改成三条只描述句式的微距对照（随口应声、吐槽累又客套收住、只回“还好/没事”），并写明“示例只体会结构，严禁照搬词句；如果当前对话和示例相似，不要回头重答，也不要补交标准答案”。
+- 会话层：`dsh-sessions.json` 的每条记录增加 `persona`（`options.persona()` 与 `suffix` 的 SHA-256）。`ensureSession` 在发送前比对；指纹变化时不再恢复旧 root，而是新开根，今天已有的对话通过 `earlierToday` 引用进入新根。`openSession`、重继续、撤销重继续写入缓存时都保留指纹；旧版本没有指纹的会话会一次性新开。这样即使未来换到声明 `in-history` 的模型，也不会把旧 prompt 留在最前。
+- 验证：`pnpm typecheck`、`pnpm lint`、`pnpm build` 通过；`vitest` 147 个文件、1034 项通过、8 项跳过；`smoke-recontinue`、`smoke-state-routing`、`smoke-onboarding` 通过。新增单元用例覆盖“改人设后新开根并带上今天早些时候的对话”和“旧版无指纹会话不恢复”。
+- 未做：未打新安装包，安装版仍是 `1.2.0-recontinue.4`；真实模型对照与 Text Arena 还未跑。
