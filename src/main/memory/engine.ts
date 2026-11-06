@@ -9,6 +9,7 @@ import type { MemoryDatabaseClient } from './storage/client'
 import { createMemoryCommitCoordinator, type MemoryCommitCoordinator } from './storage/commits'
 import { migrateLegacyMemory } from './migration'
 import type { JournalRecord } from '../journal/schema'
+import type { MemoryFragment } from './airi/core'
 import { createMemorySnapshots, type MemorySnapshotEntry } from './storage/snapshots'
 import { validateMemoryState } from './storage/state-schema'
 
@@ -16,6 +17,7 @@ import { validateMemoryState } from './storage/state-schema'
  * recovery share the same file-backed owner; production has no unjournaled seam. */
 export function createMemoryEngine(options: {
   root: string; owner: ContinuityOwner; clock: Clock
+  eligible?(fact: MemoryFragment): boolean
   embedding(): MemoryEmbeddingSource | undefined
   mirror?: MemoryHostPort; dreamAgent?: MemoryDreamAgent
   held(): boolean; waitForRestore(): Promise<void>
@@ -36,7 +38,7 @@ export function createMemoryEngine(options: {
       const database = options.openDatabase ? await options.openDatabase(path)
         : await (await import('./storage/host')).openUtilityMemoryDatabase({ path, clock: options.clock })
       try {
-        commits = await createMemoryCommitCoordinator({ database, clock: options.clock, scope, logPath: join(options.root, 'operations.log'), interrupt: options.interrupt })
+        commits = await createMemoryCommitCoordinator({ database, clock: options.clock, scope, logPath: join(options.root, 'operations.log'), interrupt: options.interrupt, eligible: options.eligible })
         databaseClient = database
         return database
       } catch (error) { await database.close(); throw error }
@@ -46,6 +48,7 @@ export function createMemoryEngine(options: {
   })
   return {
     runtime,
+    async retireSources(revision: string) { await runtime.initialize(); if (!commits) throw new Error('MEMORY_COMMITS_UNAVAILABLE'); await commits.retireSources(revision) },
     async migrateLegacy(records: readonly JournalRecord[]) {
       await runtime.initialize(); if (!commits) throw new Error('MEMORY_COMMITS_UNAVAILABLE')
       return migrateLegacyMemory({ records, scope, commits, halfLife: { shortTerm: runtime.shortTermHalfLifeHours.value, longTerm: runtime.longTermHalfLifeHours.value } })

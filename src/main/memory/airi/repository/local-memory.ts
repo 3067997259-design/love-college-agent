@@ -184,7 +184,7 @@ function rowToDreamIdea(row: MemoryRow): MemoryDreamIdea {
 }
 
 /** Creates the browser DuckDB fallback for the storage-neutral memory contract. */
-export function createDuckDbMemoryRepository(db: MemoryDbExecutor, runTransaction?: MemoryDbTransaction, clock: Pick<Clock, 'nowMs'> = systemClock): MemoryInteractionRepository {
+export function createDuckDbMemoryRepository(db: MemoryDbExecutor, runTransaction?: MemoryDbTransaction, clock: Pick<Clock, 'nowMs'> = systemClock, eligible?: (fact: MemoryFragment) => boolean): MemoryInteractionRepository {
   async function search(input: {
     embedding: number[]
     now?: number
@@ -231,6 +231,7 @@ export function createDuckDbMemoryRepository(db: MemoryDbExecutor, runTransactio
     const now = input.now ?? clock.nowMs()
     return rowsFromResult(result)
       .map(row => rowToFragment(row))
+      .filter(fragment => !eligible || eligible(fragment))
       .filter(fragment => !input.scope || isMemoryScopeVisible(fragment.scope, input.scope, input.linkedUserIds ?? []))
       .filter(fragment => !!fragment.contentVector && fragment.contentVector.length === input.embedding.length)
       .map((fragment) => {
@@ -350,6 +351,7 @@ export function createDuckDbMemoryRepository(db: MemoryDbExecutor, runTransactio
   async function recordAccess(input: { memoryIds: string[], sessionId?: string, now?: number }): Promise<void> {
     const now = input.now ?? clock.nowMs()
     for (const id of input.memoryIds) {
+      if (eligible) { const fact = await get(id); if (!fact || !eligible(fact)) continue }
       const rows = rowsFromResult(await db.execute(`SELECT session_ids_json FROM memory_fragments WHERE id = ${quote(id)} AND deleted_at IS NULL`))
       const current = rows[0] ? rowToFragment({ id, ...rows[0] }).sessionIds : []
       const sessionIds = input.sessionId && !current.includes(input.sessionId) ? [...current, input.sessionId] : current
@@ -414,11 +416,13 @@ export function createDuckDbMemoryRepository(db: MemoryDbExecutor, runTransactio
       FROM memory_fragments
       WHERE deleted_at IS NULL ${typeFilter} ${statusFilter} ${shareableFilter} ${scopeFilter}
       ORDER BY last_accessed DESC
-      LIMIT ${input.limit ?? 100}
+      ${eligible ? '' : `LIMIT ${input.limit ?? 100}`}
     `)
     return rowsFromResult(result)
       .map(rowToFragment)
+      .filter(fragment => !eligible || eligible(fragment))
       .filter(fragment => !input.scope || isMemoryScopeVisible(fragment.scope, input.scope, input.linkedUserIds ?? []))
+      .slice(0, input.limit ?? 100)
   }
 
   async function update(id: string, patch: Parameters<MemoryRepository['update']>[1]): Promise<MemoryFragment | undefined> {
@@ -589,7 +593,7 @@ export function createDuckDbMemoryRepository(db: MemoryDbExecutor, runTransactio
       AND json_extract_string(scope_json, '$.userId') IN (${users})
       AND json_extract_string(scope_json, '$.characterId') = ${quote(scope.characterId)}
       ORDER BY pin_order, id`))
-    return rows.map(rowToFragment)
+    return rows.map(rowToFragment).filter(fragment => !eligible || eligible(fragment))
   }
 
   async function operation(operationId: string): Promise<MemoryOperation | undefined> {
@@ -670,7 +674,7 @@ export function createDuckDbMemoryRepository(db: MemoryDbExecutor, runTransactio
   async function transaction<T>(action: (repository: MemoryInteractionRepository) => Promise<T>): Promise<T> {
     if (!runTransaction)
       throw new Error('Memory interaction requires the database transaction owner')
-    return runTransaction(executor => action(createDuckDbMemoryRepository(executor, undefined, clock)))
+    return runTransaction(executor => action(createDuckDbMemoryRepository(executor, undefined, clock, eligible)))
   }
 
   return {

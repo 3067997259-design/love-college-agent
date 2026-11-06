@@ -166,6 +166,7 @@ let extensionHost: DshHost | undefined
 let extensions: ExtensionsService | undefined
 let skills: SkillsService | undefined
 let dshExecution: DshExecution | undefined
+let recontinue: import('./recontinue/service').RecontinueService | undefined
 let continuousWork: ContinuousWorkService | undefined
 let rootHost: ReturnType<typeof createRootHost> | undefined
 /** Developer scenes: the scripted model as a local endpoint her DSH session talks to. */
@@ -173,7 +174,7 @@ let scriptedEndpoint: ScriptedEndpoint | undefined
 /** Every service is up: quitting closes them in order first. */
 let servicesStarted = false
 /** She is in a turn of her DSH session (a game round has its own loop, minecraft/round.ts). */
-const herBusy = (): boolean => !!dshExecution?.busy() || !!continuousWork?.busy() || !!extensions?.busy() || !!skills?.busy()
+const herBusy = (): boolean => !!dshExecution?.busy() || !!continuousWork?.busy() || !!extensions?.busy() || !!skills?.busy() || !!recontinue?.busy()
 /**
  * Her own life as she may know it in a turn: where she is, recent outings and things she brought back, her own works
  * (fictional, never actual offline work). Her DSH session gets it with each turn's opening message.
@@ -450,7 +451,7 @@ void app.whenReady().then(async () => {
     controller.attachDocuments(documents)
     memoryRepository = openMemoryRepository(dataDir, store)
     const fakeMemory = prepared.developer ? createFakeMemoryModel() : undefined
-    const memoryHeld = () => !!backup?.isBusy() || store!.projection().lightsOut
+    const memoryHeld = () => !!backup?.isBusy() || store!.projection().lightsOut || !!recontinue?.busy()
     memoryMirror = createMemoryMirrorHost({ clock, owner: continuityIdentity.owner, epoch: continuityIdentity.mirrorEpoch, held: memoryHeld })
     const memoryFacts = createMemoryFacts({ root: join(dataDir, continuityTargets(continuityIdentity.owner)[0]), owner: continuityIdentity.owner, clock, store,
       embedding: () => memorySettings?.source(), mirror: memoryMirror.port, held: memoryHeld, waitForRestore: async () => {}, changed: () => controller?.refresh('connection') })
@@ -760,7 +761,7 @@ void app.whenReady().then(async () => {
     continuousWork = createContinuousWork({ root: workRoot, owner: workOwner, clock, project: projects.resolveWork,
       safeText: text => privateCredentials.reduce((safe, key) => key ? safe.replaceAll(key, '[redacted]') : safe, redactSecrets(text)),
       available: () => !!dshExecution,
-      held: () => { const state = store!.projection(); return state.lightsOut || state.sleeping || !!backup?.isBusy() || !!modelSettings?.isBusy() || !!memorySettings?.isBusy() },
+      held: () => { const state = store!.projection(); return state.lightsOut || state.sleeping || !!backup?.isBusy() || !!modelSettings?.isBusy() || !!memorySettings?.isBusy() || !!recontinue?.busy() },
       decision: id => authoredUserMessage(store!.history?.() ?? store!.records(), id),
       observed: workExperiences.observed,
       deliverCheckpoint: (work, checkpoint) => workExperiences.deliver(work, checkpoint, (text, eventId) => dshExecution?.postEvent('work', text, eventId) ?? false),
@@ -773,6 +774,20 @@ void app.whenReady().then(async () => {
         return { ...execution, close: async () => { try { await execution.close() } finally { releaseView(); privateStore.close() } } }
       }, changed: () => controller?.refresh('task') })
     controller.attachContinuousWork(continuousWork)
+    recontinue = (await import('./recontinue/service')).createRecontinue({ store, clock, execution: () => dshExecution,
+      unavailable: () => !!backup?.isBusy() || !!modelSettings?.isBusy() || !!memorySettings?.isBusy() || !!extensions?.busy() || !!skills?.busy() || !!minecraft?.active(),
+      impact: ids => {
+        const works = continuousWork?.requestWorks().filter(work => work.decisions.some(decision => ids.has(decision.id))) ?? []
+        const rows = store!.records(), first = rows.find(row => row.type === 'user/message' && ids.has(row.id))?.seq ?? Infinity
+        const effects = rows.filter(row => row.seq >= first && row.type === 'work/activity' && ['completed', 'unknown'].includes(row.status)).length
+        return { memories: memoryFacts.recontinueImpact(ids), works: works.length, effects: effects + works.reduce((count, work) => count + (work.evidence?.length ?? 0), 0),
+          version: JSON.stringify(works.map(work => [work.identity.workId, work.revision])) }
+      },
+      quiesce: async ids => {
+        pendingReveal = undefined; voice?.interrupt(); memory?.foreground(); diary?.foreground(); lifeWork?.foreground(); optical?.foreground()
+        await Promise.all([memory?.idle(), diary?.idle(), lifeWork?.idle(), optical?.idle(), continuousWork?.quiesceForRecontinue(ids)])
+      }, changed: () => controller?.refresh('message') })
+    controller.attachRecontinue(recontinue)
     const withExtensionRuntime = async <T>(job: (runtime: ExtensionRuntime) => Promise<T>): Promise<T> => {
       if (continuousWork?.busy()) throw new Error('DSH_BUSY')
       if (!dshPresent) throw new Error('DSH_UNAVAILABLE')

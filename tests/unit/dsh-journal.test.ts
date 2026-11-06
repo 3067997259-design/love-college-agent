@@ -90,6 +90,33 @@ it('keeps state changes local until opening registers a root, then sends the lat
   } finally { release(); await f.execution.close(); f.store.close() }
 })
 
+it('recovers the committed root over stale caches and retires another project\'s contaminated context', async () => {
+  const f = setup(), projectB = join(f.root, 'project-b')
+  for (const [index, text] of ['SAFE_PREFIX', 'WITHDRAWN_POISON'].entries()) {
+    f.execution.send(text, 'r-' + index, 'h'); await f.opened()
+    f.emit({ t: 'turn-start', turn: index + 1, preset: null }); f.emit({ t: 'message', text: 'reply-' + text }); f.emit({ t: 'turn-end', reason: { kind: 'completed' } })
+  }
+  const target = f.store.records().find(row => row.type === 'user/message' && row.text === 'WITHDRAWN_POISON')!
+  f.setProject(projectB); f.execution.stateChanged(); f.execution.send('PROJECT_B_SUFFIX', 'b', 'h'); await f.opened()
+  f.emit({ t: 'turn-start', turn: 1, preset: null }); f.emit({ t: 'turn-end', reason: { kind: 'completed' } })
+  const oldB = f.host.current
+  f.store.append({ type: 'conversation/recontinued', operationId: 'cut', parentRevision: 'initial', targetMessageId: 'id' in target ? target.id : '',
+    fromSeq: target.seq, throughSeq: f.store.records().length, sourceRootId: 'dsh-1', nextRootId: 'recontinued-root', cwd: join(f.root, 'project') })
+  f.journal.close()
+  const g = setup(f.root)
+  try {
+    g.execution.send('NEW_A', 'a-new', 'h'); await g.opened()
+    expect(g.host.opened[0][1]).toBe('recontinued-root')
+    expect(g.host.opened[0][4]).toMatchObject({ required: true })
+    g.emit({ t: 'turn-start', turn: 1, preset: null }); g.emit({ t: 'turn-end', reason: { kind: 'completed' } })
+    g.setProject(projectB); g.execution.stateChanged(); g.execution.send('NEW_B', 'b-new', 'h'); await g.opened()
+    expect(g.host.opened.at(-1)?.[1]).toBeUndefined()
+    expect(g.host.opened.at(-1)?.[1]).not.toBe(oldB)
+    expect(g.host.references.at(-1)).toContain('SAFE_PREFIX')
+    expect(g.host.references.at(-1)).not.toMatch(/WITHDRAWN_POISON|PROJECT_B_SUFFIX/)
+  } finally { g.journal.close() }
+})
+
 it('accepts a current root state request, persists it and retires its credential', async () => {
   const f = setup(); f.execution.send('请找帮手完成工作', 'state-start', 'hash'); await f.opened(); f.emit({ t: 'turn-start', turn: 1 })
   const state = { ...f.host.states.at(-1)!, mode: 'work' as const }

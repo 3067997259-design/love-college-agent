@@ -3,6 +3,7 @@ import type { JournalRecord } from '../journal/schema'
 import { redactFixed } from '../privacy/redact'
 import type { MemorySource } from './schema'
 import { isSourceTool } from '../campus/context'
+import { continuationPolicy } from '../recontinue/policy'
 
 export const memoryDigest = (text: string) => createHash('sha256').update(text).digest('hex')
 /**
@@ -39,7 +40,8 @@ export const withoutCode = (text: string) => text.replace(/```[\s\S]*?(```|$)/g,
  * The sole memory input surface: successful model input snapshots, never tool/raw or any private store.
  * Origin comes from the journal record that produced the context entry, not from the message body.
  */
-export function seenFragments(records: readonly JournalRecord[], memoryOnly = false, canonicalIdentity = false): SeenFragment[] {
+export function seenFragments(records: readonly JournalRecord[], memoryOnly = false, canonicalIdentity = false, includeWithdrawn = false): SeenFragment[] {
+  const policy = continuationPolicy(records)
   let sessionId = ''; const seen = new Set<string>(); const result: SeenFragment[] = []
   const externalCalls = records.flatMap((row) => row.type === 'tool/call' && isSourceTool(row.templateId) ? [row] : [])
   const externalIds = new Set(externalCalls.map((row) => row.callId))
@@ -68,11 +70,13 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
   }
   for (const row of records) {
     if (row.type === 'session/header') { sessionId = row.sessionId; continue }
+    if (!includeWithdrawn && (policy.withdrawn(sessionId, row.seq) || 'turnId' in row && policy.turns.has(row.turnId ?? ''))) continue
     // These are exact original decisions that a successful Worker request saw.
     // They extend memory/experience inputs only; the diary's default traversal
     // deliberately keeps its existing public-conversation selection unchanged.
     if (row.type === 'work/seen' && memoryOnly) {
       for (const [index, original] of row.originals.entries()) {
+        if (!includeWithdrawn && policy.ids.has(original.id)) continue
         const text = redactFixed(original.text)
         for (let offset = 0; offset < text.length; offset += 2000) {
           const key = memoryDigest(JSON.stringify(canonicalIdentity ? [original.id, 'user', text, offset] : [original.sessionId, 'user', text, offset]))
@@ -89,6 +93,7 @@ export function seenFragments(records: readonly JournalRecord[], memoryOnly = fa
     for (const index of row.eligibleIndexes) {
       const message = row.messages[index]
       if (!message || message.role === 'system' || !message.content.trim()) continue
+      if (!includeWithdrawn && (policy.ids.has(row.originalEvents?.find(event => event.index === index)?.eventId ?? '') || policy.texts.get(sessionId)?.has(message.content))) continue
       if (memoryOnly && row.memoryExcludedIndexes?.includes(index)) continue
       if (memoryOnly && message.role === 'assistant' && externalTurns.has(row.turnId)) continue
       if (memoryOnly && (message.role === 'tool' && externalIds.has(message.toolCallId ?? '') || message.role === 'assistant' && (externalReplies.has(message.content) || ignoredTitles.some((title) => message.content.includes(title))))) continue

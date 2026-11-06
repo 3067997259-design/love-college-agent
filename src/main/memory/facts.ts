@@ -14,6 +14,7 @@ import { buildMemoryDirectory, isSameMemoryScope, type MemoryFragment, type Memo
 import { seenFragments, memoryDigest, type SeenFragment } from './seen'
 import { MemoryFailure } from './model'
 import { legacyMemorySources } from './migration'
+import { continuationPolicy } from '../recontinue/policy'
 
 export interface MemoryCaptureModel { extract: MemoryTurnExtractor; reconcile?: MemoryReconciler }
 
@@ -29,7 +30,7 @@ export function createMemoryFacts(options: {
   const state = createMemoryRuntimeState(join(options.root, 'capture.json'))
   const handled = state.cell<Record<string, number>>('captured-sources', {})
   const extractedAt = state.cell<number | null>('last-extracted-at', null)
-  const engine = createMemoryEngine({ ...options, journal: () => options.changed() })
+  const engine = createMemoryEngine({ ...options, eligible: fact => visible(fact), journal: () => options.changed() })
   const { runtime } = engine
   let fragments: MemoryFragment[] = []
   let operations: MemoryReviewView[] = []
@@ -49,7 +50,8 @@ export function createMemoryFacts(options: {
     const rows = history(); const last = rows.at(-1); const key = JSON.stringify([options.store.scope.sessionId, rows.length, last?.seq, last?.atMs])
     if (sourceCache?.key !== key) {
       const allowed = new Set(seenFragments(rows, true, true).map(sourceId))
-      sourceCache = { key, retired: new Set(seenFragments(rows, false, true).filter(item => !allowed.has(sourceId(item))).map(sourceId)), legacy: legacyMemorySources(rows) }
+      sourceCache = { key, retired: new Set([...seenFragments(rows, false, true, true).filter(item => !allowed.has(sourceId(item))).map(sourceId),
+        ...[...continuationPolicy(rows).ids].flatMap(id => [id, `event:${id}`])]), legacy: legacyMemorySources(rows) }
     }
     return sourceCache
   }
@@ -63,6 +65,8 @@ export function createMemoryFacts(options: {
     await migrate()
     const repository = await runtime.initialize()
     if (!repository) throw new MemoryFailure('unavailable')
+    const revision = continuationPolicy(history()).revision
+    if (revision !== 'initial') await engine.retireSources(revision)
     fragments = await repository.list({ scope, limit: 10_000 })
     const reviews = await runtime.listOperations(scope)
     const changes = reviews.filter(item => item.status === 'applied' && item.proposal.kind !== 'remember')
@@ -85,7 +89,7 @@ export function createMemoryFacts(options: {
     const legacyCutoff = changes.reduce((at, item) => item.previousSourceContext?.messageId && knownSources.has(item.previousSourceContext.messageId) ? at : Math.max(at, item.updatedAt), 0)
     experiencePolicy = { revision: changes.length || retiredFacts.length ? memoryDigest(JSON.stringify([changes.map(item => item.operationId).sort(), excludedSourceIds, legacyCutoff])) : 'initial', excludedSourceIds, historicalSourceIds, legacyCutoff }
     proposalFacts = new Set(reviews.filter(item => item.status === 'pending_review' && item.fragmentId).map(item => item.fragmentId!))
-    operations = reviews.toSorted((a, b) => Number(b.status === 'pending_review' || b.status === 'conflict') - Number(a.status === 'pending_review' || a.status === 'conflict') || b.updatedAt - a.updatedAt).slice(0, 40).map(item => ({ operationId: item.operationId, kind: item.proposal.kind,
+    operations = reviews.filter(item => !retired().has(item.sourceContext.messageId ?? '')).toSorted((a, b) => Number(b.status === 'pending_review' || b.status === 'conflict') - Number(a.status === 'pending_review' || a.status === 'conflict') || b.updatedAt - a.updatedAt).slice(0, 40).map(item => ({ operationId: item.operationId, kind: item.proposal.kind,
       title: item.proposal.title ?? '', content: item.proposal.content ?? '', previousContent: item.previousContent ?? null, status: item.status, updatedAtMs: item.updatedAt }))
     options.changed()
   }
@@ -95,12 +99,18 @@ export function createMemoryFacts(options: {
     memoryType: fact.memoryType === 'working' ? 'short_term' : fact.memoryType, reviewStatus: fact.reviewStatus ?? 'pending', factStatus: fact.factStatus ?? 'active', createdAtMs: fact.createdAt }))
   const context = (turnId: string, messageId: string, signal: AbortSignal): MemoryInteractionContext => {
     const sessionId = options.store.scope.sessionId
+    const revision = continuationPolicy(history()).revision
     return { scope, sessionId, turnId, sourceContext: { sessionId, messageId, neighbors: [] },
-      isCurrent: () => !closed && !options.held() && !signal.aborted && options.store.scope.sessionId === sessionId }
+      isCurrent: () => !closed && !options.held() && !signal.aborted && options.store.scope.sessionId === sessionId && continuationPolicy(history()).revision === revision && !retired().has(messageId) }
   }
   const rememberedByTurn = new Map<string, MemoryReadReference[]>()
   return {
     runtime, refresh, factViews,
+    recontinueImpact: (ids: ReadonlySet<string>) => {
+      const rows = history(), first = options.store.records().find(row => row.type === 'user/message' && ids.has(row.id))?.seq ?? Infinity
+      const affected = new Set(seenFragments(rows, true, true).filter(source => ids.has(source.sourceEventId ?? '') || source.sessionId === options.store.scope.sessionId && source.frameSeq >= first).map(sourceId))
+      return fragments.filter(fact => visible(fact) && affected.has(fact.sourceContext?.messageId ?? '')).length
+    },
     giftSources: (): GiftSourceView[] => {
       const witnessed = seenFragments(history(), true, true)
       return fragments.filter(fact => visible(fact) && !proposalFacts.has(fact.id) && fact.category === 'experience'
@@ -172,7 +182,11 @@ export function createMemoryFacts(options: {
       const result = await runtime.proposeOperation(context(turnId, messageId, signal), operationId, proposal)
       await refresh(); return result
     },
-    async review(operationId: string, approve: boolean) { const result = await runtime.confirmOperation(scope, operationId, approve); await refresh(); return result },
+    async review(operationId: string, approve: boolean) {
+      const operation = (await runtime.listOperations(scope)).find(item => item.operationId === operationId)
+      if (approve && operation && retired().has(operation.sourceContext.messageId ?? '')) throw new MemoryFailure('unavailable')
+      const result = await runtime.confirmOperation(scope, operationId, approve); await refresh(); return result
+    },
     async reviewFact(id: string, expectedRevision: number, approve: boolean) {
       await refresh()
       const fact = fragments.find(item => item.id === id && visible(item))

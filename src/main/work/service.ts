@@ -123,7 +123,7 @@ export function createContinuousWork(options: {
   }
   const deliver = (id: string) => {
     const initial = works.get(id)
-    if (!initial || failure || closed || options.held()) return
+    if (!initial || failure || closed || options.held() || initial.decisions.some(decision => !options.decision(decision.id))) return
     for (const receipt of deliveries(initial)) {
       const work = works.get(id)!
       if (receipt.state === 'consumed') continue
@@ -210,7 +210,7 @@ export function createContinuousWork(options: {
     scheduled = false
     if (closed || failure || options.held() || !options.available()) return
     for (const work of structuredClone([...works.values()])) {
-      if (work.status !== 'queued' || live.size >= 2) continue
+      if (work.status !== 'queued' || live.size >= 2 || work.decisions.some(decision => !options.decision(decision.id))) continue
       if ([...live.keys()].some(id => works.get(id)?.identity.projectId === work.identity.projectId)) continue
       const project = options.project(work.identity.projectId, work.projectPath)
       if (!project || project.id !== work.identity.projectId) { work.status = 'review_required'; work.waitingFor = 'recovery'; work.revision++; persist(work, 'project-unavailable'); continue }
@@ -283,7 +283,7 @@ export function createContinuousWork(options: {
         if (!viewOf(work).controls[command.type === 'work.stop' ? 'stop' : 'pause']) return { error: 'invalid-command' }
         stop(work, command.type === 'work.stop' ? 'stopped' : 'paused', operationId, command)
       } else if (command.type === 'work.resume') {
-        if (!resumable.has(work.status) || live.has(id) || options.held() || !options.available()) return { error: 'unavailable' }
+        if (!resumable.has(work.status) || live.has(id) || options.held() || !options.available() || work.decisions.some(decision => !options.decision(decision.id))) return { error: 'unavailable' }
         work.identity.generation++; work.revision++; work.runStartedAt = clock.nowMs(); work.subscriptionId = randomUUID(); work.status = 'queued'; work.waitingFor = 'project'
         for (const input of work.inputs) if (['pending', 'accepted'].includes(input.state)) input.state = 'unknown'
         work.consumedThrough = work.inputs.at(-1)?.sequence ?? 0
@@ -294,6 +294,15 @@ export function createContinuousWork(options: {
     } catch { return { error: failure ? 'unavailable' : 'invalid-command' } }
   }
   return { view, dispatch,
+    contextAllowed: (id: string) => works.get(id)?.decisions.every(decision => !!options.decision(decision.id)) ?? false,
+    quiesceForRecontinue: async (ids: ReadonlySet<string>) => {
+      const active = [...live]
+      for (const work of structuredClone([...works.values()])) if ((live.has(work.identity.workId) || work.decisions.some(decision => ids.has(decision.id))) && viewOf(work).controls.stop) {
+        stop(work, 'stopped', randomUUID(), { cause: 'recontinue' })
+      }
+      await Promise.all(active.map(([id, entry]) => release(id, entry)))
+      if (active.some(([id]) => live.has(id))) throw new Error('RECONTINUE_BUSY')
+    },
     checkpoint: (identity: WorkIdentity, proposal: CheckpointProposal, operationId: string) => {
       const parsed = checkpointProposalSchema.parse(proposal), work = current(identity.workId, identity.generation), entry = live.get(identity.workId)
       const previous = operations.get(operationId)

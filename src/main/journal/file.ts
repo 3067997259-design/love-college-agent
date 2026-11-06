@@ -1,5 +1,6 @@
 import { closeSync, fstatSync, fsyncSync, mkdirSync, openSync, readFileSync, writeSync } from 'node:fs'
 import { createHash, randomUUID } from 'node:crypto'
+import { validateRecontinue } from '../recontinue/policy'
 import { join } from 'node:path'
 import type { Clock } from '../clock'
 import type { Scope } from '../../shared'
@@ -23,6 +24,7 @@ export function parseJournalContent(content: string, owner: Pick<Scope, 'userId'
   const records = content ? content.slice(0, -1).split('\n').map((line) => parseRecord(JSON.parse(line))) : []
   for (let index = 0; index < records.length; index++) {
     if (records[index].seq !== index + 1 || (index > 0 && records[index].type === 'session/header')) throw new Error('JOURNAL_CORRUPT')
+    if (records[index].type === 'conversation/recontinued') validateRecontinue(records.slice(0, index), records[index])
   }
   const header = records[0]
   if (header && (header.type !== 'session/header' || header.userId !== owner.userId || header.characterId !== owner.characterId)) throw new Error('JOURNAL_SCOPE_MISMATCH')
@@ -50,6 +52,7 @@ export function openJournal(dataDir: string, owner: Pick<Scope, 'userId' | 'char
     if (closed || poisoned) throw new Error('JOURNAL_NOT_WRITABLE')
     const parsed = inputSchema.safeParse(input)
     if (!parsed.success || (records.length > 0 && input.type === 'session/header')) throw new Error('JOURNAL_INVALID_EVENT')
+    validateRecontinue(records, parsed.data)
     if (input.type === 'context/compact' && (input.fromSeq <= 1 || input.toSeq < input.fromSeq || input.toSeq > records.length)) throw new Error('JOURNAL_INVALID_RANGE')
     const record: JournalRecord = { ...parsed.data, version: 1, seq: records.length + 1, atMs: clock.nowMs() }
     const line = Buffer.from(JSON.stringify(record) + '\n', 'utf8')

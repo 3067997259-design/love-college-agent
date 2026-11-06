@@ -20,8 +20,9 @@ function fixture(root = mkdtempSync(join(tmpdir(), 'lca-work-'))) {
   const instances: { context: WorkRuntimeContext; events: string[]; messages: string[]; revisions: number[]; stopped: boolean; onClose?: () => void }[] = []
   const observations: string[] = [], delivered = new Set<string>()
   let held = false
+  const withdrawn = new Set<string>()
   const service = createContinuousWork({ root, owner, clock, available: () => true, held: () => held,
-    project: id => ({ id, path: root }), decision: id => ({ id, text: `Original ${id}`, atMs: clock.nowMs() }), safeText: text => text, changed: () => {},
+    project: id => ({ id, path: root }), decision: id => withdrawn.has(id) ? null : ({ id, text: `Original ${id}`, atMs: clock.nowMs() }), safeText: text => text, changed: () => {},
     observed: (_work, input) => { observations.push(input.eventId) },
     deliverCheckpoint: work => { delivered.add(work.delivery!.eventId); return 'accepted' },
     createRuntime: context => {
@@ -46,10 +47,22 @@ function fixture(root = mkdtempSync(join(tmpdir(), 'lca-work-'))) {
   }
   const finish = (index: number, evidenceIds: string[], id = `checkpoint-${index}`) => service.checkpoint(instances[index].context.work.identity,
     { expectedObjectiveRevision: service.get(instances[index].context.work.identity.workId)!.identity.objectiveRevision, evidenceIds, outcome: 'completed', explanation: 'Worker explanation', unresolved: [], nextStep: null }, id)
-  return { root, service, instances, create, view, clock, observations, delivered, proof, finish, hold: () => { held = true; service.stateChanged() } }
+  return { root, service, instances, create, view, clock, observations, delivered, proof, finish, withdrawn, hold: () => { held = true; service.stateChanged() } }
 }
 
 describe('durable work scheduling and delivery', () => {
+  it('stops withdrawn decisions, keeps their executed evidence and refuses to resume or recall their objective', async () => {
+    const f = fixture(), a = f.create('poison'); await tick()
+    const evidence = f.proof(0)
+    await f.service.quiesceForRecontinue(new Set(['poison'])); f.withdrawn.add('poison'); await tick()
+    expect(f.instances[0].stopped).toBe(true)
+    expect(f.service.get(a.workId)?.evidence?.map(row => row.id)).toContain(evidence.id)
+    expect(readFileSync(join(f.root, 'result.txt'), 'utf8')).toContain('Output')
+    expect(f.service.contextAllowed(a.workId)).toBe(false)
+    expect(workContext(f.service).currentDecisions).toEqual([])
+    expect(f.service.dispatch({ type: 'work.resume', target: target(f.view(a.workId)) }, 'resume-after-cut').error).toBe('unavailable')
+    expect(f.instances).toHaveLength(1)
+  })
   it('persists interruption before cancellation and carries unknown effects into a resumed generation', async () => {
     const f = fixture(), a = f.create('a'); await tick(); f.instances[0].context.consumed('create-a')
     let beforeClose: unknown

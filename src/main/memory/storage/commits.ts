@@ -55,6 +55,7 @@ export async function initializeMemoryCommitSchema(database: MemoryDbExecutor) {
  * receipt; a failed publication is recovered by ID, never by repeating a write. */
 export async function createMemoryCommitCoordinator(options: {
   database: MemoryDatabaseClient; clock: Clock; scope: MemoryScope; logPath: string
+  eligible?(fact: MemoryFragment): boolean
   interrupt?: (point: MemoryCommitPoint, operationId: string) => void
 }) {
   const { database, clock, scope } = options
@@ -87,7 +88,7 @@ export async function createMemoryCommitCoordinator(options: {
   await recover()
 
   const trackedRepository = (executor: MemoryDbExecutor): MemoryInteractionRepository => {
-    const base = createDuckDbMemoryRepository(executor, undefined, clock)
+    const base = createDuckDbMemoryRepository(executor, undefined, clock, options.eligible)
     const mark = async (id: string, deleted = false, before?: MemoryFragment) => {
       const fragment = deleted ? before : await base.get(id)
       if (!fragment || !isSameMemoryScope(fragment.scope, scope)) return
@@ -143,7 +144,7 @@ export async function createMemoryCommitCoordinator(options: {
     options.interrupt?.('published', identity.operationId)
     return result
   })
-  const base = createDuckDbMemoryRepository(database, database.transaction, clock)
+  const base = createDuckDbMemoryRepository(database, database.transaction, clock, options.eligible)
   const repository: MemoryInteractionRepository = new Proxy(base, {
     get(target, key: keyof MemoryInteractionRepository) {
       if (key === 'transaction') return <T>(action: (tx: MemoryInteractionRepository) => Promise<T>) => commit({ operationId: randomUUID(), kind: 'transaction', input: null }, action)
@@ -157,13 +158,23 @@ export async function createMemoryCommitCoordinator(options: {
     const rows = await database.execute('SELECT origin_id, version, deleted FROM lca_memory_mirror_dirty ORDER BY changed_at, origin_id') as { origin_id: string; version: string; deleted: boolean }[]
     const changes: MemoryMirrorChange[] = []
     for (const row of rows) {
-      const fragment = row.deleted ? undefined : await base.get(row.origin_id)
+      const current = row.deleted ? undefined : await base.get(row.origin_id)
+      const fragment = current && (!options.eligible || options.eligible(current)) ? current : undefined
       changes.push({ originId: row.origin_id, version: row.version, deleted: row.deleted || !fragment, fragment })
     }
     return changes
   })
   return {
     repository, commit, recover, mirrorChanges,
+    retireSources: (revision: string) => commit({ operationId: `recontinue:${revision}`, kind: 'source-visibility', input: { revision } }, async (_tx, executor) => {
+      const archive = createDuckDbMemoryRepository(executor, undefined, clock)
+      const facts = await archive.list({ scope, limit: 1_000_000 })
+      for (const fact of facts) if (options.eligible && !options.eligible(fact)) {
+        await executor.execute(`INSERT INTO lca_memory_mirror_dirty VALUES (${quote(fact.id)}, ${quote(revision)}, TRUE, ${clock.nowMs()})
+          ON CONFLICT (origin_id) DO UPDATE SET version = excluded.version, deleted = TRUE, changed_at = excluded.changed_at`)
+      }
+      return null
+    }),
     acknowledgeMirrorChange: (change: Pick<MemoryMirrorChange, 'originId' | 'version'>) => serial(async () => {
       await database.execute(`DELETE FROM lca_memory_mirror_dirty WHERE origin_id = ${quote(change.originId)} AND version = ${quote(change.version)}`)
     }),

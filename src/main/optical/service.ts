@@ -10,6 +10,7 @@ import type { HarnessTool, ToolResult } from '../harness/tools'
 import { createOpticalHttpPort, readOpticalConfig, saveOpticalConfig } from './client'
 import { opticalDigest, opticalTier, type OpticalPort } from './schema'
 import { opticalPages, guardOptical } from './sources'
+import { continuationPolicy } from '../recontinue/policy'
 import { opticalRecords } from './records'
 import policy from './policy.json'
 
@@ -104,11 +105,13 @@ export function createOpticalMemory(options: {
         context.signal.throwIfAborted(); if (!allowed() || store.projection().lightsOut) throw new Error('OPTICAL_UNAVAILABLE')
         const parsed = toolInput.parse(input)
         opticalRecords(store)
+        const withdrawn = continuationPolicy(rows()).ids
+        const eligibleFrames = frames().filter(frame => frame.sources.every(source => !withdrawn.has(source.messageId)))
         if (!parsed.frameId) {
-          const available = frames().filter((frame) => !parsed.sessionId || frame.sessionId === parsed.sessionId).slice(-20).map((frame) => ({ frameId: frame.id, sessionId: frame.sessionId, dayKey: store.pages?.().find((page) => page.sessionId === frame.sessionId)?.dayKey ?? null, pageIndex: frame.pageIndex, pageCount: frame.pageCount, tiers: impressions().filter((entry) => entry.frameId === frame.id).map((entry) => entry.tier) }))
+          const available = eligibleFrames.filter((frame) => !parsed.sessionId || frame.sessionId === parsed.sessionId).slice(-20).map((frame) => ({ frameId: frame.id, sessionId: frame.sessionId, dayKey: store.pages?.().find((page) => page.sessionId === frame.sessionId)?.dayKey ?? null, pageIndex: frame.pageIndex, pageCount: frame.pageCount, tiers: impressions().filter((entry) => entry.frameId === frame.id).map((entry) => entry.tier) }))
           const value = { frames: available, historical: true, memoryAuthority: 'none', uncertainty: policy.uncertainty }; return { ok: true, raw: value, visible: value }
         }
-        const frame = frames().find((frame) => frame.id === parsed.frameId && (!parsed.sessionId || parsed.sessionId === frame.sessionId)); if (!frame) throw new Error('OPTICAL_UNAVAILABLE')
+        const frame = eligibleFrames.find((frame) => frame.id === parsed.frameId && (!parsed.sessionId || parsed.sessionId === frame.sessionId)); if (!frame) throw new Error('OPTICAL_UNAVAILABLE')
         const candidates = impressions().filter((entry) => entry.frameId === parsed.frameId && (!parsed.tier || entry.tier === parsed.tier))
         const selected = candidates.at(-1); if (!selected) throw new Error('OPTICAL_UNAVAILABLE')
         // Re-prove on every read, including after archive restore; OCR never becomes a canonical memory.

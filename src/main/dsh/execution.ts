@@ -22,6 +22,8 @@ import type { RootCompactionOutcome, WorkEvidence } from '../../shared/continuit
 import { workEvidenceSchema, workDigest } from '../work/journal'
 import { composeContext, ContextBudgetFailure } from '../context/composer'
 import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
+import type { RecontinueFork } from '../../shared/recontinue'
+import { continuationPolicy } from '../recontinue/policy'
 
 /**
  * `seen`: the conversation of this turn, in order, as she saw it: your lines and her replies, never tool traffic.
@@ -39,7 +41,7 @@ type Rule = { project: string; tool: string; prefix: string | null }
  * switching never widens permissions. `seenSeq`: journal position up to which that session has the conversation.
  * Older files hold a single session per day.
  */
-type SavedSession = { id: string; cwd: string; degraded?: DshSource[]; seenSeq?: number }
+type SavedSession = { id: string; cwd: string; degraded?: DshSource[]; seenSeq?: number; revision?: string }
 type Saved = Record<string, SavedSession | SavedSession[]>
 type Live = { id: string; cwd: string; day: string; fresh?: boolean; seenSeq: number }
 const daySessions = (saved: Saved, day: string): SavedSession[] => { const value = saved[day]; return Array.isArray(value) ? value : value ? [value] : [] }
@@ -188,7 +190,7 @@ export function createDshExecution(options: {
       if (recovering) maintaining = true
       try {
         // Only an explicit read reconnects. Never resend the action whose receipt was lost.
-        if (recovering) { const previous = host; host = undefined; session = undefined; await previous?.close() }
+        if (recovering) { const previous = host; host = undefined; session = undefined; residentRoots.clear(); await previous?.close() }
         if (closed) throw new Error('DSH_EXECUTION_CLOSED')
         const current = await ensureSession()
         const result = await host!.collaboration({ rootSessionId: current.id, command, requestId: 'requestId' in command ? String(command.requestId) : undefined })
@@ -209,6 +211,7 @@ export function createDshExecution(options: {
   const record = (input: JournalInput) => { if (!closed) store.append(input) }
   const lcaTools = () => new Map(options.tools().map((tool) => [LCA_PREFIX + tool.definition.name, tool]))
   let host: DshHost | undefined
+  const residentRoots = new Set<string>()
   let session: Live | undefined
   const currentScope = () => !!session && session.day === store.scope.sessionId && session.cwd === resolve(options.project())
   let turn: Turn | undefined
@@ -598,11 +601,14 @@ export function createDshExecution(options: {
     const running = ensureHost(cwd)
     if (session?.id) running.cancel(session.id)
     const sessions = daySessions(read<Saved>(sessionsFile, {}), day)
-    const known = sessions.find((item) => item.cwd === cwd)
+    const policy = continuationPolicy(store.records()), commit = policy.commits.at(-1)
+    const known = sessions.find((item) => item.cwd === cwd && (item.revision ?? 'initial') === policy.revision)
+      ?? (!store.restored?.() && commit?.cwd === cwd ? { id: commit.nextRootId, cwd, seenSeq: commit.seq, revision: policy.revision } : undefined)
     const current: Live = { id: '', cwd, day, seenSeq: 0 }
     session = current
     const trusted = read<Rule[]>(rulesFile, []).some((rule) => rule.project === cwd && rule.prefix === null)
-    current.id = await running.open(cwd, known?.id, trusted, dshSources(known?.degraded), { persona: options.persona(), suffix: options.suffix(), policy: options.rootPolicy })
+    current.id = await running.open(cwd, known?.id, trusted, dshSources(known?.degraded), { persona: options.persona(), suffix: options.suffix(), policy: options.rootPolicy, required: !!known && policy.revision !== 'initial' })
+    residentRoots.add(current.id)
     if (closed) throw new Error('DSH_EXECUTION_CLOSED')
     if (workRevision) running.workRevision(current.id, workRevision)
     const resumed = known?.id === current.id
@@ -610,7 +616,7 @@ export function createDshExecution(options: {
     if (!resumed) current.fresh = true
     current.seenSeq = resumed ? known.seenSeq ?? 0 : 0
     const degraded = resumed ? dshSources(known.degraded) : []
-    writeDay(day, [...sessions.filter((item) => item.cwd !== cwd), { id: current.id, cwd, ...(degraded.length ? { degraded } : {}), seenSeq: current.seenSeq }])
+    writeDay(day, [...sessions.filter((item) => item.cwd !== cwd), { id: current.id, cwd, ...(degraded.length ? { degraded } : {}), seenSeq: current.seenSeq, revision: policy.revision }])
     return current
   }
   /**
@@ -618,7 +624,8 @@ export function createDshExecution(options: {
    * her replies only. Approval answers and the lines being sent now are left out.
    */
   const missedConversation = (since: number, exclude: ReadonlySet<string>) => {
-    const rows = store.records()
+    const policy = continuationPolicy(store.records())
+    const rows = store.records().filter(row => !policy.withdrawn(store.scope.sessionId, row.seq))
     const approvals = new Set(rows.flatMap((row) => row.type === 'question/requested' && row.approval ? [row.id] : []))
     const answers = new Set(rows.flatMap((row) => row.type === 'question/answered' && approvals.has(row.id) ? [row.answerMessageId] : []))
     const verified = new Set(rows.flatMap((row) => row.type === 'work/turn' && row.sourcePolicy === 2 ? [row.turnId] : []))
@@ -647,6 +654,45 @@ export function createDshExecution(options: {
   return {
     collaboration,
     prepared: async () => { await sendQueue },
+    inspectRecontinue: async (target: RecontinueFork['target']) => {
+      if (closed || maintaining) throw new Error('RECONTINUE_BUSY')
+      await sendQueue
+      const current = await ensureSession()
+      const rows = store.records()
+      const drain = rows.find(row => row.type === 'inbox/drain' && row.ids.includes(target.messageId))
+      const start = drain ? rows.findLast(row => row.type === 'turn/start' && row.seq < drain.seq) : undefined
+      const binding = start?.type === 'turn/start' ? rows.find(row => row.type === 'work/turn' && row.turnId === start.turnId) : undefined
+      const ancestors = new Set([current.id])
+      for (const commit of continuationPolicy(rows).commits.toReversed()) if (ancestors.has(commit.nextRootId)) ancestors.add(commit.sourceRootId)
+      if (binding?.type !== 'work/turn' || !ancestors.has(binding.sessionId)) throw new Error('RECONTINUE_OTHER_PROJECT')
+      return { sourceId: current.id, target, plan: await host!.recontinuePlan(current.id, target), cwd: current.cwd }
+    },
+    recontinue: async (fork: RecontinueFork, nextRootId: string, commit: () => void) => {
+      if (closed || maintaining || !session || !host || session.id !== fork.sourceId) throw new Error('RECONTINUE_STALE')
+      maintaining = true
+      const previous = session, running = host
+      try {
+        options.foreground?.()
+        turn?.asks.abort(); running.cancel(previous.id)
+        await sendQueue
+        const trusted = read<Rule[]>(rulesFile, []).some(rule => rule.project === previous.cwd && rule.prefix === null)
+        await running.open(previous.cwd, nextRootId, trusted, [], { persona: options.persona(), suffix: options.suffix(), policy: options.rootPolicy, fork })
+        // Disposal acknowledges cancellation of the complete old family before
+        // the main journal changes authority. Failed disposal cannot commit.
+        for (const id of residentRoots) { await running.release(id); residentRoots.delete(id) }
+        commit()
+        session = { ...previous, id: nextRootId, fresh: true, seenSeq: store.records().at(-1)!.seq }
+        residentRoots.add(nextRootId)
+        starts.length = 0; pending.length = 0; pendingText.clear(); eventIds.clear(); held.length = 0; turn = undefined
+        resetCollaboration()
+        // This is a cache. The committed journal mapping repairs a failed write.
+        try { writeDay(previous.day, [{ id: nextRootId, cwd: previous.cwd, seenSeq: session.seenSeq, revision: continuationPolicy(store.records()).revision }]) } catch { /* replay on next open */ }
+      } catch (error) {
+        session = undefined
+        try { await running.release(nextRootId) } catch { /* an unacknowledged fork remains an unused archive */ }
+        throw error
+      } finally { maintaining = false; options.changed('message') }
+    },
     compact: async (operationId: string): Promise<{ rootSessionId: string; outcome: RootCompactionOutcome }> => {
       const rootSessionId = session?.id ?? ''
       if (closed || maintaining || turn || opening || preparing || starts.length || collaboration.busy()) return { rootSessionId, outcome: 'busy' }
@@ -697,7 +743,7 @@ export function createDshExecution(options: {
         const reference = mode === 'followup' ? await referenceFor(current, new Set(pending), requestId, extra) : { text: null, degrade: [], memoryDerived: false }
         if (closed || !currentScope()) return
         if (mode === 'followup') starts.push({ trigger: 'user', requestId, memoryDerived: reference.memoryDerived })
-        host!.send(current.id, text, mode, reference.text, 'user', reference.degrade, syncState(true))
+        host!.send(current.id, text, mode, reference.text, 'user', reference.degrade, syncState(true), id)
       }, error => fail(error instanceof ContextBudgetFailure ? error.code : 'internal'))
     },
     stop: (taskId: string) => {
@@ -728,7 +774,7 @@ export function createDshExecution(options: {
       if (closed || maintaining || turn || opening || preparing || starts.length || collaboration.busy()) throw new Error('DSH_BUSY')
       maintaining = true
       const restart = async () => {
-        const previous = host; host = undefined; session = undefined
+        const previous = host; host = undefined; session = undefined; residentRoots.clear()
         await previous?.close()
         await options.restartHost?.()
         resetCollaboration()

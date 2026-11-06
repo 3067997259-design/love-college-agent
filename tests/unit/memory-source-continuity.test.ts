@@ -24,6 +24,38 @@ const fixture = () => {
 }
 
 describe('successful-input continuity at the product adapter', () => {
+  it('withdraws reviewed derived facts before top-K, access and promotion while preserving an independent manual fact', async () => {
+    const f = fixture(), signal = new AbortController().signal
+    for (const id of ['safe', 'poison-1', 'poison-2', 'poison-3']) {
+      f.store.append({ type: 'user/message', id, text: id, requestId: id, commandHash: id })
+      f.source(id, id, id)
+    }
+    await f.facts.capture(f.facts.pendingSources(), { extract: async input => [{ content: input.userText, category: 'chat', memoryType: 'short_term', importance: 5, valence: 0, arousal: 0, tags: [], sessionId: input.sessionId }] }, signal)
+    for (const fact of f.facts.factViews()) await f.facts.reviewFact(fact.id, fact.revision, true)
+    const manual = await f.facts.propose('manual', 'user:manual', 'manual-remember', { kind: 'remember', content: 'MANUAL' }, signal)
+    await f.facts.review(manual.operationId, true)
+    const staleProposal = await f.facts.propose('poison-1', 'event:poison-1', 'pending-from-cut', { kind: 'remember', content: 'PENDING_POISON' }, signal)
+    const repository = (await f.facts.runtime.initialize())!, poison = f.facts.factViews().filter(fact => fact.content.startsWith('poison'))
+    for (let i = 0; i < 10; i++) await repository.recordAccess({ memoryIds: poison.map(fact => fact.id), sessionId: 'session-' + i })
+    const counts = await Promise.all(poison.map(fact => repository.get(fact.id)))
+    f.store.append({ type: 'conversation/recontinued', operationId: 'cut', parentRevision: 'initial', targetMessageId: 'poison-1',
+      fromSeq: f.rows.find(row => row.type === 'user/message' && row.id === 'poison-1')!.seq, throughSeq: f.rows.length, sourceRootId: 'old', nextRootId: 'new', cwd: 'fixture' })
+    const results = await f.facts.search('preference', 'after-cut')
+    expect(results.map(fact => fact.text)).toContain('safe')
+    expect(results.every(fact => !fact.text.startsWith('poison'))).toBe(true)
+    expect(f.facts.factViews().map(fact => fact.content)).toContain('MANUAL')
+    expect(f.facts.operations().some(item => item.operationId === staleProposal.operationId)).toBe(false)
+    await expect(f.facts.review(staleProposal.operationId, true)).rejects.toThrow()
+    await repository.recordAccess({ memoryIds: poison.map(fact => fact.id), sessionId: 'late-access' })
+    await repository.promoteEligible({ minAccessCount: 1, minSessionCount: 1, scope: { userId: 'u', characterId: 'c' } })
+    for (const [i, fact] of poison.entries()) {
+      const current = await repository.get(fact.id)
+      expect(current?.accessCount).toBe(counts[i]?.accessCount)
+      expect(current?.memoryType).toBe('short_term')
+    }
+    f.source('late-worker', 'poison-1', 'poison-1')
+    expect(f.facts.pendingSources().some(source => source.text.startsWith('poison'))).toBe(false)
+  })
   it('offers only reviewed witnessed experiences to gifts, without writing the retired journal memory engine', async () => {
     const f = fixture(); f.source('bridge', 'bridge-message', 'We built a paper bridge together.')
     const signal = new AbortController().signal

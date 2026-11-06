@@ -45,6 +45,7 @@ export function workTools(service: ContinuousWorkService): HarnessTool[] {
       if (!context.userMessageId || !context.callId) return value({ error: 'authored-user-message-required' })
       const parsed = update.parse(input), work = service.get(parsed.workId)
       if (!work) return value({ error: 'work-unavailable' })
+      if (!service.contextAllowed(parsed.workId)) return value({ error: 'work-source-withdrawn', instruction: 'This historical work has withdrawn source decisions. Ask for a new explicit request; do not restore its old objective.' })
       const request = authoredWorkRequest(context)
       if (!request) return clarify('current-request-required')
       const works = service.requestWorks(), ids = request.decisions.map(item => item.id)
@@ -64,10 +65,10 @@ export function workTools(service: ContinuousWorkService): HarnessTool[] {
     description: 'Read current persistent work identity, objective revision, original user decisions and delivery receipts. Query by workId for details, or omit it for the current work list. A turn ending or an accepted event is not a verified completed task.',
     parameters: z.toJSONSchema(query) }, validate: input => query.safeParse(input).success,
     run: async (input, context) => { context.signal.throwIfAborted(); const { workId } = query.parse(input)
-      const work = workId ? service.get(workId) : null
+      const work = workId && service.contextAllowed(workId) ? service.get(workId) : null
       return value(workId ? work ? { identity: work.identity, revision: work.revision, status: work.status, objective: work.objective, acceptance: work.acceptance,
         userDecisions: work.decisions, result: workResultContext(work), checkpointId: work.checkpointId, checkpoint: checkpointContext(work), receipts: work.inputs.map(({ eventId, state, revision, consumedAt }) => ({ eventId, state, revision, consumedAt })) } : { error: 'work-unavailable' }
-        : { ...service.view(), items: service.view().items.map(item => ({ ...item, result: workResultContext(service.get(item.identity.workId)!) })) }) }
+        : { ...service.view(), items: service.view().items.filter(item => service.contextAllowed(item.identity.workId)).map(item => ({ ...item, result: workResultContext(service.get(item.identity.workId)!) })) }) }
     }]
 }
 
@@ -88,7 +89,7 @@ export function checkpointContext(work: NonNullable<ReturnType<ContinuousWorkSer
 /** Whole references are budgeted by the shared context composer. Latest exact
  * user decisions precede older ones; no worker-authored objective gains authority. */
 export function workContext(service: ContinuousWorkService) {
-  const works = service.view().items
+  const works = service.view().items.filter(item => service.contextAllowed(item.identity.workId))
   return { workCheckpoints: works.map(item => ({ identity: item.identity, revision: item.revision, label: item.label, status: item.status, waitingFor: item.waitingFor,
     progress: item.progress, result: workResultContext(service.get(item.identity.workId)!), checkpoint: item.checkpointId ? checkpointContext(service.get(item.identity.workId)!) : null })),
   currentDecisions: works.flatMap(item => service.get(item.identity.workId)!.decisions.toReversed().map(decision => ({ workId: item.identity.workId,

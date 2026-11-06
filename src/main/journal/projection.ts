@@ -3,6 +3,7 @@ import { initialOnboarding } from '../onboarding/schema'
 import { idleTimer, normalizePomodoro } from '../pomodoro/schema'
 import type { ContextMessage, JournalRecord } from './schema'
 import { projectFailure } from '../harness/failure'
+import { continuationPolicy } from '../recontinue/policy'
 
 /** Projection mutates checkpoints while replaying; the public view exposes them as readonly. */
 
@@ -36,6 +37,8 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
   const result: SessionProjection = { scope: { userId: header.userId, characterId: header.characterId, sessionId: header.sessionId },
     lastSeq: 0, mode: 'rest', lightsOut: false, sleeping: false, onboarding: initialOnboarding(), messages: [], activities: [], task: null, degraded: null, evidenceSeqs: [], context: [], contextEntries: [], requests: [], pomodoro: idleTimer(), pomodoroPause: null, pomodoroEvents: [], pendingEvents: [] }
   const context: { seq: number; order?: number; message: ContextMessage }[] = []
+  const policy = continuationPolicy(records)
+  const withdrawn = (seq: number) => policy.withdrawn(header.sessionId, seq)
   const compacted = records.filter((record) => record.type === 'context/compact')
   const inbox = new Map<string, ContextMessage>()
   const pendingEvents = new Map<string, SessionProjection['pendingEvents'][number]>()
@@ -65,10 +68,12 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
         if (record.event) result.pomodoroEvents.push(record.event)
         break
       case 'user/message':
+        if (withdrawn(record.seq)) break
         result.messages.push({ id: record.id, role: 'user', text: record.text, createdAtMs: record.atMs, status: 'complete' })
         inbox.set(record.id, { role: 'user', content: record.text })
         break
       case 'inbox/event':
+        if (withdrawn(record.seq)) break
         inbox.set(record.id, { role: 'user', content: JSON.stringify({ source: record.source, facts: record.text }) })
         if (record.source !== 'autonomous') pendingEvents.set(record.id, { id: record.id, source: record.source, text: record.text })
         break
@@ -79,9 +84,11 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
         for (const id of record.ids) { inbox.delete(id); pendingEvents.delete(id); const message = result.messages.find((item) => item.id === id); if (message) message.status = 'undelivered' }
         break
       case 'assistant/message':
+        if (withdrawn(record.seq)) break
         if (record.text) (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'assistant', text: record.text, createdAtMs: record.atMs, status: record.status, ...(record.displayOnly && approvals.has(record.id) ? { kind: 'approval' as const } : {}) })
         if (!record.displayOnly) context.push({ seq: record.seq, message: { role: 'assistant', content: record.text, ...(record.toolCalls?.length ? { toolCalls: record.toolCalls } : {}) } }); break
       case 'narrator/failure':
+        if (withdrawn(record.seq)) break
         (record.delivery === 'rest' && quiet() ? heldMessages : result.messages).push({ id: record.id, role: 'narrator', text: record.text, createdAtMs: record.atMs, status: 'complete', failure: projectFailure(records, record.failure, record.seq) }); break
       case 'question/requested':
         if (record.approval) approvals.add(record.id)
@@ -132,11 +139,11 @@ export function projectJournal(records: readonly JournalRecord[]): SessionProjec
       }
       case 'context/inject': context.push({ seq: record.seq, message: { role: 'system', content: record.text } }); break
       case 'context/compact': context.push({ seq: record.seq, order: record.fromSeq - 0.5, message: { role: 'system', content: record.summary } }); break
-      case 'model/seen': result.lastModelContext = record.messages; break
+      case 'model/seen': if (!withdrawn(record.seq)) result.lastModelContext = record.messages; break
     }
   }
   // Compact changes only model context. Chat history and all source events remain intact.
-  result.contextEntries = context.filter((entry) => !compacted.some((range) => entry.seq >= range.fromSeq && entry.seq <= range.toSeq)).sort((a, b) => (a.order ?? a.seq) - (b.order ?? b.seq)).map(({ seq, message }) => ({ seq, message }))
+  result.contextEntries = context.filter((entry) => !withdrawn(entry.seq) && !compacted.some((range) => !withdrawn(range.seq) && entry.seq >= range.fromSeq && entry.seq <= range.toSeq)).sort((a, b) => (a.order ?? a.seq) - (b.order ?? b.seq)).map(({ seq, message }) => ({ seq, message }))
   result.context = result.contextEntries.map((entry) => entry.message)
   result.pendingEvents = [...pendingEvents.values()]
   return result

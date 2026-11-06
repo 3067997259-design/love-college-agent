@@ -11,6 +11,7 @@
 | 插件是否值得迁入、怎么适配、哪些流程不能随插件改变 | [插件迁入评估规格](plugin-migration-spec.md)、[评审模板](templates/plugin-migration-review.md) |
 | 从源码运行、实例隔离与打包 | [开发与打包](deployment.md) |
 | 进程、执行、上下文与持久化 | [技术方案](tech-design.md) |
+| 当天撤下对话、记忆失效与重新继续 | [从这里重新继续](recontinue.md) |
 | 书本、小窗、专注与角色生活 | [体验设计](experience-design.md) |
 | 角色身份、差分与素材采用 | [美术规格](art-spec.md)、[提示词与制作入口](art-workflow.md) |
 | 检查命令、测试范围与真实服务 | [测试说明](testing.md) |

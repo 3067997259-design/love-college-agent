@@ -9,6 +9,7 @@ import { seenFragments, memoryDigest, memoryInputBytes, type SeenFragment } from
 import { latestSummaries, validSummaries, summaryReferences, closedSummaryGroups, summaryPeriod } from './hierarchy'
 import type { MemorySource, MemorySummary } from './schema'
 import { MemoryFailure } from './model'
+import { continuationPolicy } from '../recontinue/policy'
 
 export type ExperienceSummaryKind = 'day' | 'week' | 'month'
 export function boundedSeenInput(input: readonly SeenFragment[], bytes = 28_000) {
@@ -37,7 +38,7 @@ export function createExperienceIndex(options: {
     for (const fragment of canonicalAllowed) { const group = allowedBySession.get(fragment.sessionId) ?? []; group.push(fragment); allowedBySession.set(fragment.sessionId, group) }
     for (const canonical of [false, true]) {
       const allowed = new Set((canonical ? canonicalAllowed : seenFragments(rows, true)).map(fragment => fragment.id))
-      for (const fragment of seenFragments(rows, false, canonical)) if (!allowed.has(fragment.id)) retired.add(fragment.id)
+      for (const fragment of seenFragments(rows, false, canonical, true)) if (!allowed.has(fragment.id)) retired.add(fragment.id)
     }
     return seenCache = { key, retired, allowed: allowedBySession }
   }
@@ -60,11 +61,13 @@ export function createExperienceIndex(options: {
   const eligibleSummaries = () => {
     const state = policy()
     const all = repository.view().summaries
+    const continuedDays = new Set(continuationPolicy(records()).commits.map(commit => pages().find(page => page.records.includes(commit))?.sessionId).filter(Boolean))
     const base = validSummaries(all).filter(summary => (summary.sourcePolicy ?? 'initial') === state.stamp
+      && (!summary.sourceSessionIds.some(id => continuedDays.has(id)) || !!summary.coverage && (summary.level === 'day' || !!summary.parentSummaryIds?.length))
       && summary.sources.every(source => !state.retired.has(source.id))
       && (summary.level !== 'day' || !summary.coverage || summary.sourceSessionIds.every(id => covered(summary, fragments(id, state), state.stamp) === summary.coverage!.count)))
     const ids = new Set(base.map(summary => summary.id)), known = new Set(all.map(summary => summary.id))
-    for (let previous = -1; previous !== ids.size;) { previous = ids.size; for (const summary of base) if (summary.parentSummaryIds?.some(id => known.has(id) && !ids.has(id))) ids.delete(summary.id) }
+    for (let previous = -1; previous !== ids.size;) { previous = ids.size; for (const summary of base) if (summary.parentSummaryIds?.some(id => (known.has(id) || summary.sourceSessionIds.some(day => continuedDays.has(day))) && !ids.has(id))) ids.delete(summary.id) }
     return base.filter(summary => ids.has(summary.id))
   }
   const summarizeDay = async (page: ReturnType<typeof pages>[number], signal: AbortSignal) => {
@@ -153,6 +156,7 @@ export function createExperienceIndex(options: {
       summarized: !needsSummary(page) && eligibleSummaries().some(summary => summary.sourceSessionIds.includes(page.sessionId)) })) }),
     readSession: (id: string): SessionPage => {
       const page = pages().find(page => page.sessionId === id); if (!page) throw new Error('SESSION_UNAVAILABLE')
+      const policy = continuationPolicy(page.records)
       const delivered = new Map(projectJournal(page.records).messages.map(message => [message.id, message]))
       // Explicit archive access includes public replies held until rest, never tool results.
       const messages = page.records.flatMap((row): MessageView[] => {
@@ -161,6 +165,7 @@ export function createExperienceIndex(options: {
         if (row.type === 'narrator/failure') return [{ id: row.id, role: 'narrator', text: row.text, createdAtMs: row.atMs, status: 'complete', failure: projectFailure(page.records, row.failure, row.seq) }]
         return []
       })
+      for (const message of messages) if (policy.ids.has(message.id)) message.withdrawn = true
       const selected = messages.slice(-200); let chars = 0
       const bounded = selected.filter(message => { chars += message.text.length; return chars <= 200_000 })
       return { sessionId: page.sessionId, dayKey: page.dayKey, messages: bounded, truncated: bounded.length !== messages.length }

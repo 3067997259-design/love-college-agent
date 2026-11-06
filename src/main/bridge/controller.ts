@@ -14,6 +14,7 @@ import { MAIL_SCENARIO_IDS } from '../../shared'
 import { DOCUMENT_SCENARIO_IDS, type FileImportAck } from '../../shared'
 import type { DocumentService } from '../documents/service'
 import type { MemoryService } from '../memory/service'
+import type { RecontinueService } from '../recontinue/service'
 import type { McpService } from '../mcp/service'
 import type { BackupService } from '../backup/service'
 import type { QuillService } from '../gifts/quill'
@@ -55,6 +56,9 @@ import { v12CommandSchemas } from './v12-commands'
 
 const envelope = { protocolVersion: z.literal(PROTOCOL_VERSION), requestId: z.string().min(1).max(128), epoch: z.string().min(1).max(128) }
 const schema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('recontinue.preview'), sessionId: z.string().min(1).max(128), messageId: z.string().min(1).max(128), revision: z.string().min(1).max(128) }),
+  z.strictObject({ ...envelope, type: z.literal('recontinue.commit'), previewId: z.string().uuid() }),
+  z.strictObject({ ...envelope, type: z.literal('recontinue.cancel') }),
   // An approval's choice (`answer`) or her questions' answers (`answers`), never both; questions/service.ts checks them against the question.
   z.strictObject({ ...envelope, type: z.literal('question.answer'), questionId: z.string().uuid(), answer: answerInput.optional(), answers: answersInput.optional() })
     .refine((command) => (command.answer === undefined) !== (command.answers === undefined)),
@@ -187,6 +191,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
   const listeners = new Set<(event: AppEvent) => void>()
   let documents: DocumentService | undefined
   let memory: MemoryService | undefined
+  let recontinue: RecontinueService | undefined
   let mcp: McpService | undefined
   let backup: BackupService | undefined
   let quill: QuillService | undefined
@@ -290,6 +295,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
       snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'memory' ? { id: 'memory', source: snapshot.memory!.source,
         status: snapshot.memory!.status === 'unconfigured' ? 'unconfigured' : snapshot.memory!.status === 'failed' ? 'failed' : 'ready', ...(snapshot.memory!.error ? { error: snapshot.memory!.error } : {}) } : item)
     }
+    if (recontinue) snapshot.recontinue = recontinue.view()
     if (pomodoro) {
       snapshot.pomodoro = pomodoro.read()
       snapshot.capabilities = snapshot.capabilities.map((item) => item.id === 'pomodoro' ? { ...item, status: timerReady?.() ? 'ready' : 'unavailable' } : item)
@@ -340,6 +346,8 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     // The schema checks each command's shape; an answer's two forms are told apart by the field it has.
     const command = parsed.data as AppCommand
     if (command.epoch !== snapshot.epoch) return reject(command.requestId, 'stale-epoch')
+    if (command.type.startsWith('recontinue.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
+    if (recontinue?.busy()) return reject(command.requestId, 'unavailable')
     if (/^(extension\.|skills\.|agent\.|team\.)/.test(command.type) && surface !== 'book') return reject(command.requestId, 'permission-denied')
     if (surface === 'diagnostics' || (command.type === 'window.mini.hover' || command.type === 'window.mini.move' || command.type === 'window.mini.moveBy') && surface !== 'mini') return reject(command.requestId, 'permission-denied')
     if (command.type.startsWith('onboarding.') && surface !== 'book') return reject(command.requestId, 'permission-denied')
@@ -443,6 +451,10 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     } else if (memorySettings && command.type.startsWith('memory.settings.')) {
       try { const error = memorySettings.dispatch(command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('connection', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
+    } else if (recontinue && command.type.startsWith('recontinue.')) {
+      const error = recontinue.dispatch(command)
+      ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }
+      publish('task', command.requestId)
     } else if (memory && (command.type.startsWith('memory.') || command.type === 'context.compact' || command.type === 'session.rollover' || command.type === 'developer.memory' || command.type === 'message.send' && command.text === '/compact')) {
       try { const error = memory.dispatch(command.type === 'message.send' ? { ...command, type: 'context.compact' } : command); ack = error ? reject(command.requestId, error) : { protocolVersion: PROTOCOL_VERSION, requestId: command.requestId, epoch: snapshot.epoch, status: 'accepted' }; publish('task', command.requestId) }
       catch { ack = reject(command.requestId, 'internal') }
@@ -556,6 +568,7 @@ export function createAppController(clock: Clock, daypartSchedule?: DaypartSched
     attachCampus: (port: CampusService) => { campus = port; publish('connection') },
     attachDocuments: (port: DocumentService) => { documents = port; publish('connection') },
     attachMemory: (port: MemoryService) => { memory = port; publish('connection') },
+    attachRecontinue: (port: RecontinueService) => { recontinue = port; publish('connection') },
     attachMcp: (port: McpService) => { mcp = port; publish('connection') },
     attachMinecraft: (port: MinecraftService, chat: MinecraftChat, scenario?: typeof gameScenario) => { minecraft = port; minecraftChat = chat; gameScenario = scenario; publish('connection') },
     attachBackup: (port: BackupService) => { backup = port; publish('connection') },

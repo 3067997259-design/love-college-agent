@@ -15,6 +15,7 @@ import { memberStepsSchema } from './member-steps'
 import type { AgentTarget } from '../../shared/collaboration'
 import { z } from 'zod'
 import type { RootCompactionOutcome } from '../../shared/continuity'
+import type { RecontinueFork, RecontinuePlan } from '../../shared/recontinue'
 import { CAPABILITY_LEVELS } from '../config/model-capabilities'
 import type { ResolvedModelCapabilities } from '../../shared/model-capabilities'
 
@@ -207,7 +208,7 @@ export function startDshHost(options: DshHostOptions) {
       void answered.catch(() => ({ error: 'the question could not be shown' })).then((result) => { if (asking.delete(String(message.id)) && current()) send({ t: 'question-answer', id: message.id, ...result }) })
     }
     else if (message.t === 'question-cancel') { asking.get(String(message.id))?.abort(); asking.delete(String(message.id)) }
-    else if ((message.t === 'session' || message.t === 'released' || message.t === 'delivered' || message.t === 'described' || message.t === 'probed' || message.t === 'compacted' || message.t === 'extensions' || message.t === 'collaboration-reply' || message.t === 'member-steps-reply' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
+    else if ((message.t === 'session' || message.t === 'recontinue-plan' || message.t === 'released' || message.t === 'delivered' || message.t === 'described' || message.t === 'probed' || message.t === 'compacted' || message.t === 'extensions' || message.t === 'collaboration-reply' || message.t === 'member-steps-reply' || message.t === 'error') && typeof message.ref === 'string' && waiting.has(message.ref)) {
       const entry = waiting.get(message.ref)!; waiting.delete(message.ref)
       if (message.t === 'error') entry.fail(new Error(String(message.message))); else entry.done(message)
     }
@@ -223,6 +224,14 @@ export function startDshHost(options: DshHostOptions) {
   return {
     started,
     available: () => !closed && !disconnected,
+    recontinuePlan: async (sessionId: string, target: RecontinueFork['target']): Promise<RecontinuePlan> => {
+      const root = identities.address(sessionId)
+      if (!root || root.parentSessionId !== null) throw new Error('DSH_ORIGIN_UNAVAILABLE')
+      const answer = await request({ t: 'recontinue-plan', sessionId, target }, 15_000)
+      if (answer.sessionId !== sessionId) throw new Error('DSH_IDENTITY_CONFLICT')
+      return z.object({ messageSeq: z.number().int().nonnegative(), boundary: z.number().int().nonnegative().nullable(),
+        prefixDigest: z.string().regex(/^[a-f0-9]{64}$/), messageDigest: z.string().regex(/^[a-f0-9]{64}$/) }).parse(answer.plan)
+    },
     compact: async (rootSessionId: string, operationId: string): Promise<{ rootSessionId: string; outcome: RootCompactionOutcome }> => {
       await started
       const root = identities.address(rootSessionId)
@@ -258,7 +267,7 @@ export function startDshHost(options: DshHostOptions) {
     },
     /** `degraded`: the resumed session still holds third-party content LCA could not retire before a restart. */
     /** `persona` / `suffix`: her current card and profile (names change in onboarding after DSH starts). */
-    open: async (cwd: string, sessionId?: string, trusted = false, degraded: readonly DshSource[] = [], persona?: { persona: string; suffix: string; policy?: DshRootPolicy; allowedTools?: readonly string[] }) => {
+    open: async (cwd: string, sessionId?: string, trusted = false, degraded: readonly DshSource[] = [], persona?: { persona: string; suffix: string; policy?: DshRootPolicy; allowedTools?: readonly string[]; fork?: RecontinueFork; required?: boolean }) => {
       await started
       const id = sessionId ?? `session-${randomUUID()}`
       cancelApprovals(id)

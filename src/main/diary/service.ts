@@ -67,7 +67,14 @@ export function createDiary(options: { clock: Clock; scheduler: Scheduler; store
   options.scheduler.schedule('diary.daily', clock.nowMs() + 10000, () => { void write() }, { everyMs: 60000 })
   return { write, canWrite,
     view: (): DiaryView => ({ status: worker ? 'writing' : !options.model ? 'unconfigured' : failed || unfinishedAttempt() ? 'failed' : 'idle', source: options.model?.source ?? 'none', entries: entries().slice(-100).map((entry) => ({ id: entry.id, dayKey: entry.dayKey, createdAtMs: entry.createdAtMs, unlocked: clock.nowMs() >= readableAt(entry), clue: 'next-bookmark', source: entry.source })) }),
-    read: (id: string): DiaryRead => { const entry = entries().find((diary) => diary.id === id); if (!entry || clock.nowMs() < readableAt(entry)) throw new Error('DIARY_LOCKED'); return { id: entry.id, dayKey: entry.dayKey, key: entry.key, text: decryptDiaryZip(options.assets.read(entry.asset), entry.key), subjective: true } },
+    read: (id: string): DiaryRead => {
+      const entry = entries().find(diary => diary.id === id)
+      if (!entry || clock.nowMs() < readableAt(entry)) throw new Error('DIARY_LOCKED')
+      const allowed = new Set(seenFragments(rows()).map(source => source.id))
+      const archived = entry.sourceIds.some(id => !allowed.has(id))
+      return { id: entry.id, dayKey: entry.dayKey, key: entry.key,
+        text: (archived ? '这篇主观日记引用了后来撤下或失效的对话，保留为当时的记录。\n\n' : '') + decryptDiaryZip(options.assets.read(entry.asset), entry.key), subjective: true }
+    },
     foreground: () => active?.abort(), close: async () => { active?.abort(); options.scheduler.cancel('diary.daily'); await worker }, idle: async () => { await worker },
   }
 }

@@ -77,6 +77,7 @@ export function OldPage({ info, page: loadedPage, failed, older, newer, onTurn, 
             {page.truncated && <p className="old-hint">{copy.history.truncated}</p>}
             {page.messages.map((message) => (
               <Fragment key={message.id}>
+                {message.withdrawn && <p className="old-hint">历史版本 · 已从后续上下文撤下</p>}
                 <OldMessage message={message} canQuote={recallable.has(message.id)} onSelect={(span) => select(message, span)}
                   onQuoteWhole={() => { const quote = whole(message); if (quote) onQuote(quote) }} />
                 {message.failure && <FailureDetails failure={message.failure} />}

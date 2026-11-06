@@ -35,6 +35,27 @@ const resultOf = (seen, id) => seen.results.find((result) => result.callId === i
 const write = (id, content) => ({ tool: 'write', id, args: { file_path: 'note.txt', content } })
 
 const SCENARIOS = {
+  recontinue: {
+    trusted: false, answer: 'rejected', forkAfter: 2, target: 1,
+    turns: ['[[T1]] SAFE_PREFIX ' + 'Safe history. '.repeat(1400), '[[T2]] WITHDRAWN_POISON ' + 'Bad example. '.repeat(1000), '[[T3]] CLEAN_CONTINUATION'],
+    script({ turn, messages, notes }) {
+      if (notes.compacting) return { text: 'WITHDRAWN_POISON contaminated summary.' }
+      if (turn === 3) {
+        const payload = JSON.stringify(messages)
+        notes.noPoison = !payload.includes('WITHDRAWN_POISON')
+        notes.safePrefix = payload.includes('SAFE_PREFIX')
+      }
+      return { text: turn === 2 ? 'WITHDRAWN_POISON response.' : 'Safe reply.' }
+    },
+    check: (seen, notes) => ({ completed: seen.turnEnds.join() === 'completed,completed,completed',
+      forked: !!seen.forked, nativePayloadClean: notes.noPoison === true, prefixKept: notes.safePrefix === true }),
+  },
+  get 'recontinue-compact'() { return { ...this.recontinue, compactAfter: 2 } },
+  get 'recontinue-restart'() { return { ...this.recontinue, restartFork: true } },
+  get 'recontinue-cancel'() { return { ...this.recontinue, cancelSecond: true,
+    check: (seen, notes) => ({ cancelled: seen.turnEnds.join() === 'completed,aborted,completed', forked: !!seen.forked, cleanPrefix: notes.noPoison === true && notes.safePrefix === true }) } },
+  get 'recontinue-first'() { return { ...this.recontinue, target: 0,
+    check: (seen, notes) => ({ completed: seen.turnEnds.length === 3, forked: !!seen.forked, emptyPrefix: notes.noPoison === true && notes.safePrefix === false }) } },
   'compact-auto': {
     trusted: true, answer: 'allowed-once',
     modelMetadata: { contextWindow: 32768, maxTokens: 2048 },
@@ -344,6 +365,7 @@ async function run(name) {
       const turn = marker < 0 ? 0 : Number(textOf(messages[marker].content).match(/\[\[T(\d)\]\]/)[1])
       const last = messages.slice(marker + 1).filter((message) => message.role === 'tool').at(-1)
       const reply = scenario.script({ turn, lastTool: last?.tool_call_id ?? null, toolText: textOf(last?.content), messages, model: request.model, notes })
+      if (scenario.cancelSecond && turn === 2) { res.writeHead(200, { 'content-type': 'text/event-stream' }); res.flushHeaders(); child.send({ t: 'cancel', sessionId }); return }
       if (reply.status) { res.writeHead(reply.status, { 'content-type': 'application/json' }).end(JSON.stringify(reply.body ?? {})); return }
       const base = { id: `mock-${requests}`, object: 'chat.completion.chunk', created: 0, model: 'mock' }
       const send = (choices, extra = {}) => res.write(`data: ${JSON.stringify({ ...base, choices, ...extra })}\n\n`)
@@ -364,6 +386,7 @@ async function run(name) {
   let sessionId
   let restarting = false
   let child
+  const planFork = () => child.send({ t: 'recontinue-plan', ref: 'plan', sessionId, target: { messageId: `fixture-${scenario.target}`, text: scenario.turns[scenario.target] } })
   const launch = () => {
   child = spawn(process.execPath, [cli, '--profile', 'lca'], {
     cwd: work,
@@ -393,8 +416,12 @@ async function run(name) {
         const resumed = !!sessionId
         sessionId = message.sessionId
         seen.root = sessionId
-        if (resumed) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })
-        else child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', ...(scenario.state ? { state: scenario.state } : {}), ...(scenario.policy?.work ? { workRevision: scenario.policy.work.objectiveRevision } : {}), ...(scenario.reference ? { reference: scenario.reference } : {}), ...(scenario.origin ? { origin: scenario.origin } : {}) })
+        if (message.ref === 'fork') {
+          seen.forked = sessionId
+          if (scenario.restartFork) { restarting = true; child.send({ t: 'shutdown' }); break }
+        }
+        if (resumed) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup', eventId: `fixture-${seen.turnEnds.length}` })
+        else child.send({ t: 'send', sessionId, text: scenario.turns[0], mode: 'followup', eventId: 'fixture-0', ...(scenario.state ? { state: scenario.state } : {}), ...(scenario.policy?.work ? { workRevision: scenario.policy.work.objectiveRevision } : {}), ...(scenario.reference ? { reference: scenario.reference } : {}), ...(scenario.origin ? { origin: scenario.origin } : {}) })
         break
       }
       case 'approval':
@@ -412,6 +439,7 @@ async function run(name) {
       case 'compacted':
         seen.compacted = { outcome: message.outcome, rootSessionId: message.rootSessionId }
         notes.compacting = false
+        if (scenario.forkAfter) { planFork(); break }
         child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup', reference: scenario.afterCompactReference })
         break
       case 'state-notice': seen.stateNotices.push(message.reason); break
@@ -426,10 +454,15 @@ async function run(name) {
           child.send({ t: 'compact', sessionId, ref: 'manual-compact', operationId: 'scripted-manual-compact' })
           break
         }
+        if (scenario.forkAfter === seen.turnEnds.length) { planFork(); break }
         // A restart scenario stops DSH after turn 1; the next process resumes the session for the rest.
         if (scenario.restart && seen.turnEnds.length === (scenario.restartAfter ?? 1) && scenario.turns.length > seen.turnEnds.length) { restarting = true; child.send({ t: 'shutdown' }) }
-        else if (seen.turnEnds.length < scenario.turns.length) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup' })
+        else if (seen.turnEnds.length < scenario.turns.length) child.send({ t: 'send', sessionId, text: scenario.turns[seen.turnEnds.length], mode: 'followup', eventId: `fixture-${seen.turnEnds.length}` })
         else child.send({ t: 'shutdown' })
+        break
+      case 'recontinue-plan':
+        child.send({ t: 'open', ref: 'fork', cwd: work, trusted: false, sessionId: `recontinue-${randomUUID()}`, binding: { protocolVersion: 2, runtimeId: 'bridge-check', projectId: 'bridge-project', cwd: work },
+          fork: { sourceId: sessionId, target: { messageId: `fixture-${scenario.target}`, text: scenario.turns[scenario.target] }, plan: message.plan } })
         break
       case 'error': seen.error = message.message; child.send({ t: 'shutdown' }); break
       default: break

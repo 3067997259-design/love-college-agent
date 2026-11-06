@@ -37,6 +37,8 @@ export type ContextMessage = {
 }
 
 export const inputSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('conversation/recontinued'), operationId: id, parentRevision: id, targetMessageId: id,
+    fromSeq: z.number().int().positive(), throughSeq: z.number().int().positive(), sourceRootId: id, nextRootId: id, cwd: z.string().min(1).max(4096) }),
   z.strictObject({ type: z.literal('optical/enabled'), enabled: z.boolean() }),
   z.strictObject({ type: z.literal('optical/frame'), frame: opticalFrame }),
   z.strictObject({ type: z.literal('optical/impression'), impression: opticalImpression }),

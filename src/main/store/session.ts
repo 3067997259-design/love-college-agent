@@ -17,6 +17,8 @@ export interface SessionStore {
   /** Scoped global facts for campus replay. Current-day model context still uses records(). */
   history?(): ReturnType<Journal['records']>
   dayKey?(): string
+  /** Restored saves deliberately retire native runtime identities. */
+  restored?(): boolean
   rotate?(): boolean
   pages?(): { sessionId: string; dayKey: string; records: readonly ReturnType<Journal['records']>[number][] }[]
   append(input: JournalInput): void
@@ -57,6 +59,7 @@ export function openSessionStore(dataDir: string, owner: Pick<Scope, 'userId' | 
       get scope() { return journal.scope }, projection: () => structuredClone(state), records: () => journal.records(),
       history: () => historyRecords(),
       dayKey: () => dayKey,
+      restored: () => resumed?.dayKey === dayKey,
       pages: () => [...history, { dayKey, records: journal.records() }].map((page) => ({ ...page, sessionId: (page.records[0] as Extract<ReturnType<Journal['records']>[number], { type: 'session/header' }>).sessionId })),
       rotate: () => {
         const target = sessionDayKey(clock); if (target <= dayKey) return false

@@ -6,6 +6,8 @@ import { randomUUID } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { installModelSelection } from '@deepseek-ai/dsh-agent'
+import { buildForkSeed, SessionLogOffset } from '@deepseek-ai/dsh-session'
+import { planRecontinue } from './recontinue.js'
 import { SessionPersistenceNotFoundError } from '@deepseek-ai/dsh-session-persistence'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { ReasoningEffortId, createUserMessage } from '@deepseek-ai/dsh-llm'
@@ -217,7 +219,7 @@ export function apply(ctx) {
   // Only LCA decides trust, and only for a project the user granted in the book.
   const presetOf = (session) => ctx.get('permissionPresets')?.current(session) ?? null
 
-  const open = async ({ sessionId, cwd, trusted, binding, resume, policy, allowedTools, persona: sessionPersona = persona, suffix: sessionSuffix = suffix }) => {
+  const open = async ({ sessionId, cwd, trusted, binding, resume, required, policy, allowedTools, fork, persona: sessionPersona = persona, suffix: sessionSuffix = suffix }) => {
     if (binding?.protocolVersion !== 2 || !['runtimeId', 'projectId', 'cwd'].every((key) => typeof binding[key] === 'string' && binding[key]) || canonical(binding.cwd) !== canonical(cwd)) throw new Error('DSH_BINDING_REQUIRED')
     await ctx.get('loader')?.await()
     if (routes && !picked) await pick()
@@ -243,16 +245,31 @@ export function apply(ctx) {
         text: () => statePrompt(states.get(String(id)), models.get(String(id))?.role ?? 'chat', rootPolicies.get(String(id))?.role), interpolate: false })
     }
     const agentOptions = { provider: chat.provider, model: chat.model }
+    let seed
+    if (fork) {
+      const source = live.get(fork.sourceId)
+      if (!source || canonical(source.cwd) !== canonical(cwd) || sessionId === fork.sourceId) throw new Error('RECONTINUE_SOURCE_MISMATCH')
+      const plan = planRecontinue(source.handle.agent.session, fork.target)
+      if (JSON.stringify(plan) !== JSON.stringify(fork.plan)) throw new Error('RECONTINUE_STALE')
+      seed = plan.boundary === null ? [] : buildForkSeed(source.handle.agent.session.snapshotEvents(), plan.boundary)
+    }
+    const create = () => ctx.agents.create({ sessionId: id, meta: { cwd, ...(fork ? { parentSession: brandString(fork.sourceId), isSeeded: true } : {}) },
+      ...(seed ? { seed, inheritedEventCount: SessionLogOffset(seed.length) } : {}), agentOptions, setup })
     // Project switching leaves inactive roots resident. Reuse their handle instead of asking DSH to
     // resume/create a duplicate session id. bind above retires grants without running any member.
     const handle = resident?.handle ?? (sessionId && resume !== false && ctx.get('sessionQuery')
       ? await ctx.agents.resume({ resumeSessionId: id, agentOptions, setup }).catch((error) => {
         // Corrupt/unreadable history is not an absent session. Keep its original
         // error and bytes; never mask it by trying to create the same identity.
-        if (!(error instanceof SessionPersistenceNotFoundError)) throw error
-        return ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup })
+        if (!(error instanceof SessionPersistenceNotFoundError) || required) throw error
+        return create()
       })
-      : await ctx.agents.create({ sessionId: id, meta: { cwd }, agentOptions, setup }))
+      : await create())
+    if (fork && (String(handle.agent.session.header.parentSession) !== fork.sourceId || handle.agent.session.inheritedEventCount !== seed.length ||
+      JSON.stringify(handle.agent.session.snapshotEvents().slice(0, seed.length)) !== JSON.stringify(seed))) {
+      await handle.dispose(); throw new Error('RECONTINUE_CHILD_MISMATCH')
+    }
+    if (fork && !await ctx.sessions.flush(handle.agent.session)) { await handle.dispose(); throw new Error('RECONTINUE_NOT_DURABLE') }
     live.set(String(id), { handle, cwd })
     if (!originOf(handle.agent)) { live.delete(String(id)); bindings.delete(String(id)); await handle.dispose(); throw new Error('DSH_PROJECT_MISMATCH') }
     models.set(String(id), { selection, role: 'chat' })
@@ -511,6 +528,8 @@ export function apply(ctx) {
           // Capture each root's current card before awaiting loader/model/session setup.
           // Concurrent opens must not overwrite another root's pending prompt.
           send({ t: 'session', ref: message.ref, ...(await open(message)) }); break
+        case 'recontinue-plan':
+          send({ t: 'recontinue-plan', ref: message.ref, sessionId: message.sessionId, plan: planRecontinue(agentOf(message.sessionId).session, message.target) }); break
         case 'release': {
           const root = message.sessionId, entry = live.get(root)
           compactions.get(root)?.abort(); safety.cancel(root)

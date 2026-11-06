@@ -2,6 +2,8 @@
 
 本文维护当前架构，不把历史计划当作实现。产品方向见 [README](../README.md)，运行与测试条件见 [开发说明](deployment.md) 和 [测试说明](testing.md)。
 
+当前开发分支的[当天重新继续](recontinue.md)使用 DSH 原生日志前缀和 append-only 版本事件。新根持久化后切换有效投影，同步约束上下文、召回、摘要依赖与工作决定；原始历史及已执行事实保留。
+
 ## 进程与模块
 
 Electron 主进程拥有事实、权限、连接和持久化；React 渲染层显示安全投影，preload 只暴露白名单能力。窗口使用 contextIsolation 与 sandbox，不给 renderer Node 或任意文件系统能力。

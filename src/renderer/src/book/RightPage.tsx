@@ -75,7 +75,17 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
   const entering = useEnteringIds(snapshot)
   const streamRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const [draft, setDraft] = useState('')
+  const [draft, setDraft] = useState(snapshot.recontinue?.completed?.draft ?? '')
+  const continued = useRef(snapshot.recontinue?.completed?.operationId)
+  const [archive, setArchive] = useState<MessageView[] | null>(null)
+  const continuing = snapshot.recontinue?.phase === 'committing' || snapshot.recontinue?.phase === 'previewing'
+  useEffect(() => {
+    const result = snapshot.recontinue?.completed
+    if (!result || continued.current === result.operationId) return
+    continued.current = result.operationId
+    // Preserve any draft written while the IPC receipt was travelling.
+    setDraft(current => current.trim() ? current + '\n\n' + result.draft : result.draft)
+  }, [snapshot.recontinue?.completed])
   const [sending, setSending] = useState(false)
   const [commandError, setCommandError] = useState('')
   const [slashIndex, setSlashIndex] = useState(0)
@@ -188,7 +198,12 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
           switch (item.kind) {
             case 'message': {
               const failure = item.view.failure
-              if (!failure) return <Message key={item.id} view={item.view} />
+              if (!failure) return <div key={item.id}><Message view={item.view} />
+                {snapshot.recontinue && item.view.role === 'user' && !item.view.kind && <button type="button" className="link-button recontinue-action"
+                  disabled={continuing || !!draft.trim() || !!quote || snapshot.session?.rolloverPending}
+                  title={draft.trim() || quote ? '请先处理输入框中的草稿或引用' : undefined}
+                  onClick={() => { void dispatch({ type: 'recontinue.preview', sessionId: snapshot.scope.sessionId, messageId: item.id, revision: snapshot.recontinue!.revision }) }}>从这里重新继续</button>}
+              </div>
               // 失败旁白：书的旁白，不是她说的话；和原因、带回原请求放在一块
               const source = failure.sourceMessageId ? messages.find((message) => message.role === 'user' && message.id === failure.sourceMessageId) : undefined
               return (
@@ -230,6 +245,21 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
         {commandError && <Notice>{commandError}</Notice>}
       </div>
       <FileIntake snapshot={snapshot} bridge={bridge} />
+      {snapshot.recontinue?.revision !== undefined && snapshot.recontinue.revision !== 'initial' && <button type="button" className="link-button" onClick={() => {
+        if (archive) { setArchive(null); return }
+        void bridge.readSession?.(snapshot.scope.sessionId).then(page => setArchive(page.messages.filter(message => message.withdrawn)), () => setCommandError('历史版本暂时无法读取。'))
+      }}>{archive ? '收起历史版本' : '查看今天撤下的内容'}</button>}
+      {archive && <aside className="recontinue-archive" aria-label="历史版本"><p>以下内容仅作留档，不再进入上下文和记忆召回。</p>{archive.map(message => <Message key={message.id} view={message} />)}</aside>}
+      {snapshot.recontinue?.phase === 'ready' && snapshot.recontinue.preview && <section className="recontinue-preview" role="dialog" aria-label="从这里重新继续">
+        <p>从这条消息之前重新继续，将撤下 {snapshot.recontinue.preview.messages} 条消息，并排除相关记忆及摘要。</p>
+        <blockquote>{snapshot.recontinue.preview.text.slice(0, 500)}</blockquote>
+        <p>涉及 {snapshot.recontinue.preview.memories} 条已抽取记忆、{snapshot.recontinue.preview.works} 项关联工作、{snapshot.recontinue.preview.effects} 条已记录执行结果。正在运行的工作会停止；文件和已执行动作不会撤销。</p>
+        <p>原文保留为历史版本，这条消息会放回输入框，由你修改后发送。</p>
+        <button type="button" className="btn btn-primary btn-small" disabled={!!draft.trim() || !!quote} onClick={() => { void dispatch({ type: 'recontinue.commit', previewId: snapshot.recontinue!.preview!.id }) }}>确认重新继续</button>
+        <button type="button" className="link-button" onClick={() => { void dispatch({ type: 'recontinue.cancel' }) }}>取消</button>
+      </section>}
+      {continuing && <p role="status">{snapshot.recontinue?.phase === 'committing' ? '正在停止旧回合并准备继续位置……' : '正在核对切点和影响范围……'}</p>}
+      {snapshot.recontinue?.error && <p role="alert">{snapshot.recontinue.error}</p>}
       <Starters snapshot={snapshot} say={(text) => { pinned.current = true; void dispatch({ type: 'message.send', text }) }} pickProject={() => { void dispatch({ type: 'project.pick' }) }} />
       <footer className="composer">
         <ProjectChip snapshot={snapshot} bridge={bridge} />
@@ -245,7 +275,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
         {privacy.fileFilteringEnabled && <span className="filter-mark" title="隐私保护中：附件和拖进来的文件先经隐私模型处理">隐私保护中</span>}
         <textarea
           ref={inputRef}
-          className="composer-input" rows={1} value={draft} placeholder={quote ? book.history.placeholder : '写点什么……'}
+          className="composer-input" rows={1} value={draft} readOnly={continuing} placeholder={quote ? book.history.placeholder : '写点什么……'}
           onChange={(e) => { setDraft(e.target.value); setSlashHidden(false); setSlashIndex(0) }}
           onKeyDown={(e) => {
             if (slashOpen) {
@@ -260,7 +290,7 @@ export function RightPage({ snapshot, bridge, hidden = false, onOpenShelf, onOpe
         {task && (task.status === 'running' || task.status === 'queued' || task.status === 'waiting-user')
           ? <button className="btn btn-ghost" onClick={() => { void dispatch({ type: 'turn.stop', taskId: task.id }) }}>停止</button>
           : null}
-        <button className="btn btn-primary" onClick={() => { void send() }} disabled={!draft.trim() || sending || (!!quote && recalling)}>发送</button>
+        <button className="btn btn-primary" onClick={() => { void send() }} disabled={!draft.trim() || sending || continuing || (!!quote && recalling)}>发送</button>
       </footer>
       {pomodoro.phase === 'focus' && <div className="focus-veil" aria-hidden />}
     </section>

@@ -63,6 +63,7 @@ export function createRootHost(options: { dataDir: string; launch?: typeof start
       },
       available: () => !lease.closed && running.available(),
       send: (id, ...args) => { owns(id); return running.send(id, ...args) },
+      recontinuePlan: (id, target) => { owns(id); return running.recontinuePlan(id, target) },
       state: (id, state) => { owns(id); return running.state(id, state) },
       workRevision: (id, revision) => { owns(id); return running.workRevision(id, revision) },
       deliverWork: (id, input) => { owns(id); return running.deliverWork(id, input) },
