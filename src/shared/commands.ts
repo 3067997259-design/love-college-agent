@@ -18,6 +18,8 @@ export type AppCommand = CommandEnvelope & (
   | MemorySettingsCommand
   | import('./recontinue').RecontinueCommand
   | { type: 'message.send'; text: string }
+  | { type: 'message.retry'; messageId: string }
+  | { type: 'reply.feedback'; messageId: string; verdict: 'good' | 'bad' }
   | { type: 'turn.stop'; taskId: string }
   | { type: 'voice.set'; enabled: boolean }
   /** Booth book only. Integer reservations: total 10000..5000000, autonomous 0..total.

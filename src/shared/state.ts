@@ -138,6 +138,8 @@ export interface MessageView {
   failure?: ModelFailureView
   /** An approval LCA asked on her behalf (DSH permissions), and the user's chosen answer: not her words or a typed line. */
   kind?: 'approval' | 'approval-answer'
+  /** The user's latest memory-source verdict for one of her replies. */
+  feedback?: 'good' | 'bad'
 }
 export interface ModelFailureView {
   turnId: string

@@ -37,8 +37,9 @@ export type ContextMessage = {
 }
 
 export const inputSchema = z.discriminatedUnion('type', [
-  z.strictObject({ type: z.literal('conversation/recontinued'), operationId: id, parentRevision: id, targetMessageId: id,
+  z.strictObject({ type: z.literal('conversation/recontinued'), operationId: id, parentRevision: id, targetMessageId: id, mode: z.enum(['manual', 'retry']).optional(),
     fromSeq: z.number().int().positive(), throughSeq: z.number().int().positive(), sourceRootId: id, nextRootId: id, cwd: z.string().min(1).max(4096) }),
+  z.strictObject({ type: z.literal('conversation/recontinue-undone'), operationId: id }),
   z.strictObject({ type: z.literal('optical/enabled'), enabled: z.boolean() }),
   z.strictObject({ type: z.literal('optical/frame'), frame: opticalFrame }),
   z.strictObject({ type: z.literal('optical/impression'), impression: opticalImpression }),
@@ -154,6 +155,7 @@ export const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('turn/resumed'), turnId: id }),
   z.strictObject({ type: z.literal('turn/end'), turnId: id, reason: z.enum(['completed', 'aborted', 'max-steps', 'loop', 'budget', 'error']), error: publicError.optional() }),
   z.strictObject({ type: z.literal('assistant/message'), id, turnId: id, text, status: z.enum(['complete', 'interrupted']), displayOnly: z.boolean().optional(), delivery: z.enum(['immediate', 'rest']).optional(), toolCalls: z.array(toolCall).max(16).optional() }),
+  z.strictObject({ type: z.literal('reply/feedback'), id, messageId: id, turnId: id, verdict: z.enum(['good', 'bad']) }),
   z.strictObject({ type: z.literal('narrator/failure'), id, turnId: id, text: z.string().min(1).max(1000), failure: failureViewSchema, delivery: z.enum(['immediate', 'rest']).optional() }).refine((row) => row.turnId === row.failure.turnId),
   z.strictObject({ type: z.literal('question/requested'), id: z.string().uuid(), turnId: id, callId: id, flowId: id.optional(), question: z.string().min(1).max(480), choices: z.array(z.string().min(1).max(120)).max(3),
     /** Her questions at once (DSH ask_user_question, from 1.1); `question` is the first of them. */
