@@ -4,7 +4,7 @@
 
 - 角色卡去掉照抄真实对话的整段正反示例，改成只描述句式的微距对照：随口应声、吐槽累又客套收住、只回“还好/没事”三种情形。明确“示例只体会结构，严禁照搬词句；如果当前对话和示例相似，不要回头重答，也不要补交标准答案”，这样既收住客服腔，也不会再把旧回复当错题重抄一遍。
 - DSH 会话增加人设指纹：`dsh-sessions.json` 记录角色卡、档案层与尾置提醒的 SHA-256；启动或下一次发送时发现指纹和缓存不符，旧 root 不再恢复，直接新开根，避免旧 system prompt 留在会话头部；今天已发生的对话以 `earlierToday` 引用带进新根。旧版本没有指纹的会话会一次性新开。
-- 验证：类型检查、lint、构建通过；单元 1034 通过、8 跳过；`smoke-recontinue`、`smoke-state-routing`、`smoke-onboarding` 通过。未打新安装包，安装版仍是 `1.2.0-recontinue.4`。
+- 验证：类型检查、lint、构建通过；单元 1035 通过、8 跳过；`smoke-recontinue`、`smoke-state-routing`、`smoke-onboarding` 通过。未打新安装包，安装版仍是 `1.2.0-recontinue.4`。
 
 ## 当天从这里重新继续 — 未发布
 
@@ -184,3 +184,4 @@
 - 工具编号复用、资料时限与失败分类修复。
 
 [版本详情与验证范围](docs/releases/0.1.10.md) · [全部 Releases](https://github.com/3067997259-design/love-college-agent/releases)
+

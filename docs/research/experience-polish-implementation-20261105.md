@@ -231,5 +231,6 @@
 - 查 DSH 运行时：LCA 的自定义 `lca-chat` 路由是 `openai-completions`，没有声明 `systemPromptUpdate: 'in-history'`；恢复会话时 `SystemPromptProjection.project()` 会替换第 0 条 system。用合成 OpenAI 兼容服务实测：第一次请求 system 里是旧档案名，重启并改名后的第二个请求只含新名字，system 消息仍只有一条。所以“恢复会话把 prompt 冻住”并不适用于当前路由；真正的问题是卡里仍是带真实原话的 few-shot，且 `persona` 只在 `open` 时取一次。
 - 角色卡：去掉两段真实对话的正反示例，改成三条只描述句式的微距对照（随口应声、吐槽累又客套收住、只回“还好/没事”），并写明“示例只体会结构，严禁照搬词句；如果当前对话和示例相似，不要回头重答，也不要补交标准答案”。
 - 会话层：`dsh-sessions.json` 的每条记录增加 `persona`（`options.persona()` 与 `suffix` 的 SHA-256）。`ensureSession` 在发送前比对；指纹变化时不再恢复旧 root，而是新开根，今天已有的对话通过 `earlierToday` 引用进入新根。`openSession`、重继续、撤销重继续写入缓存时都保留指纹；旧版本没有指纹的会话会一次性新开。这样即使未来换到声明 `in-history` 的模型，也不会把旧 prompt 留在最前。
-- 验证：`pnpm typecheck`、`pnpm lint`、`pnpm build` 通过；`vitest` 147 个文件、1034 项通过、8 项跳过；`smoke-recontinue`、`smoke-state-routing`、`smoke-onboarding` 通过。新增单元用例覆盖“改人设后新开根并带上今天早些时候的对话”和“旧版无指纹会话不恢复”。
+- 验证：`pnpm typecheck`、`pnpm lint`、`pnpm build` 通过；`vitest` 147 个文件、1035 项通过、8 项跳过；`smoke-recontinue`、`smoke-state-routing`、`smoke-onboarding` 通过。新增单元用例覆盖“改人设后新开根并带上今天早些时候的对话”和“旧版无指纹会话不恢复”。
 - 未做：未打新安装包，安装版仍是 `1.2.0-recontinue.4`；真实模型对照与 Text Arena 还未跑。
+
